@@ -36,3 +36,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Node modules ###
+/node_modules/
+/pnpm-lock.yaml
+/package-lock.json
+
+### Vaadin ###
+/.vaadin/
+./src/main/frontend/generated/
