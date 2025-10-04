@@ -16,13 +16,14 @@ public class Scheduler {
             NordpoolDataPortalService nordpoolDataPortalService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
+        // nordpoolDataPortalService.fetchData();
     }
 
     @Scheduled(cron = "0 30 14 * * *", zone = "Europe/Helsinki")
     public void fetchNordpoolDataDaily() {
         try {
-            // NordpoolResponse response = nordpoolDataPortalService.fetchData();
-            // log.info("Nordpool day ahead data fetched and saved successfully: {}", response);
+            NordpoolResponse response = nordpoolDataPortalService.fetchData();
+            log.info("Nordpool day ahead data fetched and saved successfully: {}", response);
         } catch (Exception e) {
             log.error("Error fetching Nordpool data", e);
         }

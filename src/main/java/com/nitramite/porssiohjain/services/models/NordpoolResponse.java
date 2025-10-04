@@ -2,6 +2,7 @@ package com.nitramite.porssiohjain.services.models;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -30,7 +31,7 @@ public class NordpoolResponse {
     public static class MultiIndexEntry {
         private Instant deliveryStart;
         private Instant deliveryEnd;
-        private Map<String, Double> entryPerArea;
+        private Map<String, BigDecimal> entryPerArea;
     }
 
 }
