@@ -21,7 +21,7 @@ CREATE TABLE device
     id                 BIGSERIAL PRIMARY KEY,
     uuid               UUID         NOT NULL UNIQUE,
     device_name        VARCHAR(255) NOT NULL,
-    last_communication TIMESTAMP    NOT NULL,
+    last_communication TIMESTAMP DEFAULT NULL,
     created_at         TIMESTAMP    NOT NULL,
     updated_at         TIMESTAMP    NOT NULL,
     account_id         BIGINT       NOT NULL,

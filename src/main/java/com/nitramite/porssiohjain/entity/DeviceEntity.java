@@ -25,7 +25,7 @@ public class DeviceEntity {
     @Column(nullable = false)
     private String deviceName;
 
-    @Column(name = "last_communication", nullable = false)
+    @Column(name = "last_communication")
     private Instant lastCommunication;
 
     @Column(name = "created_at", nullable = false, updatable = false)

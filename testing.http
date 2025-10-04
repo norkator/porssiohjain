@@ -1,0 +1,12 @@
+### Create account
+POST http://localhost:8080/account
+Content-Type: application/json
+
+### Create device for account
+POST http://localhost:8080/device/create/1
+Content-Type: application/json
+
+{
+  "deviceName": "Shelly Pro 3"
+}
+
