@@ -16,6 +16,17 @@ CREATE TABLE account
     updated_at TIMESTAMP   NOT NULL
 );
 
+CREATE TABLE account_token
+(
+    id         BIGSERIAL PRIMARY KEY,
+    token      VARCHAR(255) NOT NULL UNIQUE,
+    account_id BIGINT       NOT NULL REFERENCES account (id) ON DELETE CASCADE,
+    expires_at TIMESTAMP    NOT NULL
+);
+
+-- index on account_id for faster lookups
+CREATE INDEX idx_account_token_account_id ON account_token (account_id);
+
 CREATE TABLE device
 (
     id                 BIGSERIAL PRIMARY KEY,

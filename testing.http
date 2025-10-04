@@ -1,10 +1,20 @@
 ### Create account
-POST http://localhost:8080/account
+POST http://localhost:8080/account/create
 Content-Type: application/json
+
+### Login into account
+POST http://localhost:8080/account/login
+Content-Type: application/json
+
+{
+  "uuid": "{{uuid}}",
+  "secret": "{{secret}}"
+}
 
 ### Create device for account
 POST http://localhost:8080/device/create/1
 Content-Type: application/json
+Authorization: {{token}}
 
 {
   "deviceName": "Shelly Pro 3"
