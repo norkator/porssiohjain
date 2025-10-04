@@ -44,4 +44,4 @@ out/
 
 ### Vaadin ###
 /.vaadin/
-./src/main/frontend/generated/
+/src/main/frontend/generated/*
