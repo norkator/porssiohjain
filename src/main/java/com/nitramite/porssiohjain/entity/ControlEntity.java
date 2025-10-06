@@ -3,6 +3,7 @@ package com.nitramite.porssiohjain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
 
@@ -22,12 +23,15 @@ public class ControlEntity {
     @Column(nullable = false)
     private String name;
 
-    @Column(name = "max_price_snt", nullable = false)
-    private Integer maxPriceSnt;
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "account_id", nullable = false)
     private AccountEntity account;
+
+    @Column(name = "max_price_snt", nullable = false)
+    private BigDecimal maxPriceSnt;
+
+    @Column(name = "daily_on_minutes", nullable = false)
+    private Integer dailyOnMinutes;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

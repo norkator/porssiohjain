@@ -1,0 +1,99 @@
+package com.nitramite.porssiohjain.contollers;
+
+import com.nitramite.porssiohjain.auth.RequireAuth;
+import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
+import com.nitramite.porssiohjain.entity.ControlEntity;
+import com.nitramite.porssiohjain.services.ControlService;
+import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
+import com.nitramite.porssiohjain.services.models.CreateControlRequest;
+import com.nitramite.porssiohjain.services.models.UpdateControlRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/control")
+@RequiredArgsConstructor
+public class ControlController {
+
+    private final ControlService controlService;
+
+    @RequireAuth
+    @PostMapping("/create")
+    public ControlEntity createControl(
+            @RequestBody CreateControlRequest request
+    ) {
+        return controlService.createControl(
+                request.getAccountId(),
+                request.getName(),
+                request.getMaxPriceSnt(),
+                request.getDailyOnMinutes()
+        );
+    }
+
+    @RequireAuth
+    @PutMapping("/update/{id}")
+    public ControlEntity updateControl(
+            @PathVariable Long id,
+            @RequestBody UpdateControlRequest request
+    ) {
+        return controlService.updateControl(
+                id,
+                request.getName(),
+                request.getMaxPriceSnt(),
+                request.getDailyOnMinutes()
+        );
+    }
+
+    @RequireAuth
+    @DeleteMapping("/delete/{id}")
+    public void deleteControl(
+            @PathVariable Long id
+    ) {
+        controlService.deleteControl(id);
+    }
+
+    @RequireAuth
+    @GetMapping
+    public List<ControlEntity> getAllControls() {
+        return controlService.getAllControls();
+    }
+
+    @RequireAuth
+    @PostMapping("/{controlId}/create/device")
+    public ControlDeviceResponse addDeviceToControl(
+            @PathVariable Long controlId,
+            @RequestParam Long deviceId,
+            @RequestParam Integer deviceChannel
+    ) {
+        return controlService.addDeviceToControl(controlId, deviceId, deviceChannel);
+    }
+
+    @RequireAuth
+    @PutMapping("/update/device/{id}")
+    public ControlDeviceResponse updateControlDevice(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long deviceId,
+            @RequestParam(required = false) Integer deviceChannel
+    ) {
+        return controlService.updateControlDevice(id, deviceId, deviceChannel);
+    }
+
+    @RequireAuth
+    @DeleteMapping("/delete/device/{id}")
+    public void deleteControlDevice(
+            @PathVariable Long id
+    ) {
+        controlService.deleteControlDevice(id);
+    }
+
+    @RequireAuth
+    @GetMapping("/{controlId}/devices")
+    public List<ControlDeviceEntity> getDevicesByControl(
+            @PathVariable Long controlId
+    ) {
+        return controlService.getDevicesByControl(controlId);
+    }
+
+}

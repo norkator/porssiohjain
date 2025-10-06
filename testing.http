@@ -20,3 +20,20 @@ Authorization: {{token}}
   "deviceName": "Shelly Pro 3"
 }
 
+### Create control for account
+POST http://localhost:8080/control/create
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "accountId": 1,
+  "name": "Test control 1",
+  "maxPriceSnt": 8.5,
+  "dailyOnMinutes": 120
+}
+
+### Link device to control
+POST http://localhost:8080/control/1/create/device?deviceId=1&deviceChannel=1
+Content-Type: application/json
+Authorization: {{token}}
+

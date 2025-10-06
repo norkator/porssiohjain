@@ -41,12 +41,13 @@ CREATE TABLE device
 
 CREATE TABLE control
 (
-    id            BIGSERIAL PRIMARY KEY,
-    name          VARCHAR(255) NOT NULL,
-    max_price_snt INT          NOT NULL,
-    account_id    BIGINT       NOT NULL,
-    created_at    TIMESTAMP    NOT NULL,
-    updated_at    TIMESTAMP    NOT NULL,
+    id               BIGSERIAL PRIMARY KEY,
+    name             VARCHAR(255)   NOT NULL,
+    account_id       BIGINT         NOT NULL,
+    max_price_snt    NUMERIC(10, 4) NOT NULL,
+    daily_on_minutes INT            NOT NULL,
+    created_at       TIMESTAMP      NOT NULL,
+    updated_at       TIMESTAMP      NOT NULL,
     CONSTRAINT fk_control_account FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE CASCADE
 );
 
