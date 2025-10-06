@@ -15,7 +15,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -143,6 +146,25 @@ public class ControlService {
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
 
         return control.getControlDevices().stream().toList();
+    }
+
+    /**
+     * Returns control channels and control status for each defined device channel
+     *
+     * @param deviceUuid of device
+     * @return channel status map of {"1":0,"2":0,...}
+     */
+    public Map<Integer, Integer> getControlsForDevice(String deviceUuid) {
+        DeviceEntity device = deviceRepository.findByUuid(UUID.fromString(deviceUuid))
+                .orElseThrow(() -> new EntityNotFoundException("Device not found: " + deviceUuid));
+
+        List<ControlDeviceEntity> controlDevices = controlDeviceRepository.findByDevice(device);
+        Map<Integer, Integer> channelMap = new HashMap<>();
+        for (ControlDeviceEntity cd : controlDevices) {
+            channelMap.put(cd.getDeviceChannel(), 0); // todo add logic for control statuses
+        }
+
+        return channelMap;
     }
 
 }

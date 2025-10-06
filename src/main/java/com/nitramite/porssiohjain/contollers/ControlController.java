@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/control")
@@ -18,6 +19,13 @@ import java.util.List;
 public class ControlController {
 
     private final ControlService controlService;
+
+    @GetMapping("/{deviceUuid}")
+    public Map<Integer, Integer> controlsForDevice(
+            @PathVariable String deviceUuid
+    ) {
+        return controlService.getControlsForDevice(deviceUuid);
+    }
 
     @RequireAuth
     @PostMapping("/create")

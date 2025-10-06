@@ -37,3 +37,8 @@ POST http://localhost:8080/control/1/create/device?deviceId=1&deviceChannel=1
 Content-Type: application/json
 Authorization: {{token}}
 
+
+### Get control statuses for device with uuid
+GET http://localhost:8080/control/28217a08-df0b-4d21-b2b8-66a321cc6658
+Content-Type: application/json
+
