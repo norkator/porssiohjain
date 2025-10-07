@@ -163,20 +163,25 @@ public class ControlService {
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
-
         Set<ControlDeviceEntity> controlDeviceEntities = control.getControlDevices();
-
         return controlDeviceEntities.stream()
                 .map(entity -> ControlDeviceResponse.builder()
                         .id(entity.getId())
+                        .controlId(control.getId())
+                        .deviceId(entity.getDevice().getId())
                         .deviceChannel(entity.getDeviceChannel())
                         .device(
                                 DeviceResponse.builder()
+                                        .id(entity.getDevice().getId())
                                         .uuid(entity.getDevice().getUuid())
                                         .deviceName(entity.getDevice().getDeviceName())
+                                        .lastCommunication(entity.getDevice().getLastCommunication())
+                                        .createdAt(entity.getDevice().getCreatedAt())
+                                        .updatedAt(entity.getDevice().getUpdatedAt())
                                         .build()
                         )
                         .build())
+                .sorted(Comparator.comparing(ControlDeviceResponse::getDeviceChannel))
                 .toList();
     }
 

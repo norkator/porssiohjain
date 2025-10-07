@@ -47,6 +47,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         add(new H2("Device Controls"));
 
         // Configure controls grid
+        controlsGrid.getStyle().set("max-height", "200px");
         controlsGrid.addColumn(ControlResponse::getId).setHeader("ID").setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getName).setHeader("Name").setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getMaxPriceSnt).setHeader("Max Price (snt)").setAutoWidth(true);
@@ -118,6 +119,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
     private void configureDeviceGrid(ControlResponse control) {
         deviceGrid.removeAllColumns();
+        deviceGrid.getStyle().set("max-height", "250px");
         deviceGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader("Device Name").setAutoWidth(true);
         deviceGrid.addColumn(ControlDeviceResponse::getDeviceChannel).setHeader("Channel").setAutoWidth(true);
         deviceGrid.addColumn(cd -> cd.getDevice().getUuid()).setHeader("UUID").setAutoWidth(true);
