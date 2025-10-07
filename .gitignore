@@ -46,3 +46,4 @@ http-client.private.env.json
 ### Vaadin ###
 /.vaadin/
 /src/main/frontend/generated/*
+target/dev-bundle/*
