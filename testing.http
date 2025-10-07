@@ -32,6 +32,11 @@ Authorization: {{token}}
   "dailyOnMinutes": 120
 }
 
+### Get all controls for account
+GET http://localhost:8080/control/controls
+Content-Type: application/json
+Authorization: {{token}}
+
 ### Link device to control
 POST http://localhost:8080/control/1/create/device?deviceId=1&deviceChannel=1
 Content-Type: application/json

@@ -9,16 +9,15 @@ import com.nitramite.porssiohjain.entity.repository.ControlDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
+import com.nitramite.porssiohjain.services.models.ControlResponse;
+import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -67,8 +66,19 @@ public class ControlService {
         controlRepository.deleteById(controlId);
     }
 
-    public List<ControlEntity> getAllControls() {
-        return controlRepository.findAll();
+    public List<ControlResponse> getAllControls() {
+        List<ControlEntity> controlEntities = controlRepository.findAll();
+
+        return controlEntities.stream()
+                .map(entity -> ControlResponse.builder()
+                        .id(entity.getId())
+                        .name(entity.getName())
+                        .maxPriceSnt(entity.getMaxPriceSnt())
+                        .dailyOnMinutes(entity.getDailyOnMinutes())
+                        .createdAt(entity.getCreatedAt())
+                        .updatedAt(entity.getUpdatedAt())
+                        .build())
+                .toList();
     }
 
 
@@ -146,6 +156,28 @@ public class ControlService {
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
 
         return control.getControlDevices().stream().toList();
+    }
+
+    public List<ControlDeviceResponse> getControlDevices(
+            Long controlId
+    ) {
+        ControlEntity control = controlRepository.findById(controlId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+
+        Set<ControlDeviceEntity> controlDeviceEntities = control.getControlDevices();
+
+        return controlDeviceEntities.stream()
+                .map(entity -> ControlDeviceResponse.builder()
+                        .id(entity.getId())
+                        .deviceChannel(entity.getDeviceChannel())
+                        .device(
+                                DeviceResponse.builder()
+                                        .uuid(entity.getDevice().getUuid())
+                                        .deviceName(entity.getDevice().getDeviceName())
+                                        .build()
+                        )
+                        .build())
+                .toList();
     }
 
     /**

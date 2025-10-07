@@ -10,4 +10,5 @@ public class ControlDeviceResponse {
     private Long controlId;
     private Long deviceId;
     private Integer deviceChannel;
+    private DeviceResponse device;
 }

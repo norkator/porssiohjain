@@ -5,6 +5,7 @@ import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
+import com.nitramite.porssiohjain.services.models.ControlResponse;
 import com.nitramite.porssiohjain.services.models.CreateControlRequest;
 import com.nitramite.porssiohjain.services.models.UpdateControlRequest;
 import lombok.RequiredArgsConstructor;
@@ -63,8 +64,8 @@ public class ControlController {
     }
 
     @RequireAuth
-    @GetMapping
-    public List<ControlEntity> getAllControls() {
+    @GetMapping("/controls")
+    public List<ControlResponse> getAllControls() {
         return controlService.getAllControls();
     }
 
