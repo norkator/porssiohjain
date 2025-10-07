@@ -11,19 +11,23 @@ import com.vaadin.flow.router.Route;
 public class HomeView extends VerticalLayout {
 
     public HomeView() {
-        add(new H1("Welcome to your new application"));
+        add(new H1("Welcome to Pörssiohjain"));
         add(new Paragraph("This is the home view"));
 
         // Navigation buttons
-        Button loginButton = new Button("Go to Login", e ->
+        Button loginButton = new Button("Login", e ->
                 UI.getCurrent().navigate(LoginView.class)
         );
 
-        Button controlButton = new Button("Go to Controls", e ->
+        Button devicesButton = new Button("My devices", e ->
+                UI.getCurrent().navigate(DeviceView.class)
+        );
+
+        Button controlsButton = new Button("My Controls", e ->
                 UI.getCurrent().navigate(ControlView.class)
         );
 
-        add(loginButton, controlButton);
+        add(loginButton, devicesButton, controlsButton);
     }
 
 }
