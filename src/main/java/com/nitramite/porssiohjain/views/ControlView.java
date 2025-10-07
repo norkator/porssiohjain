@@ -4,6 +4,7 @@ import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.ControlResponse;
+import com.nitramite.porssiohjain.services.models.ControlTableResponse;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -32,6 +33,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     private final Grid<ControlResponse> controlsGrid = new Grid<>(ControlResponse.class, false);
     private final Div detailCard = new Div();
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
+    private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
 
     private final ControlService controlService;
     private final DeviceService deviceService;
@@ -115,6 +117,17 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
         // Load devices
         loadControlDevices(control.getId());
+
+        Div hr = new Div();
+        hr.getStyle()
+                .set("width", "100%")
+                .set("height", "1px")
+                .set("background-color", "var(--lumo-contrast-20pct)")
+                .set("margin", "1rem 0");
+        detailCard.add(hr);
+
+        configureControlTableGrid(control);
+        detailCard.add(new H3("Control table"), controlTableGrid);
     }
 
     private void configureDeviceGrid(ControlResponse control) {
@@ -190,6 +203,10 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         });
 
         return new HorizontalLayout(deviceSelect, channelField, addButton);
+    }
+
+    private void configureControlTableGrid(ControlResponse control) {
+
     }
 
     @Override
