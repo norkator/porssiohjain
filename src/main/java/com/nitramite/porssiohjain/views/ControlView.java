@@ -1,6 +1,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.services.ControlService;
+import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.ControlResponse;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
@@ -33,10 +34,15 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
 
     private final ControlService controlService;
+    private final DeviceService deviceService;
 
     @Autowired
-    public ControlView(ControlService controlService) {
+    public ControlView(
+            ControlService controlService,
+            DeviceService deviceService
+    ) {
         this.controlService = controlService;
+        this.deviceService = deviceService;
 
         add(new H2("Device Controls"));
 
@@ -54,8 +60,8 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
                 .set("border", "1px solid var(--lumo-contrast-20pct)")
                 .set("border-radius", "8px")
                 .set("padding", "1rem")
-                .set("margin-top", "1rem")
-                .set("min-height", "100px");
+                .setWidth("90%")
+                .set("margin-top", "1rem");
 
         loadControls();
 
@@ -88,12 +94,12 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         // Title and summary
         detailCard.add(
                 new H2("Control details"),
-                new Paragraph("ID: " + control.getId()),
+                // new Paragraph("ID: " + control.getId()),
                 new Paragraph("Name: " + control.getName()),
-                new Paragraph("Max price: " + control.getMaxPriceSnt() + " snt"),
-                new Paragraph("Daily on minutes: " + control.getDailyOnMinutes()),
-                new Paragraph("Created: " + control.getCreatedAt()),
-                new Paragraph("Updated: " + control.getUpdatedAt()),
+                // new Paragraph("Max price: " + control.getMaxPriceSnt() + " snt"),
+                // new Paragraph("Daily on minutes: " + control.getDailyOnMinutes()),
+                // new Paragraph("Created: " + control.getCreatedAt()),
+                // new Paragraph("Updated: " + control.getUpdatedAt()),
                 new H3("Devices linked to this control:")
         );
 
@@ -143,14 +149,16 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         }
     }
 
-    private HorizontalLayout createAddDeviceLayout(Long controlId) {
+    private HorizontalLayout createAddDeviceLayout(
+            Long controlId
+    ) {
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>("Select Device");
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
 
         // Load available devices
         try {
-            // List<DeviceResponse> devices = controlService.getAllDevices(); // <-- assumes you have this method
-            // deviceSelect.setItems(devices);
+            List<DeviceResponse> devices = deviceService.getAllDevices(controlId);
+            deviceSelect.setItems(devices);
         } catch (Exception e) {
             Notification.show("Failed to load devices: " + e.getMessage());
         }
