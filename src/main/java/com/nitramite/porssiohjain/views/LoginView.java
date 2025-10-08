@@ -40,7 +40,7 @@ public class LoginView extends VerticalLayout {
                 VaadinSession.getCurrent().setAttribute("expiresAt", response.getExpiresAt());
 
                 Notification.show("Login successful");
-                UI.getCurrent().navigate(ControlView.class);
+                UI.getCurrent().navigate(HomeView.class);
 
             } catch (Exception e) {
                 Notification.show("Login failed: " + e.getMessage());

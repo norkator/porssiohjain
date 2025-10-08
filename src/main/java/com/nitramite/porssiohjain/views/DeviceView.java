@@ -12,6 +12,8 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
@@ -22,7 +24,7 @@ import java.util.List;
 
 @Route("device")
 @PermitAll
-public class DeviceView extends VerticalLayout {
+public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<DeviceResponse> deviceGrid = new Grid<>(DeviceResponse.class, false);
     private final DeviceService deviceService;
@@ -115,6 +117,14 @@ public class DeviceView extends VerticalLayout {
         });
 
         return new HorizontalLayout(nameField, timezoneCombo, addButton);
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        String token = (String) VaadinSession.getCurrent().getAttribute("token");
+        if (token == null) {
+            event.forwardTo(LoginView.class);
+        }
     }
 
 }
