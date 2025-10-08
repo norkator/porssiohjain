@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +26,9 @@ public class ControlSchedulerService {
     private final ControlRepository controlRepository;
     private final ControlTableRepository controlTableRepository;
 
-    public List<ControlTableResponse> findByControlId(Long controlId) {
+    public List<ControlTableResponse> findByControlId(
+            Long controlId
+    ) {
         return controlTableRepository.findByControlId(controlId).stream()
                 .map(this::toResponse)
                 .toList();
@@ -84,30 +87,20 @@ public class ControlSchedulerService {
 
         // 2. For each control, evaluate prices
         for (ControlEntity control : controls) {
+            controlTableRepository.deleteByControlAndStartTimeBetween(control, startTime, endTime);
+            controlTableRepository.flush();
+
             for (NordpoolEntity priceEntry : prices) {
-
-                // Convert €/MWh -> snt/kWh
                 BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1));
-
-                // Compare against maxPriceSnt
                 if (priceSnt.compareTo(control.getMaxPriceSnt()) <= 0) {
-                    boolean exists = controlTableRepository.existsByControlAndStartTimeAndEndTime(
-                            control,
-                            priceEntry.getDeliveryStart(),
-                            priceEntry.getDeliveryEnd()
-                    );
-
-                    if (!exists) {
-                        ControlTableEntity entry = ControlTableEntity.builder()
-                                .control(control)
-                                .startTime(priceEntry.getDeliveryStart())
-                                .endTime(priceEntry.getDeliveryEnd())
-                                .priceSnt(priceSnt)
-                                .status(status)
-                                .build();
-
-                        controlTableRepository.save(entry);
-                    }
+                    ControlTableEntity entry = ControlTableEntity.builder()
+                            .control(control)
+                            .startTime(priceEntry.getDeliveryStart())
+                            .endTime(priceEntry.getDeliveryEnd())
+                            .priceSnt(priceSnt)
+                            .status(status)
+                            .build();
+                    controlTableRepository.save(entry);
                 }
             }
         }
