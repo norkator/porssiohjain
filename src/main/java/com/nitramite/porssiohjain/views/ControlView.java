@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.services.ControlSchedulerService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
@@ -7,6 +8,7 @@ import com.nitramite.porssiohjain.services.models.ControlResponse;
 import com.nitramite.porssiohjain.services.models.ControlTableResponse;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -14,6 +16,7 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -37,14 +40,17 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
     private final ControlService controlService;
     private final DeviceService deviceService;
+    private final ControlSchedulerService controlSchedulerService;
 
     @Autowired
     public ControlView(
             ControlService controlService,
-            DeviceService deviceService
+            DeviceService deviceService,
+            ControlSchedulerService controlSchedulerService
     ) {
         this.controlService = controlService;
         this.deviceService = deviceService;
+        this.controlSchedulerService = controlSchedulerService;
 
         add(new H2("Device Controls"));
 
@@ -126,8 +132,9 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
                 .set("margin", "1rem 0");
         detailCard.add(hr);
 
-        configureControlTableGrid(control);
-        detailCard.add(new H3("Control table"), controlTableGrid);
+        VerticalLayout controlTableConfiguration = getControlTableConfiguration(control);
+        detailCard.add(controlTableConfiguration);
+        refreshControlTable(control.getId());
     }
 
     private void configureDeviceGrid(ControlResponse control) {
@@ -205,8 +212,49 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         return new HorizontalLayout(deviceSelect, channelField, addButton);
     }
 
-    private void configureControlTableGrid(ControlResponse control) {
+    private VerticalLayout getControlTableConfiguration(ControlResponse control) {
+        H3 title = new H3("Control table");
 
+        // configure grid
+        controlTableGrid.removeAllColumns();
+        controlTableGrid.addColumn(ControlTableResponse::getStartTime).setHeader("Start Time");
+        controlTableGrid.addColumn(ControlTableResponse::getEndTime).setHeader("End Time");
+        controlTableGrid.addColumn(ControlTableResponse::getPriceSnt).setHeader("Price (snt/kWh)");
+        controlTableGrid.addColumn(ControlTableResponse::getStatus).setHeader("Status");
+
+        controlTableGrid.setAllRowsVisible(true);
+
+
+        Button recalcButton = new Button("Recalculate", click -> {
+            try {
+                controlSchedulerService.generateForControl(control.getId());
+                Notification.show("Recalculated control successfully");
+                refreshControlTable(control.getId());
+            } catch (Exception e) {
+                Notification.show("Failed to recalculate: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
+            }
+        });
+
+        recalcButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        // Layout: title + button horizontally
+        HorizontalLayout headerLayout = new HorizontalLayout(title, recalcButton);
+        headerLayout.setAlignItems(FlexComponent.Alignment.CENTER);
+        headerLayout.setWidthFull();
+        headerLayout.expand(title);
+
+        // Combine header + grid vertically
+        VerticalLayout layout = new VerticalLayout(headerLayout, controlTableGrid);
+        layout.setPadding(false);
+        layout.setSpacing(false);
+        layout.setWidthFull();
+
+        return layout;
+    }
+
+    private void refreshControlTable(Long controlId) {
+        List<ControlTableResponse> entries = controlSchedulerService.findByControlId(controlId);
+        controlTableGrid.setItems(entries);
     }
 
     @Override

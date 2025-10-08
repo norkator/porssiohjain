@@ -18,7 +18,7 @@ public class ControlTableResponse {
     private Long controlId;
     private Long deviceId;
     private Integer deviceChannel;
-    private BigDecimal priceFi;
+    private BigDecimal priceSnt;
     private Status status;
     private Instant startTime;
     private Instant endTime;

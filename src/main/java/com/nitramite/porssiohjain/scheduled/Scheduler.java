@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.scheduled;
 
+import com.nitramite.porssiohjain.services.ControlSchedulerService;
 import com.nitramite.porssiohjain.services.NordpoolDataPortalService;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -11,11 +12,14 @@ import org.springframework.stereotype.Component;
 public class Scheduler {
 
     private final NordpoolDataPortalService nordpoolDataPortalService;
+    private final ControlSchedulerService controlSchedulerService;
 
     public Scheduler(
-            NordpoolDataPortalService nordpoolDataPortalService
+            NordpoolDataPortalService nordpoolDataPortalService,
+            ControlSchedulerService controlSchedulerService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
+        this.controlSchedulerService = controlSchedulerService;
         // nordpoolDataPortalService.fetchData();
     }
 
@@ -27,6 +31,11 @@ public class Scheduler {
         } catch (Exception e) {
             log.error("Error fetching Nordpool data", e);
         }
+    }
+
+    @Scheduled(cron = "0 40 14 * * *")
+    public void runAfterNordpoolImport() {
+        controlSchedulerService.generatePlannedForTomorrow();
     }
 
 }

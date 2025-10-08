@@ -32,8 +32,8 @@ public class ControlTableEntity {
     @Column(name = "end_time", nullable = false)
     private Instant endTime;
 
-    @Column(name = "price_fi", precision = 10, scale = 4, nullable = false)
-    private BigDecimal priceFi;
+    @Column(name = "price_snt", precision = 10, scale = 4, nullable = false)
+    private BigDecimal priceSnt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
