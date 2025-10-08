@@ -44,6 +44,7 @@ CREATE TABLE control
 (
     id               BIGSERIAL PRIMARY KEY,
     name             VARCHAR(255)   NOT NULL,
+    timezone         VARCHAR(64)    NOT NULL DEFAULT 'UTC',
     account_id       BIGINT         NOT NULL,
     max_price_snt    NUMERIC(10, 4) NOT NULL,
     daily_on_minutes INT            NOT NULL,

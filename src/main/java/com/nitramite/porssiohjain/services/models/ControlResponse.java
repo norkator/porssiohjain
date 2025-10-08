@@ -11,6 +11,7 @@ import java.time.Instant;
 public class ControlResponse {
     private Long id;
     private String name;
+    private String timezone;
     BigDecimal maxPriceSnt;
     Integer dailyOnMinutes;
     Instant createdAt;

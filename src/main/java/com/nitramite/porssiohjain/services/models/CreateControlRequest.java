@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 public class CreateControlRequest {
     private Long accountId;
     private String name;
+    private String timezone;
     private BigDecimal maxPriceSnt;
     private Integer dailyOnMinutes;
 }

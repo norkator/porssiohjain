@@ -30,7 +30,7 @@ public class ControlService {
     private final DeviceRepository deviceRepository;
 
     public ControlEntity createControl(
-            Long accountId, String name, BigDecimal maxPriceSnt, Integer dailyOnMinutes
+            Long accountId, String name, String timezone, BigDecimal maxPriceSnt, Integer dailyOnMinutes
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -38,6 +38,7 @@ public class ControlService {
         ControlEntity control = ControlEntity.builder()
                 .account(account)
                 .name(name)
+                .timezone(timezone)
                 .maxPriceSnt(maxPriceSnt)
                 .dailyOnMinutes(dailyOnMinutes)
                 .build();

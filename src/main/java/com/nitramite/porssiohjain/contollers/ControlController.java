@@ -36,6 +36,7 @@ public class ControlController {
         return controlService.createControl(
                 request.getAccountId(),
                 request.getName(),
+                request.getTimezone(),
                 request.getMaxPriceSnt(),
                 request.getDailyOnMinutes()
         );
