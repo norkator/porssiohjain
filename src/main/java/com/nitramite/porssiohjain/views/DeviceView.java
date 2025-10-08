@@ -5,6 +5,7 @@ import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
@@ -16,6 +17,7 @@ import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.ZoneId;
 import java.util.List;
 
 @Route("device")
@@ -77,10 +79,23 @@ public class DeviceView extends VerticalLayout {
 
     private HorizontalLayout createAddDeviceForm() {
         TextField nameField = new TextField("Device Name");
+
+        ComboBox<String> timezoneCombo = new ComboBox<>("Timezone");
+        timezoneCombo.setItems(ZoneId.getAvailableZoneIds());
+        timezoneCombo.setValue(ZoneId.systemDefault().getId());
+        timezoneCombo.setWidth("200px");
+
         Button addButton = new Button("Add Device", e -> {
             String deviceName = nameField.getValue();
+            String timezone = timezoneCombo.getValue();
+
             if (deviceName == null || deviceName.isBlank()) {
                 Notification.show("Device name cannot be empty");
+                return;
+            }
+
+            if (timezone == null || timezone.isBlank()) {
+                Notification.show("Please select a timezone");
                 return;
             }
 
@@ -89,15 +104,17 @@ public class DeviceView extends VerticalLayout {
                 AccountEntity currentAccount = authService.authenticate(token);
                 Long accountId = currentAccount.getId();
 
-                deviceService.createDevice(accountId, deviceName);
+                deviceService.createDevice(accountId, deviceName, timezone);
                 Notification.show("Device created successfully!");
                 nameField.clear();
-                loadDevices(); // reload table
+                timezoneCombo.setValue(ZoneId.systemDefault().getId());
+                loadDevices();
             } catch (Exception ex) {
                 Notification.show("Failed to create device: " + ex.getMessage());
             }
         });
 
-        return new HorizontalLayout(nameField, addButton);
+        return new HorizontalLayout(nameField, timezoneCombo, addButton);
     }
+
 }

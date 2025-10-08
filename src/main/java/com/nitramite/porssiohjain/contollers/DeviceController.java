@@ -23,7 +23,7 @@ public class DeviceController {
             @PathVariable Long accountId,
             @RequestBody CreateDeviceRequest request
     ) {
-        DeviceEntity device = deviceService.createDevice(accountId, request.getDeviceName());
+        DeviceEntity device = deviceService.createDevice(accountId, request.getDeviceName(), request.getTimezone());
         return ResponseEntity.ok(device);
     }
 

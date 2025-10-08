@@ -24,13 +24,14 @@ public class DeviceService {
 
     @Transactional
     public DeviceEntity createDevice(
-            Long accountId, String deviceName
+            Long accountId, String deviceName, String timezone
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
         DeviceEntity device = DeviceEntity.builder()
                 .deviceName(deviceName)
+                .timezone(timezone)
                 .lastCommunication(null)
                 .account(account)
                 .build();

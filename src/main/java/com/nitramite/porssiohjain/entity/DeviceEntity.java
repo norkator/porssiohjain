@@ -25,6 +25,9 @@ public class DeviceEntity {
     @Column(nullable = false)
     private String deviceName;
 
+    @Column(name = "timezone", nullable = false, length = 64)
+    private String timezone;
+
     @Column(name = "last_communication")
     private Instant lastCommunication;
 
