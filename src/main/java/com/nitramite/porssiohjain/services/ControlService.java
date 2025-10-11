@@ -4,10 +4,7 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
-import com.nitramite.porssiohjain.entity.repository.AccountRepository;
-import com.nitramite.porssiohjain.entity.repository.ControlDeviceRepository;
-import com.nitramite.porssiohjain.entity.repository.ControlRepository;
-import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.ControlResponse;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
@@ -17,6 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 @Service
@@ -28,6 +28,7 @@ public class ControlService {
     private final ControlDeviceRepository controlDeviceRepository;
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
+    private final ControlTableRepository controlTableRepository;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone, BigDecimal maxPriceSnt, Integer dailyOnMinutes
@@ -205,14 +206,32 @@ public class ControlService {
      * @param deviceUuid of device
      * @return channel status map of {"1":0,"2":0,...}
      */
-    public Map<Integer, Integer> getControlsForDevice(String deviceUuid) {
+    public Map<Integer, Integer> getControlsForDevice(
+            String deviceUuid
+    ) {
         DeviceEntity device = deviceRepository.findByUuid(UUID.fromString(deviceUuid))
                 .orElseThrow(() -> new EntityNotFoundException("Device not found: " + deviceUuid));
 
         List<ControlDeviceEntity> controlDevices = controlDeviceRepository.findByDevice(device);
         Map<Integer, Integer> channelMap = new HashMap<>();
+        Instant nowUtc = Instant.now(); // current UTC time
+
         for (ControlDeviceEntity cd : controlDevices) {
-            channelMap.put(cd.getDeviceChannel(), 0); // todo add logic for control statuses
+            ControlEntity control = cd.getControl();
+            ZoneId controlZone = ZoneId.of(control.getTimezone());
+
+            ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
+
+            boolean active = controlTableRepository.findByControlIdAndStartTimeAfter(
+                            control.getId(), nowUtc.minusSeconds(30 * 60)) // last 30 minutes
+                    .stream()
+                    .anyMatch(ct -> {
+                        ZonedDateTime start = ct.getStartTime().atZone(controlZone);
+                        ZonedDateTime end = ct.getEndTime().atZone(controlZone);
+                        return !nowInControlZone.isBefore(start) && !nowInControlZone.isAfter(end);
+                    });
+
+            channelMap.put(cd.getDeviceChannel(), active ? 1 : 0);
         }
 
         return channelMap;
