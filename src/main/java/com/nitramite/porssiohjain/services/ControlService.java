@@ -82,6 +82,18 @@ public class ControlService {
                 .toList();
     }
 
+    public ControlResponse getControl(Long controlId) {
+        return controlRepository.findById(controlId)
+                .map(entity -> ControlResponse.builder()
+                        .id(entity.getId())
+                        .name(entity.getName())
+                        .maxPriceSnt(entity.getMaxPriceSnt())
+                        .dailyOnMinutes(entity.getDailyOnMinutes())
+                        .createdAt(entity.getCreatedAt())
+                        .updatedAt(entity.getUpdatedAt())
+                        .build())
+                .orElseThrow(() -> new IllegalArgumentException("Control not found with ID: " + controlId));
+    }
 
     public ControlDeviceResponse addDeviceToControl(
             Long controlId, Long deviceId, Integer deviceChannel
