@@ -20,7 +20,7 @@ public class Scheduler {
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
-        nordpoolDataPortalService.fetchData();
+        // nordpoolDataPortalService.fetchData();
     }
 
     @Scheduled(cron = "0 30 14 * * *", zone = "Europe/Helsinki")

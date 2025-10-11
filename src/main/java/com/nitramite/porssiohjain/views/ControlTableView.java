@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Route("controls/:controlId")
 @PermitAll
@@ -213,7 +214,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private void refreshControlTable() {
-        controlTableGrid.setItems(controlSchedulerService.findByControlId(controlId));
+        List<ControlTableResponse>  list = controlSchedulerService.findByControlId(controlId);
+        System.out.println(list.size());
+        controlTableGrid.setItems(list);
     }
 
 }

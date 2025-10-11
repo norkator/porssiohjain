@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,17 +26,16 @@ public class ControlSchedulerService {
     private final ControlRepository controlRepository;
     private final ControlTableRepository controlTableRepository;
 
-    // public List<ControlTableResponse> findByControlId(
-    //         Long controlId
-    // ) {
-    //     return controlTableRepository.findByControlId(controlId).stream()
-    //             .map(this::toResponse)
-    //             .toList();
-    // }
-
     public List<ControlTableResponse> findByControlId(Long controlId) {
-        Instant cutoff = Instant.now().minus(Duration.ofMinutes(30));
-        return controlTableRepository.findByControlIdAndStartTimeAfter(controlId, cutoff).stream()
+
+        Optional<ControlEntity> controlEntity = controlRepository.findById(controlId);
+        ZoneId controlZone = ZoneId.of(controlEntity.get().getTimezone());
+        ZonedDateTime cutoffLocal = Instant.now().atZone(controlZone).minusMinutes(30);
+        Instant cutoffUtc = cutoffLocal.toInstant();
+
+        System.out.println(cutoffUtc);
+
+        return controlTableRepository.findByControlIdAndStartTimeAfter(controlId, cutoffUtc).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -93,22 +93,15 @@ public class ControlSchedulerService {
         for (ControlEntity control : controls) {
             controlTableRepository.deleteByControlAndStartTimeBetween(control, startTime, endTime);
             controlTableRepository.flush();
-
-            ZoneId controlZone = ZoneId.of(control.getTimezone());
-
             for (NordpoolEntity priceEntry : prices) {
-                BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(10)); // €/MWh → snt/kWh
-
-                ZonedDateTime startLocal = priceEntry.getDeliveryStart().atZone(ZoneOffset.UTC)
-                        .withZoneSameInstant(controlZone);
-                ZonedDateTime endLocal = priceEntry.getDeliveryEnd().atZone(ZoneOffset.UTC)
-                        .withZoneSameInstant(controlZone);
-
+                BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1));
+                System.out.println(priceSnt);
+                System.out.println(control.getMaxPriceSnt());
                 if (priceSnt.compareTo(control.getMaxPriceSnt()) <= 0) {
                     ControlTableEntity entry = ControlTableEntity.builder()
                             .control(control)
-                            .startTime(startLocal.toInstant())
-                            .endTime(endLocal.toInstant())
+                            .startTime(priceEntry.getDeliveryStart())
+                            .endTime(priceEntry.getDeliveryEnd())
                             .priceSnt(priceSnt)
                             .status(status)
                             .build();

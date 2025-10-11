@@ -48,7 +48,7 @@ public class NordpoolDataPortalService {
         LocalDate tomorrow = today.plusDays(1);
         // LocalDate y = today.minusDays(1);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        String formattedDate = today.format(formatter);
+        String formattedDate = tomorrow.format(formatter);
 
         String urlWithParams = UriComponentsBuilder.fromUriString(apiUrl)
                 .queryParam("currency", "EUR")
