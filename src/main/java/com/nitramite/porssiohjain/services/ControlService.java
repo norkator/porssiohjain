@@ -212,9 +212,13 @@ public class ControlService {
         DeviceEntity device = deviceRepository.findByUuid(UUID.fromString(deviceUuid))
                 .orElseThrow(() -> new EntityNotFoundException("Device not found: " + deviceUuid));
 
+        Instant nowUtc = Instant.now(); // current UTC time
+        device.setLastCommunication(nowUtc);
+
+        deviceRepository.save(device);
+
         List<ControlDeviceEntity> controlDevices = controlDeviceRepository.findByDevice(device);
         Map<Integer, Integer> channelMap = new HashMap<>();
-        Instant nowUtc = Instant.now(); // current UTC time
 
         for (ControlDeviceEntity cd : controlDevices) {
             ControlEntity control = cd.getControl();
