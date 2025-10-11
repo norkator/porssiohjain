@@ -7,6 +7,7 @@ import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.ControlResponse;
 import com.nitramite.porssiohjain.services.models.ControlTableResponse;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -27,6 +28,9 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Route("controls/:controlId")
 @PermitAll
@@ -41,6 +45,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private Long controlId;
     private ControlResponse control;
+
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
     public ControlTableView(
@@ -105,7 +111,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         add(new HorizontalLayout(maxPriceField, dailyMinutes, saveButton));
 
-        add(new H3("Devices linked to this control:"));
+        add(new H3("Device and device channels linked to this control:"));
         configureDeviceGrid();
         add(deviceGrid);
 
@@ -162,8 +168,26 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private VerticalLayout getControlTableSection() {
         controlTableGrid.removeAllColumns();
-        controlTableGrid.addColumn(ControlTableResponse::getStartTime).setHeader("Start Time");
-        controlTableGrid.addColumn(ControlTableResponse::getEndTime).setHeader("End Time");
+        controlTableGrid.addColumn(entry -> {
+            ZoneId zone = ZoneId.systemDefault();
+            try {
+                if (control.getTimezone() != null) {
+                    zone = ZoneId.of(control.getTimezone());
+                }
+            } catch (Exception ignored) {
+            }
+            return ZonedDateTime.ofInstant(entry.getStartTime(), zone).format(formatter);
+        }).setHeader("Start Time");
+        controlTableGrid.addColumn(entry -> {
+            ZoneId zone = ZoneId.systemDefault();
+            try {
+                if (control.getTimezone() != null) {
+                    zone = ZoneId.of(control.getTimezone());
+                }
+            } catch (Exception ignored) {
+            }
+            return ZonedDateTime.ofInstant(entry.getEndTime(), zone).format(formatter);
+        }).setHeader("End Time");
         controlTableGrid.addColumn(ControlTableResponse::getPriceSnt).setHeader("Price (snt)");
         controlTableGrid.addColumn(ControlTableResponse::getStatus).setHeader("Status");
         controlTableGrid.setAllRowsVisible(true);
@@ -176,7 +200,14 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         refreshControlTable();
 
-        VerticalLayout layout = new VerticalLayout(new HorizontalLayout(new H3("Control Table"), recalcButton), controlTableGrid);
+        VerticalLayout layout = new VerticalLayout(
+                new HorizontalLayout(
+                        new H3("Control Table"),
+                        recalcButton
+                ),
+                new Div(new Text("Showing upcoming and currently in progress controls")),
+                controlTableGrid
+        );
         layout.setWidthFull();
         return layout;
     }

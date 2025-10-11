@@ -14,6 +14,10 @@ import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+
 @Route("controls")
 @PermitAll
 public class ControlView extends VerticalLayout implements BeforeEnterObserver {
@@ -21,18 +25,27 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     private final Grid<ControlResponse> controlsGrid = new Grid<>(ControlResponse.class, false);
     private final ControlService controlService;
 
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+
     @Autowired
     public ControlView(ControlService controlService) {
         this.controlService = controlService;
 
         add(new H2("Device Controls"));
-
         controlsGrid.addColumn(ControlResponse::getId).setHeader("ID").setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getName).setHeader("Name").setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getMaxPriceSnt).setHeader("Max Price (snt)").setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getDailyOnMinutes).setHeader("Daily On Minutes").setAutoWidth(true);
-        controlsGrid.addColumn(ControlResponse::getCreatedAt).setHeader("Created").setAutoWidth(true);
-        controlsGrid.addColumn(ControlResponse::getUpdatedAt).setHeader("Updated").setAutoWidth(true);
+        controlsGrid.addColumn(ControlResponse::getTimezone).setHeader("Timezone").setAutoWidth(true);
+        controlsGrid.addColumn(control -> {
+            ZoneId zone = ZoneId.of(control.getTimezone());
+            return ZonedDateTime.ofInstant(control.getCreatedAt(), zone).format(formatter);
+        }).setHeader("Created").setAutoWidth(true);
+        controlsGrid.addColumn(control -> {
+            ZoneId zone = ZoneId.of(control.getTimezone());
+            return ZonedDateTime.ofInstant(control.getUpdatedAt(), zone).format(formatter);
+        }).setHeader("Updated").setAutoWidth(true);
 
         controlsGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
         controlsGrid.asSingleSelect().addValueChangeListener(event -> {

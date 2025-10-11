@@ -13,10 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,10 +25,17 @@ public class ControlSchedulerService {
     private final ControlRepository controlRepository;
     private final ControlTableRepository controlTableRepository;
 
-    public List<ControlTableResponse> findByControlId(
-            Long controlId
-    ) {
-        return controlTableRepository.findByControlId(controlId).stream()
+    // public List<ControlTableResponse> findByControlId(
+    //         Long controlId
+    // ) {
+    //     return controlTableRepository.findByControlId(controlId).stream()
+    //             .map(this::toResponse)
+    //             .toList();
+    // }
+
+    public List<ControlTableResponse> findByControlId(Long controlId) {
+        Instant cutoff = Instant.now().minus(Duration.ofMinutes(30));
+        return controlTableRepository.findByControlIdAndStartTimeAfter(controlId, cutoff).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -82,24 +88,31 @@ public class ControlSchedulerService {
             Instant endTime,
             Status status
     ) {
-        // 1. Get Nordpool prices for the given period
         List<NordpoolEntity> prices = nordpoolRepository.findByDeliveryStartBetween(startTime, endTime);
 
-        // 2. For each control, evaluate prices
         for (ControlEntity control : controls) {
             controlTableRepository.deleteByControlAndStartTimeBetween(control, startTime, endTime);
             controlTableRepository.flush();
 
+            ZoneId controlZone = ZoneId.of(control.getTimezone());
+
             for (NordpoolEntity priceEntry : prices) {
-                BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1));
+                BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(10)); // €/MWh → snt/kWh
+
+                ZonedDateTime startLocal = priceEntry.getDeliveryStart().atZone(ZoneOffset.UTC)
+                        .withZoneSameInstant(controlZone);
+                ZonedDateTime endLocal = priceEntry.getDeliveryEnd().atZone(ZoneOffset.UTC)
+                        .withZoneSameInstant(controlZone);
+
                 if (priceSnt.compareTo(control.getMaxPriceSnt()) <= 0) {
                     ControlTableEntity entry = ControlTableEntity.builder()
                             .control(control)
-                            .startTime(priceEntry.getDeliveryStart())
-                            .endTime(priceEntry.getDeliveryEnd())
+                            .startTime(startLocal.toInstant())
+                            .endTime(endLocal.toInstant())
                             .priceSnt(priceSnt)
                             .status(status)
                             .build();
+
                     controlTableRepository.save(entry);
                 }
             }
