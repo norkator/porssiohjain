@@ -36,6 +36,9 @@ public class ControlEntity {
     @Column(name = "daily_on_minutes", nullable = false)
     private Integer dailyOnMinutes;
 
+    @Column(name = "tax_percent", nullable = false, precision = 5, scale = 2)
+    private BigDecimal taxPercent;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

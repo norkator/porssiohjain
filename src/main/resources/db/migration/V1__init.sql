@@ -47,6 +47,7 @@ CREATE TABLE control
     timezone         VARCHAR(64)    NOT NULL DEFAULT 'UTC',
     account_id       BIGINT         NOT NULL,
     max_price_snt    NUMERIC(10, 4) NOT NULL,
+    tax_percent      DECIMAL(5, 2)  NOT NULL DEFAULT 0.00,
     daily_on_minutes INT            NOT NULL,
     created_at       TIMESTAMP      NOT NULL,
     updated_at       TIMESTAMP      NOT NULL,
