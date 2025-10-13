@@ -91,6 +91,7 @@ public class ControlService {
                         .name(entity.getName())
                         .maxPriceSnt(entity.getMaxPriceSnt())
                         .dailyOnMinutes(entity.getDailyOnMinutes())
+                        .taxPercent(entity.getTaxPercent())
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build())

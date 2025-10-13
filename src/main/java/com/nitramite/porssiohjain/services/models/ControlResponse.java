@@ -14,6 +14,7 @@ public class ControlResponse {
     private String timezone;
     BigDecimal maxPriceSnt;
     Integer dailyOnMinutes;
+    BigDecimal taxPercent;
     Instant createdAt;
     Instant updatedAt;
 }

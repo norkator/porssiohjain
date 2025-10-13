@@ -101,6 +101,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         NumberField dailyMinutes = new NumberField("Daily On Minutes");
         dailyMinutes.setValue(control.getDailyOnMinutes().doubleValue());
 
+        NumberField taxPercentage = new NumberField("Tax %");
+        taxPercentage.setValue(control.getTaxPercent().doubleValue());
+
         Button saveButton = new Button("Save", e -> {
             try {
                 control.setMaxPriceSnt(BigDecimal.valueOf(maxPriceField.getValue()));
@@ -115,11 +118,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        add(new HorizontalLayout(maxPriceField, dailyMinutes, saveButton));
+        add(new HorizontalLayout(maxPriceField, dailyMinutes, taxPercentage, saveButton));
 
         add(new H3("Device and device channels linked to this control:"));
         configureDeviceGrid();
-        add(deviceGrid);
+        VerticalLayout deviceGridLayout = new VerticalLayout(deviceGrid);
+        add(deviceGridLayout);
 
         add(createAddDeviceLayout());
         loadControlDevices();
@@ -142,6 +146,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
             return delete;
         }).setHeader("Actions");
+        deviceGrid.setMaxHeight("200px");
     }
 
     private void loadControlDevices() {
