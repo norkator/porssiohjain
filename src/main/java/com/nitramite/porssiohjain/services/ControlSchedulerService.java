@@ -33,8 +33,6 @@ public class ControlSchedulerService {
         ZonedDateTime cutoffLocal = Instant.now().atZone(controlZone).minusMinutes(30);
         Instant cutoffUtc = cutoffLocal.toInstant();
 
-        System.out.println(cutoffUtc);
-
         return controlTableRepository.findByControlIdAndStartTimeAfter(controlId, cutoffUtc).stream()
                 .map(this::toResponse)
                 .toList();
@@ -95,8 +93,6 @@ public class ControlSchedulerService {
             controlTableRepository.flush();
             for (NordpoolEntity priceEntry : prices) {
                 BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1));
-                System.out.println(priceSnt);
-                System.out.println(control.getMaxPriceSnt());
                 if (priceSnt.compareTo(control.getMaxPriceSnt()) <= 0) {
                     ControlTableEntity entry = ControlTableEntity.builder()
                             .control(control)

@@ -24,6 +24,8 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
+import elemental.json.Json;
+import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -31,6 +33,7 @@ import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 @Route("controls/:controlId")
@@ -48,6 +51,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private ControlResponse control;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private Div chartDiv;
 
     @Autowired
     public ControlTableView(
@@ -195,10 +199,14 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         Button recalcButton = new Button("Recalculate", e -> {
             controlSchedulerService.generateForControl(controlId);
+            List<ControlTableResponse> freshData = controlSchedulerService.findByControlId(controlId);
             refreshControlTable();
+            controlTableGrid.setItems(freshData);  // update table
+            updatePriceChart(chartDiv, freshData);  // update chart
         });
         recalcButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
+        List<ControlTableResponse> list = controlSchedulerService.findByControlId(controlId);
         refreshControlTable();
 
         VerticalLayout layout = new VerticalLayout(
@@ -207,6 +215,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         recalcButton
                 ),
                 new Div(new Text("Showing upcoming and currently in progress controls")),
+                createPriceChart(list),
                 controlTableGrid
         );
         layout.setWidthFull();
@@ -214,9 +223,88 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private void refreshControlTable() {
-        List<ControlTableResponse>  list = controlSchedulerService.findByControlId(controlId);
-        System.out.println(list.size());
+        List<ControlTableResponse> list = controlSchedulerService.findByControlId(controlId);
         controlTableGrid.setItems(list);
     }
+
+    private Div createPriceChart(List<ControlTableResponse> controlTableList) {
+        chartDiv = new Div();
+        chartDiv.setId("price-chart");
+        chartDiv.setWidthFull();
+        chartDiv.setHeight("400px");
+
+        updatePriceChart(chartDiv, controlTableList);
+        return chartDiv;
+    }
+
+    private void updatePriceChart(Div chartDiv, List<ControlTableResponse> controlTableList) {
+        List<String> timestamps = new ArrayList<>();
+        List<Double> prices = new ArrayList<>();
+
+        ZoneId zone = ZoneId.systemDefault();
+        try {
+            if (control.getTimezone() != null) {
+                zone = ZoneId.of(control.getTimezone());
+            }
+        } catch (Exception ignored) {
+        }
+
+        DateTimeFormatter jsFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                .withZone(zone);
+
+        for (ControlTableResponse entry : controlTableList) {
+            timestamps.add(jsFormatter.format(entry.getStartTime()));
+            prices.add(entry.getPriceSnt().doubleValue());
+        }
+
+        JsonArray jsTimestamps = Json.createArray();
+        for (int i = 0; i < timestamps.size(); i++) {
+            jsTimestamps.set(i, timestamps.get(i));
+        }
+
+        JsonArray jsPrices = Json.createArray();
+        for (int i = 0; i < prices.size(); i++) {
+            jsPrices.set(i, prices.get(i));
+        }
+
+        chartDiv.getElement().executeJs("""
+                    const container = this;
+                
+                    function renderOrUpdate(dataX, dataY) {
+                        if (!window.ApexCharts) {
+                            const script = document.createElement('script');
+                            script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
+                            script.onload = () => renderOrUpdate(dataX, dataY);
+                            document.head.appendChild(script);
+                            return;
+                        }
+                
+                        // reuse existing chart if available
+                        if (!container.chartInstance) {
+                            const options = {
+                                chart: {
+                                    type: 'line',
+                                    height: '400px',
+                                    toolbar: { show: false },
+                                    zoom: { enabled: false }
+                                },
+                                series: [{ name: 'Price (snt)', data: dataY }],
+                                xaxis: { categories: dataX, title: { text: 'Time' }, labels: { rotate: -45 } },
+                                yaxis: { title: { text: 'Price (snt)' } },
+                                title: { text: 'Price over Time', align: 'center' },
+                                stroke: { curve: 'smooth', width: 2 }
+                            };
+                            container.chartInstance = new ApexCharts(container, options);
+                            container.chartInstance.render();
+                        } else {
+                            container.chartInstance.updateOptions({ xaxis: { categories: dataX } });
+                            container.chartInstance.updateSeries([{ data: dataY }], true);
+                        }
+                    }
+                
+                    renderOrUpdate($0, $1);
+                """, jsTimestamps, jsPrices);
+    }
+
 
 }
