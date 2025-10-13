@@ -24,6 +24,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import elemental.json.Json;
 import elemental.json.JsonArray;
+import elemental.json.JsonValue;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -32,7 +33,9 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Route("controls/:controlId")
 @PermitAll
@@ -209,7 +212,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             List<NordpoolPriceResponse> nordpoolPriceResponses = nordpoolService.getNordpoolPricesForControl(controlId);
             refreshControlTable();
             controlTableGrid.setItems(controlTableResponses);
-            updatePriceChart(chartDiv, nordpoolPriceResponses, this.control.getTimezone());
+            updatePriceChart(chartDiv, nordpoolPriceResponses, controlTableResponses, this.control.getTimezone());
         });
         recalcButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -244,56 +247,85 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         chartDiv.setWidthFull();
         chartDiv.setHeight("400px");
 
-        updatePriceChart(chartDiv, nordpoolPriceResponses, this.control.getTimezone());
+        updatePriceChart(chartDiv, nordpoolPriceResponses, controlTableResponses, this.control.getTimezone());
         return chartDiv;
     }
 
     private void updatePriceChart(
             Div chartDiv,
-            List<NordpoolPriceResponse> priceList,
+            List<NordpoolPriceResponse> nordpoolPriceResponses,
+            List<ControlTableResponse> controlTableResponses,
             String timezone
     ) {
         List<String> timestamps = new ArrayList<>();
-        List<Double> prices = new ArrayList<>();
+        List<Double> nordpoolPrices = new ArrayList<>();
+        List<Double> controlPrices = new ArrayList<>();
 
         ZoneId zone = ZoneId.systemDefault();
         try {
             if (timezone != null) {
                 zone = ZoneId.of(timezone);
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         DateTimeFormatter jsFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
                 .withZone(zone);
 
-        for (NordpoolPriceResponse entry : priceList) {
-            timestamps.add(jsFormatter.format(entry.getDeliveryStart()));
-            prices.add(entry.getPriceFiWithTax().doubleValue());
+        for (NordpoolPriceResponse entry : nordpoolPriceResponses) {
+            String ts = jsFormatter.format(entry.getDeliveryStart());
+            timestamps.add(ts);
+            nordpoolPrices.add(entry.getPriceFiWithTax().doubleValue());
         }
 
+        Map<String, Double> controlMap = new HashMap<>();
+        for (ControlTableResponse ctrl : controlTableResponses) {
+            String ts = jsFormatter.format(ctrl.getStartTime());
+            controlMap.put(ts, ctrl.getPriceSnt().doubleValue());
+        }
+
+        for (String ts : timestamps) {
+            Double value = controlMap.get(ts);
+            if (value == null) {
+                controlPrices.add(Double.NaN);
+            } else {
+                controlPrices.add(value);
+            }
+        }
+
+        // Convert to JsonArray
         JsonArray jsTimestamps = Json.createArray();
         for (int i = 0; i < timestamps.size(); i++) {
             jsTimestamps.set(i, timestamps.get(i));
         }
 
-        JsonArray jsPrices = Json.createArray();
-        for (int i = 0; i < prices.size(); i++) {
-            jsPrices.set(i, prices.get(i));
+        JsonArray jsNordpoolPrices = Json.createArray();
+        for (int i = 0; i < nordpoolPrices.size(); i++) {
+            jsNordpoolPrices.set(i, nordpoolPrices.get(i));
+        }
+
+        JsonArray jsControlPrices = Json.createArray();
+        for (int i = 0; i < controlPrices.size(); i++) {
+            Double val = controlPrices.get(i);
+            if (val.isNaN()) {
+                jsControlPrices.set(i, Json.createNull());
+            } else {
+                jsControlPrices.set(i, val);
+            }
         }
 
         chartDiv.getElement().executeJs("""
                     const container = this;
                 
-                    function renderOrUpdate(dataX, dataY) {
+                    function renderOrUpdate(dataX, dataNordpool, dataControl) {
                         if (!window.ApexCharts) {
                             const script = document.createElement('script');
                             script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
-                            script.onload = () => renderOrUpdate(dataX, dataY);
+                            script.onload = () => renderOrUpdate(dataX, dataNordpool, dataControl);
                             document.head.appendChild(script);
                             return;
                         }
                 
-                        // reuse existing chart if available
                         if (!container.chartInstance) {
                             const options = {
                                 chart: {
@@ -302,22 +334,30 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                     toolbar: { show: false },
                                     zoom: { enabled: false }
                                 },
-                                series: [{ name: 'Price (snt)', data: dataY }],
+                                series: [
+                                    { name: 'Nordpool Price', data: dataNordpool, color: '#0000FF' }, // blue
+                                    { name: 'Control Active Price', data: dataControl, color: '#FF0000' } // red
+                                ],
                                 xaxis: { categories: dataX, title: { text: 'Time' }, labels: { rotate: -45 } },
                                 yaxis: { title: { text: 'Price (snt)' } },
                                 title: { text: 'Price over Time', align: 'center' },
-                                stroke: { curve: 'smooth', width: 2 }
+                                stroke: { curve: 'smooth', width: 2 },
+                                markers: { size: 4 },
+                                tooltip: { shared: true }
                             };
                             container.chartInstance = new ApexCharts(container, options);
                             container.chartInstance.render();
                         } else {
                             container.chartInstance.updateOptions({ xaxis: { categories: dataX } });
-                            container.chartInstance.updateSeries([{ data: dataY }], true);
+                            container.chartInstance.updateSeries([
+                                { data: dataNordpool },
+                                { data: dataControl }
+                            ], true);
                         }
                     }
                 
-                    renderOrUpdate($0, $1);
-                """, jsTimestamps, jsPrices);
+                    renderOrUpdate($0, $1, $2);
+                """, jsTimestamps, jsNordpoolPrices, jsControlPrices);
     }
 
 

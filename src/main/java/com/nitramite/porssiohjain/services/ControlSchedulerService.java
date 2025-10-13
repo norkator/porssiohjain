@@ -57,7 +57,7 @@ public class ControlSchedulerService {
                 .orElseThrow(() -> new IllegalArgumentException("Control not found: " + controlId));
 
         Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
-        Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
+        Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
 
         generateInternal(List.of(control), startOfDay, endOfDay, Status.FINAL);
     }
