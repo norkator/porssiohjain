@@ -89,10 +89,13 @@ public class ControlSchedulerService {
         List<NordpoolEntity> prices = nordpoolRepository.findByDeliveryStartBetween(startTime, endTime);
 
         for (ControlEntity control : controls) {
+            BigDecimal taxMultiplier = BigDecimal.ONE.add(control.getTaxPercent().divide(BigDecimal.valueOf(100)));
+
             controlTableRepository.deleteByControlAndStartTimeBetween(control, startTime, endTime);
             controlTableRepository.flush();
+
             for (NordpoolEntity priceEntry : prices) {
-                BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1));
+                BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
                 if (priceSnt.compareTo(control.getMaxPriceSnt()) <= 0) {
                     ControlTableEntity entry = ControlTableEntity.builder()
                             .control(control)
@@ -105,6 +108,7 @@ public class ControlSchedulerService {
                     controlTableRepository.save(entry);
                 }
             }
+
         }
     }
 
