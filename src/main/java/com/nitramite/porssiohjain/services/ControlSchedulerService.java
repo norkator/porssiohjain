@@ -33,7 +33,7 @@ public class ControlSchedulerService {
         ZonedDateTime cutoffLocal = Instant.now().atZone(controlZone).minusMinutes(30);
         Instant cutoffUtc = cutoffLocal.toInstant();
 
-        return controlTableRepository.findByControlIdAndStartTimeAfter(controlId, cutoffUtc).stream()
+        return controlTableRepository.findByControlIdAndStartTimeAfterOrderByStartTimeAsc(controlId, cutoffUtc).stream()
                 .map(this::toResponse)
                 .toList();
     }

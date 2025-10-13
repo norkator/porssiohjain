@@ -3,10 +3,8 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.services.ControlSchedulerService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
-import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
-import com.nitramite.porssiohjain.services.models.ControlResponse;
-import com.nitramite.porssiohjain.services.models.ControlTableResponse;
-import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.NordpoolService;
+import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -43,6 +41,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final ControlService controlService;
     private final DeviceService deviceService;
     private final ControlSchedulerService controlSchedulerService;
+    private final NordpoolService nordpoolService;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
@@ -57,11 +56,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     public ControlTableView(
             ControlService controlService,
             DeviceService deviceService,
-            ControlSchedulerService controlSchedulerService
+            ControlSchedulerService controlSchedulerService,
+            NordpoolService nordpoolService
     ) {
         this.controlService = controlService;
         this.deviceService = deviceService;
         this.controlSchedulerService = controlSchedulerService;
+        this.nordpoolService = nordpoolService;
 
         setSpacing(true);
         setPadding(true);
@@ -199,14 +200,16 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         Button recalcButton = new Button("Recalculate", e -> {
             controlSchedulerService.generateForControl(controlId);
-            List<ControlTableResponse> freshData = controlSchedulerService.findByControlId(controlId);
+            List<ControlTableResponse> controlTableResponses = controlSchedulerService.findByControlId(controlId);
+            List<NordpoolPriceResponse> nordpoolPriceResponses = nordpoolService.getNordpoolPricesForControl(controlId);
             refreshControlTable();
-            controlTableGrid.setItems(freshData);  // update table
-            updatePriceChart(chartDiv, freshData);  // update chart
+            controlTableGrid.setItems(controlTableResponses);
+            updatePriceChart(chartDiv, nordpoolPriceResponses, this.control.getTimezone());
         });
         recalcButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        List<ControlTableResponse> list = controlSchedulerService.findByControlId(controlId);
+        List<ControlTableResponse> controlTableResponses = controlSchedulerService.findByControlId(controlId);
+        List<NordpoolPriceResponse> nordpoolPriceResponses = nordpoolService.getNordpoolPricesForControl(controlId);
         refreshControlTable();
 
         VerticalLayout layout = new VerticalLayout(
@@ -215,7 +218,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         recalcButton
                 ),
                 new Div(new Text("Showing upcoming and currently in progress controls")),
-                createPriceChart(list),
+                createPriceChart(controlTableResponses, nordpoolPriceResponses),
                 controlTableGrid
         );
         layout.setWidthFull();
@@ -227,34 +230,40 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         controlTableGrid.setItems(list);
     }
 
-    private Div createPriceChart(List<ControlTableResponse> controlTableList) {
+    private Div createPriceChart(
+            List<ControlTableResponse> controlTableResponses,
+            List<NordpoolPriceResponse> nordpoolPriceResponses
+    ) {
         chartDiv = new Div();
         chartDiv.setId("price-chart");
         chartDiv.setWidthFull();
         chartDiv.setHeight("400px");
 
-        updatePriceChart(chartDiv, controlTableList);
+        updatePriceChart(chartDiv, nordpoolPriceResponses, this.control.getTimezone());
         return chartDiv;
     }
 
-    private void updatePriceChart(Div chartDiv, List<ControlTableResponse> controlTableList) {
+    private void updatePriceChart(
+            Div chartDiv,
+            List<NordpoolPriceResponse> priceList,
+            String timezone
+    ) {
         List<String> timestamps = new ArrayList<>();
         List<Double> prices = new ArrayList<>();
 
         ZoneId zone = ZoneId.systemDefault();
         try {
-            if (control.getTimezone() != null) {
-                zone = ZoneId.of(control.getTimezone());
+            if (timezone != null) {
+                zone = ZoneId.of(timezone);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
 
         DateTimeFormatter jsFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
                 .withZone(zone);
 
-        for (ControlTableResponse entry : controlTableList) {
-            timestamps.add(jsFormatter.format(entry.getStartTime()));
-            prices.add(entry.getPriceSnt().doubleValue());
+        for (NordpoolPriceResponse entry : priceList) {
+            timestamps.add(jsFormatter.format(entry.getDeliveryStart()));
+            prices.add(entry.getPriceFiWithTax().doubleValue());
         }
 
         JsonArray jsTimestamps = Json.createArray();

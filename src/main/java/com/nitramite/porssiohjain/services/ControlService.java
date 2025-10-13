@@ -226,7 +226,7 @@ public class ControlService {
 
             ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
 
-            boolean active = controlTableRepository.findByControlIdAndStartTimeAfter(
+            boolean active = controlTableRepository.findByControlIdAndStartTimeAfterOrderByStartTimeAsc(
                             control.getId(), nowUtc.minusSeconds(30 * 60)) // last 30 minutes
                     .stream()
                     .anyMatch(ct -> {
