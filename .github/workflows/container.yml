@@ -3,7 +3,7 @@ name: Build and Push Multi-Arch Java Docker Image
 on:
   push:
     branches:
-      - main
+      - container
 
 env:
   REGISTRY: ghcr.io
