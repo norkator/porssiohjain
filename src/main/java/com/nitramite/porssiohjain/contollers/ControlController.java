@@ -38,7 +38,10 @@ public class ControlController {
                 request.getName(),
                 request.getTimezone(),
                 request.getMaxPriceSnt(),
-                request.getDailyOnMinutes()
+                request.getDailyOnMinutes(),
+                request.getTaxPercent(),
+                request.getMode(),
+                request.getManualOn()
         );
     }
 
@@ -52,7 +55,10 @@ public class ControlController {
                 id,
                 request.getName(),
                 request.getMaxPriceSnt(),
-                request.getDailyOnMinutes()
+                request.getDailyOnMinutes(),
+                request.getTaxPercent(),
+                request.getMode(),
+                request.getManualOn()
         );
     }
 

@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.entity.ControlMode;
 import com.nitramite.porssiohjain.services.ControlSchedulerService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
@@ -8,6 +9,7 @@ import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -97,7 +99,6 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         add(new H2("Edit Control: " + control.getName()));
 
-        // Editable fields
         NumberField maxPriceField = new NumberField("Max Price (snt)");
         maxPriceField.setValue(control.getMaxPriceSnt().doubleValue());
 
@@ -107,13 +108,39 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         NumberField taxPercentage = new NumberField("Tax %");
         taxPercentage.setValue(control.getTaxPercent().doubleValue());
 
+        ComboBox<ControlMode> modeCombo = new ComboBox<>("Mode");
+        modeCombo.setItems(ControlMode.values());
+        modeCombo.setValue(control.getMode());
+
+        Checkbox manualToggle = new Checkbox("Manual On");
+        manualToggle.setValue(control.getManualOn());
+        manualToggle.setEnabled(control.getMode() == ControlMode.MANUAL);
+
+        modeCombo.addValueChangeListener(event -> {
+            boolean isManual = event.getValue() == ControlMode.MANUAL;
+            manualToggle.setEnabled(isManual);
+        });
+
         Button saveButton = new Button("Save", e -> {
             try {
                 control.setMaxPriceSnt(BigDecimal.valueOf(maxPriceField.getValue()));
                 control.setDailyOnMinutes(dailyMinutes.getValue().intValue());
+                control.setTaxPercent(BigDecimal.valueOf(taxPercentage.getValue()));
+                control.setMode(modeCombo.getValue());
+                if (control.getMode() == ControlMode.MANUAL) {
+                    control.setManualOn(manualToggle.getValue());
+                }
+
                 controlService.updateControl(
-                        controlId, control.getName(), control.getMaxPriceSnt(), control.getDailyOnMinutes()
+                        controlId,
+                        control.getName(),
+                        control.getMaxPriceSnt(),
+                        control.getDailyOnMinutes(),
+                        control.getTaxPercent(),
+                        control.getMode(),
+                        control.getManualOn()
                 );
+
                 Notification.show("Saved successfully");
             } catch (Exception ex) {
                 Notification.show("Failed to save: " + ex.getMessage());
@@ -121,7 +148,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        add(new HorizontalLayout(maxPriceField, dailyMinutes, taxPercentage, saveButton));
+        add(new HorizontalLayout(maxPriceField, dailyMinutes, taxPercentage, modeCombo, manualToggle, saveButton));
 
         add(new H3("Device and device channels linked to this control:"));
         configureDeviceGrid();
@@ -135,6 +162,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         add(getControlTableSection());
     }
+
 
     private void configureDeviceGrid() {
         deviceGrid.removeAllColumns();

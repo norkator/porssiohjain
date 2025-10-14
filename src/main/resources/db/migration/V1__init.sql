@@ -49,9 +49,12 @@ CREATE TABLE control
     max_price_snt    NUMERIC(10, 4) NOT NULL,
     tax_percent      DECIMAL(5, 2)  NOT NULL DEFAULT 0.00,
     daily_on_minutes INT            NOT NULL,
+    mode             VARCHAR(32)    NOT NULL DEFAULT 'BELOW_MAX_PRICE',
+    manual_on        BOOLEAN        NOT NULL DEFAULT FALSE,
     created_at       TIMESTAMP      NOT NULL,
     updated_at       TIMESTAMP      NOT NULL,
-    CONSTRAINT fk_control_account FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE CASCADE
+    CONSTRAINT fk_control_account FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE CASCADE,
+    CONSTRAINT mode_check CHECK (mode IN ('BELOW_MAX_PRICE', 'ABOVE_MAX_PRICE', 'MANUAL', 'SCHEDULED'))
 );
 
 CREATE TABLE control_device

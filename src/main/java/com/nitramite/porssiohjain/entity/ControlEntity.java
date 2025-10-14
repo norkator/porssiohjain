@@ -39,6 +39,13 @@ public class ControlEntity {
     @Column(name = "tax_percent", nullable = false, precision = 5, scale = 2)
     private BigDecimal taxPercent;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "mode", nullable = false, length = 32)
+    private ControlMode mode;
+
+    @Column(name = "manual_on", nullable = false)
+    private boolean manualOn;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

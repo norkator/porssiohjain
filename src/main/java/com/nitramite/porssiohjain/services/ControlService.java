@@ -1,9 +1,6 @@
 package com.nitramite.porssiohjain.services;
 
-import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
-import com.nitramite.porssiohjain.entity.ControlEntity;
-import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.ControlResponse;
@@ -31,7 +28,9 @@ public class ControlService {
     private final ControlTableRepository controlTableRepository;
 
     public ControlEntity createControl(
-            Long accountId, String name, String timezone, BigDecimal maxPriceSnt, Integer dailyOnMinutes
+            Long accountId, String name, String timezone,
+            BigDecimal maxPriceSnt, Integer dailyOnMinutes,
+            BigDecimal taxPercent, ControlMode mode, Boolean manualOn
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -42,13 +41,17 @@ public class ControlService {
                 .timezone(timezone)
                 .maxPriceSnt(maxPriceSnt)
                 .dailyOnMinutes(dailyOnMinutes)
+                .taxPercent(taxPercent)
+                .mode(mode != null ? mode : ControlMode.BELOW_MAX_PRICE)
+                .manualOn(manualOn != null ? manualOn : false)
                 .build();
 
         return controlRepository.save(control);
     }
 
     public ControlEntity updateControl(
-            Long controlId, String name, BigDecimal maxPriceSnt, Integer dailyOnMinutes
+            Long controlId, String name, BigDecimal maxPriceSnt, Integer dailyOnMinutes,
+            BigDecimal taxPercent, ControlMode mode, Boolean manualOn
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
@@ -56,6 +59,9 @@ public class ControlService {
         control.setName(name);
         control.setMaxPriceSnt(maxPriceSnt);
         control.setDailyOnMinutes(dailyOnMinutes);
+        control.setTaxPercent(taxPercent);
+        control.setMode(mode);
+        control.setManualOn(manualOn);
         return controlRepository.save(control);
     }
 
@@ -78,6 +84,9 @@ public class ControlService {
                         .timezone(entity.getTimezone())
                         .maxPriceSnt(entity.getMaxPriceSnt())
                         .dailyOnMinutes(entity.getDailyOnMinutes())
+                        .taxPercent(entity.getTaxPercent())
+                        .mode(entity.getMode())
+                        .manualOn(entity.isManualOn())
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build())
@@ -92,6 +101,8 @@ public class ControlService {
                         .maxPriceSnt(entity.getMaxPriceSnt())
                         .dailyOnMinutes(entity.getDailyOnMinutes())
                         .taxPercent(entity.getTaxPercent())
+                        .mode(entity.getMode())
+                        .manualOn(entity.isManualOn())
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build())
