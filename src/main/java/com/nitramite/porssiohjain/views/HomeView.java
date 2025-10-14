@@ -49,7 +49,7 @@ public class HomeView extends VerticalLayout {
         Button controlsButton = new Button("My Controls", e ->
                 UI.getCurrent().navigate(ControlView.class)
         );
-        
+
         Stream.of(loginButton, devicesButton, controlsButton).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
             btn.getElement().addEventListener("mouseover",

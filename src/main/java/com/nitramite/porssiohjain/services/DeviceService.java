@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -58,15 +59,27 @@ public class DeviceService {
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
         List<DeviceEntity> deviceEntities = deviceRepository.findByAccountId(control.getAccount().getId());
         return deviceEntities.stream()
-                .map(entity ->  DeviceResponse.builder()
+                .map(entity -> DeviceResponse.builder()
                         .id(entity.getId())
                         .uuid(entity.getUuid())
                         .deviceName(entity.getDeviceName())
+                        .timezone(entity.getTimezone())
                         .lastCommunication(entity.getLastCommunication())
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build())
                 .toList();
+    }
+
+    @Transactional
+    public void updateDevice(
+            Long deviceId, String newName, String newTimezone
+    ) {
+        DeviceEntity device = deviceRepository.findById(deviceId)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
+        device.setDeviceName(newName);
+        device.setTimezone(newTimezone);
+        deviceRepository.save(device);
     }
 
 }

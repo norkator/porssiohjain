@@ -5,8 +5,10 @@ import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -30,17 +32,35 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final DeviceService deviceService;
     private final AuthService authService;
 
+    private final TextField nameField = new TextField("Device Name");
+    private final ComboBox<String> timezoneCombo = new ComboBox<>("Timezone");
+    private final Button saveButton = new Button("Save Device");
+
+    private DeviceResponse selectedDevice;
+
     @Autowired
-    public DeviceView(
-            DeviceService deviceService,
-            AuthService authService
-    ) {
+    public DeviceView(DeviceService deviceService, AuthService authService) {
         this.deviceService = deviceService;
         this.authService = authService;
 
-        add(new H2("My devices"));
+        setSizeFull();
+        setAlignItems(Alignment.CENTER);
+        setJustifyContentMode(JustifyContentMode.START);
+        getStyle().set("padding-top", "40px");
 
-        // Configure device grid
+        VerticalLayout card = new VerticalLayout();
+        // card.setWidth("800px");
+        card.setPadding(true);
+        card.setSpacing(true);
+        card.setAlignItems(Alignment.STRETCH);
+        card.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
+        card.getStyle().set("border-radius", "12px");
+        card.getStyle().set("padding", "32px");
+        card.getStyle().set("background-color", "var(--lumo-base-color)");
+
+        H2 title = new H2("My Devices");
+        title.getStyle().set("margin-top", "0");
+
         deviceGrid.addColumn(DeviceResponse::getId).setHeader("ID").setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader("Device Name").setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getUuid).setHeader("UUID").setAutoWidth(true);
@@ -50,15 +70,84 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         deviceGrid.setWidthFull();
         deviceGrid.getStyle().set("max-height", "300px");
+        deviceGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 
-        add(deviceGrid);
+        deviceGrid.asSingleSelect().addValueChangeListener(event -> {
+            selectedDevice = event.getValue();
+            if (selectedDevice != null) {
+                nameField.setValue(selectedDevice.getDeviceName());
+                timezoneCombo.setValue(selectedDevice.getTimezone());
+                saveButton.setText("Update Device");
+            } else {
+                clearForm();
+            }
+        });
 
-        // Load initial devices
+        timezoneCombo.setItems(ZoneId.getAvailableZoneIds());
+        timezoneCombo.setWidth("250px");
+        timezoneCombo.setValue(ZoneId.systemDefault().getId());
+
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveButton.addClickListener(e -> handleSave());
+
+        HorizontalLayout formLayout = new HorizontalLayout(nameField, timezoneCombo, saveButton);
+        formLayout.setAlignItems(Alignment.END);
+        formLayout.setSpacing(true);
+        formLayout.setWidthFull();
+        formLayout.getStyle().set("margin-top", "20px");
+
+        card.add(title, deviceGrid, formLayout);
+        add(card);
+
         loadDevices();
+    }
 
-        // Add new device form
-        HorizontalLayout addDeviceLayout = createAddDeviceForm();
-        add(addDeviceLayout);
+    private void handleSave() {
+        try {
+            String token = (String) VaadinSession.getCurrent().getAttribute("token");
+            if (token == null) {
+                Notification.show("Not logged in");
+                return;
+            }
+
+            AccountEntity currentAccount = authService.authenticate(token);
+            Long accountId = currentAccount.getId();
+
+            String deviceName = nameField.getValue();
+            String timezone = timezoneCombo.getValue();
+
+            if (deviceName == null || deviceName.isBlank()) {
+                Notification.show("Device name cannot be empty");
+                return;
+            }
+
+            if (timezone == null || timezone.isBlank()) {
+                Notification.show("Please select a timezone");
+                return;
+            }
+
+            if (selectedDevice != null) {
+                deviceService.updateDevice(selectedDevice.getId(), deviceName, timezone);
+                Notification.show("Device updated successfully!");
+            } else {
+                deviceService.createDevice(accountId, deviceName, timezone);
+                Notification.show("Device created successfully!");
+            }
+
+            clearForm();
+            loadDevices();
+
+        } catch (Exception e) {
+            Notification.show("Failed to save device: " + e.getMessage());
+        }
+    }
+
+    private void clearForm() {
+        selectedDevice = null;
+        nameField.clear();
+        timezoneCombo.setValue(ZoneId.systemDefault().getId());
+        saveButton.setText("Add Device");
+        deviceGrid.deselectAll();
     }
 
     private void loadDevices() {
@@ -77,46 +166,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         } catch (Exception e) {
             Notification.show("Failed to load devices: " + e.getMessage());
         }
-    }
-
-    private HorizontalLayout createAddDeviceForm() {
-        TextField nameField = new TextField("Device Name");
-
-        ComboBox<String> timezoneCombo = new ComboBox<>("Timezone");
-        timezoneCombo.setItems(ZoneId.getAvailableZoneIds());
-        timezoneCombo.setValue(ZoneId.systemDefault().getId());
-        timezoneCombo.setWidth("200px");
-
-        Button addButton = new Button("Add Device", e -> {
-            String deviceName = nameField.getValue();
-            String timezone = timezoneCombo.getValue();
-
-            if (deviceName == null || deviceName.isBlank()) {
-                Notification.show("Device name cannot be empty");
-                return;
-            }
-
-            if (timezone == null || timezone.isBlank()) {
-                Notification.show("Please select a timezone");
-                return;
-            }
-
-            try {
-                String token = (String) VaadinSession.getCurrent().getAttribute("token");
-                AccountEntity currentAccount = authService.authenticate(token);
-                Long accountId = currentAccount.getId();
-
-                deviceService.createDevice(accountId, deviceName, timezone);
-                Notification.show("Device created successfully!");
-                nameField.clear();
-                timezoneCombo.setValue(ZoneId.systemDefault().getId());
-                loadDevices();
-            } catch (Exception ex) {
-                Notification.show("Failed to create device: " + ex.getMessage());
-            }
-        });
-
-        return new HorizontalLayout(nameField, timezoneCombo, addButton);
     }
 
     @Override
