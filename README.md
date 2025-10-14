@@ -12,6 +12,8 @@ export DB_PASSWORD=porssiohjain
 
 ### Shelly Script
 
+Note that shelly output channels starts from number `0`
+
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
 const API_URL = 'http://ipaddress:8080/control/' + DEVICE_UUID;
@@ -64,19 +66,19 @@ function fetchControlData() {
     });
 }
 
-function scheduleQuarterly() {
+function scheduleEveryFiveMinutes() {
     getUnixTime(function (now) {
-        let nextQuarter = Math.floor(now / 900) * 900 + 900;
-        let delay = (nextQuarter + 10 - now) * 1000;
+        let nextFiveMinute = Math.floor(now / 300) * 300 + 300;
+        let delay = (nextFiveMinute + 10 - now) * 1000;
         print('Next API call in', delay / 1000, 'seconds');
 
         Timer.set(delay, false, function () {
             fetchControlData();
-            scheduleQuarterly();
+            scheduleEveryFiveMinutes();
         });
     });
 }
 
 fetchControlData();
-scheduleQuarterly();
+scheduleEveryFiveMinutes();
 ```
