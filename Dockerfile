@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM --platform=linux/arm64 gradle:8.3.3-jdk21 AS build
+FROM --platform=linux/arm64 gradle:jdk21 AS build
 WORKDIR /app
 COPY build.gradle settings.gradle gradle.properties ./
 COPY gradle ./gradle
