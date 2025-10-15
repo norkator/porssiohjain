@@ -1,11 +1,24 @@
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.ControlMode;
+import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.models.ControlResponse;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
@@ -14,6 +27,7 @@ import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -24,15 +38,101 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<ControlResponse> controlsGrid = new Grid<>(ControlResponse.class, false);
     private final ControlService controlService;
-
+    private final AuthService authService;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    private final TextField nameField = new TextField("Name");
+    private final ComboBox<String> timezoneField = new ComboBox<>("Timezone");
+    private final NumberField maxPriceField = new NumberField("Max Price (snt)");
+    private final IntegerField dailyMinutesField = new IntegerField("Daily On Minutes");
+    private final NumberField taxPercentField = new NumberField("Tax Percent (%)");
+    private final ComboBox<ControlMode> modeField = new ComboBox<>("Mode");
+    private final Checkbox manualOnToggle = new Checkbox("Manual On");
+    private final Button createButton = new Button("Create Control");
 
     @Autowired
-    public ControlView(ControlService controlService) {
+    public ControlView(
+            ControlService controlService,
+            AuthService authService
+    ) {
         this.controlService = controlService;
+        this.authService = authService;
+        setSizeFull();
+        setPadding(true);
+        setSpacing(true);
+        setDefaultHorizontalComponentAlignment(Alignment.START);
 
         add(new H2("Device Controls"));
+
+        configureForm();
+        add(createFormLayout());
+
+        configureGrid();
+        add(controlsGrid);
+
+        loadControls();
+    }
+
+    private void configureForm() {
+        nameField.setPlaceholder("Enter control name");
+        nameField.setWidth("250px");
+
+        timezoneField.setItems(ZoneId.getAvailableZoneIds().stream().sorted().toList());
+        timezoneField.setValue(ZoneId.systemDefault().toString());
+        timezoneField.setWidth("250px");
+
+        maxPriceField.setPlaceholder("100");
+        maxPriceField.setStep(1);
+        maxPriceField.setMin(0);
+        maxPriceField.setWidth("150px");
+
+        dailyMinutesField.setPlaceholder("60");
+        dailyMinutesField.setStep(1);
+        dailyMinutesField.setMin(0);
+        dailyMinutesField.setWidth("150px");
+
+        taxPercentField.setPlaceholder("25.5");
+        taxPercentField.setStep(0.1);
+        taxPercentField.setMin(0);
+        taxPercentField.setWidth("150px");
+
+        modeField.setItems(ControlMode.values());
+        modeField.setValue(ControlMode.BELOW_MAX_PRICE);
+        modeField.setWidth("200px");
+
+        manualOnToggle.setValue(false);
+        manualOnToggle.setEnabled(false);
+
+        modeField.addValueChangeListener(e -> {
+            ControlMode selected = e.getValue();
+            manualOnToggle.setEnabled(selected == ControlMode.MANUAL);
+            if (selected != ControlMode.MANUAL) {
+                manualOnToggle.setValue(false);
+            }
+        });
+
+        createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createButton.addClickListener(e -> createNewControl());
+    }
+
+    private Component createFormLayout() {
+        HorizontalLayout row1 = new HorizontalLayout(nameField, timezoneField, maxPriceField, dailyMinutesField);
+        HorizontalLayout row2 = new HorizontalLayout(taxPercentField, modeField, manualOnToggle, createButton);
+
+        row1.setSpacing(true);
+        row2.setSpacing(true);
+
+        VerticalLayout formLayout = new VerticalLayout(row1, row2);
+        formLayout.addClassName("card");
+        formLayout.getStyle().set("padding", "1rem")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                .set("background-color", "var(--lumo-base-color)");
+
+        return formLayout;
+    }
+
+    private void configureGrid() {
         controlsGrid.addColumn(ControlResponse::getId).setHeader("ID").setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getName).setHeader("Name").setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getMaxPriceSnt).setHeader("Max Price (snt)").setAutoWidth(true);
@@ -58,8 +158,57 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
             }
         });
 
-        loadControls();
-        add(controlsGrid);
+        controlsGrid.setWidthFull();
+    }
+
+    private void createNewControl() {
+        try {
+            String name = nameField.getValue();
+            String timezone = timezoneField.getValue();
+            BigDecimal maxPrice = BigDecimal.valueOf(maxPriceField.getValue());
+            Integer dailyMinutes = dailyMinutesField.getValue();
+            BigDecimal taxPercent = BigDecimal.valueOf(taxPercentField.getValue());
+            ControlMode mode = modeField.getValue();
+            boolean manualOn = manualOnToggle.getValue();
+
+            if (name == null || name.isBlank()) {
+                Notification.show("Name cannot be empty");
+                return;
+            }
+
+            if (dailyMinutes == null) {
+                Notification.show("Please fill in all numeric fields");
+                return;
+            }
+
+            String token = (String) VaadinSession.getCurrent().getAttribute("token");
+            if (token == null) {
+                Notification.show("Session expired, please log in again");
+                UI.getCurrent().navigate(LoginView.class);
+                return;
+            }
+
+            AccountEntity account = authService.authenticate(token);
+            Long accountId = account.getId();
+
+            controlService.createControl(accountId, name, timezone, maxPrice, dailyMinutes, taxPercent, mode, manualOn);
+            Notification.show("Control created successfully");
+
+            clearForm();
+            loadControls();
+        } catch (Exception e) {
+            Notification.show("Failed to create control: " + e.getMessage());
+        }
+    }
+
+    private void clearForm() {
+        nameField.clear();
+        maxPriceField.clear();
+        dailyMinutesField.clear();
+        taxPercentField.clear();
+        modeField.setValue(ControlMode.BELOW_MAX_PRICE);
+        manualOnToggle.setValue(false);
+        timezoneField.setValue(ZoneId.systemDefault().toString());
     }
 
     private void loadControls() {
@@ -77,5 +226,4 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
             event.forwardTo(LoginView.class);
         }
     }
-
 }

@@ -78,7 +78,7 @@ public class DeviceService {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
 
-        List<DeviceEntity> deviceEntities = deviceRepository.findByAccountId(account.getId());
+        List<DeviceEntity> deviceEntities = deviceRepository.findByAccountIdOrderByIdAsc(account.getId());
 
         return deviceEntities.stream()
                 .map(entity -> DeviceResponse.builder()
