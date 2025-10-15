@@ -39,7 +39,7 @@ public class HomeView extends VerticalLayout {
         Paragraph subtitle = new Paragraph("Welcome to Pörssiohjain control platform");
         subtitle.getStyle().set("margin-bottom", "1.5em");
         subtitle.getStyle().set("color", "var(--lumo-secondary-text-color)");
-        
+
         Button loginButton = new Button("Login", e -> UI.getCurrent().navigate(LoginView.class));
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
