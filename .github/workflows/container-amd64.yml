@@ -33,6 +33,4 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64
           push: true
-          tags: |
-            ghcr.io/norkator/porssiohjain:amd64
-            ghcr.io/norkator/porssiohjain:${{ github.sha }}-amd64
+          tags: ghcr.io/norkator/porssiohjain:latest
