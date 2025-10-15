@@ -52,12 +52,34 @@ public class DeviceService {
     }
 
     @Transactional(readOnly = true)
-    public List<DeviceResponse> getAllDevices(
+    public List<DeviceResponse> getAllDevicesForControlId(
             Long controlId
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
         List<DeviceEntity> deviceEntities = deviceRepository.findByAccountId(control.getAccount().getId());
+        return deviceEntities.stream()
+                .map(entity -> DeviceResponse.builder()
+                        .id(entity.getId())
+                        .uuid(entity.getUuid())
+                        .deviceName(entity.getDeviceName())
+                        .timezone(entity.getTimezone())
+                        .lastCommunication(entity.getLastCommunication())
+                        .createdAt(entity.getCreatedAt())
+                        .updatedAt(entity.getUpdatedAt())
+                        .build())
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeviceResponse> getAllDevices(
+            Long accountId
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
+
+        List<DeviceEntity> deviceEntities = deviceRepository.findByAccountId(account.getId());
+
         return deviceEntities.stream()
                 .map(entity -> DeviceResponse.builder()
                         .id(entity.getId())

@@ -187,7 +187,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private HorizontalLayout createAddDeviceLayout() {
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>("Select Device");
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
-        deviceSelect.setItems(deviceService.getAllDevices(controlId));
+        deviceSelect.setItems(deviceService.getAllDevicesForControlId(controlId));
 
         NumberField channelField = new NumberField("Channel");
         channelField.setStep(1);
