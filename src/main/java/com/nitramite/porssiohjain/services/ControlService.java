@@ -235,19 +235,28 @@ public class ControlService {
         for (ControlDeviceEntity cd : controlDevices) {
             ControlEntity control = cd.getControl();
             ZoneId controlZone = ZoneId.of(control.getTimezone());
+            ControlMode mode = control.getMode();
 
-            ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
+            if (mode.equals(ControlMode.MANUAL)) {
+                channelMap.put(cd.getDeviceChannel(), control.isManualOn() ? 1 : 0);
+            } else if (mode.equals(ControlMode.BELOW_MAX_PRICE)) {
+                ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
 
-            boolean active = controlTableRepository.findByControlIdAndStartTimeAfterOrderByStartTimeAsc(
-                            control.getId(), nowUtc.minusSeconds(30 * 60)) // last 30 minutes
-                    .stream()
-                    .anyMatch(ct -> {
-                        ZonedDateTime start = ct.getStartTime().atZone(controlZone);
-                        ZonedDateTime end = ct.getEndTime().atZone(controlZone);
-                        return !nowInControlZone.isBefore(start) && !nowInControlZone.isAfter(end);
-                    });
+                boolean active = controlTableRepository.findByControlIdAndStartTimeAfterOrderByStartTimeAsc(
+                                control.getId(), nowUtc.minusSeconds(30 * 60)) // last 30 minutes
+                        .stream()
+                        .anyMatch(ct -> {
+                            ZonedDateTime start = ct.getStartTime().atZone(controlZone);
+                            ZonedDateTime end = ct.getEndTime().atZone(controlZone);
+                            return !nowInControlZone.isBefore(start) && !nowInControlZone.isAfter(end);
+                        });
 
-            channelMap.put(cd.getDeviceChannel(), active ? 1 : 0);
+                channelMap.put(cd.getDeviceChannel(), active ? 1 : 0);
+            } else {
+                // default off
+                channelMap.put(cd.getDeviceChannel(), 0);
+            }
+
         }
 
         return channelMap;
