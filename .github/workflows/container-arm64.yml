@@ -1,9 +1,9 @@
-name: Build and Push Multi-Arch Java Docker Image
+name: Build and Push ARM64 Java Docker Image
 
 on:
   push:
     branches:
-      - container
+      - container-arm64
 
 env:
   REGISTRY: ghcr.io
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU for multi-arch builds
+      - name: Set up QEMU for ARM64 emulation
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
@@ -29,13 +29,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push multi-arch Docker image
+      - name: Build and push ARM64 Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
           push: true
           tags: |
-            ghcr.io/norkator/porssiohjain:latest
-            ghcr.io/norkator/porssiohjain:${{ github.sha }}
+            ghcr.io/norkator/porssiohjain:arm64
+            ghcr.io/norkator/porssiohjain:${{ github.sha }}-arm64
