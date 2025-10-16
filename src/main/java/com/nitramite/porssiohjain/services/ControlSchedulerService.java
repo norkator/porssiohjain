@@ -12,8 +12,8 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -111,7 +111,57 @@ public class ControlSchedulerService {
                 Integer dailyOnMinutes = control.getDailyOnMinutes();
                 BigDecimal maxPriceSnt = control.getMaxPriceSnt();
 
-                // todo
+                Map<LocalDate, List<NordpoolEntity>> pricesByDay = prices.stream()
+                        .collect(Collectors.groupingBy(p ->
+                                p.getDeliveryStart().atZone(ZoneId.systemDefault()).toLocalDate()
+                        ));
+
+                for (Map.Entry<LocalDate, List<NordpoolEntity>> dayEntry : pricesByDay.entrySet()) {
+                    List<NordpoolEntity> dailyPrices = dayEntry.getValue();
+
+                    List<NordpoolEntity> eligiblePrices = dailyPrices.stream()
+                            .filter(p -> {
+                                BigDecimal priceSnt = p.getPriceFi()
+                                        .multiply(BigDecimal.valueOf(0.1))
+                                        .multiply(taxMultiplier);
+                                return priceSnt.compareTo(maxPriceSnt) <= 0;
+                            })
+                            .sorted(Comparator.comparing(p ->
+                                    p.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier)))
+                            .toList();
+
+                    int accumulatedMinutes = 0;
+
+                    for (NordpoolEntity priceEntry : eligiblePrices) {
+                        if (accumulatedMinutes >= dailyOnMinutes) break;
+
+                        BigDecimal priceSnt = priceEntry.getPriceFi()
+                                .multiply(BigDecimal.valueOf(0.1))
+                                .multiply(taxMultiplier);
+
+                        int periodMinutes = (int) Duration.between(priceEntry.getDeliveryStart(), priceEntry.getDeliveryEnd()).toMinutes();
+                        int minutesLeft = dailyOnMinutes - accumulatedMinutes;
+                        int minutesToUse = Math.min(periodMinutes, minutesLeft);
+
+                        minutesToUse = (minutesToUse / 15) * 15;
+
+                        if (minutesToUse <= 0) continue;
+
+                        Instant end = priceEntry.getDeliveryStart().plus(Duration.ofMinutes(minutesToUse));
+
+                        ControlTableEntity controlEntry = ControlTableEntity.builder()
+                                .control(control)
+                                .startTime(priceEntry.getDeliveryStart())
+                                .endTime(end)
+                                .priceSnt(priceSnt)
+                                .status(status)
+                                .build();
+
+                        controlTableRepository.save(controlEntry);
+
+                        accumulatedMinutes += minutesToUse;
+                    }
+                }
 
             } else if (controlMode.equals(ControlMode.MANUAL)) {
                 for (NordpoolEntity priceEntry : prices) {
