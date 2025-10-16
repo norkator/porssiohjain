@@ -74,7 +74,7 @@ CREATE TABLE control_table
     control_id BIGINT         NOT NULL,
     start_time TIMESTAMP      NOT NULL,
     end_time   TIMESTAMP      NOT NULL,
-    price_fi   NUMERIC(10, 4) NOT NULL,
+    price_snt  NUMERIC(10, 4) NOT NULL,
     status     VARCHAR(10)    NOT NULL,
     created_at TIMESTAMP      NOT NULL,
     updated_at TIMESTAMP      NOT NULL,
