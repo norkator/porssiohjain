@@ -54,7 +54,7 @@ CREATE TABLE control
     created_at       TIMESTAMP      NOT NULL,
     updated_at       TIMESTAMP      NOT NULL,
     CONSTRAINT fk_control_account FOREIGN KEY (account_id) REFERENCES account (id) ON DELETE CASCADE,
-    CONSTRAINT mode_check CHECK (mode IN ('BELOW_MAX_PRICE', 'CHEAPEST_HOURS, 'MANUAL', 'SCHEDULED'))
+    CONSTRAINT mode_check CHECK (mode IN ('BELOW_MAX_PRICE', 'CHEAPEST_HOURS', 'MANUAL', 'SCHEDULED'))
 );
 
 CREATE TABLE control_device
