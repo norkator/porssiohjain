@@ -11,9 +11,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class AccountService {
 
     private final AccountRepository accountRepository;
+    private final RateLimitService rateLimitService;
 
     @Transactional
-    public AccountEntity createAccount() {
+    public AccountEntity createAccount(String ip) {
+        if (!rateLimitService.allowAccountCreation(ip)) {
+            throw new IllegalStateException("Rate limit exceeded. Try again later.");
+        }
         AccountEntity account = new AccountEntity();
         return accountRepository.save(account);
     }

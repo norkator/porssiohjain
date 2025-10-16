@@ -12,6 +12,7 @@ import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.VaadinRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Route("createAccount")
@@ -68,7 +69,8 @@ public class CreateAccountView extends VerticalLayout {
 
     private void handleCreateAccount() {
         try {
-            AccountEntity account = accountService.createAccount();
+            String ip = VaadinRequest.getCurrent().getRemoteAddr();
+            AccountEntity account = accountService.createAccount(ip);
             showAccountInfo(account);
             createButton.setEnabled(false);
         } catch (Exception e) {

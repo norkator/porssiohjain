@@ -31,7 +31,7 @@ public class AccountController {
             return ResponseEntity.status(429).body("Too many account creations. Try again later.");
         }
 
-        return ResponseEntity.ok(accountService.createAccount());
+        return ResponseEntity.ok(accountService.createAccount(ip));
     }
 
     @PostMapping("/login")
@@ -41,7 +41,7 @@ public class AccountController {
             return ResponseEntity.status(429).body("Too many login attempts. Try again later.");
         }
 
-        return ResponseEntity.ok(authService.login(requestBody.getUuid(), requestBody.getSecret()));
+        return ResponseEntity.ok(authService.login(ip, requestBody.getUuid(), requestBody.getSecret()));
     }
 
 }

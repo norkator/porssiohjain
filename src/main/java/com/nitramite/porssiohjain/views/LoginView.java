@@ -11,6 +11,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.VaadinRequest;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,7 +49,8 @@ public class LoginView extends VerticalLayout {
                 UUID uuid = UUID.fromString(uuidField.getValue().trim());
                 String secret = secretField.getValue().trim();
 
-                LoginResponse response = authService.login(uuid, secret);
+                String ip = VaadinRequest.getCurrent().getRemoteAddr();
+                LoginResponse response = authService.login(ip, uuid, secret);
 
                 VaadinSession.getCurrent().setAttribute("token", response.getToken());
                 VaadinSession.getCurrent().setAttribute("expiresAt", response.getExpiresAt());

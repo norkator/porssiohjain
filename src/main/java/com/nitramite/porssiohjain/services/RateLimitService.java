@@ -31,6 +31,7 @@ public class RateLimitService {
 
         synchronized (attempt) {
             if (Instant.now().isAfter(attempt.firstAttempt.plusMillis(WINDOW_MS))) {
+                // reset after window expires
                 attempt.firstAttempt = Instant.now();
                 attempt.count = 0;
             }
@@ -51,5 +52,4 @@ public class RateLimitService {
     public boolean allowAccountCreation(String ip) {
         return isAllowed(accountAttempts, ip, CREATE_LIMIT);
     }
-
 }

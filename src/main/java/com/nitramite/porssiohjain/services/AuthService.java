@@ -18,11 +18,16 @@ public class AuthService {
 
     private final AccountRepository accountRepository;
     private final TokenRepository tokenRepository;
+    private final RateLimitService rateLimitService;
 
     @Transactional
     public LoginResponse login(
-            UUID uuid, String secret
+            String ip, UUID uuid, String secret
     ) {
+        if (!rateLimitService.allowLogin(ip)) {
+            throw new IllegalStateException("Rate limit exceeded. Try again later.");
+        }
+
         AccountEntity account = accountRepository.findByUuid(uuid)
                 .filter(a -> a.getSecret().equals(secret))
                 .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
