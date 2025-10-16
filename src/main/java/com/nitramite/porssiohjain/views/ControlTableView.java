@@ -11,6 +11,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
@@ -26,7 +27,6 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import elemental.json.Json;
 import elemental.json.JsonArray;
-import elemental.json.JsonValue;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -111,15 +111,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         ComboBox<ControlMode> modeCombo = new ComboBox<>("Mode");
         modeCombo.setItems(ControlMode.values());
         modeCombo.setValue(control.getMode());
+        modeCombo.setWidthFull();
 
         Checkbox manualToggle = new Checkbox("Manual On");
         manualToggle.setValue(control.getManualOn());
-        manualToggle.setEnabled(control.getMode() == ControlMode.MANUAL);
-
-        modeCombo.addValueChangeListener(event -> {
-            boolean isManual = event.getValue() == ControlMode.MANUAL;
-            manualToggle.setEnabled(isManual);
-        });
 
         Button saveButton = new Button("Save", e -> {
             try {
@@ -148,7 +143,38 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        add(new HorizontalLayout(maxPriceField, dailyMinutes, taxPercentage, modeCombo, manualToggle, saveButton));
+        FormLayout formLayout = new FormLayout();
+        formLayout.setWidthFull();
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("400px", 3)
+        );
+
+        formLayout.add(
+                modeCombo,
+                maxPriceField,
+                taxPercentage,
+                dailyMinutes,
+                manualToggle
+        );
+
+        add(formLayout, saveButton);
+
+        Runnable updateFieldStates = () -> {
+            ControlMode mode = modeCombo.getValue();
+
+            boolean isBelowMax = mode == ControlMode.BELOW_MAX_PRICE;
+            boolean isCheapest = mode == ControlMode.CHEAPEST_HOURS;
+            boolean isManual = mode == ControlMode.MANUAL;
+
+            maxPriceField.setEnabled(!isManual);
+            dailyMinutes.setEnabled(isCheapest);
+            taxPercentage.setEnabled(true);
+            manualToggle.setEnabled(isManual);
+        };
+
+        modeCombo.addValueChangeListener(e -> updateFieldStates.run());
+        updateFieldStates.run();
 
         add(new H3("Device and device channels linked to this control:"));
         configureDeviceGrid();
@@ -159,9 +185,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         loadControlDevices();
 
         add(createDivider());
-
         add(getControlTableSection());
     }
+
 
 
     private void configureDeviceGrid() {
