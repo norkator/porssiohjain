@@ -1,9 +1,6 @@
 package com.nitramite.porssiohjain.services;
 
-import com.nitramite.porssiohjain.entity.ControlEntity;
-import com.nitramite.porssiohjain.entity.ControlTableEntity;
-import com.nitramite.porssiohjain.entity.NordpoolEntity;
-import com.nitramite.porssiohjain.entity.Status;
+import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.ControlRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
@@ -90,13 +87,35 @@ public class ControlSchedulerService {
 
         for (ControlEntity control : controls) {
             BigDecimal taxMultiplier = BigDecimal.ONE.add(control.getTaxPercent().divide(BigDecimal.valueOf(100)));
+            ControlMode controlMode = control.getMode();
 
             controlTableRepository.deleteByControlAndStartTimeBetween(control, startTime, endTime);
             controlTableRepository.flush();
 
-            for (NordpoolEntity priceEntry : prices) {
-                BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
-                if (priceSnt.compareTo(control.getMaxPriceSnt()) <= 0) {
+            if (controlMode.equals(ControlMode.BELOW_MAX_PRICE)) {
+                for (NordpoolEntity priceEntry : prices) {
+                    BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
+                    if (priceSnt.compareTo(control.getMaxPriceSnt()) <= 0) {
+                        ControlTableEntity entry = ControlTableEntity.builder()
+                                .control(control)
+                                .startTime(priceEntry.getDeliveryStart())
+                                .endTime(priceEntry.getDeliveryEnd())
+                                .priceSnt(priceSnt)
+                                .status(status)
+                                .build();
+
+                        controlTableRepository.save(entry);
+                    }
+                }
+            } else if (controlMode.equals(ControlMode.CHEAPEST_HOURS)) {
+                Integer dailyOnMinutes = control.getDailyOnMinutes();
+                BigDecimal maxPriceSnt = control.getMaxPriceSnt();
+
+                // todo
+
+            } else if (controlMode.equals(ControlMode.MANUAL)) {
+                for (NordpoolEntity priceEntry : prices) {
+                    BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
                     ControlTableEntity entry = ControlTableEntity.builder()
                             .control(control)
                             .startTime(priceEntry.getDeliveryStart())
@@ -104,7 +123,6 @@ public class ControlSchedulerService {
                             .priceSnt(priceSnt)
                             .status(status)
                             .build();
-
                     controlTableRepository.save(entry);
                 }
             }
