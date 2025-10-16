@@ -3,6 +3,7 @@ package com.nitramite.porssiohjain.views;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
@@ -74,6 +75,12 @@ public class HomeView extends VerticalLayout {
         } else {
             contentBox.add(title, subtitle, loginButton, createAccountButton);
         }
+
+        Paragraph docLink = new Paragraph("For documentation, visit ");
+        Anchor link = new Anchor("https://github.com/norkator/porssiohjain", "GitHub");
+        link.setTarget("_blank");
+        docLink.add(link);
+        contentBox.add(docLink);
 
         add(contentBox);
     }
