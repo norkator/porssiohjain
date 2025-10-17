@@ -11,7 +11,9 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -51,54 +53,66 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     private final Button createButton = new Button("Create Control");
 
     @Autowired
-    public ControlView(
-            ControlService controlService,
-            AuthService authService
-    ) {
+    public ControlView(ControlService controlService, AuthService authService) {
         this.controlService = controlService;
         this.authService = authService;
+
         setSizeFull();
-        setPadding(true);
-        setSpacing(true);
-        setDefaultHorizontalComponentAlignment(Alignment.START);
+        setAlignItems(Alignment.CENTER);
+        setJustifyContentMode(JustifyContentMode.START);
+        getStyle().set("padding-top", "20px");
 
-        add(new H2("Device Controls"));
+        VerticalLayout card = new VerticalLayout();
+        card.setWidthFull();
+        card.setMaxWidth("1400px");
+        card.setPadding(true);
+        card.setSpacing(true);
+        card.setAlignItems(Alignment.STRETCH);
+        card.getStyle()
+                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)")
+                .set("border-radius", "12px")
+                .set("padding", "32px")
+                .set("background-color", "var(--lumo-base-color)");
 
-        configureForm();
-        add(createFormLayout());
+        H2 title = new H2("Device Controls");
+        title.getStyle().set("margin-top", "0");
 
         configureGrid();
-        add(controlsGrid);
+        configureForm();
+
+        card.add(title, controlsGrid, createFormLayout());
+        add(card);
 
         loadControls();
     }
 
     private void configureForm() {
         nameField.setPlaceholder("Enter control name");
-        nameField.setWidth("250px");
+        nameField.setWidthFull();
 
         timezoneField.setItems(ZoneId.getAvailableZoneIds().stream().sorted().toList());
         timezoneField.setValue(ZoneId.systemDefault().toString());
-        timezoneField.setWidth("250px");
+        timezoneField.setWidthFull();
 
         maxPriceField.setPlaceholder("100");
         maxPriceField.setStep(1);
         maxPriceField.setMin(0);
-        maxPriceField.setWidth("150px");
+        maxPriceField.setWidthFull();
 
         dailyMinutesField.setPlaceholder("60");
         dailyMinutesField.setStep(1);
         dailyMinutesField.setMin(0);
-        dailyMinutesField.setWidth("150px");
+        dailyMinutesField.setWidthFull();
 
         taxPercentField.setPlaceholder("25.5");
+        taxPercentField.setValue(25.5);
         taxPercentField.setStep(0.1);
         taxPercentField.setMin(0);
-        taxPercentField.setWidth("150px");
+        taxPercentField.setWidthFull();
 
         modeField.setItems(ControlMode.values());
         modeField.setValue(ControlMode.BELOW_MAX_PRICE);
-        modeField.setWidth("200px");
+        modeField.setWidthFull();
 
         manualOnToggle.setValue(false);
         manualOnToggle.setEnabled(false);
@@ -116,20 +130,39 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private Component createFormLayout() {
-        HorizontalLayout row1 = new HorizontalLayout(nameField, timezoneField, maxPriceField, dailyMinutesField);
-        HorizontalLayout row2 = new HorizontalLayout(taxPercentField, modeField, manualOnToggle, createButton);
-
-        row1.setSpacing(true);
-        row2.setSpacing(true);
-
-        VerticalLayout formLayout = new VerticalLayout(row1, row2);
-        formLayout.addClassName("card");
-        formLayout.getStyle().set("padding", "1rem")
+        VerticalLayout formContainer = new VerticalLayout();
+        formContainer.setPadding(false);
+        formContainer.setSpacing(false);
+        formContainer.getStyle()
+                .set("margin-top", "20px")
+                .set("padding", "16px")
                 .set("border-radius", "12px")
                 .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
-                .set("background-color", "var(--lumo-base-color)");
+                .set("background-color", "var(--lumo-contrast-5pct)");
 
-        return formLayout;
+        FormLayout formLayout = new FormLayout();
+        formLayout.add(
+                nameField,
+                timezoneField,
+                maxPriceField,
+                dailyMinutesField,
+                taxPercentField,
+                modeField,
+                manualOnToggle
+        );
+
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2),
+                new FormLayout.ResponsiveStep("900px", 4)
+        );
+
+        createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createButton.getStyle().set("margin-top", "16px");
+
+        formContainer.add(formLayout, createButton);
+
+        return formContainer;
     }
 
     private void configureGrid() {
@@ -138,6 +171,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         controlsGrid.addColumn(ControlResponse::getMaxPriceSnt).setHeader("Max Price (snt)").setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getDailyOnMinutes).setHeader("Daily On Minutes").setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getTimezone).setHeader("Timezone").setAutoWidth(true);
+        controlsGrid.addColumn(ControlResponse::getMode).setHeader("Mode").setAutoWidth(true); // ✅ Added Control Mode column
         controlsGrid.addColumn(control -> {
             ZoneId zone = ZoneId.of(control.getTimezone());
             return ZonedDateTime.ofInstant(control.getCreatedAt(), zone).format(formatter);
@@ -147,7 +181,11 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
             return ZonedDateTime.ofInstant(control.getUpdatedAt(), zone).format(formatter);
         }).setHeader("Updated").setAutoWidth(true);
 
+        controlsGrid.setWidthFull();
+        controlsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+        controlsGrid.getStyle().set("max-height", "250px");
         controlsGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
+
         controlsGrid.asSingleSelect().addValueChangeListener(event -> {
             ControlResponse selected = event.getValue();
             if (selected != null) {
@@ -157,8 +195,6 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
                 );
             }
         });
-
-        controlsGrid.setWidthFull();
     }
 
     private void createNewControl() {
@@ -226,4 +262,5 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
             event.forwardTo(LoginView.class);
         }
     }
+
 }
