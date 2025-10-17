@@ -35,18 +35,22 @@ public class ControlService {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
 
-        ControlEntity control = ControlEntity.builder()
-                .account(account)
-                .name(name)
-                .timezone(timezone)
-                .maxPriceSnt(maxPriceSnt)
-                .dailyOnMinutes(dailyOnMinutes)
-                .taxPercent(taxPercent)
-                .mode(mode != null ? mode : ControlMode.BELOW_MAX_PRICE)
-                .manualOn(manualOn != null ? manualOn : false)
-                .build();
+        if (account.getId().equals(accountId)) {
+            ControlEntity control = ControlEntity.builder()
+                    .account(account)
+                    .name(name)
+                    .timezone(timezone)
+                    .maxPriceSnt(maxPriceSnt)
+                    .dailyOnMinutes(dailyOnMinutes)
+                    .taxPercent(taxPercent)
+                    .mode(mode != null ? mode : ControlMode.BELOW_MAX_PRICE)
+                    .manualOn(manualOn != null ? manualOn : false)
+                    .build();
 
-        return controlRepository.save(control);
+            return controlRepository.save(control);
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
     }
 
     public ControlEntity updateControl(
