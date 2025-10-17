@@ -29,7 +29,7 @@ public class LoginView extends VerticalLayout {
         setJustifyContentMode(JustifyContentMode.CENTER);
 
         VerticalLayout formLayout = new VerticalLayout();
-        formLayout.setWidth("400px");
+        formLayout.setMaxWidth("400px");
         formLayout.setPadding(true);
         formLayout.setSpacing(true);
         formLayout.setAlignItems(Alignment.STRETCH);

@@ -32,7 +32,7 @@ public class CreateAccountView extends VerticalLayout {
         setJustifyContentMode(JustifyContentMode.CENTER);
 
         VerticalLayout contentBox = new VerticalLayout();
-        contentBox.setWidth("500px");
+        contentBox.setMaxWidth("600px");
         contentBox.setPadding(true);
         contentBox.setSpacing(true);
         contentBox.setAlignItems(Alignment.CENTER);

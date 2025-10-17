@@ -24,7 +24,7 @@ public class HomeView extends VerticalLayout {
         setJustifyContentMode(JustifyContentMode.CENTER);
 
         VerticalLayout contentBox = new VerticalLayout();
-        contentBox.setWidth("500px");
+        contentBox.setMaxWidth("500px");
         contentBox.setPadding(true);
         contentBox.setSpacing(true);
         contentBox.setAlignItems(Alignment.CENTER);
