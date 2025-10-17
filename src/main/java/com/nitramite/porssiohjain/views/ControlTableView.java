@@ -21,6 +21,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
@@ -113,6 +114,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         add(new H2("Control: " + control.getName()));
 
+        TextField controlNameField = new TextField("Control name");
+        controlNameField.setValue(control.getName());
+
         NumberField maxPriceField = new NumberField("Max Price (snt)");
         maxPriceField.setValue(control.getMaxPriceSnt().doubleValue());
 
@@ -132,6 +136,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         Button saveButton = new Button("Save", e -> {
             try {
+                control.setName(controlNameField.getValue());
                 control.setMaxPriceSnt(BigDecimal.valueOf(maxPriceField.getValue()));
                 control.setDailyOnMinutes(dailyMinutes.getValue().intValue());
                 control.setTaxPercent(BigDecimal.valueOf(taxPercentage.getValue()));
@@ -166,6 +171,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         );
 
         formLayout.add(
+                controlNameField,
                 modeCombo,
                 maxPriceField,
                 taxPercentage,
