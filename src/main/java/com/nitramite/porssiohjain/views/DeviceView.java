@@ -7,11 +7,11 @@ import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -107,13 +107,17 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveButton.addClickListener(e -> handleSave());
 
-        HorizontalLayout formLayout = new HorizontalLayout(nameField, timezoneCombo, saveButton);
-        formLayout.setAlignItems(Alignment.END);
-        formLayout.setSpacing(true);
+        FormLayout formLayout = new FormLayout();
         formLayout.setWidthFull();
         formLayout.getStyle().set("margin-top", "20px");
+        formLayout.add(nameField, timezoneCombo);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 3)
+        );
+        saveButton.getStyle().set("align-self", "start");
 
-        card.add(title, deviceGrid, formLayout);
+        card.add(title, deviceGrid, formLayout, saveButton);
         add(card);
 
         loadDevices();
