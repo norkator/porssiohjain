@@ -17,7 +17,8 @@ Content-Type: application/json
 Authorization: {{token}}
 
 {
-  "deviceName": "Shelly Pro 3"
+  "deviceName": "Shelly Pro 3",
+  "timezone": "Europe/Helsinki"
 }
 
 ### Create control for account

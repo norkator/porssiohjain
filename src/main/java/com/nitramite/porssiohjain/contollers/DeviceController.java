@@ -25,8 +25,8 @@ public class DeviceController {
             @PathVariable Long accountId,
             @RequestBody CreateDeviceRequest request
     ) {
-        Long authAccountId = authContext.getAccountId(); // todo implement
-        DeviceEntity device = deviceService.createDevice(accountId, request.getDeviceName(), request.getTimezone());
+        Long authAccountId = authContext.getAccountId();
+        DeviceEntity device = deviceService.createDevice(authAccountId, accountId, request.getDeviceName(), request.getTimezone());
         return ResponseEntity.ok(device);
     }
 
@@ -35,8 +35,8 @@ public class DeviceController {
     public ResponseEntity<List<DeviceEntity>> listDevices(
             @PathVariable Long accountId
     ) {
-        Long authAccountId = authContext.getAccountId(); // todo implement
-        return ResponseEntity.ok(deviceService.listDevices(accountId));
+        Long authAccountId = authContext.getAccountId();
+        return ResponseEntity.ok(deviceService.listDevices(authAccountId, accountId));
     }
 
     @RequireAuth
@@ -44,8 +44,8 @@ public class DeviceController {
     public ResponseEntity<DeviceEntity> getDevice(
             @PathVariable Long deviceId
     ) {
-        Long accountId = authContext.getAccountId(); // todo implement
-        return ResponseEntity.ok(deviceService.getDevice(deviceId));
+        Long accountId = authContext.getAccountId();
+        return ResponseEntity.ok(deviceService.getDevice(accountId, deviceId));
     }
 
 }

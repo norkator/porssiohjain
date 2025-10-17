@@ -132,6 +132,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             }
 
             AccountEntity currentAccount = authService.authenticate(token);
+            Long authAccountId = currentAccount.getId();
             Long accountId = currentAccount.getId();
 
             String deviceName = nameField.getValue();
@@ -151,7 +152,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 deviceService.updateDevice(selectedDevice.getId(), deviceName, timezone);
                 Notification.show("Device updated successfully!");
             } else {
-                deviceService.createDevice(accountId, deviceName, timezone);
+                deviceService.createDevice(authAccountId, accountId, deviceName, timezone);
                 Notification.show("Device created successfully!");
             }
 

@@ -25,30 +25,43 @@ public class DeviceService {
 
     @Transactional
     public DeviceEntity createDevice(
-            Long accountId, String deviceName, String timezone
+            Long authAccountId, Long accountId, String deviceName, String timezone
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
-        DeviceEntity device = DeviceEntity.builder()
-                .deviceName(deviceName)
-                .timezone(timezone)
-                .lastCommunication(null)
-                .account(account)
-                .build();
+        if (account.getId().equals(authAccountId)) {
+            DeviceEntity device = DeviceEntity.builder()
+                    .deviceName(deviceName)
+                    .timezone(timezone)
+                    .lastCommunication(null)
+                    .account(account)
+                    .build();
 
-        return deviceRepository.save(device);
+            return deviceRepository.save(device);
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
     }
 
     @Transactional(readOnly = true)
-    public List<DeviceEntity> listDevices(Long accountId) {
-        return deviceRepository.findByAccountId(accountId);
+    public List<DeviceEntity> listDevices(Long authAccountId, Long accountId) {
+        if (accountId.equals(authAccountId)) {
+            return deviceRepository.findByAccountId(accountId);
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
     }
 
     @Transactional(readOnly = true)
-    public DeviceEntity getDevice(Long deviceId) {
-        return deviceRepository.findById(deviceId)
+    public DeviceEntity getDevice(Long authAccountId, Long deviceId) {
+        DeviceEntity device = deviceRepository.findById(deviceId)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
+        if (device.getAccount().getId().equals(authAccountId)) {
+            return device;
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
     }
 
     @Transactional(readOnly = true)
