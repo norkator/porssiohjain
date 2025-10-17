@@ -21,7 +21,10 @@ import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Route("device")
@@ -36,6 +39,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final ComboBox<String> timezoneCombo = new ComboBox<>("Timezone");
     private final Button saveButton = new Button("Save Device");
 
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private DeviceResponse selectedDevice;
 
     @Autowired
@@ -46,7 +51,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         setSizeFull();
         setAlignItems(Alignment.CENTER);
         setJustifyContentMode(JustifyContentMode.START);
-        getStyle().set("padding-top", "40px");
+        getStyle().set("padding-top", "20px");
 
         VerticalLayout card = new VerticalLayout();
         // card.setWidth("800px");
@@ -64,9 +69,21 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceGrid.addColumn(DeviceResponse::getId).setHeader("ID").setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader("Device Name").setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getUuid).setHeader("UUID").setAutoWidth(true);
-        deviceGrid.addColumn(DeviceResponse::getLastCommunication).setHeader("Last Communication").setAutoWidth(true);
-        deviceGrid.addColumn(DeviceResponse::getCreatedAt).setHeader("Created At").setAutoWidth(true);
-        deviceGrid.addColumn(DeviceResponse::getUpdatedAt).setHeader("Updated At").setAutoWidth(true);
+        deviceGrid.addColumn(control -> {
+            ZoneId zone = ZoneId.of(control.getTimezone());
+            Instant lastComm = control.getLastCommunication();
+            return lastComm != null
+                    ? ZonedDateTime.ofInstant(lastComm, zone).format(formatter)
+                    : "-";
+        }).setHeader("Last Communication").setAutoWidth(true);
+        deviceGrid.addColumn(control -> {
+            ZoneId zone = ZoneId.of(control.getTimezone());
+            return ZonedDateTime.ofInstant(control.getCreatedAt(), zone).format(formatter);
+        }).setHeader("Created").setAutoWidth(true);
+        deviceGrid.addColumn(control -> {
+            ZoneId zone = ZoneId.of(control.getTimezone());
+            return ZonedDateTime.ofInstant(control.getUpdatedAt(), zone).format(formatter);
+        }).setHeader("Updated").setAutoWidth(true);
 
         deviceGrid.setWidthFull();
         deviceGrid.getStyle().set("max-height", "300px");
