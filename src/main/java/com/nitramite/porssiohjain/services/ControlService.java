@@ -109,6 +109,7 @@ public class ControlService {
                 .map(entity -> ControlResponse.builder()
                         .id(entity.getId())
                         .name(entity.getName())
+                        .timezone(entity.getTimezone())
                         .maxPriceSnt(entity.getMaxPriceSnt())
                         .dailyOnMinutes(entity.getDailyOnMinutes())
                         .taxPercent(entity.getTaxPercent())
