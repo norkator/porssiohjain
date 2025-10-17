@@ -16,7 +16,6 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -40,7 +39,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<ControlResponse> controlsGrid = new Grid<>(ControlResponse.class, false);
     private final ControlService controlService;
-    private final AuthService authService;
+    private Long accountId;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final TextField nameField = new TextField("Name");
@@ -53,9 +52,11 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     private final Button createButton = new Button("Create Control");
 
     @Autowired
-    public ControlView(ControlService controlService, AuthService authService) {
+    public ControlView(
+            ControlService controlService,
+            AuthService authService
+    ) {
         this.controlService = controlService;
-        this.authService = authService;
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -82,6 +83,16 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
         card.add(title, controlsGrid, createFormLayout());
         add(card);
+
+        String token = (String) VaadinSession.getCurrent().getAttribute("token");
+        if (token == null) {
+            Notification.show("Session expired, please log in again");
+            UI.getCurrent().navigate(LoginView.class);
+            return;
+        }
+
+        AccountEntity account = authService.authenticate(token);
+        accountId = account.getId();
 
         loadControls();
     }
@@ -217,15 +228,6 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
                 return;
             }
 
-            String token = (String) VaadinSession.getCurrent().getAttribute("token");
-            if (token == null) {
-                Notification.show("Session expired, please log in again");
-                UI.getCurrent().navigate(LoginView.class);
-                return;
-            }
-
-            AccountEntity account = authService.authenticate(token);
-            Long accountId = account.getId();
 
             controlService.createControl(accountId, name, timezone, maxPrice, dailyMinutes, taxPercent, mode, manualOn);
             Notification.show("Control created successfully");
@@ -249,7 +251,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
     private void loadControls() {
         try {
-            controlsGrid.setItems(controlService.getAllControls());
+            controlsGrid.setItems(controlService.getAllControls(accountId));
         } catch (Exception e) {
             Notification.show("Failed to load controls: " + e.getMessage());
         }

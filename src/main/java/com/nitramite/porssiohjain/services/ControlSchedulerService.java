@@ -62,7 +62,7 @@ public class ControlSchedulerService {
     @Transactional
     public void generateForAllControls() {
         Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
-        Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS);
+        Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
 
         List<ControlEntity> controls = controlRepository.findAll();
         generateInternal(controls, startOfDay, endOfDay, Status.FINAL);
@@ -71,7 +71,7 @@ public class ControlSchedulerService {
     @Transactional
     public void generatePlannedForTomorrow() {
         Instant startOfTomorrow = Instant.now().truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS);
-        Instant endOfTomorrow = startOfTomorrow.plus(1, ChronoUnit.DAYS);
+        Instant endOfTomorrow = startOfTomorrow.plus(2, ChronoUnit.DAYS);
 
         List<ControlEntity> controls = controlRepository.findAll();
         generateInternal(controls, startOfTomorrow, endOfTomorrow, Status.PLANNED);

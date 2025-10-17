@@ -1,13 +1,12 @@
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlMode;
-import com.nitramite.porssiohjain.services.ControlSchedulerService;
-import com.nitramite.porssiohjain.services.ControlService;
-import com.nitramite.porssiohjain.services.DeviceService;
-import com.nitramite.porssiohjain.services.NordpoolService;
+import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Text;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -44,6 +43,7 @@ import java.util.Map;
 @PermitAll
 public class ControlTableView extends VerticalLayout implements BeforeEnterObserver {
 
+    private final AuthService authService;
     private final ControlService controlService;
     private final DeviceService deviceService;
     private final ControlSchedulerService controlSchedulerService;
@@ -60,11 +60,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     @Autowired
     public ControlTableView(
+            AuthService authService,
             ControlService controlService,
             DeviceService deviceService,
             ControlSchedulerService controlSchedulerService,
             NordpoolService nordpoolService
     ) {
+        this.authService = authService;
         this.controlService = controlService;
         this.deviceService = deviceService;
         this.controlSchedulerService = controlSchedulerService;
@@ -93,6 +95,17 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private void loadControl() {
         this.control = controlService.getControl(controlId);
+    }
+
+    private Long getAccountId() {
+        String token = (String) VaadinSession.getCurrent().getAttribute("token");
+        if (token == null) {
+            Notification.show("Session expired, please log in again");
+            UI.getCurrent().navigate(LoginView.class);
+        }
+
+        AccountEntity account = authService.authenticate(token);
+        return account.getId();
     }
 
     private void renderView() {
@@ -128,6 +141,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 }
 
                 controlService.updateControl(
+                        getAccountId(),
                         controlId,
                         control.getName(),
                         control.getMaxPriceSnt(),

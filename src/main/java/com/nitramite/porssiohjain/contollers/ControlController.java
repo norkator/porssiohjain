@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.contollers;
 
+import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
@@ -20,6 +21,7 @@ import java.util.Map;
 public class ControlController {
 
     private final ControlService controlService;
+    private final AuthContext authContext;
 
     @GetMapping("/{deviceUuid}")
     public Map<Integer, Integer> controlsForDevice(
@@ -33,8 +35,9 @@ public class ControlController {
     public ControlEntity createControl(
             @RequestBody CreateControlRequest request
     ) {
+        Long accountId = authContext.getAccountId();
         return controlService.createControl(
-                request.getAccountId(),
+                accountId,
                 request.getName(),
                 request.getTimezone(),
                 request.getMaxPriceSnt(),
@@ -51,7 +54,9 @@ public class ControlController {
             @PathVariable Long id,
             @RequestBody UpdateControlRequest request
     ) {
+        Long accountId = authContext.getAccountId();
         return controlService.updateControl(
+                accountId,
                 id,
                 request.getName(),
                 request.getMaxPriceSnt(),
@@ -67,13 +72,15 @@ public class ControlController {
     public void deleteControl(
             @PathVariable Long id
     ) {
-        controlService.deleteControl(id);
+        Long accountId = authContext.getAccountId();
+        controlService.deleteControl(accountId, id);
     }
 
     @RequireAuth
     @GetMapping("/controls")
     public List<ControlResponse> getAllControls() {
-        return controlService.getAllControls();
+        Long accountId = authContext.getAccountId();
+        return controlService.getAllControls(accountId);
     }
 
     @RequireAuth

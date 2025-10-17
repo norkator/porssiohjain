@@ -50,33 +50,44 @@ public class ControlService {
     }
 
     public ControlEntity updateControl(
+            Long accountId,
             Long controlId, String name, BigDecimal maxPriceSnt, Integer dailyOnMinutes,
             BigDecimal taxPercent, ControlMode mode, Boolean manualOn
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
 
-        control.setName(name);
-        control.setMaxPriceSnt(maxPriceSnt);
-        control.setDailyOnMinutes(dailyOnMinutes);
-        control.setTaxPercent(taxPercent);
-        control.setMode(mode);
-        control.setManualOn(manualOn);
-        return controlRepository.save(control);
+        if (control.getAccount().getId().equals(accountId)) {
+            control.setName(name);
+            control.setMaxPriceSnt(maxPriceSnt);
+            control.setDailyOnMinutes(dailyOnMinutes);
+            control.setTaxPercent(taxPercent);
+            control.setMode(mode);
+            control.setManualOn(manualOn);
+            return controlRepository.save(control);
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
     }
 
     public void deleteControl(
-            Long controlId
+            Long accountId, Long controlId
     ) {
-        if (!controlRepository.existsById(controlId)) {
-            throw new EntityNotFoundException("Control not found with id: " + controlId);
+        ControlEntity control = controlRepository.findById(controlId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        if (control.getAccount().getId().equals(accountId)) {
+            controlRepository.deleteById(controlId);
+        } else {
+            throw new IllegalStateException("Forbidden!");
         }
-        controlRepository.deleteById(controlId);
     }
 
-    public List<ControlResponse> getAllControls() {
-        List<ControlEntity> controlEntities = controlRepository.findAll();
-
+    public List<ControlResponse> getAllControls(
+            Long accountId
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
+        List<ControlEntity> controlEntities = controlRepository.findAllByAccountOrderByIdAsc(account);
         return controlEntities.stream()
                 .map(entity -> ControlResponse.builder()
                         .id(entity.getId())
