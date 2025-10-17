@@ -6,6 +6,7 @@ import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.NordpoolService;
 import com.nitramite.porssiohjain.services.models.*;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -97,7 +98,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private void renderView() {
         removeAll();
 
-        add(new H2("Edit Control: " + control.getName()));
+        add(new H2("Control: " + control.getName()));
 
         NumberField maxPriceField = new NumberField("Max Price (snt)");
         maxPriceField.setValue(control.getMaxPriceSnt().doubleValue());
@@ -178,8 +179,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         add(new H3("Device and device channels linked to this control:"));
         configureDeviceGrid();
-        VerticalLayout deviceGridLayout = new VerticalLayout(deviceGrid);
-        add(deviceGridLayout);
+        add(deviceGrid);
 
         add(createAddDeviceLayout());
         loadControlDevices();
@@ -187,7 +187,6 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         add(createDivider());
         add(getControlTableSection());
     }
-
 
 
     private void configureDeviceGrid() {
@@ -210,22 +209,41 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         deviceGrid.setItems(controlService.getControlDevices(controlId));
     }
 
-    private HorizontalLayout createAddDeviceLayout() {
+    private Component createAddDeviceLayout() {
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>("Select Device");
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
         deviceSelect.setItems(deviceService.getAllDevicesForControlId(controlId));
+        deviceSelect.setWidthFull();
 
         NumberField channelField = new NumberField("Channel");
         channelField.setStep(1);
+        channelField.setWidthFull();
 
         Button addButton = new Button("Add Device", e -> {
             if (deviceSelect.getValue() != null && channelField.getValue() != null) {
-                controlService.addDeviceToControl(controlId, deviceSelect.getValue().getId(), channelField.getValue().intValue());
+                controlService.addDeviceToControl(
+                        controlId,
+                        deviceSelect.getValue().getId(),
+                        channelField.getValue().intValue()
+                );
                 loadControlDevices();
             }
         });
+        addButton.setWidthFull();
 
-        return new HorizontalLayout(deviceSelect, channelField, addButton);
+        FormLayout formLayout = new FormLayout(deviceSelect, channelField, addButton);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 3)
+        );
+
+        formLayout.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                .set("background-color", "var(--lumo-contrast-5pct)");
+
+        return formLayout;
     }
 
     private Div createDivider() {
@@ -284,8 +302,22 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 controlTableGrid
         );
         layout.setWidthFull();
+        layout.setPadding(false);
+        layout.setSpacing(false);
+        layout.getStyle().set("margin", "0");
+
+        layout.getChildren()
+                .filter(c -> c instanceof HorizontalLayout)
+                .map(c -> (HorizontalLayout) c)
+                .forEach(h -> {
+                    h.setPadding(false);
+                    h.setSpacing(true);
+                    h.getStyle().set("margin", "0");
+                });
+
         return layout;
     }
+
 
     private void refreshControlTable() {
         List<ControlTableResponse> list = controlSchedulerService.findByControlId(controlId);
