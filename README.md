@@ -1,18 +1,31 @@
 # Pörssiohjain
 
-### Env vars
+Pörssiohjain on Springin päälle rakennettu yksinkertainen online sovellus, joka hakee Nordpoolista pörssisähkön hinnat
+ja päivittää ohjaukset. Laitteesi esim Shelly kutsuu control rajapintaa ja saa vastauksena kanavakohtaiset ohjauksien
+tilat, eli käytännössä konfiguroidut kavananumerot ja tila päälle/pois päältä.
 
-```env
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_NAME=porssiohjain
-export DB_USER=porssiohjain
-export DB_PASSWORD=porssiohjain
-``` 
+Käyttöliittymä on tehty Vaadinilla ja renderöityy palvelimen puolella. Käyttöliittymän tarkoitus on olla mahdollisimman
+yksinkertainen kun tavoite on että siellä käydään harvoin.
 
-### Shelly Script
+## Asennusohje
 
-Note that shelly output channels starts from number `0`
+### Palvelun tili ja asetukset
+
+#### Käyttäjätili
+
+Todo
+
+#### Laitteiden lisäys
+
+Todo
+
+#### Ohjausten tekeminen
+
+Todo
+
+### Shelly skripti
+
+Konfiguroinnissa kanavat alkavat arvosta `0`
 
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
@@ -82,3 +95,17 @@ function scheduleEveryFiveMinutes() {
 fetchControlData();
 scheduleEveryFiveMinutes();
 ```
+
+## Kehittämiseen liittyvää
+
+Todo
+
+### Ympäristömuuttujat
+
+```env
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=porssiohjain
+export DB_USER=porssiohjain
+export DB_PASSWORD=porssiohjain
+``` 
