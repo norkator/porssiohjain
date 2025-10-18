@@ -7,6 +7,7 @@ import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.services.models.ControlTableResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -15,6 +16,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ControlSchedulerService {
@@ -59,22 +61,24 @@ public class ControlSchedulerService {
         generateInternal(List.of(control), startOfDay, endOfDay, Status.FINAL);
     }
 
-    @Transactional
-    public void generateForAllControls() {
-        Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
-        Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
-
-        List<ControlEntity> controls = controlRepository.findAll();
-        generateInternal(controls, startOfDay, endOfDay, Status.FINAL);
-    }
+    // @Transactional
+    // public void generateForAllControls() {
+    //     Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
+    //     Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
+    //     List<ControlEntity> controls = controlRepository.findAll();
+    //     generateInternal(controls, startOfDay, endOfDay, Status.FINAL);
+    // }
 
     @Transactional
     public void generatePlannedForTomorrow() {
-        Instant startOfTomorrow = Instant.now().truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS);
-        Instant endOfTomorrow = startOfTomorrow.plus(2, ChronoUnit.DAYS);
-
+        Instant startOfTomorrow = LocalDate.now(ZoneOffset.UTC)
+                .plusDays(1)
+                .atStartOfDay()
+                .toInstant(ZoneOffset.UTC);
+        Instant endOfTomorrow = startOfTomorrow.plus(1, ChronoUnit.DAYS);
         List<ControlEntity> controls = controlRepository.findAll();
-        generateInternal(controls, startOfTomorrow, endOfTomorrow, Status.PLANNED);
+        log.info("generatePlannedForTomorrow for time {} - {}", startOfTomorrow.toString(), endOfTomorrow.toString());
+        generateInternal(controls, startOfTomorrow, endOfTomorrow, Status.FINAL);
     }
 
     private void generateInternal(
