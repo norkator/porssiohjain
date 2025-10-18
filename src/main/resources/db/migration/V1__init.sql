@@ -10,10 +10,10 @@ CREATE TABLE nordpool
 CREATE TABLE account
 (
     id         BIGSERIAL PRIMARY KEY,
-    uuid       UUID        NOT NULL UNIQUE,
-    secret     VARCHAR(64) NOT NULL UNIQUE,
-    created_at TIMESTAMP   NOT NULL,
-    updated_at TIMESTAMP   NOT NULL
+    uuid       UUID         NOT NULL UNIQUE,
+    secret     VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP    NOT NULL,
+    updated_at TIMESTAMP    NOT NULL
 );
 
 CREATE TABLE account_token

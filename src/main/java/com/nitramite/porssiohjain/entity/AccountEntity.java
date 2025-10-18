@@ -33,8 +33,6 @@ public class AccountEntity {
 
     @PrePersist
     public void onCreate() {
-        uuid = UUID.randomUUID();
-        secret = UUID.randomUUID().toString().replace("-", "");
         createdAt = Instant.now();
         updatedAt = createdAt;
     }
