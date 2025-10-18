@@ -433,6 +433,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                             return;
                         }
                 
+                        const now = new Date();
+                        const nowISO = now.toISOString().slice(0, 16);
+                        const closest = dataX.reduce((prev, curr) => {
+                            return Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now) ? curr : prev;
+                        });
+                
                         if (!container.chartInstance) {
                             const options = {
                                 chart: {
@@ -442,20 +448,46 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                     zoom: { enabled: false }
                                 },
                                 series: [
-                                    { name: 'Nordpool Price', data: dataNordpool, color: '#0000FF' }, // blue
-                                    { name: 'Control Active Price', data: dataControl, color: '#FF0000' } // red
+                                    { name: 'Nordpool Price', data: dataNordpool, color: '#0000FF' },
+                                    { name: 'Control Active Price', data: dataControl, color: '#FF0000' }
                                 ],
                                 xaxis: { categories: dataX, title: { text: 'Time' }, labels: { rotate: -45 } },
                                 yaxis: { title: { text: 'Price (snt)' } },
                                 title: { text: 'Price over Time', align: 'center' },
                                 stroke: { curve: 'smooth', width: 2 },
                                 markers: { size: 4 },
-                                tooltip: { shared: true }
+                                tooltip: { shared: true },
+                                annotations: {
+                                    xaxis: [
+                                        {
+                                            x: closest,
+                                            borderColor: '#00E396',
+                                            label: {
+                                                style: { color: '#fff', background: '#00E396' },
+                                                text: 'Now'
+                                            }
+                                        }
+                                    ]
+                                }
                             };
                             container.chartInstance = new ApexCharts(container, options);
                             container.chartInstance.render();
                         } else {
-                            container.chartInstance.updateOptions({ xaxis: { categories: dataX } });
+                            container.chartInstance.updateOptions({
+                                xaxis: { categories: dataX },
+                                annotations: {
+                                    xaxis: [
+                                        {
+                                            x: closest,
+                                            borderColor: '#00E396',
+                                            label: {
+                                                style: { color: '#fff', background: '#00E396' },
+                                                text: 'Now'
+                                            }
+                                        }
+                                    ]
+                                }
+                            });
                             container.chartInstance.updateSeries([
                                 { data: dataNordpool },
                                 { data: dataControl }
@@ -466,6 +498,5 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                     renderOrUpdate($0, $1, $2);
                 """, jsTimestamps, jsNordpoolPrices, jsControlPrices);
     }
-
 
 }
