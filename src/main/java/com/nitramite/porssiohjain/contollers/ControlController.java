@@ -90,8 +90,8 @@ public class ControlController {
             @RequestParam Long deviceId,
             @RequestParam Integer deviceChannel
     ) {
-        Long accountId = authContext.getAccountId(); // todo implement
-        return controlService.addDeviceToControl(controlId, deviceId, deviceChannel);
+        Long accountId = authContext.getAccountId();
+        return controlService.addDeviceToControl(accountId, controlId, deviceId, deviceChannel);
     }
 
     @RequireAuth
@@ -101,8 +101,8 @@ public class ControlController {
             @RequestParam(required = false) Long deviceId,
             @RequestParam(required = false) Integer deviceChannel
     ) {
-        Long accountId = authContext.getAccountId(); // todo implement
-        return controlService.updateControlDevice(id, deviceId, deviceChannel);
+        Long accountId = authContext.getAccountId();
+        return controlService.updateControlDevice(accountId, id, deviceId, deviceChannel);
     }
 
     @RequireAuth
@@ -110,8 +110,8 @@ public class ControlController {
     public void deleteControlDevice(
             @PathVariable Long id
     ) {
-        Long accountId = authContext.getAccountId(); // todo implement
-        controlService.deleteControlDevice(id);
+        Long accountId = authContext.getAccountId();
+        controlService.deleteControlDevice(accountId, id);
     }
 
     @RequireAuth
@@ -119,8 +119,8 @@ public class ControlController {
     public List<ControlDeviceEntity> getDevicesByControl(
             @PathVariable Long controlId
     ) {
-        Long accountId = authContext.getAccountId(); // todo implement
-        return controlService.getDevicesByControl(controlId);
+        Long accountId = authContext.getAccountId();
+        return controlService.getDevicesByControl(accountId, controlId);
     }
 
 }

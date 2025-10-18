@@ -126,79 +126,92 @@ public class ControlService {
     }
 
     public ControlDeviceResponse addDeviceToControl(
-            Long controlId, Long deviceId, Integer deviceChannel
+            Long accountId, Long controlId, Long deviceId, Integer deviceChannel
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        if (control.getAccount().getId().equals(accountId)) {
+            DeviceEntity device = deviceRepository.findById(deviceId)
+                    .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
 
-        DeviceEntity device = deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
+            if (controlDeviceRepository.existsByControlIdAndDeviceIdAndDeviceChannel(controlId, deviceId, deviceChannel)) {
+                throw new DuplicateEntityException(
+                        String.format("Device %d with channel %d is already linked to control %d",
+                                deviceId, deviceChannel, controlId)
+                );
+            }
 
-        if (controlDeviceRepository.existsByControlIdAndDeviceIdAndDeviceChannel(controlId, deviceId, deviceChannel)) {
-            throw new DuplicateEntityException(
-                    String.format("Device %d with channel %d is already linked to control %d",
-                            deviceId, deviceChannel, controlId)
-            );
+            ControlDeviceEntity controlDevice = ControlDeviceEntity.builder()
+                    .control(control)
+                    .device(device)
+                    .deviceChannel(deviceChannel)
+                    .build();
+
+            ControlDeviceEntity saved = controlDeviceRepository.save(controlDevice);
+
+            return ControlDeviceResponse.builder()
+                    .id(saved.getId())
+                    .controlId(saved.getControl().getId())
+                    .deviceId(saved.getDevice().getId())
+                    .deviceChannel(saved.getDeviceChannel())
+                    .build();
+        } else {
+            throw new IllegalStateException("Forbidden!");
         }
-
-        ControlDeviceEntity controlDevice = ControlDeviceEntity.builder()
-                .control(control)
-                .device(device)
-                .deviceChannel(deviceChannel)
-                .build();
-
-        ControlDeviceEntity saved = controlDeviceRepository.save(controlDevice);
-
-        return ControlDeviceResponse.builder()
-                .id(saved.getId())
-                .controlId(saved.getControl().getId())
-                .deviceId(saved.getDevice().getId())
-                .deviceChannel(saved.getDeviceChannel())
-                .build();
     }
 
     public ControlDeviceResponse updateControlDevice(
-            Long controlDeviceId, Long deviceId, Integer deviceChannel
+            Long accountId, Long controlDeviceId, Long deviceId, Integer deviceChannel
     ) {
         ControlDeviceEntity controlDevice = controlDeviceRepository.findById(controlDeviceId)
                 .orElseThrow(() -> new EntityNotFoundException("ControlDevice not found with id: " + controlDeviceId));
 
-        if (deviceId != null) {
-            DeviceEntity device = deviceRepository.findById(deviceId)
-                    .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
-            controlDevice.setDevice(device);
+        if (controlDevice.getControl().getAccount().getId().equals(accountId)) {
+            if (deviceId != null) {
+                DeviceEntity device = deviceRepository.findById(deviceId)
+                        .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
+                controlDevice.setDevice(device);
+            }
+
+            if (deviceChannel != null) {
+                controlDevice.setDeviceChannel(deviceChannel);
+            }
+
+            ControlDeviceEntity updated = controlDeviceRepository.save(controlDevice);
+
+            return ControlDeviceResponse.builder()
+                    .id(updated.getId())
+                    .controlId(updated.getControl().getId())
+                    .deviceId(updated.getDevice().getId())
+                    .deviceChannel(updated.getDeviceChannel())
+                    .build();
+        } else {
+            throw new IllegalStateException("Forbidden!");
         }
-
-        if (deviceChannel != null) {
-            controlDevice.setDeviceChannel(deviceChannel);
-        }
-
-        ControlDeviceEntity updated = controlDeviceRepository.save(controlDevice);
-
-        return ControlDeviceResponse.builder()
-                .id(updated.getId())
-                .controlId(updated.getControl().getId())
-                .deviceId(updated.getDevice().getId())
-                .deviceChannel(updated.getDeviceChannel())
-                .build();
     }
 
     public void deleteControlDevice(
-            Long controlDeviceId
+            Long accountId, Long controlDeviceId
     ) {
-        if (!controlDeviceRepository.existsById(controlDeviceId)) {
-            throw new EntityNotFoundException("ControlDevice not found with id: " + controlDeviceId);
+        ControlDeviceEntity controlDevice = controlDeviceRepository.findById(controlDeviceId)
+                .orElseThrow(() -> new EntityNotFoundException("ControlDevice not found with id: " + controlDeviceId));
+        if (controlDevice.getControl().getAccount().getId().equals(accountId)) {
+            controlDeviceRepository.deleteById(controlDeviceId);
+        } else {
+            throw new IllegalStateException("Forbidden!");
         }
-        controlDeviceRepository.deleteById(controlDeviceId);
     }
 
     public List<ControlDeviceEntity> getDevicesByControl(
-            Long controlId
+            Long accountId, Long controlId
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
-
-        return control.getControlDevices().stream().toList();
+        if (control.getAccount().getId().equals(accountId)) {
+            return control.getControlDevices().stream().toList();
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
     }
 
     public List<ControlDeviceResponse> getControlDevices(

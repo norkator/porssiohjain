@@ -216,7 +216,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         deviceGrid.addColumn(cd -> cd.getDevice().getUuid()).setHeader("UUID");
         deviceGrid.addComponentColumn(cd -> {
             Button delete = new Button("Delete", e -> {
-                controlService.deleteControlDevice(cd.getId());
+                controlService.deleteControlDevice(getAccountId(), cd.getId());
                 loadControlDevices();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -242,6 +242,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         Button addButton = new Button("Add Device", e -> {
             if (deviceSelect.getValue() != null && channelField.getValue() != null) {
                 controlService.addDeviceToControl(
+                        getAccountId(),
                         controlId,
                         deviceSelect.getValue().getId(),
                         channelField.getValue().intValue()
