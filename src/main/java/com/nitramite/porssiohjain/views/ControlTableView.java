@@ -438,7 +438,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                 chart: {
                                     type: 'line',
                                     height: '400px',
-                                    toolbar: { show: false },
+                                    toolbar: { show: true },
                                     zoom: { enabled: false }
                                 },
                                 series: [
