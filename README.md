@@ -16,7 +16,7 @@ Note that shelly output channels starts from number `0`
 
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
-const API_URL = 'http://ipaddress:8080/control/' + DEVICE_UUID;
+const API_URL = 'https://porssiohjain.nitramite.com/control/' + DEVICE_UUID;
 
 function setRelay(id, state) {
     Shelly.call('Switch.Set', {id: id, on: state}, function (res, err) {
