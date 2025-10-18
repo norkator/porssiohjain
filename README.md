@@ -7,25 +7,35 @@ tilat, eli käytännössä konfiguroidut kavananumerot ja tila päälle/pois pä
 Käyttöliittymä on tehty Vaadinilla ja renderöityy palvelimen puolella. Käyttöliittymän tarkoitus on olla mahdollisimman
 yksinkertainen kun tavoite on että siellä käydään harvoin.
 
+⚠️ En takaa minkäänlaista uptimea esimerkin palvelimelle (tälle palvelulle). Jos sinulla on tarjota virtuaalikone,
+kubernetes tai muu ympäristö missä ajaa tätä sovellusta niin ota yhteyttä.
+
 ## Asennusohje
 
 ### Palvelun tili ja asetukset
 
 #### Käyttäjätili
 
-Todo
+Aloita luomalla käyttäjätili ja kopioi tiedot talteen, sillä ne näkyvät vain tämän kerran.
+
+![account](./doc/account.png)
 
 #### Laitteiden lisäys
 
-Todo
+Kirjautumisen jälkeen mene lisäämään laitteet ja ota UUID talteen.
+UUID laitetaan esim Shelly scriptissä `DEVICE_UUID` kohtaan.
+
+![my-devices](./doc/my_devices.png)
 
 #### Ohjausten tekeminen
 
-Todo
+Luo ohjaukset `My controls` näkymässä asettaen moodi, vero, max hinnat.
+
+Ohjauksissa lisätään valikosta laitteet ja kanavat mitä haluat ohjata.
 
 ### Shelly skripti
 
-Konfiguroinnissa kanavat alkavat arvosta `0`
+* Konfiguroinnissa kanavat alkavat arvosta `0`
 
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
