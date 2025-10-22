@@ -25,7 +25,7 @@ public class CreateAccountView extends VerticalLayout {
     private final AccountService accountService;
     protected final I18nService i18n;
 
-    private final Button createButton = new Button(t("createAccount.button.create"));
+    private final Button createButton;
     private final VerticalLayout resultLayout = new VerticalLayout();
 
     @Autowired
@@ -40,6 +40,8 @@ public class CreateAccountView extends VerticalLayout {
         if (storedLocale != null) {
             UI.getCurrent().setLocale(storedLocale);
         }
+
+        createButton = new Button(t("createAccount.button.create"));
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -110,7 +112,7 @@ public class CreateAccountView extends VerticalLayout {
                 new Paragraph(t("createAccount.info.secret", account.getSecret()))
         );
 
-        Paragraph note = new Paragraph(t("createAccount.note"));
+        Paragraph note = new Paragraph("⚠️" + t("createAccount.note"));
         note.getStyle().set("color", "var(--lumo-error-text-color)");
         note.getStyle().set("margin-top", "1em");
 
