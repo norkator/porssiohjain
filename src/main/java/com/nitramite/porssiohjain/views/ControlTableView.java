@@ -35,10 +35,7 @@ import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Route("controls/:controlId")
 @PermitAll
@@ -75,6 +72,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.controlSchedulerService = controlSchedulerService;
         this.nordpoolService = nordpoolService;
         this.i18n = i18n;
+
+        Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
+        if (storedLocale != null) {
+            UI.getCurrent().setLocale(storedLocale);
+        }
 
         setSpacing(true);
         setPadding(true);
@@ -433,6 +435,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         chartDiv.getElement().executeJs("""
                     const container = this;
+                    const nordpoolLabel = $3;
+                    const controlLabel = $4;
+                    const xAxisLabel = $5;
+                    const yAxisLabel = $6;
+                    const chartTitle = $7;
+                    const nowLabel = $8;
                 
                     function renderOrUpdate(dataX, dataNordpool, dataControl) {
                         if (!window.ApexCharts) {
@@ -458,12 +466,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                     zoom: { enabled: false }
                                 },
                                 series: [
-                                    { name: 'Nordpool Price', data: dataNordpool, color: '#0000FF' },
-                                    { name: 'Control Active Price', data: dataControl, color: '#FF0000' }
+                                    { name: nordpoolLabel, data: dataNordpool, color: '#0000FF' },
+                                    { name: controlLabel, data: dataControl, color: '#FF0000' }
                                 ],
-                                xaxis: { categories: dataX, title: { text: 'Time' }, labels: { rotate: -45 } },
-                                yaxis: { title: { text: 'Price (snt)' } },
-                                title: { text: 'Price over Time', align: 'center' },
+                                xaxis: { categories: dataX, title: { text: xAxisLabel }, labels: { rotate: -45 } },
+                                yaxis: { title: { text: yAxisLabel } },
+                                title: { text: chartTitle, align: 'center' },
                                 stroke: { curve: 'smooth', width: 2 },
                                 markers: { size: 4 },
                                 tooltip: { shared: true },
@@ -474,7 +482,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                             borderColor: '#00E396',
                                             label: {
                                                 style: { color: '#fff', background: '#00E396' },
-                                                text: 'Now'
+                                                text: nowLabel
                                             }
                                         }
                                     ]
@@ -492,7 +500,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                             borderColor: '#00E396',
                                             label: {
                                                 style: { color: '#fff', background: '#00E396' },
-                                                text: 'Now'
+                                                text: nowLabel
                                             }
                                         }
                                     ]
@@ -506,7 +514,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                     }
                 
                     renderOrUpdate($0, $1, $2);
-                """, jsTimestamps, jsNordpoolPrices, jsControlPrices);
+                """,
+                jsTimestamps, jsNordpoolPrices, jsControlPrices,
+                nordpoolLabel, controlLabel, xAxisLabel, yAxisLabel, chartTitle, nowLabel
+        );
     }
 
     protected String t(String key, Object... args) {
