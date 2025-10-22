@@ -37,9 +37,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final AuthService authService;
     protected final I18nService i18n;
 
-    private final TextField nameField = new TextField("Device Name");
-    private final ComboBox<String> timezoneCombo = new ComboBox<>("Timezone");
-    private final Button saveButton = new Button("Save Device");
+    private final TextField nameField;
+    private final ComboBox<String> timezoneCombo;
+    private final Button saveButton;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -54,6 +54,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         this.deviceService = deviceService;
         this.authService = authService;
         this.i18n = i18n;
+
+        nameField = new TextField(t("device.field.name"));
+        timezoneCombo = new ComboBox<>(t("device.field.timezone"));
+        saveButton = new Button(t("device.button.save"));
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -70,27 +74,27 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         card.getStyle().set("padding", "32px");
         card.getStyle().set("background-color", "var(--lumo-base-color)");
 
-        H2 title = new H2("My Devices");
+        H2 title = new H2(t("device.title"));
         title.getStyle().set("margin-top", "0");
 
-        deviceGrid.addColumn(DeviceResponse::getId).setHeader("ID").setAutoWidth(true);
-        deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader("Device Name").setAutoWidth(true);
-        deviceGrid.addColumn(DeviceResponse::getUuid).setHeader("UUID").setAutoWidth(true);
+        deviceGrid.addColumn(DeviceResponse::getId).setHeader(t("device.grid.id")).setAutoWidth(true);
+        deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader(t("device.grid.name")).setAutoWidth(true);
+        deviceGrid.addColumn(DeviceResponse::getUuid).setHeader(t("device.grid.uuid")).setAutoWidth(true);
         deviceGrid.addColumn(control -> {
             ZoneId zone = ZoneId.of(control.getTimezone());
             Instant lastComm = control.getLastCommunication();
             return lastComm != null
                     ? ZonedDateTime.ofInstant(lastComm, zone).format(formatter)
                     : "-";
-        }).setHeader("Last Communication").setAutoWidth(true);
+        }).setHeader(t("device.grid.lastCommunication")).setAutoWidth(true);
         deviceGrid.addColumn(control -> {
             ZoneId zone = ZoneId.of(control.getTimezone());
             return ZonedDateTime.ofInstant(control.getCreatedAt(), zone).format(formatter);
-        }).setHeader("Created").setAutoWidth(true);
+        }).setHeader(t("device.grid.created")).setAutoWidth(true);
         deviceGrid.addColumn(control -> {
             ZoneId zone = ZoneId.of(control.getTimezone());
             return ZonedDateTime.ofInstant(control.getUpdatedAt(), zone).format(formatter);
-        }).setHeader("Updated").setAutoWidth(true);
+        }).setHeader(t("device.grid.updated")).setAutoWidth(true);
 
         deviceGrid.setWidthFull();
         deviceGrid.getStyle().set("max-height", "300px");
@@ -101,7 +105,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             if (selectedDevice != null) {
                 nameField.setValue(selectedDevice.getDeviceName());
                 timezoneCombo.setValue(selectedDevice.getTimezone());
-                saveButton.setText("Update Device");
+                saveButton.setText(t("device.button.update"));
             } else {
                 clearForm();
             }
@@ -146,28 +150,28 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             String timezone = timezoneCombo.getValue();
 
             if (deviceName == null || deviceName.isBlank()) {
-                Notification.show("Device name cannot be empty");
+                Notification.show(t("device.notification.nameEmpty"));
                 return;
             }
 
             if (timezone == null || timezone.isBlank()) {
-                Notification.show("Please select a timezone");
+                Notification.show(t("device.notification.timezoneEmpty"));
                 return;
             }
 
             if (selectedDevice != null) {
                 deviceService.updateDevice(selectedDevice.getId(), deviceName, timezone);
-                Notification.show("Device updated successfully!");
+                Notification.show(t("device.notification.updated"));
             } else {
                 deviceService.createDevice(authAccountId, accountId, deviceName, timezone);
-                Notification.show("Device created successfully!");
+                Notification.show(t("device.notification.created"));
             }
 
             clearForm();
             loadDevices();
 
         } catch (Exception e) {
-            Notification.show("Failed to save device: " + e.getMessage());
+            Notification.show(t("device.notification.failed", e.getMessage()));
         }
     }
 
@@ -175,7 +179,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         selectedDevice = null;
         nameField.clear();
         timezoneCombo.setValue(ZoneId.systemDefault().getId());
-        saveButton.setText("Add Device");
+        saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
     }
 
@@ -183,7 +187,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         try {
             String token = (String) VaadinSession.getCurrent().getAttribute("token");
             if (token == null) {
-                Notification.show("Not logged in");
+                Notification.show(t("device.notification.notLoggedIn"));
                 return;
             }
 
@@ -193,7 +197,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             List<DeviceResponse> devices = deviceService.getAllDevices(accountId);
             deviceGrid.setItems(devices);
         } catch (Exception e) {
-            Notification.show("Failed to load devices: " + e.getMessage());
+            Notification.show(t("device.notification.loadFailed", e.getMessage()));
         }
     }
 
