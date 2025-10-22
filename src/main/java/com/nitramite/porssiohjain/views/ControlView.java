@@ -4,6 +4,7 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlMode;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.ControlService;
+import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.ControlResponse;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -39,24 +40,36 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<ControlResponse> controlsGrid = new Grid<>(ControlResponse.class, false);
     private final ControlService controlService;
+    protected final I18nService i18n;
     private Long accountId;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    private final TextField nameField = new TextField("Name");
-    private final ComboBox<String> timezoneField = new ComboBox<>("Timezone");
-    private final NumberField maxPriceField = new NumberField("Max Price (snt)");
-    private final IntegerField dailyMinutesField = new IntegerField("Daily On Minutes");
-    private final NumberField taxPercentField = new NumberField("Tax Percent (%)");
-    private final ComboBox<ControlMode> modeField = new ComboBox<>("Mode");
-    private final Checkbox manualOnToggle = new Checkbox("Manual On");
-    private final Button createButton = new Button("Create Control");
+    private final TextField nameField;
+    private final ComboBox<String> timezoneField;
+    private final NumberField maxPriceField;
+    private final IntegerField dailyMinutesField;
+    private final NumberField taxPercentField;
+    private final ComboBox<ControlMode> modeField;
+    private final Checkbox manualOnToggle;
+    private final Button createButton;
 
     @Autowired
     public ControlView(
             ControlService controlService,
-            AuthService authService
+            AuthService authService,
+            I18nService i18n
     ) {
         this.controlService = controlService;
+        this.i18n = i18n;
+
+        nameField = new TextField(t("control.field.name"));
+        timezoneField = new ComboBox<>(t("control.field.timezone"));
+        maxPriceField = new NumberField(t("control.field.maxPrice"));
+        dailyMinutesField = new IntegerField(t("control.field.dailyMinutes"));
+        taxPercentField = new NumberField(t("control.field.taxPercent"));
+        modeField = new ComboBox<>(t("control.field.mode"));
+        manualOnToggle = new Checkbox(t("control.field.manualOn"));
+        createButton = new Button(t("control.button.create"));
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -75,7 +88,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
                 .set("padding", "32px")
                 .set("background-color", "var(--lumo-base-color)");
 
-        H2 title = new H2("Device Controls");
+        H2 title = new H2(t("control.title"));
         title.getStyle().set("margin-top", "0");
 
         configureGrid();
@@ -86,7 +99,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show("Session expired, please log in again");
+            Notification.show(t("control.notification.sessionExpired"));
             UI.getCurrent().navigate(LoginView.class);
             return;
         }
@@ -177,20 +190,20 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void configureGrid() {
-        controlsGrid.addColumn(ControlResponse::getId).setHeader("ID").setAutoWidth(true);
-        controlsGrid.addColumn(ControlResponse::getName).setHeader("Name").setAutoWidth(true);
-        controlsGrid.addColumn(ControlResponse::getMaxPriceSnt).setHeader("Max Price (snt)").setAutoWidth(true);
-        controlsGrid.addColumn(ControlResponse::getDailyOnMinutes).setHeader("Daily On Minutes").setAutoWidth(true);
-        controlsGrid.addColumn(ControlResponse::getTimezone).setHeader("Timezone").setAutoWidth(true);
-        controlsGrid.addColumn(ControlResponse::getMode).setHeader("Mode").setAutoWidth(true); // ✅ Added Control Mode column
+        controlsGrid.addColumn(ControlResponse::getId).setHeader(t("control.grid.id")).setAutoWidth(true);
+        controlsGrid.addColumn(ControlResponse::getName).setHeader(t("control.grid.name")).setAutoWidth(true);
+        controlsGrid.addColumn(ControlResponse::getMaxPriceSnt).setHeader(t("control.grid.maxPrice")).setAutoWidth(true);
+        controlsGrid.addColumn(ControlResponse::getDailyOnMinutes).setHeader(t("control.grid.dailyMinutes")).setAutoWidth(true);
+        controlsGrid.addColumn(ControlResponse::getTimezone).setHeader(t("control.grid.timezone")).setAutoWidth(true);
+        controlsGrid.addColumn(ControlResponse::getMode).setHeader(t("control.grid.mode")).setAutoWidth(true);
         controlsGrid.addColumn(control -> {
             ZoneId zone = ZoneId.of(control.getTimezone());
             return ZonedDateTime.ofInstant(control.getCreatedAt(), zone).format(formatter);
-        }).setHeader("Created").setAutoWidth(true);
+        }).setHeader(t("control.grid.created")).setAutoWidth(true);
         controlsGrid.addColumn(control -> {
             ZoneId zone = ZoneId.of(control.getTimezone());
             return ZonedDateTime.ofInstant(control.getUpdatedAt(), zone).format(formatter);
-        }).setHeader("Updated").setAutoWidth(true);
+        }).setHeader(t("control.grid.updated")).setAutoWidth(true);
 
         controlsGrid.setWidthFull();
         controlsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
@@ -219,23 +232,23 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
             boolean manualOn = manualOnToggle.getValue();
 
             if (name == null || name.isBlank()) {
-                Notification.show("Name cannot be empty");
+                Notification.show(t("control.notification.nameEmpty"));
                 return;
             }
 
             if (dailyMinutes == null) {
-                Notification.show("Please fill in all numeric fields");
+                Notification.show(t("control.notification.numericEmpty"));
                 return;
             }
 
 
             controlService.createControl(accountId, name, timezone, maxPrice, dailyMinutes, taxPercent, mode, manualOn);
-            Notification.show("Control created successfully");
+            Notification.show(t("control.notification.created"));
 
             clearForm();
             loadControls();
         } catch (Exception e) {
-            Notification.show("Failed to create control: " + e.getMessage());
+            Notification.show(t("control.notification.failed", e.getMessage()));
         }
     }
 
@@ -253,7 +266,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         try {
             controlsGrid.setItems(controlService.getAllControls(accountId));
         } catch (Exception e) {
-            Notification.show("Failed to load controls: " + e.getMessage());
+            Notification.show(t("control.notification.loadFailed", e.getMessage()));
         }
     }
 
@@ -263,6 +276,10 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         if (token == null) {
             event.forwardTo(LoginView.class);
         }
+    }
+
+    protected String t(String key, Object... args) {
+        return i18n.t(key, args);
     }
 
 }
