@@ -49,6 +49,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final DeviceService deviceService;
     private final ControlSchedulerService controlSchedulerService;
     private final NordpoolService nordpoolService;
+    protected final I18nService i18n;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
@@ -65,13 +66,15 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             ControlService controlService,
             DeviceService deviceService,
             ControlSchedulerService controlSchedulerService,
-            NordpoolService nordpoolService
+            NordpoolService nordpoolService,
+            I18nService i18n
     ) {
         this.authService = authService;
         this.controlService = controlService;
         this.deviceService = deviceService;
         this.controlSchedulerService = controlSchedulerService;
         this.nordpoolService = nordpoolService;
+        this.i18n = i18n;
 
         setSpacing(true);
         setPadding(true);
@@ -497,6 +500,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 
                     renderOrUpdate($0, $1, $2);
                 """, jsTimestamps, jsNordpoolPrices, jsControlPrices);
+    }
+
+    protected String t(String key, Object... args) {
+        return i18n.t(key, args);
     }
 
 }
