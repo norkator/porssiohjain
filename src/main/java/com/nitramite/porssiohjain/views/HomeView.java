@@ -41,6 +41,10 @@ public class HomeView extends VerticalLayout {
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
             UI.getCurrent().setLocale(storedLocale);
+        } else {
+            Locale defaultLocale = Locale.of("fi", "FI");
+            UI.getCurrent().setLocale(defaultLocale);
+            VaadinSession.getCurrent().setAttribute(Locale.class, defaultLocale);
         }
 
         setSizeFull();
