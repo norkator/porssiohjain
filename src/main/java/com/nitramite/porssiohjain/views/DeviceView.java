@@ -5,6 +5,7 @@ import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -27,6 +28,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Route("device")
 @PermitAll
@@ -54,6 +56,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         this.deviceService = deviceService;
         this.authService = authService;
         this.i18n = i18n;
+
+        Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
+        if (storedLocale != null) {
+            UI.getCurrent().setLocale(storedLocale);
+        }
 
         nameField = new TextField(t("device.field.name"));
         timezoneCombo = new ComboBox<>(t("device.field.timezone"));

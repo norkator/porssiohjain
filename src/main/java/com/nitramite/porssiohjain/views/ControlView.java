@@ -33,6 +33,7 @@ import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 @Route("controls")
 @PermitAll
@@ -61,6 +62,11 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     ) {
         this.controlService = controlService;
         this.i18n = i18n;
+
+        Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
+        if (storedLocale != null) {
+            UI.getCurrent().setLocale(storedLocale);
+        }
 
         nameField = new TextField(t("control.field.name"));
         timezoneField = new ComboBox<>(t("control.field.timezone"));
