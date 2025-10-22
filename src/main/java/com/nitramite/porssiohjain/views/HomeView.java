@@ -2,6 +2,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.NordpoolService;
 import com.nitramite.porssiohjain.services.models.TodayPriceStatsResponse;
 import com.vaadin.flow.component.UI;
@@ -19,6 +20,7 @@ import jakarta.annotation.security.PermitAll;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.ZoneId;
+import java.util.Locale;
 import java.util.stream.Stream;
 
 @Route("")
@@ -26,12 +28,20 @@ import java.util.stream.Stream;
 public class HomeView extends VerticalLayout {
 
     private final AuthService authService;
+    protected final I18nService i18n;
 
     public HomeView(
             NordpoolService nordpoolService,
-            AuthService authService
+            AuthService authService,
+            I18nService i18n
     ) {
         this.authService = authService;
+        this.i18n = i18n;
+
+        Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
+        if (storedLocale != null) {
+            UI.getCurrent().setLocale(storedLocale);
+        }
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -47,13 +57,18 @@ public class HomeView extends VerticalLayout {
         contentBox.getStyle().set("padding", "32px");
         contentBox.getStyle().set("background-color", "var(--lumo-base-color)");
 
-        H1 title = new H1("Welcome to Pörssiohjain");
+        H1 title = new H1(t("home.title"));
         title.getStyle().set("margin-top", "0");
         title.getStyle().set("font-size", "1.8em");
 
-        Paragraph subtitle = new Paragraph("Welcome to Pörssiohjain control platform");
+        Paragraph subtitle = new Paragraph(t("home.subtitle"));
         subtitle.getStyle().set("margin-bottom", "1.5em");
         subtitle.getStyle().set("color", "var(--lumo-secondary-text-color)");
+
+        Button fiButton = new Button(t("lang.finnish"), e -> switchLocale("fi"));
+        Button enButton = new Button(t("lang.english"), e -> switchLocale("en"));
+        HorizontalLayout langButtons = new HorizontalLayout(enButton, fiButton);
+        langButtons.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 
         HorizontalLayout priceStatsLayout = new HorizontalLayout();
         priceStatsLayout.setWidthFull();
@@ -61,28 +76,28 @@ public class HomeView extends VerticalLayout {
         priceStatsLayout.setSpacing(true);
         priceStatsLayout.getStyle().set("flex-wrap", "wrap");
 
-        VerticalLayout minBox = createStatBox("Today Min", "–");
-        VerticalLayout avgBox = createStatBox("Today Avg", "–");
-        VerticalLayout maxBox = createStatBox("Today Max", "–");
+        VerticalLayout minBox = createStatBox(t("home.todayMin"), "–");
+        VerticalLayout avgBox = createStatBox(t("home.todayAvg"), "–");
+        VerticalLayout maxBox = createStatBox(t("home.todayMax"), "–");
 
         priceStatsLayout.add(minBox, avgBox, maxBox);
 
-        Button loginButton = new Button("Login", e -> UI.getCurrent().navigate(LoginView.class));
+        Button loginButton = new Button(t("home.login"), e -> UI.getCurrent().navigate(LoginView.class));
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        Button createAccountButton = new Button("Create Account", e -> UI.getCurrent().navigate(CreateAccountView.class));
+        Button createAccountButton = new Button(t("home.createAccount"), e -> UI.getCurrent().navigate(CreateAccountView.class));
         createAccountButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
 
-        Button devicesButton = new Button("My Devices", e -> UI.getCurrent().navigate(DeviceView.class));
+        Button devicesButton = new Button(t("home.myDevices"), e -> UI.getCurrent().navigate(DeviceView.class));
         devicesButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
-        Button controlsButton = new Button("My Controls", e -> UI.getCurrent().navigate(ControlView.class));
+        Button controlsButton = new Button(t("home.myControls"), e -> UI.getCurrent().navigate(ControlView.class));
 
-        Button logoutButton = new Button("Logout", e -> {
+        Button logoutButton = new Button(t("home.logout"), e -> {
             VaadinSession session = VaadinSession.getCurrent();
             session.setAttribute("token", null);
             session.setAttribute("expiresAt", null);
-            Notification.show("Logged out successfully");
+            Notification.show(t("home.logoutSuccess"));
             UI.getCurrent().getPage().reload();
         });
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -96,7 +111,7 @@ public class HomeView extends VerticalLayout {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         boolean loggedIn = token != null && !token.isBlank();
 
-        contentBox.add(title, subtitle);
+        contentBox.add(langButtons, title, subtitle);
 
         if (loggedIn) {
             String timezone = ZoneId.systemDefault().getId();
@@ -111,13 +126,19 @@ public class HomeView extends VerticalLayout {
             contentBox.add(loginButton, createAccountButton);
         }
 
-        Paragraph docLink = new Paragraph("For documentation, visit ");
-        Anchor link = new Anchor("https://github.com/norkator/porssiohjain", "GitHub");
+        Paragraph docLink = new Paragraph(t("home.docText") + " ");
+        Anchor link = new Anchor("https://github.com/norkator/porssiohjain", t("home.docLink"));
         link.setTarget("_blank");
         docLink.add(link);
         contentBox.add(docLink);
 
         add(contentBox);
+    }
+
+    private void switchLocale(String langTag) {
+        Locale newLocale = Locale.forLanguageTag(langTag);
+        VaadinSession.getCurrent().setAttribute(Locale.class, newLocale);
+        UI.getCurrent().getPage().reload();
     }
 
     private VerticalLayout createStatBox(String label, String value) {
@@ -128,7 +149,6 @@ public class HomeView extends VerticalLayout {
         box.getStyle().set("border", "1px solid var(--lumo-contrast-10pct)");
         box.getStyle().set("border-radius", "8px");
         box.getStyle().set("padding", "12px 20px");
-
         box.getStyle().set("min-width", "120px");
         box.getStyle().set("max-width", "120px");
         box.getStyle().set("flex", "1 1 auto");
@@ -146,7 +166,6 @@ public class HomeView extends VerticalLayout {
         return box;
     }
 
-
     private void updateStatBox(VerticalLayout box, BigDecimal value) {
         H2 valueText = (H2) box.getChildren().findFirst().orElse(null);
         if (valueText != null) {
@@ -163,7 +182,7 @@ public class HomeView extends VerticalLayout {
     private Long getAccountId() {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show("Session expired, please log in again");
+            Notification.show(t("home.sessionExpired"));
             UI.getCurrent().navigate(LoginView.class);
         }
 
@@ -171,5 +190,8 @@ public class HomeView extends VerticalLayout {
         return account.getId();
     }
 
-
+    protected String t(String key, Object... args) {
+        return i18n.t(key, args);
+    }
 }
+
