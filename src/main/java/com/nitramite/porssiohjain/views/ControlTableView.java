@@ -93,7 +93,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             loadControl();
             renderView();
         } catch (Exception e) {
-            add(new Paragraph("Error loading control: " + e.getMessage()));
+            add(new Paragraph(t("controlTable.errorLoad", e.getMessage())));
         }
     }
 
@@ -104,7 +104,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private Long getAccountId() {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show("Session expired, please log in again");
+            Notification.show(t("controlTable.sessionExpired"));
             UI.getCurrent().navigate(LoginView.class);
         }
 
@@ -115,29 +115,29 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private void renderView() {
         removeAll();
 
-        add(new H2("Control: " + control.getName()));
+        add(new H2(t("controlTable.title", control.getName())));
 
-        TextField controlNameField = new TextField("Control name");
+        TextField controlNameField = new TextField(t("controlTable.field.name"));
         controlNameField.setValue(control.getName());
 
-        NumberField maxPriceField = new NumberField("Max Price (snt)");
+        NumberField maxPriceField = new NumberField(t("controlTable.field.maxPrice"));
         maxPriceField.setValue(control.getMaxPriceSnt().doubleValue());
 
-        NumberField dailyMinutes = new NumberField("Daily On Minutes");
+        NumberField dailyMinutes = new NumberField(t("controlTable.field.dailyMinutes"));
         dailyMinutes.setValue(control.getDailyOnMinutes().doubleValue());
 
-        NumberField taxPercentage = new NumberField("Tax %");
+        NumberField taxPercentage = new NumberField(t("controlTable.field.taxPercent"));
         taxPercentage.setValue(control.getTaxPercent().doubleValue());
 
-        ComboBox<ControlMode> modeCombo = new ComboBox<>("Mode");
+        ComboBox<ControlMode> modeCombo = new ComboBox<>(t("controlTable.field.mode"));
         modeCombo.setItems(ControlMode.values());
         modeCombo.setValue(control.getMode());
         modeCombo.setWidthFull();
 
-        Checkbox manualToggle = new Checkbox("Manual On");
+        Checkbox manualToggle = new Checkbox(t("controlTable.field.manualOn"));
         manualToggle.setValue(control.getManualOn());
 
-        Button saveButton = new Button("Save", e -> {
+        Button saveButton = new Button(t("controlTable.button.save"), e -> {
             try {
                 control.setName(controlNameField.getValue());
                 control.setMaxPriceSnt(BigDecimal.valueOf(maxPriceField.getValue()));
@@ -159,9 +159,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         control.getManualOn()
                 );
 
-                Notification.show("Saved successfully");
+                Notification.show(t("controlTable.notification.saved"));
             } catch (Exception ex) {
-                Notification.show("Failed to save: " + ex.getMessage());
+                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()));
             }
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -200,7 +200,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         modeCombo.addValueChangeListener(e -> updateFieldStates.run());
         updateFieldStates.run();
 
-        add(new H3("Device and device channels linked to this control:"));
+        add(new H3(t("controlTable.section.devices")));
         configureDeviceGrid();
         add(deviceGrid);
 
@@ -214,17 +214,17 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private void configureDeviceGrid() {
         deviceGrid.removeAllColumns();
-        deviceGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader("Device Name");
-        deviceGrid.addColumn(ControlDeviceResponse::getDeviceChannel).setHeader("Channel");
-        deviceGrid.addColumn(cd -> cd.getDevice().getUuid()).setHeader("UUID");
+        deviceGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader(t("controlTable.grid.deviceName"));
+        deviceGrid.addColumn(ControlDeviceResponse::getDeviceChannel).setHeader(t("controlTable.grid.channel"));
+        deviceGrid.addColumn(cd -> cd.getDevice().getUuid()).setHeader(t("controlTable.grid.uuid"));
         deviceGrid.addComponentColumn(cd -> {
-            Button delete = new Button("Delete", e -> {
+            Button delete = new Button(t("controlTable.button.delete"), e -> {
                 controlService.deleteControlDevice(getAccountId(), cd.getId());
                 loadControlDevices();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
             return delete;
-        }).setHeader("Actions");
+        }).setHeader(t("controlTable.grid.actions"));
         deviceGrid.setMaxHeight("200px");
     }
 
@@ -233,16 +233,16 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private Component createAddDeviceLayout() {
-        ComboBox<DeviceResponse> deviceSelect = new ComboBox<>("Select Device");
+        ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
         deviceSelect.setItems(deviceService.getAllDevicesForControlId(controlId));
         deviceSelect.setWidthFull();
 
-        NumberField channelField = new NumberField("Channel");
+        NumberField channelField = new NumberField(t("controlTable.field.channel"));
         channelField.setStep(1);
         channelField.setWidthFull();
 
-        Button addButton = new Button("Add Device", e -> {
+        Button addButton = new Button(t("controlTable.button.addDevice"), e -> {
             if (deviceSelect.getValue() != null && channelField.getValue() != null) {
                 controlService.addDeviceToControl(
                         getAccountId(),
@@ -287,7 +287,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             } catch (Exception ignored) {
             }
             return ZonedDateTime.ofInstant(entry.getStartTime(), zone).format(formatter);
-        }).setHeader("Start Time");
+        }).setHeader(t("controlTable.grid.startTime"));
         controlTableGrid.addColumn(entry -> {
             ZoneId zone = ZoneId.systemDefault();
             try {
@@ -297,12 +297,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             } catch (Exception ignored) {
             }
             return ZonedDateTime.ofInstant(entry.getEndTime(), zone).format(formatter);
-        }).setHeader("End Time");
-        controlTableGrid.addColumn(ControlTableResponse::getPriceSnt).setHeader("Price (snt)");
-        controlTableGrid.addColumn(ControlTableResponse::getStatus).setHeader("Status");
+        }).setHeader(t("controlTable.grid.endTime"));
+        controlTableGrid.addColumn(ControlTableResponse::getPriceSnt).setHeader(t("controlTable.grid.price"));
+        controlTableGrid.addColumn(ControlTableResponse::getStatus).setHeader(t("controlTable.grid.status"));
         controlTableGrid.setAllRowsVisible(true);
 
-        Button recalcButton = new Button("Recalculate", e -> {
+        Button recalcButton = new Button(t("controlTable.button.recalculate"), e -> {
             controlSchedulerService.generateForControl(controlId);
             List<ControlTableResponse> controlTableResponses = controlSchedulerService.findByControlId(controlId);
             List<NordpoolPriceResponse> nordpoolPriceResponses = nordpoolService.getNordpoolPricesForControl(controlId);
@@ -318,10 +318,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         VerticalLayout layout = new VerticalLayout(
                 new HorizontalLayout(
-                        new H3("Control Table"),
+                        new H3(t("controlTable.section.title")),
                         recalcButton
                 ),
-                new Div(new Text("Showing upcoming and currently in progress controls")),
+                new Div(new Text(t("controlTable.section.description"))),
                 createPriceChart(controlTableResponses, nordpoolPriceResponses),
                 controlTableGrid
         );
@@ -423,6 +423,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 jsControlPrices.set(i, val);
             }
         }
+
+        String nordpoolLabel = t("controlTable.chart.nordpoolPrice");
+        String controlLabel = t("controlTable.chart.controlPrice");
+        String xAxisLabel = t("controlTable.chart.time");
+        String yAxisLabel = t("controlTable.chart.price");
+        String chartTitle = t("controlTable.chart.title");
+        String nowLabel = t("controlTable.chart.now");
 
         chartDiv.getElement().executeJs("""
                     const container = this;
