@@ -3,6 +3,7 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
+import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -34,6 +35,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final Grid<DeviceResponse> deviceGrid = new Grid<>(DeviceResponse.class, false);
     private final DeviceService deviceService;
     private final AuthService authService;
+    protected final I18nService i18n;
 
     private final TextField nameField = new TextField("Device Name");
     private final ComboBox<String> timezoneCombo = new ComboBox<>("Timezone");
@@ -44,9 +46,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private DeviceResponse selectedDevice;
 
     @Autowired
-    public DeviceView(DeviceService deviceService, AuthService authService) {
+    public DeviceView(
+            DeviceService deviceService,
+            AuthService authService,
+            I18nService i18n
+    ) {
         this.deviceService = deviceService;
         this.authService = authService;
+        this.i18n = i18n;
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -196,6 +203,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         if (token == null) {
             event.forwardTo(LoginView.class);
         }
+    }
+
+    protected String t(String key, Object... args) {
+        return i18n.t(key, args);
     }
 
 }

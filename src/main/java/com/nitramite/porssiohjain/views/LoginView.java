@@ -1,6 +1,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.LoginResponse;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -22,8 +23,14 @@ import java.util.UUID;
 @PermitAll
 public class LoginView extends VerticalLayout {
 
+    protected final I18nService i18n;
+
     @Autowired
-    public LoginView(AuthService authService) {
+    public LoginView(
+            AuthService authService,
+            I18nService i18n
+    ) {
+        this.i18n = i18n;
         setSizeFull();
         setAlignItems(Alignment.CENTER);
         setJustifyContentMode(JustifyContentMode.CENTER);
@@ -38,13 +45,13 @@ public class LoginView extends VerticalLayout {
         formLayout.getStyle().set("padding", "24px");
         formLayout.getStyle().set("background-color", "var(--lumo-base-color)");
 
-        H2 title = new H2("Login");
+        H2 title = new H2(t("login.title"));
         title.getStyle().set("margin-bottom", "0");
 
-        TextField uuidField = new TextField("UUID");
-        PasswordField secretField = new PasswordField("Secret");
+        TextField uuidField = new TextField(t("login.field.uuid"));
+        PasswordField secretField = new PasswordField(t("login.field.secret"));
 
-        Button loginButton = new Button("Login", event -> {
+        Button loginButton = new Button(t("login.button.login"), event -> {
             try {
                 UUID uuid = UUID.fromString(uuidField.getValue().trim());
                 String secret = secretField.getValue().trim();
@@ -55,10 +62,10 @@ public class LoginView extends VerticalLayout {
                 VaadinSession.getCurrent().setAttribute("token", response.getToken());
                 VaadinSession.getCurrent().setAttribute("expiresAt", response.getExpiresAt());
 
-                Notification.show("Login successful");
+                Notification.show(t("login.notification.success"));
                 UI.getCurrent().navigate(HomeView.class);
             } catch (Exception e) {
-                Notification.show("Login failed: " + e.getMessage());
+                Notification.show(t("login.notification.failed", e.getMessage()));
             }
         });
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -66,4 +73,9 @@ public class LoginView extends VerticalLayout {
         formLayout.add(title, uuidField, secretField, loginButton);
         add(formLayout);
     }
+
+    protected String t(String key, Object... args) {
+        return i18n.t(key, args);
+    }
+
 }
