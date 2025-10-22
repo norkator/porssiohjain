@@ -8,7 +8,7 @@ Käyttöliittymä on tehty Vaadinilla ja renderöityy palvelimen puolella. Käyt
 yksinkertainen kun tavoite on että siellä käydään harvoin.
 
 ⚠️ En takaa minkäänlaista uptimea esimerkin palvelimelle (tälle palvelulle). Jos sinulla on tarjota virtuaalikone,
-kubernetes tai muu ympäristö missä ajaa tätä sovellusta niin ota yhteyttä.
+kubernetes, docker tai vastaava muu ympäristö missä ajaa tätä sovellusta niin ota yhteyttä.
 
 ## Asennusohje
 

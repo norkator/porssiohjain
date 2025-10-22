@@ -2,6 +2,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AccountService;
+import com.nitramite.porssiohjain.services.I18nService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -13,19 +14,32 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinRequest;
+import com.vaadin.flow.server.VaadinSession;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.Locale;
 
 @Route("createAccount")
 public class CreateAccountView extends VerticalLayout {
 
     private final AccountService accountService;
+    protected final I18nService i18n;
 
     private final Button createButton = new Button("Create Account");
     private final VerticalLayout resultLayout = new VerticalLayout();
 
     @Autowired
-    public CreateAccountView(AccountService accountService) {
+    public CreateAccountView(
+            AccountService accountService,
+            I18nService i18n
+    ) {
         this.accountService = accountService;
+        this.i18n = i18n;
+
+        Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
+        if (storedLocale != null) {
+            UI.getCurrent().setLocale(storedLocale);
+        }
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -108,6 +122,10 @@ public class CreateAccountView extends VerticalLayout {
         note.getStyle().set("margin-top", "1em");
 
         resultLayout.add(successTitle, infoBox, note);
+    }
+
+    protected String t(String key, Object... args) {
+        return i18n.t(key, args);
     }
 
 }
