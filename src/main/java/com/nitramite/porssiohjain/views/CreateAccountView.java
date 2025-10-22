@@ -25,7 +25,7 @@ public class CreateAccountView extends VerticalLayout {
     private final AccountService accountService;
     protected final I18nService i18n;
 
-    private final Button createButton = new Button("Create Account");
+    private final Button createButton = new Button(t("createAccount.button.create"));
     private final VerticalLayout resultLayout = new VerticalLayout();
 
     @Autowired
@@ -55,15 +55,11 @@ public class CreateAccountView extends VerticalLayout {
         contentBox.getStyle().set("padding", "32px");
         contentBox.getStyle().set("background-color", "var(--lumo-base-color)");
 
-        H1 title = new H1("Create Pörssiohjain Account");
+        H1 title = new H1(t("createAccount.title"));
         title.getStyle().set("margin-top", "0");
         title.getStyle().set("font-size", "1.8em");
 
-        Paragraph description = new Paragraph("""
-                    This will create a new account for you automatically.
-                    A unique UUID (username) and Secret (password) will be generated.
-                    Please save them carefully — they will only be shown once.
-                """);
+        Paragraph description = new Paragraph(t("createAccount.description"));
         description.getStyle().set("color", "var(--lumo-secondary-text-color)");
         description.getStyle().set("text-align", "center");
 
@@ -74,7 +70,7 @@ public class CreateAccountView extends VerticalLayout {
         resultLayout.setPadding(false);
         resultLayout.setVisible(false);
 
-        Button backButton = new Button("Back to Home", event -> UI.getCurrent().navigate(HomeView.class));
+        Button backButton = new Button(t("createAccount.button.back"), event -> UI.getCurrent().navigate(HomeView.class));
         backButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         contentBox.add(title, description, createButton, resultLayout, backButton);
@@ -88,7 +84,7 @@ public class CreateAccountView extends VerticalLayout {
             showAccountInfo(account);
             createButton.setEnabled(false);
         } catch (Exception e) {
-            Notification.show("Failed to create account: " + e.getMessage());
+            Notification.show(t("createAccount.notification.failed", e.getMessage()));
         }
     }
 
@@ -96,7 +92,7 @@ public class CreateAccountView extends VerticalLayout {
         resultLayout.removeAll();
         resultLayout.setVisible(true);
 
-        H3 successTitle = new H3("Account Created Successfully!");
+        H3 successTitle = new H3(t("createAccount.success.title"));
         successTitle.getStyle().set("color", "var(--lumo-success-text-color)");
         successTitle.getStyle().set("margin-bottom", "0.5em");
 
@@ -110,14 +106,11 @@ public class CreateAccountView extends VerticalLayout {
                 .set("word-break", "break-all");
 
         infoBox.add(
-                new Paragraph("UUID (username): " + account.getUuid()),
-                new Paragraph("Secret (password): " + account.getSecret())
+                new Paragraph(t("createAccount.info.uuid", account.getUuid())),
+                new Paragraph(t("createAccount.info.secret", account.getSecret()))
         );
 
-        Paragraph note = new Paragraph("""
-                    ⚠️ Please copy your UUID and Secret now.
-                    They will not be shown again after you leave this page.
-                """);
+        Paragraph note = new Paragraph(t("createAccount.note"));
         note.getStyle().set("color", "var(--lumo-error-text-color)");
         note.getStyle().set("margin-top", "1em");
 
