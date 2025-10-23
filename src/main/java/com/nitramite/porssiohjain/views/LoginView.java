@@ -31,9 +31,13 @@ public class LoginView extends VerticalLayout {
             I18nService i18n
     ) {
         this.i18n = i18n;
-        setSizeFull();
-        setAlignItems(Alignment.CENTER);
-        setJustifyContentMode(JustifyContentMode.CENTER);
+
+        getStyle().set("display", "flex");
+        getStyle().set("flex-direction", "column");
+        getStyle().set("align-items", "center");
+        getStyle().set("justify-content", "center");
+        getStyle().set("min-height", "100vh");
+        getStyle().set("overflow", "auto");
 
         VerticalLayout formLayout = new VerticalLayout();
         formLayout.setMaxWidth("400px");

@@ -47,9 +47,12 @@ public class HomeView extends VerticalLayout {
             VaadinSession.getCurrent().setAttribute(Locale.class, defaultLocale);
         }
 
-        setSizeFull();
-        setAlignItems(Alignment.CENTER);
-        setJustifyContentMode(JustifyContentMode.CENTER);
+        getStyle().set("display", "flex");
+        getStyle().set("flex-direction", "column");
+        getStyle().set("align-items", "center");
+        getStyle().set("justify-content", "center");
+        getStyle().set("min-height", "100vh");
+        getStyle().set("overflow", "auto");
 
         VerticalLayout contentBox = new VerticalLayout();
         contentBox.setMaxWidth("500px");
