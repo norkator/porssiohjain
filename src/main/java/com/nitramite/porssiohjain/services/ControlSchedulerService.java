@@ -25,14 +25,17 @@ public class ControlSchedulerService {
     private final ControlRepository controlRepository;
     private final ControlTableRepository controlTableRepository;
 
-    public List<ControlTableResponse> findByControlId(Long controlId) {
-
+    public List<ControlTableResponse> findByControlId(
+            Long controlId
+    ) {
         Optional<ControlEntity> controlEntity = controlRepository.findById(controlId);
         ZoneId controlZone = ZoneId.of(controlEntity.get().getTimezone());
-        ZonedDateTime cutoffLocal = Instant.now().atZone(controlZone).minusMinutes(30);
-        Instant cutoffUtc = cutoffLocal.toInstant();
 
-        return controlTableRepository.findByControlIdAndStartTimeAfterOrderByStartTimeAsc(controlId, cutoffUtc).stream()
+        ZonedDateTime startOfDayLocal = LocalDate.now(controlZone).atStartOfDay(controlZone);
+        Instant cutoffUtc = startOfDayLocal.toInstant();
+
+        return controlTableRepository.findByControlIdAndStartTimeAfterOrderByStartTimeAsc(controlId,
+                        cutoffUtc).stream()
                 .map(this::toResponse)
                 .toList();
     }

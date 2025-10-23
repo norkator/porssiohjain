@@ -12,10 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
@@ -27,13 +24,15 @@ public class NordpoolService {
     private final NordpoolRepository nordpoolRepository;
     private final ControlRepository controlRepository;
 
-    public List<NordpoolPriceResponse> getNordpoolPricesForControl(Long controlId) {
+    public List<NordpoolPriceResponse> getNordpoolPricesForControl(
+            Long controlId, Instant startDate, Instant endDate
+    ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found: " + controlId));
 
         Instant now = Instant.now();
-        Instant start = now.minus(Duration.ofHours(1));
-        Instant end = now.plus(Duration.ofHours(24));
+        Instant start = startDate != null ? startDate : now.truncatedTo(ChronoUnit.DAYS);
+        Instant end = endDate != null ? endDate : start.plus(2, ChronoUnit.DAYS).minusNanos(1);
 
         List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(start, end);
 

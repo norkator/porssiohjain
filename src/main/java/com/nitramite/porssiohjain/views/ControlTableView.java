@@ -32,9 +32,11 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Route("controls/:controlId")
@@ -56,6 +58,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private Div chartDiv;
+
+    private final Instant dateNow = Instant.now();
+    private Instant startOfDay = dateNow.truncatedTo(ChronoUnit.DAYS);
+    private Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS).minusNanos(1);
+    private Instant startOfTomorrow = dateNow.truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS);
+    private Instant endOfDayTomorrow = startOfTomorrow.plus(1, ChronoUnit.DAYS).minusNanos(1);
+
 
     @Autowired
     public ControlTableView(
@@ -307,15 +316,24 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         Button recalcButton = new Button(t("controlTable.button.recalculate"), e -> {
             controlSchedulerService.generateForControl(controlId);
             List<ControlTableResponse> controlTableResponses = controlSchedulerService.findByControlId(controlId);
-            List<NordpoolPriceResponse> nordpoolPriceResponses = nordpoolService.getNordpoolPricesForControl(controlId);
+            List<NordpoolPriceResponse> nordpoolPriceResponsesToday = nordpoolService.getNordpoolPricesForControl(
+                    controlId, startOfDay, endOfDay
+            );
             refreshControlTable();
             controlTableGrid.setItems(controlTableResponses);
-            updatePriceChart(chartDiv, nordpoolPriceResponses, controlTableResponses, this.control.getTimezone());
+            updatePriceChart(chartDiv, controlTableResponses, nordpoolPriceResponsesToday, this.control.getTimezone());
         });
         recalcButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
+
         List<ControlTableResponse> controlTableResponses = controlSchedulerService.findByControlId(controlId);
-        List<NordpoolPriceResponse> nordpoolPriceResponses = nordpoolService.getNordpoolPricesForControl(controlId);
+        List<NordpoolPriceResponse> nordpoolPriceResponsesToday = nordpoolService.getNordpoolPricesForControl(
+                controlId, startOfDay, endOfDay
+        );
+        List<NordpoolPriceResponse> nordpoolPriceResponsesTomorrow = nordpoolService.getNordpoolPricesForControl(
+                controlId, startOfTomorrow, endOfDayTomorrow
+        );
+
         refreshControlTable();
 
         VerticalLayout layout = new VerticalLayout(
@@ -324,7 +342,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         recalcButton
                 ),
                 new Div(new Text(t("controlTable.section.description"))),
-                createPriceChart(controlTableResponses, nordpoolPriceResponses),
+                createPriceChart(controlTableResponses, nordpoolPriceResponsesToday, nordpoolPriceResponsesTomorrow),
                 controlTableGrid
         );
         layout.setWidthFull();
@@ -351,22 +369,23 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private Div createPriceChart(
-            List<ControlTableResponse> controlTableResponses,
-            List<NordpoolPriceResponse> nordpoolPriceResponses
+            List<ControlTableResponse> controlTableResponsesToday,
+            List<NordpoolPriceResponse> nordpoolPriceResponsesToday,
+            List<NordpoolPriceResponse> nordpoolPriceResponsesTomorrow
     ) {
         chartDiv = new Div();
         chartDiv.setId("price-chart");
         chartDiv.setWidthFull();
         chartDiv.setHeight("400px");
 
-        updatePriceChart(chartDiv, nordpoolPriceResponses, controlTableResponses, this.control.getTimezone());
+        updatePriceChart(chartDiv, controlTableResponsesToday, nordpoolPriceResponsesToday, this.control.getTimezone());
         return chartDiv;
     }
 
     private void updatePriceChart(
             Div chartDiv,
-            List<NordpoolPriceResponse> nordpoolPriceResponses,
             List<ControlTableResponse> controlTableResponses,
+            List<NordpoolPriceResponse> nordpoolPriceResponses,
             String timezone
     ) {
         List<String> timestamps = new ArrayList<>();
