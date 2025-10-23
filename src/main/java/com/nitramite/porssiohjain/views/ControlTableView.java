@@ -57,7 +57,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private ControlResponse control;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private Div chartDiv;
+    private Div chartTodayDiv, chartTomorrowDiv;
 
     private final Instant dateNow = Instant.now();
     private Instant startOfDay = dateNow.truncatedTo(ChronoUnit.DAYS);
@@ -319,9 +319,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             List<NordpoolPriceResponse> nordpoolPriceResponsesToday = nordpoolService.getNordpoolPricesForControl(
                     controlId, startOfDay, endOfDay
             );
+            List<NordpoolPriceResponse> nordpoolPriceResponsesTomorrow = nordpoolService.getNordpoolPricesForControl(
+                    controlId, startOfTomorrow, endOfDayTomorrow
+            );
             refreshControlTable();
             controlTableGrid.setItems(controlTableResponses);
-            updatePriceChart(chartDiv, controlTableResponses, nordpoolPriceResponsesToday, this.control.getTimezone());
+            updatePriceChart(chartTodayDiv, controlTableResponses, nordpoolPriceResponsesToday, this.control.getTimezone());
+            updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone());
         });
         recalcButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -341,8 +345,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         new H3(t("controlTable.section.title")),
                         recalcButton
                 ),
-                new Div(new Text(t("controlTable.section.description"))),
-                createPriceChart(controlTableResponses, nordpoolPriceResponsesToday, nordpoolPriceResponsesTomorrow),
+                new Div(new Text(t("controlTable.section.descriptionCharts"))),
+                createPriceCharts(controlTableResponses, nordpoolPriceResponsesToday, nordpoolPriceResponsesTomorrow),
+                new Div(new Text(t("controlTable.section.descriptionList"))),
                 controlTableGrid
         );
         layout.setWidthFull();
@@ -368,18 +373,30 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         controlTableGrid.setItems(list);
     }
 
-    private Div createPriceChart(
-            List<ControlTableResponse> controlTableResponsesToday,
-            List<NordpoolPriceResponse> nordpoolPriceResponsesToday,
+    private Div createPriceCharts(
+            List<ControlTableResponse> controlTableResponses,
+            List<NordpoolPriceResponse> nordpoolPriceResponses,
             List<NordpoolPriceResponse> nordpoolPriceResponsesTomorrow
     ) {
-        chartDiv = new Div();
-        chartDiv.setId("price-chart");
-        chartDiv.setWidthFull();
-        chartDiv.setHeight("400px");
+        chartTodayDiv = new Div();
+        chartTodayDiv.setId("prices-today-chart");
+        chartTodayDiv.setWidthFull();
+        chartTodayDiv.setHeight("400px");
+        updatePriceChart(chartTodayDiv, controlTableResponses, nordpoolPriceResponses, this.control.getTimezone());
 
-        updatePriceChart(chartDiv, controlTableResponsesToday, nordpoolPriceResponsesToday, this.control.getTimezone());
-        return chartDiv;
+        chartTomorrowDiv = new Div();
+        chartTomorrowDiv.setId("prices-tomorrow-chart");
+        chartTomorrowDiv.setWidthFull();
+        chartTomorrowDiv.setHeight("250px");
+        if (!nordpoolPriceResponsesTomorrow.isEmpty()) {
+            updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone());
+        }
+
+        Div chartsDiv = new Div();
+        chartsDiv.setId("charts-div");
+        chartsDiv.setWidthFull();
+        chartsDiv.add(chartTodayDiv, chartTomorrowDiv);
+        return chartsDiv;
     }
 
     private void updatePriceChart(
