@@ -387,8 +387,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         chartTomorrowDiv = new Div();
         chartTomorrowDiv.setId("prices-tomorrow-chart");
         chartTomorrowDiv.setWidthFull();
-        chartTomorrowDiv.setHeight("250px");
         if (!nordpoolPriceResponsesTomorrow.isEmpty()) {
+            chartTomorrowDiv.setHeight("250px");
             updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone());
         }
 
