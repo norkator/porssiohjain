@@ -43,9 +43,12 @@ public class CreateAccountView extends VerticalLayout {
 
         createButton = new Button(t("createAccount.button.create"));
 
-        setSizeFull();
-        setAlignItems(Alignment.CENTER);
-        setJustifyContentMode(JustifyContentMode.CENTER);
+        getStyle().set("display", "flex");
+        getStyle().set("flex-direction", "column");
+        getStyle().set("align-items", "center");
+        getStyle().set("justify-content", "center");
+        getStyle().set("min-height", "100vh");
+        getStyle().set("overflow", "auto");
 
         VerticalLayout contentBox = new VerticalLayout();
         contentBox.setMaxWidth("600px");
@@ -104,7 +107,6 @@ public class CreateAccountView extends VerticalLayout {
                 .set("border-radius", "8px")
                 .set("background-color", "var(--lumo-contrast-10pct)")
                 .set("font-family", "monospace")
-                .set("width", "100%")
                 .set("word-break", "break-all");
 
         infoBox.add(
