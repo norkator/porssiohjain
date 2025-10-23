@@ -60,10 +60,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private Div chartTodayDiv, chartTomorrowDiv;
 
     private final Instant dateNow = Instant.now();
-    private Instant startOfDay = dateNow.truncatedTo(ChronoUnit.DAYS);
-    private Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS).minusNanos(1);
-    private Instant startOfTomorrow = dateNow.truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS);
-    private Instant endOfDayTomorrow = startOfTomorrow.plus(1, ChronoUnit.DAYS).minusNanos(1);
+    private final Instant startOfDay = dateNow.truncatedTo(ChronoUnit.DAYS);
+    private final Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS).minusNanos(1);
+    private final Instant startOfTomorrow = dateNow.truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS);
+    private final Instant endOfDayTomorrow = startOfTomorrow.plus(1, ChronoUnit.DAYS).minusNanos(1);
 
 
     @Autowired
