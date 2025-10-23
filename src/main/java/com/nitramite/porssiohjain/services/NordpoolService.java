@@ -71,7 +71,9 @@ public class NordpoolService {
                 taxMultiplier = BigDecimal.ONE;
             }
         } else {
-            taxMultiplier = BigDecimal.ONE;
+            taxMultiplier = BigDecimal.ONE
+                    .add(BigDecimal.valueOf(25.5)
+                    .divide(BigDecimal.valueOf(100)));
             try {
                 if (timezone != null && !timezone.isBlank()) {
                     zone = ZoneId.of(timezone);
