@@ -12,6 +12,7 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinRequest;
 import com.vaadin.flow.server.VaadinSession;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Locale;
 
+@PageTitle("Pörssiohjain - Create account")
 @Route("createAccount")
 public class CreateAccountView extends VerticalLayout {
 

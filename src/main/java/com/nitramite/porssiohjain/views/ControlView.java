@@ -21,10 +21,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.router.BeforeEnterEvent;
-import com.vaadin.flow.router.BeforeEnterObserver;
-import com.vaadin.flow.router.Route;
-import com.vaadin.flow.router.RouteParameters;
+import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +32,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
+@PageTitle("Pörssiohjain - Controls")
 @Route("controls")
 @PermitAll
 public class ControlView extends VerticalLayout implements BeforeEnterObserver {

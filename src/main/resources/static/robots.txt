@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /VAADIN/
+Disallow: /frontend/
+Allow: /
+
+Sitemap: https://porssiohjain.nitramite.com/sitemap.xml

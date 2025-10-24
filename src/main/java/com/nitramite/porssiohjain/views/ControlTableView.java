@@ -24,6 +24,7 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
+import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import elemental.json.Json;
@@ -39,6 +40,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+@PageTitle("Pörssiohjain - Control table")
 @Route("controls/:controlId")
 @PermitAll
 public class ControlTableView extends VerticalLayout implements BeforeEnterObserver {

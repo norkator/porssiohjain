@@ -13,6 +13,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
@@ -23,6 +24,7 @@ import java.time.ZoneId;
 import java.util.Locale;
 import java.util.stream.Stream;
 
+@PageTitle("Pörssiohjain - Home")
 @Route("")
 @PermitAll
 public class HomeView extends VerticalLayout {
