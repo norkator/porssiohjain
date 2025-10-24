@@ -64,24 +64,13 @@ public class ControlSchedulerService {
         generateInternal(List.of(control), startOfDay, endOfDay, Status.FINAL);
     }
 
-    // @Transactional
-    // public void generateForAllControls() {
-    //     Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
-    //     Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
-    //     List<ControlEntity> controls = controlRepository.findAll();
-    //     generateInternal(controls, startOfDay, endOfDay, Status.FINAL);
-    // }
-
     @Transactional
     public void generatePlannedForTomorrow() {
-        Instant startOfTomorrow = LocalDate.now(ZoneOffset.UTC)
-                .plusDays(1)
-                .atStartOfDay()
-                .toInstant(ZoneOffset.UTC);
-        Instant endOfTomorrow = startOfTomorrow.plus(1, ChronoUnit.DAYS);
+        Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
+        Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
         List<ControlEntity> controls = controlRepository.findAll();
-        log.info("generatePlannedForTomorrow for time {} - {}", startOfTomorrow.toString(), endOfTomorrow.toString());
-        generateInternal(controls, startOfTomorrow, endOfTomorrow, Status.FINAL);
+        log.info("generatePlannedForTomorrow for time {} - {}", startOfDay, endOfDay.toString());
+        generateInternal(controls, startOfDay, endOfDay, Status.FINAL);
     }
 
     private void generateInternal(
