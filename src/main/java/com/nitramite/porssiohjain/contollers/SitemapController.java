@@ -19,7 +19,8 @@ public class SitemapController {
                 "https://porssiohjain.nitramite.com/login",
                 "https://porssiohjain.nitramite.com/createAccount",
                 "https://porssiohjain.nitramite.com/device",
-                "https://porssiohjain.nitramite.com/controls"
+                "https://porssiohjain.nitramite.com/controls",
+                "https://porssiohjain.nitramite.com/dashboard"
         );
 
         StringBuilder sb = new StringBuilder();

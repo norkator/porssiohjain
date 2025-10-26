@@ -2,6 +2,7 @@ package com.nitramite.porssiohjain.scheduled;
 
 import com.nitramite.porssiohjain.services.ControlSchedulerService;
 import com.nitramite.porssiohjain.services.NordpoolDataPortalService;
+import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -13,13 +14,16 @@ public class Scheduler {
 
     private final NordpoolDataPortalService nordpoolDataPortalService;
     private final ControlSchedulerService controlSchedulerService;
+    private final SystemLogService systemLogService;
 
     public Scheduler(
             NordpoolDataPortalService nordpoolDataPortalService,
-            ControlSchedulerService controlSchedulerService
+            ControlSchedulerService controlSchedulerService,
+            SystemLogService systemLogService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
+        this.systemLogService = systemLogService;
         // nordpoolDataPortalService.fetchData();
     }
 

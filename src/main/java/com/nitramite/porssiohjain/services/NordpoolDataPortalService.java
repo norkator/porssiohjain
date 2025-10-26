@@ -29,11 +29,14 @@ public class NordpoolDataPortalService {
     private String apiUrl;
 
     private final NordpoolRepository nordpoolRepository;
+    private final SystemLogService systemLogService;
 
     NordpoolDataPortalService(
-            NordpoolRepository nordpoolRepository
+            NordpoolRepository nordpoolRepository,
+            SystemLogService systemLogService
     ) {
         this.nordpoolRepository = nordpoolRepository;
+        this.systemLogService = systemLogService;
     }
 
     public NordpoolResponse fetchData(
@@ -92,6 +95,7 @@ public class NordpoolDataPortalService {
         if (!toInsert.isEmpty()) {
             log.info("Inserting {} Nordpool multiIndex entries", toInsert.size());
             nordpoolRepository.saveAll(toInsert);
+            systemLogService.log("Insert of " + toInsert.size() + " Nordpool entries completed.");
         }
     }
 

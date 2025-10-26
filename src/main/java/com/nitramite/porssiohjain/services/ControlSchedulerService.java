@@ -24,6 +24,7 @@ public class ControlSchedulerService {
     private final NordpoolRepository nordpoolRepository;
     private final ControlRepository controlRepository;
     private final ControlTableRepository controlTableRepository;
+    private final SystemLogService systemLogService;
 
     public List<ControlTableResponse> findByControlId(
             Long controlId
@@ -71,6 +72,7 @@ public class ControlSchedulerService {
         List<ControlEntity> controls = controlRepository.findAll();
         log.info("generatePlannedForTomorrow for time {} - {}", startOfDay, endOfDay.toString());
         generateInternal(controls, startOfDay, endOfDay, Status.FINAL);
+        systemLogService.log("Scheduled run of function 'generatePlannedForTomorrow' completed.");
     }
 
     private void generateInternal(
