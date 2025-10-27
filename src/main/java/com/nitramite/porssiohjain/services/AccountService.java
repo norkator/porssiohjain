@@ -27,8 +27,6 @@ public class AccountService {
         String rawSecret = UUID.randomUUID().toString().replace("-", "");
         String hashedSecret = passwordEncoder.encode(rawSecret);
 
-        System.out.println(hashedSecret);
-
         AccountEntity account = AccountEntity.builder()
                 .uuid(UUID.randomUUID())
                 .secret(hashedSecret)
