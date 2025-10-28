@@ -6,13 +6,13 @@ import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.mappers.DeviceMapper;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -24,7 +24,7 @@ public class DeviceService {
     private final ControlRepository controlRepository;
 
     @Transactional
-    public DeviceEntity createDevice(
+    public DeviceResponse createDevice(
             Long authAccountId, Long accountId, String deviceName, String timezone
     ) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -38,27 +38,27 @@ public class DeviceService {
                     .account(account)
                     .build();
 
-            return deviceRepository.save(device);
+            return DeviceMapper.toResponse(deviceRepository.save(device));
         } else {
             throw new IllegalStateException("Forbidden!");
         }
     }
 
     @Transactional(readOnly = true)
-    public List<DeviceEntity> listDevices(Long authAccountId, Long accountId) {
+    public List<DeviceResponse> listDevices(Long authAccountId, Long accountId) {
         if (accountId.equals(authAccountId)) {
-            return deviceRepository.findByAccountId(accountId);
+            return DeviceMapper.toResponseList(deviceRepository.findByAccountId(accountId));
         } else {
             throw new IllegalStateException("Forbidden!");
         }
     }
 
     @Transactional(readOnly = true)
-    public DeviceEntity getDevice(Long authAccountId, Long deviceId) {
+    public DeviceResponse getDevice(Long authAccountId, Long deviceId) {
         DeviceEntity device = deviceRepository.findById(deviceId)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
         if (device.getAccount().getId().equals(authAccountId)) {
-            return device;
+            return DeviceMapper.toResponse(device);
         } else {
             throw new IllegalStateException("Forbidden!");
         }

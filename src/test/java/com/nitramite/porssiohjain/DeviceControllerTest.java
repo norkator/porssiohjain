@@ -104,7 +104,6 @@ class DeviceControllerTest {
                 .andExpect(jsonPath("$.createdAt").isString());
     }
 
-    /*
     @Test
     @DisplayName("List devices for account")
     void listDevicesShouldReturnDeviceList() throws Exception {
@@ -144,6 +143,5 @@ class DeviceControllerTest {
                 .andExpect(jsonPath("$.id").value(saved.getId()))
                 .andExpect(jsonPath("$.deviceName").value("Device1"));
     }
-    */
 
 }

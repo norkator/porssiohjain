@@ -2,9 +2,9 @@ package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
-import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.models.CreateDeviceRequest;
+import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,18 +21,18 @@ public class DeviceController {
 
     @RequireAuth
     @PostMapping("/create/{accountId}")
-    public ResponseEntity<DeviceEntity> createDevice(
+    public ResponseEntity<DeviceResponse> createDevice(
             @PathVariable Long accountId,
             @RequestBody CreateDeviceRequest request
     ) {
         Long authAccountId = authContext.getAccountId();
-        DeviceEntity device = deviceService.createDevice(authAccountId, accountId, request.getDeviceName(), request.getTimezone());
+        DeviceResponse device = deviceService.createDevice(authAccountId, accountId, request.getDeviceName(), request.getTimezone());
         return ResponseEntity.ok(device);
     }
 
     @RequireAuth
     @GetMapping("/list/{accountId}")
-    public ResponseEntity<List<DeviceEntity>> listDevices(
+    public ResponseEntity<List<DeviceResponse>> listDevices(
             @PathVariable Long accountId
     ) {
         Long authAccountId = authContext.getAccountId();
@@ -41,7 +41,7 @@ public class DeviceController {
 
     @RequireAuth
     @GetMapping("/{deviceId}")
-    public ResponseEntity<DeviceEntity> getDevice(
+    public ResponseEntity<DeviceResponse> getDevice(
             @PathVariable Long deviceId
     ) {
         Long accountId = authContext.getAccountId();

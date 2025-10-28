@@ -20,4 +20,5 @@ public class DeviceResponse {
     private Instant lastCommunication;
     private Instant createdAt;
     private Instant updatedAt;
+    private Long accountId;
 }
