@@ -5,10 +5,7 @@ import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.services.ControlService;
-import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
-import com.nitramite.porssiohjain.services.models.ControlResponse;
-import com.nitramite.porssiohjain.services.models.CreateControlRequest;
-import com.nitramite.porssiohjain.services.models.UpdateControlRequest;
+import com.nitramite.porssiohjain.services.models.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +25,13 @@ public class ControlController {
             @PathVariable String deviceUuid
     ) {
         return controlService.getControlsForDevice(deviceUuid);
+    }
+
+    @GetMapping("/{deviceUuid}/timetable")
+    public TimeTableListResponse timeTableForDevice(
+            @PathVariable String deviceUuid
+    ) {
+        return controlService.getTimetableForDevice(deviceUuid);
     }
 
     @RequireAuth

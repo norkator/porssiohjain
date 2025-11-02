@@ -2,9 +2,7 @@ package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
-import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
-import com.nitramite.porssiohjain.services.models.ControlResponse;
-import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.models.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -289,6 +288,74 @@ public class ControlService {
         }
 
         return channelMap;
+    }
+
+    public TimeTableListResponse getTimetableForDevice(
+            String deviceUuid
+    ) {
+        DeviceEntity device = deviceRepository.findByUuid(UUID.fromString(deviceUuid))
+                .orElseThrow(() -> new EntityNotFoundException("Device not found: " + deviceUuid));
+
+        Instant nowUtc = Instant.now();
+        device.setLastCommunication(nowUtc);
+        deviceRepository.save(device);
+
+        List<ControlDeviceEntity> controlDevices = controlDeviceRepository.findByDevice(device);
+        List<TimeTableResponse> schedule = new ArrayList<>();
+
+        for (ControlDeviceEntity cd : controlDevices) {
+            ControlEntity control = cd.getControl();
+            ZoneId controlZone = ZoneId.of(control.getTimezone());
+            ZonedDateTime nowInZone = nowUtc.atZone(controlZone);
+
+            Instant fromUtc = nowUtc.minusSeconds(30 * 60);
+            ZonedDateTime endOfNextDay = nowInZone.plusDays(1)
+                    .withHour(23).withMinute(59).withSecond(59).withNano(0);
+            Instant toUtc = endOfNextDay.toInstant();
+
+            List<ControlTableEntity> controlTables =
+                    controlTableRepository.findByControlIdAndStartTimeBetweenOrderByStartTimeAsc(
+                            control.getId(), fromUtc, toUtc);
+
+            for (ControlTableEntity ct : controlTables) {
+                ZonedDateTime start = ct.getStartTime().atZone(controlZone);
+                ZonedDateTime end = ct.getEndTime().atZone(controlZone);
+
+                schedule.add(TimeTableResponse.builder()
+                        .time(start.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                        .action(1)
+                        .build());
+
+                schedule.add(TimeTableResponse.builder()
+                        .time(end.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
+                        .action(0)
+                        .build());
+            }
+        }
+
+        schedule.sort(Comparator.comparing(TimeTableResponse::getTime));
+
+        List<TimeTableResponse> merged = new ArrayList<>();
+        String lastTime = null;
+        Integer lastAction = null;
+
+        for (TimeTableResponse entry : schedule) {
+            if (entry.getTime().equals(lastTime)) {
+                if (entry.getAction() == 1 || lastAction == null || lastAction == 0) {
+                    merged.set(merged.size() - 1, entry);
+                    lastAction = entry.getAction();
+                }
+            } else {
+                merged.add(entry);
+                lastTime = entry.getTime();
+                lastAction = entry.getAction();
+            }
+        }
+
+        return TimeTableListResponse.builder()
+                .timezone(device.getTimezone())
+                .schedule(merged)
+                .build();
     }
 
 }
