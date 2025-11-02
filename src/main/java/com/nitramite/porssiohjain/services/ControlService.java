@@ -2,9 +2,7 @@ package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
-import com.nitramite.porssiohjain.services.models.ControlDeviceResponse;
-import com.nitramite.porssiohjain.services.models.ControlResponse;
-import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.models.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -289,6 +287,24 @@ public class ControlService {
         }
 
         return channelMap;
+    }
+
+    public TimeTableListResponse getTimetableForDevice(
+            String deviceUuid
+    ) {
+        List<TimeTableResponse> list = List.of(
+                TimeTableResponse.builder()
+                        .time("07:00")
+                        .action(1)
+                        .build(),
+                TimeTableResponse.builder()
+                        .time("22:30")
+                        .action(0)
+                        .build()
+        );
+        return TimeTableListResponse.builder()
+                .schedule(list)
+                .build();
     }
 
 }

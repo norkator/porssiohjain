@@ -45,6 +45,11 @@ Authorization: {{token}}
 
 
 ### Get control statuses for device with uuid
-GET http://localhost:8080/control/28217a08-df0b-4d21-b2b8-66a321cc6658
+GET http://localhost:8080/control/2077f2d8-e469-449a-b216-f3fe6032a7cb
+Content-Type: application/json
+
+
+### Get timetable for device with uuid
+GET http://localhost:8080/control/2077f2d8-e469-449a-b216-f3fe6032a7cb/timetable
 Content-Type: application/json
 
