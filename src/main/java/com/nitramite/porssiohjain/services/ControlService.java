@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -292,18 +293,68 @@ public class ControlService {
     public TimeTableListResponse getTimetableForDevice(
             String deviceUuid
     ) {
-        List<TimeTableResponse> list = List.of(
-                TimeTableResponse.builder()
-                        .time("07:00")
+        DeviceEntity device = deviceRepository.findByUuid(UUID.fromString(deviceUuid))
+                .orElseThrow(() -> new EntityNotFoundException("Device not found: " + deviceUuid));
+
+        Instant nowUtc = Instant.now();
+        device.setLastCommunication(nowUtc);
+        deviceRepository.save(device);
+
+        List<ControlDeviceEntity> controlDevices = controlDeviceRepository.findByDevice(device);
+        List<TimeTableResponse> schedule = new ArrayList<>();
+
+        for (ControlDeviceEntity cd : controlDevices) {
+            ControlEntity control = cd.getControl();
+            ZoneId controlZone = ZoneId.of(control.getTimezone());
+            ZonedDateTime nowInZone = nowUtc.atZone(controlZone);
+
+            Instant fromUtc = nowUtc.minusSeconds(30 * 60);
+            ZonedDateTime endOfNextDay = nowInZone.plusDays(1)
+                    .withHour(23).withMinute(59).withSecond(59).withNano(0);
+            Instant toUtc = endOfNextDay.toInstant();
+
+            List<ControlTableEntity> controlTables =
+                    controlTableRepository.findByControlIdAndStartTimeBetweenOrderByStartTimeAsc(
+                            control.getId(), fromUtc, toUtc);
+
+            for (ControlTableEntity ct : controlTables) {
+                ZonedDateTime start = ct.getStartTime().atZone(controlZone);
+                ZonedDateTime end = ct.getEndTime().atZone(controlZone);
+
+                schedule.add(TimeTableResponse.builder()
+                        .time(start.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                         .action(1)
-                        .build(),
-                TimeTableResponse.builder()
-                        .time("22:30")
+                        .build());
+
+                schedule.add(TimeTableResponse.builder()
+                        .time(end.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME))
                         .action(0)
-                        .build()
-        );
+                        .build());
+            }
+        }
+
+        schedule.sort(Comparator.comparing(TimeTableResponse::getTime));
+
+        List<TimeTableResponse> merged = new ArrayList<>();
+        String lastTime = null;
+        Integer lastAction = null;
+
+        for (TimeTableResponse entry : schedule) {
+            if (entry.getTime().equals(lastTime)) {
+                if (entry.getAction() == 1 || lastAction == null || lastAction == 0) {
+                    merged.set(merged.size() - 1, entry);
+                    lastAction = entry.getAction();
+                }
+            } else {
+                merged.add(entry);
+                lastTime = entry.getTime();
+                lastAction = entry.getAction();
+            }
+        }
+
         return TimeTableListResponse.builder()
-                .schedule(list)
+                .timezone(device.getTimezone())
+                .schedule(merged)
                 .build();
     }
 

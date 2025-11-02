@@ -12,5 +12,6 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TimeTableListResponse {
+    private String timezone;
     private List<TimeTableResponse> schedule;
 }
