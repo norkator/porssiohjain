@@ -37,7 +37,7 @@ public class Scheduler {
         }
     }
 
-    @Scheduled(cron = "0 40 14 * * *")
+    @Scheduled(cron = "0 40 14 * * *", zone = "Europe/Helsinki")
     public void runAfterNordpoolImport() {
         controlSchedulerService.generatePlannedForTomorrow();
     }
@@ -52,7 +52,7 @@ public class Scheduler {
         }
     }
 
-    @Scheduled(cron = "0 40 18 * * *")
+    @Scheduled(cron = "0 40 18 * * *", zone = "Europe/Helsinki")
     public void runAfterNordpoolImportBackup() {
         controlSchedulerService.generatePlannedForTomorrow();
     }
