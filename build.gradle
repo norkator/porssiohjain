@@ -1,8 +1,8 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.7'
+    id 'org.springframework.boot' version '4.0.0'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'com.vaadin' version '24.9.6'
+    id 'com.vaadin' version '25.0.0-beta8'
 }
 
 group = 'com.nitramite'
@@ -26,20 +26,24 @@ repositories {
 }
 
 ext {
-    set('vaadinVersion', "24.9.1")
+    set('vaadinVersion', "25.0.0-beta6")
 }
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.security:spring-security-crypto:7.0.0'
     implementation 'com.vaadin:vaadin-spring-boot-starter'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.springframework.boot:spring-boot-devtools'
+    implementation 'com.vaadin.external.gwt:gwt-elemental:2.8.2.vaadin2'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
