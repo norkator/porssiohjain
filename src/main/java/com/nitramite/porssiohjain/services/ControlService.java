@@ -267,7 +267,7 @@ public class ControlService {
 
             if (mode.equals(ControlMode.MANUAL)) {
                 channelMap.put(cd.getDeviceChannel(), control.isManualOn() ? 1 : 0);
-            } else if (mode.equals(ControlMode.BELOW_MAX_PRICE)) {
+            } else if (mode.equals(ControlMode.CHEAPEST_HOURS) || mode.equals(ControlMode.BELOW_MAX_PRICE)) {
                 ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
 
                 boolean active = controlTableRepository.findByControlIdAndStartTimeAfterOrderByStartTimeAsc(
