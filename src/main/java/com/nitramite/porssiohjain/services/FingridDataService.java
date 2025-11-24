@@ -1,13 +1,26 @@
 package com.nitramite.porssiohjain.services;
 
-import com.nitramite.porssiohjain.services.models.NordpoolResponse;
+import com.nitramite.porssiohjain.entity.FingridDataEntity;
+import com.nitramite.porssiohjain.entity.repository.FingridDataRepository;
+import com.nitramite.porssiohjain.services.models.WindDataEntry;
+import com.nitramite.porssiohjain.services.models.WindForecastResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -22,14 +35,17 @@ public class FingridDataService {
     private String apiKey;
 
     private final SystemLogService systemLogService;
+    private final FingridDataRepository fingridDataRepository;
 
     FingridDataService(
-            SystemLogService systemLogService
+            SystemLogService systemLogService,
+            FingridDataRepository fingridDataRepository
     ) {
         this.systemLogService = systemLogService;
+        this.fingridDataRepository = fingridDataRepository;
     }
 
-    public NordpoolResponse fetchData(
+    public WindForecastResponse fetchData(
     ) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/json");
@@ -38,15 +54,17 @@ public class FingridDataService {
 
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-        // LocalDate today = LocalDate.now();
-        // LocalDate tomorrow = today.plusDays(1);
-        // // LocalDate y = today.minusDays(1);
-        // DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        // String formattedDate = tomorrow.format(formatter);
+        Instant startTime = Instant.now();
+        Instant endTime = startTime.plus(72, ChronoUnit.HOURS);
+        DateTimeFormatter formatter = DateTimeFormatter
+                .ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX")
+                .withZone(ZoneOffset.UTC);
+        String startTimeStr = formatter.format(startTime);
+        String endTimeStr = formatter.format(endTime);
 
         String urlWithParams = UriComponentsBuilder.fromUriString(apiUrl)
-                .queryParam("startTime", "") // 2025-11-23T00:00:00.000Z
-                .queryParam("endTime", "") // 2025-11-24T00:00:00.000Z
+                .queryParam("startTime", startTimeStr)
+                .queryParam("endTime", endTimeStr)
                 .queryParam("format", "json")
                 .queryParam("pageSize", "288")
                 .queryParam("locale", "fi")
@@ -55,44 +73,39 @@ public class FingridDataService {
                 .build(true)
                 .toUriString();
 
-        // ResponseEntity<NordpoolResponse> response = restTemplate.exchange(
-        //         urlWithParams,
-        //         HttpMethod.GET,
-        //         entity,
-        //         NordpoolResponse.class
-        // );
-//
-        // assert response.getBody() != null;
-        // saveEntries(response.getBody().getMultiIndexEntries());
-        // return response.getBody();
-
-        return null;
+        ResponseEntity<WindForecastResponse> response = restTemplate.exchange(
+                urlWithParams,
+                HttpMethod.GET,
+                entity,
+                WindForecastResponse.class
+        );
+        assert response.getBody() != null;
+        saveEntries(response.getBody().getData());
+        return response.getBody();
     }
 
-    // private void saveEntries(List<NordpoolResponse.MultiIndexEntry> entries) {
-    //     List<NordpoolEntity> existing = nordpoolRepository.findAll();
-    //     Set<String> existingKeys = existing.stream()
-    //             .map(e -> e.getDeliveryStart() + "|" + e.getDeliveryEnd())
-    //             .collect(Collectors.toSet());
-//
-    //     List<NordpoolEntity> toInsert = entries.stream()
-    //             .filter(e -> e.getEntryPerArea().containsKey("FI"))
-    //             .filter(e -> !existingKeys.contains(e.getDeliveryStart() + "|" + e.getDeliveryEnd()))
-    //             .map(e -> {
-    //                 NordpoolEntity entity = new NordpoolEntity();
-    //                 entity.setDeliveryStart(e.getDeliveryStart());
-    //                 entity.setDeliveryEnd(e.getDeliveryEnd());
-    //                 entity.setPriceFi(e.getEntryPerArea().get("FI"));
-    //                 return entity;
-    //             })
-    //             .toList();
-//
-    //     if (!toInsert.isEmpty()) {
-    //         log.info("Inserting {} Nordpool multiIndex entries", toInsert.size());
-    //         nordpoolRepository.saveAll(toInsert);
-    //         systemLogService.log("Insert of " + toInsert.size() + " Nordpool entries completed.");
-    //     }
-    // }
+    private void saveEntries(List<WindDataEntry> entries) {
+        List<FingridDataEntity> existing = fingridDataRepository.findAll();
+        Set<String> existingKeys = existing.stream()
+                .map(e -> e.getStartTime() + "|" + e.getEndTime())
+                .collect(Collectors.toSet());
+        List<FingridDataEntity> toInsert = entries.stream()
+                .filter(e -> !existingKeys.contains(e.getStartTime() + "|" + e.getEndTime()))
+                .map(e -> {
+                    FingridDataEntity entity = new FingridDataEntity();
+                    entity.setDatasetId(e.getDatasetId());
+                    entity.setStartTime(e.getStartTime());
+                    entity.setEndTime(e.getEndTime());
+                    entity.setValue(e.getValue());
+                    return entity;
+                })
+                .toList();
+        if (!toInsert.isEmpty()) {
+            log.info("Inserting {} Fingrid multiIndex entries", toInsert.size());
+            fingridDataRepository.saveAll(toInsert);
+            systemLogService.log("Insert of " + toInsert.size() + " Fingrid entries completed.");
+        }
+    }
 
 
 }
