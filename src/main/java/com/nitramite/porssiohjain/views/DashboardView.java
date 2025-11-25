@@ -7,6 +7,7 @@ import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.SystemLogResponse;
+import com.nitramite.porssiohjain.views.components.PriceWindChart;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -19,6 +20,7 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
+import elemental.json.Json;
 import jakarta.annotation.security.PermitAll;
 
 import java.time.Duration;
@@ -78,7 +80,6 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
             deviceLayout.add(createDeviceCard(device));
         }
 
-        Div divider = createDivider();
         H2 logTitle = new H2(t("dashboard.systemLogTitle"));
 
         VerticalLayout logList = new VerticalLayout();
@@ -104,7 +105,20 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
         Button backButton = new Button("← " + t("dashboard.back"), e -> UI.getCurrent().navigate(HomeView.class));
 
-        contentBox.add(backButton, title, divider, deviceTitle, deviceLayout, divider, logTitle, logList);
+        PriceWindChart chart = new PriceWindChart();
+        chart.setData(
+                Json.createArray(),
+                Json.createArray(),
+                Json.createArray(),
+                "Test 1",
+                "Test 2",
+                "x1",
+                "y1",
+                "title",
+                "now"
+        );
+
+        contentBox.add(backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(), chart, createDivider(), logTitle, logList);
         add(contentBox);
     }
 
