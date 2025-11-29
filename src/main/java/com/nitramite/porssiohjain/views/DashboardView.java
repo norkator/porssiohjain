@@ -1,13 +1,11 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.services.AuthService;
-import com.nitramite.porssiohjain.services.DeviceService;
-import com.nitramite.porssiohjain.services.I18nService;
-import com.nitramite.porssiohjain.services.SystemLogService;
+import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.models.FingridWindForecastResponse;
 import com.nitramite.porssiohjain.services.models.SystemLogResponse;
-import com.nitramite.porssiohjain.views.components.PriceWindChart;
+import com.nitramite.porssiohjain.views.components.PriceChart;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -21,12 +19,14 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import elemental.json.Json;
+import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 @PageTitle("Pörssiohjain - Dashboard")
@@ -36,15 +36,18 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
     private final AuthService authService;
     protected final I18nService i18n;
+    private final FingridService fingridService;
 
     public DashboardView(
             AuthService authService,
             DeviceService deviceService,
             SystemLogService systemLogService,
-            I18nService i18n
+            I18nService i18n,
+            FingridService fingridService
     ) {
         this.authService = authService;
         this.i18n = i18n;
+        this.fingridService = fingridService;
 
         setWidthFull();
         setPadding(true);
@@ -105,20 +108,47 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
         Button backButton = new Button("← " + t("dashboard.back"), e -> UI.getCurrent().navigate(HomeView.class));
 
-        PriceWindChart chart = new PriceWindChart();
-        chart.setData(
-                Json.createArray(),
-                Json.createArray(),
-                Json.createArray(),
-                "Test 1",
-                "Test 2",
-                "x1",
-                "y1",
-                "title",
-                "now"
+        PriceChart windForecast = new PriceChart();
+        String windForecastChartTitle = t("dashboard.windForecast");
+        String nowLabel = t("controlTable.chart.now");
+        String xAxisLabel = t("controlTable.chart.time");
+
+        List<FingridWindForecastResponse> fingridWindForecastResponses = fingridService.getFingridWindForecastData();
+
+        List<String> timestamps = new ArrayList<>();
+        List<Double> windForecastValues = new ArrayList<>();
+
+        ZoneId zone = ZoneId.systemDefault();
+        DateTimeFormatter jsFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                .withZone(zone);
+
+        for (FingridWindForecastResponse entry : fingridWindForecastResponses) {
+            String ts = jsFormatter.format(entry.getStartTime());
+            timestamps.add(ts);
+            windForecastValues.add(entry.getValue().doubleValue());
+        }
+
+        JsonArray jsTimestamps = Json.createArray();
+        for (int i = 0; i < timestamps.size(); i++) {
+            jsTimestamps.set(i, timestamps.get(i));
+        }
+
+        JsonArray jsWindForecastValues = Json.createArray();
+        for (int i = 0; i < windForecastValues.size(); i++) {
+            jsWindForecastValues.set(i, windForecastValues.get(i));
+        }
+
+        windForecast.setData(
+                jsTimestamps,
+                jsWindForecastValues,
+                "MW",
+                xAxisLabel,
+                "MW",
+                windForecastChartTitle,
+                nowLabel
         );
 
-        contentBox.add(backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(), chart, createDivider(), logTitle, logList);
+        contentBox.add(backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(), windForecast, createDivider(), logTitle, logList);
         add(contentBox);
     }
 
