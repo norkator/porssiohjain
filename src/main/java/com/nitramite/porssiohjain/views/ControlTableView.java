@@ -136,6 +136,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         NumberField maxPriceField = new NumberField(t("controlTable.field.maxPrice"));
         maxPriceField.setValue(control.getMaxPriceSnt().doubleValue());
 
+        NumberField minPriceField = new NumberField(t("controlTable.field.minPrice"));
+        minPriceField.setValue(control.getMinPriceSnt().doubleValue());
+
         NumberField dailyMinutes = new NumberField(t("controlTable.field.dailyMinutes"));
         dailyMinutes.setValue(control.getDailyOnMinutes().doubleValue());
 
@@ -150,13 +153,18 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         Checkbox manualToggle = new Checkbox(t("controlTable.field.manualOn"));
         manualToggle.setValue(control.getManualOn());
 
+        Checkbox alwaysOnBelowMinPriceToggle = new Checkbox(t("controlTable.field.alwaysOnBelowMinPrice"));
+        alwaysOnBelowMinPriceToggle.setValue(control.getAlwaysOnBelowMinPrice());
+
         Button saveButton = new Button(t("controlTable.button.save"), e -> {
             try {
                 control.setName(controlNameField.getValue());
                 control.setMaxPriceSnt(BigDecimal.valueOf(maxPriceField.getValue()));
+                control.setMinPriceSnt(BigDecimal.valueOf(minPriceField.getValue()));
                 control.setDailyOnMinutes(dailyMinutes.getValue().intValue());
                 control.setTaxPercent(BigDecimal.valueOf(taxPercentage.getValue()));
                 control.setMode(modeCombo.getValue());
+                control.setAlwaysOnBelowMinPrice(alwaysOnBelowMinPriceToggle.getValue());
                 if (control.getMode() == ControlMode.MANUAL) {
                     control.setManualOn(manualToggle.getValue());
                 }
@@ -166,10 +174,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         controlId,
                         control.getName(),
                         control.getMaxPriceSnt(),
+                        control.getMinPriceSnt(),
                         control.getDailyOnMinutes(),
                         control.getTaxPercent(),
                         control.getMode(),
-                        control.getManualOn()
+                        control.getManualOn(),
+                        control.getAlwaysOnBelowMinPrice()
                 );
 
                 Notification.show(t("controlTable.notification.saved"));
@@ -190,9 +200,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 controlNameField,
                 modeCombo,
                 maxPriceField,
+                minPriceField,
                 taxPercentage,
                 dailyMinutes,
-                manualToggle
+                manualToggle,
+                alwaysOnBelowMinPriceToggle
         );
 
         add(formLayout, saveButton);

@@ -28,8 +28,9 @@ public class ControlService {
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
-            BigDecimal maxPriceSnt, Integer dailyOnMinutes,
-            BigDecimal taxPercent, ControlMode mode, Boolean manualOn
+            BigDecimal maxPriceSnt, BigDecimal minPriceSnt, Integer dailyOnMinutes,
+            BigDecimal taxPercent, ControlMode mode, Boolean manualOn,
+            Boolean alwaysOnBelowMinPrice
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -40,10 +41,12 @@ public class ControlService {
                     .name(name)
                     .timezone(timezone)
                     .maxPriceSnt(maxPriceSnt)
+                    .minPriceSnt(minPriceSnt)
                     .dailyOnMinutes(dailyOnMinutes)
                     .taxPercent(taxPercent)
                     .mode(mode != null ? mode : ControlMode.BELOW_MAX_PRICE)
                     .manualOn(manualOn != null ? manualOn : false)
+                    .alwaysOnBelowMinPrice(alwaysOnBelowMinPrice != null ? alwaysOnBelowMinPrice : false)
                     .build();
 
             return controlRepository.save(control);
@@ -54,8 +57,9 @@ public class ControlService {
 
     public ControlEntity updateControl(
             Long accountId,
-            Long controlId, String name, BigDecimal maxPriceSnt, Integer dailyOnMinutes,
-            BigDecimal taxPercent, ControlMode mode, Boolean manualOn
+            Long controlId, String name, BigDecimal maxPriceSnt, BigDecimal minPriceSnt,
+            Integer dailyOnMinutes, BigDecimal taxPercent, ControlMode mode, Boolean manualOn,
+            Boolean alwaysOnBelowMinPrice
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
@@ -63,10 +67,12 @@ public class ControlService {
         if (control.getAccount().getId().equals(accountId)) {
             control.setName(name);
             control.setMaxPriceSnt(maxPriceSnt);
+            control.setMinPriceSnt(minPriceSnt);
             control.setDailyOnMinutes(dailyOnMinutes);
             control.setTaxPercent(taxPercent);
             control.setMode(mode);
             control.setManualOn(manualOn);
+            control.setAlwaysOnBelowMinPrice(alwaysOnBelowMinPrice);
             return controlRepository.save(control);
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -97,10 +103,12 @@ public class ControlService {
                         .name(entity.getName())
                         .timezone(entity.getTimezone())
                         .maxPriceSnt(entity.getMaxPriceSnt())
+                        .minPriceSnt(entity.getMinPriceSnt())
                         .dailyOnMinutes(entity.getDailyOnMinutes())
                         .taxPercent(entity.getTaxPercent())
                         .mode(entity.getMode())
                         .manualOn(entity.isManualOn())
+                        .alwaysOnBelowMinPrice(entity.isAlwaysOnBelowMinPrice())
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build())
@@ -114,10 +122,12 @@ public class ControlService {
                         .name(entity.getName())
                         .timezone(entity.getTimezone())
                         .maxPriceSnt(entity.getMaxPriceSnt())
+                        .minPriceSnt(entity.getMinPriceSnt())
                         .dailyOnMinutes(entity.getDailyOnMinutes())
                         .taxPercent(entity.getTaxPercent())
                         .mode(entity.getMode())
                         .manualOn(entity.isManualOn())
+                        .alwaysOnBelowMinPrice(entity.isAlwaysOnBelowMinPrice())
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build())

@@ -46,10 +46,12 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     private final TextField nameField;
     private final ComboBox<String> timezoneField;
     private final NumberField maxPriceField;
+    private final NumberField minPriceField;
     private final IntegerField dailyMinutesField;
     private final NumberField taxPercentField;
     private final ComboBox<ControlMode> modeField;
     private final Checkbox manualOnToggle;
+    private final Checkbox alwaysOnBelowMinPriceToggle;
     private final Button createButton;
 
     @Autowired
@@ -69,10 +71,12 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         nameField = new TextField(t("control.field.name"));
         timezoneField = new ComboBox<>(t("control.field.timezone"));
         maxPriceField = new NumberField(t("control.field.maxPrice"));
+        minPriceField = new NumberField(t("control.field.minPrice"));
         dailyMinutesField = new IntegerField(t("control.field.dailyMinutes"));
         taxPercentField = new NumberField(t("control.field.taxPercent"));
         modeField = new ComboBox<>(t("control.field.mode"));
         manualOnToggle = new Checkbox(t("control.field.manualOn"));
+        alwaysOnBelowMinPriceToggle = new Checkbox(t("control.field.alwaysOnBelowMinPrice"));
         createButton = new Button(t("control.button.create"));
 
         setSizeFull();
@@ -145,6 +149,9 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         manualOnToggle.setValue(false);
         manualOnToggle.setEnabled(false);
 
+        alwaysOnBelowMinPriceToggle.setValue(false);
+        alwaysOnBelowMinPriceToggle.setEnabled(false);
+
         modeField.addValueChangeListener(e -> {
             ControlMode selected = e.getValue();
             manualOnToggle.setEnabled(selected == ControlMode.MANUAL);
@@ -173,10 +180,12 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
                 nameField,
                 timezoneField,
                 maxPriceField,
+                minPriceField,
                 dailyMinutesField,
                 taxPercentField,
                 modeField,
-                manualOnToggle
+                manualOnToggle,
+                alwaysOnBelowMinPriceToggle
         );
 
         formLayout.setResponsiveSteps(
@@ -230,10 +239,12 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
             String name = nameField.getValue();
             String timezone = timezoneField.getValue();
             BigDecimal maxPrice = BigDecimal.valueOf(maxPriceField.getValue());
+            BigDecimal minPrice = BigDecimal.valueOf(maxPriceField.getValue());
             Integer dailyMinutes = dailyMinutesField.getValue();
             BigDecimal taxPercent = BigDecimal.valueOf(taxPercentField.getValue());
             ControlMode mode = modeField.getValue();
             boolean manualOn = manualOnToggle.getValue();
+            boolean alwaysOnBelowMinPrice = alwaysOnBelowMinPriceToggle.getValue();
 
             if (name == null || name.isBlank()) {
                 Notification.show(t("control.notification.nameEmpty"));
@@ -246,7 +257,10 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
             }
 
 
-            controlService.createControl(accountId, name, timezone, maxPrice, dailyMinutes, taxPercent, mode, manualOn);
+            controlService.createControl(
+                    accountId, name, timezone, maxPrice, minPrice, dailyMinutes,
+                    taxPercent, mode, manualOn, alwaysOnBelowMinPrice
+            );
             Notification.show(t("control.notification.created"));
 
             clearForm();

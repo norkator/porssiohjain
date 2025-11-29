@@ -33,6 +33,9 @@ public class ControlEntity {
     @Column(name = "max_price_snt", nullable = false)
     private BigDecimal maxPriceSnt;
 
+    @Column(name = "min_price_snt", nullable = false)
+    private BigDecimal minPriceSnt;
+
     @Column(name = "daily_on_minutes", nullable = false)
     private Integer dailyOnMinutes;
 
@@ -45,6 +48,9 @@ public class ControlEntity {
 
     @Column(name = "manual_on", nullable = false)
     private boolean manualOn;
+
+    @Column(name = "always_on_below_min_price", nullable = false)
+    private boolean alwaysOnBelowMinPrice;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -108,6 +108,8 @@ public class ControlSchedulerService {
             } else if (controlMode.equals(ControlMode.CHEAPEST_HOURS)) {
                 Integer dailyOnMinutes = control.getDailyOnMinutes();
                 BigDecimal maxPriceSnt = control.getMaxPriceSnt();
+                BigDecimal minPriceSnt = control.getMinPriceSnt();
+                boolean alwaysOnBelowMinPrice = control.isAlwaysOnBelowMinPrice();
 
                 Map<LocalDate, List<NordpoolEntity>> pricesByDay = prices.stream()
                         .collect(Collectors.groupingBy(p ->
@@ -115,9 +117,69 @@ public class ControlSchedulerService {
                         ));
 
                 for (Map.Entry<LocalDate, List<NordpoolEntity>> dayEntry : pricesByDay.entrySet()) {
-                    List<NordpoolEntity> dailyPrices = dayEntry.getValue();
 
+                    List<NordpoolEntity> dailyPrices = dayEntry.getValue();
+                    int accumulatedMinutes = 0;
+
+                    // ---------------------------------------------
+                    // STEP 1: ALWAYS ON BELOW MIN PRICE LOGIC
+                    // ---------------------------------------------
+
+                    List<NordpoolEntity> alwaysOnPeriods = Collections.emptyList();
+
+                    if (alwaysOnBelowMinPrice) {
+                        alwaysOnPeriods = dailyPrices.stream()
+                                .filter(p -> {
+                                    BigDecimal priceSnt = p.getPriceFi()
+                                            .multiply(BigDecimal.valueOf(0.1))
+                                            .multiply(taxMultiplier);
+                                    return priceSnt.compareTo(minPriceSnt) <= 0;
+                                })
+                                .sorted(Comparator.comparing(p ->
+                                        p.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier)))
+                                .toList();
+
+                        for (NordpoolEntity priceEntry : alwaysOnPeriods) {
+
+                            BigDecimal priceSnt = priceEntry.getPriceFi()
+                                    .multiply(BigDecimal.valueOf(0.1))
+                                    .multiply(taxMultiplier);
+
+                            int periodMinutes = (int) Duration.between(
+                                    priceEntry.getDeliveryStart(), priceEntry.getDeliveryEnd()
+                            ).toMinutes();
+
+                            // Full period because it's always-on
+                            int minutesToUse = (periodMinutes / 15) * 15;
+
+                            if (minutesToUse <= 0) continue;
+
+                            Instant end = priceEntry.getDeliveryStart().plus(Duration.ofMinutes(minutesToUse));
+
+                            controlTableRepository.save(
+                                    ControlTableEntity.builder()
+                                            .control(control)
+                                            .startTime(priceEntry.getDeliveryStart())
+                                            .endTime(end)
+                                            .priceSnt(priceSnt)
+                                            .status(status)
+                                            .build()
+                            );
+
+                            accumulatedMinutes += minutesToUse;
+                        }
+                    }
+
+                    // If target already satisfied -> continue to next day
+                    if (accumulatedMinutes >= dailyOnMinutes) continue;
+
+                    // -----------------------------------------------------
+                    // STEP 2: CHEAPEST HOURS LOGIC
+                    // Exclude already-used always-on periods
+                    // -----------------------------------------------------
+                    final List<NordpoolEntity> alwaysOnFinal = alwaysOnPeriods;
                     List<NordpoolEntity> eligiblePrices = dailyPrices.stream()
+                            .filter(p -> !alwaysOnFinal.contains(p))
                             .filter(p -> {
                                 BigDecimal priceSnt = p.getPriceFi()
                                         .multiply(BigDecimal.valueOf(0.1))
@@ -128,8 +190,6 @@ public class ControlSchedulerService {
                                     p.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier)))
                             .toList();
 
-                    int accumulatedMinutes = 0;
-
                     for (NordpoolEntity priceEntry : eligiblePrices) {
                         if (accumulatedMinutes >= dailyOnMinutes) break;
 
@@ -137,7 +197,10 @@ public class ControlSchedulerService {
                                 .multiply(BigDecimal.valueOf(0.1))
                                 .multiply(taxMultiplier);
 
-                        int periodMinutes = (int) Duration.between(priceEntry.getDeliveryStart(), priceEntry.getDeliveryEnd()).toMinutes();
+                        int periodMinutes = (int) Duration.between(
+                                priceEntry.getDeliveryStart(), priceEntry.getDeliveryEnd()
+                        ).toMinutes();
+
                         int minutesLeft = dailyOnMinutes - accumulatedMinutes;
                         int minutesToUse = Math.min(periodMinutes, minutesLeft);
 
@@ -160,7 +223,6 @@ public class ControlSchedulerService {
                         accumulatedMinutes += minutesToUse;
                     }
                 }
-
             } else if (controlMode.equals(ControlMode.MANUAL)) {
                 for (NordpoolEntity priceEntry : prices) {
                     BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);

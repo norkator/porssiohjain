@@ -1,0 +1,3 @@
+ALTER TABLE control
+    ADD COLUMN always_on_below_min_price BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN min_price_snt NUMERIC(10, 4) NOT NULL DEFAULT 0;

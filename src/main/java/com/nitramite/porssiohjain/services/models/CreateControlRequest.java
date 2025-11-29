@@ -11,8 +11,10 @@ public class CreateControlRequest {
     private String name;
     private String timezone;
     private BigDecimal maxPriceSnt;
+    private BigDecimal minPriceSnt;
     private Integer dailyOnMinutes;
     private BigDecimal taxPercent;
     private ControlMode mode;
+    private Boolean alwaysOnBelowMinPrice;
     private Boolean manualOn;
 }
