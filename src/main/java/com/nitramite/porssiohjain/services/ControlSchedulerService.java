@@ -108,6 +108,8 @@ public class ControlSchedulerService {
             } else if (controlMode.equals(ControlMode.CHEAPEST_HOURS)) {
                 Integer dailyOnMinutes = control.getDailyOnMinutes();
                 BigDecimal maxPriceSnt = control.getMaxPriceSnt();
+                BigDecimal minPriceSnt = control.getMinPriceSnt();
+                boolean alwaysOnBelowMinPrice = control.isAlwaysOnBelowMinPrice();
 
                 Map<LocalDate, List<NordpoolEntity>> pricesByDay = prices.stream()
                         .collect(Collectors.groupingBy(p ->
