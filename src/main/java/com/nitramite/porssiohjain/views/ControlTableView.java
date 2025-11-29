@@ -166,10 +166,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         controlId,
                         control.getName(),
                         control.getMaxPriceSnt(),
+                        control.getMinPriceSnt(),
                         control.getDailyOnMinutes(),
                         control.getTaxPercent(),
                         control.getMode(),
-                        control.getManualOn()
+                        control.getManualOn(),
+                        control.getAlwaysOnBelowMinPrice()
                 );
 
                 Notification.show(t("controlTable.notification.saved"));

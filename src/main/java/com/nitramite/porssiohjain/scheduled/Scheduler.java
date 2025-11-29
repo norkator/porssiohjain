@@ -3,7 +3,6 @@ package com.nitramite.porssiohjain.scheduled;
 import com.nitramite.porssiohjain.services.ControlSchedulerService;
 import com.nitramite.porssiohjain.services.FingridDataService;
 import com.nitramite.porssiohjain.services.NordpoolDataPortalService;
-import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -16,18 +15,15 @@ public class Scheduler {
 
     private final NordpoolDataPortalService nordpoolDataPortalService;
     private final ControlSchedulerService controlSchedulerService;
-    // private final SystemLogService systemLogService;
     private final FingridDataService fingridDataService;
 
     public Scheduler(
             NordpoolDataPortalService nordpoolDataPortalService,
             ControlSchedulerService controlSchedulerService,
-            // SystemLogService systemLogService,
             FingridDataService fingridDataService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
-        // this.systemLogService = systemLogService;
         this.fingridDataService = fingridDataService;
         // nordpoolDataPortalService.fetchData();
         // fingridDataService.fetchData();

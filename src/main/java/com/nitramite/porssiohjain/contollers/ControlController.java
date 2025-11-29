@@ -45,10 +45,12 @@ public class ControlController {
                 request.getName(),
                 request.getTimezone(),
                 request.getMaxPriceSnt(),
+                request.getMinPriceSnt(),
                 request.getDailyOnMinutes(),
                 request.getTaxPercent(),
                 request.getMode(),
-                request.getManualOn()
+                request.getManualOn(),
+                request.getAlwaysOnBelowMinPrice()
         );
     }
 
@@ -64,10 +66,12 @@ public class ControlController {
                 id,
                 request.getName(),
                 request.getMaxPriceSnt(),
+                request.getMinPriceSnt(),
                 request.getDailyOnMinutes(),
                 request.getTaxPercent(),
                 request.getMode(),
-                request.getManualOn()
+                request.getManualOn(),
+                request.getAlwaysOnBelowMinPrice()
         );
     }
 

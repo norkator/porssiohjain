@@ -9,8 +9,10 @@ import java.math.BigDecimal;
 public class UpdateControlRequest {
     private String name;
     private BigDecimal maxPriceSnt;
+    private BigDecimal minPriceSnt;
     private Integer dailyOnMinutes;
     private BigDecimal taxPercent;
     private ControlMode mode;
     private Boolean manualOn;
+    private Boolean alwaysOnBelowMinPrice;
 }
