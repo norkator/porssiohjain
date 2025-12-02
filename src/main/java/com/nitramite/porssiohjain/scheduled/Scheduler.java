@@ -73,6 +73,11 @@ public class Scheduler {
         controlSchedulerService.generatePlannedForTomorrow();
     }
 
-    
+
+    @Scheduled(cron = "0 0 12 * * *", zone = "Europe/Helsinki")
+    public void deleteOldData() {
+        nordpoolDataPortalService.deleteOldNordpoolData();
+        fingridDataService.deleteOldFingridData();
+    }
 
 }

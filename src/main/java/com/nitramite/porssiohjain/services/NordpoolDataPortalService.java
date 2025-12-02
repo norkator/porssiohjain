@@ -30,6 +30,9 @@ public class NordpoolDataPortalService {
     @Value("${nordpool.day-ahead-prices-api-url}")
     private String apiUrl;
 
+    @Value("${nordpool.delete-data-after-months:5}")
+    private Integer deleteAfterMonths;
+
     private final NordpoolRepository nordpoolRepository;
     private final SystemLogService systemLogService;
 
@@ -106,6 +109,14 @@ public class NordpoolDataPortalService {
         Instant start = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
         Instant end = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         return nordpoolRepository.existsByDeliveryStartBetween(start, end);
+    }
+
+    public void deleteOldNordpoolData() {
+        Instant cutoff = LocalDate.now()
+                .minusMonths(deleteAfterMonths)
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant();
+        nordpoolRepository.deleteByDeliveryStartBefore(cutoff);
     }
 
 }

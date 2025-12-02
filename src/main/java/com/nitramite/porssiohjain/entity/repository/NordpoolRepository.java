@@ -19,4 +19,6 @@ public interface NordpoolRepository extends JpaRepository<NordpoolEntity, Long> 
 
     boolean existsByDeliveryStartBetween(Instant start, Instant end);
 
+    void deleteByDeliveryStartBefore(Instant cutoff);
+
 }

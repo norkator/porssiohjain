@@ -12,4 +12,6 @@ public interface FingridDataRepository extends JpaRepository<FingridDataEntity, 
 
     boolean existsByDatasetIdAndStartTimeBetween(Integer datasetId, Instant start, Instant end);
 
+    void deleteByStartTimeBefore(Instant cutoff);
+
 }

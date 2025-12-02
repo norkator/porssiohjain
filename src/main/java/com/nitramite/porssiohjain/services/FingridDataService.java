@@ -36,6 +36,9 @@ public class FingridDataService {
     @Value("${fingrid.api-key}")
     private String apiKey;
 
+    @Value("${fingrid.delete-data-after-months:5}")
+    private Integer deleteAfterMonths;
+
     private final SystemLogService systemLogService;
     private final FingridDataRepository fingridDataRepository;
 
@@ -114,6 +117,15 @@ public class FingridDataService {
         Instant start = today.atStartOfDay(ZoneId.systemDefault()).plusDays(1).toInstant();
         Instant end = today.plusDays(2).atStartOfDay(ZoneId.systemDefault()).toInstant();
         return fingridDataRepository.existsByDatasetIdAndStartTimeBetween(245, start, end);
+    }
+
+    public void deleteOldFingridData() {
+        Instant cutoff = LocalDate.now()
+                .minusMonths(deleteAfterMonths)
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant();
+
+        fingridDataRepository.deleteByStartTimeBefore(cutoff);
     }
 
 }
