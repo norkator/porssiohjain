@@ -15,6 +15,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -107,5 +109,11 @@ public class FingridDataService {
         }
     }
 
+    public boolean hasFingridDataForTomorrow() {
+        LocalDate today = LocalDate.now();
+        Instant start = today.atStartOfDay(ZoneId.systemDefault()).plusDays(1).toInstant();
+        Instant end = today.plusDays(2).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        return fingridDataRepository.existsByDatasetIdAndStartTimeBetween(245, start, end);
+    }
 
 }

@@ -25,8 +25,12 @@ public class Scheduler {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
         this.fingridDataService = fingridDataService;
-        // nordpoolDataPortalService.fetchData();
-        // fingridDataService.fetchData();
+        if (!nordpoolDataPortalService.hasDataForToday()) {
+            nordpoolDataPortalService.fetchData();
+        }
+        if (fingridDataService.hasFingridDataForTomorrow()) {
+            fingridDataService.fetchData();
+        }
     }
 
     @Scheduled(cron = "0 0 14 * * *", zone = "Europe/Helsinki")
@@ -68,5 +72,7 @@ public class Scheduler {
     public void runAfterNordpoolImportBackup() {
         controlSchedulerService.generatePlannedForTomorrow();
     }
+
+    
 
 }

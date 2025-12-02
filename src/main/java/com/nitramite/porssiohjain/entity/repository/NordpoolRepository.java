@@ -17,4 +17,6 @@ public interface NordpoolRepository extends JpaRepository<NordpoolEntity, Long> 
             "ORDER BY n.deliveryStart ASC")
     List<NordpoolEntity> findPricesBetween(@Param("start") Instant start, @Param("end") Instant end);
 
+    boolean existsByDeliveryStartBetween(Instant start, Instant end);
+
 }
