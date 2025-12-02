@@ -6,10 +6,12 @@ import com.nitramite.porssiohjain.services.NordpoolDataPortalService;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
+@Profile("!test")
 @Component
 public class Scheduler {
 
