@@ -28,7 +28,7 @@ public class Scheduler {
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData();
         }
-        if (fingridDataService.hasFingridDataForTomorrow()) {
+        if (!fingridDataService.hasFingridDataForTomorrow()) {
             fingridDataService.fetchData();
         }
     }
