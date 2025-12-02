@@ -3,7 +3,11 @@
 ![ukjx6lcc](./doc/ukjx6lcc.png)
 
 Pörssiohjain on Springin päälle rakennettu yksinkertainen online sovellus, joka hakee Nordpoolista pörssisähkön hinnat
-ja päivittää ohjaukset. Laitteesi esim Shelly kutsuu control rajapintaa ja saa vastauksena kanavakohtaiset ohjauksien
+ja päivittää ohjaukset. Ohjauksien on tarkoitus antaa käyttäjälle mahdollisuus säätää laitteita päälle halvimmilla
+tunneilla halutun aikaa, katkaista ohjauksia kun hinta nousee arvoa korkeammaksi tai tehdä erilaisia manuaalisia
+ohjauksia. Tehorajoituksilla voidaan palveluun tuoda tietoa talon reaaliaikaisesta kulutuksesta ja tämän perusteella
+kytkeä ohjauksia pois päältä. Tällä on ajatus purea tehomaksuihin.
+Laitteesi esim Shelly kutsuu control rajapintaa ja saa vastauksena kanavakohtaiset ohjauksien
 tilat, eli käytännössä konfiguroidut kavananumerot ja tila päälle/pois päältä.
 
 Käyttöliittymä on tehty Vaadinilla ja renderöityy palvelimen puolella. Käyttöliittymän tarkoitus on olla mahdollisimman
