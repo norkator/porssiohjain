@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -182,4 +183,13 @@ public class PowerLimitService {
                 .updatedAt(entity.getUpdatedAt())
                 .build();
     }
+
+    @Transactional
+    public void updateCurrentKw(String uuid, Double currentKw) {
+        PowerLimitEntity entity = powerLimitRepository.findByUuid(UUID.fromString(uuid))
+                .orElseThrow(() -> new IllegalArgumentException("Power limit not found for uuid: " + uuid));
+        entity.setCurrentKw(BigDecimal.valueOf(currentKw));
+        powerLimitRepository.save(entity);
+    }
+
 }

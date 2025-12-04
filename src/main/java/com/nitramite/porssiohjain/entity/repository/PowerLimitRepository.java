@@ -5,11 +5,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface PowerLimitRepository extends JpaRepository<PowerLimitEntity, Long> {
 
     List<PowerLimitEntity> findByAccountId(Long accountId);
 
     Optional<PowerLimitEntity> findByAccountIdAndId(Long accountId, Long powerLimitId);
+
+    Optional<PowerLimitEntity> findByUuid(UUID uuid);
 
 }
