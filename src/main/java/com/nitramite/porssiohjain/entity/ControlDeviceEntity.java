@@ -30,4 +30,5 @@ public class ControlDeviceEntity {
 
     @Column(name = "device_channel", nullable = false)
     private Integer deviceChannel;
+
 }

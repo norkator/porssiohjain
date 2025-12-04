@@ -59,10 +59,10 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
             UI.getCurrent().setLocale(storedLocale);
         }
 
-        nameField = new TextField(t("powerlimit.field.name"));
-        kwLimitField = new NumberField(t("powerlimit.field.limitKw"));
-        enabledToggle = new Checkbox(t("powerlimit.field.enabled"));
-        createButton = new Button(t("powerlimit.button.create"));
+        nameField = new TextField(t("powerlimits.field.name"));
+        kwLimitField = new NumberField(t("powerlimits.field.limitKw"));
+        enabledToggle = new Checkbox(t("powerlimits.field.enabled"));
+        createButton = new Button(t("powerlimits.button.create"));
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -79,7 +79,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
                 .set("padding", "32px")
                 .set("background-color", "var(--lumo-base-color)");
 
-        H2 title = new H2(t("powerlimit.title"));
+        H2 title = new H2(t("powerlimits.title"));
         title.getStyle().set("margin-top", "0");
 
         configureGrid();
@@ -90,7 +90,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
 
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("powerlimit.notification.sessionExpired"));
+            Notification.show(t("powerlimits.notification.sessionExpired"));
             UI.getCurrent().navigate(LoginView.class);
             return;
         }
@@ -146,30 +146,30 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
 
     private void configureGrid() {
         limitsGrid.addColumn(PowerLimitResponse::getId)
-                .setHeader(t("powerlimit.grid.id"))
+                .setHeader(t("powerlimits.grid.id"))
                 .setAutoWidth(true);
 
         limitsGrid.addColumn(PowerLimitResponse::getName)
-                .setHeader(t("powerlimit.grid.name"))
+                .setHeader(t("powerlimits.grid.name"))
                 .setAutoWidth(true);
 
         limitsGrid.addColumn(PowerLimitResponse::getLimitKw)
-                .setHeader(t("powerlimit.grid.limitKw"))
+                .setHeader(t("powerlimits.grid.limitKw"))
                 .setAutoWidth(true);
 
         limitsGrid.addColumn(PowerLimitResponse::isEnabled)
-                .setHeader(t("powerlimit.grid.enabled"))
+                .setHeader(t("powerlimits.grid.enabled"))
                 .setAutoWidth(true);
 
         limitsGrid.addColumn(limit -> {
             ZoneId zone = ZoneId.systemDefault();
             return ZonedDateTime.ofInstant(limit.getCreatedAt(), zone).format(formatter);
-        }).setHeader(t("powerlimit.grid.created")).setAutoWidth(true);
+        }).setHeader(t("powerlimits.grid.created")).setAutoWidth(true);
 
         limitsGrid.addColumn(limit -> {
             ZoneId zone = ZoneId.systemDefault();
             return ZonedDateTime.ofInstant(limit.getUpdatedAt(), zone).format(formatter);
-        }).setHeader(t("powerlimit.grid.updated")).setAutoWidth(true);
+        }).setHeader(t("powerlimits.grid.updated")).setAutoWidth(true);
 
         limitsGrid.setWidthFull();
         limitsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
@@ -193,22 +193,22 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
             boolean enabled = enabledToggle.getValue();
 
             if (name == null || name.isBlank()) {
-                Notification.show(t("powerlimit.notification.nameEmpty"));
+                Notification.show(t("powerlimits.notification.nameEmpty"));
                 return;
             }
 
             if (kw == null) {
-                Notification.show(t("powerlimit.notification.numericEmpty"));
+                Notification.show(t("powerlimits.notification.numericEmpty"));
                 return;
             }
 
             powerLimitService.createLimit(accountId, name, kw, enabled);
-            Notification.show(t("powerlimit.notification.created"));
+            Notification.show(t("powerlimits.notification.created"));
 
             clearForm();
             loadLimits();
         } catch (Exception e) {
-            Notification.show(t("powerlimit.notification.failed", e.getMessage()));
+            Notification.show(t("powerlimits.notification.failed", e.getMessage()));
         }
     }
 
@@ -222,7 +222,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
         try {
             limitsGrid.setItems(powerLimitService.getAllLimits(accountId));
         } catch (Exception e) {
-            Notification.show(t("powerlimit.notification.loadFailed", e.getMessage()));
+            Notification.show(t("powerlimits.notification.loadFailed", e.getMessage()));
         }
     }
 
