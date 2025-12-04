@@ -200,6 +200,13 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     }
 
     private Component createPowerLimitInfoSection(PowerLimitResponse p) {
+        TextField uuidField = new TextField(t("powerlimit.field.uuid"));
+        uuidField.setValue(p.getUuid().toString());
+        uuidField.setReadOnly(true);
+        uuidField.setWidthFull();
+
+        uuidField.getElement().setAttribute("readonly", "true");
+        uuidField.getElement().setProperty("title", p.getUuid().toString());
 
         TextField nameField = new TextField(t("powerlimit.field.name"));
         nameField.setValue(p.getName());
@@ -235,6 +242,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         Div formDiv = new Div();
 
         FormLayout form = new FormLayout(
+                uuidField,
                 nameField,
                 limitKwField,
                 enabledField,
