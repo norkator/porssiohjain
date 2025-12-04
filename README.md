@@ -3,7 +3,11 @@
 ![ukjx6lcc](./doc/ukjx6lcc.png)
 
 Pörssiohjain on Springin päälle rakennettu yksinkertainen online sovellus, joka hakee Nordpoolista pörssisähkön hinnat
-ja päivittää ohjaukset. Laitteesi esim Shelly kutsuu control rajapintaa ja saa vastauksena kanavakohtaiset ohjauksien
+ja päivittää ohjaukset. Ohjauksien on tarkoitus antaa käyttäjälle mahdollisuus säätää laitteita päälle halvimmilla
+tunneilla halutun aikaa, katkaista ohjauksia kun hinta nousee arvoa korkeammaksi tai tehdä erilaisia manuaalisia
+ohjauksia. Tehorajoituksilla voidaan palveluun tuoda tietoa talon reaaliaikaisesta kulutuksesta ja tämän perusteella
+kytkeä ohjauksia pois päältä. Tällä on ajatus purea tehomaksuihin.
+Laitteesi esim Shelly kutsuu control rajapintaa ja saa vastauksena kanavakohtaiset ohjauksien
 tilat, eli käytännössä konfiguroidut kavananumerot ja tila päälle/pois päältä.
 
 Käyttöliittymä on tehty Vaadinilla ja renderöityy palvelimen puolella. Käyttöliittymän tarkoitus on olla mahdollisimman
@@ -35,9 +39,9 @@ Luo ohjaukset `My controls` näkymässä asettaen moodi, vero, max hinnat.
 
 Ohjauksissa lisätään valikosta laitteet ja kanavat mitä haluat ohjata.
 
-### Shelly skripti
+### Shelly skripti (ohjauksiin)
 
-* Konfiguroinnissa kanavat alkavat arvosta `0`
+Huomioi, että konfiguroinnissa kanavat alkavat arvosta `0`
 
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
@@ -124,9 +128,39 @@ fetchControlData();
 scheduleEveryFiveMinutes();
 ```
 
-## Kehittämiseen liittyvää
+### Shelly skripti (tehorajat)
 
-Todo
+Luo palvelussa tehoraja ja ota tehorajan UUID talteeen. Aseta se alla olevaan scriptiin, joka tulee
+lähettävälle laitteelle esim Shelly Pro 3EM.
+
+```javascript
+const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
+const API_URL = 'https://porssiohjain.nitramite.com/power/' + DEVICE_UUID;
+const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+function sendCurrentKw() {
+    let totalW = Shelly.getDeviceInfo().channels.reduce((sum, ch) => sum + (ch.PowerActive || 0), 0);
+    let currentKw = totalW / 1000;
+    let body = JSON.stringify({currentKw: currentKw});
+
+    Shelly.call('HTTP.REQUEST', {
+        method: 'POST',
+        url: API_URL,
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+        timeout: 10
+    }, function (res, err) {
+        if (err || res.code !== 200) {
+            print('API POST failed:', JSON.stringify(err || res));
+            return;
+        }
+        print('Successfully sent currentKw:', currentKw, 'kW');
+    });
+}
+
+sendCurrentKw();
+Timer.set(POLL_INTERVAL_MS, true, sendCurrentKw);
+```
 
 ### Ympäristömuuttujat
 
@@ -136,4 +170,5 @@ export DB_PORT=5432
 export DB_NAME=porssiohjain
 export DB_USER=porssiohjain
 export DB_PASSWORD=porssiohjain
+export FINGRID_API_KEY=xxxxxx
 ``` 

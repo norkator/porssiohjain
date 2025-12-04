@@ -4,9 +4,10 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "control_device",
+@Table(
+        name = "power_limit_device",
         uniqueConstraints = @UniqueConstraint(
-                columnNames = {"control_id", "device_id", "device_channel"}
+                columnNames = {"power_limit_id", "device_id", "device_channel"}
         )
 )
 @Getter
@@ -14,15 +15,15 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ControlDeviceEntity {
+public class PowerLimitDeviceEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "control_id", nullable = false)
-    private ControlEntity control;
+    @JoinColumn(name = "power_limit_id", nullable = false)
+    private PowerLimitEntity powerLimit;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "device_id", nullable = false)
@@ -30,5 +31,4 @@ public class ControlDeviceEntity {
 
     @Column(name = "device_channel", nullable = false)
     private Integer deviceChannel;
-
 }

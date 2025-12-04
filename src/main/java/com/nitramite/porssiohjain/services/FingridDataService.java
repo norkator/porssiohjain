@@ -15,6 +15,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -33,6 +35,9 @@ public class FingridDataService {
 
     @Value("${fingrid.api-key}")
     private String apiKey;
+
+    @Value("${fingrid.delete-data-after-months:5}")
+    private Integer deleteAfterMonths;
 
     private final SystemLogService systemLogService;
     private final FingridDataRepository fingridDataRepository;
@@ -107,5 +112,20 @@ public class FingridDataService {
         }
     }
 
+    public boolean hasFingridDataForTomorrow() {
+        LocalDate today = LocalDate.now();
+        Instant start = today.atStartOfDay(ZoneId.systemDefault()).plusDays(1).toInstant();
+        Instant end = today.plusDays(2).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        return fingridDataRepository.existsByDatasetIdAndStartTimeBetween(245, start, end);
+    }
+
+    public void deleteOldFingridData() {
+        Instant cutoff = LocalDate.now()
+                .minusMonths(deleteAfterMonths)
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant();
+
+        fingridDataRepository.deleteByStartTimeBefore(cutoff);
+    }
 
 }

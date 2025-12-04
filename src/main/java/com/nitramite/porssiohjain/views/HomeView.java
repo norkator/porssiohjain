@@ -102,6 +102,8 @@ public class HomeView extends VerticalLayout {
 
         Button controlsButton = new Button(t("home.myControls"), e -> UI.getCurrent().navigate(ControlView.class));
 
+        Button powerLimitsButton = new Button(t("home.powerLimits"), e -> UI.getCurrent().navigate(PowerLimitsView.class));
+
         Button dashboardButton = new Button(t("home.dashboard"), e -> UI.getCurrent().navigate(DashboardView.class));
         dashboardButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
@@ -114,7 +116,7 @@ public class HomeView extends VerticalLayout {
         });
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
-        Stream.of(loginButton, createAccountButton, devicesButton, controlsButton, dashboardButton, logoutButton).forEach(btn -> {
+        Stream.of(loginButton, createAccountButton, devicesButton, controlsButton, powerLimitsButton, dashboardButton, logoutButton).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
             btn.getElement().addEventListener("mouseover", e -> btn.getStyle().set("transform", "scale(1.03)"));
             btn.getElement().addEventListener("mouseout", e -> btn.getStyle().remove("transform"));
@@ -133,7 +135,7 @@ public class HomeView extends VerticalLayout {
             updateStatBox(avgBox, stats.getAvg());
             updateStatBox(maxBox, stats.getMax());
 
-            contentBox.add(devicesButton, controlsButton, dashboardButton, logoutButton, createDivider(), priceStatsLayout, createDivider());
+            contentBox.add(devicesButton, controlsButton, powerLimitsButton, dashboardButton, logoutButton, createDivider(), priceStatsLayout, createDivider());
         } else {
             contentBox.add(loginButton, createAccountButton);
         }

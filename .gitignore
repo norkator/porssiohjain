@@ -47,3 +47,5 @@ http-client.private.env.json
 /.vaadin/
 /src/main/frontend/generated/*
 target/dev-bundle/*
+.vaadin-node-tasks.lock
+src/main/bundles/dev.bundle

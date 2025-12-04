@@ -3,9 +3,8 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
-import com.nitramite.porssiohjain.entity.repository.AccountRepository;
-import com.nitramite.porssiohjain.entity.repository.ControlRepository;
-import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.PowerLimitEntity;
+import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.mappers.DeviceMapper;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import jakarta.persistence.EntityNotFoundException;
@@ -14,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +22,8 @@ public class DeviceService {
     private final DeviceRepository deviceRepository;
     private final AccountRepository accountRepository;
     private final ControlRepository controlRepository;
+    private final PowerLimitRepository powerLimitRepository;
+    private final PowerLimitDeviceRepository powerLimitDeviceRepository;
 
     @Transactional
     public DeviceResponse createDevice(
@@ -115,6 +117,28 @@ public class DeviceService {
         device.setDeviceName(newName);
         device.setTimezone(newTimezone);
         deviceRepository.save(device);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeviceResponse> getAllDevicesForPowerLimitId(Long powerLimitId) {
+        PowerLimitEntity limit = powerLimitRepository.findById(powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException("Power limit not found: " + powerLimitId));
+        Long accountId = limit.getAccount().getId();
+        // List<Long> linkedIds = powerLimitDeviceRepository.findDeviceIdsByPowerLimitId(powerLimitId);
+        return deviceRepository.findByAccountId(accountId).stream()
+                // .filter(d -> !linkedIds.contains(d.getId()))
+                .map(this::mapDeviceToResponse)
+                .collect(Collectors.toList());
+    }
+
+    private DeviceResponse mapDeviceToResponse(DeviceEntity entity) {
+        return DeviceResponse.builder()
+                .id(entity.getId())
+                .uuid(entity.getUuid())
+                .deviceName(entity.getDeviceName())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
     }
 
 }

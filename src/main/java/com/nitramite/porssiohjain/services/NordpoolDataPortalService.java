@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
@@ -27,6 +29,9 @@ public class NordpoolDataPortalService {
 
     @Value("${nordpool.day-ahead-prices-api-url}")
     private String apiUrl;
+
+    @Value("${nordpool.delete-data-after-months:5}")
+    private Integer deleteAfterMonths;
 
     private final NordpoolRepository nordpoolRepository;
     private final SystemLogService systemLogService;
@@ -97,6 +102,21 @@ public class NordpoolDataPortalService {
             nordpoolRepository.saveAll(toInsert);
             systemLogService.log("Insert of " + toInsert.size() + " Nordpool entries completed.");
         }
+    }
+
+    public boolean hasDataForToday() {
+        LocalDate today = LocalDate.now();
+        Instant start = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant end = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        return nordpoolRepository.existsByDeliveryStartBetween(start, end);
+    }
+
+    public void deleteOldNordpoolData() {
+        Instant cutoff = LocalDate.now()
+                .minusMonths(deleteAfterMonths)
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant();
+        nordpoolRepository.deleteByDeliveryStartBefore(cutoff);
     }
 
 }

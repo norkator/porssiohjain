@@ -6,10 +6,12 @@ import com.nitramite.porssiohjain.services.NordpoolDataPortalService;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
+@Profile("!test")
 @Component
 public class Scheduler {
 
@@ -25,8 +27,12 @@ public class Scheduler {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
         this.fingridDataService = fingridDataService;
-        // nordpoolDataPortalService.fetchData();
-        // fingridDataService.fetchData();
+        if (!nordpoolDataPortalService.hasDataForToday()) {
+            nordpoolDataPortalService.fetchData();
+        }
+        if (!fingridDataService.hasFingridDataForTomorrow()) {
+            fingridDataService.fetchData();
+        }
     }
 
     @Scheduled(cron = "0 0 14 * * *", zone = "Europe/Helsinki")
@@ -67,6 +73,13 @@ public class Scheduler {
     @Scheduled(cron = "0 40 18 * * *", zone = "Europe/Helsinki")
     public void runAfterNordpoolImportBackup() {
         controlSchedulerService.generatePlannedForTomorrow();
+    }
+
+
+    @Scheduled(cron = "0 0 12 * * *", zone = "Europe/Helsinki")
+    public void deleteOldData() {
+        nordpoolDataPortalService.deleteOldNordpoolData();
+        fingridDataService.deleteOldFingridData();
     }
 
 }
