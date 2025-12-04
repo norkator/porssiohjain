@@ -7,22 +7,27 @@ import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
+import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Power Limit")
@@ -95,6 +100,15 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
     private void buildView() {
         add(new H3(t("powerlimit.title.modify")));
+
+        Paragraph subtitle = new Paragraph(t("powerlimit.subtitle"));
+        subtitle.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        add(subtitle);
+
+        PowerLimitResponse powerLimit = powerLimitService.getPowerLimit(getAccountId(), powerLimitId);
+
+        add(createPowerLimitInfoSection(powerLimit));
+        add(createCurrentKwSection(powerLimit));
 
         configureDeviceGrid();
         loadPowerLimitDevices();
@@ -184,5 +198,84 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         AccountEntity account = authService.authenticate(token);
         return account.getId();
     }
+
+    private Component createPowerLimitInfoSection(PowerLimitResponse p) {
+
+        TextField nameField = new TextField(t("powerlimit.field.name"));
+        nameField.setValue(p.getName());
+        nameField.setWidthFull();
+
+        NumberField limitKwField = new NumberField(t("powerlimit.field.limitKw"));
+        limitKwField.setStep(0.1);
+        limitKwField.setValue(p.getLimitKw().doubleValue());
+        limitKwField.setWidthFull();
+
+        Checkbox enabledField = new Checkbox(t("powerlimit.field.enabled"));
+        enabledField.setValue(p.isEnabled());
+
+        ComboBox<String> timezoneField = new ComboBox<>(t("powerlimit.field.timezone"));
+        timezoneField.setItems(ZoneId.getAvailableZoneIds());
+        timezoneField.setValue(p.getTimezone());
+        timezoneField.setWidthFull();
+
+        Button saveButton = new Button(t("powerlimit.button.save"), e -> {
+            powerLimitService.updatePowerLimit(
+                    getAccountId(),
+                    p.getId(),
+                    nameField.getValue(),
+                    BigDecimal.valueOf(limitKwField.getValue()),
+                    enabledField.getValue(),
+                    timezoneField.getValue()
+            );
+
+            Notification.show(t("powerlimit.notification.saved"));
+        });
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Div formDiv = new Div();
+
+        FormLayout form = new FormLayout(
+                nameField,
+                limitKwField,
+                enabledField,
+                timezoneField
+        );
+
+        form.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2)
+        );
+
+        formDiv.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                .set("background-color", "var(--lumo-contrast-5pct)");
+
+        formDiv.add(form, saveButton);
+        return formDiv;
+    }
+
+    private Component createCurrentKwSection(PowerLimitResponse p) {
+        Div wrapper = new Div();
+        wrapper.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-10pct)")
+                .set("text-align", "center");
+
+        H2 title = new H2(t("powerlimit.currentUsage"));
+        title.getStyle().set("margin", "0");
+
+        H1 current = new H1(p.getCurrentKw() + " kW");
+        current.getStyle()
+                .set("font-size", "3rem")
+                .set("font-weight", "bold")
+                .set("margin", "0");
+
+        wrapper.add(title, current);
+        return wrapper;
+    }
+
 
 }

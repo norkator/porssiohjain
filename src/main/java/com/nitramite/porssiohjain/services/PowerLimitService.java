@@ -57,6 +57,37 @@ public class PowerLimitService {
     }
 
     @Transactional(readOnly = true)
+    public PowerLimitResponse getPowerLimit(Long accountId, Long powerLimitId) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        return powerLimitRepository.findByAccountIdAndId(account.getId(), powerLimitId)
+                .map(this::mapToResponse)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+    }
+
+    @Transactional
+    public void updatePowerLimit(
+            Long accountId, Long powerLimitId, String name,
+            BigDecimal limitKw, boolean enabled, String timezone
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        PowerLimitEntity entity = powerLimitRepository
+                .findByAccountIdAndId(account.getId(), powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+        entity.setName(name);
+        entity.setLimitKw(limitKw);
+        entity.setEnabled(enabled);
+        entity.setTimezone(timezone);
+        powerLimitRepository.save(entity);
+        mapToResponse(entity);
+    }
+
+    @Transactional(readOnly = true)
     public List<PowerLimitResponse> getAllLimits(Long accountId) {
         return powerLimitRepository.findByAccountId(accountId).stream()
                 .map(this::mapToResponse)

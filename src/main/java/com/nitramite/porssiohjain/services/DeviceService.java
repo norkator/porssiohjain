@@ -123,12 +123,10 @@ public class DeviceService {
     public List<DeviceResponse> getAllDevicesForPowerLimitId(Long powerLimitId) {
         PowerLimitEntity limit = powerLimitRepository.findById(powerLimitId)
                 .orElseThrow(() -> new IllegalArgumentException("Power limit not found: " + powerLimitId));
-
         Long accountId = limit.getAccount().getId();
-        List<Long> linkedIds = powerLimitDeviceRepository.findDeviceIdsByPowerLimitId(powerLimitId);
-
+        // List<Long> linkedIds = powerLimitDeviceRepository.findDeviceIdsByPowerLimitId(powerLimitId);
         return deviceRepository.findByAccountId(accountId).stream()
-                .filter(d -> !linkedIds.contains(d.getId()))
+                // .filter(d -> !linkedIds.contains(d.getId()))
                 .map(this::mapDeviceToResponse)
                 .collect(Collectors.toList());
     }
