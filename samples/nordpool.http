@@ -1,5 +1,5 @@
 ### GET request with a header
 GET https://dataportal-api.nordpoolgroup.com/api/DayAheadPriceIndices?currency=EUR&market=DayAhead&indexNames=FI&
-    resolutionInMinutes=15&date=2025-10-11
+    resolutionInMinutes=15&date=2025-12-10
 Accept: application/json
 Origin: https://data.nordpoolgroup.com

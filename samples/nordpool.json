@@ -1,0 +1,49 @@
+{
+  "deliveryDateCET": "2025-12-10",
+  "version": 3,
+  "updatedAt": "2025-12-09T12:24:06.5413094Z",
+  "market": "DayAhead",
+  "indexNames": [
+    "FI"
+  ],
+  "currency": "EUR",
+  "resolutionInMinutes": 15,
+  "areaStates": [
+    {
+      "state": "Final",
+      "areas": [
+        "FI"
+      ]
+    }
+  ],
+  "multiIndexEntries": [
+    {
+      "deliveryStart": "2025-12-09T23:00:00Z",
+      "deliveryEnd": "2025-12-09T23:15:00Z",
+      "entryPerArea": {
+        "FI": 53.41
+      }
+    },
+    {
+      "deliveryStart": "2025-12-09T23:15:00Z",
+      "deliveryEnd": "2025-12-09T23:30:00Z",
+      "entryPerArea": {
+        "FI": 48.83
+      }
+    },
+    {
+      "deliveryStart": "2025-12-10T22:30:00Z",
+      "deliveryEnd": "2025-12-10T22:45:00Z",
+      "entryPerArea": {
+        "FI": 12.00
+      }
+    },
+    {
+      "deliveryStart": "2025-12-10T22:45:00Z",
+      "deliveryEnd": "2025-12-10T23:00:00Z",
+      "entryPerArea": {
+        "FI": 10.39
+      }
+    }
+  ]
+}
