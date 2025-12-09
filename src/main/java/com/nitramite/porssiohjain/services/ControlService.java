@@ -25,6 +25,7 @@ public class ControlService {
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
     private final ControlTableRepository controlTableRepository;
+    private final PowerLimitDeviceRepository powerLimitDeviceRepository;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -271,6 +272,13 @@ public class ControlService {
         Map<Integer, Integer> channelMap = new HashMap<>();
 
         for (ControlDeviceEntity cd : controlDevices) {
+            // check for power limit first and skip later logic if power limit active
+            int channel = cd.getDeviceChannel();
+            if (isPowerLimitActiveForDeviceChannel(device, channel)) {
+                channelMap.put(channel, 0);
+                continue;
+            }
+
             ControlEntity control = cd.getControl();
             ZoneId controlZone = ZoneId.of(control.getTimezone());
             ControlMode mode = control.getMode();
@@ -299,6 +307,25 @@ public class ControlService {
 
         return channelMap;
     }
+
+
+    private boolean isPowerLimitActiveForDeviceChannel(
+            DeviceEntity device, int deviceChannel
+    ) {
+        List<PowerLimitDeviceEntity> mappings = powerLimitDeviceRepository
+                .findByDeviceAndDeviceChannel(device, deviceChannel);
+        if (mappings.isEmpty()) {
+            return false;
+        }
+        for (PowerLimitDeviceEntity m : mappings) {
+            PowerLimitEntity limit = m.getPowerLimit();
+            if (limit.isEnabled() && limit.getCurrentKw().compareTo(limit.getLimitKw()) > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     public TimeTableListResponse getTimetableForDevice(
             String deviceUuid
