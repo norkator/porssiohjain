@@ -1,6 +1,7 @@
 package com.nitramite.porssiohjain.scheduled;
 
 import com.nitramite.porssiohjain.services.ControlSchedulerService;
+import com.nitramite.porssiohjain.services.Day;
 import com.nitramite.porssiohjain.services.FingridDataService;
 import com.nitramite.porssiohjain.services.NordpoolDataPortalService;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
@@ -28,12 +29,25 @@ public class Scheduler {
         this.controlSchedulerService = controlSchedulerService;
         this.fingridDataService = fingridDataService;
         if (!nordpoolDataPortalService.hasDataForToday()) {
-            nordpoolDataPortalService.fetchData();
+            nordpoolDataPortalService.fetchData(Day.TODAY);
         }
         if (!fingridDataService.hasFingridDataForTomorrow()) {
             fingridDataService.fetchData();
         }
     }
+
+    @Scheduled(cron = "0 0 */2 * * *", zone = "Europe/Helsinki")
+    public void fetchNordpoolDataEveryTwoHours() {
+        try {
+            if (!nordpoolDataPortalService.hasDataForToday()) {
+                NordpoolResponse response = nordpoolDataPortalService.fetchData(Day.TODAY);
+                log.info("Nordpool data (2h interval) fetched and saved successfully: {}", response.getMultiIndexEntries().size());
+            }
+        } catch (Exception e) {
+            log.error("Error fetching Nordpool data (2h interval)", e);
+        }
+    }
+
 
     @Scheduled(cron = "0 0 14 * * *", zone = "Europe/Helsinki")
     public void fetchFingridDataDaily() {
@@ -48,7 +62,7 @@ public class Scheduler {
     @Scheduled(cron = "0 30 14 * * *", zone = "Europe/Helsinki")
     public void fetchNordpoolDataDaily() {
         try {
-            NordpoolResponse response = nordpoolDataPortalService.fetchData();
+            NordpoolResponse response = nordpoolDataPortalService.fetchData(Day.TOMORROW);
             log.info("Nordpool day ahead data fetched and saved {} rows successfully", response.getMultiIndexEntries().size());
         } catch (Exception e) {
             log.error("Error fetching Nordpool data", e);
@@ -63,8 +77,8 @@ public class Scheduler {
     @Scheduled(cron = "0 0 18 * * *", zone = "Europe/Helsinki")
     public void fetchNordpoolDataDailyBackup() {
         try {
-            NordpoolResponse response = nordpoolDataPortalService.fetchData();
-            log.info("Nordpool day ahead data fetched and saved successfully: {}", response);
+            NordpoolResponse response = nordpoolDataPortalService.fetchData(Day.TOMORROW);
+            log.info("Nordpool day ahead data fetched and saved successfully: {}", response.getMultiIndexEntries().size());
         } catch (Exception e) {
             log.error("Error fetching Nordpool data", e);
         }

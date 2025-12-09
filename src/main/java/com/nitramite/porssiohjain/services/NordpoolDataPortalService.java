@@ -45,6 +45,7 @@ public class NordpoolDataPortalService {
     }
 
     public NordpoolResponse fetchData(
+            Day day
     ) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Accept", "application/json");
@@ -54,9 +55,8 @@ public class NordpoolDataPortalService {
 
         LocalDate today = LocalDate.now();
         LocalDate tomorrow = today.plusDays(1);
-        // LocalDate y = today.minusDays(1);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        String formattedDate = tomorrow.format(formatter);
+        String formattedDate = day.equals(Day.TODAY) ? today.format(formatter) : tomorrow.format(formatter);
 
         String urlWithParams = UriComponentsBuilder.fromUriString(apiUrl)
                 .queryParam("currency", "EUR")
@@ -104,6 +104,7 @@ public class NordpoolDataPortalService {
         }
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean hasDataForToday() {
         LocalDate today = LocalDate.now();
         Instant start = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
