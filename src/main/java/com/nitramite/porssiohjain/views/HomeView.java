@@ -104,7 +104,7 @@ public class HomeView extends VerticalLayout {
 
         Button powerLimitsButton = new Button(t("home.powerLimits"), e -> UI.getCurrent().navigate(PowerLimitsView.class));
 
-        Button temperatureControlsButton = new Button("Temperatures", e -> UI.getCurrent().navigate(TemperatureCurveView.class));
+        Button temperatureControlsButton = new Button("Termostaatit", e -> UI.getCurrent().navigate(TemperatureCurveView.class));
 
         Button dashboardButton = new Button(t("home.dashboard"), e -> UI.getCurrent().navigate(DashboardView.class));
         dashboardButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
