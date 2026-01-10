@@ -104,10 +104,13 @@ public class HomeView extends VerticalLayout {
 
         Button powerLimitsButton = new Button(t("home.powerLimits"), e -> UI.getCurrent().navigate(PowerLimitsView.class));
 
-        Button temperatureControlsButton = new Button("Termostaatit", e -> UI.getCurrent().navigate(TemperatureCurveView.class));
+        Button temperatureControlsButton = new Button(t("home.thermostats"), e -> UI.getCurrent().navigate(TemperatureCurveView.class));
 
         Button dashboardButton = new Button(t("home.dashboard"), e -> UI.getCurrent().navigate(DashboardView.class));
         dashboardButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+
+        Button electricityContractsButton = new Button(t("home.electricityContracts"), e -> UI.getCurrent().navigate(ElectricityContractsView.class));
+        electricityContractsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
         Button logoutButton = new Button(t("home.logout"), e -> {
             VaadinSession session = VaadinSession.getCurrent();
@@ -118,7 +121,10 @@ public class HomeView extends VerticalLayout {
         });
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
-        Stream.of(loginButton, createAccountButton, devicesButton, controlsButton, powerLimitsButton, temperatureControlsButton, dashboardButton, logoutButton).forEach(btn -> {
+        Stream.of(
+                loginButton, createAccountButton, devicesButton, controlsButton, powerLimitsButton, temperatureControlsButton,
+                dashboardButton, electricityContractsButton, logoutButton
+        ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
             btn.getElement().addEventListener("mouseover", e -> btn.getStyle().set("transform", "scale(1.03)"));
             btn.getElement().addEventListener("mouseout", e -> btn.getStyle().remove("transform"));
@@ -137,7 +143,10 @@ public class HomeView extends VerticalLayout {
             updateStatBox(avgBox, stats.getAvg());
             updateStatBox(maxBox, stats.getMax());
 
-            contentBox.add(devicesButton, controlsButton, powerLimitsButton, temperatureControlsButton, dashboardButton, logoutButton, createDivider(), priceStatsLayout, createDivider());
+            contentBox.add(
+                    devicesButton, controlsButton, powerLimitsButton, temperatureControlsButton,
+                    dashboardButton, electricityContractsButton, logoutButton, createDivider(), priceStatsLayout, createDivider()
+            );
         } else {
             contentBox.add(loginButton, createAccountButton);
         }
