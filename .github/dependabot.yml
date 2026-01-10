@@ -1,16 +1,16 @@
 version: 2
 updates:
-  - package-ecosystem: "gradle"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-      time: "18:00"
-      timezone: "Europe/Helsinki"
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    open-pull-requests-limit: 10
+  # - package-ecosystem: "gradle"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "friday"
+  #     time: "18:00"
+  #     timezone: "Europe/Helsinki"
+  #   commit-message:
+  #     prefix: "deps"
+  #     include: "scope"
+  #   open-pull-requests-limit: 10
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
