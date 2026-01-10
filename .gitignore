@@ -49,3 +49,4 @@ http-client.private.env.json
 target/dev-bundle/*
 .vaadin-node-tasks.lock
 src/main/bundles/dev.bundle
+vite.generated.ts
