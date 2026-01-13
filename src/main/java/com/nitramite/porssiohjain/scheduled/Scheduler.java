@@ -30,9 +30,13 @@ public class Scheduler {
         this.fingridDataService = fingridDataService;
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
+        } else {
+            log.info("No need to fetch Nordpool data");
         }
         if (!fingridDataService.hasFingridDataForTomorrow()) {
             fingridDataService.fetchData();
+        } else {
+            log.info("No need to fetch Fingrid data");
         }
     }
 

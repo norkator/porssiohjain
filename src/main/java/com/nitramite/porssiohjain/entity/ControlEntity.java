@@ -52,6 +52,14 @@ public class ControlEntity {
     @Column(name = "always_on_below_min_price", nullable = false)
     private boolean alwaysOnBelowMinPrice;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "energy_contract_id")
+    private ElectricityContractEntity energyContract;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transfer_contract_id")
+    private ElectricityContractEntity transferContract;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

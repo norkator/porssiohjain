@@ -71,7 +71,9 @@ public class ControlController {
                 request.getTaxPercent(),
                 request.getMode(),
                 request.getManualOn(),
-                request.getAlwaysOnBelowMinPrice()
+                request.getAlwaysOnBelowMinPrice(),
+                null,
+                null
         );
     }
 

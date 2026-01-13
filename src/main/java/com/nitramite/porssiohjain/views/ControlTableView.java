@@ -1,7 +1,10 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.ContractType;
 import com.nitramite.porssiohjain.entity.ControlMode;
+import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
+import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.Component;
@@ -51,6 +54,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final ControlSchedulerService controlSchedulerService;
     private final NordpoolService nordpoolService;
     protected final I18nService i18n;
+    private ElectricityContractRepository contractRepository;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
@@ -75,7 +79,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             DeviceService deviceService,
             ControlSchedulerService controlSchedulerService,
             NordpoolService nordpoolService,
-            I18nService i18n
+            I18nService i18n,
+            ElectricityContractRepository contractRepository
     ) {
         this.authService = authService;
         this.controlService = controlService;
@@ -83,6 +88,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.controlSchedulerService = controlSchedulerService;
         this.nordpoolService = nordpoolService;
         this.i18n = i18n;
+        this.contractRepository = contractRepository;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -156,6 +162,49 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         Checkbox alwaysOnBelowMinPriceToggle = new Checkbox(t("controlTable.field.alwaysOnBelowMinPrice"));
         alwaysOnBelowMinPriceToggle.setValue(control.getAlwaysOnBelowMinPrice());
 
+        List<ElectricityContractEntity> contracts =
+                contractRepository.findByAccountId(getAccountId());
+
+        ComboBox<ElectricityContractEntity> energyContractCombo =
+                new ComboBox<>(t("controlTable.field.energyContract"));
+
+        ComboBox<ElectricityContractEntity> transferContractCombo =
+                new ComboBox<>(t("controlTable.field.transferContract"));
+
+        energyContractCombo.setItems(
+                contracts.stream()
+                        .filter(c -> c.getType() == ContractType.ENERGY)
+                        .toList()
+        );
+
+        transferContractCombo.setItems(
+                contracts.stream()
+                        .filter(c -> c.getType() == ContractType.TRANSFER)
+                        .toList()
+        );
+
+        if (control.getEnergyContractId() != null) {
+            contracts.stream()
+                    .filter(c -> c.getId().equals(control.getEnergyContractId()))
+                    .findFirst()
+                    .ifPresent(energyContractCombo::setValue);
+        }
+
+        if (control.getTransferContractId() != null) {
+            contracts.stream()
+                    .filter(c -> c.getId().equals(control.getTransferContractId()))
+                    .findFirst()
+                    .ifPresent(transferContractCombo::setValue);
+        }
+
+        energyContractCombo.setItemLabelGenerator(ElectricityContractEntity::getName);
+        transferContractCombo.setItemLabelGenerator(ElectricityContractEntity::getName);
+
+        energyContractCombo.setClearButtonVisible(true);
+        transferContractCombo.setClearButtonVisible(true);
+        energyContractCombo.setWidthFull();
+        transferContractCombo.setWidthFull();
+
         Button saveButton = new Button(t("controlTable.button.save"), e -> {
             try {
                 control.setName(controlNameField.getValue());
@@ -168,6 +217,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 if (control.getMode() == ControlMode.MANUAL) {
                     control.setManualOn(manualToggle.getValue());
                 }
+                ElectricityContractEntity energy = energyContractCombo.getValue();
+                ElectricityContractEntity transfer = transferContractCombo.getValue();
+                Long energyId = energy != null ? energy.getId() : null;
+                Long transferId = transfer != null ? transfer.getId() : null;
 
                 controlService.updateControl(
                         getAccountId(),
@@ -179,7 +232,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         control.getTaxPercent(),
                         control.getMode(),
                         control.getManualOn(),
-                        control.getAlwaysOnBelowMinPrice()
+                        control.getAlwaysOnBelowMinPrice(),
+                        energyId,
+                        transferId
                 );
 
                 Notification.show(t("controlTable.notification.saved"));
@@ -203,6 +258,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 minPriceField,
                 taxPercentage,
                 dailyMinutes,
+                energyContractCombo,
+                transferContractCombo,
                 manualToggle,
                 alwaysOnBelowMinPriceToggle
         );
@@ -484,87 +541,87 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         String nowLabel = t("controlTable.chart.now");
 
         chartDiv.getElement().executeJs("""
-                    const container = this;
-                    const nordpoolLabel = $3;
-                    const controlLabel = $4;
-                    const xAxisLabel = $5;
-                    const yAxisLabel = $6;
-                    const chartTitle = $7;
-                    const nowLabel = $8;
-                
-                    function renderOrUpdate(dataX, dataNordpool, dataControl) {
-                        if (!window.ApexCharts) {
-                            const script = document.createElement('script');
-                            script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
-                            script.onload = () => renderOrUpdate(dataX, dataNordpool, dataControl);
-                            document.head.appendChild(script);
-                            return;
-                        }
-                
-                        const now = new Date();
-                        const nowISO = now.toISOString().slice(0, 16);
-                        const closest = dataX.reduce((prev, curr) => {
-                            return Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now) ? curr : prev;
-                        });
-                
-                        if (!container.chartInstance) {
-                            const options = {
-                                chart: {
-                                    type: 'line',
-                                    height: '400px',
-                                    toolbar: { show: true },
-                                    zoom: { enabled: false }
-                                },
-                                series: [
-                                    { name: nordpoolLabel, data: dataNordpool, color: '#0000FF' },
-                                    { name: controlLabel, data: dataControl, color: '#FF0000' }
-                                ],
-                                xaxis: { categories: dataX, title: { text: xAxisLabel }, labels: { rotate: -45 } },
-                                yaxis: { title: { text: yAxisLabel } },
-                                title: { text: chartTitle, align: 'center' },
-                                stroke: { curve: 'smooth', width: 2 },
-                                markers: { size: 4 },
-                                tooltip: { shared: true },
-                                annotations: {
-                                    xaxis: [
-                                        {
-                                            x: closest,
-                                            borderColor: '#00E396',
-                                            label: {
-                                                style: { color: '#fff', background: '#00E396' },
-                                                text: nowLabel
-                                            }
-                                        }
-                                    ]
+                            const container = this;
+                            const nordpoolLabel = $3;
+                            const controlLabel = $4;
+                            const xAxisLabel = $5;
+                            const yAxisLabel = $6;
+                            const chartTitle = $7;
+                            const nowLabel = $8;
+                        
+                            function renderOrUpdate(dataX, dataNordpool, dataControl) {
+                                if (!window.ApexCharts) {
+                                    const script = document.createElement('script');
+                                    script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
+                                    script.onload = () => renderOrUpdate(dataX, dataNordpool, dataControl);
+                                    document.head.appendChild(script);
+                                    return;
                                 }
-                            };
-                            container.chartInstance = new ApexCharts(container, options);
-                            container.chartInstance.render();
-                        } else {
-                            container.chartInstance.updateOptions({
-                                xaxis: { categories: dataX },
-                                annotations: {
-                                    xaxis: [
-                                        {
-                                            x: closest,
-                                            borderColor: '#00E396',
-                                            label: {
-                                                style: { color: '#fff', background: '#00E396' },
-                                                text: nowLabel
-                                            }
+                        
+                                const now = new Date();
+                                const nowISO = now.toISOString().slice(0, 16);
+                                const closest = dataX.reduce((prev, curr) => {
+                                    return Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now) ? curr : prev;
+                                });
+                        
+                                if (!container.chartInstance) {
+                                    const options = {
+                                        chart: {
+                                            type: 'line',
+                                            height: '400px',
+                                            toolbar: { show: true },
+                                            zoom: { enabled: false }
+                                        },
+                                        series: [
+                                            { name: nordpoolLabel, data: dataNordpool, color: '#0000FF' },
+                                            { name: controlLabel, data: dataControl, color: '#FF0000' }
+                                        ],
+                                        xaxis: { categories: dataX, title: { text: xAxisLabel }, labels: { rotate: -45 } },
+                                        yaxis: { title: { text: yAxisLabel } },
+                                        title: { text: chartTitle, align: 'center' },
+                                        stroke: { curve: 'smooth', width: 2 },
+                                        markers: { size: 4 },
+                                        tooltip: { shared: true },
+                                        annotations: {
+                                            xaxis: [
+                                                {
+                                                    x: closest,
+                                                    borderColor: '#00E396',
+                                                    label: {
+                                                        style: { color: '#fff', background: '#00E396' },
+                                                        text: nowLabel
+                                                    }
+                                                }
+                                            ]
                                         }
-                                    ]
+                                    };
+                                    container.chartInstance = new ApexCharts(container, options);
+                                    container.chartInstance.render();
+                                } else {
+                                    container.chartInstance.updateOptions({
+                                        xaxis: { categories: dataX },
+                                        annotations: {
+                                            xaxis: [
+                                                {
+                                                    x: closest,
+                                                    borderColor: '#00E396',
+                                                    label: {
+                                                        style: { color: '#fff', background: '#00E396' },
+                                                        text: nowLabel
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    });
+                                    container.chartInstance.updateSeries([
+                                        { data: dataNordpool },
+                                        { data: dataControl }
+                                    ], true);
                                 }
-                            });
-                            container.chartInstance.updateSeries([
-                                { data: dataNordpool },
-                                { data: dataControl }
-                            ], true);
-                        }
-                    }
-                
-                    renderOrUpdate($0, $1, $2);
-                """,
+                            }
+                        
+                            renderOrUpdate($0, $1, $2);
+                        """,
                 jsTimestamps, jsNordpoolPrices, jsControlPrices,
                 nordpoolLabel, controlLabel, xAxisLabel, yAxisLabel, chartTitle, nowLabel
         );

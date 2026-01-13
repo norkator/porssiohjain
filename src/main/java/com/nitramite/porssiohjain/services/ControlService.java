@@ -26,6 +26,7 @@ public class ControlService {
     private final DeviceRepository deviceRepository;
     private final ControlTableRepository controlTableRepository;
     private final PowerLimitDeviceRepository powerLimitDeviceRepository;
+    private final ElectricityContractRepository electricityContractRepository;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -60,10 +61,22 @@ public class ControlService {
             Long accountId,
             Long controlId, String name, BigDecimal maxPriceSnt, BigDecimal minPriceSnt,
             Integer dailyOnMinutes, BigDecimal taxPercent, ControlMode mode, Boolean manualOn,
-            Boolean alwaysOnBelowMinPrice
+            Boolean alwaysOnBelowMinPrice, Long energyContractId, Long transferContractId
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+
+        ElectricityContractEntity e = energyContractId == null
+                ? null
+                : electricityContractRepository.findByIdAndAccountId(energyContractId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Energy contract not found or does not belong to account"));
+
+        ElectricityContractEntity t = transferContractId == null
+                ? null
+                : electricityContractRepository.findByIdAndAccountId(transferContractId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Transfer contract not found or does not belong to account"));
 
         if (control.getAccount().getId().equals(accountId)) {
             control.setName(name);
@@ -74,6 +87,8 @@ public class ControlService {
             control.setMode(mode);
             control.setManualOn(manualOn);
             control.setAlwaysOnBelowMinPrice(alwaysOnBelowMinPrice);
+            control.setEnergyContract(e);
+            control.setTransferContract(t);
             return controlRepository.save(control);
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -129,6 +144,10 @@ public class ControlService {
                         .mode(entity.getMode())
                         .manualOn(entity.isManualOn())
                         .alwaysOnBelowMinPrice(entity.isAlwaysOnBelowMinPrice())
+                        .energyContractId(entity.getEnergyContract() != null ? entity.getEnergyContract().getId() : null)
+                        .energyContractName(entity.getEnergyContract() != null ? entity.getEnergyContract().getName() : null)
+                        .transferContractId(entity.getTransferContract() != null ? entity.getTransferContract().getId() : null)
+                        .transferContractName(entity.getTransferContract() != null ? entity.getTransferContract().getName() : null)
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build())

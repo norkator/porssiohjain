@@ -20,6 +20,10 @@ public class ControlResponse {
     private ControlMode mode;
     private Boolean manualOn;
     private Boolean alwaysOnBelowMinPrice;
+    private Long energyContractId;
+    private String energyContractName;
+    private Long transferContractId;
+    private String transferContractName;
     private Instant createdAt;
     private Instant updatedAt;
 }
