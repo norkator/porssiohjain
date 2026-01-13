@@ -1,6 +1,10 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.ContractType;
+import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
+import com.nitramite.porssiohjain.entity.repository.AccountRepository;
+import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.vaadin.flow.component.Component;
@@ -22,8 +26,7 @@ import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.math.BigDecimal;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Electricity Contracts")
@@ -32,6 +35,9 @@ import java.util.Locale;
 public class ElectricityContractsView extends VerticalLayout implements BeforeEnterObserver {
 
     private final I18nService i18n;
+    private final ElectricityContractRepository contractRepository;
+    private final AccountRepository accountRepository;
+
     private Long accountId;
 
     private final TextField nameField;
@@ -48,16 +54,21 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
     private final Checkbox staticPricingToggle;
     private final Button saveButton;
 
-    private final Grid<ElectricityContract> grid = new Grid<>(ElectricityContract.class, false);
-    private final Binder<ElectricityContract> binder = new Binder<>(ElectricityContract.class);
+    private final Grid<ElectricityContractEntity> grid = new Grid<>(ElectricityContractEntity.class, false);
+    private final Binder<ElectricityContractEntity> binder = new Binder<>(ElectricityContractEntity.class);
 
-    private ElectricityContract editingContract;
-
-    private final List<ElectricityContract> contracts = new ArrayList<>();
+    private ElectricityContractEntity editingContract;
 
     @Autowired
-    public ElectricityContractsView(AuthService authService, I18nService i18n) {
+    public ElectricityContractsView(
+            AuthService authService,
+            I18nService i18n,
+            ElectricityContractRepository contractRepository,
+            AccountRepository accountRepository
+    ) {
         this.i18n = i18n;
+        this.contractRepository = contractRepository;
+        this.accountRepository = accountRepository;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -109,35 +120,36 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
 
         AccountEntity account = authService.authenticate(token);
         accountId = account.getId();
+
+        loadContracts();
     }
 
     private void configureGrid() {
-        grid.addColumn(ElectricityContract::getName)
+        grid.addColumn(ElectricityContractEntity::getName)
                 .setHeader(t("electricityContracts.grid.name"))
                 .setAutoWidth(true);
 
         grid.addColumn(contract -> t("electricityContracts.type." + contract.getType().name().toLowerCase()))
                 .setHeader(t("electricityContracts.grid.type"));
 
-        grid.addColumn(ElectricityContract::getBasicFee)
+        grid.addColumn(ElectricityContractEntity::getBasicFee)
                 .setHeader(t("electricityContracts.grid.basicFee"));
 
-        grid.addColumn(ElectricityContract::getNightPrice)
+        grid.addColumn(ElectricityContractEntity::getNightPrice)
                 .setHeader(t("electricityContracts.grid.nightPrice"));
 
-        grid.addColumn(ElectricityContract::getDayPrice)
+        grid.addColumn(ElectricityContractEntity::getDayPrice)
                 .setHeader(t("electricityContracts.grid.dayPrice"));
 
-        grid.addColumn(ElectricityContract::getStaticPrice)
+        grid.addColumn(ElectricityContractEntity::getStaticPrice)
                 .setHeader(t("electricityContracts.grid.staticPrice"));
 
-        grid.addColumn(ElectricityContract::getTaxPercent)
+        grid.addColumn(ElectricityContractEntity::getTaxPercent)
                 .setHeader(t("electricityContracts.grid.taxPercent"));
 
-        grid.addColumn(ElectricityContract::getTaxAmount)
+        grid.addColumn(ElectricityContractEntity::getTaxAmount)
                 .setHeader(t("electricityContracts.grid.taxAmount"));
 
-        grid.setItems(contracts);
         grid.setHeight("300px");
 
         grid.asSingleSelect().addValueChangeListener(e -> {
@@ -165,14 +177,35 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveButton.addClickListener(e -> save());
 
-        binder.bind(nameField, ElectricityContract::getName, ElectricityContract::setName);
-        binder.bind(typeField, ElectricityContract::getType, ElectricityContract::setType);
-        binder.bind(basicFeeField, ElectricityContract::getBasicFee, ElectricityContract::setBasicFee);
-        binder.bind(nightPriceField, ElectricityContract::getNightPrice, ElectricityContract::setNightPrice);
-        binder.bind(dayPriceField, ElectricityContract::getDayPrice, ElectricityContract::setDayPrice);
-        binder.bind(staticPriceField, ElectricityContract::getStaticPrice, ElectricityContract::setStaticPrice);
-        binder.bind(taxPercentField, ElectricityContract::getTaxPercent, ElectricityContract::setTaxPercent);
-        binder.bind(taxAmountField, ElectricityContract::getTaxAmount, ElectricityContract::setTaxAmount);
+        binder.forField(nameField)
+                .bind(ElectricityContractEntity::getName, ElectricityContractEntity::setName);
+
+        binder.forField(typeField)
+                .bind(ElectricityContractEntity::getType, ElectricityContractEntity::setType);
+
+        binder.forField(basicFeeField)
+                .withConverter(this::toBigDecimal, this::toDouble)
+                .bind(ElectricityContractEntity::getBasicFee, ElectricityContractEntity::setBasicFee);
+
+        binder.forField(nightPriceField)
+                .withConverter(this::toBigDecimal, this::toDouble)
+                .bind(ElectricityContractEntity::getNightPrice, ElectricityContractEntity::setNightPrice);
+
+        binder.forField(dayPriceField)
+                .withConverter(this::toBigDecimal, this::toDouble)
+                .bind(ElectricityContractEntity::getDayPrice, ElectricityContractEntity::setDayPrice);
+
+        binder.forField(staticPriceField)
+                .withConverter(this::toBigDecimal, this::toDouble)
+                .bind(ElectricityContractEntity::getStaticPrice, ElectricityContractEntity::setStaticPrice);
+
+        binder.forField(taxPercentField)
+                .withConverter(this::toBigDecimal, this::toDouble)
+                .bind(ElectricityContractEntity::getTaxPercent, ElectricityContractEntity::setTaxPercent);
+
+        binder.forField(taxAmountField)
+                .withConverter(this::toBigDecimal, this::toDouble)
+                .bind(ElectricityContractEntity::getTaxAmount, ElectricityContractEntity::setTaxAmount);
     }
 
     private Component createFormLayout() {
@@ -215,24 +248,33 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
     }
 
     private void save() {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Authenticated account not found: " + accountId
+                ));
+
         if (editingContract == null) {
-            ElectricityContract contract = new ElectricityContract();
+            ElectricityContractEntity contract = new ElectricityContractEntity();
+            contract.setAccount(account);
+
             if (binder.writeBeanIfValid(contract)) {
-                contracts.add(contract);
-                grid.getDataProvider().refreshAll();
+                contractRepository.save(contract);
+                loadContracts();
                 Notification.show(t("electricityContracts.notification.saved"));
                 clearForm();
             }
         } else {
             if (binder.writeBeanIfValid(editingContract)) {
-                grid.getDataProvider().refreshItem(editingContract);
+                editingContract.setAccount(account);
+                contractRepository.save(editingContract);
+                loadContracts();
                 Notification.show(t("electricityContracts.notification.updated"));
                 clearForm();
             }
         }
     }
 
-    private void editContract(ElectricityContract contract) {
+    private void editContract(ElectricityContractEntity contract) {
         this.editingContract = contract;
         binder.readBean(contract);
         saveButton.setText(t("electricityContracts.button.update"));
@@ -240,8 +282,20 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
 
     private void clearForm() {
         editingContract = null;
-        binder.readBean(new ElectricityContract());
+        binder.readBean(new ElectricityContractEntity());
         saveButton.setText(t("electricityContracts.button.create"));
+    }
+
+    private void loadContracts() {
+        grid.setItems(contractRepository.findByAccountId(accountId));
+    }
+
+    private BigDecimal toBigDecimal(Double value) {
+        return value == null ? null : BigDecimal.valueOf(value);
+    }
+
+    private Double toDouble(BigDecimal value) {
+        return value == null ? null : value.doubleValue();
     }
 
     @Override
@@ -254,85 +308,5 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
 
     protected String t(String key, Object... args) {
         return i18n.t(key, args);
-    }
-
-    public enum ContractType {
-        ENERGY,
-        TRANSFER
-    }
-
-    public static class ElectricityContract {
-        private String name;
-        private ContractType type;
-        private Double basicFee;
-        private Double nightPrice;
-        private Double dayPrice;
-        private Double staticPrice;
-        private Double taxPercent;
-        private Double taxAmount;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public ContractType getType() {
-            return type;
-        }
-
-        public void setType(ContractType type) {
-            this.type = type;
-        }
-
-        public Double getBasicFee() {
-            return basicFee;
-        }
-
-        public void setBasicFee(Double basicFee) {
-            this.basicFee = basicFee;
-        }
-
-        public Double getNightPrice() {
-            return nightPrice;
-        }
-
-        public void setNightPrice(Double nightPrice) {
-            this.nightPrice = nightPrice;
-        }
-
-        public Double getDayPrice() {
-            return dayPrice;
-        }
-
-        public void setDayPrice(Double dayPrice) {
-            this.dayPrice = dayPrice;
-        }
-
-        public Double getStaticPrice() {
-            return staticPrice;
-        }
-
-        public void setStaticPrice(Double staticPrice) {
-            this.staticPrice = staticPrice;
-        }
-
-        public Double getTaxPercent() {
-            return taxPercent;
-        }
-
-        public void setTaxPercent(Double taxPercent) {
-            this.taxPercent = taxPercent;
-        }
-
-        public Double getTaxAmount() {
-            return taxAmount;
-        }
-
-        public void setTaxAmount(Double taxAmount) {
-            this.taxAmount = taxAmount;
-        }
     }
 }
