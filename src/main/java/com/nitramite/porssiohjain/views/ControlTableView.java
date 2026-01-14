@@ -37,6 +37,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -54,13 +55,14 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final ControlSchedulerService controlSchedulerService;
     private final NordpoolService nordpoolService;
     protected final I18nService i18n;
-    private ElectricityContractRepository contractRepository;
+    private final ElectricityContractRepository contractRepository;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
 
     private Long controlId;
     private ControlResponse control;
+    private ElectricityContractEntity transferContract;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private Div chartTodayDiv, chartTomorrowDiv;
@@ -110,6 +112,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         try {
             controlId = Long.valueOf(event.getRouteParameters().get("controlId").orElseThrow());
             loadControl();
+            loadTransferContract();
             renderView();
         } catch (Exception e) {
             add(new Paragraph(t("controlTable.errorLoad", e.getMessage())));
@@ -118,6 +121,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private void loadControl() {
         this.control = controlService.getControl(controlId);
+    }
+
+    private void loadTransferContract() {
+        if (control.getTransferContractId() != null) {
+            Optional<ElectricityContractEntity> contract = contractRepository.findById(control.getTransferContractId());
+            contract.ifPresent(electricityContractEntity -> this.transferContract = electricityContractEntity);
+        }
     }
 
     private Long getAccountId() {
@@ -395,8 +405,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             );
             refreshControlTable();
             controlTableGrid.setItems(controlTableResponses);
-            updatePriceChart(chartTodayDiv, controlTableResponses, nordpoolPriceResponsesToday, this.control.getTimezone());
-            updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone());
+            updatePriceChart(chartTodayDiv, controlTableResponses, nordpoolPriceResponsesToday, this.control.getTimezone(), transferContract);
+            updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone(), transferContract);
         });
         recalcButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -453,14 +463,14 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         chartTodayDiv.setId("prices-today-chart");
         chartTodayDiv.setWidthFull();
         chartTodayDiv.setHeight("400px");
-        updatePriceChart(chartTodayDiv, controlTableResponses, nordpoolPriceResponses, this.control.getTimezone());
+        updatePriceChart(chartTodayDiv, controlTableResponses, nordpoolPriceResponses, this.control.getTimezone(), transferContract);
 
         chartTomorrowDiv = new Div();
         chartTomorrowDiv.setId("prices-tomorrow-chart");
         chartTomorrowDiv.setWidthFull();
         if (!nordpoolPriceResponsesTomorrow.isEmpty()) {
             chartTomorrowDiv.setHeight("250px");
-            updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone());
+            updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone(), transferContract);
         }
 
         Div chartsDiv = new Div();
@@ -474,11 +484,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             Div chartDiv,
             List<ControlTableResponse> controlTableResponses,
             List<NordpoolPriceResponse> nordpoolPriceResponses,
-            String timezone
+            String timezone,
+            ElectricityContractEntity transferContract
     ) {
         List<String> timestamps = new ArrayList<>();
         List<Double> nordpoolPrices = new ArrayList<>();
         List<Double> controlPrices = new ArrayList<>();
+        List<Double> transferPrices = new ArrayList<>();
 
         ZoneId zone = ZoneId.systemDefault();
         try {
@@ -512,7 +524,28 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             }
         }
 
-        // Convert to JsonArray
+        if (transferContract != null) {
+            BigDecimal nightPrice = transferContract.getNightPrice();
+            BigDecimal dayPrice = transferContract.getDayPrice();
+            BigDecimal taxAmount = transferContract.getTaxAmount();
+            for (String ts : timestamps) {
+                try {
+                    LocalDateTime localDateTime = LocalDateTime.parse(ts, jsFormatter);
+                    int hour = localDateTime.getHour();
+                    boolean isNight = (hour >= 22 || hour < 7);
+                    BigDecimal basePrice = isNight ? nightPrice : dayPrice;
+                    if (basePrice == null) {
+                        transferPrices.add(Double.NaN);
+                    } else {
+                        BigDecimal total = basePrice.add(taxAmount != null ? taxAmount : BigDecimal.ZERO);
+                        transferPrices.add(total.doubleValue());
+                    }
+                } catch (Exception e) {
+                    transferPrices.add(Double.NaN);
+                }
+            }
+        }
+
         JsonArray jsTimestamps = Json.createArray();
         for (int i = 0; i < timestamps.size(); i++) {
             jsTimestamps.set(i, timestamps.get(i));
@@ -533,8 +566,19 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             }
         }
 
+        JsonArray jsTransferPrices = Json.createArray();
+        for (int i = 0; i < transferPrices.size(); i++) {
+            Double val = transferPrices.get(i);
+            if (val.isNaN()) {
+                jsTransferPrices.set(i, Json.createNull());
+            } else {
+                jsTransferPrices.set(i, val);
+            }
+        }
+
         String nordpoolLabel = t("controlTable.chart.nordpoolPrice");
         String controlLabel = t("controlTable.chart.controlPrice");
+        String transferLabel = transferContract != null ? transferContract.getName() : t("controlTable.chart.noTransferContract");
         String xAxisLabel = t("controlTable.chart.time");
         String yAxisLabel = t("controlTable.chart.price");
         String chartTitle = t("controlTable.chart.title");
@@ -542,14 +586,15 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         chartDiv.getElement().executeJs("""
                             const container = this;
-                            const nordpoolLabel = $3;
-                            const controlLabel = $4;
-                            const xAxisLabel = $5;
-                            const yAxisLabel = $6;
-                            const chartTitle = $7;
-                            const nowLabel = $8;
+                            const nordpoolLabel = $4;
+                            const controlLabel = $5;
+                            const transferLabel = $6;
+                            const xAxisLabel = $7;
+                            const yAxisLabel = $8;
+                            const chartTitle = $9;
+                            const nowLabel = $10;
                         
-                            function renderOrUpdate(dataX, dataNordpool, dataControl) {
+                            function renderOrUpdate(dataX, dataNordpool, dataControl, dataTransfer) {
                                 if (!window.ApexCharts) {
                                     const script = document.createElement('script');
                                     script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
@@ -574,7 +619,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                         },
                                         series: [
                                             { name: nordpoolLabel, data: dataNordpool, color: '#0000FF' },
-                                            { name: controlLabel, data: dataControl, color: '#FF0000' }
+                                            { name: controlLabel, data: dataControl, color: '#FF0000' },
+                                            { name: transferLabel, data: dataTransfer, color: '#FFB343' }
                                         ],
                                         xaxis: { categories: dataX, title: { text: xAxisLabel }, labels: { rotate: -45 } },
                                         yaxis: { title: { text: yAxisLabel } },
@@ -615,15 +661,16 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                     });
                                     container.chartInstance.updateSeries([
                                         { data: dataNordpool },
-                                        { data: dataControl }
+                                        { data: dataControl },
+                                        { data: dataTransfer }
                                     ], true);
                                 }
                             }
                         
-                            renderOrUpdate($0, $1, $2);
+                            renderOrUpdate($0, $1, $2, $3);
                         """,
-                jsTimestamps, jsNordpoolPrices, jsControlPrices,
-                nordpoolLabel, controlLabel, xAxisLabel, yAxisLabel, chartTitle, nowLabel
+                jsTimestamps, jsNordpoolPrices, jsControlPrices, jsTransferPrices,
+                nordpoolLabel, controlLabel, transferLabel, xAxisLabel, yAxisLabel, chartTitle, nowLabel
         );
     }
 

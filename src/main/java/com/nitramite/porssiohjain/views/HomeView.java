@@ -144,7 +144,7 @@ public class HomeView extends VerticalLayout {
             updateStatBox(maxBox, stats.getMax());
 
             contentBox.add(
-                    devicesButton, controlsButton, powerLimitsButton, temperatureControlsButton,
+                    devicesButton, controlsButton, powerLimitsButton, // temperatureControlsButton,
                     dashboardButton, electricityContractsButton, logoutButton, createDivider(), priceStatsLayout, createDivider()
             );
         } else {
