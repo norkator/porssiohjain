@@ -136,25 +136,42 @@ lähettävälle laitteelle esim Shelly Pro 3EM.
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
 const API_URL = 'https://porssiohjain.nitramite.com/power/' + DEVICE_UUID;
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const POLL_INTERVAL_MS = 1 * 60 * 1000; // every minute
 
 function sendCurrentKw() {
-    let totalW = Shelly.getDeviceInfo().channels.reduce((sum, ch) => sum + (ch.PowerActive || 0), 0);
-    let currentKw = totalW / 1000;
-    let body = JSON.stringify({currentKw: currentKw});
+    let emStatus = Shelly.getComponentStatus("em", 0);
 
-    Shelly.call('HTTP.REQUEST', {
-        method: 'POST',
+    if (!emStatus) {
+        print("EM component unavailable");
+        return;
+    }
+    
+    let totalW = 0;
+    if (typeof emStatus.total_act_power === "number") {
+        totalW = emStatus.total_act_power;
+    } else {
+        totalW =
+            (typeof emStatus.a_act_power === "number" ? emStatus.a_act_power : 0) +
+            (typeof emStatus.b_act_power === "number" ? emStatus.b_act_power : 0) +
+            (typeof emStatus.c_act_power === "number" ? emStatus.c_act_power : 0);
+    }
+
+    let currentKw = totalW / 1000;
+
+    let body = JSON.stringify({ currentKw: currentKw });
+
+    Shelly.call("HTTP.REQUEST", {
+        method: "POST",
         url: API_URL,
-        headers: {'Content-Type': 'application/json'},
+        headers: { "Content-Type": "application/json" },
         body: body,
         timeout: 10
     }, function (res, err) {
         if (err || res.code !== 200) {
-            print('API POST failed:', JSON.stringify(err || res));
+            print("API POST failed:", JSON.stringify(err || res));
             return;
         }
-        print('Successfully sent currentKw:', currentKw, 'kW');
+        print("Successfully sent currentKw:", currentKw, "kW");
     });
 }
 
