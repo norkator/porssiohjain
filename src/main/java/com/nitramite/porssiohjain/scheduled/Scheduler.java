@@ -1,9 +1,6 @@
 package com.nitramite.porssiohjain.scheduled;
 
-import com.nitramite.porssiohjain.services.ControlSchedulerService;
-import com.nitramite.porssiohjain.services.Day;
-import com.nitramite.porssiohjain.services.FingridDataService;
-import com.nitramite.porssiohjain.services.NordpoolDataPortalService;
+import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -19,12 +16,13 @@ public class Scheduler {
     private final NordpoolDataPortalService nordpoolDataPortalService;
     private final ControlSchedulerService controlSchedulerService;
     private final FingridDataService fingridDataService;
+    private final PowerLimitService powerLimitService;
 
     public Scheduler(
             NordpoolDataPortalService nordpoolDataPortalService,
             ControlSchedulerService controlSchedulerService,
-            FingridDataService fingridDataService
-    ) {
+            FingridDataService fingridDataService,
+            PowerLimitService powerLimitService) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
         this.fingridDataService = fingridDataService;
@@ -38,6 +36,7 @@ public class Scheduler {
         } else {
             log.info("No need to fetch Fingrid data");
         }
+        this.powerLimitService = powerLimitService;
     }
 
     @Scheduled(cron = "0 0 */2 * * *", zone = "Europe/Helsinki")
@@ -98,6 +97,7 @@ public class Scheduler {
     public void deleteOldData() {
         nordpoolDataPortalService.deleteOldNordpoolData();
         fingridDataService.deleteOldFingridData();
+        powerLimitService.deleteOldPowerLimitHistory();
     }
 
 }

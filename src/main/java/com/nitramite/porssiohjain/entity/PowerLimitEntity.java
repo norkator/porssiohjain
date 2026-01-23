@@ -53,6 +53,13 @@ public class PowerLimitEntity {
     @OneToMany(mappedBy = "powerLimit", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PowerLimitDeviceEntity> powerLimitDevices;
 
+    @OneToMany(
+            mappedBy = "powerLimit",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private Set<PowerLimitHistoryEntity> history;
+
     @PrePersist
     public void onCreate() {
         createdAt = Instant.now();

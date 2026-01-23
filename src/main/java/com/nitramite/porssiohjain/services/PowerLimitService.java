@@ -1,24 +1,22 @@
 package com.nitramite.porssiohjain.services;
 
-import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.entity.DeviceEntity;
-import com.nitramite.porssiohjain.entity.PowerLimitDeviceEntity;
-import com.nitramite.porssiohjain.entity.PowerLimitEntity;
-import com.nitramite.porssiohjain.entity.repository.AccountRepository;
-import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
-import com.nitramite.porssiohjain.entity.repository.PowerLimitDeviceRepository;
-import com.nitramite.porssiohjain.entity.repository.PowerLimitRepository;
+import com.nitramite.porssiohjain.entity.*;
+import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class PowerLimitService {
 
@@ -26,17 +24,20 @@ public class PowerLimitService {
     private final PowerLimitDeviceRepository powerLimitDeviceRepository;
     private final DeviceRepository deviceRepository;
     private final AccountRepository accountRepository;
+    private final PowerLimitHistoryRepository powerLimitHistoryRepository;
 
     public PowerLimitService(
             PowerLimitRepository powerLimitRepository,
             PowerLimitDeviceRepository powerLimitDeviceRepository,
             DeviceRepository deviceRepository,
-            AccountRepository accountRepository
+            AccountRepository accountRepository,
+            PowerLimitHistoryRepository powerLimitHistoryRepository
     ) {
         this.powerLimitRepository = powerLimitRepository;
         this.powerLimitDeviceRepository = powerLimitDeviceRepository;
         this.deviceRepository = deviceRepository;
         this.accountRepository = accountRepository;
+        this.powerLimitHistoryRepository = powerLimitHistoryRepository;
     }
 
     @Transactional
@@ -187,9 +188,27 @@ public class PowerLimitService {
     @Transactional
     public void updateCurrentKw(String uuid, Double currentKw) {
         PowerLimitEntity entity = powerLimitRepository.findByUuid(UUID.fromString(uuid))
-                .orElseThrow(() -> new IllegalArgumentException("Power limit not found for uuid: " + uuid));
-        entity.setCurrentKw(BigDecimal.valueOf(currentKw));
-        powerLimitRepository.save(entity);
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for uuid: " + uuid
+                ));
+
+        BigDecimal kw = BigDecimal.valueOf(currentKw);
+        entity.setCurrentKw(kw);
+        PowerLimitHistoryEntity history = PowerLimitHistoryEntity.builder()
+                .account(entity.getAccount())
+                .powerLimit(entity)
+                .kilowatts(kw)
+                .build();
+        entity.getHistory().add(history);
+    }
+
+    @Transactional
+    public void deleteOldPowerLimitHistory() {
+        Instant cutoff = Instant.now().minus(90, ChronoUnit.DAYS);
+        int deleted = powerLimitHistoryRepository.deleteOlderThan(cutoff);
+        if (deleted > 0) {
+            log.info("Deleted {} power limit history rows older than {}", deleted, cutoff);
+        }
     }
 
 }

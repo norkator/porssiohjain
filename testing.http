@@ -53,3 +53,11 @@ Content-Type: application/json
 GET http://localhost:8080/control/2077f2d8-e469-449a-b216-f3fe6032a7cb/timetable
 Content-Type: application/json
 
+
+### Post power limit data
+POST http://localhost:8080/power/f728f6b3-a8d9-4eab-917b-d1b21950b80b
+Content-Type: application/json
+
+{
+  "currentKw": 2.85
+}
