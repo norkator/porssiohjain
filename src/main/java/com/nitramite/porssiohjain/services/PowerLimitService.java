@@ -4,6 +4,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
+import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -217,6 +218,21 @@ public class PowerLimitService {
         if (deleted > 0) {
             log.info("Deleted {} power limit history rows older than {}", deleted, cutoff);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<PowerLimitHistoryResponse> getPowerLimitHistory(Long accountId, Long powerLimitId) {
+        Instant since = Instant.now().minus(24, ChronoUnit.HOURS);
+        return powerLimitHistoryRepository.findAllByPowerLimitAndAccount(accountId, powerLimitId)
+                .stream()
+                .filter(h -> h.getCreatedAt().isAfter(since))
+                .map(h -> PowerLimitHistoryResponse.builder()
+                        .accountId(h.getPowerLimit().getAccount().getId())
+                        .kilowatts(h.getKilowatts())
+                        .createdAt(h.getCreatedAt())
+                        .build()
+                )
+                .toList();
     }
 
 }

@@ -7,6 +7,7 @@ import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
+import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -23,11 +24,16 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
+import elemental.json.Json;
+import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Power Limit")
@@ -115,6 +121,22 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
         add(deviceGrid);
         add(createAddDeviceLayout());
+
+        Div chartDiv = new Div();
+        chartDiv.setId("kw-history-chart");
+        chartDiv.setWidthFull();
+        chartDiv.setHeight("400px");
+        chartDiv.getStyle()
+                .set("margin-top", "32px")
+                .set("margin-bottom", "32px")
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("box-sizing", "border-box");
+
+        add(chartDiv);
+
+        updatePowerLimitHistoryChart(chartDiv, powerLimit);
     }
 
     protected String t(String key, Object... args) {
@@ -142,6 +164,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
             return delete;
         }).setHeader(t("controlTable.grid.actions"));
 
+        deviceGrid.setMinHeight("200px");
         deviceGrid.setMaxHeight("250px");
     }
 
@@ -285,5 +308,151 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         return wrapper;
     }
 
+    private void updatePowerLimitHistoryChart(
+            Div chartDiv,
+            PowerLimitResponse powerLimit
+    ) {
+        List<PowerLimitHistoryResponse> history =
+                powerLimitService.getPowerLimitHistory(
+                        getAccountId(),
+                        powerLimit.getId()
+                );
+
+        List<String> timestamps = new ArrayList<>();
+        List<Double> values = new ArrayList<>();
+
+        ZoneId zone = ZoneId.systemDefault();
+        try {
+            if (powerLimit.getTimezone() != null) {
+                zone = ZoneId.of(powerLimit.getTimezone());
+            }
+        } catch (Exception ignored) {
+        }
+
+        DateTimeFormatter jsFormatter = DateTimeFormatter
+                .ofPattern("yyyy-MM-dd HH:mm")
+                .withZone(zone);
+
+        for (PowerLimitHistoryResponse h : history) {
+            timestamps.add(jsFormatter.format(h.getCreatedAt()));
+            values.add(h.getKilowatts().doubleValue());
+        }
+
+        JsonArray jsTimestamps = Json.createArray();
+        JsonArray jsValues = Json.createArray();
+
+        for (int i = 0; i < timestamps.size(); i++) {
+            jsTimestamps.set(i, timestamps.get(i));
+            jsValues.set(i, values.get(i));
+        }
+
+        String seriesLabel = t("powerlimit.chart.series");
+        String xAxisLabel = t("powerlimit.chart.time");
+        String yAxisLabel = t("powerlimit.chart.kw");
+        String chartTitle = t("powerlimit.chart.title");
+        String nowLabel = t("powerlimit.chart.now");
+
+        Double limitKw = powerLimit.getLimitKw() != null
+                ? powerLimit.getLimitKw().doubleValue()
+                : null;
+
+        chartDiv.getElement().executeJs("""
+                        const container = this;
+                        
+                        function renderOrUpdate(dataX, dataY, limitKw) {
+                            if (!window.ApexCharts) {
+                                const script = document.createElement('script');
+                                script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
+                                script.onload = () => renderOrUpdate(dataX, dataY, limitKw);
+                                document.head.appendChild(script);
+                                return;
+                            }
+                        
+                            const now = new Date();
+                            const closest = dataX.reduce((prev, curr) =>
+                                Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now)
+                                    ? curr : prev
+                            );
+                        
+                            const annotations = {
+                                xaxis: [{
+                                    x: closest,
+                                    borderColor: '#00E396',
+                                    label: {
+                                        style: { color: '#fff', background: '#00E396' },
+                                        text: $6
+                                    }
+                                }]
+                            };
+                        
+                            if (limitKw !== null) {
+                                annotations.yaxis = [{
+                                    y: limitKw,
+                                    borderColor: '#FF4560',
+                                    label: {
+                                        style: { color: '#fff', background: '#FF4560' },
+                                        text: 'Limit ' + limitKw + ' kW'
+                                    }
+                                }];
+                            }
+                        
+                            if (!container.chartInstance) {
+                                const options = {
+                                    chart: {
+                                        type: 'line',
+                                        height: '400px',
+                                        zoom: { enabled: false },
+                                        toolbar: { show: true }
+                                    },
+                                    series: [{
+                                        name: $3,
+                                        data: dataY
+                                    }],
+                                    xaxis: {
+                                        categories: dataX,
+                                        title: { text: $4 },
+                                        labels: { rotate: -45 }
+                                    },
+                                    yaxis: {
+                                        title: { text: $5 }
+                                    },
+                                    stroke: {
+                                        curve: 'smooth',
+                                        width: 3
+                                    },
+                                    markers: { size: 3 },
+                                    tooltip: { shared: true },
+                                    title: {
+                                        text: $2,
+                                        align: 'center'
+                                    },
+                                    annotations: annotations
+                                };
+                        
+                                container.chartInstance = new ApexCharts(container, options);
+                                container.chartInstance.render();
+                            } else {
+                                container.chartInstance.updateOptions({
+                                    xaxis: { categories: dataX },
+                                    annotations: annotations
+                                });
+                                container.chartInstance.updateSeries([
+                                    { data: dataY }
+                                ], true);
+                            }
+                        }
+                        
+                        renderOrUpdate($0, $1, $7);
+                        """,
+                jsTimestamps,
+                jsValues,
+                chartTitle,
+                seriesLabel,
+                xAxisLabel,
+                yAxisLabel,
+                nowLabel,
+                limitKw
+        );
+    }
 
 }

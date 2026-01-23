@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 public interface PowerLimitHistoryRepository extends JpaRepository<PowerLimitHistoryEntity, Long> {
@@ -24,6 +25,18 @@ public interface PowerLimitHistoryRepository extends JpaRepository<PowerLimitHis
             @Param("powerLimit") PowerLimitEntity powerLimit,
             @Param("from") Instant from,
             @Param("to") Instant to
+    );
+
+    @Query("""
+                SELECT h
+                FROM PowerLimitHistoryEntity h
+                WHERE h.powerLimit.id = :powerLimitId
+                  AND h.powerLimit.account.id = :accountId
+                ORDER BY h.createdAt ASC
+            """)
+    List<PowerLimitHistoryEntity> findAllByPowerLimitAndAccount(
+            @Param("accountId") Long accountId,
+            @Param("powerLimitId") Long powerLimitId
     );
 
     @Modifying

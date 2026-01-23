@@ -145,7 +145,7 @@ function sendCurrentKw() {
         print("EM component unavailable");
         return;
     }
-    
+
     let totalW = 0;
     if (typeof emStatus.total_act_power === "number") {
         totalW = emStatus.total_act_power;
@@ -158,12 +158,12 @@ function sendCurrentKw() {
 
     let currentKw = totalW / 1000;
 
-    let body = JSON.stringify({ currentKw: currentKw });
+    let body = JSON.stringify({currentKw: currentKw});
 
     Shelly.call("HTTP.REQUEST", {
         method: "POST",
         url: API_URL,
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: body,
         timeout: 10
     }, function (res, err) {

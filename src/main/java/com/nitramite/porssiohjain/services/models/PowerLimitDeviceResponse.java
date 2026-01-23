@@ -2,11 +2,10 @@ package com.nitramite.porssiohjain.services.models;
 
 import lombok.*;
 
-@Getter
-@Setter
+@Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class PowerLimitDeviceResponse {
     private Long id;
     private Long deviceId;
