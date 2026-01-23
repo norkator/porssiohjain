@@ -191,15 +191,23 @@ public class PowerLimitService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Power limit not found for uuid: " + uuid
                 ));
-
         BigDecimal kw = BigDecimal.valueOf(currentKw);
         entity.setCurrentKw(kw);
-        PowerLimitHistoryEntity history = PowerLimitHistoryEntity.builder()
-                .account(entity.getAccount())
-                .powerLimit(entity)
-                .kilowatts(kw)
-                .build();
-        entity.getHistory().add(history);
+        Instant now = Instant.now();
+        Instant minuteStart = now.truncatedTo(ChronoUnit.MINUTES);
+        Instant minuteEnd = minuteStart.plus(1, ChronoUnit.MINUTES);
+        PowerLimitHistoryEntity history = powerLimitHistoryRepository
+                .findForMinute(entity, minuteStart, minuteEnd)
+                .orElseGet(() -> {
+                    PowerLimitHistoryEntity h = PowerLimitHistoryEntity.builder()
+                            .account(entity.getAccount())
+                            .powerLimit(entity)
+                            .kilowatts(kw)
+                            .build();
+                    entity.getHistory().add(h);
+                    return h;
+                });
+        history.setKilowatts(kw);
     }
 
     @Transactional
