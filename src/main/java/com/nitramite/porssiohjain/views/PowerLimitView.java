@@ -19,6 +19,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -35,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 @PageTitle("Pörssiohjain - Power Limit")
 @Route("power-limit/:powerLimitId")
@@ -114,13 +116,14 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         PowerLimitResponse powerLimit = powerLimitService.getPowerLimit(getAccountId(), powerLimitId);
 
         add(createPowerLimitInfoSection(powerLimit));
-        add(createCurrentKwSection(powerLimit));
 
         configureDeviceGrid();
         loadPowerLimitDevices();
 
         add(deviceGrid);
         add(createAddDeviceLayout());
+
+        add(createCurrentUsageRow(powerLimit));
 
         Div chartDiv = new Div();
         chartDiv.setId("kw-history-chart");
@@ -287,6 +290,26 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         return formDiv;
     }
 
+    private Component createCurrentUsageRow(
+            PowerLimitResponse powerLimit
+    ) {
+        Component currentKw = createCurrentKwSection(powerLimit);
+        Component quarterAvg = createCurrentQuarterHourAverageSection(
+                powerLimitService.getCurrentQuarterHourAverage(
+                        getAccountId(),
+                        powerLimit.getId()
+                )
+        );
+        HorizontalLayout row = new HorizontalLayout(currentKw, quarterAvg);
+        row.setWidthFull();
+        row.setSpacing(true);
+        row.setPadding(false);
+        row.getStyle().set("flex-wrap", "wrap").set("gap", "16px");
+        currentKw.getElement().getStyle().set("flex", "1 1 300px");
+        quarterAvg.getElement().getStyle().set("flex", "1 1 300px");
+        return row;
+    }
+
     private Component createCurrentKwSection(PowerLimitResponse p) {
         Div wrapper = new Div();
         wrapper.getStyle()
@@ -299,6 +322,29 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         title.getStyle().set("margin", "0");
 
         H1 current = new H1(p.getCurrentKw() + " kW");
+        current.getStyle()
+                .set("font-size", "3rem")
+                .set("font-weight", "bold")
+                .set("margin", "0");
+
+        wrapper.add(title, current);
+        return wrapper;
+    }
+
+    private Component createCurrentQuarterHourAverageSection(
+            Optional<BigDecimal> cAvg
+    ) {
+        Div wrapper = new Div();
+        wrapper.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-10pct)")
+                .set("text-align", "center");
+
+        H2 title = new H2(t("powerlimit.cMinAvg"));
+        title.getStyle().set("margin", "0");
+
+        H1 current = new H1((cAvg.isPresent() ? cAvg.get() : "N/A") + " kW");
         current.getStyle()
                 .set("font-size", "3rem")
                 .set("font-weight", "bold")

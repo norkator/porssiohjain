@@ -16,10 +16,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -282,6 +279,40 @@ public class PowerLimitService {
                 })
                 .sorted(Comparator.comparing(PowerLimitHistoryResponse::getCreatedAt))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<BigDecimal> getCurrentQuarterHourAverage(
+            Long accountId, Long powerLimitId
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        PowerLimitEntity powerLimitEntity = powerLimitRepository
+                .findByAccountIdAndId(account.getId(), powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+        ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
+        Instant now = Instant.now();
+        Instant intervalStart = Utils.toQuarterHour(now, zone);
+        Instant intervalEnd = intervalStart.plus(15, ChronoUnit.MINUTES);
+        List<PowerLimitHistoryEntity> values =
+                powerLimitHistoryRepository.findByPowerLimitAndCreatedAtBetween(
+                        accountId, powerLimitId, intervalStart, intervalEnd
+                );
+        if (values.isEmpty()) {
+            return Optional.empty();
+        }
+        BigDecimal sum = values.stream()
+                .map(PowerLimitHistoryEntity::getKilowatts)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return Optional.of(
+                sum.divide(
+                        BigDecimal.valueOf(values.size()),
+                        2,
+                        RoundingMode.HALF_UP
+                )
+        );
     }
 
 }

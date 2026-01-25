@@ -39,6 +39,21 @@ public interface PowerLimitHistoryRepository extends JpaRepository<PowerLimitHis
             @Param("powerLimitId") Long powerLimitId
     );
 
+    @Query("""
+                SELECT h
+                FROM PowerLimitHistoryEntity h
+                WHERE h.powerLimit.id = :powerLimitId
+                  AND h.powerLimit.account.id = :accountId
+                  AND h.createdAt >= :start
+                  AND h.createdAt < :end
+            """)
+    List<PowerLimitHistoryEntity> findByPowerLimitAndCreatedAtBetween(
+            @Param("accountId") Long accountId,
+            @Param("powerLimitId") Long powerLimitId,
+            @Param("start") Instant start,
+            @Param("end") Instant end
+    );
+
     @Modifying
     @Query("""
                 DELETE FROM PowerLimitHistoryEntity h
