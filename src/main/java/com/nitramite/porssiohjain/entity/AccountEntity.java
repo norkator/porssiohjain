@@ -25,6 +25,12 @@ public class AccountEntity {
     @Column(nullable = false, unique = true, updatable = false)
     private String secret;
 
+    @Column(name = "email", nullable = true)
+    private String email;
+
+    @Column(name = "notify_power_limit_exceeded", nullable = false)
+    private boolean notifyPowerLimitExceeded = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
