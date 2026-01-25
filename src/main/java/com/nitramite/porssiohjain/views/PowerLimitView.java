@@ -402,7 +402,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         String xAxisLabel = t("powerlimit.chart.time");
         String yAxisLabel = t("powerlimit.chart.kw");
         String chartTitle = t("powerlimit.chart.title");
-        String nowLabel = t("powerlimit.chart.now");
+        String nowLabel = ""; // t("powerlimit.chart.now");
         String limitLabel = t("powerlimit.chart.limit");
 
         Double limitKw = powerLimit.getLimitKw() != null
