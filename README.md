@@ -13,9 +13,6 @@ tilat, eli käytännössä konfiguroidut kavananumerot ja tila päälle/pois pä
 Käyttöliittymä on tehty Vaadinilla ja renderöityy palvelimen puolella. Käyttöliittymän tarkoitus on olla mahdollisimman
 yksinkertainen kun tavoite on että siellä käydään harvoin.
 
-⚠️ En takaa minkäänlaista uptimea esimerkin palvelimelle (tälle palvelulle). Jos sinulla on tarjota virtuaalikone,
-kubernetes, docker tai vastaava muu ympäristö missä ajaa tätä sovellusta niin ota yhteyttä.
-
 ## Asennusohje
 
 ### Palvelun tili ja asetukset
