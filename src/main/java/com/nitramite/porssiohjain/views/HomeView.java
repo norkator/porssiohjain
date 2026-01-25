@@ -112,6 +112,9 @@ public class HomeView extends VerticalLayout {
         Button electricityContractsButton = new Button(t("home.electricityContracts"), e -> UI.getCurrent().navigate(ElectricityContractsView.class));
         electricityContractsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
+        Button settingsButton = new Button(t("home.settings"), e -> UI.getCurrent().navigate(SettingsView.class));
+        settingsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+
         Button logoutButton = new Button(t("home.logout"), e -> {
             VaadinSession session = VaadinSession.getCurrent();
             session.setAttribute("token", null);
@@ -123,7 +126,7 @@ public class HomeView extends VerticalLayout {
 
         Stream.of(
                 loginButton, createAccountButton, devicesButton, controlsButton, powerLimitsButton, temperatureControlsButton,
-                dashboardButton, electricityContractsButton, logoutButton
+                dashboardButton, electricityContractsButton, settingsButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
             btn.getElement().addEventListener("mouseover", e -> btn.getStyle().set("transform", "scale(1.03)"));
@@ -145,7 +148,8 @@ public class HomeView extends VerticalLayout {
 
             contentBox.add(
                     devicesButton, controlsButton, powerLimitsButton, // temperatureControlsButton,
-                    dashboardButton, electricityContractsButton, logoutButton, createDivider(), priceStatsLayout, createDivider()
+                    dashboardButton, electricityContractsButton, settingsButton, logoutButton, createDivider(),
+                    priceStatsLayout, createDivider()
             );
         } else {
             contentBox.add(loginButton, createAccountButton);
