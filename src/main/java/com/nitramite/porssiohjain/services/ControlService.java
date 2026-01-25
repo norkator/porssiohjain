@@ -27,6 +27,7 @@ public class ControlService {
     private final ControlTableRepository controlTableRepository;
     private final PowerLimitDeviceRepository powerLimitDeviceRepository;
     private final ElectricityContractRepository electricityContractRepository;
+    private final PowerLimitService powerLimitService;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -338,7 +339,15 @@ public class ControlService {
         }
         for (PowerLimitDeviceEntity m : mappings) {
             PowerLimitEntity limit = m.getPowerLimit();
-            if (limit.isEnabled() && limit.getCurrentKw().compareTo(limit.getLimitKw()) > 0) {
+            if (!limit.isEnabled()) {
+                continue;
+            }
+            Optional<BigDecimal> quarterAvg =
+                    powerLimitService.getCurrentQuarterHourAverage(
+                            limit.getAccount().getId(),
+                            limit.getId()
+                    );
+            if (quarterAvg.isPresent() && quarterAvg.get().compareTo(limit.getLimitKw()) > 0) {
                 return true;
             }
         }
