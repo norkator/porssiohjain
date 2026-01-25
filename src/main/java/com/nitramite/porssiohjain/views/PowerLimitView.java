@@ -9,7 +9,9 @@ import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
+import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -21,6 +23,7 @@ import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
@@ -37,20 +40,28 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @PageTitle("Pörssiohjain - Power Limit")
 @Route("power-limit/:powerLimitId")
 @PermitAll
+@Push
 public class PowerLimitView extends VerticalLayout implements BeforeEnterObserver {
 
     private final I18nService i18n;
     private final AuthService authService;
     private final PowerLimitService powerLimitService;
     private final DeviceService deviceService;
-
     private Long powerLimitId;
-
     private final Grid<PowerLimitDeviceResponse> deviceGrid = new Grid<>(PowerLimitDeviceResponse.class, false);
+    private Div currentKwValue;
+    private Div quarterAvgValue;
+    private Div chartDiv;
+    private ScheduledExecutorService scheduler;
+    private UI ui;
+    private Long accountId;
 
     @Autowired
     public PowerLimitView(
@@ -125,7 +136,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
         add(createCurrentUsageRow(powerLimit));
 
-        Div chartDiv = new Div();
+        chartDiv = new Div();
         chartDiv.setId("kw-history-chart");
         chartDiv.setWidthFull();
         chartDiv.setHeight("400px");
@@ -317,17 +328,14 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-10pct)")
                 .set("text-align", "center");
-
         H2 title = new H2(t("powerlimit.currentUsage"));
         title.getStyle().set("margin", "0");
-
-        H1 current = new H1(p.getCurrentKw() + " kW");
-        current.getStyle()
+        currentKwValue = new Div();
+        currentKwValue.setText(p.getCurrentKw() + " kW");
+        currentKwValue.getStyle()
                 .set("font-size", "3rem")
-                .set("font-weight", "bold")
-                .set("margin", "0");
-
-        wrapper.add(title, current);
+                .set("font-weight", "bold");
+        wrapper.add(title, currentKwValue);
         return wrapper;
     }
 
@@ -340,17 +348,16 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-10pct)")
                 .set("text-align", "center");
-
         H2 title = new H2(t("powerlimit.cMinAvg"));
         title.getStyle().set("margin", "0");
-
-        H1 current = new H1((cAvg.isPresent() ? cAvg.get() : "N/A") + " kW");
-        current.getStyle()
+        quarterAvgValue = new Div();
+        quarterAvgValue.setText(
+                cAvg.map(v -> v + " kW").orElse("N/A")
+        );
+        quarterAvgValue.getStyle()
                 .set("font-size", "3rem")
-                .set("font-weight", "bold")
-                .set("margin", "0");
-
-        wrapper.add(title, current);
+                .set("font-weight", "bold");
+        wrapper.add(title, quarterAvgValue);
         return wrapper;
     }
 
@@ -502,6 +509,48 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 limitKw,
                 limitLabel
         );
+    }
+
+    private void startAutoRefresh() {
+        scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                if (ui == null || !ui.isAttached()) {
+                    return;
+                }
+                PowerLimitResponse updated = powerLimitService.getPowerLimit(accountId, powerLimitId);
+                Optional<BigDecimal> avg = powerLimitService.getCurrentQuarterHourAverage(
+                        accountId,
+                        powerLimitId
+                );
+                ui.access(() -> {
+                    currentKwValue.setText(updated.getCurrentKw() + " kW");
+                    quarterAvgValue.setText(
+                            avg.map(a -> a + " kW").orElse("N/A")
+                    );
+                    updatePowerLimitHistoryChart(chartDiv, updated);
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, 0, 30, TimeUnit.SECONDS);
+    }
+
+
+    @Override
+    protected void onAttach(AttachEvent attachEvent) {
+        super.onAttach(attachEvent);
+        this.ui = attachEvent.getUI();
+        this.accountId = getAccountId();
+        startAutoRefresh();
+    }
+
+    @Override
+    protected void onDetach(DetachEvent detachEvent) {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            scheduler.shutdownNow();
+        }
+        super.onDetach(detachEvent);
     }
 
 }
