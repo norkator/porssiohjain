@@ -313,9 +313,10 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
             PowerLimitResponse powerLimit
     ) {
         List<PowerLimitHistoryResponse> history =
-                powerLimitService.getPowerLimitHistory(
+                powerLimitService.getQuarterlyPowerLimitHistory(
                         getAccountId(),
-                        powerLimit.getId()
+                        powerLimit.getId(),
+                        24
                 );
 
         List<String> timestamps = new ArrayList<>();
@@ -351,6 +352,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         String yAxisLabel = t("powerlimit.chart.kw");
         String chartTitle = t("powerlimit.chart.title");
         String nowLabel = t("powerlimit.chart.now");
+        String limitLabel = t("powerlimit.chart.limit");
 
         Double limitKw = powerLimit.getLimitKw() != null
                 ? powerLimit.getLimitKw().doubleValue()
@@ -391,7 +393,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                                     borderColor: '#FF4560',
                                     label: {
                                         style: { color: '#fff', background: '#FF4560' },
-                                        text: 'Limit ' + limitKw + ' kW'
+                                        text: $8 + ' ' + limitKw + ' kW'
                                     }
                                 }];
                             }
@@ -451,7 +453,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 xAxisLabel,
                 yAxisLabel,
                 nowLabel,
-                limitKw
+                limitKw,
+                limitLabel
         );
     }
 

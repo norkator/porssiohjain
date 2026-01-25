@@ -6,14 +6,19 @@ import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
+import com.nitramite.porssiohjain.utils.Utils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -221,8 +226,10 @@ public class PowerLimitService {
     }
 
     @Transactional(readOnly = true)
-    public List<PowerLimitHistoryResponse> getPowerLimitHistory(Long accountId, Long powerLimitId) {
-        Instant since = Instant.now().minus(24, ChronoUnit.HOURS);
+    public List<PowerLimitHistoryResponse> getPowerLimitHistory(
+            Long accountId, Long powerLimitId, int hours
+    ) {
+        Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
         return powerLimitHistoryRepository.findAllByPowerLimitAndAccount(accountId, powerLimitId)
                 .stream()
                 .filter(h -> h.getCreatedAt().isAfter(since))
@@ -232,6 +239,48 @@ public class PowerLimitService {
                         .createdAt(h.getCreatedAt())
                         .build()
                 )
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PowerLimitHistoryResponse> getQuarterlyPowerLimitHistory(
+            Long accountId, Long powerLimitId, int hours
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        PowerLimitEntity powerLimitEntity = powerLimitRepository
+                .findByAccountIdAndId(account.getId(), powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+        ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
+        Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
+        Map<Instant, List<PowerLimitHistoryEntity>> grouped =
+                powerLimitHistoryRepository.findAllByPowerLimitAndAccount(accountId, powerLimitId)
+                        .stream()
+                        .filter(h -> h.getCreatedAt().isAfter(since))
+                        .collect(Collectors.groupingBy(h -> Utils.toQuarterHour(h.getCreatedAt(), zone)));
+        return grouped.entrySet().stream()
+                .map(entry -> {
+                    Instant bucketStart = entry.getKey();
+                    List<PowerLimitHistoryEntity> values = entry.getValue();
+
+                    BigDecimal avg = values.stream()
+                            .map(PowerLimitHistoryEntity::getKilowatts)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add)
+                            .divide(
+                                    BigDecimal.valueOf(values.size()),
+                                    2,
+                                    RoundingMode.HALF_UP
+                            );
+
+                    return PowerLimitHistoryResponse.builder()
+                            .accountId(accountId)
+                            .kilowatts(avg)
+                            .createdAt(bucketStart)
+                            .build();
+                })
+                .sorted(Comparator.comparing(PowerLimitHistoryResponse::getCreatedAt))
                 .toList();
     }
 
