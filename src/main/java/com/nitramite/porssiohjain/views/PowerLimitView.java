@@ -23,7 +23,6 @@ import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
@@ -47,7 +46,6 @@ import java.util.concurrent.TimeUnit;
 @PageTitle("Pörssiohjain - Power Limit")
 @Route("power-limit/:powerLimitId")
 @PermitAll
-@Push
 public class PowerLimitView extends VerticalLayout implements BeforeEnterObserver {
 
     private final I18nService i18n;
