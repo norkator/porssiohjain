@@ -19,7 +19,7 @@ public class EmailService {
     private final JavaMailSender mailSender;
     private final MessageSource messageSource;
 
-    @Value("${spring.mail.username}")
+    @Value("${app.alerts.mail}")
     private String from;
 
     public void sendPowerLimitExceededEmail(
