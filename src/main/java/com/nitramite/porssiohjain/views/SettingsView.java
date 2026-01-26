@@ -3,7 +3,6 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
-import com.nitramite.porssiohjain.services.EmailService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -20,7 +19,6 @@ import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.math.BigDecimal;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -31,24 +29,22 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
     private final I18nService i18n;
     private final AccountService accountService;
-    private final EmailService emailService;
+    // private final EmailService emailService;
     private Long accountId;
 
     private final EmailField emailField;
     private final Checkbox notifyPowerLimitExceeded;
-    private final Button testNotificationButton;
+    // private final Button testNotificationButton;
     private final Button saveButton;
 
     @Autowired
     public SettingsView(
             AuthService authService,
             I18nService i18n,
-            AccountService accountService,
-            EmailService emailService
+            AccountService accountService
     ) {
         this.i18n = i18n;
         this.accountService = accountService;
-        this.emailService = emailService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -57,7 +53,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         emailField = new EmailField(t("settings.account.email"));
         notifyPowerLimitExceeded = new Checkbox(t("settings.notifications.powerLimitExceeded"));
-        testNotificationButton = new Button(t("settings.notifications.sendTest"));
+        // testNotificationButton = new Button(t("settings.notifications.sendTest"));
         saveButton = new Button(t("settings.button.save"));
 
         setSizeFull();
@@ -109,7 +105,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         notifyPowerLimitExceeded.setValue(false);
 
-        testNotificationButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        // testNotificationButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         // testNotificationButton.addClickListener(e -> {
         //     Notification.show(t("settings.notifications.testSent"));
         //     emailService.sendPowerLimitExceededEmail(
@@ -153,8 +149,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         container.add(
                 title,
-                notifyPowerLimitExceeded,
-                testNotificationButton
+                notifyPowerLimitExceeded
+                // testNotificationButton
         );
 
         return container;

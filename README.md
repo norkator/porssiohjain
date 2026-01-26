@@ -185,4 +185,5 @@ export DB_NAME=porssiohjain
 export DB_USER=porssiohjain
 export DB_PASSWORD=porssiohjain
 export FINGRID_API_KEY=xxxxxx
+export RESEND_API_KEY=re_xxxxxx
 ``` 

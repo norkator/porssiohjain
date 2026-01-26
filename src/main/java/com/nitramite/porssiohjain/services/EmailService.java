@@ -1,23 +1,26 @@
 package com.nitramite.porssiohjain.services;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import com.resend.Resend;
+import com.resend.services.emails.model.CreateEmailOptions;
+import com.resend.services.emails.model.CreateEmailResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.Locale;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
-    private final JavaMailSender mailSender;
     private final MessageSource messageSource;
+
+    @Value("${resent.api-key}")
+    private String resentApiKey;
 
     @Value("${app.alerts.mail}")
     private String from;
@@ -30,17 +33,11 @@ public class EmailService {
             Locale locale
     ) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(from);
-            helper.setTo(recipientEmail);
-
             String subject = messageSource.getMessage(
                     "mail.powerLimitExceeded.subject",
                     new Object[]{powerLimitName},
                     locale
             );
-            helper.setSubject(subject);
 
             String title = messageSource.getMessage(
                     "mail.powerLimitExceeded.title",
@@ -102,11 +99,18 @@ public class EmailService {
                             currentAvgKw.stripTrailingZeros().toPlainString(),
                             footer
                     );
-            helper.setText(htmlBody, true);
-            mailSender.send(message);
-        } catch (MessagingException e) {
+
+            Resend resend = new Resend(resentApiKey);
+            CreateEmailOptions params = CreateEmailOptions.builder()
+                    .from(from)
+                    .to(recipientEmail)
+                    .subject(subject)
+                    .html(htmlBody)
+                    .build();
+            CreateEmailResponse data = resend.emails().send(params);
+            log.info("Power limit exceeded email notification sent with Resend id {}", data.getId());
+        } catch (Exception e) {
             throw new IllegalStateException("Failed to send power limit email", e);
         }
     }
-
 }
