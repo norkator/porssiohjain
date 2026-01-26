@@ -7,6 +7,7 @@ import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
 import com.nitramite.porssiohjain.utils.Utils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +18,12 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PowerLimitService {
 
     private final PowerLimitRepository powerLimitRepository;
@@ -28,20 +31,8 @@ public class PowerLimitService {
     private final DeviceRepository deviceRepository;
     private final AccountRepository accountRepository;
     private final PowerLimitHistoryRepository powerLimitHistoryRepository;
-
-    public PowerLimitService(
-            PowerLimitRepository powerLimitRepository,
-            PowerLimitDeviceRepository powerLimitDeviceRepository,
-            DeviceRepository deviceRepository,
-            AccountRepository accountRepository,
-            PowerLimitHistoryRepository powerLimitHistoryRepository
-    ) {
-        this.powerLimitRepository = powerLimitRepository;
-        this.powerLimitDeviceRepository = powerLimitDeviceRepository;
-        this.deviceRepository = deviceRepository;
-        this.accountRepository = accountRepository;
-        this.powerLimitHistoryRepository = powerLimitHistoryRepository;
-    }
+    private final EmailService emailService;
+    private final Map<Long, Boolean> overLimitState = new ConcurrentHashMap<>();
 
     @Transactional
     public PowerLimitResponse createLimit(Long accountId, String name, Double limitKw, boolean enabled) {
@@ -211,6 +202,40 @@ public class PowerLimitService {
                     return h;
                 });
         history.setKilowatts(kw);
+        // checkAndSendNotification(entity); // enable later
+    }
+
+    // todo add locale to account and settings
+    // todo add send notification toggle setting for power limit
+    private void checkAndSendNotification(PowerLimitEntity entity) {
+        ZoneId zone = ZoneId.of(entity.getTimezone());
+        Instant now = Instant.now();
+        Instant quarterStart = Utils.toQuarterHour(now, zone);
+        Instant quarterEnd = quarterStart.plus(15, ChronoUnit.MINUTES);
+        List<PowerLimitHistoryEntity> values = powerLimitHistoryRepository
+                .findByPowerLimitAndCreatedAtBetween(
+                        entity.getAccount().getId(),
+                        entity.getId(),
+                        quarterStart,
+                        quarterEnd
+                );
+        if (values.isEmpty()) return;
+        BigDecimal sum = values.stream()
+                .map(PowerLimitHistoryEntity::getKilowatts)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal avg = sum.divide(BigDecimal.valueOf(values.size()), 2, RoundingMode.HALF_UP);
+        boolean currentlyOver = avg.compareTo(entity.getLimitKw()) > 0;
+        boolean wasOver = overLimitState.getOrDefault(entity.getId(), false);
+        if (currentlyOver && !wasOver) {
+            emailService.sendPowerLimitExceededEmail(
+                    entity.getAccount().getEmail(),
+                    entity.getName(),
+                    entity.getLimitKw(),
+                    avg,
+                    Locale.getDefault()
+            );
+        }
+        overLimitState.put(entity.getId(), currentlyOver);
     }
 
     @Transactional
