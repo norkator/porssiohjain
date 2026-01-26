@@ -110,13 +110,13 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         notifyPowerLimitExceeded.setValue(false);
 
         testNotificationButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        testNotificationButton.addClickListener(e -> {
-            Notification.show(t("settings.notifications.testSent"));
-            emailService.sendPowerLimitExceededEmail(
-                    emailField.getValue(), "Test 123", BigDecimal.valueOf(5), BigDecimal.valueOf(6),
-                    Locale.getDefault()
-            );
-        });
+        // testNotificationButton.addClickListener(e -> {
+        //     Notification.show(t("settings.notifications.testSent"));
+        //     emailService.sendPowerLimitExceededEmail(
+        //             emailField.getValue(), "Test 123", BigDecimal.valueOf(5), BigDecimal.valueOf(6),
+        //             Locale.getDefault()
+        //     );
+        // });
 
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveButton.addClickListener(e -> {
