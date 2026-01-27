@@ -1,0 +1,12 @@
+:host {
+    background: #c0c0c0;
+    color: black;
+    border: 2px solid;
+    border-color: #ffffff #404040 #404040 #ffffff;
+    box-shadow: none;
+    font-weight: normal;
+}
+
+:host(:active) {
+    border-color: #404040 #ffffff #ffffff #404040;
+}

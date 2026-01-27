@@ -1,0 +1,27 @@
+/*
+html {
+    --lumo-font-family: "MS Sans Serif", Tahoma, sans-serif;
+    --lumo-base-color: #c0c0c0;
+    --lumo-body-text-color: black;
+    --lumo-border-radius: 0px;
+}
+
+* {
+    border-radius: 0 !important;
+}
+
+body {
+    background: #008080;
+}
+
+vaadin-vertical-layout,
+vaadin-form-layout,
+vaadin-horizontal-layout,
+vaadin-grid {
+    background: #c0c0c0;
+    border: 2px solid #808080;
+    box-shadow: inset -1px -1px 0 #ffffff,
+    inset 1px 1px 0 #404040;
+    padding: 8px;
+}
+*/
