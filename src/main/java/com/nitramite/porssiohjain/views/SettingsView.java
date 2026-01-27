@@ -11,8 +11,10 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
@@ -29,13 +31,11 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
     private final I18nService i18n;
     private final AccountService accountService;
-    // private final EmailService emailService;
     private Long accountId;
 
     private final EmailField emailField;
     private final Checkbox notifyPowerLimitExceeded;
-    // private final Button testNotificationButton;
-    private final Button saveButton;
+    private final Select<String> localeSelect;
 
     @Autowired
     public SettingsView(
@@ -52,13 +52,27 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         }
 
         emailField = new EmailField(t("settings.account.email"));
-        notifyPowerLimitExceeded = new Checkbox(t("settings.notifications.powerLimitExceeded"));
-        // testNotificationButton = new Button(t("settings.notifications.sendTest"));
-        saveButton = new Button(t("settings.button.save"));
+        emailField.setPlaceholder("user@example.com");
+        emailField.setWidthFull();
+
+        localeSelect = new Select<>();
+        localeSelect.setLabel(t("settings.locale"));
+        localeSelect.setItems("en", "fi");
+        localeSelect.setItemLabelGenerator(code -> switch (code) {
+            case "fi" -> "Suomi";
+            default -> "English";
+        });
+        localeSelect.setWidthFull();
+
+        notifyPowerLimitExceeded =
+                new Checkbox(t("settings.notifications.powerLimitExceeded"));
+
+        Button saveButton = new Button(t("settings.button.save"));
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
-        getStyle().set("padding-top", "20px");
+        getStyle().set("padding-top", "24px");
 
         VerticalLayout card = new VerticalLayout();
         card.setWidthFull();
@@ -71,15 +85,13 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 .set("padding", "32px")
                 .set("background-color", "var(--lumo-base-color)");
 
-        H2 title = new H2(t("settings.title"));
-        title.getStyle().set("margin-top", "0");
-
-        configureFields();
+        H2 pageTitle = new H2(t("settings.title"));
+        pageTitle.getStyle().set("margin-top", "0");
 
         card.add(
-                title,
-                createAccountDetailsSection(),
-                createNotificationSettingsSection(),
+                pageTitle,
+                createAccountSection(),
+                createNotificationSection(),
                 saveButton
         );
 
@@ -97,76 +109,52 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         emailField.setValue(Optional.ofNullable(accountService.getEmail(accountId)).orElse(""));
         notifyPowerLimitExceeded.setValue(accountService.getNotifyPowerLimitExceeded(accountId));
-    }
+        localeSelect.setValue(accountService.getLocale(accountId));
 
-    private void configureFields() {
-        emailField.setPlaceholder("user@example.com");
-        emailField.setWidthFull();
-
-        notifyPowerLimitExceeded.setValue(false);
-
-        // testNotificationButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        // testNotificationButton.addClickListener(e -> {
-        //     Notification.show(t("settings.notifications.testSent"));
-        //     emailService.sendPowerLimitExceededEmail(
-        //             emailField.getValue(), "Test 123", BigDecimal.valueOf(5), BigDecimal.valueOf(6),
-        //             Locale.getDefault()
-        //     );
-        // });
-
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveButton.addClickListener(e -> {
             accountService.updateAccountSettings(
                     accountId,
                     emailField.getValue(),
-                    notifyPowerLimitExceeded.getValue()
+                    notifyPowerLimitExceeded.getValue(),
+                    localeSelect.getValue()
             );
+
+            Locale newLocale = Locale.forLanguageTag(localeSelect.getValue());
+            VaadinSession.getCurrent().setAttribute(Locale.class, newLocale);
+            UI.getCurrent().setLocale(newLocale);
+
             Notification.show(t("settings.saved"));
         });
     }
 
-    private Component createAccountDetailsSection() {
-        VerticalLayout container = baseSection();
+    private Component createAccountSection() {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(true);
 
-        H2 title = new H2(t("settings.account.title"));
-        title.getStyle().set("margin-top", "0");
+        H3 title = new H3(t("settings.account.title"));
+        title.getStyle().set("margin-top", "16px");
 
-        FormLayout form = new FormLayout(emailField);
+        FormLayout form = new FormLayout(emailField, localeSelect);
         form.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2)
         );
 
-        container.add(title, form);
-        return container;
+        section.add(title, form);
+        return section;
     }
 
-    private Component createNotificationSettingsSection() {
-        VerticalLayout container = baseSection();
+    private Component createNotificationSection() {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(true);
 
         H2 title = new H2(t("settings.notifications.title"));
-        title.getStyle().set("margin-top", "0");
+        title.getStyle().set("margin-top", "16px");
 
-        container.add(
-                title,
-                notifyPowerLimitExceeded
-                // testNotificationButton
-        );
-
-        return container;
-    }
-
-    private VerticalLayout baseSection() {
-        VerticalLayout container = new VerticalLayout();
-        container.setPadding(false);
-        container.setSpacing(false);
-        container.getStyle()
-                .set("margin-top", "24px")
-                .set("padding", "16px")
-                .set("border-radius", "12px")
-                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
-                .set("background-color", "var(--lumo-contrast-5pct)");
-        return container;
+        section.add(title, notifyPowerLimitExceeded);
+        return section;
     }
 
     @Override

@@ -53,27 +53,24 @@ public class AccountService {
                 .orElse(false);
     }
 
-    @Transactional
-    public void updateEmail(Long accountId, String email) {
-        accountRepository.findById(accountId).ifPresent(account -> {
-            account.setEmail(email);
-            accountRepository.save(account);
-        });
+    @Transactional(readOnly = true)
+    public String getLocale(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::getLocale)
+                .orElse("en");
     }
 
     @Transactional
-    public void updateNotifyPowerLimitExceeded(Long accountId, boolean notify) {
-        accountRepository.findById(accountId).ifPresent(account -> {
-            account.setNotifyPowerLimitExceeded(notify);
-            accountRepository.save(account);
-        });
-    }
-
-    @Transactional
-    public void updateAccountSettings(Long accountId, String email, boolean notify) {
+    public void updateAccountSettings(
+            Long accountId,
+            String email,
+            boolean notify,
+            String locale
+    ) {
         accountRepository.findById(accountId).ifPresent(account -> {
             account.setEmail(email);
             account.setNotifyPowerLimitExceeded(notify);
+            account.setLocale(locale);
             accountRepository.save(account);
         });
     }

@@ -25,6 +25,10 @@ public class AccountEntity {
     @Column(nullable = false, unique = true, updatable = false)
     private String secret;
 
+    @Column(name = "locale", length = 10, nullable = false)
+    @Builder.Default
+    private String locale = "en";
+
     @Column(name = "email", nullable = true)
     private String email;
 

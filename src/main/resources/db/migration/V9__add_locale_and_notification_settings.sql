@@ -1,0 +1,5 @@
+ALTER TABLE account
+    ADD COLUMN locale VARCHAR(10) NOT NULL DEFAULT 'en';
+
+ALTER TABLE power_limit
+    ADD COLUMN notify_enabled BOOLEAN NOT NULL DEFAULT FALSE;

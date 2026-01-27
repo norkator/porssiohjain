@@ -202,11 +202,11 @@ public class PowerLimitService {
                     return h;
                 });
         history.setKilowatts(kw);
-        // checkAndSendNotification(entity); // enable later
+        if (entity.isNotifyEnabled()) {
+        checkAndSendNotification(entity);
+        }
     }
 
-    // todo add locale to account and settings
-    // todo add send notification toggle setting for power limit
     private void checkAndSendNotification(PowerLimitEntity entity) {
         ZoneId zone = ZoneId.of(entity.getTimezone());
         Instant now = Instant.now();
@@ -232,7 +232,7 @@ public class PowerLimitService {
                     entity.getName(),
                     entity.getLimitKw(),
                     avg,
-                    Locale.getDefault()
+                    Locale.of(entity.getAccount().getLocale())
             );
         }
         overLimitState.put(entity.getId(), currentlyOver);

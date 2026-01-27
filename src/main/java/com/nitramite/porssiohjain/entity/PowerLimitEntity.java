@@ -8,7 +8,6 @@ import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
-
 @Entity
 @Table(name = "power_limit")
 @Getter
@@ -43,6 +42,9 @@ public class PowerLimitEntity {
 
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
+
+    @Column(name = "notify_enabled", nullable = false)
+    private boolean notifyEnabled = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
