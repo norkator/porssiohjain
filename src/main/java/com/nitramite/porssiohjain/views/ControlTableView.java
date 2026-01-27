@@ -112,7 +112,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         try {
             controlId = Long.valueOf(event.getRouteParameters().get("controlId").orElseThrow());
             loadControl();
-            loadTransferContract();
+            // loadTransferContract();
             renderView();
         } catch (Exception e) {
             add(new Paragraph(t("controlTable.errorLoad", e.getMessage())));
@@ -121,14 +121,18 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private void loadControl() {
         this.control = controlService.getControl(controlId);
-    }
-
-    private void loadTransferContract() {
         if (control.getTransferContractId() != null) {
             Optional<ElectricityContractEntity> contract = contractRepository.findById(control.getTransferContractId());
             contract.ifPresent(electricityContractEntity -> this.transferContract = electricityContractEntity);
         }
     }
+
+    // private void loadTransferContract() {
+    //     if (control.getTransferContractId() != null) {
+    //         Optional<ElectricityContractEntity> contract = contractRepository.findById(control.getTransferContractId());
+    //         contract.ifPresent(electricityContractEntity -> this.transferContract = electricityContractEntity);
+    //     }
+    // }
 
     private Long getAccountId() {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
