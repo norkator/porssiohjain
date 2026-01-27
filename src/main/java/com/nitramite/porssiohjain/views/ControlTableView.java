@@ -144,7 +144,18 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private void renderView() {
         removeAll();
 
-        add(new H2(t("controlTable.title", control.getName())));
+        VerticalLayout card = new VerticalLayout();
+        card.setPadding(true);
+        card.setSpacing(true);
+        card.setAlignItems(Alignment.STRETCH);
+        card.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
+        card.getStyle().set("border-radius", "12px");
+        card.getStyle().set("padding", "32px");
+        card.getStyle().set("background-color", "var(--lumo-base-color)");
+
+        H2 title = new H2(t("controlTable.title", control.getName()));
+        title.getStyle().set("margin-top", "0");
+        card.add(title);
 
         TextField controlNameField = new TextField(t("controlTable.field.name"));
         controlNameField.setValue(control.getName());
@@ -274,7 +285,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 alwaysOnBelowMinPriceToggle
         );
 
-        add(formLayout, saveButton);
+        card.add(formLayout, saveButton);
 
         Runnable updateFieldStates = () -> {
             ControlMode mode = modeCombo.getValue();
@@ -292,15 +303,15 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         modeCombo.addValueChangeListener(e -> updateFieldStates.run());
         updateFieldStates.run();
 
-        add(new H3(t("controlTable.section.devices")));
+        card.add(new H3(t("controlTable.section.devices")));
         configureDeviceGrid();
-        add(deviceGrid);
-
-        add(createAddDeviceLayout());
+        card.add(deviceGrid);
+        card.add(createAddDeviceLayout());
         loadControlDevices();
+        card.add(createDivider());
+        card.add(getControlTableSection());
 
-        add(createDivider());
-        add(getControlTableSection());
+        add(card);
     }
 
 

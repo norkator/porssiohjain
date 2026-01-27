@@ -74,7 +74,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         getStyle().set("padding-top", "20px");
 
         VerticalLayout card = new VerticalLayout();
-        // card.setWidth("800px");
         card.setPadding(true);
         card.setSpacing(true);
         card.setAlignItems(Alignment.STRETCH);
