@@ -66,7 +66,7 @@ public class PowerLimitService {
     @Transactional
     public void updatePowerLimit(
             Long accountId, Long powerLimitId, String name,
-            BigDecimal limitKw, boolean enabled, String timezone
+            BigDecimal limitKw, boolean enabled, boolean notifyEnabled, String timezone
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -78,6 +78,7 @@ public class PowerLimitService {
         entity.setName(name);
         entity.setLimitKw(limitKw);
         entity.setEnabled(enabled);
+        entity.setNotifyEnabled(notifyEnabled);
         entity.setTimezone(timezone);
         powerLimitRepository.save(entity);
         mapToResponse(entity);
@@ -153,6 +154,7 @@ public class PowerLimitService {
                 .limitKw(entity.getLimitKw())
                 .currentKw(entity.getCurrentKw())
                 .enabled(entity.isEnabled())
+                .notifyEnabled(entity.isNotifyEnabled())
                 .timezone(entity.getTimezone())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

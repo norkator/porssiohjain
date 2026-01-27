@@ -261,6 +261,9 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         timezoneField.setValue(p.getTimezone());
         timezoneField.setWidthFull();
 
+        Checkbox notifyEnabledField = new Checkbox(t("powerlimit.field.notifyEnabled"));
+        notifyEnabledField.setValue(p.isNotifyEnabled());
+
         Button saveButton = new Button(t("powerlimit.button.save"), e -> {
             powerLimitService.updatePowerLimit(
                     getAccountId(),
@@ -268,11 +271,13 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                     nameField.getValue(),
                     BigDecimal.valueOf(limitKwField.getValue()),
                     enabledField.getValue(),
+                    notifyEnabledField.getValue(),
                     timezoneField.getValue()
             );
 
             Notification.show(t("powerlimit.notification.saved"));
         });
+
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Div formDiv = new Div();
@@ -282,7 +287,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 nameField,
                 limitKwField,
                 enabledField,
-                timezoneField
+                timezoneField,
+                notifyEnabledField
         );
 
         form.setResponsiveSteps(
