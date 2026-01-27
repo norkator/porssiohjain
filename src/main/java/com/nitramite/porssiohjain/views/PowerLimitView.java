@@ -23,7 +23,6 @@ import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.page.Push;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
@@ -117,23 +116,33 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     }
 
     private void buildView() {
-        add(new H3(t("powerlimit.title.modify")));
+        VerticalLayout card = new VerticalLayout();
+        card.setPadding(true);
+        card.setSpacing(true);
+        card.setAlignItems(Alignment.STRETCH);
+        card.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
+        card.getStyle().set("border-radius", "12px");
+        card.getStyle().set("padding", "32px");
+        card.getStyle().set("background-color", "var(--lumo-base-color)");
+
+        H3 title = new H3(t("powerlimit.title.modify"));
+        title.getStyle().set("margin-top", "0");
+        card.add(title);
 
         Paragraph subtitle = new Paragraph(t("powerlimit.subtitle"));
         subtitle.getStyle().set("color", "var(--lumo-secondary-text-color)");
-        add(subtitle);
+        card.add(subtitle);
 
         PowerLimitResponse powerLimit = powerLimitService.getPowerLimit(getAccountId(), powerLimitId);
 
-        add(createPowerLimitInfoSection(powerLimit));
+        card.add(createPowerLimitInfoSection(powerLimit));
 
         configureDeviceGrid();
         loadPowerLimitDevices();
+        card.add(deviceGrid);
+        card.add(createAddDeviceLayout());
 
-        add(deviceGrid);
-        add(createAddDeviceLayout());
-
-        add(createCurrentUsageRow(powerLimit));
+        card.add(createCurrentUsageRow(powerLimit));
 
         chartDiv = new Div();
         chartDiv.setId("kw-history-chart");
@@ -147,9 +156,11 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 .set("background-color", "var(--lumo-contrast-5pct)")
                 .set("box-sizing", "border-box");
 
-        add(chartDiv);
+        card.add(chartDiv);
 
         updatePowerLimitHistoryChart(chartDiv, powerLimit);
+
+        add(card);
     }
 
     protected String t(String key, Object... args) {
