@@ -33,6 +33,7 @@ public class AccountEntity {
     private String email;
 
     @Column(name = "notify_power_limit_exceeded", nullable = false)
+    @Builder.Default
     private boolean notifyPowerLimitExceeded = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)

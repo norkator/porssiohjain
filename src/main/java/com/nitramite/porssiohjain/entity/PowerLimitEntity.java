@@ -44,6 +44,7 @@ public class PowerLimitEntity {
     private boolean enabled;
 
     @Column(name = "notify_enabled", nullable = false)
+    @Builder.Default
     private boolean notifyEnabled = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
