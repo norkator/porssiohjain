@@ -70,7 +70,7 @@ public class HomeView extends VerticalLayout {
         title.getStyle().set("margin-top", "0");
         title.getStyle().set("font-size", "1.8em");
 
-        Paragraph subtitle = new Paragraph(t("home.subtitle"));
+        Paragraph subtitle = new Paragraph(t("home.subtitle") + " ™");
         subtitle.getStyle().set("margin-bottom", "1.5em");
         subtitle.getStyle().set("color", "var(--lumo-secondary-text-color)");
 

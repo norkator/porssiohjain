@@ -1,6 +1,7 @@
 package com.nitramite.porssiohjain;
 
 import com.nitramite.porssiohjain.services.SystemLogService;
+import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.page.Push;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;

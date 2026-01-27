@@ -1,7 +1,0 @@
-[part="overlay"] {
-    background: #c0c0c0;
-    border: 2px solid #808080;
-    box-shadow:
-            inset -1px -1px 0 #ffffff,
-            inset 1px 1px 0 #404040;
-}
