@@ -98,22 +98,25 @@ public class HomeView extends VerticalLayout {
         createAccountButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
 
         Button devicesButton = new Button(t("home.myDevices"), e -> UI.getCurrent().navigate(DeviceView.class));
-        devicesButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        devicesButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button controlsButton = new Button(t("home.myControls"), e -> UI.getCurrent().navigate(ControlView.class));
+        controlsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
         Button powerLimitsButton = new Button(t("home.powerLimits"), e -> UI.getCurrent().navigate(PowerLimitsView.class));
+        powerLimitsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
         Button temperatureControlsButton = new Button(t("home.thermostats"), e -> UI.getCurrent().navigate(TemperatureCurveView.class));
+        temperatureControlsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         Button dashboardButton = new Button(t("home.dashboard"), e -> UI.getCurrent().navigate(DashboardView.class));
-        dashboardButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        dashboardButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         Button electricityContractsButton = new Button(t("home.electricityContracts"), e -> UI.getCurrent().navigate(ElectricityContractsView.class));
-        electricityContractsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        electricityContractsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         Button settingsButton = new Button(t("home.settings"), e -> UI.getCurrent().navigate(SettingsView.class));
-        settingsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        settingsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         Button logoutButton = new Button(t("home.logout"), e -> {
             VaadinSession session = VaadinSession.getCurrent();
