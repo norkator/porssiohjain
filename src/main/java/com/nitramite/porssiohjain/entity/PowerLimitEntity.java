@@ -40,6 +40,10 @@ public class PowerLimitEntity {
     @Column(name = "current_kw", nullable = false, precision = 10, scale = 2)
     private BigDecimal currentKw;
 
+    @Builder.Default
+    @Column(name = "peak_kw", nullable = false, precision = 10, scale = 2)
+    private BigDecimal peakKw = BigDecimal.ZERO;
+
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
 
