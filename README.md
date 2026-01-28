@@ -187,4 +187,5 @@ export DB_PASSWORD=porssiohjain
 export FINGRID_API_KEY=xxxxxx
 export RESEND_API_KEY=re_xxxxxx
 export ALERTS_MAIL_ADDRESS=xxxxxx
+export APP_CRYPTO_KEY=(run node app_crypto_key.js)
 ``` 

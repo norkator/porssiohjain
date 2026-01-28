@@ -1,2 +1,0 @@
-ALTER TABLE power_limit
-    ADD COLUMN peak_kw NUMERIC(10, 2) NOT NULL DEFAULT 0;
