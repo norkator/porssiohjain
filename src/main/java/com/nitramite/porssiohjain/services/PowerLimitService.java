@@ -189,6 +189,9 @@ public class PowerLimitService {
                 ));
         BigDecimal kw = BigDecimal.valueOf(currentKw);
         entity.setCurrentKw(kw);
+        if (entity.getPeakKw() == null || kw.compareTo(entity.getPeakKw()) > 0) {
+            entity.setPeakKw(kw);
+        }
         Instant now = Instant.now();
         Instant minuteStart = now.truncatedTo(ChronoUnit.MINUTES);
         Instant minuteEnd = minuteStart.plus(1, ChronoUnit.MINUTES);
