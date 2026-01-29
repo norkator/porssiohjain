@@ -1,5 +1,8 @@
 package com.nitramite.porssiohjain.scheduled;
 
+import com.nitramite.porssiohjain.entity.ProductionApiType;
+import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
+import com.nitramite.porssiohjain.entity.repository.ProductionSourceRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
@@ -7,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Slf4j
 @Profile("!test")
@@ -17,15 +22,20 @@ public class Scheduler {
     private final ControlSchedulerService controlSchedulerService;
     private final FingridDataService fingridDataService;
     private final PowerLimitService powerLimitService;
+    private final SolarmanPvService solarmanPvService;
 
     public Scheduler(
             NordpoolDataPortalService nordpoolDataPortalService,
             ControlSchedulerService controlSchedulerService,
             FingridDataService fingridDataService,
-            PowerLimitService powerLimitService) {
+            PowerLimitService powerLimitService,
+            SolarmanPvService solarmanPvService
+    ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
         this.fingridDataService = fingridDataService;
+        this.solarmanPvService = solarmanPvService;
+
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
         } else {
@@ -98,6 +108,11 @@ public class Scheduler {
         nordpoolDataPortalService.deleteOldNordpoolData();
         fingridDataService.deleteOldFingridData();
         powerLimitService.deleteOldPowerLimitHistory();
+    }
+
+    @Scheduled(fixedDelayString = "${solarman.poll-interval}")
+    public void pollSolarmanSources() {
+        solarmanPvService.fetchGenerationData();
     }
 
 }
