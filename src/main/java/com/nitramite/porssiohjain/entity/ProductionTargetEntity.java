@@ -44,9 +44,6 @@ public class ProductionTargetEntity {
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
 
-    @Column(name = "priority_order")
-    private Integer priorityOrder;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
