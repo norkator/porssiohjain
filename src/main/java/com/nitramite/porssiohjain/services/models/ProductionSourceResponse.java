@@ -22,4 +22,10 @@ public class ProductionSourceResponse {
     private boolean enabled;
     private Instant createdAt;
     private Instant updatedAt;
+
+    private String appId;
+    private String appSecret;
+    private String email;
+    private String password;
+    private String stationId;
 }

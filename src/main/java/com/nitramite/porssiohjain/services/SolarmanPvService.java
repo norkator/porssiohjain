@@ -57,6 +57,7 @@ public class SolarmanPvService {
                 source.setCurrentKw(kw);
                 productionSourceRepository.save(source);
                 ProductionHistoryEntity history = ProductionHistoryEntity.builder()
+                        .account(source.getAccount())
                         .productionSource(source)
                         .kilowatts(kw)
                         .build();

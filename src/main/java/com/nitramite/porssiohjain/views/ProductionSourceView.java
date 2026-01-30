@@ -42,6 +42,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -130,16 +131,27 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         uuid.setReadOnly(true);
 
         TextField name = new TextField("Name");
-        name.setValue(s.getName());
+        name.setValue(Optional.ofNullable(s.getName()).orElse(""));
 
         Checkbox enabled = new Checkbox("Enabled");
         enabled.setValue(s.isEnabled());
 
         TextField appId = new TextField("App ID");
+        appId.setValue(Optional.ofNullable(s.getAppId()).orElse(""));
+
         PasswordField appSecret = new PasswordField("App Secret");
+        appSecret.setValue(Optional.ofNullable(s.getAppSecret()).orElse(""));
+        appSecret.setPlaceholder("Leave empty to keep existing");
+
         EmailField email = new EmailField("Email");
+        email.setValue(Optional.ofNullable(s.getEmail()).orElse(""));
+
         PasswordField password = new PasswordField("Password");
+        password.setValue(Optional.ofNullable(s.getPassword()).orElse(""));
+        password.setPlaceholder("Leave empty to keep existing");
+
         TextField stationId = new TextField("Station ID");
+        stationId.setValue(Optional.ofNullable(s.getStationId()).orElse(""));
 
         Button save = new Button("Save", e -> {
             productionSourceService.updateSource(
@@ -147,11 +159,11 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                     sourceId,
                     name.getValue(),
                     enabled.getValue(),
-                    appId.getValue(),
-                    appSecret.getValue(),
-                    email.getValue(),
-                    password.getValue(),
-                    stationId.getValue()
+                    emptyToNull(appId.getValue()),
+                    emptyToNull(appSecret.getValue()),
+                    emptyToNull(email.getValue()),
+                    emptyToNull(password.getValue()),
+                    emptyToNull(stationId.getValue())
             );
             Notification.show("Saved");
         });
@@ -169,6 +181,10 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         Div wrap = styledBox();
         wrap.add(form, save);
         return wrap;
+    }
+
+    private String emptyToNull(String v) {
+        return v == null || v.isBlank() ? null : v;
     }
 
     private void configureDeviceGrid() {

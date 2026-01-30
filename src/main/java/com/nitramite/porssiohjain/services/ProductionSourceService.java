@@ -69,6 +69,11 @@ public class ProductionSourceService {
                 .enabled(e.isEnabled())
                 .createdAt(e.getCreatedAt())
                 .updatedAt(e.getUpdatedAt())
+                .appId(e.getAppId())
+                .appSecret(e.getAppSecret())
+                .email(e.getEmail())
+                .password(e.getPassword())
+                .stationId(e.getStationId())
                 .build();
     }
 
@@ -136,18 +141,20 @@ public class ProductionSourceService {
             String password,
             String stationId
     ) {
-        ProductionSourceEntity entity = productionSourceRepository.findByIdAndAccountId(sourceId, accountId)
+        ProductionSourceEntity entity = productionSourceRepository
+                .findByIdAndAccountId(sourceId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Source not found"));
-
         entity.setName(name);
         entity.setEnabled(enabled);
-        entity.setAppId(appId);
-        entity.setAppSecret(appSecret);
-        entity.setEmail(email);
-        entity.setPassword(password);
-        entity.setStationId(stationId);
-
-        productionSourceRepository.save(entity);
+        if (appId != null) entity.setAppId(appId);
+        if (email != null) entity.setEmail(email);
+        if (stationId != null) entity.setStationId(stationId);
+        if (appSecret != null && !appSecret.isBlank()) {
+            entity.setAppSecret(appSecret);
+        }
+        if (password != null && !password.isBlank()) {
+            entity.setPassword(password);
+        }
     }
 
     @Transactional(readOnly = true)
