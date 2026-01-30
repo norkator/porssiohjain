@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -32,7 +33,7 @@ public class PowerLimitService {
     private final AccountRepository accountRepository;
     private final PowerLimitHistoryRepository powerLimitHistoryRepository;
     private final EmailService emailService;
-    private final Map<Long, Boolean> overLimitState = new ConcurrentHashMap<>();
+    private final Map<Long, Instant> lastNotificationSent = new ConcurrentHashMap<>();
 
     @Transactional
     public PowerLimitResponse createLimit(Long accountId, String name, Double limitKw, boolean enabled) {
@@ -194,7 +195,7 @@ public class PowerLimitService {
                 });
         history.setKilowatts(kw);
         if (entity.isNotifyEnabled()) {
-        checkAndSendNotification(entity);
+            checkAndSendNotification(entity);
         }
     }
 
@@ -216,8 +217,9 @@ public class PowerLimitService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal avg = sum.divide(BigDecimal.valueOf(values.size()), 2, RoundingMode.HALF_UP);
         boolean currentlyOver = avg.compareTo(entity.getLimitKw()) > 0;
-        boolean wasOver = overLimitState.getOrDefault(entity.getId(), false);
-        if (currentlyOver && !wasOver) {
+        Instant lastSent = lastNotificationSent.get(entity.getId());
+        boolean canSend = lastSent == null || Duration.between(lastSent, now).toHours() >= 24;
+        if (currentlyOver && canSend) {
             emailService.sendPowerLimitExceededEmail(
                     entity.getAccount().getEmail(),
                     entity.getName(),
@@ -225,8 +227,8 @@ public class PowerLimitService {
                     avg,
                     Locale.of(entity.getAccount().getLocale())
             );
+            lastNotificationSent.put(entity.getId(), now);
         }
-        overLimitState.put(entity.getId(), currentlyOver);
     }
 
     @Transactional
