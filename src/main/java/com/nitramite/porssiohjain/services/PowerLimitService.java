@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -32,7 +33,7 @@ public class PowerLimitService {
     private final AccountRepository accountRepository;
     private final PowerLimitHistoryRepository powerLimitHistoryRepository;
     private final EmailService emailService;
-    private final Map<Long, Boolean> overLimitState = new ConcurrentHashMap<>();
+    private final Map<Long, Instant> lastNotificationSent = new ConcurrentHashMap<>();
 
     @Transactional
     public PowerLimitResponse createLimit(Long accountId, String name, Double limitKw, boolean enabled) {
@@ -98,21 +99,6 @@ public class PowerLimitService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public List<DeviceResponse> getAllDevicesForPowerLimitId(Long powerLimitId) {
-        PowerLimitEntity limit = powerLimitRepository.findById(powerLimitId)
-                .orElseThrow(() -> new IllegalArgumentException("Power limit not found: " + powerLimitId));
-
-        Long accountId = limit.getAccount().getId();
-
-        List<Long> linkedIds = powerLimitDeviceRepository.findDeviceIdsByPowerLimitId(powerLimitId);
-
-        return deviceRepository.findByAccountId(accountId).stream()
-                .filter(d -> !linkedIds.contains(d.getId()))
-                .map(this::mapDeviceToResponse)
-                .collect(Collectors.toList());
-    }
-
     @Transactional
     public void addDeviceToPowerLimit(Long accountId, Long powerLimitId, Long deviceId, int channel) {
         PowerLimitEntity limit = powerLimitRepository.findById(powerLimitId)
@@ -153,6 +139,7 @@ public class PowerLimitService {
                 .name(entity.getName())
                 .limitKw(entity.getLimitKw())
                 .currentKw(entity.getCurrentKw())
+                .peakKw(entity.getPeakKw())
                 .enabled(entity.isEnabled())
                 .notifyEnabled(entity.isNotifyEnabled())
                 .timezone(entity.getTimezone())
@@ -189,6 +176,9 @@ public class PowerLimitService {
                 ));
         BigDecimal kw = BigDecimal.valueOf(currentKw);
         entity.setCurrentKw(kw);
+        if (entity.getPeakKw() == null || kw.compareTo(entity.getPeakKw()) > 0) {
+            entity.setPeakKw(kw);
+        }
         Instant now = Instant.now();
         Instant minuteStart = now.truncatedTo(ChronoUnit.MINUTES);
         Instant minuteEnd = minuteStart.plus(1, ChronoUnit.MINUTES);
@@ -205,7 +195,7 @@ public class PowerLimitService {
                 });
         history.setKilowatts(kw);
         if (entity.isNotifyEnabled()) {
-        checkAndSendNotification(entity);
+            checkAndSendNotification(entity);
         }
     }
 
@@ -227,8 +217,9 @@ public class PowerLimitService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal avg = sum.divide(BigDecimal.valueOf(values.size()), 2, RoundingMode.HALF_UP);
         boolean currentlyOver = avg.compareTo(entity.getLimitKw()) > 0;
-        boolean wasOver = overLimitState.getOrDefault(entity.getId(), false);
-        if (currentlyOver && !wasOver) {
+        Instant lastSent = lastNotificationSent.get(entity.getId());
+        boolean canSend = lastSent == null || Duration.between(lastSent, now).toHours() >= 24;
+        if (currentlyOver && canSend) {
             emailService.sendPowerLimitExceededEmail(
                     entity.getAccount().getEmail(),
                     entity.getName(),
@@ -236,8 +227,8 @@ public class PowerLimitService {
                     avg,
                     Locale.of(entity.getAccount().getLocale())
             );
+            lastNotificationSent.put(entity.getId(), now);
         }
-        overLimitState.put(entity.getId(), currentlyOver);
     }
 
     @Transactional
@@ -247,23 +238,6 @@ public class PowerLimitService {
         if (deleted > 0) {
             log.info("Deleted {} power limit history rows older than {}", deleted, cutoff);
         }
-    }
-
-    @Transactional(readOnly = true)
-    public List<PowerLimitHistoryResponse> getPowerLimitHistory(
-            Long accountId, Long powerLimitId, int hours
-    ) {
-        Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
-        return powerLimitHistoryRepository.findAllByPowerLimitAndAccount(accountId, powerLimitId)
-                .stream()
-                .filter(h -> h.getCreatedAt().isAfter(since))
-                .map(h -> PowerLimitHistoryResponse.builder()
-                        .accountId(h.getPowerLimit().getAccount().getId())
-                        .kilowatts(h.getKilowatts())
-                        .createdAt(h.getCreatedAt())
-                        .build()
-                )
-                .toList();
     }
 
     @Transactional(readOnly = true)

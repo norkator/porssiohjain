@@ -17,15 +17,26 @@ public class Scheduler {
     private final ControlSchedulerService controlSchedulerService;
     private final FingridDataService fingridDataService;
     private final PowerLimitService powerLimitService;
+    private final SolarmanPvService solarmanPvService;
+    private final ProductionSourceService productionSourceService;
+
+    private boolean firstRun = true;
 
     public Scheduler(
             NordpoolDataPortalService nordpoolDataPortalService,
             ControlSchedulerService controlSchedulerService,
             FingridDataService fingridDataService,
-            PowerLimitService powerLimitService) {
+            PowerLimitService powerLimitService,
+            SolarmanPvService solarmanPvService,
+            ProductionSourceService productionSourceService
+    ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
         this.fingridDataService = fingridDataService;
+        this.solarmanPvService = solarmanPvService;
+        this.powerLimitService = powerLimitService;
+        this.productionSourceService = productionSourceService;
+
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
         } else {
@@ -36,7 +47,6 @@ public class Scheduler {
         } else {
             log.info("No need to fetch Fingrid data");
         }
-        this.powerLimitService = powerLimitService;
     }
 
     @Scheduled(cron = "0 0 */2 * * *", zone = "Europe/Helsinki")
@@ -98,6 +108,16 @@ public class Scheduler {
         nordpoolDataPortalService.deleteOldNordpoolData();
         fingridDataService.deleteOldFingridData();
         powerLimitService.deleteOldPowerLimitHistory();
+        productionSourceService.deleteOldProductionHistory();
+    }
+
+    @Scheduled(fixedDelayString = "${solarman.poll-interval}")
+    public void pollSolarmanSources() {
+        if (firstRun) {
+            firstRun = false;
+            return;
+        }
+        solarmanPvService.fetchGenerationData();
     }
 
 }

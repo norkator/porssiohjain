@@ -112,7 +112,6 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         try {
             controlId = Long.valueOf(event.getRouteParameters().get("controlId").orElseThrow());
             loadControl();
-            // loadTransferContract();
             renderView();
         } catch (Exception e) {
             add(new Paragraph(t("controlTable.errorLoad", e.getMessage())));
@@ -121,18 +120,15 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private void loadControl() {
         this.control = controlService.getControl(controlId);
+        loadTransferContract();
+    }
+
+    private void loadTransferContract() {
         if (control.getTransferContractId() != null) {
             Optional<ElectricityContractEntity> contract = contractRepository.findById(control.getTransferContractId());
             contract.ifPresent(electricityContractEntity -> this.transferContract = electricityContractEntity);
         }
     }
-
-    // private void loadTransferContract() {
-    //     if (control.getTransferContractId() != null) {
-    //         Optional<ElectricityContractEntity> contract = contractRepository.findById(control.getTransferContractId());
-    //         contract.ifPresent(electricityContractEntity -> this.transferContract = electricityContractEntity);
-    //     }
-    // }
 
     private Long getAccountId() {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
@@ -613,7 +609,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                 if (!window.ApexCharts) {
                                     const script = document.createElement('script');
                                     script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
-                                    script.onload = () => renderOrUpdate(dataX, dataNordpool, dataControl);
+                                    script.onload = () => renderOrUpdate(dataX, dataNordpool, dataControl, dataTransfer);
                                     document.head.appendChild(script);
                                     return;
                                 }

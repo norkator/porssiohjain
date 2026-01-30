@@ -54,6 +54,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private final DeviceService deviceService;
     private Long powerLimitId;
     private final Grid<PowerLimitDeviceResponse> deviceGrid = new Grid<>(PowerLimitDeviceResponse.class, false);
+    private Div peakKwValue;
     private Div currentKwValue;
     private Div quarterAvgValue;
     private Div chartDiv;
@@ -320,6 +321,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private Component createCurrentUsageRow(
             PowerLimitResponse powerLimit
     ) {
+        Component peakKw = createPeakKwSection(powerLimit);
         Component currentKw = createCurrentKwSection(powerLimit);
         Component quarterAvg = createCurrentQuarterHourAverageSection(
                 powerLimitService.getCurrentQuarterHourAverage(
@@ -327,14 +329,33 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                         powerLimit.getId()
                 )
         );
-        HorizontalLayout row = new HorizontalLayout(currentKw, quarterAvg);
+        HorizontalLayout row = new HorizontalLayout(peakKw, currentKw, quarterAvg);
         row.setWidthFull();
         row.setSpacing(true);
         row.setPadding(false);
         row.getStyle().set("flex-wrap", "wrap").set("gap", "16px");
+        peakKw.getElement().getStyle().set("flex", "1 1 300px");
         currentKw.getElement().getStyle().set("flex", "1 1 300px");
         quarterAvg.getElement().getStyle().set("flex", "1 1 300px");
         return row;
+    }
+
+    private Component createPeakKwSection(PowerLimitResponse p) {
+        Div wrapper = new Div();
+        wrapper.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-10pct)")
+                .set("text-align", "center");
+        H2 title = new H2(t("powerlimit.peakUsage"));
+        title.getStyle().set("margin", "0");
+        peakKwValue = new Div();
+        peakKwValue.setText(p.getPeakKw() + " kW");
+        peakKwValue.getStyle()
+                .set("font-size", "2.5rem")
+                .set("font-weight", "bold");
+        wrapper.add(title, peakKwValue);
+        return wrapper;
     }
 
     private Component createCurrentKwSection(PowerLimitResponse p) {
@@ -349,7 +370,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         currentKwValue = new Div();
         currentKwValue.setText(p.getCurrentKw() + " kW");
         currentKwValue.getStyle()
-                .set("font-size", "3rem")
+                .set("font-size", "2.5rem")
                 .set("font-weight", "bold");
         wrapper.add(title, currentKwValue);
         return wrapper;
@@ -371,7 +392,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 cAvg.map(v -> v + " kW").orElse("N/A")
         );
         quarterAvgValue.getStyle()
-                .set("font-size", "3rem")
+                .set("font-size", "2.5rem")
                 .set("font-weight", "bold");
         wrapper.add(title, quarterAvgValue);
         return wrapper;
@@ -540,6 +561,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                         powerLimitId
                 );
                 ui.access(() -> {
+                    peakKwValue.setText(updated.getPeakKw() + " kW");
                     currentKwValue.setText(updated.getCurrentKw() + " kW");
                     quarterAvgValue.setText(
                             avg.map(a -> a + " kW").orElse("N/A")

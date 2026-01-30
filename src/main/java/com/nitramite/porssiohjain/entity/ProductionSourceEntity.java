@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.entity;
 
+import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,20 +10,17 @@ import java.util.Set;
 import java.util.UUID;
 
 @Entity
-@Table(name = "power_limit")
+@Table(name = "production_source")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PowerLimitEntity {
+public class ProductionSourceEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "timezone", nullable = false, length = 64)
-    private String timezone;
 
     @Column(nullable = false, unique = true, updatable = false)
     private UUID uuid;
@@ -34,22 +32,40 @@ public class PowerLimitEntity {
     @JoinColumn(name = "account_id", nullable = false)
     private AccountEntity account;
 
-    @Column(name = "limit_kw", nullable = false, precision = 10, scale = 2)
-    private BigDecimal limitKw;
-
     @Column(name = "current_kw", nullable = false, precision = 10, scale = 2)
-    private BigDecimal currentKw;
-
     @Builder.Default
+    private BigDecimal currentKw = BigDecimal.ZERO;
+
     @Column(name = "peak_kw", nullable = false, precision = 10, scale = 2)
+    @Builder.Default
     private BigDecimal peakKw = BigDecimal.ZERO;
 
-    @Column(name = "enabled", nullable = false)
-    private boolean enabled;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "api_type", nullable = false, length = 32)
+    private ProductionApiType apiType;
 
-    @Column(name = "notify_enabled", nullable = false)
+    // api credential related below
+
+    @Column(name = "app_id")
+    private String appId;
+
+    @Convert(converter = CryptoConverter.class)
+    @Column(name = "app_secret")
+    private String appSecret;
+
+    @Column(name = "email")
+    private String email;
+
+    @Convert(converter = CryptoConverter.class)
+    @Column(name = "password")
+    private String password;
+
+    @Column(name = "station_id")
+    private String stationId;
+
     @Builder.Default
-    private boolean notifyEnabled = false;
+    @Column(name = "enabled", nullable = false)
+    private boolean enabled = true;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -57,15 +73,12 @@ public class PowerLimitEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    @OneToMany(mappedBy = "powerLimit", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<PowerLimitDeviceEntity> powerLimitDevices;
-
     @OneToMany(
-            mappedBy = "powerLimit",
+            mappedBy = "productionSource",
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
-    private Set<PowerLimitHistoryEntity> history;
+    private Set<ProductionHistoryEntity> history;
 
     @PrePersist
     public void onCreate() {
@@ -81,4 +94,5 @@ public class PowerLimitEntity {
     public void onUpdate() {
         updatedAt = Instant.now();
     }
+
 }

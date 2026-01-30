@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.services.models;
 
+import com.nitramite.porssiohjain.entity.ProductionApiType;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -8,19 +9,23 @@ import java.util.UUID;
 
 @Getter
 @Setter
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
-public class PowerLimitResponse {
+public class ProductionSourceResponse {
     private Long id;
     private UUID uuid;
     private String name;
-    private BigDecimal limitKw;
+    private ProductionApiType apiType;
     private BigDecimal currentKw;
     private BigDecimal peakKw;
     private boolean enabled;
-    private boolean notifyEnabled;
-    private String timezone;
     private Instant createdAt;
     private Instant updatedAt;
+
+    private String appId;
+    private String appSecret;
+    private String email;
+    private String password;
+    private String stationId;
 }
