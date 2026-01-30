@@ -50,9 +50,7 @@ public class SolarmanPvService {
     public void fetchGenerationData() {
         List<ProductionSourceEntity> sources =
                 productionSourceRepository.findByEnabledTrueAndApiType(ProductionApiType.SOFAR_SOLARMANPV);
-
         Instant now = Instant.now();
-
         for (ProductionSourceEntity source : sources) {
             try {
                 Double kwDouble = fetchCurrentKw(source);

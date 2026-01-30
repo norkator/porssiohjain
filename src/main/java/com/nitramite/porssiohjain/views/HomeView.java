@@ -103,6 +103,9 @@ public class HomeView extends VerticalLayout {
         Button controlsButton = new Button(t("home.myControls"), e -> UI.getCurrent().navigate(ControlView.class));
         controlsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
+        Button myProductionButton = new Button(t("home.myProduction"), e -> UI.getCurrent().navigate(ProductionSourcesView.class));
+        myProductionButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+
         Button powerLimitsButton = new Button(t("home.powerLimits"), e -> UI.getCurrent().navigate(PowerLimitsView.class));
         powerLimitsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
@@ -128,7 +131,7 @@ public class HomeView extends VerticalLayout {
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
         Stream.of(
-                loginButton, createAccountButton, devicesButton, controlsButton, powerLimitsButton, temperatureControlsButton,
+                loginButton, createAccountButton, devicesButton, controlsButton, myProductionButton, powerLimitsButton, temperatureControlsButton,
                 dashboardButton, electricityContractsButton, settingsButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
@@ -150,7 +153,7 @@ public class HomeView extends VerticalLayout {
             updateStatBox(maxBox, stats.getMax());
 
             contentBox.add(
-                    devicesButton, controlsButton, powerLimitsButton, // temperatureControlsButton,
+                    devicesButton, controlsButton, myProductionButton, powerLimitsButton, // temperatureControlsButton,
                     dashboardButton, electricityContractsButton, settingsButton, logoutButton, createDivider(),
                     priceStatsLayout, createDivider()
             );

@@ -10,4 +10,6 @@ public interface ProductionSourceRepository extends JpaRepository<ProductionSour
 
     List<ProductionSourceEntity> findByEnabledTrueAndApiType(ProductionApiType apiType);
 
+    List<ProductionSourceEntity> findByAccountId(Long accountId);
+
 }
