@@ -7,13 +7,18 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "production_target")
+@Table(
+        name = "production_source_device",
+        uniqueConstraints = @UniqueConstraint(
+                columnNames = {"production_source_id", "device_id", "device_channel"}
+        )
+)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductionTargetEntity {
+public class ProductionSourceDeviceEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,7 +35,7 @@ public class ProductionTargetEntity {
     @Column(name = "device_channel", nullable = false)
     private Integer deviceChannel;
 
-    @Column(name = "trigger_kw", nullable = false, precision = 10, scale = 3)
+    @Column(name = "trigger_kw", nullable = false, precision = 10, scale = 2)
     private BigDecimal triggerKw;
 
     @Enumerated(EnumType.STRING)

@@ -34,17 +34,12 @@ CREATE INDEX idx_production_source_uuid
 CREATE TABLE production_history
 (
     id                   BIGSERIAL PRIMARY KEY,
-    production_source_id BIGINT                   NOT NULL,
-    CONSTRAINT fk_production_history_source
-        FOREIGN KEY (production_source_id)
-            REFERENCES production_source (id)
-            ON DELETE CASCADE,
-    kw                   NUMERIC(10, 2)           NOT NULL,
-    measured_at          TIMESTAMP WITH TIME ZONE NOT NULL
+    account_id           BIGINT         NOT NULL REFERENCES account (id) ON DELETE CASCADE,
+    production_source_id BIGINT         NOT NULL REFERENCES production_source (id) ON DELETE CASCADE,
+    kilowatts            NUMERIC(10, 2) NOT NULL,
+    created_at           TIMESTAMP      NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMP      NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_production_history_source
-    ON production_history (production_source_id);
-
-CREATE INDEX idx_production_history_measured_at
-    ON production_history (measured_at);
+CREATE INDEX idx_ph_production_source ON production_history (production_source_id);
+CREATE INDEX idx_ph_created_at ON production_history (created_at);

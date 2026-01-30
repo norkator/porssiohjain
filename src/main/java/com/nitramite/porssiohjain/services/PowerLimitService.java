@@ -98,18 +98,6 @@ public class PowerLimitService {
                 .collect(Collectors.toList());
     }
 
-    // @Transactional(readOnly = true)
-    // public List<DeviceResponse> getAllDevicesForPowerLimitId(Long powerLimitId) {
-    //     PowerLimitEntity limit = powerLimitRepository.findById(powerLimitId)
-    //             .orElseThrow(() -> new IllegalArgumentException("Power limit not found: " + powerLimitId));
-    //     Long accountId = limit.getAccount().getId();
-    //     List<Long> linkedIds = powerLimitDeviceRepository.findDeviceIdsByPowerLimitId(powerLimitId);
-    //     return deviceRepository.findByAccountId(accountId).stream()
-    //             .filter(d -> !linkedIds.contains(d.getId()))
-    //             .map(this::mapDeviceToResponse)
-    //             .collect(Collectors.toList());
-    // }
-
     @Transactional
     public void addDeviceToPowerLimit(Long accountId, Long powerLimitId, Long deviceId, int channel) {
         PowerLimitEntity limit = powerLimitRepository.findById(powerLimitId)
@@ -248,23 +236,6 @@ public class PowerLimitService {
             log.info("Deleted {} power limit history rows older than {}", deleted, cutoff);
         }
     }
-
-    // @Transactional(readOnly = true)
-    // public List<PowerLimitHistoryResponse> getPowerLimitHistory(
-    //         Long accountId, Long powerLimitId, int hours
-    // ) {
-    //     Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
-    //     return powerLimitHistoryRepository.findAllByPowerLimitAndAccount(accountId, powerLimitId)
-    //             .stream()
-    //             .filter(h -> h.getCreatedAt().isAfter(since))
-    //             .map(h -> PowerLimitHistoryResponse.builder()
-    //                     .accountId(h.getPowerLimit().getAccount().getId())
-    //                     .kilowatts(h.getKilowatts())
-    //                     .createdAt(h.getCreatedAt())
-    //                     .build()
-    //             )
-    //             .toList();
-    // }
 
     @Transactional(readOnly = true)
     public List<PowerLimitHistoryResponse> getQuarterlyPowerLimitHistory(

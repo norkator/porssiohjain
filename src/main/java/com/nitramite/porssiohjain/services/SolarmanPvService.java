@@ -48,9 +48,8 @@ public class SolarmanPvService {
 
     @Transactional
     public void fetchGenerationData() {
-        List<ProductionSourceEntity> sources =
-                productionSourceRepository.findByEnabledTrueAndApiType(ProductionApiType.SOFAR_SOLARMANPV);
-        Instant now = Instant.now();
+        List<ProductionSourceEntity> sources = productionSourceRepository
+                .findByEnabledTrueAndApiType(ProductionApiType.SOFAR_SOLARMANPV);
         for (ProductionSourceEntity source : sources) {
             try {
                 Double kwDouble = fetchCurrentKw(source);
@@ -59,8 +58,7 @@ public class SolarmanPvService {
                 productionSourceRepository.save(source);
                 ProductionHistoryEntity history = ProductionHistoryEntity.builder()
                         .productionSource(source)
-                        .kw(kw)
-                        .measuredAt(now)
+                        .kilowatts(kw)
                         .build();
                 productionHistoryRepository.save(history);
                 log.info("Solarman source {} production {} kW", source.getId(), kw);

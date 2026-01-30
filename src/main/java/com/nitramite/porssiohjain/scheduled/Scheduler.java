@@ -1,8 +1,5 @@
 package com.nitramite.porssiohjain.scheduled;
 
-import com.nitramite.porssiohjain.entity.ProductionApiType;
-import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
-import com.nitramite.porssiohjain.entity.repository.ProductionSourceRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
@@ -10,8 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 @Slf4j
 @Profile("!test")

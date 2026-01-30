@@ -7,7 +7,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "production_history")
+@Table(
+        name = "production_history",
+        indexes = {
+                @Index(name = "idx_ph_production_source", columnList = "production_source_id"),
+                @Index(name = "idx_ph_created_at", columnList = "created_at")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,13 +26,30 @@ public class ProductionHistoryEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "account_id", nullable = false)
+    private AccountEntity account;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "production_source_id", nullable = false)
     private ProductionSourceEntity productionSource;
 
-    @Column(name = "kw", nullable = false, precision = 10, scale = 2)
-    private BigDecimal kw;
+    @Column(name = "kilowatts", nullable = false, precision = 10, scale = 2)
+    private BigDecimal kilowatts;
 
-    @Column(name = "measured_at", nullable = false)
-    private Instant measuredAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    @PrePersist
+    public void onCreate() {
+        createdAt = Instant.now();
+        updatedAt = createdAt;
+    }
+
+    @PreUpdate
+    public void onUpdate() {
+        updatedAt = Instant.now();
+    }
 }
