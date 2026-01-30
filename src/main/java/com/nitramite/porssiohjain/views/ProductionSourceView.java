@@ -104,24 +104,16 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
 
     private void buildView() {
         ProductionSourceResponse source = productionSourceService.getSource(accountId, sourceId);
-
         VerticalLayout card = createCard();
-
         card.add(new H3("Modify Production Source"));
-
         card.add(createSourceInfoSection(source));
-
         configureDeviceGrid();
         loadDevices();
         card.add(deviceGrid, createAddDeviceLayout());
-
         card.add(createCurrentStatsRow(source));
-
         chartDiv = createChartContainer();
         card.add(chartDiv);
-
-        updateProductionChart(source);
-
+        updateProductionChart(chartDiv, source);
         add(card);
     }
 
@@ -199,6 +191,9 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
             return delete;
         });
+
+        deviceGrid.setMinHeight("200px");
+        deviceGrid.setMaxHeight("250px");
     }
 
     private void loadDevices() {
@@ -239,41 +234,128 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         return div;
     }
 
-    private void updateProductionChart(ProductionSourceResponse source) {
-        List<ProductionHistoryResponse> history = productionSourceService.getProductionHistory(sourceId, 24);
+    protected String t(String key, Object... args) {
+        return i18n.t(key, args);
+    }
+
+    private void updateProductionChart(
+            Div chartDiv, ProductionSourceResponse sourceResponse
+    ) {
+        List<ProductionHistoryResponse> history = productionSourceService
+                .getProductionHistory(sourceResponse.getId(), 24);
+
         List<String> timestamps = new ArrayList<>();
         List<Double> values = new ArrayList<>();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
+        ZoneId zone = ZoneId.systemDefault();
+
+        DateTimeFormatter jsFormatter = DateTimeFormatter
+                .ofPattern("yyyy-MM-dd HH:mm")
+                .withZone(zone);
 
         for (ProductionHistoryResponse h : history) {
-            timestamps.add(fmt.format(h.getCreatedAt()));
+            timestamps.add(jsFormatter.format(h.getCreatedAt()));
             values.add(h.getKilowatts().doubleValue());
         }
 
         JsonArray jsTimestamps = Json.createArray();
         JsonArray jsValues = Json.createArray();
-
         for (int i = 0; i < timestamps.size(); i++) {
             jsTimestamps.set(i, timestamps.get(i));
             jsValues.set(i, values.get(i));
         }
 
+        String seriesLabel = t("productionsource.chart.series");
+        String xAxisLabel = t("productionsource.chart.time");
+        String yAxisLabel = t("productionsource.chart.kw");
+        String chartTitle = t("productionsource.chart.title");
+        String nowLabel = "";
+        Double limitKw = null;
+
         chartDiv.getElement().executeJs("""
-                    const container = this;
-                    if (!window.ApexCharts) {
-                        const script = document.createElement('script');
-                        script.src = 'https://cdn.jsdelivr.net/npm/apexcharts';
-                        script.onload = () => container.dispatchEvent(new Event('apex-ready'));
-                        document.head.appendChild(script);
-                        return;
-                    }
-                    new ApexCharts(container, {
-                        chart: { type: 'line', height: 400 },
-                        series: [{ name: 'kW', data: $1 }],
-                        xaxis: { categories: $0 }
-                    }).render();
-                """, jsTimestamps, jsValues);
+                            const container = this;
+                        
+                            function renderOrUpdate(dataX, dataY, limitKw) {
+                                if (!window.ApexCharts) {
+                                    const script = document.createElement('script');
+                                    script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
+                                    script.onload = () => renderOrUpdate(dataX, dataY, limitKw);
+                                    document.head.appendChild(script);
+                                    return;
+                                }
+                        
+                                const now = new Date();
+                                const closest = dataX.reduce((prev, curr) =>
+                                    Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now)
+                                        ? curr : prev
+                                );
+                        
+                                const annotations = {
+                                    xaxis: [{
+                                        x: closest,
+                                        borderColor: '#00E396',
+                                        label: {
+                                            style: { color: '#fff', background: '#00E396' },
+                                            text: $6
+                                        }
+                                    }]
+                                };
+                        
+                                if (limitKw !== null) {
+                                    annotations.yaxis = [{
+                                        y: limitKw,
+                                        borderColor: '#FF4560',
+                                        label: {
+                                            style: { color: '#fff', background: '#FF4560' },
+                                            text: 'Limit ' + limitKw + ' kW'
+                                        }
+                                    }];
+                                }
+                        
+                                if (!container.chartInstance) {
+                                    const options = {
+                                        chart: {
+                                            type: 'line',
+                                            height: '400px',
+                                            zoom: { enabled: false },
+                                            toolbar: { show: true }
+                                        },
+                                        series: [{ name: $3, data: dataY }],
+                                        xaxis: {
+                                            categories: dataX,
+                                            title: { text: $4 },
+                                            labels: { rotate: -45 }
+                                        },
+                                        yaxis: { title: { text: $5 } },
+                                        stroke: { curve: 'smooth', width: 3 },
+                                        markers: { size: 3 },
+                                        tooltip: { shared: true },
+                                        title: { text: $2, align: 'center' },
+                                        annotations: annotations
+                                    };
+                                    container.chartInstance = new ApexCharts(container, options);
+                                    container.chartInstance.render();
+                                } else {
+                                    container.chartInstance.updateOptions({
+                                        xaxis: { categories: dataX },
+                                        annotations: annotations
+                                    });
+                                    container.chartInstance.updateSeries([{ data: dataY }], true);
+                                }
+                            }
+                        
+                            renderOrUpdate($0, $1, $7);
+                        """,
+                jsTimestamps,
+                jsValues,
+                chartTitle,
+                seriesLabel,
+                xAxisLabel,
+                yAxisLabel,
+                nowLabel,
+                limitKw
+        );
     }
+
 
     private VerticalLayout createCard() {
         VerticalLayout card = new VerticalLayout();
@@ -323,7 +405,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
             ui.access(() -> {
                 currentKwValue.setText(updated.getCurrentKw() + " kW");
                 peakKwValue.setText(updated.getPeakKw() + " kW");
-                updateProductionChart(updated);
+                updateProductionChart(chartDiv, updated);
             });
         }, 0, 30, TimeUnit.SECONDS);
     }

@@ -3,11 +3,17 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.utils.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -20,6 +26,15 @@ public class ProductionSourceService {
     private final AccountRepository accountRepository;
     private final ProductionSourceDeviceRepository deviceRepository;
     private final ProductionHistoryRepository productionHistoryRepository;
+
+    @Transactional
+    public void deleteOldProductionHistory() {
+        Instant cutoff = Instant.now().minus(90, ChronoUnit.DAYS);
+        int deleted = productionHistoryRepository.deleteOlderThan(cutoff);
+        if (deleted > 0) {
+            log.info("Deleted {} production history rows older than {}", deleted, cutoff);
+        }
+    }
 
     public void createSource(
             Long accountId,
@@ -159,13 +174,30 @@ public class ProductionSourceService {
 
     @Transactional(readOnly = true)
     public List<ProductionHistoryResponse> getProductionHistory(Long sourceId, int hours) {
-        return productionHistoryRepository.findLastHoursBySourceId(sourceId, hours)
-                .stream()
-                .map(h -> ProductionHistoryResponse.builder()
-                        .kilowatts(h.getKilowatts())
-                        .createdAt(h.getCreatedAt())
-                        .build()
-                ).collect(Collectors.toList());
+        ProductionSourceEntity source = productionSourceRepository.findById(sourceId)
+                .orElseThrow(() -> new IllegalArgumentException("Production source not found: " + sourceId));
+        ZoneId zone = ZoneId.systemDefault();
+        Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
+        Map<Instant, List<ProductionHistoryEntity>> grouped =
+                productionHistoryRepository.findAllByProductionSource(source)
+                        .stream()
+                        .filter(h -> h.getCreatedAt().isAfter(since))
+                        .collect(Collectors.groupingBy(h -> Utils.toQuarterHour(h.getCreatedAt(), zone)));
+        return grouped.entrySet().stream()
+                .map(entry -> {
+                    Instant bucketStart = entry.getKey();
+                    List<ProductionHistoryEntity> values = entry.getValue();
+                    BigDecimal avg = values.stream()
+                            .map(ProductionHistoryEntity::getKilowatts)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add)
+                            .divide(BigDecimal.valueOf(values.size()), 2, RoundingMode.HALF_UP);
+                    return ProductionHistoryResponse.builder()
+                            .kilowatts(avg)
+                            .createdAt(bucketStart)
+                            .build();
+                })
+                .sorted(Comparator.comparing(ProductionHistoryResponse::getCreatedAt))
+                .toList();
     }
 
 }

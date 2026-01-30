@@ -349,7 +349,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         currentKwValue = new Div();
         currentKwValue.setText(p.getCurrentKw() + " kW");
         currentKwValue.getStyle()
-                .set("font-size", "3rem")
+                .set("font-size", "2.5rem")
                 .set("font-weight", "bold");
         wrapper.add(title, currentKwValue);
         return wrapper;
@@ -371,7 +371,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 cAvg.map(v -> v + " kW").orElse("N/A")
         );
         quarterAvgValue.getStyle()
-                .set("font-size", "3rem")
+                .set("font-size", "2.5rem")
                 .set("font-weight", "bold");
         wrapper.add(title, quarterAvgValue);
         return wrapper;
