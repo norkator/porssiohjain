@@ -20,6 +20,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -122,27 +123,27 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         uuid.setValue(s.getUuid().toString());
         uuid.setReadOnly(true);
 
-        TextField name = new TextField("Name");
+        TextField name = new TextField(t("productionsources.field.name"));
         name.setValue(Optional.ofNullable(s.getName()).orElse(""));
 
-        Checkbox enabled = new Checkbox("Enabled");
+        Checkbox enabled = new Checkbox(t("productionsources.field.enabled"));
         enabled.setValue(s.isEnabled());
 
-        TextField appId = new TextField("App ID");
+        TextField appId = new TextField(t("productionsources.field.appId"));
         appId.setValue(Optional.ofNullable(s.getAppId()).orElse(""));
 
-        PasswordField appSecret = new PasswordField("App Secret");
+        PasswordField appSecret = new PasswordField(t("productionsources.field.appSecret"));
         appSecret.setValue(Optional.ofNullable(s.getAppSecret()).orElse(""));
         appSecret.setPlaceholder("Leave empty to keep existing");
 
-        EmailField email = new EmailField("Email");
+        EmailField email = new EmailField(t("productionsources.field.email"));
         email.setValue(Optional.ofNullable(s.getEmail()).orElse(""));
 
-        PasswordField password = new PasswordField("Password");
+        PasswordField password = new PasswordField(t("productionsources.field.password"));
         password.setValue(Optional.ofNullable(s.getPassword()).orElse(""));
         password.setPlaceholder("Leave empty to keep existing");
 
-        TextField stationId = new TextField("Station ID");
+        TextField stationId = new TextField(t("productionsources.field.stationId"));
         stationId.setValue(Optional.ofNullable(s.getStationId()).orElse(""));
 
         Button save = new Button("Save", e -> {
@@ -214,16 +215,48 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
             );
             loadDevices();
         });
-        FormLayout layout = new FormLayout(deviceSelect, channel, add);
+        //FormLayout layout = new FormLayout(deviceSelect, channel, add);
+        FormLayout layout = new FormLayout();
         layout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 3));
         return layout;
     }
 
     private Component createCurrentStatsRow(ProductionSourceResponse s) {
-        currentKwValue = bigStatBox("Current kW", s.getCurrentKw() + " kW");
-        peakKwValue = bigStatBox("Peak kW", s.getPeakKw() + " kW");
-        return new HorizontalLayout(currentKwValue, peakKwValue);
+        Component currentKw = createStatBox("Current kW", s.getCurrentKw() + " kW");
+        Component peakKw = createStatBox("Peak kW", s.getPeakKw() + " kW");
+
+        HorizontalLayout row = new HorizontalLayout(currentKw, peakKw);
+        row.setWidthFull();
+        row.setSpacing(true);
+        row.setPadding(false);
+        row.getStyle().set("flex-wrap", "wrap").set("gap", "16px");
+
+        currentKw.getElement().getStyle().set("flex", "1 1 300px");
+        peakKw.getElement().getStyle().set("flex", "1 1 300px");
+
+        return row;
+    }
+
+    private Component createStatBox(String titleText, String valueText) {
+        Div wrapper = new Div();
+        wrapper.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-10pct)")
+                .set("text-align", "center");
+
+        H2 title = new H2(titleText);
+        title.getStyle().set("margin", "0");
+
+        Div value = new Div();
+        value.setText(valueText);
+        value.getStyle()
+                .set("font-size", "2.5rem")
+                .set("font-weight", "bold");
+
+        wrapper.add(title, value);
+        return wrapper;
     }
 
     private Div createChartContainer() {
