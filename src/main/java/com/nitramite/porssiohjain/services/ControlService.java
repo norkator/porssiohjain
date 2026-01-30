@@ -132,8 +132,10 @@ public class ControlService {
                 .toList();
     }
 
-    public ControlResponse getControl(Long controlId) {
-        return controlRepository.findById(controlId)
+    public ControlResponse getControl(
+            Long accountId, Long controlId
+    ) {
+        return controlRepository.findByIdAndAccountId(controlId, accountId)
                 .map(entity -> ControlResponse.builder()
                         .id(entity.getId())
                         .name(entity.getName())
@@ -152,7 +154,7 @@ public class ControlService {
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build())
-                .orElseThrow(() -> new IllegalArgumentException("Control not found with ID: " + controlId));
+                .orElseThrow(() -> new IllegalArgumentException("Control not found for your account with ID: " + controlId));
     }
 
     public ControlDeviceResponse addDeviceToControl(

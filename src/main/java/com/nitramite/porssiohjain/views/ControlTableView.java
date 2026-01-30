@@ -119,7 +119,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private void loadControl() {
-        this.control = controlService.getControl(controlId);
+        this.control = controlService.getControl(getAccountId(), controlId);
         loadTransferContract();
     }
 

@@ -11,6 +11,8 @@ public interface ControlRepository extends JpaRepository<ControlEntity, Long> {
 
     List<ControlEntity> findAllByAccountOrderByIdAsc(AccountEntity account);
 
+    Optional<ControlEntity> findByIdAndAccountId(Long id, Long accountId);
+
     Optional<ControlEntity> findFirstByAccountId(Long accountId);
 
 }
