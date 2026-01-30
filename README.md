@@ -1,6 +1,6 @@
-# Pörssiohjain
+# Pörssiohjain 2000 ™
 
-![ukjx6lcc](./doc/ukjx6lcc.png)
+![ukjx6lcc](./doc/odw6ej6ii.png)
 
 Pörssiohjain on Springin päälle rakennettu yksinkertainen online sovellus, joka hakee Nordpoolista pörssisähkön hinnat
 ja päivittää ohjaukset. Ohjauksien on tarkoitus antaa käyttäjälle mahdollisuus säätää laitteita päälle halvimmilla
