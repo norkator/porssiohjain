@@ -19,6 +19,8 @@ public class Scheduler {
     private final PowerLimitService powerLimitService;
     private final SolarmanPvService solarmanPvService;
 
+    private boolean firstRun = true;
+
     public Scheduler(
             NordpoolDataPortalService nordpoolDataPortalService,
             ControlSchedulerService controlSchedulerService,
@@ -107,6 +109,10 @@ public class Scheduler {
 
     @Scheduled(fixedDelayString = "${solarman.poll-interval}")
     public void pollSolarmanSources() {
+        if (firstRun) {
+            firstRun = false;
+            return;
+        }
         solarmanPvService.fetchGenerationData();
     }
 
