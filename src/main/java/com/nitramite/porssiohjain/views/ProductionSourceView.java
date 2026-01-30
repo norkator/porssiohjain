@@ -106,7 +106,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     private void buildView() {
         ProductionSourceResponse source = productionSourceService.getSource(accountId, sourceId);
         VerticalLayout card = createCard();
-        card.add(new H3("Modify Production Source"));
+        card.add(new H3(t("productionsource.title")));
         card.add(createSourceInfoSection(source));
         configureDeviceGrid();
         loadDevices();
@@ -434,12 +434,12 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     private void startAutoRefresh() {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(() -> {
-            ProductionSourceResponse updated = productionSourceService.getSource(accountId, sourceId);
-            ui.access(() -> {
-                currentKwValue.setText(updated.getCurrentKw() + " kW");
-                peakKwValue.setText(updated.getPeakKw() + " kW");
-                updateProductionChart(chartDiv, updated);
-            });
+            // ProductionSourceResponse updated = productionSourceService.getSource(accountId, sourceId);
+            // ui.access(() -> {
+            //     currentKwValue.setText(updated.getCurrentKw() + " kW");
+            //     peakKwValue.setText(updated.getPeakKw() + " kW");
+            //     updateProductionChart(chartDiv, updated);
+            // });
         }, 0, 30, TimeUnit.SECONDS);
     }
 

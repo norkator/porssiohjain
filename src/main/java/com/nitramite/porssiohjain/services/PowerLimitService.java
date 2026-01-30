@@ -138,6 +138,7 @@ public class PowerLimitService {
                 .name(entity.getName())
                 .limitKw(entity.getLimitKw())
                 .currentKw(entity.getCurrentKw())
+                .peakKw(entity.getPeakKw())
                 .enabled(entity.isEnabled())
                 .notifyEnabled(entity.isNotifyEnabled())
                 .timezone(entity.getTimezone())

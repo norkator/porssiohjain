@@ -17,6 +17,7 @@ public class PowerLimitResponse {
     private String name;
     private BigDecimal limitKw;
     private BigDecimal currentKw;
+    private BigDecimal peakKw;
     private boolean enabled;
     private boolean notifyEnabled;
     private String timezone;
