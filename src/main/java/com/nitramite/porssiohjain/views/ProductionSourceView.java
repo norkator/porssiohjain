@@ -238,10 +238,12 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
 
         ComboBox<ComparisonType> comparisonType = new ComboBox<>(t("productionsources.devices.comparisonType"));
         comparisonType.setItems(ComparisonType.values());
+        comparisonType.setItemLabelGenerator(c -> t("comparisonType." + c.name()));
         comparisonType.setValue(ComparisonType.GREATER_THAN);
 
         ComboBox<ControlAction> action = new ComboBox<>(t("productionsources.devices.action"));
         action.setItems(ControlAction.values());
+        action.setItemLabelGenerator(a -> t("controlAction." + a.name()));
         action.setValue(ControlAction.TURN_ON);
 
         Button add = new Button(t("common.add"), e -> {
