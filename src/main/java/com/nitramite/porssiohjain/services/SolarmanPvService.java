@@ -33,6 +33,7 @@ public class SolarmanPvService {
     private final SystemLogService systemLogService;
 
     private final Map<Long, SolarmanTokenCache> tokenCache = new ConcurrentHashMap<>();
+    private static final long MAX_DATA_AGE_SECONDS = 1800;
 
     private final String baseUrl = "https://globalapi.solarmanpv.com";
 
@@ -143,6 +144,19 @@ public class SolarmanPvService {
         SolarmanStationResponse data = response.getBody();
         if (data == null) {
             throw new IllegalStateException("Solarman station response null");
+        }
+
+        Long lastUpdateTime = data.getLastUpdateTime();
+        if (lastUpdateTime == null) {
+            throw new IllegalStateException("Solarman lastUpdateTime missing");
+        }
+
+        long now = Instant.now().getEpochSecond();
+        long age = now - lastUpdateTime;
+
+        if (age > MAX_DATA_AGE_SECONDS) {
+            log.warn("Solarman data stale ({}s old) for station {}", age, source.getStationId());
+            return 0d;
         }
 
         double watts = data.getGenerationPower() != null ? data.getGenerationPower() : 0d;
