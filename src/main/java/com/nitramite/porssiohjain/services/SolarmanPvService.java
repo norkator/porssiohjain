@@ -55,6 +55,9 @@ public class SolarmanPvService {
                 Double kwDouble = fetchCurrentKw(source);
                 BigDecimal kw = BigDecimal.valueOf(kwDouble).setScale(2, RoundingMode.HALF_UP);
                 source.setCurrentKw(kw);
+                if (source.getPeakKw() == null || kw.compareTo(source.getPeakKw()) > 0) {
+                    source.setPeakKw(kw);
+                }
                 productionSourceRepository.save(source);
                 ProductionHistoryEntity history = ProductionHistoryEntity.builder()
                         .account(source.getAccount())
