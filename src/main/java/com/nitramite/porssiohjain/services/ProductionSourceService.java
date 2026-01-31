@@ -82,6 +82,7 @@ public class ProductionSourceService {
                 .currentKw(e.getCurrentKw())
                 .peakKw(e.getPeakKw())
                 .enabled(e.isEnabled())
+                .timezone(e.getTimezone())
                 .createdAt(e.getCreatedAt())
                 .updatedAt(e.getUpdatedAt())
                 .appId(e.getAppId())
@@ -150,6 +151,7 @@ public class ProductionSourceService {
             Long sourceId,
             String name,
             boolean enabled,
+            String timezone,
             String appId,
             String appSecret,
             String email,
@@ -161,6 +163,7 @@ public class ProductionSourceService {
                 .orElseThrow(() -> new IllegalArgumentException("Source not found"));
         entity.setName(name);
         entity.setEnabled(enabled);
+        entity.setTimezone(timezone);
         if (appId != null) entity.setAppId(appId);
         if (email != null) entity.setEmail(email);
         if (stationId != null) entity.setStationId(stationId);
@@ -176,7 +179,7 @@ public class ProductionSourceService {
     public List<ProductionHistoryResponse> getProductionHistory(Long sourceId, int hours) {
         ProductionSourceEntity source = productionSourceRepository.findById(sourceId)
                 .orElseThrow(() -> new IllegalArgumentException("Production source not found: " + sourceId));
-        ZoneId zone = ZoneId.systemDefault();
+        ZoneId zone = ZoneId.of(source.getTimezone());
         Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
         Map<Instant, List<ProductionHistoryEntity>> grouped =
                 productionHistoryRepository.findAllByProductionSource(source)

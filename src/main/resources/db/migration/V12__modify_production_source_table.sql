@@ -1,0 +1,2 @@
+ALTER TABLE production_source
+    ADD COLUMN timezone VARCHAR(64) NOT NULL DEFAULT 'UTC';

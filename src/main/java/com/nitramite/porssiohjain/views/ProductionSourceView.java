@@ -129,6 +129,11 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         Checkbox enabled = new Checkbox(t("productionsources.field.enabled"));
         enabled.setValue(s.isEnabled());
 
+        ComboBox<String> timezoneField = new ComboBox<>(t("productionsources.field.timezone"));
+        timezoneField.setItems(ZoneId.getAvailableZoneIds());
+        timezoneField.setValue(Optional.ofNullable(s.getTimezone()).orElse("UTC"));
+        timezoneField.setWidthFull();
+
         TextField appId = new TextField(t("productionsources.field.appId"));
         appId.setValue(Optional.ofNullable(s.getAppId()).orElse(""));
 
@@ -152,6 +157,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                     sourceId,
                     name.getValue(),
                     enabled.getValue(),
+                    timezoneField.getValue(),
                     emptyToNull(appId.getValue()),
                     emptyToNull(appSecret.getValue()),
                     emptyToNull(email.getValue()),
@@ -163,8 +169,9 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         FormLayout form = new FormLayout(
-                uuid, name, enabled,
-                appId, appSecret, email, password, stationId
+                uuid, enabled, name,
+                appId, appSecret, email, password, stationId,
+                timezoneField
         );
         form.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),

@@ -20,6 +20,7 @@ public class ProductionSourceResponse {
     private BigDecimal currentKw;
     private BigDecimal peakKw;
     private boolean enabled;
+    private String timezone;
     private Instant createdAt;
     private Instant updatedAt;
 
