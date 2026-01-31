@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.entity.repository;
 
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceDeviceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -12,5 +13,7 @@ public interface ProductionSourceDeviceRepository extends JpaRepository<Producti
     List<ProductionSourceDeviceEntity> findByProductionSourceId(Long productionSourceId);
 
     void deleteByIdAndProductionSourceId(Long id, Long productionSourceId);
+
+    List<ProductionSourceDeviceEntity> findAllByDevice(DeviceEntity device);
 
 }

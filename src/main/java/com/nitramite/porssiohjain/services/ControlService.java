@@ -28,6 +28,7 @@ public class ControlService {
     private final PowerLimitDeviceRepository powerLimitDeviceRepository;
     private final ElectricityContractRepository electricityContractRepository;
     private final PowerLimitService powerLimitService;
+    private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -296,8 +297,15 @@ public class ControlService {
         for (ControlDeviceEntity cd : controlDevices) {
             // check for power limit first and skip later logic if power limit active
             int channel = cd.getDeviceChannel();
+
             if (isPowerLimitActiveForDeviceChannel(device, channel)) {
                 channelMap.put(channel, 0);
+                continue;
+            }
+
+            Integer productionOverride = getProductionOverride(device, channel);
+            if (productionOverride != null) {
+                channelMap.put(channel, productionOverride);
                 continue;
             }
 
@@ -354,6 +362,25 @@ public class ControlService {
             }
         }
         return false;
+    }
+
+
+    private Integer getProductionOverride(
+            DeviceEntity device, int channel
+    ) {
+        List<ProductionSourceDeviceEntity> rules = productionSourceDeviceRepository.findAllByDevice(device);
+        for (ProductionSourceDeviceEntity r : rules) {
+            if (!r.getDeviceChannel().equals(channel)) continue;
+            BigDecimal currentKw = r.getProductionSource().getCurrentKw();
+            BigDecimal trigger = r.getTriggerKw();
+            int cmp = currentKw.compareTo(trigger);
+            boolean match = (r.getComparisonType() == ComparisonType.GREATER_THAN && cmp > 0) ||
+                    (r.getComparisonType() == ComparisonType.LESS_THAN && cmp < 0);
+            if (match) {
+                return r.getAction() == ControlAction.TURN_ON ? 1 : 0;
+            }
+        }
+        return null;
     }
 
 
