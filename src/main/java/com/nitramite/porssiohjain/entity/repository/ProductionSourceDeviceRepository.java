@@ -13,10 +13,4 @@ public interface ProductionSourceDeviceRepository extends JpaRepository<Producti
 
     void deleteByIdAndProductionSourceId(Long id, Long productionSourceId);
 
-    boolean existsByProductionSourceIdAndDeviceIdAndDeviceChannel(
-            Long productionSourceId,
-            Long deviceId,
-            Integer deviceChannel
-    );
-
 }

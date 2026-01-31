@@ -24,8 +24,9 @@ public class ProductionSourceService {
 
     private final ProductionSourceRepository productionSourceRepository;
     private final AccountRepository accountRepository;
-    private final ProductionSourceDeviceRepository deviceRepository;
+    private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
     private final ProductionHistoryRepository productionHistoryRepository;
+    private final DeviceRepository deviceRepository;
 
     @Transactional
     public void deleteOldProductionHistory() {
@@ -102,7 +103,7 @@ public class ProductionSourceService {
 
     @Transactional(readOnly = true)
     public List<ProductionSourceDeviceResponse> getSourceDevices(Long sourceId) {
-        return deviceRepository.findByProductionSourceId(sourceId).stream()
+        return productionSourceDeviceRepository.findByProductionSourceId(sourceId).stream()
                 .map(this::mapDeviceToResponse)
                 .collect(Collectors.toList());
     }
@@ -132,17 +133,37 @@ public class ProductionSourceService {
     }
 
     @Transactional
-    public void addDevice(Long accountId, Long sourceId, Long deviceId, int channel) {
+    public void addDevice(
+            Long accountId, Long sourceId, Long deviceId, int channel,
+            BigDecimal triggerKw, ComparisonType comparisonType, ControlAction action
+    ) {
+        AccountEntity account = accountRepository
+                .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        ProductionSourceEntity source = productionSourceRepository
+                .findByIdAndAccountId(sourceId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        DeviceEntity device = deviceRepository
+                .findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found for account"));
         ProductionSourceDeviceEntity entity = new ProductionSourceDeviceEntity();
-        entity.setProductionSource(productionSourceRepository.getReferenceById(sourceId));
-        entity.setDevice(deviceRepository.getReferenceById(deviceId).getDevice());
+        entity.setProductionSource(source);
+        entity.setDevice(device);
         entity.setDeviceChannel(channel);
-        deviceRepository.save(entity);
+        entity.setTriggerKw(triggerKw);
+        entity.setComparisonType(comparisonType);
+        entity.setAction(action);
+        entity.setEnabled(true);
+        productionSourceDeviceRepository.save(entity);
     }
 
     @Transactional
-    public void removeDevice(Long sourceId, Long deviceMappingId) {
-        deviceRepository.deleteById(deviceMappingId);
+    public void removeDevice(Long accountId, Long sourceId, Long deviceMappingId) {
+        AccountEntity account = accountRepository
+                .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        ProductionSourceEntity source = productionSourceRepository
+                .findByIdAndAccountId(sourceId, account.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        productionSourceDeviceRepository.deleteByIdAndProductionSourceId(deviceMappingId, source.getId());
     }
 
     @Transactional

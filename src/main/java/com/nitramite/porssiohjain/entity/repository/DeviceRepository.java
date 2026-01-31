@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.entity.repository;
 
+import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -14,5 +15,7 @@ public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
     List<DeviceEntity> findByAccountIdOrderByIdAsc(Long accountId);
 
     Optional<DeviceEntity> findByUuid(UUID uuid);
+
+    Optional<DeviceEntity> findByIdAndAccount(Long id, AccountEntity account);
 
 }

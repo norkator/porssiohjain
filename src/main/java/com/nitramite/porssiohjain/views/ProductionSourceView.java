@@ -1,5 +1,7 @@
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.entity.ComparisonType;
+import com.nitramite.porssiohjain.entity.ControlAction;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -39,6 +41,7 @@ import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -188,12 +191,24 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     }
 
     private void configureDeviceGrid() {
-        deviceGrid.addColumn(d -> d.getDevice().getDeviceName()).setHeader("Device");
-        deviceGrid.addColumn(ProductionSourceDeviceResponse::getDeviceChannel).setHeader("Channel");
+        deviceGrid.addColumn(d -> d.getDevice().getDeviceName())
+                .setHeader(t("productionsources.devices.device"));
+
+        deviceGrid.addColumn(ProductionSourceDeviceResponse::getDeviceChannel)
+                .setHeader(t("productionsources.devices.channel"));
+
+        deviceGrid.addColumn(ProductionSourceDeviceResponse::getTriggerKw)
+                .setHeader(t("productionsources.devices.triggerKw"));
+
+        deviceGrid.addColumn(ProductionSourceDeviceResponse::getComparisonType)
+                .setHeader(t("productionsources.devices.comparisonType"));
+
+        deviceGrid.addColumn(ProductionSourceDeviceResponse::getAction)
+                .setHeader(t("productionsources.devices.action"));
 
         deviceGrid.addComponentColumn(d -> {
-            Button delete = new Button("Delete", e -> {
-                productionSourceService.removeDevice(sourceId, d.getId());
+            Button delete = new Button(t("common.delete"), e -> {
+                productionSourceService.removeDevice(accountId, sourceId, d.getId());
                 loadDevices();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -209,23 +224,54 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     }
 
     private Component createAddDeviceLayout() {
-        ComboBox<DeviceResponse> deviceSelect = new ComboBox<>("Device");
+        ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("productionsources.devices.device"));
         deviceSelect.setItems(deviceService.getAllDevices(accountId));
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
-        NumberField channel = new NumberField("Channel");
-        Button add = new Button("Add", e -> {
+
+        NumberField channel = new NumberField(t("productionsources.devices.channel"));
+        channel.setStep(1);
+        channel.setMin(0);
+
+        NumberField triggerKw = new NumberField(t("productionsources.devices.triggerKw"));
+        triggerKw.setStep(0.1);
+        triggerKw.setMin(0);
+
+        ComboBox<ComparisonType> comparisonType = new ComboBox<>(t("productionsources.devices.comparisonType"));
+        comparisonType.setItems(ComparisonType.values());
+        comparisonType.setValue(ComparisonType.GREATER_THAN);
+
+        ComboBox<ControlAction> action = new ComboBox<>(t("productionsources.devices.action"));
+        action.setItems(ControlAction.values());
+        action.setValue(ControlAction.TURN_ON);
+
+        Button add = new Button(t("common.add"), e -> {
             productionSourceService.addDevice(
                     accountId,
                     sourceId,
                     deviceSelect.getValue().getId(),
-                    channel.getValue().intValue()
+                    channel.getValue().intValue(),
+                    BigDecimal.valueOf(triggerKw.getValue()),
+                    comparisonType.getValue(),
+                    action.getValue()
             );
             loadDevices();
         });
-        //FormLayout layout = new FormLayout(deviceSelect, channel, add);
-        FormLayout layout = new FormLayout();
-        layout.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 3));
+        add.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        FormLayout layout = new FormLayout(
+                deviceSelect,
+                channel,
+                triggerKw,
+                comparisonType,
+                action,
+                add
+        );
+
+        layout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 3)
+        );
+
         return layout;
     }
 
