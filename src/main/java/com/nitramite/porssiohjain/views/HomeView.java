@@ -5,6 +5,7 @@ import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.NordpoolService;
 import com.nitramite.porssiohjain.services.models.TodayPriceStatsResponse;
+import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -151,8 +152,8 @@ public class HomeView extends VerticalLayout {
 
             contentBox.add(
                     devicesButton, controlsButton, myProductionButton, powerLimitsButton, // temperatureControlsButton,
-                    dashboardButton, settingsButton, logoutButton, createDivider(),
-                    priceStatsLayout, createDivider()
+                    dashboardButton, settingsButton, logoutButton, Divider.createDivider(),
+                    priceStatsLayout, Divider.createDivider()
             );
         } else {
             contentBox.add(loginButton, createAccountButton);
@@ -203,12 +204,6 @@ public class HomeView extends VerticalLayout {
         if (valueText != null) {
             valueText.setText(value.setScale(2, RoundingMode.HALF_UP) + " c/kWh");
         }
-    }
-
-    private Div createDivider() {
-        Div hr = new Div();
-        hr.getStyle().set("width", "100%").set("height", "1px").set("background-color", "var(--lumo-contrast-20pct)").set("margin", "1rem 0");
-        return hr;
     }
 
     private Long getAccountId() {

@@ -7,6 +7,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
@@ -26,6 +27,9 @@ import java.util.UUID;
 public class LoginView extends VerticalLayout {
 
     protected final I18nService i18n;
+
+    private static final String DEMO_UUID = "78b7823f-d5cc-4376-8910-cd62e7b32400";
+    private static final String DEMO_SECRET = "103058b63f9245099d0c30d81e1636bc";
 
     @Autowired
     public LoginView(
@@ -76,7 +80,19 @@ public class LoginView extends VerticalLayout {
         });
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        formLayout.add(title, uuidField, secretField, loginButton);
+        Span demoLink = new Span(t("login.demoAccount"));
+        demoLink.getStyle()
+                .set("color", "var(--lumo-primary-text-color)")
+                .set("cursor", "pointer")
+                .set("font-size", "0.9em")
+                .set("text-decoration", "underline");
+        demoLink.addClickListener(e -> {
+            uuidField.setValue(DEMO_UUID);
+            secretField.setValue(DEMO_SECRET);
+            loginButton.focus();
+        });
+
+        formLayout.add(title, uuidField, secretField, loginButton, demoLink);
         add(formLayout);
     }
 
