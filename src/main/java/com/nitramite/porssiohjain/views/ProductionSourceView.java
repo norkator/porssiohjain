@@ -21,7 +21,6 @@ import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
@@ -278,8 +277,8 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     }
 
     private Component createCurrentStatsRow(ProductionSourceResponse s) {
-        Component currentKw = createStatBox("Current kW", s.getCurrentKw() + " kW");
-        Component peakKw = createStatBox("Peak kW", s.getPeakKw() + " kW");
+        Component currentKw = createStatBox(t("productionsources.grid.currentKw"), s.getCurrentKw() + " kW");
+        Component peakKw = createStatBox(t("productionsources.grid.peakKw"), s.getPeakKw() + " kW");
 
         HorizontalLayout row = new HorizontalLayout(currentKw, peakKw);
         row.setWidthFull();
@@ -470,13 +469,6 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-5pct)");
         return d;
-    }
-
-    private Div bigStatBox(String label, String value) {
-        Div wrap = new Div();
-        wrap.getStyle().set("text-align", "center");
-        wrap.add(new H3(label), new H1(value));
-        return wrap;
     }
 
     @Override
