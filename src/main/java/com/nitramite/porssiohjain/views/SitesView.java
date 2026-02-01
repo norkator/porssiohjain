@@ -87,6 +87,9 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         nameField.setWidthFull();
 
         typeField.setItems(SiteType.values());
+        typeField.setItemLabelGenerator(type ->
+                t("siteType." + type.name())
+        );
         typeField.setWidthFull();
 
         enabledToggle.setValue(true);
