@@ -33,25 +33,22 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private final I18nService i18n;
 
     private Long accountId;
+    private Long editingSiteId = null;
 
     private final TextField nameField;
     private final ComboBox<SiteType> typeField;
     private final Checkbox enabledToggle;
-    private final Button createButton;
+    private final Button saveButton;
 
     @Autowired
-    public SitesView(
-            SiteService siteService,
-            AuthService authService,
-            I18nService i18n
-    ) {
+    public SitesView(SiteService siteService, AuthService authService, I18nService i18n) {
         this.siteService = siteService;
         this.i18n = i18n;
 
         nameField = new TextField(t("sites.field.name"));
         typeField = new ComboBox<>(t("sites.field.type"));
         enabledToggle = new Checkbox(t("sites.field.enabled"));
-        createButton = new Button(t("sites.button.create"));
+        saveButton = new Button(t("sites.button.create"));
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -59,7 +56,6 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
 
         VerticalLayout card = new VerticalLayout();
         card.setWidthFull();
-        // card.setMaxWidth("900px");
         card.setPadding(true);
         card.setSpacing(true);
         card.getStyle()
@@ -87,15 +83,19 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         nameField.setWidthFull();
 
         typeField.setItems(SiteType.values());
-        typeField.setItemLabelGenerator(type ->
-                t("siteType." + type.name())
-        );
+        typeField.setItemLabelGenerator(type -> t("siteType." + type.name()));
         typeField.setWidthFull();
 
         enabledToggle.setValue(true);
 
-        createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        createButton.addClickListener(e -> createNewSite());
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveButton.addClickListener(e -> {
+            if (editingSiteId == null) {
+                createNewSite();
+            } else {
+                updateSite();
+            }
+        });
     }
 
     private Component createFormLayout() {
@@ -105,7 +105,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                 new FormLayout.ResponsiveStep("600px", 2)
         );
 
-        VerticalLayout container = new VerticalLayout(form, createButton);
+        VerticalLayout container = new VerticalLayout(form, saveButton);
         container.getStyle().set("margin-top", "20px");
 
         return container;
@@ -114,20 +114,22 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private void configureGrid() {
         sitesGrid.addColumn(SiteResponse::getId).setHeader("ID").setAutoWidth(true);
         sitesGrid.addColumn(SiteResponse::getName).setHeader(t("sites.grid.name")).setAutoWidth(true);
-        sitesGrid.addColumn(SiteResponse::getType).setHeader(t("sites.grid.type")).setAutoWidth(true);
+        sitesGrid.addColumn(site -> t("siteType." + site.getType().name()))
+                .setHeader(t("sites.grid.type")).setAutoWidth(true);
         sitesGrid.addColumn(SiteResponse::getEnabled).setHeader(t("sites.grid.enabled")).setAutoWidth(true);
 
         sitesGrid.setWidthFull();
         sitesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 
         sitesGrid.asSingleSelect().addValueChangeListener(event -> {
-            // SiteResponse selected = event.getValue();
-            // if (selected != null) {
-            //     getUI().ifPresent(ui ->
-            //             ui.navigate(SiteView.class,
-            //                     new RouteParameters("siteId", selected.getId().toString()))
-            //     );
-            // }
+            SiteResponse selected = event.getValue();
+            if (selected != null) {
+                editingSiteId = selected.getId();
+                nameField.setValue(selected.getName());
+                typeField.setValue(selected.getType());
+                enabledToggle.setValue(selected.getEnabled());
+                saveButton.setText(t("sites.button.update"));
+            }
         });
     }
 
@@ -138,10 +140,20 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         loadSites();
     }
 
+    private void updateSite() {
+        siteService.updateSite(editingSiteId, nameField.getValue(), typeField.getValue(), enabledToggle.getValue());
+        Notification.show(t("sites.notification.updated"));
+        clearForm();
+        loadSites();
+    }
+
     private void clearForm() {
+        editingSiteId = null;
         nameField.clear();
         typeField.clear();
         enabledToggle.setValue(true);
+        saveButton.setText(t("sites.button.create"));
+        sitesGrid.deselectAll();
     }
 
     private void loadSites() {

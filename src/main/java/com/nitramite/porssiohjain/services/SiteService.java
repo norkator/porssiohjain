@@ -32,6 +32,15 @@ public class SiteService {
         siteRepository.save(site);
     }
 
+    public void updateSite(Long siteId, String name, SiteType type, Boolean enabled) {
+        SiteEntity site = siteRepository.findById(siteId)
+                .orElseThrow(() -> new IllegalArgumentException("Site not found"));
+        site.setName(name);
+        site.setType(type);
+        site.setEnabled(enabled);
+        siteRepository.save(site);
+    }
+
     public List<SiteResponse> getAllSites(Long accountId) {
         return siteRepository.findByAccountId(accountId)
                 .stream()
