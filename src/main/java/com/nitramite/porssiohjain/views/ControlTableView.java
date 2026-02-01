@@ -7,6 +7,7 @@ import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
@@ -308,7 +309,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         card.add(deviceGrid);
         card.add(createAddDeviceLayout());
         loadControlDevices();
-        card.add(createDivider());
+        card.add(Divider.createDivider());
         card.add(getControlTableSection());
 
         add(card);
@@ -371,12 +372,6 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 .set("background-color", "var(--lumo-contrast-5pct)");
 
         return formLayout;
-    }
-
-    private Div createDivider() {
-        Div hr = new Div();
-        hr.getStyle().set("width", "100%").set("height", "1px").set("background-color", "var(--lumo-contrast-20pct)").set("margin", "1rem 0");
-        return hr;
     }
 
     private VerticalLayout getControlTableSection() {

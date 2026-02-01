@@ -4,6 +4,7 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -13,6 +14,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.EmailField;
@@ -88,11 +90,24 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         H2 pageTitle = new H2(t("settings.title"));
         pageTitle.getStyle().set("margin-top", "0");
 
+        Button electricityContractsButton = new Button(t("settings.electricityContracts"), e -> UI.getCurrent().navigate(ElectricityContractsView.class));
+        electricityContractsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button sitesButton = new Button(t("settings.sites"), e -> UI.getCurrent().navigate(SitesView.class));
+        sitesButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        HorizontalLayout buttonRow = new HorizontalLayout(
+                electricityContractsButton,
+                sitesButton
+        );
+
         card.add(
                 pageTitle,
                 createAccountSection(),
                 createNotificationSection(),
-                saveButton
+                saveButton,
+                Divider.createDivider(),
+                buttonRow
         );
 
         add(card);
