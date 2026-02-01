@@ -335,6 +335,12 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         List<String> timestamps = new ArrayList<>();
         List<Double> values = new ArrayList<>();
         ZoneId zone = ZoneId.systemDefault();
+        try {
+            if (sourceResponse.getTimezone() != null) {
+                zone = ZoneId.of(sourceResponse.getTimezone());
+            }
+        } catch (Exception ignored) {
+        }
 
         DateTimeFormatter jsFormatter = DateTimeFormatter
                 .ofPattern("yyyy-MM-dd HH:mm")
