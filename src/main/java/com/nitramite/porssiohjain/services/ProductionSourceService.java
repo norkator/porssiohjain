@@ -61,6 +61,7 @@ public class ProductionSourceService {
                 .stationId(stationId)
                 .enabled(enabled)
                 .account(account)
+                .timezone("UTC")
                 .build();
 
         productionSourceRepository.save(entity);
