@@ -115,9 +115,6 @@ public class HomeView extends VerticalLayout {
         Button dashboardButton = new Button(t("home.dashboard"), e -> UI.getCurrent().navigate(DashboardView.class));
         dashboardButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        Button electricityContractsButton = new Button(t("home.electricityContracts"), e -> UI.getCurrent().navigate(ElectricityContractsView.class));
-        electricityContractsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-
         Button settingsButton = new Button(t("home.settings"), e -> UI.getCurrent().navigate(SettingsView.class));
         settingsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
@@ -132,7 +129,7 @@ public class HomeView extends VerticalLayout {
 
         Stream.of(
                 loginButton, createAccountButton, devicesButton, controlsButton, myProductionButton, powerLimitsButton, temperatureControlsButton,
-                dashboardButton, electricityContractsButton, settingsButton, logoutButton
+                dashboardButton, settingsButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
             btn.getElement().addEventListener("mouseover", e -> btn.getStyle().set("transform", "scale(1.03)"));
@@ -154,7 +151,7 @@ public class HomeView extends VerticalLayout {
 
             contentBox.add(
                     devicesButton, controlsButton, myProductionButton, powerLimitsButton, // temperatureControlsButton,
-                    dashboardButton, electricityContractsButton, settingsButton, logoutButton, createDivider(),
+                    dashboardButton, settingsButton, logoutButton, createDivider(),
                     priceStatsLayout, createDivider()
             );
         } else {
