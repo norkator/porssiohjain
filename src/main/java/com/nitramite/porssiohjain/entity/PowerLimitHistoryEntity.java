@@ -44,8 +44,12 @@ public class PowerLimitHistoryEntity {
 
     @PrePersist
     public void onCreate() {
-        createdAt = Instant.now();
-        updatedAt = createdAt;
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = createdAt;
+        }
     }
 
     @PreUpdate

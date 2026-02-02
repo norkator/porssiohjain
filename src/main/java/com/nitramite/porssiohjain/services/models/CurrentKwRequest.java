@@ -11,4 +11,6 @@ import lombok.Setter;
 @AllArgsConstructor
 public class CurrentKwRequest {
     private Double currentKw;
+    private Double totalKwh;
+    private Long measuredAt;
 }

@@ -2,10 +2,7 @@ package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
-import com.nitramite.porssiohjain.services.models.DeviceResponse;
-import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
-import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
-import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
+import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.utils.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -169,34 +166,47 @@ public class PowerLimitService {
     }
 
     @Transactional
-    public void updateCurrentKw(String uuid, Double currentKw) {
+    public void updateCurrentKw(String uuid, CurrentKwRequest request) {
         PowerLimitEntity entity = powerLimitRepository.findByUuid(UUID.fromString(uuid))
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Power limit not found for uuid: " + uuid
                 ));
-        BigDecimal kw = BigDecimal.valueOf(currentKw);
+        BigDecimal kw = BigDecimal.valueOf(request.getCurrentKw());
+        BigDecimal totalKwh = BigDecimal.valueOf(request.getTotalKwh());
+        Instant measuredAt = Instant.ofEpochMilli(request.getMeasuredAt());
         entity.setCurrentKw(kw);
         if (entity.getPeakKw() == null || kw.compareTo(entity.getPeakKw()) > 0) {
             entity.setPeakKw(kw);
         }
-        Instant now = Instant.now();
-        Instant minuteStart = now.truncatedTo(ChronoUnit.MINUTES);
+        BigDecimal deltaKwh = BigDecimal.ZERO;
+        if (entity.getLastTotalKwh() != null) {
+            if (totalKwh.compareTo(entity.getLastTotalKwh()) >= 0) {
+                deltaKwh = totalKwh.subtract(entity.getLastTotalKwh());
+            } else {
+                entity.setLastTotalKwh(totalKwh);
+                entity.setLastMeasuredAt(measuredAt);
+                return;
+            }
+        }
+        entity.setLastTotalKwh(totalKwh);
+        entity.setLastMeasuredAt(measuredAt);
+        Instant minuteStart = measuredAt.truncatedTo(ChronoUnit.MINUTES);
         Instant minuteEnd = minuteStart.plus(1, ChronoUnit.MINUTES);
+        BigDecimal finalDeltaKwh = deltaKwh;
         PowerLimitHistoryEntity history = powerLimitHistoryRepository
                 .findForMinute(entity, minuteStart, minuteEnd)
                 .orElseGet(() -> {
                     PowerLimitHistoryEntity h = PowerLimitHistoryEntity.builder()
                             .account(entity.getAccount())
                             .powerLimit(entity)
-                            .kilowatts(kw)
+                            .kilowatts(finalDeltaKwh)
+                            .createdAt(minuteStart)
                             .build();
                     entity.getHistory().add(h);
                     return h;
                 });
-        history.setKilowatts(kw);
-        if (entity.isNotifyEnabled()) {
-            checkAndSendNotification(entity);
-        }
+        history.setKilowatts(finalDeltaKwh);
+        history.setCreatedAt(minuteStart);
     }
 
     private void checkAndSendNotification(PowerLimitEntity entity) {

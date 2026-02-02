@@ -17,7 +17,9 @@ public class PowerController {
             @PathVariable String deviceUuid,
             @RequestBody CurrentKwRequest request
     ) {
-        powerLimitService.updateCurrentKw(deviceUuid, request.getCurrentKw());
+        powerLimitService.updateCurrentKw(
+                deviceUuid, request
+        );
     }
 
 }

@@ -51,6 +51,12 @@ public class PowerLimitEntity {
     @Builder.Default
     private boolean notifyEnabled = false;
 
+    @Column(name = "last_total_kwh", precision = 12, scale = 3)
+    private BigDecimal lastTotalKwh;
+
+    @Column(name = "last_measured_at")
+    private Instant lastMeasuredAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

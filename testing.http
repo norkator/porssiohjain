@@ -59,5 +59,7 @@ POST http://localhost:8080/power/f728f6b3-a8d9-4eab-917b-d1b21950b80b
 Content-Type: application/json
 
 {
-  "currentKw": 3.62
+  "currentKw": 3.81,
+  "totalKwh": 1200.605,
+  "measuredAt": 1770046375598
 }

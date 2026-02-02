@@ -153,9 +153,25 @@ function sendCurrentKw() {
             (typeof emStatus.c_act_power === "number" ? emStatus.c_act_power : 0);
     }
 
-    let currentKw = totalW / 1000;
+    let totalWh = 0;
+    if (typeof emStatus.total_act_energy === "number") {
+        totalWh = emStatus.total_act_energy;
+    } else {
+        totalWh =
+            (typeof emStatus.a_act_energy === "number" ? emStatus.a_act_energy : 0) +
+            (typeof emStatus.b_act_energy === "number" ? emStatus.b_act_energy : 0) +
+            (typeof emStatus.c_act_energy === "number" ? emStatus.c_act_energy : 0);
+    }
 
-    let body = JSON.stringify({currentKw: currentKw});
+    let currentKw = totalW / 1000;
+    let totalKwh = totalWh / 1000;
+    let measuredAt = Date.now();
+
+    let body = JSON.stringify({
+        currentKw: currentKw,
+        totalKwh: totalKwh,
+        measuredAt: measuredAt
+    });
 
     Shelly.call("HTTP.REQUEST", {
         method: "POST",
