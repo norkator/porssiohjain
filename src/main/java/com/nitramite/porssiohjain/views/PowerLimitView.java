@@ -333,7 +333,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         Component peakKw = createPeakKwSection(powerLimit);
         Component currentKw = createCurrentKwSection(powerLimit);
         Component quarterAvg = createCurrentQuarterHourAverageSection(
-                powerLimitService.getCurrentQuarterHourAverage(
+                powerLimitService.getCurrentIntervalAverage(
                         getAccountId(),
                         powerLimit.getId()
                 )
@@ -431,7 +431,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
             PowerLimitResponse powerLimit
     ) {
         List<PowerLimitHistoryResponse> history =
-                powerLimitService.getQuarterlyPowerLimitHistory(
+                powerLimitService.getPowerLimitHistoryWithInterval(
                         getAccountId(),
                         powerLimit.getId(),
                         24
@@ -584,7 +584,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                     return;
                 }
                 PowerLimitResponse updated = powerLimitService.getPowerLimit(accountId, powerLimitId);
-                Optional<BigDecimal> avg = powerLimitService.getCurrentQuarterHourAverage(
+                Optional<BigDecimal> avg = powerLimitService.getCurrentIntervalAverage(
                         accountId,
                         powerLimitId
                 );

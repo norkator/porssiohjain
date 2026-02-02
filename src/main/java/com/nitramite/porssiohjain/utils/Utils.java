@@ -6,6 +6,19 @@ import java.time.ZonedDateTime;
 
 public class Utils {
 
+    public static Instant toInterval(
+            Instant instant, ZoneId zoneId, int intervalMinutes
+    ) {
+        ZonedDateTime zdt = instant.atZone(zoneId);
+        int minute = zdt.getMinute();
+        int bucket = (minute / intervalMinutes) * intervalMinutes;
+        return zdt
+                .withMinute(bucket)
+                .withSecond(0)
+                .withNano(0)
+                .toInstant();
+    }
+
     public static Instant toQuarterHour(
             Instant instant, ZoneId zoneId
     ) {

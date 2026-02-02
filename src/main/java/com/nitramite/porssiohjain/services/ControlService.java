@@ -352,12 +352,12 @@ public class ControlService {
             if (!limit.isEnabled()) {
                 continue;
             }
-            Optional<BigDecimal> quarterAvg =
-                    powerLimitService.getCurrentQuarterHourAverage(
+            Optional<BigDecimal> intervalAvg =
+                    powerLimitService.getCurrentIntervalAverage(
                             limit.getAccount().getId(),
                             limit.getId()
                     );
-            if (quarterAvg.isPresent() && quarterAvg.get().compareTo(limit.getLimitKw()) > 0) {
+            if (intervalAvg.isPresent() && intervalAvg.get().compareTo(limit.getLimitKw()) > 0) {
                 return true;
             }
         }

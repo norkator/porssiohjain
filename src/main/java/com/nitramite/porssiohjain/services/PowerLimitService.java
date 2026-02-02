@@ -217,15 +217,16 @@ public class PowerLimitService {
 
     private void checkAndSendNotification(PowerLimitEntity entity) {
         ZoneId zone = ZoneId.of(entity.getTimezone());
+        int intervalMinutes = entity.getLimitIntervalMinutes();
         Instant now = Instant.now();
-        Instant quarterStart = Utils.toQuarterHour(now, zone);
-        Instant quarterEnd = quarterStart.plus(15, ChronoUnit.MINUTES);
+        Instant intervalStart = Utils.toInterval(now, zone, intervalMinutes);
+        Instant intervalEnd = intervalStart.plus(intervalMinutes, ChronoUnit.MINUTES);
         List<PowerLimitHistoryEntity> values = powerLimitHistoryRepository
                 .findByPowerLimitAndCreatedAtBetween(
                         entity.getAccount().getId(),
                         entity.getId(),
-                        quarterStart,
-                        quarterEnd
+                        intervalStart,
+                        intervalEnd
                 );
         if (values.isEmpty()) return;
         BigDecimal sum = values.stream()
@@ -257,7 +258,7 @@ public class PowerLimitService {
     }
 
     @Transactional(readOnly = true)
-    public List<PowerLimitHistoryResponse> getQuarterlyPowerLimitHistory(
+    public List<PowerLimitHistoryResponse> getPowerLimitHistoryWithInterval(
             Long accountId, Long powerLimitId, int hours
     ) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -268,17 +269,17 @@ public class PowerLimitService {
                         "Power limit not found for account " + accountId + " and id " + powerLimitId
                 ));
         ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
+        int intervalMinutes = powerLimitEntity.getLimitIntervalMinutes();
         Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
         Map<Instant, List<PowerLimitHistoryEntity>> grouped =
                 powerLimitHistoryRepository.findAllByPowerLimitAndAccount(accountId, powerLimitId)
                         .stream()
                         .filter(h -> h.getCreatedAt().isAfter(since))
-                        .collect(Collectors.groupingBy(h -> Utils.toQuarterHour(h.getCreatedAt(), zone)));
+                        .collect(Collectors.groupingBy(h -> Utils.toInterval(h.getCreatedAt(), zone, intervalMinutes)));
         return grouped.entrySet().stream()
                 .map(entry -> {
                     Instant bucketStart = entry.getKey();
                     List<PowerLimitHistoryEntity> values = entry.getValue();
-
                     BigDecimal avg = values.stream()
                             .map(PowerLimitHistoryEntity::getKilowatts)
                             .reduce(BigDecimal.ZERO, BigDecimal::add)
@@ -287,7 +288,6 @@ public class PowerLimitService {
                                     2,
                                     RoundingMode.HALF_UP
                             );
-
                     return PowerLimitHistoryResponse.builder()
                             .accountId(accountId)
                             .kilowatts(avg)
@@ -299,7 +299,7 @@ public class PowerLimitService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<BigDecimal> getCurrentQuarterHourAverage(
+    public Optional<BigDecimal> getCurrentIntervalAverage(
             Long accountId, Long powerLimitId
     ) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -310,13 +310,13 @@ public class PowerLimitService {
                         "Power limit not found for account " + accountId + " and id " + powerLimitId
                 ));
         ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
+        int intervalMinutes = powerLimitEntity.getLimitIntervalMinutes();
         Instant now = Instant.now();
-        Instant intervalStart = Utils.toQuarterHour(now, zone);
-        Instant intervalEnd = intervalStart.plus(15, ChronoUnit.MINUTES);
-        List<PowerLimitHistoryEntity> values =
-                powerLimitHistoryRepository.findByPowerLimitAndCreatedAtBetween(
-                        accountId, powerLimitId, intervalStart, intervalEnd
-                );
+        Instant intervalStart = Utils.toInterval(now, zone, intervalMinutes);
+        Instant intervalEnd = intervalStart.plus(intervalMinutes, ChronoUnit.MINUTES);
+        List<PowerLimitHistoryEntity> values = powerLimitHistoryRepository.findByPowerLimitAndCreatedAtBetween(
+                accountId, powerLimitId, intervalStart, intervalEnd
+        );
         if (values.isEmpty()) {
             return Optional.empty();
         }
