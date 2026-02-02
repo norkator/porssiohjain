@@ -153,16 +153,21 @@ function sendCurrentKw() {
             (typeof emStatus.c_act_power === "number" ? emStatus.c_act_power : 0);
     }
 
-    let totalWh = 0;
-    if (typeof emStatus.total_act_energy === "number") {
-        totalWh = emStatus.total_act_energy;
-    } else {
-        totalWh =
-            (typeof emStatus.a_act_energy === "number" ? emStatus.a_act_energy : 0) +
-            (typeof emStatus.b_act_energy === "number" ? emStatus.b_act_energy : 0) +
-            (typeof emStatus.c_act_energy === "number" ? emStatus.c_act_energy : 0);
-    }
 
+    let emData = Shelly.getComponentStatus("emdata", 0);
+
+    let totalWh = 0;
+    if (emData) {
+        if (typeof emData.total_act === "number") {
+            totalWh = emData.total_act;
+        } else {
+            totalWh =
+                (typeof emData.a_total_act_energy === "number" ? emData.a_total_act_energy : 0) +
+                (typeof emData.b_total_act_energy === "number" ? emData.b_total_act_energy : 0) +
+                (typeof emData.c_total_act_energy === "number" ? emData.c_total_act_energy : 0);
+        }
+    }
+    
     let currentKw = totalW / 1000;
     let totalKwh = totalWh / 1000;
     let measuredAt = Date.now();
