@@ -273,6 +273,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
         Checkbox enabledField = new Checkbox(t("powerlimit.field.enabled"));
         enabledField.setValue(p.isEnabled());
+        enabledField.getStyle().set("margin-top", "12px");
 
         ComboBox<String> timezoneField = new ComboBox<>(t("powerlimit.field.timezone"));
         timezoneField.setItems(ZoneId.getAvailableZoneIds());
@@ -281,6 +282,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
         Checkbox notifyEnabledField = new Checkbox(t("powerlimit.field.notifyEnabled"));
         notifyEnabledField.setValue(p.isNotifyEnabled());
+        notifyEnabledField.getStyle().set("margin-top", "12px");
 
         Button saveButton = new Button(t("powerlimit.button.save"), e -> {
             powerLimitService.updatePowerLimit(
