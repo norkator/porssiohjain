@@ -57,7 +57,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private Div lastTotalKwh;
     private Div peakKwValue;
     private Div currentKwValue;
-    private Div quarterAvgValue;
+    private Div quarterSumValue;
     private Div chartDiv;
     private ScheduledExecutorService scheduler;
     private UI ui;
@@ -334,13 +334,13 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         Component lastTotalKwh = createLastTotalKwhSection(powerLimit);
         Component peakKw = createPeakKwSection(powerLimit);
         Component currentKw = createCurrentKwSection(powerLimit);
-        Component quarterAvg = createCurrentQuarterHourAverageSection(
-                powerLimitService.getCurrentIntervalAverage(
+        Component quarterSum = createCurrentIntervalSumSection(
+                powerLimitService.getCurrentIntervalSum(
                         getAccountId(),
                         powerLimit.getId()
                 )
         );
-        HorizontalLayout row = new HorizontalLayout(lastTotalKwh, peakKw, currentKw, quarterAvg);
+        HorizontalLayout row = new HorizontalLayout(lastTotalKwh, peakKw, currentKw, quarterSum);
         row.setWidthFull();
         row.setSpacing(true);
         row.setPadding(false);
@@ -348,7 +348,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         lastTotalKwh.getElement().getStyle().set("flex", "1 1 200px");
         peakKw.getElement().getStyle().set("flex", "1 1 200px");
         currentKw.getElement().getStyle().set("flex", "1 1 200px");
-        quarterAvg.getElement().getStyle().set("flex", "1 1 200px");
+        quarterSum.getElement().getStyle().set("flex", "1 1 200px");
         return row;
     }
 
@@ -406,7 +406,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         return wrapper;
     }
 
-    private Component createCurrentQuarterHourAverageSection(
+    private Component createCurrentIntervalSumSection(
             Optional<BigDecimal> cAvg
     ) {
         Div wrapper = new Div();
@@ -415,16 +415,16 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-10pct)")
                 .set("text-align", "center");
-        H2 title = new H2(t("powerlimit.cMinAvg"));
+        H2 title = new H2(t("powerlimit.cMinSum"));
         title.getStyle().set("margin", "0");
-        quarterAvgValue = new Div();
-        quarterAvgValue.setText(
+        quarterSumValue = new Div();
+        quarterSumValue.setText(
                 cAvg.map(v -> v + " kW").orElse("N/A")
         );
-        quarterAvgValue.getStyle()
+        quarterSumValue.getStyle()
                 .set("font-size", "2rem")
                 .set("font-weight", "bold");
-        wrapper.add(title, quarterAvgValue);
+        wrapper.add(title, quarterSumValue);
         return wrapper;
     }
 
@@ -586,7 +586,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                     return;
                 }
                 PowerLimitResponse updated = powerLimitService.getPowerLimit(accountId, powerLimitId);
-                Optional<BigDecimal> avg = powerLimitService.getCurrentIntervalAverage(
+                Optional<BigDecimal> sum = powerLimitService.getCurrentIntervalSum(
                         accountId,
                         powerLimitId
                 );
@@ -594,8 +594,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                     lastTotalKwh.setText(updated.getLastTotalKwh() + " kW");
                     peakKwValue.setText(updated.getPeakKw() + " kW");
                     currentKwValue.setText(updated.getCurrentKw() + " kW");
-                    quarterAvgValue.setText(
-                            avg.map(a -> a + " kW").orElse("N/A")
+                    quarterSumValue.setText(
+                            sum.map(a -> a + " kW").orElse("N/A")
                     );
                     updatePowerLimitHistoryChart(chartDiv, updated);
                 });

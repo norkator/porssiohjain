@@ -352,12 +352,12 @@ public class ControlService {
             if (!limit.isEnabled()) {
                 continue;
             }
-            Optional<BigDecimal> intervalAvg =
-                    powerLimitService.getCurrentIntervalAverage(
+            Optional<BigDecimal> intervalSum =
+                    powerLimitService.getCurrentIntervalSum(
                             limit.getAccount().getId(),
                             limit.getId()
                     );
-            if (intervalAvg.isPresent() && intervalAvg.get().compareTo(limit.getLimitKw()) > 0) {
+            if (intervalSum.isPresent() && intervalSum.get().compareTo(limit.getLimitKw()) > 0) {
                 return true;
             }
         }

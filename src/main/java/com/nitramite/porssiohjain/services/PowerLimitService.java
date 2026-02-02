@@ -232,8 +232,7 @@ public class PowerLimitService {
         BigDecimal sum = values.stream()
                 .map(PowerLimitHistoryEntity::getKilowatts)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal avg = sum.divide(BigDecimal.valueOf(values.size()), 2, RoundingMode.HALF_UP);
-        boolean currentlyOver = avg.compareTo(entity.getLimitKw()) > 0;
+        boolean currentlyOver = sum.compareTo(entity.getLimitKw()) > 0;
         Instant lastSent = lastNotificationSent.get(entity.getId());
         boolean canSend = lastSent == null || Duration.between(lastSent, now).toHours() >= 24;
         if (currentlyOver && canSend) {
@@ -241,7 +240,7 @@ public class PowerLimitService {
                     entity.getAccount().getEmail(),
                     entity.getName(),
                     entity.getLimitKw(),
-                    avg,
+                    sum,
                     Locale.of(entity.getAccount().getLocale())
             );
             lastNotificationSent.put(entity.getId(), now);
@@ -280,17 +279,13 @@ public class PowerLimitService {
                 .map(entry -> {
                     Instant bucketStart = entry.getKey();
                     List<PowerLimitHistoryEntity> values = entry.getValue();
-                    BigDecimal avg = values.stream()
+                    BigDecimal sum = values.stream()
                             .map(PowerLimitHistoryEntity::getKilowatts)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add)
-                            .divide(
-                                    BigDecimal.valueOf(values.size()),
-                                    2,
-                                    RoundingMode.HALF_UP
-                            );
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
                     return PowerLimitHistoryResponse.builder()
                             .accountId(accountId)
-                            .kilowatts(avg)
+                            .kilowatts(sum)
                             .createdAt(bucketStart)
                             .build();
                 })
@@ -299,7 +294,7 @@ public class PowerLimitService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<BigDecimal> getCurrentIntervalAverage(
+    public Optional<BigDecimal> getCurrentIntervalSum(
             Long accountId, Long powerLimitId
     ) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -323,13 +318,7 @@ public class PowerLimitService {
         BigDecimal sum = values.stream()
                 .map(PowerLimitHistoryEntity::getKilowatts)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return Optional.of(
-                sum.divide(
-                        BigDecimal.valueOf(values.size()),
-                        2,
-                        RoundingMode.HALF_UP
-                )
-        );
+        return Optional.of(sum);
     }
 
 }
