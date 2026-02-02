@@ -352,7 +352,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private Component createLastTotalKwhSection(PowerLimitResponse p) {
         Div wrapper = new Div();
         wrapper.getStyle()
-                .set("padding", "16px")
+                .set("padding", "14px")
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-10pct)")
                 .set("text-align", "center");
@@ -361,7 +361,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         peakKwValue = new Div();
         peakKwValue.setText(p.getLastTotalKwh() + " kW");
         peakKwValue.getStyle()
-                .set("font-size", "2.5rem")
+                .set("font-size", "2rem")
                 .set("font-weight", "bold");
         wrapper.add(title, peakKwValue);
         return wrapper;
@@ -370,7 +370,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private Component createPeakKwSection(PowerLimitResponse p) {
         Div wrapper = new Div();
         wrapper.getStyle()
-                .set("padding", "16px")
+                .set("padding", "14px")
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-10pct)")
                 .set("text-align", "center");
@@ -379,7 +379,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         peakKwValue = new Div();
         peakKwValue.setText(p.getPeakKw() + " kW");
         peakKwValue.getStyle()
-                .set("font-size", "2.5rem")
+                .set("font-size", "2rem")
                 .set("font-weight", "bold");
         wrapper.add(title, peakKwValue);
         return wrapper;
@@ -388,7 +388,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private Component createCurrentKwSection(PowerLimitResponse p) {
         Div wrapper = new Div();
         wrapper.getStyle()
-                .set("padding", "16px")
+                .set("padding", "14px")
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-10pct)")
                 .set("text-align", "center");
@@ -397,7 +397,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         currentKwValue = new Div();
         currentKwValue.setText(p.getCurrentKw() + " kW");
         currentKwValue.getStyle()
-                .set("font-size", "2.5rem")
+                .set("font-size", "2rem")
                 .set("font-weight", "bold");
         wrapper.add(title, currentKwValue);
         return wrapper;
@@ -408,7 +408,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     ) {
         Div wrapper = new Div();
         wrapper.getStyle()
-                .set("padding", "16px")
+                .set("padding", "14px")
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-10pct)")
                 .set("text-align", "center");
@@ -419,7 +419,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 cAvg.map(v -> v + " kW").orElse("N/A")
         );
         quarterAvgValue.getStyle()
-                .set("font-size", "2.5rem")
+                .set("font-size", "2rem")
                 .set("font-weight", "bold");
         wrapper.add(title, quarterAvgValue);
         return wrapper;
