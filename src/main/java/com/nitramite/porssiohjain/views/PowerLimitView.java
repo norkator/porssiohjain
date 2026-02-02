@@ -54,6 +54,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private final DeviceService deviceService;
     private Long powerLimitId;
     private final Grid<PowerLimitDeviceResponse> deviceGrid = new Grid<>(PowerLimitDeviceResponse.class, false);
+    private Div lastTotalKwh;
     private Div peakKwValue;
     private Div currentKwValue;
     private Div quarterAvgValue;
@@ -358,12 +359,12 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 .set("text-align", "center");
         H2 title = new H2(t("powerlimit.lastTotalKwh"));
         title.getStyle().set("margin", "0");
-        peakKwValue = new Div();
-        peakKwValue.setText(p.getLastTotalKwh() + " kW");
-        peakKwValue.getStyle()
+        lastTotalKwh = new Div();
+        lastTotalKwh.setText(p.getLastTotalKwh() + " kW");
+        lastTotalKwh.getStyle()
                 .set("font-size", "2rem")
                 .set("font-weight", "bold");
-        wrapper.add(title, peakKwValue);
+        wrapper.add(title, lastTotalKwh);
         return wrapper;
     }
 
@@ -588,6 +589,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                         powerLimitId
                 );
                 ui.access(() -> {
+                    lastTotalKwh.setText(updated.getLastTotalKwh() + " kW");
                     peakKwValue.setText(updated.getPeakKw() + " kW");
                     currentKwValue.setText(updated.getCurrentKw() + " kW");
                     quarterAvgValue.setText(
