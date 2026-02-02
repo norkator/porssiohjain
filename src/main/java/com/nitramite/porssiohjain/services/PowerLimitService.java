@@ -64,7 +64,7 @@ public class PowerLimitService {
     @Transactional
     public void updatePowerLimit(
             Long accountId, Long powerLimitId, String name,
-            BigDecimal limitKw, boolean enabled, boolean notifyEnabled, String timezone
+            BigDecimal limitKw, Integer limitIntervalMinutes, boolean enabled, boolean notifyEnabled, String timezone
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -75,6 +75,7 @@ public class PowerLimitService {
                 ));
         entity.setName(name);
         entity.setLimitKw(limitKw);
+        entity.setLimitIntervalMinutes(limitIntervalMinutes);
         entity.setEnabled(enabled);
         entity.setNotifyEnabled(notifyEnabled);
         entity.setTimezone(timezone);
@@ -136,11 +137,13 @@ public class PowerLimitService {
                 .name(entity.getName())
                 .limitKw(entity.getLimitKw())
                 .currentKw(entity.getCurrentKw())
+                .limitIntervalMinutes(entity.getLimitIntervalMinutes())
                 .peakKw(entity.getPeakKw())
                 .enabled(entity.isEnabled())
                 .notifyEnabled(entity.isNotifyEnabled())
                 .timezone(entity.getTimezone())
                 .createdAt(entity.getCreatedAt())
+                .lastTotalKwh(entity.getLastTotalKwh())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
     }
@@ -207,6 +210,9 @@ public class PowerLimitService {
                 });
         history.setKilowatts(finalDeltaKwh);
         history.setCreatedAt(minuteStart);
+        if (entity.isNotifyEnabled()) {
+            checkAndSendNotification(entity);
+        }
     }
 
     private void checkAndSendNotification(PowerLimitEntity entity) {

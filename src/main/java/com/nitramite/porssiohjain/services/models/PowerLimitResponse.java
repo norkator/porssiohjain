@@ -21,6 +21,8 @@ public class PowerLimitResponse {
     private boolean enabled;
     private boolean notifyEnabled;
     private String timezone;
+    private Integer limitIntervalMinutes;
     private Instant createdAt;
     private Instant updatedAt;
+    private BigDecimal lastTotalKwh; // for viewing only
 }

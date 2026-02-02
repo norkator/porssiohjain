@@ -57,6 +57,10 @@ public class PowerLimitEntity {
     @Column(name = "last_measured_at")
     private Instant lastMeasuredAt;
 
+    @Column(name = "limit_interval_minutes", nullable = false)
+    @Builder.Default
+    private Integer limitIntervalMinutes = 60;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

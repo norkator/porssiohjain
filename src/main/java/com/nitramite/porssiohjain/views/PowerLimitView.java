@@ -265,6 +265,11 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         limitKwField.setValue(p.getLimitKw().doubleValue());
         limitKwField.setWidthFull();
 
+        ComboBox<Integer> limitIntervalField = new ComboBox<>(t("powerlimit.field.limitInterval"));
+        limitIntervalField.setItems(15, 60);
+        limitIntervalField.setValue(p.getLimitIntervalMinutes());
+        limitIntervalField.setWidthFull();
+
         Checkbox enabledField = new Checkbox(t("powerlimit.field.enabled"));
         enabledField.setValue(p.isEnabled());
 
@@ -282,6 +287,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                     p.getId(),
                     nameField.getValue(),
                     BigDecimal.valueOf(limitKwField.getValue()),
+                    limitIntervalField.getValue(),
                     enabledField.getValue(),
                     notifyEnabledField.getValue(),
                     timezoneField.getValue()
@@ -298,9 +304,10 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 uuidField,
                 nameField,
                 limitKwField,
+                limitIntervalField,
                 enabledField,
-                timezoneField,
-                notifyEnabledField
+                notifyEnabledField,
+                timezoneField
         );
 
         form.setResponsiveSteps(
@@ -321,6 +328,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private Component createCurrentUsageRow(
             PowerLimitResponse powerLimit
     ) {
+        Component lastTotalKwh = createLastTotalKwhSection(powerLimit);
         Component peakKw = createPeakKwSection(powerLimit);
         Component currentKw = createCurrentKwSection(powerLimit);
         Component quarterAvg = createCurrentQuarterHourAverageSection(
@@ -329,15 +337,34 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                         powerLimit.getId()
                 )
         );
-        HorizontalLayout row = new HorizontalLayout(peakKw, currentKw, quarterAvg);
+        HorizontalLayout row = new HorizontalLayout(lastTotalKwh, peakKw, currentKw, quarterAvg);
         row.setWidthFull();
         row.setSpacing(true);
         row.setPadding(false);
         row.getStyle().set("flex-wrap", "wrap").set("gap", "16px");
-        peakKw.getElement().getStyle().set("flex", "1 1 300px");
-        currentKw.getElement().getStyle().set("flex", "1 1 300px");
-        quarterAvg.getElement().getStyle().set("flex", "1 1 300px");
+        lastTotalKwh.getElement().getStyle().set("flex", "1 1 200px");
+        peakKw.getElement().getStyle().set("flex", "1 1 200px");
+        currentKw.getElement().getStyle().set("flex", "1 1 200px");
+        quarterAvg.getElement().getStyle().set("flex", "1 1 200px");
         return row;
+    }
+
+    private Component createLastTotalKwhSection(PowerLimitResponse p) {
+        Div wrapper = new Div();
+        wrapper.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-10pct)")
+                .set("text-align", "center");
+        H2 title = new H2(t("powerlimit.lastTotalKwh"));
+        title.getStyle().set("margin", "0");
+        peakKwValue = new Div();
+        peakKwValue.setText(p.getLastTotalKwh() + " kW");
+        peakKwValue.getStyle()
+                .set("font-size", "2.5rem")
+                .set("font-weight", "bold");
+        wrapper.add(title, peakKwValue);
+        return wrapper;
     }
 
     private Component createPeakKwSection(PowerLimitResponse p) {
