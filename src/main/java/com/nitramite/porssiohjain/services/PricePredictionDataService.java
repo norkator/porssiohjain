@@ -1,7 +1,10 @@
 package com.nitramite.porssiohjain.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.PricePredictionEntity;
 import com.nitramite.porssiohjain.entity.repository.PricePredictionRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +24,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PricePredictionDataService {
 
     @SuppressWarnings("FieldCanBeLocal")
@@ -30,34 +34,26 @@ public class PricePredictionDataService {
     private final PricePredictionRepository predictionRepository;
     private final SystemLogService systemLogService;
 
-    public PricePredictionDataService(
-            PricePredictionRepository predictionRepository,
-            SystemLogService systemLogService
-    ) {
-        this.predictionRepository = predictionRepository;
-        this.systemLogService = systemLogService;
-    }
-
     public void fetchData() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Accept", "application/json");
-        headers.set("Cache-Control", "no-cache");
-
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-        ResponseEntity<Double[][]> response = restTemplate.exchange(
-                DATA_URL,
-                HttpMethod.GET,
-                entity,
-                Double[][].class
-        );
-
-        Double[][] body = response.getBody();
-        if (body == null || body.length == 0) {
-            return;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Accept", "application/json");
+            headers.set("Cache-Control", "no-cache");
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    DATA_URL,
+                    HttpMethod.GET,
+                    entity,
+                    String.class
+            );
+            Double[][] body = new ObjectMapper().readValue(response.getBody(), Double[][].class);
+            if (body == null || body.length == 0) {
+                return;
+            }
+            saveEntries(body);
+        } catch (JsonProcessingException e) {
+            log.error(e.getMessage());
         }
-
-        saveEntries(body);
     }
 
     private void saveEntries(Double[][] raw) {
@@ -89,15 +85,15 @@ public class PricePredictionDataService {
         }
     }
 
-    public boolean hasPredictionsForTomorrow(ZoneId zone) {
+    public boolean hasFuturePredictions(ZoneId zone) {
         LocalDate today = LocalDate.now(zone);
-        Instant start = today.plusDays(1).atStartOfDay(zone).toInstant();
-        Instant end = today.plusDays(2).atStartOfDay(zone).toInstant();
+        Instant start = today.plusDays(6).atStartOfDay(zone).toInstant();
+        Instant end = today.plusDays(7).atStartOfDay(zone).toInstant();
         return predictionRepository.existsByTimestampBetween(start, end);
     }
 
     public void deleteOldData() {
-        int deleteAfterDays = 30;
+        int deleteAfterDays = 90;
         Instant cutoff = LocalDate.now()
                 .minusDays(deleteAfterDays)
                 .atStartOfDay(ZoneId.systemDefault())

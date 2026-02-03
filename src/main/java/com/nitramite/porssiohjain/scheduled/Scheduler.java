@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.ZoneId;
+
 @Slf4j
 @Profile("!test")
 @Component
@@ -19,6 +21,7 @@ public class Scheduler {
     private final PowerLimitService powerLimitService;
     private final SolarmanPvService solarmanPvService;
     private final ProductionSourceService productionSourceService;
+    private final PricePredictionDataService pricePredictionDataService;
 
     private boolean firstRun = true;
 
@@ -28,7 +31,8 @@ public class Scheduler {
             FingridDataService fingridDataService,
             PowerLimitService powerLimitService,
             SolarmanPvService solarmanPvService,
-            ProductionSourceService productionSourceService
+            ProductionSourceService productionSourceService,
+            PricePredictionDataService pricePredictionDataService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -36,6 +40,7 @@ public class Scheduler {
         this.solarmanPvService = solarmanPvService;
         this.powerLimitService = powerLimitService;
         this.productionSourceService = productionSourceService;
+        this.pricePredictionDataService = pricePredictionDataService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -46,6 +51,11 @@ public class Scheduler {
             fingridDataService.fetchData();
         } else {
             log.info("No need to fetch Fingrid data");
+        }
+        if (!pricePredictionDataService.hasFuturePredictions(ZoneId.systemDefault())) {
+            pricePredictionDataService.fetchData();
+        } else {
+            log.info("No need to fetch price prediction data");
         }
     }
 
@@ -103,12 +113,18 @@ public class Scheduler {
     }
 
 
+    @Scheduled(cron = "0 0 9 * * *", zone = "Europe/Helsinki")
+    public void fetchPricePredictionData() {
+        pricePredictionDataService.fetchData();
+    }
+
     @Scheduled(cron = "0 0 12 * * *", zone = "Europe/Helsinki")
     public void deleteOldData() {
         nordpoolDataPortalService.deleteOldNordpoolData();
         fingridDataService.deleteOldFingridData();
         powerLimitService.deleteOldPowerLimitHistory();
         productionSourceService.deleteOldProductionHistory();
+        pricePredictionDataService.deleteOldData();
     }
 
     @Scheduled(fixedDelayString = "${solarman.poll-interval}")
