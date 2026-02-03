@@ -9,6 +9,7 @@ import com.nitramite.porssiohjain.views.components.PriceChart;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
@@ -29,6 +30,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
+@JsModule("./js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Dashboard")
 @Route("dashboard")
 @PermitAll

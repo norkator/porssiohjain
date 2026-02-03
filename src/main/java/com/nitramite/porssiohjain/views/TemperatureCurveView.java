@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.ClientCallable;
-import com.vaadin.flow.component.dependency.JavaScript;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -19,8 +19,8 @@ import java.util.Map;
 @PageTitle("Pörssiohjain - Temp curve")
 @Route("temperature-curve")
 @PermitAll
-@JavaScript("https://cdn.jsdelivr.net/npm/chart.js")
-@JavaScript("https://cdn.jsdelivr.net/npm/chartjs-plugin-dragdata")
+@JsModule("./js/chart.js")
+@JsModule("./js/chartjs-plugin-dragdata.js")
 public class TemperatureCurveView extends VerticalLayout {
 
     public TemperatureCurveView() {

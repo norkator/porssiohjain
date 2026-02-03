@@ -18,6 +18,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -50,6 +51,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+@JsModule("./js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Production Source")
 @Route("production-source/:sourceId")
 @PermitAll
@@ -368,14 +370,6 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                             const container = this;
                         
                             function renderOrUpdate(dataX, dataY, limitKw) {
-                                if (!window.ApexCharts) {
-                                    const script = document.createElement('script');
-                                    script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
-                                    script.onload = () => renderOrUpdate(dataX, dataY, limitKw);
-                                    document.head.appendChild(script);
-                                    return;
-                                }
-                        
                                 const now = new Date();
                                 const closest = dataX.reduce((prev, curr) =>
                                     Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now)

@@ -29,15 +29,6 @@ public class PriceChart extends Div {
                         const nowLabel = $6;
                         
                         function renderOrUpdate(dataX, dataY) {
-                        
-                            if (!window.ApexCharts) {
-                                const script = document.createElement('script');
-                                script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
-                                script.onload = () => renderOrUpdate(dataX, dataY);
-                                document.head.appendChild(script);
-                                return;
-                            }
-                        
                             if (dataX.length === 0) return;
                         
                             const now = new Date();

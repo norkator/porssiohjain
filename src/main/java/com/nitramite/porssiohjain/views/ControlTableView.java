@@ -15,6 +15,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -45,6 +46,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+@JsModule("./js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Control table")
 @Route("controls/:controlId")
 @PermitAll
@@ -601,14 +603,6 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                             const nowLabel = $10;
                         
                             function renderOrUpdate(dataX, dataNordpool, dataControl, dataTransfer) {
-                                if (!window.ApexCharts) {
-                                    const script = document.createElement('script');
-                                    script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.49.0/dist/apexcharts.min.js';
-                                    script.onload = () => renderOrUpdate(dataX, dataNordpool, dataControl, dataTransfer);
-                                    document.head.appendChild(script);
-                                    return;
-                                }
-                        
                                 const now = new Date();
                                 const nowISO = now.toISOString().slice(0, 16);
                                 const closest = dataX.reduce((prev, curr) => {
