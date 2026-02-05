@@ -13,6 +13,17 @@ tilat, eli käytännössä konfiguroidut kavananumerot ja tila päälle/pois pä
 Käyttöliittymä on tehty Vaadinilla ja renderöityy palvelimen puolella. Käyttöliittymän tarkoitus on olla mahdollisimman
 yksinkertainen kun tavoite on että siellä käydään harvoin.
 
+## Ominaisuudet
+
+* Laitteiden ohjaus pörssisähkön hinnoittelun mukaan.
+    * Voit ohjata halvimpien tuntien mukaan halutun aikaa päivässä.
+    * Voit ohjata kalliimpien tuntien mukaan jos haluat aiheuttaa markkinoille haittaa kiinteällä sopimuksella.
+* Sähkön kulutuksen seuranta tehomaksuja varten.
+    * Ohjelma kytkee valittua kuormaa pois kun asetettu tehoraja ylittyy.
+    * Hälytykset sähköpostilla.
+* Oman sähköntuotannon seuranta.
+    * Ohjaa laitteita päälle kun aurinkopaneelit tai jokin muu lähde tuottaa halutun määrän energiaa.
+
 ## Asennusohje
 
 ### Palvelun tili ja asetukset
@@ -167,7 +178,7 @@ function sendCurrentKw() {
                 (typeof emData.c_total_act_energy === "number" ? emData.c_total_act_energy : 0);
         }
     }
-    
+
     let currentKw = totalW / 1000;
     let totalKwh = totalWh / 1000;
     let measuredAt = Date.now();
