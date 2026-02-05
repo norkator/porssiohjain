@@ -76,7 +76,9 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         taxPercentField = new NumberField(t("control.field.taxPercent"));
         modeField = new ComboBox<>(t("control.field.mode"));
         manualOnToggle = new Checkbox(t("control.field.manualOn"));
+        manualOnToggle.getStyle().set("margin-top", "12px");
         alwaysOnBelowMinPriceToggle = new Checkbox(t("control.field.alwaysOnBelowMinPrice"));
+        alwaysOnBelowMinPriceToggle.getStyle().set("margin-top", "12px");
         createButton = new Button(t("control.button.create"));
 
         setSizeFull();

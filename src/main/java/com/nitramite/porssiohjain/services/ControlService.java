@@ -29,6 +29,7 @@ public class ControlService {
     private final ElectricityContractRepository electricityContractRepository;
     private final PowerLimitService powerLimitService;
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
+    private final SiteRepository siteRepository;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -63,7 +64,8 @@ public class ControlService {
             Long accountId,
             Long controlId, String name, BigDecimal maxPriceSnt, BigDecimal minPriceSnt,
             Integer dailyOnMinutes, BigDecimal taxPercent, ControlMode mode, Boolean manualOn,
-            Boolean alwaysOnBelowMinPrice, Long energyContractId, Long transferContractId
+            Boolean alwaysOnBelowMinPrice, Long energyContractId, Long transferContractId,
+            Long siteId
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
@@ -91,6 +93,7 @@ public class ControlService {
             control.setAlwaysOnBelowMinPrice(alwaysOnBelowMinPrice);
             control.setEnergyContract(e);
             control.setTransferContract(t);
+            control.setSite(siteId != null ? siteRepository.getReferenceById(siteId) : null);
             return controlRepository.save(control);
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -152,6 +155,7 @@ public class ControlService {
                         .energyContractName(entity.getEnergyContract() != null ? entity.getEnergyContract().getName() : null)
                         .transferContractId(entity.getTransferContract() != null ? entity.getTransferContract().getId() : null)
                         .transferContractName(entity.getTransferContract() != null ? entity.getTransferContract().getName() : null)
+                        .siteId(entity.getSite() != null ? entity.getSite().getId() : null)
                         .createdAt(entity.getCreatedAt())
                         .updatedAt(entity.getUpdatedAt())
                         .build())

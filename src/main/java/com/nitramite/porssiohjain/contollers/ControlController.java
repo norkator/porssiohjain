@@ -73,6 +73,7 @@ public class ControlController {
                 request.getManualOn(),
                 request.getAlwaysOnBelowMinPrice(),
                 null,
+                null,
                 null
         );
     }

@@ -24,6 +24,7 @@ public class ControlResponse {
     private String energyContractName;
     private Long transferContractId;
     private String transferContractName;
+    private Long siteId;
     private Instant createdAt;
     private Instant updatedAt;
 }

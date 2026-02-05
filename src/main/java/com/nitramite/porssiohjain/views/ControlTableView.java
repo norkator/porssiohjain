@@ -1,9 +1,6 @@
 package com.nitramite.porssiohjain.views;
 
-import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.entity.ContractType;
-import com.nitramite.porssiohjain.entity.ControlMode;
-import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
+import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
@@ -59,6 +56,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final NordpoolService nordpoolService;
     protected final I18nService i18n;
     private final ElectricityContractRepository contractRepository;
+    private final SiteService siteService;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
@@ -85,7 +83,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             ControlSchedulerService controlSchedulerService,
             NordpoolService nordpoolService,
             I18nService i18n,
-            ElectricityContractRepository contractRepository
+            ElectricityContractRepository contractRepository,
+            SiteService siteService
     ) {
         this.authService = authService;
         this.controlService = controlService;
@@ -94,6 +93,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.nordpoolService = nordpoolService;
         this.i18n = i18n;
         this.contractRepository = contractRepository;
+        this.siteService = siteService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -147,6 +147,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private void renderView() {
         removeAll();
 
+        Long accountId = getAccountId();
+
         VerticalLayout card = new VerticalLayout();
         card.setPadding(true);
         card.setSpacing(true);
@@ -181,9 +183,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         modeCombo.setWidthFull();
 
         Checkbox manualToggle = new Checkbox(t("controlTable.field.manualOn"));
+        manualToggle.getStyle().set("margin-top", "12px");
         manualToggle.setValue(control.getManualOn());
 
         Checkbox alwaysOnBelowMinPriceToggle = new Checkbox(t("controlTable.field.alwaysOnBelowMinPrice"));
+        alwaysOnBelowMinPriceToggle.getStyle().set("margin-top", "12px");
         alwaysOnBelowMinPriceToggle.setValue(control.getAlwaysOnBelowMinPrice());
 
         List<ElectricityContractEntity> contracts =
@@ -229,6 +233,16 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         energyContractCombo.setWidthFull();
         transferContractCombo.setWidthFull();
 
+        List<SiteResponse> sites = siteService.getAllSites(accountId);
+        ComboBox<SiteResponse> siteBox = new ComboBox<>(t("controlTable.field.site"));
+        siteBox.setItems(sites);
+        siteBox.setItemLabelGenerator(SiteResponse::getName);
+        siteBox.setClearButtonVisible(true);
+        sites.stream()
+                .filter(s -> s.getId().equals(control.getSiteId()))
+                .findFirst()
+                .ifPresent(siteBox::setValue);
+
         Button saveButton = new Button(t("controlTable.button.save"), e -> {
             try {
                 control.setName(controlNameField.getValue());
@@ -246,8 +260,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 Long energyId = energy != null ? energy.getId() : null;
                 Long transferId = transfer != null ? transfer.getId() : null;
 
+                SiteResponse site = siteBox.getValue();
+                Long siteId = site != null ? site.getId() : null;
+
                 controlService.updateControl(
-                        getAccountId(),
+                        accountId,
                         controlId,
                         control.getName(),
                         control.getMaxPriceSnt(),
@@ -258,7 +275,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         control.getManualOn(),
                         control.getAlwaysOnBelowMinPrice(),
                         energyId,
-                        transferId
+                        transferId,
+                        siteId
                 );
 
                 Notification.show(t("controlTable.notification.saved"));
@@ -284,6 +302,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 dailyMinutes,
                 energyContractCombo,
                 transferContractCombo,
+                siteBox,
                 manualToggle,
                 alwaysOnBelowMinPriceToggle
         );
