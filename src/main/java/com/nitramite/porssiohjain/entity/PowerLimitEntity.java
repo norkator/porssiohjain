@@ -61,6 +61,10 @@ public class PowerLimitEntity {
     @Builder.Default
     private Integer limitIntervalMinutes = 60;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "site_id", nullable = false)
+    private SiteEntity site;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

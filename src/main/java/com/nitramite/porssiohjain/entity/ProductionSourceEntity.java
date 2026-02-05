@@ -47,6 +47,10 @@ public class ProductionSourceEntity {
     @Column(name = "api_type", nullable = false, length = 32)
     private ProductionApiType apiType;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "site_id", nullable = false)
+    private SiteEntity site;
+
     // api credential related below
 
     @Column(name = "app_id")

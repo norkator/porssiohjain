@@ -60,6 +60,10 @@ public class ControlEntity {
     @JoinColumn(name = "transfer_contract_id")
     private ElectricityContractEntity transferContract;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "site_id", nullable = false)
+    private SiteEntity site;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
