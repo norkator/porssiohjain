@@ -13,6 +13,11 @@ tilat, eli käytännössä konfiguroidut kavananumerot ja tila päälle/pois pä
 Käyttöliittymä on tehty Vaadinilla ja renderöityy palvelimen puolella. Käyttöliittymän tarkoitus on olla mahdollisimman
 yksinkertainen kun tavoite on että siellä käydään harvoin.
 
+⚠️ Voit käyttää pörssiohjainta omaan kotitalouskäyttöön ilmaiseksi tai hostata pörssiohjaimesta omaa instanssia.
+Myyntitarkoituksiin käyttö on kielletty sillä rakennan tästä myytävää palvelua.
+
+Jos olet hyötynyt Pörssiohjaimesta taloudellisesti niin [lahjoita kahvirahaa](https://buymeacoffee.com/norkator).
+
 ## Ominaisuudet
 
 * Laitteiden ohjaus pörssisähkön hinnoittelun mukaan.
