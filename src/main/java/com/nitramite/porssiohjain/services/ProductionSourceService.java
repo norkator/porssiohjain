@@ -27,6 +27,7 @@ public class ProductionSourceService {
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
     private final ProductionHistoryRepository productionHistoryRepository;
     private final DeviceRepository deviceRepository;
+    private final SiteRepository siteRepository;
 
     @Transactional
     public void deleteOldProductionHistory() {
@@ -92,6 +93,7 @@ public class ProductionSourceService {
                 .email(e.getEmail())
                 .password(e.getPassword())
                 .stationId(e.getStationId())
+                .siteId(e.getSite() != null ? e.getSite().getId() : null)
                 .build();
     }
 
@@ -178,7 +180,8 @@ public class ProductionSourceService {
             String appSecret,
             String email,
             String password,
-            String stationId
+            String stationId,
+            Long siteId
     ) {
         ProductionSourceEntity entity = productionSourceRepository
                 .findByIdAndAccountId(sourceId, accountId)
@@ -195,6 +198,7 @@ public class ProductionSourceService {
         if (password != null && !password.isBlank()) {
             entity.setPassword(password);
         }
+        entity.setSite(siteId != null ? siteRepository.getReferenceById(siteId) : null);
     }
 
     @Transactional(readOnly = true)

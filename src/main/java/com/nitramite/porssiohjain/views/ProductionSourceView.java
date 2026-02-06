@@ -2,14 +2,8 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.ComparisonType;
 import com.nitramite.porssiohjain.entity.ControlAction;
-import com.nitramite.porssiohjain.services.AuthService;
-import com.nitramite.porssiohjain.services.DeviceService;
-import com.nitramite.porssiohjain.services.I18nService;
-import com.nitramite.porssiohjain.services.ProductionSourceService;
-import com.nitramite.porssiohjain.services.models.DeviceResponse;
-import com.nitramite.porssiohjain.services.models.ProductionHistoryResponse;
-import com.nitramite.porssiohjain.services.models.ProductionSourceDeviceResponse;
-import com.nitramite.porssiohjain.services.models.ProductionSourceResponse;
+import com.nitramite.porssiohjain.services.*;
+import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.DetachEvent;
@@ -61,6 +55,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     private final AuthService authService;
     private final ProductionSourceService productionSourceService;
     private final DeviceService deviceService;
+    private final SiteService siteService;
 
     private Long sourceId;
     private Long accountId;
@@ -79,12 +74,14 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
             AuthService authService,
             I18nService i18n,
             ProductionSourceService productionSourceService,
-            DeviceService deviceService
+            DeviceService deviceService,
+            SiteService siteService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.productionSourceService = productionSourceService;
         this.deviceService = deviceService;
+        this.siteService = siteService;
 
         setSizeFull();
         setSpacing(true);
@@ -155,7 +152,20 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         TextField stationId = new TextField(t("productionsources.field.stationId"));
         stationId.setValue(Optional.ofNullable(s.getStationId()).orElse(""));
 
+        List<SiteResponse> sites = siteService.getAllSites(accountId);
+        ComboBox<SiteResponse> siteBox = new ComboBox<>(t("controlTable.field.site"));
+        siteBox.setItems(sites);
+        siteBox.setItemLabelGenerator(SiteResponse::getName);
+        siteBox.setClearButtonVisible(true);
+        sites.stream()
+                .filter(sr -> sr.getId().equals(s.getSiteId()))
+                .findFirst()
+                .ifPresent(siteBox::setValue);
+
         Button save = new Button("Save", e -> {
+            SiteResponse site = siteBox.getValue();
+            Long siteId = site != null ? site.getId() : null;
+
             productionSourceService.updateSource(
                     accountId,
                     sourceId,
@@ -166,7 +176,8 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                     emptyToNull(appSecret.getValue()),
                     emptyToNull(email.getValue()),
                     emptyToNull(password.getValue()),
-                    emptyToNull(stationId.getValue())
+                    emptyToNull(stationId.getValue()),
+                    siteId
             );
             Notification.show("Saved");
         });
@@ -175,7 +186,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         FormLayout form = new FormLayout(
                 uuid, enabled, name,
                 appId, appSecret, email, password, stationId,
-                timezoneField
+                timezoneField, siteBox
         );
         form.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),

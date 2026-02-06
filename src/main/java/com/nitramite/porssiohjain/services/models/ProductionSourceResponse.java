@@ -21,6 +21,7 @@ public class ProductionSourceResponse {
     private BigDecimal peakKw;
     private boolean enabled;
     private String timezone;
+    private Long siteId;
     private Instant createdAt;
     private Instant updatedAt;
 
