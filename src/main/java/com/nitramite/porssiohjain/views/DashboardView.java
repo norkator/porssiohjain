@@ -59,15 +59,14 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         getStyle().set("align-items", "center");
         getStyle().set("overflow", "auto");
 
-        VerticalLayout contentBox = new VerticalLayout();
-        contentBox.setMaxWidth("800px");
-        contentBox.setPadding(true);
-        contentBox.setSpacing(true);
-        contentBox.setAlignItems(Alignment.CENTER);
-        contentBox.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        contentBox.getStyle().set("border-radius", "12px");
-        contentBox.getStyle().set("padding", "32px");
-        contentBox.getStyle().set("background-color", "var(--lumo-base-color)");
+        VerticalLayout card = new VerticalLayout();
+        card.setPadding(true);
+        card.setSpacing(true);
+        // card.setAlignItems(Alignment.STRETCH);
+        card.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
+        card.getStyle().set("border-radius", "12px");
+        card.getStyle().set("padding", "32px");
+        card.getStyle().set("background-color", "var(--lumo-base-color)");
 
         H1 title = new H1(t("dashboard.title"));
         title.getStyle().set("margin-bottom", "1em");
@@ -150,8 +149,8 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
                 nowLabel
         );
 
-        contentBox.add(backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(), windForecast, createDivider(), logTitle, logList);
-        add(contentBox);
+        card.add(backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(), windForecast, createDivider(), logTitle, logList);
+        add(card);
     }
 
     private Component createDeviceCard(DeviceResponse device) {
