@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
+import java.util.Locale;
 
 @Slf4j
 @Profile("!test")
@@ -22,6 +23,7 @@ public class Scheduler {
     private final SolarmanPvService solarmanPvService;
     private final ProductionSourceService productionSourceService;
     private final PricePredictionDataService pricePredictionDataService;
+    private final EmailService emailService;
 
     private boolean firstRun = true;
 
@@ -32,7 +34,8 @@ public class Scheduler {
             PowerLimitService powerLimitService,
             SolarmanPvService solarmanPvService,
             ProductionSourceService productionSourceService,
-            PricePredictionDataService pricePredictionDataService
+            PricePredictionDataService pricePredictionDataService,
+            EmailService emailService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -41,6 +44,7 @@ public class Scheduler {
         this.powerLimitService = powerLimitService;
         this.productionSourceService = productionSourceService;
         this.pricePredictionDataService = pricePredictionDataService;
+        this.emailService = emailService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -59,7 +63,7 @@ public class Scheduler {
         }
     }
 
-    @Scheduled(cron = "0 0 */2 * * *", zone = "Europe/Helsinki")
+    @Scheduled(cron = "0 0 */4 * * *", zone = "Europe/Helsinki")
     public void fetchNordpoolDataEveryTwoHours() {
         try {
             if (!nordpoolDataPortalService.hasDataForToday()) {
@@ -67,7 +71,9 @@ public class Scheduler {
                 log.info("Nordpool data (2h interval) fetched and saved successfully: {}", response.getMultiIndexEntries().size());
             }
         } catch (Exception e) {
-            log.error("Error fetching Nordpool data (2h interval)", e);
+            String msg = "Error fetching Nordpool data (4h interval)";
+            log.error(msg, e);
+            this.emailService.sendSystemErrorEmail(msg + e, Locale.getDefault());
         }
     }
 
@@ -88,13 +94,20 @@ public class Scheduler {
             NordpoolResponse response = nordpoolDataPortalService.fetchData(Day.TOMORROW);
             log.info("Nordpool day ahead data fetched and saved {} rows successfully", response.getMultiIndexEntries().size());
         } catch (Exception e) {
-            log.error("Error fetching Nordpool data", e);
+            String msg = "Error fetching Nordpool data";
+            log.error(msg, e);
+            this.emailService.sendSystemErrorEmail(msg + e, Locale.getDefault());
         }
     }
 
     @Scheduled(cron = "0 40 14 * * *", zone = "Europe/Helsinki")
     public void runAfterNordpoolImport() {
-        controlSchedulerService.generatePlannedForTomorrow();
+        try {
+            controlSchedulerService.generatePlannedForTomorrow();
+        } catch (Exception e) {
+            log.error(e.toString());
+            this.emailService.sendSystemErrorEmail(e.toString(), Locale.getDefault());
+        }
     }
 
     @Scheduled(cron = "0 0 18 * * *", zone = "Europe/Helsinki")
@@ -109,7 +122,12 @@ public class Scheduler {
 
     @Scheduled(cron = "0 40 18 * * *", zone = "Europe/Helsinki")
     public void runAfterNordpoolImportBackup() {
-        controlSchedulerService.generatePlannedForTomorrow();
+        try {
+            controlSchedulerService.generatePlannedForTomorrow();
+        } catch (Exception e) {
+            log.error(e.toString());
+            this.emailService.sendSystemErrorEmail(e.toString(), Locale.getDefault());
+        }
     }
 
 
