@@ -1,14 +1,8 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.services.AuthService;
-import com.nitramite.porssiohjain.services.DeviceService;
-import com.nitramite.porssiohjain.services.I18nService;
-import com.nitramite.porssiohjain.services.PowerLimitService;
-import com.nitramite.porssiohjain.services.models.DeviceResponse;
-import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
-import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
-import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
+import com.nitramite.porssiohjain.services.*;
+import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.DetachEvent;
@@ -54,6 +48,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private final AuthService authService;
     private final PowerLimitService powerLimitService;
     private final DeviceService deviceService;
+    private final SiteService siteService;
+
     private Long powerLimitId;
     private final Grid<PowerLimitDeviceResponse> deviceGrid = new Grid<>(PowerLimitDeviceResponse.class, false);
     private Div lastTotalKwh;
@@ -70,12 +66,14 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
             AuthService authService,
             I18nService i18n,
             PowerLimitService powerLimitService,
-            DeviceService deviceService
+            DeviceService deviceService,
+            SiteService siteService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.powerLimitService = powerLimitService;
         this.deviceService = deviceService;
+        this.siteService = siteService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -286,7 +284,20 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         notifyEnabledField.setValue(p.isNotifyEnabled());
         notifyEnabledField.getStyle().set("margin-top", "12px");
 
+        List<SiteResponse> sites = siteService.getAllSites(getAccountId());
+        ComboBox<SiteResponse> siteBox = new ComboBox<>(t("controlTable.field.site"));
+        siteBox.setItems(sites);
+        siteBox.setItemLabelGenerator(SiteResponse::getName);
+        siteBox.setClearButtonVisible(true);
+        sites.stream()
+                .filter(sr -> sr.getId().equals(p.getSiteId()))
+                .findFirst()
+                .ifPresent(siteBox::setValue);
+
         Button saveButton = new Button(t("powerlimit.button.save"), e -> {
+            SiteResponse site = siteBox.getValue();
+            Long siteId = site != null ? site.getId() : null;
+
             powerLimitService.updatePowerLimit(
                     getAccountId(),
                     p.getId(),
@@ -295,7 +306,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                     limitIntervalField.getValue(),
                     enabledField.getValue(),
                     notifyEnabledField.getValue(),
-                    timezoneField.getValue()
+                    timezoneField.getValue(),
+                    siteId
             );
 
             Notification.show(t("powerlimit.notification.saved"));
@@ -312,7 +324,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 limitIntervalField,
                 enabledField,
                 notifyEnabledField,
-                timezoneField
+                timezoneField,
+                siteBox
         );
 
         form.setResponsiveSteps(

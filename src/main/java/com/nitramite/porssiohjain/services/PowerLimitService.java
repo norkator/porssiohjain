@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -30,6 +29,7 @@ public class PowerLimitService {
     private final AccountRepository accountRepository;
     private final PowerLimitHistoryRepository powerLimitHistoryRepository;
     private final EmailService emailService;
+    private final SiteRepository siteRepository;
     private final Map<Long, Instant> lastNotificationSent = new ConcurrentHashMap<>();
 
     @Transactional
@@ -64,7 +64,8 @@ public class PowerLimitService {
     @Transactional
     public void updatePowerLimit(
             Long accountId, Long powerLimitId, String name,
-            BigDecimal limitKw, Integer limitIntervalMinutes, boolean enabled, boolean notifyEnabled, String timezone
+            BigDecimal limitKw, Integer limitIntervalMinutes, boolean enabled, boolean notifyEnabled,
+            String timezone, Long siteId
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -79,6 +80,7 @@ public class PowerLimitService {
         entity.setEnabled(enabled);
         entity.setNotifyEnabled(notifyEnabled);
         entity.setTimezone(timezone);
+        entity.setSite(siteId != null ? siteRepository.getReferenceById(siteId) : null);
         powerLimitRepository.save(entity);
         mapToResponse(entity);
     }
@@ -142,6 +144,7 @@ public class PowerLimitService {
                 .enabled(entity.isEnabled())
                 .notifyEnabled(entity.isNotifyEnabled())
                 .timezone(entity.getTimezone())
+                .siteId(entity.getSite() != null ? entity.getSite().getId() : null)
                 .createdAt(entity.getCreatedAt())
                 .lastTotalKwh(entity.getLastTotalKwh())
                 .updatedAt(entity.getUpdatedAt())
