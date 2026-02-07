@@ -4,6 +4,7 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.FingridWindForecastResponse;
+import com.nitramite.porssiohjain.services.models.PricePredictionResponse;
 import com.nitramite.porssiohjain.services.models.SystemLogResponse;
 import com.nitramite.porssiohjain.views.components.PriceChart;
 import com.vaadin.flow.component.Component;
@@ -28,7 +29,10 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @JsModule("./js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Dashboard")
@@ -39,17 +43,20 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
     private final AuthService authService;
     protected final I18nService i18n;
     private final FingridService fingridService;
+    private final PricePredictionService pricePredictionService;
 
     public DashboardView(
             AuthService authService,
             DeviceService deviceService,
             SystemLogService systemLogService,
             I18nService i18n,
-            FingridService fingridService
+            FingridService fingridService,
+            PricePredictionService pricePredictionService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.fingridService = fingridService;
+        this.pricePredictionService = pricePredictionService;
 
         setWidthFull();
         setPadding(true);
@@ -109,24 +116,57 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
         Button backButton = new Button("← " + t("dashboard.back"), e -> UI.getCurrent().navigate(HomeView.class));
 
-        PriceChart windForecast = new PriceChart();
-        String windForecastChartTitle = t("dashboard.windForecast");
+        PriceChart energyForecastChart = new PriceChart();
+        String chartTitle = t("dashboard.energyForecast");
         String nowLabel = t("controlTable.chart.now");
         String xAxisLabel = t("controlTable.chart.time");
+        String windForecastLabel = t("dashboard.windForecast");
+        String pricePredictionLabel = t("dashboard.pricePrediction");
 
         List<FingridWindForecastResponse> fingridWindForecastResponses = fingridService.getFingridWindForecastData();
+        List<PricePredictionResponse> pricePredictionResponses = pricePredictionService.getFuturePredictions();
+
+        Map<Instant, Double> priceByTime = pricePredictionResponses.stream()
+                .collect(Collectors.toMap(
+                        PricePredictionResponse::getTimestamp,
+                        p -> p.getPriceCents().doubleValue()
+                ));
 
         List<String> timestamps = new ArrayList<>();
         List<Double> windForecastValues = new ArrayList<>();
+        List<Double> priceValues = new ArrayList<>();
 
         ZoneId zone = ZoneId.systemDefault();
         DateTimeFormatter jsFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
                 .withZone(zone);
 
+        List<Instant> priceTimes = new ArrayList<>(priceByTime.keySet());
+        Collections.sort(priceTimes);
+
         for (FingridWindForecastResponse entry : fingridWindForecastResponses) {
-            String ts = jsFormatter.format(entry.getStartTime());
-            timestamps.add(ts);
+            Instant tsInstant = entry.getStartTime();
+            timestamps.add(jsFormatter.format(tsInstant));
             windForecastValues.add(entry.getValue().doubleValue());
+            Instant lower = null, upper = null;
+            for (Instant priceTime : priceTimes) {
+                if (!priceTime.isAfter(tsInstant)) lower = priceTime;
+                if (priceTime.isAfter(tsInstant)) {
+                    upper = priceTime;
+                    break;
+                }
+            }
+            Double interpolatedPrice;
+            if (lower == null) interpolatedPrice = priceByTime.get(upper);
+            else if (upper == null) interpolatedPrice = priceByTime.get(lower);
+            else {
+                double p0 = priceByTime.get(lower);
+                double p1 = priceByTime.get(upper);
+                long t0 = lower.toEpochMilli();
+                long t1 = upper.toEpochMilli();
+                long t = tsInstant.toEpochMilli();
+                interpolatedPrice = p0 + (p1 - p0) * ((double)(t - t0) / (t1 - t0));
+            }
+            priceValues.add(interpolatedPrice);
         }
 
         JsonArray jsTimestamps = Json.createArray();
@@ -139,17 +179,33 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
             jsWindForecastValues.set(i, windForecastValues.get(i));
         }
 
-        windForecast.setData(
+        JsonArray jsPriceValues = Json.createArray();
+        for (int i = 0; i < priceValues.size(); i++) {
+            Double val = priceValues.get(i);
+            if (val != null) {
+                jsPriceValues.set(i, val);
+            } else {
+                jsPriceValues.set(i, Json.createNull());
+            }
+        }
+
+        energyForecastChart.setData(
                 jsTimestamps,
                 jsWindForecastValues,
+                jsPriceValues,
                 "MW",
+                "c/kWh",
                 xAxisLabel,
-                "MW",
-                windForecastChartTitle,
-                nowLabel
+                chartTitle,
+                nowLabel,
+                windForecastLabel,
+                pricePredictionLabel
         );
 
-        card.add(backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(), windForecast, createDivider(), logTitle, logList);
+        card.add(
+                backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(),
+                energyForecastChart, createDivider(), logTitle, logList
+        );
         add(card);
     }
 

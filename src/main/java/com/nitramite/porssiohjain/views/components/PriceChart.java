@@ -13,22 +13,27 @@ public class PriceChart extends Div {
 
     public void setData(
             JsonArray timestamps,
+            JsonArray windSeries,
             JsonArray priceSeries,
-            String priceLabel,
+            String windUnit,
+            String priceUnit,
             String xAxisLabel,
-            String yAxisLabel,
             String chartTitle,
-            String nowLabel
+            String nowLabel,
+            String windForecastLabel,
+            String pricePredictionLabel
     ) {
         getElement().executeJs("""
                         const container = this;
-                        const priceLabel = $2;
-                        const xAxisLabel = $3;
-                        const yAxisLabel = $4;
-                        const chartTitle = $5;
-                        const nowLabel = $6;
+                        const windUnit = $3;
+                        const priceUnit = $4;
+                        const xAxisLabel = $5;
+                        const chartTitle = $6;
+                        const nowLabel = $7;
+                        const windForecastLabel = $8;
+                        const pricePredictionLabel = $9;
                         
-                        function renderOrUpdate(dataX, dataY) {
+                        function renderOrUpdate(dataX, windY, priceY) {
                             if (dataX.length === 0) return;
                         
                             const now = new Date();
@@ -36,21 +41,36 @@ public class PriceChart extends Div {
                                 Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now) ? curr : prev
                             );
                         
+                            const series = [
+                                { name: windForecastLabel, data: windY, type: 'line' },
+                                { name: pricePredictionLabel, data: priceY, type: 'line' }
+                            ];
+                        
                             if (!container.chartInstance) {
                                 const options = {
-                                    chart: { type: 'line', height: '400px', toolbar: { show: true }, zoom: { enabled: false } },
-                                    series: [{ name: priceLabel, data: dataY, color: '#0000FF' }],
+                                    chart: { height: '400px', toolbar: { show: true }, zoom: { enabled: false } },
+                                    series: series,
                                     xaxis: { categories: dataX, title: { text: xAxisLabel }, labels: { rotate: -45 } },
-                                    yaxis: { title: { text: yAxisLabel } },
+                                    yaxis: [
+                                        {
+                                            title: { text: windUnit },
+                                            labels: { formatter: val => val.toFixed(0) }
+                                        },
+                                        {
+                                            opposite: true,
+                                            title: { text: priceUnit },
+                                            labels: { formatter: val => val.toFixed(2) }
+                                        }
+                                    ],
                                     title: { text: chartTitle, align: 'center' },
                                     stroke: { curve: 'smooth', width: 2 },
-                                    markers: { size: 4 },
+                                    markers: { size: 3 },
                                     tooltip: { shared: true },
                                     annotations: {
                                         xaxis: [{
                                             x: closest,
-                                            borderColor: '#00E396',
-                                            label: { style: { color: '#fff', background: '#00E396' }, text: nowLabel }
+                                            borderColor: '#FF4560',
+                                            label: { style: { color: '#fff', background: '#FF4560' }, text: nowLabel }
                                         }]
                                     }
                                 };
@@ -64,20 +84,20 @@ public class PriceChart extends Div {
                                     annotations: {
                                         xaxis: [{
                                             x: closest,
-                                            borderColor: '#00E396',
-                                            label: { style: { color: '#fff', background: '#00E396' }, text: nowLabel }
+                                            borderColor: '#FF4560',
+                                            label: { style: { color: '#fff', background: '#FF4560' }, text: nowLabel }
                                         }]
                                     }
                                 });
                         
-                                container.chartInstance.updateSeries([{ data: dataY }], true);
+                                container.chartInstance.updateSeries(series, true);
                             }
                         }
                         
-                        renderOrUpdate($0, $1);
+                        renderOrUpdate($0, $1, $2);
                         """,
-                timestamps, priceSeries, priceLabel, xAxisLabel, yAxisLabel, chartTitle, nowLabel
+                timestamps, windSeries, priceSeries, windUnit, priceUnit, xAxisLabel, chartTitle, nowLabel,
+                windForecastLabel, pricePredictionLabel
         );
     }
-
 }

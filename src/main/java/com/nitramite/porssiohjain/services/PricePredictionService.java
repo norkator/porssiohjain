@@ -34,4 +34,16 @@ public class PricePredictionService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<PricePredictionResponse> getFuturePredictions() {
+        Instant now = Instant.now();
+
+        return predictionRepository.findByTimestampAfterOrderByTimestampAsc(now).stream()
+                .map(p -> PricePredictionResponse.builder()
+                        .timestamp(p.getTimestamp())
+                        .priceCents(p.getPriceCents())
+                        .build())
+                .toList();
+    }
+
 }

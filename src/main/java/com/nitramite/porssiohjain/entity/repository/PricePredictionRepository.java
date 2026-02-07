@@ -20,5 +20,6 @@ public interface PricePredictionRepository extends JpaRepository<PricePrediction
 
     boolean existsByTimestampBetween(Instant start, Instant end);
 
+    List<PricePredictionEntity> findByTimestampAfterOrderByTimestampAsc(Instant timestamp);
 
 }
