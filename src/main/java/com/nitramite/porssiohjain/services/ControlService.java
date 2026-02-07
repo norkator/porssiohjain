@@ -292,26 +292,35 @@ public class ControlService {
 
         Instant nowUtc = Instant.now(); // current UTC time
         device.setLastCommunication(nowUtc);
-
         deviceRepository.save(device);
 
-        List<ControlDeviceEntity> controlDevices = controlDeviceRepository.findByDevice(device);
         Map<Integer, Integer> channelMap = new HashMap<>();
 
-        for (ControlDeviceEntity cd : controlDevices) {
-            // check for power limit first and skip later logic if power limit active
-            int channel = cd.getDeviceChannel();
-
+        // Check for power limits as first priority
+        List<PowerLimitDeviceEntity> powerLimitDevices = powerLimitDeviceRepository.findByDevice(device);
+        for (PowerLimitDeviceEntity pld : powerLimitDevices) {
+            int channel = pld.getDeviceChannel();
             if (isPowerLimitActiveForDeviceChannel(device, channel)) {
                 channelMap.put(channel, 0);
-                continue;
             }
+        }
 
+        // Production source has second priority
+        List<ProductionSourceDeviceEntity> prodDevices = productionSourceDeviceRepository.findByDevice(device);
+        for (ProductionSourceDeviceEntity psd : prodDevices) {
+            int channel = psd.getDeviceChannel();
+            if (channelMap.containsKey(channel)) continue; // power limit already forced
             Integer productionOverride = getProductionOverride(device, channel);
             if (productionOverride != null) {
                 channelMap.put(channel, productionOverride);
-                continue;
             }
+        }
+
+        // Third and last priority is controls
+        List<ControlDeviceEntity> controlDevices = controlDeviceRepository.findByDevice(device);
+        for (ControlDeviceEntity cd : controlDevices) {
+            int channel = cd.getDeviceChannel();
+            if (channelMap.containsKey(channel)) continue; // higher rule already decided
 
             ControlEntity control = cd.getControl();
             ZoneId controlZone = ZoneId.of(control.getTimezone());

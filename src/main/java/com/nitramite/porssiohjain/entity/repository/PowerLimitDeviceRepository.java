@@ -16,4 +16,6 @@ public interface PowerLimitDeviceRepository extends JpaRepository<PowerLimitDevi
 
     List<PowerLimitDeviceEntity> findByDeviceAndDeviceChannel(DeviceEntity device, Integer deviceChannel);
 
+    List<PowerLimitDeviceEntity> findByDevice(DeviceEntity device);
+
 }

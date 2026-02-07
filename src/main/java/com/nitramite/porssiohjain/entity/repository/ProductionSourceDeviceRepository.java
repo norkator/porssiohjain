@@ -16,4 +16,6 @@ public interface ProductionSourceDeviceRepository extends JpaRepository<Producti
 
     List<ProductionSourceDeviceEntity> findAllByDevice(DeviceEntity device);
 
+    List<ProductionSourceDeviceEntity> findByDevice(DeviceEntity device);
+
 }
