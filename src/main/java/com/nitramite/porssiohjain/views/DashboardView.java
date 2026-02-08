@@ -3,6 +3,7 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.views.components.EnergyUsagePriceChart;
 import com.nitramite.porssiohjain.views.components.PriceChart;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -228,6 +229,9 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
                 siteContentContainer.add(content);
             }
         });
+        if (sites.size() == 1) {
+            siteBox.setValue(sites.getFirst());
+        }
 
         card.add(
                 backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(),
@@ -297,6 +301,9 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
                 limitContentContainer.add(limitContent);
             }
         });
+        if (sitePowerLimits.size() == 1) {
+            limitBox.setValue(sitePowerLimits.getFirst());
+        }
         layout.add(limitBox, limitContentContainer);
         return layout;
     }
@@ -308,20 +315,40 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         layout.setWidthFull();
         YearMonth selectedMonth = YearMonth.now();
         List<PowerLimitHistoryResponse> history = powerLimitService
-                .getPowerLimitHistoryForMonth(getAccountId(), limit.getId(), selectedMonth);
+                .getQuarterHourSummedPowerLimitHistoryForMonth(getAccountId(), limit.getId(), selectedMonth);
         if (history.isEmpty()) {
             layout.add(new Paragraph(t("dashboard.noHistoryData")));
             return layout;
         }
-        Div chartPlaceholder = new Div();
-        chartPlaceholder.getStyle()
-                .set("border", "1px solid var(--lumo-contrast-20pct)")
-                .set("padding", "10px");
-
-        layout.add(chartPlaceholder);
+        EnergyUsagePriceChart chart = new EnergyUsagePriceChart();
+        JsonArray timestamps = Json.createArray();
+        JsonArray usageSeries = Json.createArray();
+        JsonArray costSeries = Json.createArray();
+        for (int i = 0; i < history.size(); i++) {
+            PowerLimitHistoryResponse h = history.get(i);
+            timestamps.set(i, h.getCreatedAt().toString());
+            double kw = h.getKilowatts().doubleValue();
+            usageSeries.set(i, kw);
+            double pricePerMwh = 80.0;
+            double intervalKwh = kw * 0.25;
+            double cost = intervalKwh * (pricePerMwh / 1000.0);
+            costSeries.set(i, cost);
+        }
+        chart.setData(
+                timestamps,
+                usageSeries,
+                costSeries,
+                "kW",
+                "€",
+                t("controlTable.chart.time"),
+                "Title",
+                t("controlTable.chart.now"),
+                t("dashboard.chart.usage"),
+                t("dashboard.chart.cost")
+        );
+        layout.add(chart);
         return layout;
     }
-
 
     private Long getAccountId() {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");

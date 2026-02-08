@@ -321,7 +321,7 @@ public class PowerLimitService {
     }
 
     @Transactional(readOnly = true)
-    public List<PowerLimitHistoryResponse> getPowerLimitHistoryForMonth(
+    public List<PowerLimitHistoryResponse> getQuarterHourSummedPowerLimitHistoryForMonth(
             Long accountId, Long powerLimitId, YearMonth yearMonth
     ) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -332,36 +332,29 @@ public class PowerLimitService {
                         "Power limit not found for account " + accountId + " and id " + powerLimitId
                 ));
         ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
-        int intervalMinutes = powerLimitEntity.getLimitIntervalMinutes();
         ZonedDateTime nowZoned = ZonedDateTime.now(zone);
         YearMonth currentMonth = YearMonth.from(nowZoned);
         ZonedDateTime startOfMonthZoned = yearMonth.atDay(1).atStartOfDay(zone);
-        ZonedDateTime endZoned;
-        if (yearMonth.equals(currentMonth)) {
-            endZoned = nowZoned;
-        } else {
-            endZoned = yearMonth.plusMonths(1).atDay(1).atStartOfDay(zone);
-        }
+        ZonedDateTime endZoned = yearMonth.equals(currentMonth)
+                ? nowZoned
+                : yearMonth.plusMonths(1).atDay(1).atStartOfDay(zone);
         Instant start = startOfMonthZoned.toInstant();
         Instant end = endZoned.toInstant();
-        Map<Instant, List<PowerLimitHistoryEntity>> grouped =
-                powerLimitHistoryRepository.findAllByPowerLimitAndAccount(accountId, powerLimitId)
-                        .stream()
-                        .filter(h -> !h.getCreatedAt().isBefore(start) && h.getCreatedAt().isBefore(end))
-                        .collect(Collectors.groupingBy(
-                                h -> Utils.toInterval(h.getCreatedAt(), zone, intervalMinutes)
-                        ));
+        List<PowerLimitHistoryEntity> raw = powerLimitHistoryRepository
+                .findByPowerLimitAndCreatedAtBetween(accountId, powerLimitId, start, end);
+        Map<Instant, List<PowerLimitHistoryEntity>> grouped = raw.stream()
+                .collect(Collectors.groupingBy(
+                        h -> Utils.toInterval(h.getCreatedAt(), zone, 15)
+                ));
         return grouped.entrySet().stream()
                 .map(entry -> {
-                    Instant bucketStart = entry.getKey();
-                    List<PowerLimitHistoryEntity> values = entry.getValue();
-                    BigDecimal sum = values.stream()
+                    BigDecimal sum = entry.getValue().stream()
                             .map(PowerLimitHistoryEntity::getKilowatts)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
                     return PowerLimitHistoryResponse.builder()
                             .accountId(accountId)
                             .kilowatts(sum)
-                            .createdAt(bucketStart)
+                            .createdAt(entry.getKey())
                             .build();
                 })
                 .sorted(Comparator.comparing(PowerLimitHistoryResponse::getCreatedAt))
