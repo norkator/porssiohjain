@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -30,6 +31,7 @@ public class PowerLimitService {
     private final EmailService emailService;
     private final SiteRepository siteRepository;
     private final ElectricityContractRepository electricityContractRepository;
+    private final NordpoolRepository nordpoolRepository;
     private final Map<Long, Instant> lastNotificationSent = new ConcurrentHashMap<>();
 
     @Transactional
@@ -321,51 +323,6 @@ public class PowerLimitService {
     }
 
     @Transactional(readOnly = true)
-    public List<PowerLimitHistoryResponse> getDailySummedPowerLimitHistoryForMonth(
-            Long accountId, Long powerLimitId, YearMonth yearMonth
-    ) {
-        AccountEntity account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
-        PowerLimitEntity powerLimitEntity = powerLimitRepository
-                .findByAccountIdAndId(account.getId(), powerLimitId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Power limit not found for account " + accountId + " and id " + powerLimitId
-                ));
-        ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
-        ZonedDateTime nowZoned = ZonedDateTime.now(zone);
-        YearMonth currentMonth = YearMonth.from(nowZoned);
-        ZonedDateTime startOfMonthZoned = yearMonth.atDay(1).atStartOfDay(zone);
-        ZonedDateTime endZoned = yearMonth.equals(currentMonth)
-                ? nowZoned
-                : yearMonth.plusMonths(1).atDay(1).atStartOfDay(zone);
-        Instant start = startOfMonthZoned.toInstant();
-        Instant end = endZoned.toInstant();
-        List<PowerLimitHistoryEntity> raw = powerLimitHistoryRepository
-                .findByPowerLimitAndCreatedAtBetween(accountId, powerLimitId, start, end);
-        Map<LocalDate, List<PowerLimitHistoryEntity>> grouped = raw.stream()
-                .collect(Collectors.groupingBy(
-                        h -> h.getCreatedAt().atZone(zone).toLocalDate()
-                ));
-        return grouped.entrySet().stream()
-                .map(entry -> {
-                    BigDecimal sum = entry.getValue().stream()
-                            .map(PowerLimitHistoryEntity::getKilowatts)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-                    Instant dayStartInstant = entry.getKey()
-                            .atStartOfDay(zone)
-                            .toInstant();
-
-                    return PowerLimitHistoryResponse.builder()
-                            .accountId(accountId)
-                            .kilowatts(sum)
-                            .createdAt(dayStartInstant)
-                            .build();
-                })
-                .sorted(Comparator.comparing(PowerLimitHistoryResponse::getCreatedAt))
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
     public Optional<BigDecimal> getCurrentIntervalSum(
             Long accountId, Long powerLimitId
     ) {
@@ -391,6 +348,62 @@ public class PowerLimitService {
                 .map(PowerLimitHistoryEntity::getKilowatts)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return Optional.of(sum);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DailyUsageCostResponse> getDailyUsageCostForMonth(
+            Long accountId, Long powerLimitId, YearMonth yearMonth
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
+        PowerLimitEntity powerLimitEntity = powerLimitRepository
+                .findByAccountIdAndId(account.getId(), powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+
+        ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
+        ZonedDateTime nowZoned = ZonedDateTime.now(zone);
+        YearMonth currentMonth = YearMonth.from(nowZoned);
+        ZonedDateTime startOfMonthZoned = yearMonth.atDay(1).atStartOfDay(zone);
+        ZonedDateTime endZoned = yearMonth.equals(currentMonth)
+                ? nowZoned
+                : yearMonth.plusMonths(1).atDay(1).atStartOfDay(zone);
+        Instant start = startOfMonthZoned.toInstant();
+        Instant end = endZoned.toInstant();
+
+        List<PowerLimitHistoryEntity> usageList = powerLimitHistoryRepository
+                .findByPowerLimitAndCreatedAtBetween(accountId, powerLimitId, start, end);
+
+        List<NordpoolEntity> priceList = nordpoolRepository.findPricesBetween(start, end);
+
+        Map<LocalDate, DailyUsageCostResponse> dailyMap = new TreeMap<>();
+        for (PowerLimitHistoryEntity usage : usageList) {
+            Instant usageTime = usage.getCreatedAt();
+            BigDecimal kwh = usage.getKilowatts().multiply(BigDecimal.valueOf(0.25));
+
+            BigDecimal priceMwh = priceList.stream()
+                    .filter(p -> !usageTime.isBefore(p.getDeliveryStart()) && usageTime.isBefore(p.getDeliveryEnd()))
+                    .map(NordpoolEntity::getPriceFi)
+                    .findFirst()
+                    .orElse(BigDecimal.ZERO);
+
+            BigDecimal cost = kwh.multiply(priceMwh).divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP);
+            LocalDate day = usageTime.atZone(zone).toLocalDate();
+            dailyMap.compute(day, (d, existing) -> {
+                if (existing == null) {
+                    return new DailyUsageCostResponse(d, kwh, cost);
+                } else {
+                    existing.setTotalUsageKwh(existing.getTotalUsageKwh().add(kwh));
+                    existing.setTotalCostEur(existing.getTotalCostEur().add(cost));
+                    return existing;
+                }
+            });
+        }
+        return dailyMap.values().stream()
+                .sorted(Comparator.comparing(DailyUsageCostResponse::getDate))
+                .toList();
     }
 
 }

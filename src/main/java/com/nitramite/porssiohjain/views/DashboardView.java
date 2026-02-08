@@ -314,8 +314,9 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         layout.setSpacing(true);
         layout.setWidthFull();
         YearMonth selectedMonth = YearMonth.now();
-        List<PowerLimitHistoryResponse> history = powerLimitService
-                .getDailySummedPowerLimitHistoryForMonth(getAccountId(), limit.getId(), selectedMonth);
+        List<DailyUsageCostResponse> history = powerLimitService.getDailyUsageCostForMonth(
+                getAccountId(), limit.getId(), selectedMonth
+        );
         if (history.isEmpty()) {
             layout.add(new Paragraph(t("dashboard.noHistoryData")));
             return layout;
@@ -335,16 +336,11 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         DateTimeFormatter jsFormatter = DateTimeFormatter
                 .ofPattern("yyyy-MM-dd HH:mm")
                 .withZone(zone);
-
         for (int i = 0; i < history.size(); i++) {
-            PowerLimitHistoryResponse h = history.get(i);
-            timestamps.set(i, jsFormatter.format(h.getCreatedAt()));
-            double kw = h.getKilowatts().doubleValue();
-            usageSeries.set(i, kw);
-            double pricePerMwh = 80.0;
-            double intervalKwh = kw * 24.0;
-            double cost = intervalKwh * (pricePerMwh / 1000.0);
-            costSeries.set(i, cost);
+            DailyUsageCostResponse h = history.get(i);
+            timestamps.set(i, jsFormatter.format(h.getDate().atStartOfDay(zone).toInstant()));
+            usageSeries.set(i, h.getTotalUsageKwh().doubleValue());
+            costSeries.set(i, h.getTotalCostEur().doubleValue());
         }
         chart.setData(
                 timestamps,
