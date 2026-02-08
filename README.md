@@ -2,19 +2,31 @@
 
 ![ukjx6lcc](./doc/odw6ej6ii.png)
 
-Pörssiohjain on Springin päälle rakennettu yksinkertainen online sovellus, joka hakee Nordpoolista pörssisähkön hinnat
-ja päivittää ohjaukset. Ohjauksien on tarkoitus antaa käyttäjälle mahdollisuus säätää laitteita päälle halvimmilla
-tunneilla halutun aikaa, katkaista ohjauksia kun hinta nousee arvoa korkeammaksi tai tehdä erilaisia manuaalisia
-ohjauksia. Tehorajoituksilla voidaan palveluun tuoda tietoa talon reaaliaikaisesta kulutuksesta ja tämän perusteella
-kytkeä ohjauksia pois päältä. Tällä on ajatus purea tehomaksuihin.
-Laitteesi esim Shelly kutsuu control rajapintaa ja saa vastauksena kanavakohtaiset ohjauksien
-tilat, eli käytännössä konfiguroidut kavananumerot ja tila päälle/pois päältä.
+<b>Pörssiohjain</b> on Springin päälle rakennettu verkkopalvelu, joka hakee Nord Poolista pörssisähkön hinnat ja ohjaa
+laitteita niiden perusteella.
 
-Käyttöliittymä on tehty Vaadinilla ja renderöityy palvelimen puolella. Käyttöliittymän tarkoitus on olla mahdollisimman
-yksinkertainen kun tavoite on että siellä käydään harvoin.
+Ohjauksien avulla käyttäjä voi:
 
-⚠️ Voit käyttää pörssiohjainta omaan kotitalouskäyttöön ilmaiseksi tai hostata pörssiohjaimesta omaa instanssia.
-Myyntitarkoituksiin käyttö on kielletty sillä rakennan tästä myytävää palvelua.
+* ajastaa laitteita käymään halvimpien tuntien aikana halutun ajan
+* estää laitteiden käynnin, kun sähkön hinta ylittää asetetun rajan
+* tehdä myös manuaalisia ohjauksia
+
+Tehorajoitukset tuovat järjestelmään tiedon talon reaaliaikaisesta kulutuksesta. Jos kulutus nousee liian korkeaksi,
+järjestelmä voi kytkeä ohjattuja laitteita pois päältä. Tavoitteena on pienentää tai välttyä tehomaksuilta.
+
+Laitteet (esim. Shelly) kutsuvat control-rajapintaa ja saavat vastauksena kanavakohtaiset ohjaustilat — käytännössä
+tiedon siitä, mitkä konfiguroidut kanavat ovat päällä tai pois päältä.
+
+Pörssiohjain tukee myös oman sähköntuotannon hyödyntämistä omaan kulutukseen. Jatkossa järjestelmä mahdollistaa
+optimoinnin oman käytön ja verkkoon myynnin välillä.
+
+Käyttöliittymä on toteutettu Vaadinilla ja renderöidään palvelinpuolella. Sen on tarkoitus olla mahdollisimman
+yksinkertainen, koska sitä käytetään vain satunnaisesti.
+
+⚠️ Pörssiohjainta saa käyttää ilmaiseksi omaan kotitalouskäyttöön, joko valmiina palveluna tai ajamalla omaa instanssia.
+
+Kaupallinen käyttö, jälleenmyynti tai palvelun tarjoaminen kolmansille osapuolille ei ole sallittua. Kehitän tästä
+erillistä maksullista palvelua, jossa on laajemmat ominaisuudet ja eri palvelutasot.
 
 Jos olet hyötynyt Pörssiohjaimesta taloudellisesti niin [lahjoita kahvirahaa](https://buymeacoffee.com/norkator).
 
