@@ -23,6 +23,10 @@ public class PowerLimitResponse {
     private String timezone;
     private Integer limitIntervalMinutes;
     private Long siteId;
+    private Long energyContractId;
+    private String energyContractName;
+    private Long transferContractId;
+    private String transferContractName;
     private Instant createdAt;
     private Instant updatedAt;
     private BigDecimal lastTotalKwh; // for viewing only

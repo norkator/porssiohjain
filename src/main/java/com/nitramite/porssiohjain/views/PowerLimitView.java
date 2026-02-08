@@ -1,6 +1,9 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.ContractType;
+import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
+import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.AttachEvent;
@@ -49,6 +52,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private final PowerLimitService powerLimitService;
     private final DeviceService deviceService;
     private final SiteService siteService;
+    private final ElectricityContractRepository contractRepository;
 
     private Long powerLimitId;
     private final Grid<PowerLimitDeviceResponse> deviceGrid = new Grid<>(PowerLimitDeviceResponse.class, false);
@@ -67,13 +71,15 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
             I18nService i18n,
             PowerLimitService powerLimitService,
             DeviceService deviceService,
-            SiteService siteService
+            SiteService siteService,
+            ElectricityContractRepository contractRepository
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.powerLimitService = powerLimitService;
         this.deviceService = deviceService;
         this.siteService = siteService;
+        this.contractRepository = contractRepository;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -294,9 +300,48 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 .findFirst()
                 .ifPresent(siteBox::setValue);
 
+        List<ElectricityContractEntity> contracts =
+                contractRepository.findByAccountId(getAccountId());
+        ComboBox<ElectricityContractEntity> energyContractCombo =
+                new ComboBox<>(t("controlTable.field.energyContract"));
+        ComboBox<ElectricityContractEntity> transferContractCombo =
+                new ComboBox<>(t("controlTable.field.transferContract"));
+        energyContractCombo.setItems(
+                contracts.stream()
+                        .filter(c -> c.getType() == ContractType.ENERGY)
+                        .toList()
+        );
+        transferContractCombo.setItems(
+                contracts.stream()
+                        .filter(c -> c.getType() == ContractType.TRANSFER)
+                        .toList()
+        );
+        if (p.getEnergyContractId() != null) {
+            contracts.stream()
+                    .filter(c -> c.getId().equals(p.getEnergyContractId()))
+                    .findFirst()
+                    .ifPresent(energyContractCombo::setValue);
+        }
+        if (p.getTransferContractId() != null) {
+            contracts.stream()
+                    .filter(c -> c.getId().equals(p.getTransferContractId()))
+                    .findFirst()
+                    .ifPresent(transferContractCombo::setValue);
+        }
+        energyContractCombo.setItemLabelGenerator(ElectricityContractEntity::getName);
+        transferContractCombo.setItemLabelGenerator(ElectricityContractEntity::getName);
+        energyContractCombo.setClearButtonVisible(true);
+        transferContractCombo.setClearButtonVisible(true);
+        energyContractCombo.setWidthFull();
+        transferContractCombo.setWidthFull();
+
         Button saveButton = new Button(t("powerlimit.button.save"), e -> {
             SiteResponse site = siteBox.getValue();
             Long siteId = site != null ? site.getId() : null;
+            ElectricityContractEntity energy = energyContractCombo.getValue();
+            ElectricityContractEntity transfer = transferContractCombo.getValue();
+            Long energyId = energy != null ? energy.getId() : null;
+            Long transferId = transfer != null ? transfer.getId() : null;
 
             powerLimitService.updatePowerLimit(
                     getAccountId(),
@@ -307,7 +352,9 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                     enabledField.getValue(),
                     notifyEnabledField.getValue(),
                     timezoneField.getValue(),
-                    siteId
+                    siteId,
+                    energyId,
+                    transferId
             );
 
             Notification.show(t("powerlimit.notification.saved"));
@@ -325,7 +372,9 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 enabledField,
                 notifyEnabledField,
                 timezoneField,
-                siteBox
+                siteBox,
+                energyContractCombo,
+                transferContractCombo
         );
 
         form.setResponsiveSteps(

@@ -4,6 +4,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.utils.Utils;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class PowerLimitService {
     private final PowerLimitHistoryRepository powerLimitHistoryRepository;
     private final EmailService emailService;
     private final SiteRepository siteRepository;
+    private final ElectricityContractRepository electricityContractRepository;
     private final Map<Long, Instant> lastNotificationSent = new ConcurrentHashMap<>();
 
     @Transactional
@@ -65,7 +67,7 @@ public class PowerLimitService {
     public void updatePowerLimit(
             Long accountId, Long powerLimitId, String name,
             BigDecimal limitKw, Integer limitIntervalMinutes, boolean enabled, boolean notifyEnabled,
-            String timezone, Long siteId
+            String timezone, Long siteId, Long energyContractId, Long transferContractId
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -74,6 +76,17 @@ public class PowerLimitService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Power limit not found for account " + accountId + " and id " + powerLimitId
                 ));
+        ElectricityContractEntity e = energyContractId == null
+                ? null
+                : electricityContractRepository.findByIdAndAccountId(energyContractId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Energy contract not found or does not belong to account"));
+
+        ElectricityContractEntity t = transferContractId == null
+                ? null
+                : electricityContractRepository.findByIdAndAccountId(transferContractId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Transfer contract not found or does not belong to account"));
         entity.setName(name);
         entity.setLimitKw(limitKw);
         entity.setLimitIntervalMinutes(limitIntervalMinutes);
@@ -81,6 +94,8 @@ public class PowerLimitService {
         entity.setNotifyEnabled(notifyEnabled);
         entity.setTimezone(timezone);
         entity.setSite(siteId != null ? siteRepository.getReferenceById(siteId) : null);
+        entity.setEnergyContract(e);
+        entity.setTransferContract(t);
         powerLimitRepository.save(entity);
         mapToResponse(entity);
     }
@@ -145,6 +160,10 @@ public class PowerLimitService {
                 .notifyEnabled(entity.isNotifyEnabled())
                 .timezone(entity.getTimezone())
                 .siteId(entity.getSite() != null ? entity.getSite().getId() : null)
+                .energyContractId(entity.getEnergyContract() != null ? entity.getEnergyContract().getId() : null)
+                .energyContractName(entity.getEnergyContract() != null ? entity.getEnergyContract().getName() : null)
+                .transferContractId(entity.getTransferContract() != null ? entity.getTransferContract().getId() : null)
+                .transferContractName(entity.getTransferContract() != null ? entity.getTransferContract().getName() : null)
                 .createdAt(entity.getCreatedAt())
                 .lastTotalKwh(entity.getLastTotalKwh())
                 .updatedAt(entity.getUpdatedAt())
