@@ -11,9 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -103,6 +101,13 @@ public class PowerLimitService {
     @Transactional(readOnly = true)
     public List<PowerLimitResponse> getAllLimits(Long accountId) {
         return powerLimitRepository.findByAccountId(accountId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<PowerLimitResponse> getAllSiteLimits(Long accountId, Long siteId) {
+        return powerLimitRepository.findByAccountIdAndSiteId(accountId, siteId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -305,6 +310,54 @@ public class PowerLimitService {
                             .map(PowerLimitHistoryEntity::getKilowatts)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+                    return PowerLimitHistoryResponse.builder()
+                            .accountId(accountId)
+                            .kilowatts(sum)
+                            .createdAt(bucketStart)
+                            .build();
+                })
+                .sorted(Comparator.comparing(PowerLimitHistoryResponse::getCreatedAt))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PowerLimitHistoryResponse> getPowerLimitHistoryForMonth(
+            Long accountId, Long powerLimitId, YearMonth yearMonth
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        PowerLimitEntity powerLimitEntity = powerLimitRepository
+                .findByAccountIdAndId(account.getId(), powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+        ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
+        int intervalMinutes = powerLimitEntity.getLimitIntervalMinutes();
+        ZonedDateTime nowZoned = ZonedDateTime.now(zone);
+        YearMonth currentMonth = YearMonth.from(nowZoned);
+        ZonedDateTime startOfMonthZoned = yearMonth.atDay(1).atStartOfDay(zone);
+        ZonedDateTime endZoned;
+        if (yearMonth.equals(currentMonth)) {
+            endZoned = nowZoned;
+        } else {
+            endZoned = yearMonth.plusMonths(1).atDay(1).atStartOfDay(zone);
+        }
+        Instant start = startOfMonthZoned.toInstant();
+        Instant end = endZoned.toInstant();
+        Map<Instant, List<PowerLimitHistoryEntity>> grouped =
+                powerLimitHistoryRepository.findAllByPowerLimitAndAccount(accountId, powerLimitId)
+                        .stream()
+                        .filter(h -> !h.getCreatedAt().isBefore(start) && h.getCreatedAt().isBefore(end))
+                        .collect(Collectors.groupingBy(
+                                h -> Utils.toInterval(h.getCreatedAt(), zone, intervalMinutes)
+                        ));
+        return grouped.entrySet().stream()
+                .map(entry -> {
+                    Instant bucketStart = entry.getKey();
+                    List<PowerLimitHistoryEntity> values = entry.getValue();
+                    BigDecimal sum = values.stream()
+                            .map(PowerLimitHistoryEntity::getKilowatts)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
                     return PowerLimitHistoryResponse.builder()
                             .accountId(accountId)
                             .kilowatts(sum)
