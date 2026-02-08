@@ -552,20 +552,28 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         }
 
         if (transferContract != null) {
+            BigDecimal staticPrice = transferContract.getStaticPrice();
             BigDecimal nightPrice = transferContract.getNightPrice();
             BigDecimal dayPrice = transferContract.getDayPrice();
             BigDecimal taxAmount = transferContract.getTaxAmount();
+            BigDecimal tax = taxAmount != null ? taxAmount : BigDecimal.ZERO;
+            boolean hasStatic = staticPrice != null;
+            boolean hasDayNight = dayPrice != null || nightPrice != null;
             for (String ts : timestamps) {
                 try {
-                    LocalDateTime localDateTime = LocalDateTime.parse(ts, jsFormatter);
-                    int hour = localDateTime.getHour();
-                    boolean isNight = (hour >= 22 || hour < 7);
-                    BigDecimal basePrice = isNight ? nightPrice : dayPrice;
+                    BigDecimal basePrice = null;
+                    if (hasStatic && !hasDayNight) {
+                        basePrice = staticPrice;
+                    } else if (hasDayNight) {
+                        LocalDateTime localDateTime = LocalDateTime.parse(ts, jsFormatter);
+                        int hour = localDateTime.getHour();
+                        boolean isNight = (hour >= 22 || hour < 7);
+                        basePrice = isNight ? nightPrice : dayPrice;
+                    }
                     if (basePrice == null) {
                         transferPrices.add(Double.NaN);
                     } else {
-                        BigDecimal total = basePrice.add(taxAmount != null ? taxAmount : BigDecimal.ZERO);
-                        transferPrices.add(total.doubleValue());
+                        transferPrices.add(basePrice.add(tax).doubleValue());
                     }
                 } catch (Exception e) {
                     transferPrices.add(Double.NaN);
