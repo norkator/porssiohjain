@@ -321,7 +321,7 @@ public class PowerLimitService {
     }
 
     @Transactional(readOnly = true)
-    public List<PowerLimitHistoryResponse> getQuarterHourSummedPowerLimitHistoryForMonth(
+    public List<PowerLimitHistoryResponse> getDailySummedPowerLimitHistoryForMonth(
             Long accountId, Long powerLimitId, YearMonth yearMonth
     ) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -342,19 +342,23 @@ public class PowerLimitService {
         Instant end = endZoned.toInstant();
         List<PowerLimitHistoryEntity> raw = powerLimitHistoryRepository
                 .findByPowerLimitAndCreatedAtBetween(accountId, powerLimitId, start, end);
-        Map<Instant, List<PowerLimitHistoryEntity>> grouped = raw.stream()
+        Map<LocalDate, List<PowerLimitHistoryEntity>> grouped = raw.stream()
                 .collect(Collectors.groupingBy(
-                        h -> Utils.toInterval(h.getCreatedAt(), zone, 15)
+                        h -> h.getCreatedAt().atZone(zone).toLocalDate()
                 ));
         return grouped.entrySet().stream()
                 .map(entry -> {
                     BigDecimal sum = entry.getValue().stream()
                             .map(PowerLimitHistoryEntity::getKilowatts)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    Instant dayStartInstant = entry.getKey()
+                            .atStartOfDay(zone)
+                            .toInstant();
+
                     return PowerLimitHistoryResponse.builder()
                             .accountId(accountId)
                             .kilowatts(sum)
-                            .createdAt(entry.getKey())
+                            .createdAt(dayStartInstant)
                             .build();
                 })
                 .sorted(Comparator.comparing(PowerLimitHistoryResponse::getCreatedAt))

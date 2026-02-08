@@ -315,7 +315,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         layout.setWidthFull();
         YearMonth selectedMonth = YearMonth.now();
         List<PowerLimitHistoryResponse> history = powerLimitService
-                .getQuarterHourSummedPowerLimitHistoryForMonth(getAccountId(), limit.getId(), selectedMonth);
+                .getDailySummedPowerLimitHistoryForMonth(getAccountId(), limit.getId(), selectedMonth);
         if (history.isEmpty()) {
             layout.add(new Paragraph(t("dashboard.noHistoryData")));
             return layout;
@@ -324,13 +324,25 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         JsonArray timestamps = Json.createArray();
         JsonArray usageSeries = Json.createArray();
         JsonArray costSeries = Json.createArray();
+
+        ZoneId zone = ZoneId.systemDefault();
+        try {
+            if (limit.getTimezone() != null) {
+                zone = ZoneId.of(limit.getTimezone());
+            }
+        } catch (Exception ignored) {
+        }
+        DateTimeFormatter jsFormatter = DateTimeFormatter
+                .ofPattern("yyyy-MM-dd HH:mm")
+                .withZone(zone);
+
         for (int i = 0; i < history.size(); i++) {
             PowerLimitHistoryResponse h = history.get(i);
-            timestamps.set(i, h.getCreatedAt().toString());
+            timestamps.set(i, jsFormatter.format(h.getCreatedAt()));
             double kw = h.getKilowatts().doubleValue();
             usageSeries.set(i, kw);
             double pricePerMwh = 80.0;
-            double intervalKwh = kw * 0.25;
+            double intervalKwh = kw * 24.0;
             double cost = intervalKwh * (pricePerMwh / 1000.0);
             costSeries.set(i, cost);
         }
