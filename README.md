@@ -129,6 +129,12 @@ function fetchControlData() {
             return;
         }
 
+        if (!data || Object.keys(data).length === 0) {
+            print('Empty JSON response');
+            applyDefaultState();
+            return;
+        }
+
         for (let key in data) {
             let state = !!data[key]; // convert 0/1 to boolean
             setRelay(parseInt(key), state);
