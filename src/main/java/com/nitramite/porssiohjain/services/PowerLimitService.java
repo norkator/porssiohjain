@@ -406,4 +406,18 @@ public class PowerLimitService {
                 .toList();
     }
 
+    @Transactional
+    public void deletePowerLimit(
+            Long accountId, Long powerLimitId
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        PowerLimitEntity entity = powerLimitRepository
+                .findByAccountIdAndId(account.getId(), powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+        powerLimitRepository.delete(entity);
+    }
+
 }

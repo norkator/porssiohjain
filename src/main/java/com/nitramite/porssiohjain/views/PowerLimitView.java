@@ -6,6 +6,7 @@ import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.DetachEvent;
@@ -15,6 +16,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
@@ -167,6 +169,14 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         card.add(chartDiv);
 
         updatePowerLimitHistoryChart(chartDiv, powerLimit);
+
+        card.add(Divider.createDivider());
+
+        Button deleteButton = new Button(t("button.delete"), e -> {
+            deleteResourceDialog();
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        card.add(deleteButton);
 
         add(card);
     }
@@ -490,6 +500,24 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 .set("font-weight", "bold");
         wrapper.add(title, quarterSumValue);
         return wrapper;
+    }
+
+    private void deleteResourceDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("delete.confirmTitle"));
+        dialog.add(t("delete.confirmDescription"));
+        Button deleteButton = new Button(t("button.delete"), (e) -> {
+            powerLimitService.deletePowerLimit(getAccountId(), powerLimitId);
+            dialog.close();
+            UI.getCurrent().navigate(PowerLimitsView.class);
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+        deleteButton.getStyle().set("margin-right", "auto");
+        dialog.getFooter().add(deleteButton);
+        Button cancelButton = new Button(t("button.cancel"), (e) -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        dialog.getFooter().add(cancelButton);
+        dialog.open();
     }
 
     private void updatePowerLimitHistoryChart(
