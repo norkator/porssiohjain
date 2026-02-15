@@ -229,4 +229,16 @@ public class ProductionSourceService {
                 .toList();
     }
 
+    @Transactional
+    public void deleteProductionSource(
+            Long accountId, Long sourceId
+    ) {
+        accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        ProductionSourceEntity source = productionSourceRepository
+                .findByIdAndAccountId(sourceId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        productionSourceRepository.delete(source);
+    }
+
 }
