@@ -13,6 +13,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -332,6 +333,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         loadControlDevices();
         card.add(Divider.createDivider());
         card.add(getControlTableSection());
+        card.add(Divider.createDivider());
+
+        Button deleteButton = new Button(t("button.delete"), e -> {
+            deleteResourceDialog();
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        card.add(deleteButton);
 
         add(card);
     }
@@ -479,6 +487,24 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private void refreshControlTable() {
         List<ControlTableResponse> list = controlSchedulerService.findByControlId(controlId);
         controlTableGrid.setItems(list);
+    }
+
+    private void deleteResourceDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("delete.confirmTitle"));
+        dialog.add(t("delete.confirmDescription"));
+        Button deleteButton = new Button(t("button.delete"), (e) -> {
+            controlService.deleteControl(getAccountId(), controlId);
+            dialog.close();
+            UI.getCurrent().navigate(ControlView.class);
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+        deleteButton.getStyle().set("margin-right", "auto");
+        dialog.getFooter().add(deleteButton);
+        Button cancelButton = new Button(t("button.cancel"), (e) -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        dialog.getFooter().add(cancelButton);
+        dialog.open();
     }
 
     private Div createPriceCharts(
