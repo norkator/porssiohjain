@@ -62,7 +62,7 @@ public class EmailService {
 
             String currentAvgLabel = messageSource.getMessage(
                     "mail.powerLimitExceeded.currentAvg",
-                    null,
+                    new Object[]{limitKw},
                     locale
             );
 
