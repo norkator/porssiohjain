@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -381,15 +380,15 @@ public class PowerLimitService {
         Map<LocalDate, DailyUsageCostResponse> dailyMap = new TreeMap<>();
         for (PowerLimitHistoryEntity usage : usageList) {
             Instant usageTime = usage.getCreatedAt();
-            BigDecimal kwh = usage.getKilowatts().multiply(BigDecimal.valueOf(0.25));
+            BigDecimal kwh = usage.getKilowatts();
 
-            BigDecimal priceMwh = priceList.stream()
+            BigDecimal priceKwh = priceList.stream()
                     .filter(p -> !usageTime.isBefore(p.getDeliveryStart()) && usageTime.isBefore(p.getDeliveryEnd()))
                     .map(NordpoolEntity::getPriceFi)
                     .findFirst()
                     .orElse(BigDecimal.ZERO);
 
-            BigDecimal cost = kwh.multiply(priceMwh).divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP);
+            BigDecimal cost = kwh.multiply(priceKwh);
             LocalDate day = usageTime.atZone(zone).toLocalDate();
             dailyMap.compute(day, (d, existing) -> {
                 if (existing == null) {
