@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -382,14 +383,19 @@ public class PowerLimitService {
             Instant usageTime = usage.getCreatedAt();
             BigDecimal kwh = usage.getKilowatts();
 
-            BigDecimal priceKwh = priceList.stream()
+            BigDecimal priceMwh = priceList.stream()
                     .filter(p -> !usageTime.isBefore(p.getDeliveryStart()) && usageTime.isBefore(p.getDeliveryEnd()))
                     .map(NordpoolEntity::getPriceFi)
                     .findFirst()
                     .orElse(BigDecimal.ZERO);
 
-            BigDecimal cost = kwh.multiply(priceKwh);
+            BigDecimal taxMultiplier = BigDecimal.ONE
+                    .add(BigDecimal.valueOf(25.5)
+                            .divide(BigDecimal.valueOf(100), RoundingMode.HALF_UP));
+
+            BigDecimal cost = priceMwh.multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
             LocalDate day = usageTime.atZone(zone).toLocalDate();
+
             dailyMap.compute(day, (d, existing) -> {
                 if (existing == null) {
                     return new DailyUsageCostResponse(d, kwh, cost);
