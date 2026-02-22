@@ -14,6 +14,19 @@ body {
     background: #008080;
 }
 
+.responsive-card {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 12px;
+    background-color: var(--lumo-base-color);
+    padding: 32px;
+}
+
+@media (max-width: 767px) {
+    .responsive-card {
+        padding: 16px !important;
+    }
+}
+
 vaadin-button {
     font-family: 'Tahoma', sans-serif;
     border-radius: 0;
