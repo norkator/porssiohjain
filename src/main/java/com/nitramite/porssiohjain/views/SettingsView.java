@@ -97,9 +97,13 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         Button sitesButton = new Button(t("settings.sites"), e -> UI.getCurrent().navigate(SitesView.class));
         sitesButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
+        Button resourceSharingButton = new Button(t("settings.resourceSharing"), e -> UI.getCurrent().navigate(ResourceSharingView.class));
+        resourceSharingButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
         HorizontalLayout buttonRow = new HorizontalLayout(
                 electricityContractsButton,
-                sitesButton
+                sitesButton,
+                resourceSharingButton
         );
 
         card.add(
