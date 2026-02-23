@@ -11,6 +11,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -123,7 +124,8 @@ public class HomeView extends VerticalLayout {
             VaadinSession session = VaadinSession.getCurrent();
             session.setAttribute("token", null);
             session.setAttribute("expiresAt", null);
-            Notification.show(t("home.logoutSuccess"));
+            Notification notification = Notification.show(t("home.logoutSuccess"));
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             UI.getCurrent().getPage().reload();
         });
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -209,7 +211,8 @@ public class HomeView extends VerticalLayout {
     private Long getAccountId() {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("home.sessionExpired"));
+            Notification notification = Notification.show(t("home.sessionExpired"));
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
             UI.getCurrent().navigate(LoginView.class);
         }
 

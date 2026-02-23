@@ -9,6 +9,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -72,10 +73,12 @@ public class LoginView extends VerticalLayout {
                 VaadinSession.getCurrent().setAttribute("token", response.getToken());
                 VaadinSession.getCurrent().setAttribute("expiresAt", response.getExpiresAt());
 
-                Notification.show(t("login.notification.success"));
+                Notification notification = Notification.show(t("login.notification.success"));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 UI.getCurrent().navigate(HomeView.class);
             } catch (Exception e) {
-                Notification.show(t("login.notification.failed", e.getMessage()));
+                Notification notification = Notification.show(t("login.notification.failed", e.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

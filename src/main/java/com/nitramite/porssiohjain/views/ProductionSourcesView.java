@@ -17,6 +17,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
@@ -103,7 +104,8 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
 
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("productionsources.notification.sessionExpired"));
+            Notification notification = Notification.show(t("productionsources.notification.sessionExpired"));
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
             UI.getCurrent().navigate(LoginView.class);
             return;
         }
@@ -218,7 +220,8 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
     private void createNewSource() {
         try {
             if (nameField.isEmpty() || apiTypeField.isEmpty()) {
-                Notification.show(t("productionsources.notification.requiredMissing"));
+                Notification notification = Notification.show(t("productionsources.notification.requiredMissing"));
+                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
 
@@ -234,11 +237,13 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
                     enabledToggle.getValue()
             );
 
-            Notification.show(t("productionsources.notification.created"));
+            Notification notification = Notification.show(t("productionsources.notification.created"));
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             clearForm();
             loadSources();
         } catch (Exception e) {
-            Notification.show(t("productionsources.notification.failed", e.getMessage()));
+            Notification notification = Notification.show(t("productionsources.notification.failed", e.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 
@@ -257,7 +262,8 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
         try {
             sourcesGrid.setItems(productionSourceService.getAllSources(accountId));
         } catch (Exception e) {
-            Notification.show(t("productionsources.notification.loadFailed", e.getMessage()));
+            Notification notification = Notification.show(t("productionsources.notification.loadFailed", e.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 

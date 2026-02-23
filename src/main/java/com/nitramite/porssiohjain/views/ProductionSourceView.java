@@ -21,6 +21,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
@@ -187,7 +188,8 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                     emptyToNull(stationId.getValue()),
                     siteId
             );
-            Notification.show("Saved");
+            Notification notification = Notification.show("Saved");
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 

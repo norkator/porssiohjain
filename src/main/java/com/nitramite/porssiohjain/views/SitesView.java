@@ -16,6 +16,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
@@ -135,14 +136,16 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
 
     private void createNewSite() {
         siteService.createSite(accountId, nameField.getValue(), typeField.getValue(), enabledToggle.getValue());
-        Notification.show(t("sites.notification.created"));
+        Notification notification = Notification.show(t("sites.notification.created"));
+        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         clearForm();
         loadSites();
     }
 
     private void updateSite() {
         siteService.updateSite(editingSiteId, nameField.getValue(), typeField.getValue(), enabledToggle.getValue());
-        Notification.show(t("sites.notification.updated"));
+        Notification notification = Notification.show(t("sites.notification.updated"));
+        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         clearForm();
         loadSites();
     }

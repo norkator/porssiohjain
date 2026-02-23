@@ -21,6 +21,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -90,7 +91,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("powerlimit.notification.sessionExpired"));
+            Notification notification = Notification.show(t("powerlimit.notification.sessionExpired"));
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
             UI.getCurrent().navigate(LoginView.class);
             return;
         }
@@ -256,7 +258,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private Long getAccountId() {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("controlTable.sessionExpired"));
+            Notification notification = Notification.show(t("controlTable.sessionExpired"));
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
             UI.getCurrent().navigate(LoginView.class);
         }
 
@@ -367,7 +370,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                     transferId
             );
 
-            Notification.show(t("powerlimit.notification.saved"));
+            Notification notification = Notification.show(t("powerlimit.notification.saved"));
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
 
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

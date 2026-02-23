@@ -21,6 +21,7 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -137,7 +138,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private Long getAccountId() {
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("controlTable.sessionExpired"));
+            Notification notification = Notification.show(t("controlTable.sessionExpired"));
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
             UI.getCurrent().navigate(LoginView.class);
         }
 
@@ -280,9 +282,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         siteId
                 );
 
-                Notification.show(t("controlTable.notification.saved"));
+                Notification notification = Notification.show(t("controlTable.notification.saved"));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } catch (Exception ex) {
-                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()));
+                Notification notification = Notification.show(t("controlTable.notification.failedSave", ex.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);

@@ -15,6 +15,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -90,7 +91,8 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
 
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("powerlimits.notification.sessionExpired"));
+            Notification notification = Notification.show(t("powerlimits.notification.sessionExpired"));
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
             UI.getCurrent().navigate(LoginView.class);
             return;
         }
@@ -193,22 +195,26 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
             boolean enabled = enabledToggle.getValue();
 
             if (name == null || name.isBlank()) {
-                Notification.show(t("powerlimits.notification.nameEmpty"));
+                Notification notification = Notification.show(t("powerlimits.notification.nameEmpty"));
+                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
 
             if (kw == null) {
-                Notification.show(t("powerlimits.notification.numericEmpty"));
+                Notification notification = Notification.show(t("powerlimits.notification.numericEmpty"));
+                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
 
             powerLimitService.createLimit(accountId, name, kw, enabled);
-            Notification.show(t("powerlimits.notification.created"));
+            Notification notification = Notification.show(t("powerlimits.notification.created"));
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
             clearForm();
             loadLimits();
         } catch (Exception e) {
-            Notification.show(t("powerlimits.notification.failed", e.getMessage()));
+            Notification notification = Notification.show(t("powerlimits.notification.failed", e.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 
@@ -222,7 +228,8 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
         try {
             limitsGrid.setItems(powerLimitService.getAllLimits(accountId));
         } catch (Exception e) {
-            Notification.show(t("powerlimits.notification.loadFailed", e.getMessage()));
+            Notification notification = Notification.show(t("powerlimits.notification.loadFailed", e.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 
