@@ -101,11 +101,9 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         resourcesGrid.addComponentColumn(resource -> {
             boolean isShared = resource.isShared();
             String text = isShared ? t("common.yes") : t("common.no");
-
             Span badge = new Span(text);
             badge.getElement().getThemeList().add("badge");
             badge.getElement().getThemeList().add(isShared ? "success" : "error");
-
             return badge;
         }).setHeader(t("resourceSharing.grid.shared")).setAutoWidth(true);
 

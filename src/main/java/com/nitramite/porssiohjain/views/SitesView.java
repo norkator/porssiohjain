@@ -15,6 +15,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -117,7 +118,14 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         sitesGrid.addColumn(SiteResponse::getName).setHeader(t("sites.grid.name")).setAutoWidth(true);
         sitesGrid.addColumn(site -> t("siteType." + site.getType().name()))
                 .setHeader(t("sites.grid.type")).setAutoWidth(true);
-        sitesGrid.addColumn(SiteResponse::getEnabled).setHeader(t("sites.grid.enabled")).setAutoWidth(true);
+        sitesGrid.addComponentColumn(site -> {
+            boolean enabled = site.getEnabled();
+            String text = enabled ? t("common.yes") : t("common.no");
+            Span badge = new Span(text);
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(enabled ? "success" : "error");
+            return badge;
+        }).setHeader(t("sites.grid.enabled")).setAutoWidth(true);
 
         sitesGrid.setWidthFull();
         sitesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);

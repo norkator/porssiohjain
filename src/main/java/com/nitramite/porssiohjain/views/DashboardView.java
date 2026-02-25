@@ -258,6 +258,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
         H3 name = new H3(device.getDeviceName());
         name.getStyle().set("margin", "0");
+        name.getStyle().set("font-size", "1.2em");
 
         Div statusCircle = new Div();
         statusCircle.getStyle().set("width", "14px");

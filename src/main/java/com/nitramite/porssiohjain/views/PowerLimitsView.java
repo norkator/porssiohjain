@@ -160,14 +160,12 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
                 .setHeader(t("powerlimits.grid.limitKw"))
                 .setAutoWidth(true);
 
-        limitsGrid.addComponentColumn(resource -> {
-            boolean enabled = resource.isEnabled();
+        limitsGrid.addComponentColumn(powerLimitResponse -> {
+            boolean enabled = powerLimitResponse.isEnabled();
             String text = enabled ? t("common.yes") : t("common.no");
-
             Span badge = new Span(text);
             badge.getElement().getThemeList().add("badge");
             badge.getElement().getThemeList().add(enabled ? "success" : "error");
-
             return badge;
         }).setHeader(t("powerlimits.grid.enabled")).setAutoWidth(true);
 

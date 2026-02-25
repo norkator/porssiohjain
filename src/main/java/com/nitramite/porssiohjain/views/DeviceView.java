@@ -13,6 +13,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -89,12 +90,17 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceGrid.addColumn(DeviceResponse::getId).setHeader(t("device.grid.id")).setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader(t("device.grid.name")).setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getUuid).setHeader(t("device.grid.uuid")).setAutoWidth(true);
-        deviceGrid.addColumn(control -> {
-            ZoneId zone = ZoneId.of(control.getTimezone());
-            Instant lastComm = control.getLastCommunication();
-            return lastComm != null
+        deviceGrid.addComponentColumn(device -> {
+            ZoneId zone = ZoneId.of(device.getTimezone());
+            Instant lastComm = device.getLastCommunication();
+            String lastCommText = lastComm != null
                     ? ZonedDateTime.ofInstant(lastComm, zone).format(formatter)
                     : "-";
+
+            Span badge = new Span(lastCommText);
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(lastComm != null ? "success" : "error");
+            return badge;
         }).setHeader(t("device.grid.lastCommunication")).setAutoWidth(true);
         deviceGrid.addColumn(control -> {
             ZoneId zone = ZoneId.of(control.getTimezone());

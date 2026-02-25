@@ -189,14 +189,12 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
                 .setHeader(t("productionsources.grid.peakKw"))
                 .setAutoWidth(true);
 
-        sourcesGrid.addComponentColumn(resource -> {
-            boolean enabled = resource.isEnabled();
+        sourcesGrid.addComponentColumn(productionSourceResponse -> {
+            boolean enabled = productionSourceResponse.isEnabled();
             String text = enabled ? t("common.yes") : t("common.no");
-
             Span badge = new Span(text);
             badge.getElement().getThemeList().add("badge");
             badge.getElement().getThemeList().add(enabled ? "success" : "error");
-
             return badge;
         }).setHeader(t("productionsources.grid.enabled")).setAutoWidth(true);
 
