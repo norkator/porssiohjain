@@ -14,6 +14,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -159,9 +160,16 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
                 .setHeader(t("powerlimits.grid.limitKw"))
                 .setAutoWidth(true);
 
-        limitsGrid.addColumn(PowerLimitResponse::isEnabled)
-                .setHeader(t("powerlimits.grid.enabled"))
-                .setAutoWidth(true);
+        limitsGrid.addComponentColumn(resource -> {
+            boolean enabled = resource.isEnabled();
+            String text = enabled ? t("common.yes") : t("common.no");
+
+            Span badge = new Span(text);
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(enabled ? "success" : "error");
+
+            return badge;
+        }).setHeader(t("powerlimits.grid.enabled")).setAutoWidth(true);
 
         limitsGrid.addColumn(limit -> {
             ZoneId zone = ZoneId.systemDefault();

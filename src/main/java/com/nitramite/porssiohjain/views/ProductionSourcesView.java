@@ -16,6 +16,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -188,9 +189,16 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
                 .setHeader(t("productionsources.grid.peakKw"))
                 .setAutoWidth(true);
 
-        sourcesGrid.addColumn(ProductionSourceResponse::isEnabled)
-                .setHeader(t("productionsources.grid.enabled"))
-                .setAutoWidth(true);
+        sourcesGrid.addComponentColumn(resource -> {
+            boolean enabled = resource.isEnabled();
+            String text = enabled ? t("common.yes") : t("common.no");
+
+            Span badge = new Span(text);
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(enabled ? "success" : "error");
+
+            return badge;
+        }).setHeader(t("productionsources.grid.enabled")).setAutoWidth(true);
 
         sourcesGrid.addColumn(src -> {
             ZoneId zone = ZoneId.systemDefault();
