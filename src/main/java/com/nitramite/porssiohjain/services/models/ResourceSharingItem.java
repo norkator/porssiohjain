@@ -11,4 +11,5 @@ public class ResourceSharingItem {
     private String name;
     private ResourceType resourceType;
     private Long resourceId;
+    private boolean shared = false;
 }
