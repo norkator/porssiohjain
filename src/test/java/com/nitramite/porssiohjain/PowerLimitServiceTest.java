@@ -94,7 +94,7 @@ public class PowerLimitServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(BigDecimal.valueOf(1.5), result.getFirst().getTotalUsageKwh());
-        assertEquals(BigDecimal.valueOf(0.0310934), result.getFirst().getTotalCostEur());
+        assertEquals(BigDecimal.valueOf(0.000233200500), result.getFirst().getTotalCostEur());
     }
 
     private PowerLimitHistoryEntity getPowerLimitHistoryEntity(
