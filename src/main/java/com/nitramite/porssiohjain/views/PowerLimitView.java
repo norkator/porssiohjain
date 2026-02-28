@@ -28,8 +28,6 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
-import elemental.json.Json;
-import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -555,14 +553,6 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
             values.add(h.getKilowatts().doubleValue());
         }
 
-        JsonArray jsTimestamps = Json.createArray();
-        JsonArray jsValues = Json.createArray();
-
-        for (int i = 0; i < timestamps.size(); i++) {
-            jsTimestamps.set(i, timestamps.get(i));
-            jsValues.set(i, values.get(i));
-        }
-
         String seriesLabel = t("powerlimit.chart.series");
         String xAxisLabel = t("powerlimit.chart.time");
         String yAxisLabel = t("powerlimit.chart.kw");
@@ -654,8 +644,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                         
                         renderOrUpdate($0, $1, $7);
                         """,
-                jsTimestamps,
-                jsValues,
+                timestamps,
+                values,
                 chartTitle,
                 seriesLabel,
                 xAxisLabel,

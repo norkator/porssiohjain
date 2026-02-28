@@ -20,8 +20,6 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
-import elemental.json.Json;
-import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 
 import java.math.BigDecimal;
@@ -177,30 +175,10 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
             priceValues.add(interpolatedPrice);
         }
 
-        JsonArray jsTimestamps = Json.createArray();
-        for (int i = 0; i < timestamps.size(); i++) {
-            jsTimestamps.set(i, timestamps.get(i));
-        }
-
-        JsonArray jsWindForecastValues = Json.createArray();
-        for (int i = 0; i < windForecastValues.size(); i++) {
-            jsWindForecastValues.set(i, windForecastValues.get(i));
-        }
-
-        JsonArray jsPriceValues = Json.createArray();
-        for (int i = 0; i < priceValues.size(); i++) {
-            Double val = priceValues.get(i);
-            if (val != null) {
-                jsPriceValues.set(i, val);
-            } else {
-                jsPriceValues.set(i, Json.createNull());
-            }
-        }
-
         energyForecastChart.setData(
-                jsTimestamps,
-                jsWindForecastValues,
-                jsPriceValues,
+                timestamps,
+                windForecastValues,
+                priceValues,
                 "MW",
                 "c/kWh",
                 xAxisLabel,
@@ -362,19 +340,19 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
             return;
         }
         EnergyUsagePriceChart chart = new EnergyUsagePriceChart();
-        JsonArray timestamps = Json.createArray();
-        JsonArray usageSeries = Json.createArray();
-        JsonArray costSeries = Json.createArray();
+        List<String> timestamps = new ArrayList<>();
+        List<Double> usageSeries = new ArrayList<>();
+        List<Double> costSeries = new ArrayList<>();
         DateTimeFormatter jsFormatter = DateTimeFormatter
                 .ofPattern("yyyy-MM-dd HH:mm")
                 .withZone(zone);
         for (int i = 0; i < history.size(); i++) {
             DailyUsageCostResponse h = history.get(i);
-            timestamps.set(i, jsFormatter.format(
+            timestamps.add(jsFormatter.format(
                     h.getDate().atStartOfDay(zone).toInstant()
             ));
-            usageSeries.set(i, h.getTotalUsageKwh().doubleValue());
-            costSeries.set(i, h.getTotalCostEur().doubleValue());
+            usageSeries.add(h.getTotalUsageKwh().doubleValue());
+            costSeries.add(h.getTotalCostEur().doubleValue());
         }
         chart.setData(
                 timestamps,

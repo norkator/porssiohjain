@@ -1,7 +1,8 @@
 package com.nitramite.porssiohjain.views.components;
 
 import com.vaadin.flow.component.html.Div;
-import elemental.json.JsonArray;
+
+import java.util.List;
 
 public class EnergyUsagePriceChart extends Div {
 
@@ -12,9 +13,9 @@ public class EnergyUsagePriceChart extends Div {
     }
 
     public void setData(
-            JsonArray timestamps,
-            JsonArray usageSeries,
-            JsonArray costSeries,
+            List<String> timestamps,
+            List<Double> usageSeries,
+            List<Double> costSeries,
             String usageUnit,
             String currencyUnit,
             String xAxisLabel,

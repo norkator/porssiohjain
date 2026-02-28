@@ -572,11 +572,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         for (String ts : timestamps) {
             Double value = controlMap.get(ts);
-            if (value == null) {
-                controlPrices.add(Double.NaN);
-            } else {
-                controlPrices.add(value);
-            }
+            controlPrices.add(value);
         }
 
         if (transferContract != null) {
