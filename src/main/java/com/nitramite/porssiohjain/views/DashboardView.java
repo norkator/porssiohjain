@@ -23,6 +23,8 @@ import elemental.json.Json;
 import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.YearMonth;
@@ -347,7 +349,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
                 timestamps,
                 usageSeries,
                 costSeries,
-                "kW",
+                "kWh",
                 "€",
                 t("controlTable.chart.time"),
                 "Title",
@@ -356,7 +358,32 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
                 t("dashboard.chart.cost")
         );
         layout.add(chart);
+
+        BigDecimal totalCost = history.stream()
+                .map(DailyUsageCostResponse::getTotalCostEur)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        layout.add(createTotalCostSection(totalCost));
+
         return layout;
+    }
+
+    private Component createTotalCostSection(BigDecimal totalCost) {
+        Div wrapper = new Div();
+        wrapper.getStyle()
+                .set("padding", "14px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-10pct)")
+                .set("text-align", "center");
+        H2 title = new H2(t("dashboard.totalCost"));
+        title.getStyle().set("margin", "0");
+        Div totalCostDiv = new Div();
+        totalCostDiv.setText(totalCost + "€");
+        totalCostDiv.getStyle()
+                .set("font-size", "2rem")
+                .set("font-weight", "bold");
+        wrapper.add(title, totalCostDiv);
+        return wrapper;
     }
 
     private Long getAccountId() {

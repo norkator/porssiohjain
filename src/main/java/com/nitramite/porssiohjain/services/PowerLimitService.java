@@ -393,7 +393,10 @@ public class PowerLimitService {
                     .add(BigDecimal.valueOf(25.5)
                             .divide(BigDecimal.valueOf(100), RoundingMode.HALF_UP));
 
-            BigDecimal cost = priceMwh.multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
+            BigDecimal pricePerKwh = priceMwh.divide(BigDecimal.valueOf(1000), 10, RoundingMode.HALF_UP);
+            BigDecimal cost = kwh
+                    .multiply(pricePerKwh)
+                    .multiply(taxMultiplier);
             LocalDate day = usageTime.atZone(zone).toLocalDate();
 
             dailyMap.compute(day, (d, existing) -> {
