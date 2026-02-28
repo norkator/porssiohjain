@@ -51,7 +51,7 @@ public class Scheduler {
         } else {
             log.info("No need to fetch Nordpool data");
         }
-        if (!fingridDataService.hasFingridDataForTomorrow()) {
+        if (fingridDataService.apiEnabled && !fingridDataService.hasFingridDataForTomorrow()) {
             fingridDataService.fetchData();
         } else {
             log.info("No need to fetch Fingrid data");
@@ -80,11 +80,13 @@ public class Scheduler {
 
     @Scheduled(cron = "0 0 14 * * *", zone = "Europe/Helsinki")
     public void fetchFingridDataDaily() {
-        try {
-            WindForecastResponse response = fingridDataService.fetchData();
-            log.info("Fingrid wind forecast data fetched and saved {} rows successfully", response.getData().size());
-        } catch (Exception e) {
-            log.error("Error fetching Fingrid wind forecast data", e);
+        if (fingridDataService.apiEnabled) {
+            try {
+                WindForecastResponse response = fingridDataService.fetchData();
+                log.info("Fingrid wind forecast data fetched and saved {} rows successfully", response.getData().size());
+            } catch (Exception e) {
+                log.error("Error fetching Fingrid wind forecast data", e);
+            }
         }
     }
 

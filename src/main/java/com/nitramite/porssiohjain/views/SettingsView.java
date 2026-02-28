@@ -14,6 +14,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
@@ -96,9 +97,13 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         Button sitesButton = new Button(t("settings.sites"), e -> UI.getCurrent().navigate(SitesView.class));
         sitesButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
+        Button resourceSharingButton = new Button(t("settings.resourceSharing"), e -> UI.getCurrent().navigate(ResourceSharingView.class));
+        resourceSharingButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
         HorizontalLayout buttonRow = new HorizontalLayout(
                 electricityContractsButton,
-                sitesButton
+                sitesButton,
+                resourceSharingButton
         );
 
         card.add(
@@ -114,7 +119,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("settings.sessionExpired"));
+            Notification notification = Notification.show(t("settings.sessionExpired"));
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
             UI.getCurrent().navigate(LoginView.class);
             return;
         }
@@ -138,7 +144,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
             VaadinSession.getCurrent().setAttribute(Locale.class, newLocale);
             UI.getCurrent().setLocale(newLocale);
 
-            Notification.show(t("settings.saved"));
+            Notification notification = Notification.show(t("settings.saved"));
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
     }
 

@@ -36,7 +36,7 @@ public class NordpoolService {
 
         List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(start, end);
 
-        BigDecimal taxMultiplier = BigDecimal.ONE.add(control.getTaxPercent().divide(BigDecimal.valueOf(100)));
+        BigDecimal taxMultiplier = BigDecimal.ONE.add(control.getTaxPercent().divide(BigDecimal.valueOf(100), RoundingMode.HALF_UP));
 
         return prices.stream()
                 .map(n -> NordpoolPriceResponse.builder()
@@ -65,14 +65,14 @@ public class NordpoolService {
             }
 
             if (control.getTaxPercent() != null) {
-                taxMultiplier = BigDecimal.ONE.add(control.getTaxPercent().divide(BigDecimal.valueOf(100)));
+                taxMultiplier = BigDecimal.ONE.add(control.getTaxPercent().divide(BigDecimal.valueOf(100), RoundingMode.HALF_UP));
             } else {
                 taxMultiplier = BigDecimal.ONE;
             }
         } else {
             taxMultiplier = BigDecimal.ONE
                     .add(BigDecimal.valueOf(25.5)
-                    .divide(BigDecimal.valueOf(100)));
+                            .divide(BigDecimal.valueOf(100), RoundingMode.HALF_UP));
             try {
                 if (timezone != null && !timezone.isBlank()) {
                     zone = ZoneId.of(timezone);

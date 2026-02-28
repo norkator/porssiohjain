@@ -11,9 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
+import java.math.RoundingMode;
+import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +31,7 @@ public class PowerLimitService {
     private final EmailService emailService;
     private final SiteRepository siteRepository;
     private final ElectricityContractRepository electricityContractRepository;
+    private final NordpoolRepository nordpoolRepository;
     private final Map<Long, Instant> lastNotificationSent = new ConcurrentHashMap<>();
 
     @Transactional
@@ -103,6 +103,13 @@ public class PowerLimitService {
     @Transactional(readOnly = true)
     public List<PowerLimitResponse> getAllLimits(Long accountId) {
         return powerLimitRepository.findByAccountId(accountId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<PowerLimitResponse> getAllSiteLimits(Long accountId, Long siteId) {
+        return powerLimitRepository.findByAccountIdAndSiteId(accountId, siteId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
@@ -341,6 +348,84 @@ public class PowerLimitService {
                 .map(PowerLimitHistoryEntity::getKilowatts)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         return Optional.of(sum);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DailyUsageCostResponse> getDailyUsageCostForMonth(
+            Long accountId, Long powerLimitId, YearMonth yearMonth
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
+        PowerLimitEntity powerLimitEntity = powerLimitRepository
+                .findByAccountIdAndId(account.getId(), powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+
+        ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
+        ZonedDateTime nowZoned = ZonedDateTime.now(zone);
+        YearMonth currentMonth = YearMonth.from(nowZoned);
+        ZonedDateTime startOfMonthZoned = yearMonth.atDay(1).atStartOfDay(zone);
+        ZonedDateTime endZoned = yearMonth.equals(currentMonth)
+                ? nowZoned
+                : yearMonth.plusMonths(1).atDay(1).atStartOfDay(zone);
+        Instant start = startOfMonthZoned.toInstant();
+        Instant end = endZoned.toInstant();
+
+        List<PowerLimitHistoryEntity> usageList = powerLimitHistoryRepository
+                .findByPowerLimitAndCreatedAtBetween(accountId, powerLimitId, start, end);
+
+        List<NordpoolEntity> priceList = nordpoolRepository.findPricesBetween(start, end);
+
+        Map<LocalDate, DailyUsageCostResponse> dailyMap = new TreeMap<>();
+        for (PowerLimitHistoryEntity usage : usageList) {
+            Instant usageTime = usage.getCreatedAt();
+            BigDecimal kwh = usage.getKilowatts();
+
+            BigDecimal priceMwh = priceList.stream()
+                    .filter(p -> !usageTime.isBefore(p.getDeliveryStart()) && usageTime.isBefore(p.getDeliveryEnd()))
+                    .map(NordpoolEntity::getPriceFi)
+                    .findFirst()
+                    .orElse(BigDecimal.ZERO);
+
+            BigDecimal taxMultiplier = BigDecimal.ONE
+                    .add(BigDecimal.valueOf(25.5)
+                            .divide(BigDecimal.valueOf(100), RoundingMode.HALF_UP));
+
+            BigDecimal pricePerKwh = priceMwh.divide(BigDecimal.valueOf(1000), 10, RoundingMode.HALF_UP);
+            BigDecimal cost = kwh
+                    .multiply(pricePerKwh)
+                    .multiply(taxMultiplier);
+            LocalDate day = usageTime.atZone(zone).toLocalDate();
+
+            dailyMap.compute(day, (d, existing) -> {
+                if (existing == null) {
+                    return new DailyUsageCostResponse(d, kwh, cost);
+                } else {
+                    existing.setTotalUsageKwh(existing.getTotalUsageKwh().add(kwh));
+                    existing.setTotalCostEur(existing.getTotalCostEur().add(cost));
+                    return existing;
+                }
+            });
+        }
+        return dailyMap.values().stream()
+                .sorted(Comparator.comparing(DailyUsageCostResponse::getDate))
+                .toList();
+    }
+
+    @Transactional
+    public void deletePowerLimit(
+            Long accountId, Long powerLimitId
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        PowerLimitEntity entity = powerLimitRepository
+                .findByAccountIdAndId(account.getId(), powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+        powerLimitRepository.delete(entity);
     }
 
 }

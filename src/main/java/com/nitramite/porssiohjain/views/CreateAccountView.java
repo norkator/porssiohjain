@@ -11,6 +11,7 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -91,7 +92,8 @@ public class CreateAccountView extends VerticalLayout {
             showAccountInfo(account);
             createButton.setEnabled(false);
         } catch (Exception e) {
-            Notification.show(t("createAccount.notification.failed", e.getMessage()));
+            Notification notification = Notification.show(t("createAccount.notification.failed", e.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 

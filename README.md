@@ -239,6 +239,7 @@ export DB_PORT=5432
 export DB_NAME=porssiohjain
 export DB_USER=porssiohjain
 export DB_PASSWORD=porssiohjain
+export FINGRID_API_ENABLED=true
 export FINGRID_API_KEY=xxxxxx
 export RESEND_API_KEY=re_xxxxxx
 export ALERTS_MAIL_ADDRESS=xxxxxx

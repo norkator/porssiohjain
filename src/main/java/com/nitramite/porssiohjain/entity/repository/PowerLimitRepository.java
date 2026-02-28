@@ -11,6 +11,8 @@ public interface PowerLimitRepository extends JpaRepository<PowerLimitEntity, Lo
 
     List<PowerLimitEntity> findByAccountId(Long accountId);
 
+    List<PowerLimitEntity> findByAccountIdAndSiteId(Long accountId, Long siteId);
+
     Optional<PowerLimitEntity> findByAccountIdAndId(Long accountId, Long powerLimitId);
 
     Optional<PowerLimitEntity> findByUuid(UUID uuid);

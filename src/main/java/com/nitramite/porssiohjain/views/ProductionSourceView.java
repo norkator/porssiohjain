@@ -4,6 +4,7 @@ import com.nitramite.porssiohjain.entity.ComparisonType;
 import com.nitramite.porssiohjain.entity.ControlAction;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.DetachEvent;
@@ -13,12 +14,14 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
@@ -116,6 +119,12 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         chartDiv = createChartContainer();
         card.add(chartDiv);
         updateProductionChart(chartDiv, source);
+        card.add(Divider.createDivider());
+        Button deleteButton = new Button(t("button.delete"), e -> {
+            deleteResourceDialog();
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        card.add(deleteButton);
         add(card);
     }
 
@@ -179,7 +188,8 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                     emptyToNull(stationId.getValue()),
                     siteId
             );
-            Notification.show("Saved");
+            Notification notification = Notification.show("Saved");
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -336,6 +346,24 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
 
     protected String t(String key, Object... args) {
         return i18n.t(key, args);
+    }
+
+    private void deleteResourceDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("delete.confirmTitle"));
+        dialog.add(t("delete.confirmDescription"));
+        Button deleteButton = new Button(t("button.delete"), (e) -> {
+            productionSourceService.deleteProductionSource(accountId, sourceId);
+            dialog.close();
+            UI.getCurrent().navigate(ProductionSourcesView.class);
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+        deleteButton.getStyle().set("margin-right", "auto");
+        dialog.getFooter().add(deleteButton);
+        Button cancelButton = new Button(t("button.cancel"), (e) -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        dialog.getFooter().add(cancelButton);
+        dialog.open();
     }
 
     private void updateProductionChart(

@@ -103,13 +103,14 @@ public class ControlService {
     public void deleteControl(
             Long accountId, Long controlId
     ) {
-        ControlEntity control = controlRepository.findById(controlId)
-                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
-        if (control.getAccount().getId().equals(accountId)) {
-            controlRepository.deleteById(controlId);
-        } else {
-            throw new IllegalStateException("Forbidden!");
-        }
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        ControlEntity entity = controlRepository
+                .findByIdAndAccountId(controlId, account.getId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Control not found for account " + accountId + " and id " + controlId
+                ));
+        controlRepository.delete(entity);
     }
 
     public List<ControlResponse> getAllControls(

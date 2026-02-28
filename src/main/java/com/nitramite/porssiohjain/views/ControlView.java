@@ -17,6 +17,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -92,11 +93,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         card.setPadding(true);
         card.setSpacing(true);
         card.setAlignItems(Alignment.STRETCH);
-        card.getStyle()
-                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)")
-                .set("border-radius", "12px")
-                .set("padding", "32px")
-                .set("background-color", "var(--lumo-base-color)");
+        card.addClassName("responsive-card");
 
         H2 title = new H2(t("control.title"));
         title.getStyle().set("margin-top", "0");
@@ -109,7 +106,8 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
 
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("control.notification.sessionExpired"));
+            Notification notification = Notification.show(t("control.notification.sessionExpired"));
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
             UI.getCurrent().navigate(LoginView.class);
             return;
         }
@@ -249,12 +247,14 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
             boolean alwaysOnBelowMinPrice = alwaysOnBelowMinPriceToggle.getValue();
 
             if (name == null || name.isBlank()) {
-                Notification.show(t("control.notification.nameEmpty"));
+                Notification notification = Notification.show(t("control.notification.nameEmpty"));
+                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
 
             if (dailyMinutes == null) {
-                Notification.show(t("control.notification.numericEmpty"));
+                Notification notification = Notification.show(t("control.notification.numericEmpty"));
+                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
 
@@ -263,12 +263,14 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
                     accountId, name, timezone, maxPrice, minPrice, dailyMinutes,
                     taxPercent, mode, manualOn, alwaysOnBelowMinPrice
             );
-            Notification.show(t("control.notification.created"));
+            Notification notification = Notification.show(t("control.notification.created"));
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
             clearForm();
             loadControls();
         } catch (Exception e) {
-            Notification.show(t("control.notification.failed", e.getMessage()));
+            Notification notification = Notification.show(t("control.notification.failed", e.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 
@@ -286,7 +288,8 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
         try {
             controlsGrid.setItems(controlService.getAllControls(accountId));
         } catch (Exception e) {
-            Notification.show(t("control.notification.loadFailed", e.getMessage()));
+            Notification notification = Notification.show(t("control.notification.loadFailed", e.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 

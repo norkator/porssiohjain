@@ -13,7 +13,9 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -88,12 +90,17 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceGrid.addColumn(DeviceResponse::getId).setHeader(t("device.grid.id")).setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader(t("device.grid.name")).setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getUuid).setHeader(t("device.grid.uuid")).setAutoWidth(true);
-        deviceGrid.addColumn(control -> {
-            ZoneId zone = ZoneId.of(control.getTimezone());
-            Instant lastComm = control.getLastCommunication();
-            return lastComm != null
+        deviceGrid.addComponentColumn(device -> {
+            ZoneId zone = ZoneId.of(device.getTimezone());
+            Instant lastComm = device.getLastCommunication();
+            String lastCommText = lastComm != null
                     ? ZonedDateTime.ofInstant(lastComm, zone).format(formatter)
                     : "-";
+
+            Span badge = new Span(lastCommText);
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(lastComm != null ? "success" : "error");
+            return badge;
         }).setHeader(t("device.grid.lastCommunication")).setAutoWidth(true);
         deviceGrid.addColumn(control -> {
             ZoneId zone = ZoneId.of(control.getTimezone());
@@ -146,7 +153,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         try {
             String token = (String) VaadinSession.getCurrent().getAttribute("token");
             if (token == null) {
-                Notification.show("Not logged in");
+                Notification notification = Notification.show("Not logged in");
+                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
 
@@ -158,28 +166,33 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             String timezone = timezoneCombo.getValue();
 
             if (deviceName == null || deviceName.isBlank()) {
-                Notification.show(t("device.notification.nameEmpty"));
+                Notification notification = Notification.show(t("device.notification.nameEmpty"));
+                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
 
             if (timezone == null || timezone.isBlank()) {
-                Notification.show(t("device.notification.timezoneEmpty"));
+                Notification notification = Notification.show(t("device.notification.timezoneEmpty"));
+                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
 
             if (selectedDevice != null) {
                 deviceService.updateDevice(selectedDevice.getId(), deviceName, timezone);
-                Notification.show(t("device.notification.updated"));
+                Notification notification = Notification.show(t("device.notification.updated"));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {
                 deviceService.createDevice(authAccountId, accountId, deviceName, timezone);
-                Notification.show(t("device.notification.created"));
+                Notification notification = Notification.show(t("device.notification.created"));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             }
 
             clearForm();
             loadDevices();
 
         } catch (Exception e) {
-            Notification.show(t("device.notification.failed", e.getMessage()));
+            Notification notification = Notification.show(t("device.notification.failed", e.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 
@@ -195,7 +208,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         try {
             String token = (String) VaadinSession.getCurrent().getAttribute("token");
             if (token == null) {
-                Notification.show(t("device.notification.notLoggedIn"));
+                Notification notification = Notification.show(t("device.notification.notLoggedIn"));
+                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
 
@@ -205,7 +219,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             List<DeviceResponse> devices = deviceService.getAllDevices(accountId);
             deviceGrid.setItems(devices);
         } catch (Exception e) {
-            Notification.show(t("device.notification.loadFailed", e.getMessage()));
+            Notification notification = Notification.show(t("device.notification.loadFailed", e.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 

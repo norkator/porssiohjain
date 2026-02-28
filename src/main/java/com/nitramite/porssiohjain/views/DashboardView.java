@@ -2,14 +2,13 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.*;
-import com.nitramite.porssiohjain.services.models.DeviceResponse;
-import com.nitramite.porssiohjain.services.models.FingridWindForecastResponse;
-import com.nitramite.porssiohjain.services.models.PricePredictionResponse;
-import com.nitramite.porssiohjain.services.models.SystemLogResponse;
+import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.views.components.EnergyUsagePriceChart;
 import com.nitramite.porssiohjain.views.components.PriceChart;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -24,8 +23,11 @@ import elemental.json.Json;
 import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -33,6 +35,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @JsModule("./js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Dashboard")
@@ -44,6 +48,8 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
     protected final I18nService i18n;
     private final FingridService fingridService;
     private final PricePredictionService pricePredictionService;
+    private final SiteService siteService;
+    private final PowerLimitService powerLimitService;
 
     public DashboardView(
             AuthService authService,
@@ -51,12 +57,16 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
             SystemLogService systemLogService,
             I18nService i18n,
             FingridService fingridService,
-            PricePredictionService pricePredictionService
+            PricePredictionService pricePredictionService,
+            SiteService siteService,
+            PowerLimitService powerLimitService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.fingridService = fingridService;
         this.pricePredictionService = pricePredictionService;
+        this.siteService = siteService;
+        this.powerLimitService = powerLimitService;
 
         setWidthFull();
         setPadding(true);
@@ -164,7 +174,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
                 long t0 = lower.toEpochMilli();
                 long t1 = upper.toEpochMilli();
                 long t = tsInstant.toEpochMilli();
-                interpolatedPrice = p0 + (p1 - p0) * ((double)(t - t0) / (t1 - t0));
+                interpolatedPrice = p0 + (p1 - p0) * ((double) (t - t0) / (t1 - t0));
             }
             priceValues.add(interpolatedPrice);
         }
@@ -202,9 +212,34 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
                 pricePredictionLabel
         );
 
+        H2 sitePowerUsage = new H2(t("dashboard.siteEnergyUsage"));
+
+        List<SiteResponse> sites = siteService.getAllSites(getAccountId());
+        ComboBox<SiteResponse> siteBox = new ComboBox<>(t("controlTable.field.site"));
+        siteBox.setItems(sites);
+        siteBox.setItemLabelGenerator(SiteResponse::getName);
+        siteBox.setClearButtonVisible(true);
+
+        Div siteContentContainer = new Div();
+        siteContentContainer.setWidthFull();
+
+        siteBox.addValueChangeListener(event -> {
+            SiteResponse selectedSite = event.getValue();
+            siteContentContainer.removeAll();
+            if (selectedSite != null) {
+                Component content = createSiteContent(selectedSite);
+                siteContentContainer.add(content);
+            }
+        });
+        if (sites.size() == 1) {
+            siteBox.setValue(sites.getFirst());
+        }
+
         card.add(
                 backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(),
-                energyForecastChart, createDivider(), logTitle, logList
+                energyForecastChart, createDivider(),
+                sitePowerUsage, siteBox, siteContentContainer,
+                createDivider(), logTitle, logList
         );
         add(card);
     }
@@ -225,6 +260,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
         H3 name = new H3(device.getDeviceName());
         name.getStyle().set("margin", "0");
+        name.getStyle().set("font-size", "1.2em");
 
         Div statusCircle = new Div();
         statusCircle.getStyle().set("width", "14px");
@@ -245,13 +281,109 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         return diff.toMinutes() < 10;
     }
 
-    private Div createDivider() {
-        Div hr = new Div();
-        hr.getStyle().set("width", "100%")
-                .set("height", "1px")
-                .set("background-color", "var(--lumo-contrast-20pct)")
-                .set("margin", "1rem 0");
-        return hr;
+    private Component createSiteContent(
+            SiteResponse site
+    ) {
+        VerticalLayout layout = new VerticalLayout();
+        layout.setPadding(false);
+        layout.setSpacing(true);
+        layout.setWidthFull();
+        List<PowerLimitResponse> sitePowerLimits = powerLimitService.getAllSiteLimits(getAccountId(), site.getId());
+        ComboBox<PowerLimitResponse> limitBox = new ComboBox<>(t("dashboard.selectPowerLimit"));
+        limitBox.setItems(sitePowerLimits);
+        limitBox.setItemLabelGenerator(PowerLimitResponse::getName);
+        limitBox.setWidth("300px");
+        limitBox.setClearButtonVisible(true);
+        Div limitContentContainer = new Div();
+        limitContentContainer.setWidthFull();
+        limitBox.addValueChangeListener(event -> {
+            PowerLimitResponse selectedLimit = event.getValue();
+            limitContentContainer.removeAll();
+            if (selectedLimit != null) {
+                Component limitContent = createLimitContent(selectedLimit);
+                limitContentContainer.add(limitContent);
+            }
+        });
+        if (sitePowerLimits.size() == 1) {
+            limitBox.setValue(sitePowerLimits.getFirst());
+        }
+        layout.add(limitBox, limitContentContainer);
+        return layout;
+    }
+
+    private Component createLimitContent(PowerLimitResponse limit) {
+        VerticalLayout layout = new VerticalLayout();
+        layout.setPadding(false);
+        layout.setSpacing(true);
+        layout.setWidthFull();
+        YearMonth selectedMonth = YearMonth.now();
+        List<DailyUsageCostResponse> history = powerLimitService.getDailyUsageCostForMonth(
+                getAccountId(), limit.getId(), selectedMonth
+        );
+        if (history.isEmpty()) {
+            layout.add(new Paragraph(t("dashboard.noHistoryData")));
+            return layout;
+        }
+        EnergyUsagePriceChart chart = new EnergyUsagePriceChart();
+        JsonArray timestamps = Json.createArray();
+        JsonArray usageSeries = Json.createArray();
+        JsonArray costSeries = Json.createArray();
+
+        ZoneId zone = ZoneId.systemDefault();
+        try {
+            if (limit.getTimezone() != null) {
+                zone = ZoneId.of(limit.getTimezone());
+            }
+        } catch (Exception ignored) {
+        }
+        DateTimeFormatter jsFormatter = DateTimeFormatter
+                .ofPattern("yyyy-MM-dd HH:mm")
+                .withZone(zone);
+        for (int i = 0; i < history.size(); i++) {
+            DailyUsageCostResponse h = history.get(i);
+            timestamps.set(i, jsFormatter.format(h.getDate().atStartOfDay(zone).toInstant()));
+            usageSeries.set(i, h.getTotalUsageKwh().doubleValue());
+            costSeries.set(i, h.getTotalCostEur().doubleValue());
+        }
+        chart.setData(
+                timestamps,
+                usageSeries,
+                costSeries,
+                "kWh",
+                "€",
+                t("controlTable.chart.time"),
+                "Title",
+                t("controlTable.chart.now"),
+                t("dashboard.chart.usage"),
+                t("dashboard.chart.cost")
+        );
+        layout.add(chart);
+
+        BigDecimal totalCost = history.stream()
+                .map(DailyUsageCostResponse::getTotalCostEur)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+        layout.add(createTotalCostSection(totalCost));
+
+        return layout;
+    }
+
+    private Component createTotalCostSection(BigDecimal totalCost) {
+        Div wrapper = new Div();
+        wrapper.getStyle()
+                .set("padding", "14px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-10pct)")
+                .set("text-align", "center");
+        H2 title = new H2(t("dashboard.totalCost"));
+        title.getStyle().set("margin", "0");
+        Div totalCostDiv = new Div();
+        totalCostDiv.setText(totalCost + "€");
+        totalCostDiv.getStyle()
+                .set("font-size", "2rem")
+                .set("font-weight", "bold");
+        wrapper.add(title, totalCostDiv);
+        return wrapper;
     }
 
     private Long getAccountId() {

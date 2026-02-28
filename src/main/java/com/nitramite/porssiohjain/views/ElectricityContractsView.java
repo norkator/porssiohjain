@@ -17,6 +17,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -113,7 +114,8 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
 
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
-            Notification.show(t("electricityContracts.notification.sessionExpired"));
+            Notification notification = Notification.show(t("electricityContracts.notification.sessionExpired"));
+            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
             UI.getCurrent().navigate(LoginView.class);
             return;
         }
@@ -260,7 +262,8 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
             if (binder.writeBeanIfValid(contract)) {
                 contractRepository.save(contract);
                 loadContracts();
-                Notification.show(t("electricityContracts.notification.saved"));
+                Notification notification = Notification.show(t("electricityContracts.notification.saved"));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 clearForm();
             }
         } else {
@@ -268,7 +271,8 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
                 editingContract.setAccount(account);
                 contractRepository.save(editingContract);
                 loadContracts();
-                Notification.show(t("electricityContracts.notification.updated"));
+                Notification notification = Notification.show(t("electricityContracts.notification.updated"));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 clearForm();
             }
         }

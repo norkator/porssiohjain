@@ -23,7 +23,6 @@ public class DeviceService {
     private final AccountRepository accountRepository;
     private final ControlRepository controlRepository;
     private final PowerLimitRepository powerLimitRepository;
-    private final PowerLimitDeviceRepository powerLimitDeviceRepository;
 
     @Transactional
     public DeviceResponse createDevice(
