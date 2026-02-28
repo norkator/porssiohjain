@@ -1,8 +1,8 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.8'
+    id 'org.springframework.boot' version '4.0.3'
     id 'io.spring.dependency-management' version '1.1.7'
-    id 'com.vaadin' version '24.9.8'
+    id 'com.vaadin' version '25.0.6'
 }
 
 group = 'com.nitramite'
@@ -26,17 +26,19 @@ repositories {
 }
 
 ext {
-    set('vaadinVersion', "24.9.8")
+    set('vaadinVersion', "25.0.6")
 }
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.security:spring-security-crypto'
+    implementation 'org.springframework.boot:spring-boot-webmvc-test'
     implementation 'com.vaadin:vaadin-spring-boot-starter'
+    implementation "com.vaadin:vaadin-dev:${vaadinVersion}"
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.springframework.boot:spring-boot-devtools'
-    implementation 'com.vaadin.external.gwt:gwt-elemental:2.8.2.vaadin2'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'com.resend:resend-java:4.12.0'
     compileOnly 'com.vaadin:vaadin-push:8.30.0'

@@ -31,8 +31,6 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
-import elemental.json.Json;
-import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -574,11 +572,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         for (String ts : timestamps) {
             Double value = controlMap.get(ts);
-            if (value == null) {
-                controlPrices.add(Double.NaN);
-            } else {
-                controlPrices.add(value);
-            }
+            controlPrices.add(value);
         }
 
         if (transferContract != null) {
@@ -608,36 +602,6 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 } catch (Exception e) {
                     transferPrices.add(Double.NaN);
                 }
-            }
-        }
-
-        JsonArray jsTimestamps = Json.createArray();
-        for (int i = 0; i < timestamps.size(); i++) {
-            jsTimestamps.set(i, timestamps.get(i));
-        }
-
-        JsonArray jsNordpoolPrices = Json.createArray();
-        for (int i = 0; i < nordpoolPrices.size(); i++) {
-            jsNordpoolPrices.set(i, nordpoolPrices.get(i));
-        }
-
-        JsonArray jsControlPrices = Json.createArray();
-        for (int i = 0; i < controlPrices.size(); i++) {
-            Double val = controlPrices.get(i);
-            if (val.isNaN()) {
-                jsControlPrices.set(i, Json.createNull());
-            } else {
-                jsControlPrices.set(i, val);
-            }
-        }
-
-        JsonArray jsTransferPrices = Json.createArray();
-        for (int i = 0; i < transferPrices.size(); i++) {
-            Double val = transferPrices.get(i);
-            if (val.isNaN()) {
-                jsTransferPrices.set(i, Json.createNull());
-            } else {
-                jsTransferPrices.set(i, val);
             }
         }
 
@@ -726,7 +690,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         
                             renderOrUpdate($0, $1, $2, $3);
                         """,
-                jsTimestamps, jsNordpoolPrices, jsControlPrices, jsTransferPrices,
+                timestamps, nordpoolPrices, controlPrices, transferPrices,
                 nordpoolLabel, controlLabel, transferLabel, xAxisLabel, yAxisLabel, chartTitle, nowLabel
         );
     }

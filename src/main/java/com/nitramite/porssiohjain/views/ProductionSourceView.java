@@ -33,8 +33,6 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
-import elemental.json.Json;
-import elemental.json.JsonArray;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -391,13 +389,6 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
             values.add(h.getKilowatts().doubleValue());
         }
 
-        JsonArray jsTimestamps = Json.createArray();
-        JsonArray jsValues = Json.createArray();
-        for (int i = 0; i < timestamps.size(); i++) {
-            jsTimestamps.set(i, timestamps.get(i));
-            jsValues.set(i, values.get(i));
-        }
-
         String seriesLabel = t("productionsource.chart.series");
         String xAxisLabel = t("productionsource.chart.time");
         String yAxisLabel = t("productionsource.chart.kw");
@@ -471,8 +462,8 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                         
                             renderOrUpdate($0, $1, $7);
                         """,
-                jsTimestamps,
-                jsValues,
+                timestamps,
+                values,
                 chartTitle,
                 seriesLabel,
                 xAxisLabel,
