@@ -9,6 +9,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -25,10 +26,7 @@ import jakarta.annotation.security.PermitAll;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.YearMonth;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -316,19 +314,6 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         layout.setPadding(false);
         layout.setSpacing(true);
         layout.setWidthFull();
-        YearMonth selectedMonth = YearMonth.now();
-        List<DailyUsageCostResponse> history = powerLimitService.getDailyUsageCostForMonth(
-                getAccountId(), limit.getId(), selectedMonth
-        );
-        if (history.isEmpty()) {
-            layout.add(new Paragraph(t("dashboard.noHistoryData")));
-            return layout;
-        }
-        EnergyUsagePriceChart chart = new EnergyUsagePriceChart();
-        JsonArray timestamps = Json.createArray();
-        JsonArray usageSeries = Json.createArray();
-        JsonArray costSeries = Json.createArray();
-
         ZoneId zone = ZoneId.systemDefault();
         try {
             if (limit.getTimezone() != null) {
@@ -336,12 +321,58 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
             }
         } catch (Exception ignored) {
         }
+        DatePicker monthPicker = new DatePicker(t("dashboard.selectMonth"));
+        monthPicker.setValue(LocalDate.now());
+        monthPicker.setWidth("250px");
+        VerticalLayout contentContainer = new VerticalLayout();
+        contentContainer.setPadding(false);
+        contentContainer.setSpacing(true);
+        contentContainer.setWidthFull();
+        ZoneId finalZone = zone;
+        monthPicker.addValueChangeListener(event -> {
+            LocalDate selectedDate = event.getValue();
+            if (selectedDate != null) {
+                YearMonth selectedMonth = YearMonth.from(selectedDate);
+                refreshLimitContent(contentContainer, limit, selectedMonth, finalZone);
+            }
+        });
+
+        YearMonth currentMonth = YearMonth.now();
+        refreshLimitContent(contentContainer, limit, currentMonth, zone);
+
+        layout.add(monthPicker, contentContainer);
+        return layout;
+    }
+
+    private void refreshLimitContent(
+            VerticalLayout container,
+            PowerLimitResponse limit,
+            YearMonth selectedMonth,
+            ZoneId zone
+    ) {
+        container.removeAll();
+        List<DailyUsageCostResponse> history =
+                powerLimitService.getDailyUsageCostForMonth(
+                        getAccountId(),
+                        limit.getId(),
+                        selectedMonth
+                );
+        if (history.isEmpty()) {
+            container.add(new Paragraph(t("dashboard.noHistoryData")));
+            return;
+        }
+        EnergyUsagePriceChart chart = new EnergyUsagePriceChart();
+        JsonArray timestamps = Json.createArray();
+        JsonArray usageSeries = Json.createArray();
+        JsonArray costSeries = Json.createArray();
         DateTimeFormatter jsFormatter = DateTimeFormatter
                 .ofPattern("yyyy-MM-dd HH:mm")
                 .withZone(zone);
         for (int i = 0; i < history.size(); i++) {
             DailyUsageCostResponse h = history.get(i);
-            timestamps.set(i, jsFormatter.format(h.getDate().atStartOfDay(zone).toInstant()));
+            timestamps.set(i, jsFormatter.format(
+                    h.getDate().atStartOfDay(zone).toInstant()
+            ));
             usageSeries.set(i, h.getTotalUsageKwh().doubleValue());
             costSeries.set(i, h.getTotalCostEur().doubleValue());
         }
@@ -357,15 +388,12 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
                 t("dashboard.chart.usage"),
                 t("dashboard.chart.cost")
         );
-        layout.add(chart);
-
+        container.add(chart);
         BigDecimal totalCost = history.stream()
                 .map(DailyUsageCostResponse::getTotalCostEur)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
-        layout.add(createTotalCostSection(totalCost));
-
-        return layout;
+        container.add(createTotalCostSection(totalCost));
     }
 
     private Component createTotalCostSection(BigDecimal totalCost) {
