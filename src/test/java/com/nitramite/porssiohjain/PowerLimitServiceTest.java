@@ -13,12 +13,12 @@ import com.nitramite.porssiohjain.services.models.DailyUsageCostResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -36,16 +36,16 @@ public class PowerLimitServiceTest {
     @Autowired
     private PowerLimitService powerLimitService;
 
-    @MockBean
+    @MockitoBean
     private AccountRepository accountRepository;
 
-    @MockBean
+    @MockitoBean
     private PowerLimitRepository powerLimitRepository;
 
-    @MockBean
+    @MockitoBean
     private PowerLimitHistoryRepository powerLimitHistoryRepository;
 
-    @MockBean
+    @MockitoBean
     private NordpoolRepository nordpoolRepository;
 
     @Test
@@ -94,7 +94,8 @@ public class PowerLimitServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(BigDecimal.valueOf(1.5), result.getFirst().getTotalUsageKwh());
-        assertEquals(BigDecimal.valueOf(0.000233200500), result.getFirst().getTotalCostEur());
+        assertEquals(BigDecimal.valueOf(0.0002332005).stripTrailingZeros(), result.getFirst().getTotalCostEur().stripTrailingZeros()
+        );
     }
 
     private PowerLimitHistoryEntity getPowerLimitHistoryEntity(
