@@ -39,7 +39,6 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.springframework.boot:spring-boot-devtools'
-    implementation 'com.vaadin.external.gwt:gwt-elemental:2.8.2.vaadin2'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'com.resend:resend-java:4.12.0'
     compileOnly 'com.vaadin:vaadin-push:8.30.0'
