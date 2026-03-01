@@ -91,4 +91,10 @@ public class AccountService {
         });
     }
 
+    public UUID getUuidById(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::getUuid)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+    }
+
 }
