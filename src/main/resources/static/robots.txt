@@ -3,4 +3,4 @@ Disallow: /VAADIN/
 Disallow: /frontend/
 Allow: /
 
-Sitemap: https://porssiohjain.nitramite.com/sitemap.xml
+Sitemap: https://www.porssiohjain.fi/sitemap.xml
