@@ -154,10 +154,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         card.setPadding(true);
         card.setSpacing(true);
         card.setAlignItems(Alignment.STRETCH);
-        card.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        card.getStyle().set("border-radius", "12px");
-        card.getStyle().set("padding", "32px");
-        card.getStyle().set("background-color", "var(--lumo-base-color)");
+        card.addClassName("responsive-card");
 
         H2 title = new H2(t("controlTable.title", control.getName()));
         title.getStyle().set("margin-top", "0");

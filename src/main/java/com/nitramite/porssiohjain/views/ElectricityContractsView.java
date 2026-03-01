@@ -104,11 +104,8 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
         card.setMaxWidth("1400px");
         card.setPadding(true);
         card.setSpacing(true);
-        card.getStyle()
-                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)")
-                .set("border-radius", "12px")
-                .set("padding", "32px")
-                .set("background-color", "var(--lumo-base-color)");
+        card.setAlignItems(Alignment.STRETCH);
+        card.addClassName("responsive-card");
 
         add(card);
 

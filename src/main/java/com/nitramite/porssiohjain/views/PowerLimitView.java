@@ -130,10 +130,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         card.setPadding(true);
         card.setSpacing(true);
         card.setAlignItems(Alignment.STRETCH);
-        card.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        card.getStyle().set("border-radius", "12px");
-        card.getStyle().set("padding", "32px");
-        card.getStyle().set("background-color", "var(--lumo-base-color)");
+        card.addClassName("responsive-card");
 
         H3 title = new H3(t("powerlimit.title.modify"));
         title.getStyle().set("margin-top", "0");

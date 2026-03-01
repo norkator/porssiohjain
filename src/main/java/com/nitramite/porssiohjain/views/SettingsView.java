@@ -15,6 +15,7 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
@@ -82,11 +83,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         card.setMaxWidth("900px");
         card.setPadding(true);
         card.setSpacing(true);
-        card.getStyle()
-                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)")
-                .set("border-radius", "12px")
-                .set("padding", "32px")
-                .set("background-color", "var(--lumo-base-color)");
+        card.setAlignItems(Alignment.STRETCH);
+        card.addClassName("responsive-card");
 
         H2 pageTitle = new H2(t("settings.title"));
         pageTitle.getStyle().set("margin-top", "0");
@@ -100,11 +98,14 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         Button resourceSharingButton = new Button(t("settings.resourceSharing"), e -> UI.getCurrent().navigate(ResourceSharingView.class));
         resourceSharingButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        HorizontalLayout buttonRow = new HorizontalLayout(
+        FlexLayout buttonRow = new FlexLayout(
                 electricityContractsButton,
                 sitesButton,
                 resourceSharingButton
         );
+        buttonRow.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+        buttonRow.setWidthFull();
+        buttonRow.getStyle().set("gap", "var(--lumo-space-m)");
 
         card.add(
                 pageTitle,

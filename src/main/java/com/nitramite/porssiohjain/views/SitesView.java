@@ -60,11 +60,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         card.setWidthFull();
         card.setPadding(true);
         card.setSpacing(true);
-        card.getStyle()
-                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)")
-                .set("border-radius", "12px")
-                .set("padding", "32px")
-                .set("background-color", "var(--lumo-base-color)");
+        card.setAlignItems(Alignment.STRETCH);
+        card.addClassName("responsive-card");
 
         H2 title = new H2(t("sites.title"));
 

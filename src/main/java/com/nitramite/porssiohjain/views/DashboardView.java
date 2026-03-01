@@ -75,11 +75,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         VerticalLayout card = new VerticalLayout();
         card.setPadding(true);
         card.setSpacing(true);
-        // card.setAlignItems(Alignment.STRETCH);
-        card.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        card.getStyle().set("border-radius", "12px");
-        card.getStyle().set("padding", "32px");
-        card.getStyle().set("background-color", "var(--lumo-base-color)");
+        card.addClassName("responsive-card");
 
         H1 title = new H1(t("dashboard.title"));
         title.getStyle().set("margin-bottom", "1em");
