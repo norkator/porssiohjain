@@ -246,3 +246,11 @@ export ALERTS_MAIL_ADDRESS=xxxxxx
 export ADMIN_MAIL_ADDRESS=xxxxxx@xxxxxx.xx
 export APP_CRYPTO_KEY=(run node app_crypto_key.js)
 ``` 
+
+## Lisenssi | License
+
+**Tämä projekti on lisensoitu GNU Affero General Public License v3.0 (AGPL-3.0) -lisenssillä.
+Katso lisätiedot LICENSE-tiedostosta.**
+
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+See the LICENSE file for details.
