@@ -52,6 +52,11 @@ public class AccountEntity {
     @Builder.Default
     private boolean notifyPowerLimitExceeded = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tier", nullable = false, length = 20)
+    @Builder.Default
+    private AccountTier tier = AccountTier.FREE;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
