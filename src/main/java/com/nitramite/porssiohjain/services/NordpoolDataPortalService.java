@@ -30,7 +30,7 @@ public class NordpoolDataPortalService {
     @Value("${nordpool.day-ahead-prices-api-url}")
     private String apiUrl;
 
-    @Value("${nordpool.delete-data-after-months:5}")
+    @Value("${nordpool.delete-data-after-months:12}")
     private Integer deleteAfterMonths;
 
     private final NordpoolRepository nordpoolRepository;
