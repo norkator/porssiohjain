@@ -43,6 +43,7 @@ public class SiteEntity {
     @Column(nullable = false)
     private SiteType type;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean enabled = true;
 
@@ -50,12 +51,15 @@ public class SiteEntity {
     @JoinColumn(name = "account_id")
     private AccountEntity account;
 
+    @Builder.Default
     @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ControlEntity> controls = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PowerLimitEntity> powerLimits = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "site", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductionSourceEntity> productionSources = new ArrayList<>();
 

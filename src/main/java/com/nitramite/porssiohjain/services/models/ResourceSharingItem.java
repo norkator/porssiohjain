@@ -27,5 +27,6 @@ public class ResourceSharingItem {
     private String name;
     private ResourceType resourceType;
     private Long resourceId;
+    @Builder.Default
     private boolean shared = false;
 }
