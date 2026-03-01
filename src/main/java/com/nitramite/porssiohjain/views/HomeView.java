@@ -102,7 +102,7 @@ public class HomeView extends VerticalLayout {
         Button devicesButton = new Button(t("home.myDevices"), e -> UI.getCurrent().navigate(DeviceView.class));
         devicesButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        Button controlsButton = new Button(t("home.myControls"), e -> UI.getCurrent().navigate(ControlView.class));
+        Button controlsButton = new Button(t("home.myControls"), e -> UI.getCurrent().navigate(ControlsView.class));
         controlsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
         Button myProductionButton = new Button(t("home.myProduction"), e -> UI.getCurrent().navigate(ProductionSourcesView.class));

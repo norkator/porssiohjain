@@ -36,7 +36,7 @@ import java.util.Locale;
 @PageTitle("Pörssiohjain - Controls")
 @Route("controls")
 @PermitAll
-public class ControlView extends VerticalLayout implements BeforeEnterObserver {
+public class ControlsView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<ControlResponse> controlsGrid = new Grid<>(ControlResponse.class, false);
     private final ControlService controlService;
@@ -56,7 +56,7 @@ public class ControlView extends VerticalLayout implements BeforeEnterObserver {
     private final Button createButton;
 
     @Autowired
-    public ControlView(
+    public ControlsView(
             ControlService controlService,
             AuthService authService,
             I18nService i18n

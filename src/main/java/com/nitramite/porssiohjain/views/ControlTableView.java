@@ -498,7 +498,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         Button deleteButton = new Button(t("button.delete"), (e) -> {
             controlService.deleteControl(getAccountId(), controlId);
             dialog.close();
-            UI.getCurrent().navigate(ControlView.class);
+            UI.getCurrent().navigate(ControlsView.class);
         });
         deleteButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
         deleteButton.getStyle().set("margin-right", "auto");
