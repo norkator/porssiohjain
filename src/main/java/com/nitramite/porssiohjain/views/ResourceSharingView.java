@@ -17,18 +17,23 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.ResourceSharingEntity;
 import com.nitramite.porssiohjain.entity.ResourceType;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
@@ -36,6 +41,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @PageTitle("Pörssiohjain - Resource sharing")
 @Route("resource-sharing")
@@ -45,27 +51,35 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
     private final Grid<ResourceSharingItem> resourcesGrid = new Grid<>(ResourceSharingItem.class, false);
     private final I18nService i18n;
 
-    private Long accountId;
+    private final Long accountId;
 
+    private final AccountService accountService;
     private final DeviceService deviceService;
     private final ControlService controlService;
     private final ProductionSourceService productionSourceService;
     private final PowerLimitService powerLimitService;
+    private final ResourceSharingService resourceSharingService;
+
+    private VerticalLayout formLayout;
 
     @Autowired
     public ResourceSharingView(
+            AccountService accountService,
             AuthService authService,
             I18nService i18n,
             DeviceService deviceService,
             ControlService controlService,
             ProductionSourceService productionSourceService,
-            PowerLimitService powerLimitService
+            PowerLimitService powerLimitService,
+            ResourceSharingService resourceSharingService
     ) {
         this.i18n = i18n;
         this.deviceService = deviceService;
         this.controlService = controlService;
         this.productionSourceService = productionSourceService;
         this.powerLimitService = powerLimitService;
+        this.resourceSharingService = resourceSharingService;
+        this.accountService = accountService;
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -90,20 +104,14 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         accountId = account.getId();
 
         loadAvailableResources();
-        loadSites();
     }
 
     private Component createFormLayout() {
-        FormLayout form = new FormLayout();
-        form.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2)
-        );
-
-        VerticalLayout container = new VerticalLayout(form);
-        container.getStyle().set("margin-top", "20px");
-
-        return container;
+        formLayout = new VerticalLayout();
+        formLayout.setWidthFull();
+        formLayout.getStyle().set("margin-top", "20px");
+        formLayout.add(new Span("Select a resource to manage sharing."));
+        return formLayout;
     }
 
     private void configureGrid() {
@@ -122,31 +130,68 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
 
         resourcesGrid.setWidthFull();
         resourcesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+        resourcesGrid.setMaxHeight("200px");
 
         resourcesGrid.asSingleSelect().addValueChangeListener(event -> {
             ResourceSharingItem selected = event.getValue();
             if (selected != null) {
-                // ...
+                showFormFor(selected);
             }
         });
     }
 
-    private void shareResource() {
-        Notification notification = Notification.show(t("sites.notification.created"));
-        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-        clearForm();
-        loadSites();
-    }
-
-    private void removeResourceShare() {
-        Notification notification = Notification.show(t("sites.notification.updated"));
-        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-        clearForm();
-        loadSites();
-    }
-
-    private void clearForm() {
-        resourcesGrid.deselectAll();
+    private void showFormFor(
+            ResourceSharingItem item
+    ) {
+        formLayout.removeAll();
+        H4 title = new H4(t("resourceSharing.form.title", item.getName()));
+        Grid<ResourceSharingEntity> sharesGrid = new Grid<>(ResourceSharingEntity.class, false);
+        sharesGrid.addColumn(share ->
+                accountService.getUuidById(share.getReceiverAccountId())
+        ).setHeader(t("resourceSharing.form.accountUuid")).setAutoWidth(true);
+        sharesGrid.addComponentColumn(share -> {
+            Button remove = new Button(t("resourceSharing.form.remove"), e -> {
+                resourceSharingService.delete(accountId, share.getId());
+                showFormFor(item);
+            });
+            remove.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            return remove;
+        });
+        sharesGrid.setWidthFull();
+        sharesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+        sharesGrid.setMaxHeight("200px");
+        List<ResourceSharingEntity> shares =
+                resourceSharingService.getSharesForResource(
+                        accountId,
+                        item.getResourceType(),
+                        item.getResourceId()
+                );
+        sharesGrid.setItems(shares);
+        TextField uuidField = new TextField(t("resourceSharing.form.addAccountUuid"));
+        uuidField.setWidthFull();
+        Button addButton = new Button(t("resourceSharing.form.add"), e -> {
+            try {
+                UUID uuid = UUID.fromString(uuidField.getValue());
+                Long receiverId = accountService.getIdByUuid(uuid);
+                resourceSharingService.share(
+                        accountId,
+                        receiverId,
+                        item.getResourceType(),
+                        item.getResourceId()
+                );
+                Notification notification = Notification.show(t("sites.notification.updated"));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                uuidField.clear();
+                showFormFor(item);
+            } catch (Exception ex) {
+                uuidField.setInvalid(true);
+            }
+        });
+        addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        HorizontalLayout addRow = new HorizontalLayout(uuidField, addButton);
+        addRow.setWidthFull();
+        addRow.setFlexGrow(1, uuidField);
+        formLayout.add(title, sharesGrid, addRow);
     }
 
     private void loadAvailableResources() {
@@ -198,7 +243,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
             resourceSharingItems.add(
                     ResourceSharingItem.builder()
                             .id(listIndex)
-                            .resourceType(ResourceType.PRODUCTION_SOURCE)
+                            .resourceType(ResourceType.POWER_LIMIT)
                             .resourceId(pl.getId())
                             .name(pl.getName())
                             .build()
@@ -207,9 +252,6 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         }
 
         resourcesGrid.setItems(resourceSharingItems);
-    }
-
-    private void loadSites() {
     }
 
     @Override

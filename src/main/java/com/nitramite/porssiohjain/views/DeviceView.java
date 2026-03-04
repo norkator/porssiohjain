@@ -123,6 +123,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             ZoneId zone = ZoneId.of(control.getTimezone());
             return ZonedDateTime.ofInstant(control.getUpdatedAt(), zone).format(formatter);
         }).setHeader(t("device.grid.updated")).setAutoWidth(true);
+        deviceGrid.addComponentColumn(device -> {
+            Span badge = new Span(device.getShared() ? t("common.shared") : t("common.mine"));
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(device.getShared() ? "warning" : "contrast");
+            return badge;
+        }).setHeader(t("common.origin")).setAutoWidth(true);
 
         deviceGrid.setWidthFull();
         deviceGrid.getStyle().set("max-height", "300px");
@@ -191,7 +197,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             }
 
             if (selectedDevice != null) {
-                deviceService.updateDevice(selectedDevice.getId(), deviceName, timezone);
+                deviceService.updateDevice(accountId, selectedDevice.getId(), deviceName, timezone);
                 Notification notification = Notification.show(t("device.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {

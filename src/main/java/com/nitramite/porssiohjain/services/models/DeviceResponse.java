@@ -37,4 +37,5 @@ public class DeviceResponse {
     private Instant createdAt;
     private Instant updatedAt;
     private Long accountId;
+    private Boolean shared;
 }

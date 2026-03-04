@@ -46,6 +46,7 @@ public class ControlService {
     private final PowerLimitService powerLimitService;
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
     private final SiteRepository siteRepository;
+    private final ResourceSharingRepository resourceSharingRepository;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -134,23 +135,55 @@ public class ControlService {
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
-        List<ControlEntity> controlEntities = controlRepository.findAllByAccountOrderByIdAsc(account);
-        return controlEntities.stream()
-                .map(entity -> ControlResponse.builder()
-                        .id(entity.getId())
-                        .name(entity.getName())
-                        .timezone(entity.getTimezone())
-                        .maxPriceSnt(entity.getMaxPriceSnt())
-                        .minPriceSnt(entity.getMinPriceSnt())
-                        .dailyOnMinutes(entity.getDailyOnMinutes())
-                        .taxPercent(entity.getTaxPercent())
-                        .mode(entity.getMode())
-                        .manualOn(entity.isManualOn())
-                        .alwaysOnBelowMinPrice(entity.isAlwaysOnBelowMinPrice())
-                        .createdAt(entity.getCreatedAt())
-                        .updatedAt(entity.getUpdatedAt())
-                        .build())
+        List<ControlEntity> ownControls = controlRepository.findAllByAccountOrderByIdAsc(account);
+
+        List<ResourceSharingEntity> sharedResources =
+                resourceSharingRepository.findByReceiverAccountIdAndResourceTypeAndEnabledTrue(
+                        accountId,
+                        ResourceType.CONTROL
+                );
+        List<Long> sharedControlIds = sharedResources.stream()
+                .map(ResourceSharingEntity::getControlId)
+                .filter(Objects::nonNull)
                 .toList();
+        List<ControlEntity> sharedControls = sharedControlIds.isEmpty()
+                ? List.of()
+                : controlRepository.findAllById(sharedControlIds);
+        List<ControlResponse> responses = new ArrayList<>();
+
+        ownControls.forEach(entity -> responses.add(ControlResponse.builder()
+                .id(entity.getId())
+                .name(entity.getName())
+                .timezone(entity.getTimezone())
+                .maxPriceSnt(entity.getMaxPriceSnt())
+                .minPriceSnt(entity.getMinPriceSnt())
+                .dailyOnMinutes(entity.getDailyOnMinutes())
+                .taxPercent(entity.getTaxPercent())
+                .mode(entity.getMode())
+                .manualOn(entity.isManualOn())
+                .alwaysOnBelowMinPrice(entity.isAlwaysOnBelowMinPrice())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .shared(false)
+                .build()));
+
+        sharedControls.forEach(entity -> responses.add(ControlResponse.builder()
+                .id(entity.getId())
+                .name(entity.getName())
+                .timezone(entity.getTimezone())
+                .maxPriceSnt(entity.getMaxPriceSnt())
+                .minPriceSnt(entity.getMinPriceSnt())
+                .dailyOnMinutes(entity.getDailyOnMinutes())
+                .taxPercent(entity.getTaxPercent())
+                .mode(entity.getMode())
+                .manualOn(entity.isManualOn())
+                .alwaysOnBelowMinPrice(entity.isAlwaysOnBelowMinPrice())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .shared(true)
+                .build()));
+
+        return responses;
     }
 
     public ControlResponse getControl(

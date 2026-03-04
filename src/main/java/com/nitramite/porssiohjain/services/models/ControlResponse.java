@@ -43,4 +43,5 @@ public class ControlResponse {
     private Long siteId;
     private Instant createdAt;
     private Instant updatedAt;
+    private Boolean shared;
 }
