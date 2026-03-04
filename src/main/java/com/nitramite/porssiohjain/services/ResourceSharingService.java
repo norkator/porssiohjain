@@ -1,23 +1,19 @@
 package com.nitramite.porssiohjain.services;
 
-import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ResourceSharingEntity;
 import com.nitramite.porssiohjain.entity.ResourceType;
-import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ResourceSharingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ResourceSharingService {
 
     private final ResourceSharingRepository repository;
-    private final AccountRepository accountRepository;
 
     public List<ResourceSharingEntity> getSharesForResource(
             Long sharerAccountId,
@@ -44,40 +40,47 @@ public class ResourceSharingService {
     }
 
     @Transactional
-    public void updateSharing(
+    public void share(
             Long sharerAccountId,
+            Long receiverAccountId,
             ResourceType type,
-            Long resourceId,
-            List<UUID> receiverUuids
+            Long resourceId
     ) {
-
-        List<ResourceSharingEntity> existing =
-                getSharesForResource(sharerAccountId, type, resourceId);
-
-        repository.deleteAll(existing);
-
-        for (UUID uuid : receiverUuids) {
-
-            AccountEntity receiver =
-                    accountRepository.findByUuid(uuid)
-                            .orElseThrow(() -> new IllegalArgumentException("Account not found"));
-
-            ResourceSharingEntity entity = ResourceSharingEntity.builder()
-                    .sharerAccountId(sharerAccountId)
-                    .receiverAccountId(receiver.getId())
-                    .resourceType(type)
-                    .enabled(true)
-                    .build();
-
-            switch (type) {
-                case DEVICE -> entity.setDeviceId(resourceId);
-                case CONTROL -> entity.setControlId(resourceId);
-                case PRODUCTION_SOURCE -> entity.setProductionSourceId(resourceId);
-                case POWER_LIMIT -> entity.setPowerLimitId(resourceId);
-            }
-
-            repository.save(entity);
+        boolean exists = repository.existsBySharerAccountIdAndReceiverAccountIdAndResourceTypeAndResourceId(
+                sharerAccountId,
+                receiverAccountId,
+                type,
+                resourceId
+        );
+        if (exists) {
+            return;
         }
+        ResourceSharingEntity entity = ResourceSharingEntity.builder()
+                .sharerAccountId(sharerAccountId)
+                .receiverAccountId(receiverAccountId)
+                .resourceType(type)
+                .enabled(true)
+                .build();
+        switch (type) {
+            case DEVICE -> entity.setDeviceId(resourceId);
+            case CONTROL -> entity.setControlId(resourceId);
+            case PRODUCTION_SOURCE -> entity.setProductionSourceId(resourceId);
+            case POWER_LIMIT -> entity.setPowerLimitId(resourceId);
+        }
+        repository.save(entity);
+    }
+
+    @Transactional
+    public void delete(
+            Long sharerAccountId,
+            Long shareId
+    ) {
+        ResourceSharingEntity entity = repository.findById(shareId)
+                .orElseThrow(() -> new IllegalArgumentException("Share not found"));
+        if (!entity.getSharerAccountId().equals(sharerAccountId)) {
+            throw new IllegalStateException("Not allowed");
+        }
+        repository.delete(entity);
     }
 
 }

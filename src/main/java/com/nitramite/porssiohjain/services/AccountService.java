@@ -97,4 +97,10 @@ public class AccountService {
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
     }
 
+    public Long getIdByUuid(UUID uuid) {
+        return accountRepository.findByUuid(uuid)
+                .map(AccountEntity::getId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+    }
+
 }

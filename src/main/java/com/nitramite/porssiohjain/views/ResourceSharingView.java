@@ -23,25 +23,25 @@ import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @PageTitle("Pörssiohjain - Resource sharing")
 @Route("resource-sharing")
@@ -60,9 +60,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
     private final PowerLimitService powerLimitService;
     private final ResourceSharingService resourceSharingService;
 
-    private final TextArea uuidArea = new TextArea();
-    private final Button saveButton = new Button();
-    private ResourceSharingItem selectedItem;
+    private VerticalLayout formLayout;
 
     @Autowired
     public ResourceSharingView(
@@ -109,24 +107,11 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
     }
 
     private Component createFormLayout() {
-        FormLayout form = new FormLayout();
-        form.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2)
-        );
-
-        VerticalLayout container = new VerticalLayout(form);
-        container.getStyle().set("margin-top", "20px");
-
-        uuidArea.setWidthFull();
-        uuidArea.setPlaceholder("UUID per line");
-
-        saveButton.setText(t("common.save"));
-        saveButton.addClickListener(e -> shareResource());
-
-        form.add(uuidArea, saveButton);
-
-        return container;
+        formLayout = new VerticalLayout();
+        formLayout.setWidthFull();
+        formLayout.getStyle().set("margin-top", "20px");
+        formLayout.add(new Span("Select a resource to manage sharing."));
+        return formLayout;
     }
 
     private void configureGrid() {
@@ -145,6 +130,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
 
         resourcesGrid.setWidthFull();
         resourcesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+        resourcesGrid.setMaxHeight("200px");
 
         resourcesGrid.asSingleSelect().addValueChangeListener(event -> {
             ResourceSharingItem selected = event.getValue();
@@ -154,47 +140,58 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         });
     }
 
-    private void showFormFor(ResourceSharingItem item) {
-        this.selectedItem = item;
+    private void showFormFor(
+            ResourceSharingItem item
+    ) {
+        formLayout.removeAll();
+        H4 title = new H4(t("resourceSharing.form.title", item.getName()));
+        Grid<ResourceSharingEntity> sharesGrid = new Grid<>(ResourceSharingEntity.class, false);
+        sharesGrid.addColumn(share ->
+                accountService.getUuidById(share.getReceiverAccountId())
+        ).setHeader(t("resourceSharing.form.accountUuid")).setAutoWidth(true);
+        sharesGrid.addComponentColumn(share -> {
+            Button remove = new Button(t("resourceSharing.form.remove"), e -> {
+                resourceSharingService.delete(accountId, share.getId());
+                showFormFor(item);
+            });
+            remove.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            return remove;
+        });
+        sharesGrid.setWidthFull();
+        sharesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+        sharesGrid.setMaxHeight("200px");
         List<ResourceSharingEntity> shares =
                 resourceSharingService.getSharesForResource(
                         accountId,
                         item.getResourceType(),
                         item.getResourceId()
                 );
-        String uuids = shares.stream()
-                .map(s -> accountService.getUuidById(s.getReceiverAccountId()))
-                .map(UUID::toString)
-                .collect(Collectors.joining("\n"));
-        uuidArea.setValue(uuids);
-    }
-
-    private void shareResource() {
-        if (selectedItem == null) return;
-        List<UUID> uuids = Arrays.stream(uuidArea.getValue().split("\n"))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(UUID::fromString)
-                .toList();
-        resourceSharingService.updateSharing(
-                accountId,
-                selectedItem.getResourceType(),
-                selectedItem.getResourceId(),
-                uuids
-        );
-        Notification notification = Notification.show(t("sites.notification.updated"));
-        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-        clearForm();
-    }
-
-    private void removeResourceShare() {
-        Notification notification = Notification.show(t("sites.notification.updated"));
-        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-        clearForm();
-    }
-
-    private void clearForm() {
-        resourcesGrid.deselectAll();
+        sharesGrid.setItems(shares);
+        TextField uuidField = new TextField(t("resourceSharing.form.addAccountUuid"));
+        uuidField.setWidthFull();
+        Button addButton = new Button(t("resourceSharing.form.add"), e -> {
+            try {
+                UUID uuid = UUID.fromString(uuidField.getValue());
+                Long receiverId = accountService.getIdByUuid(uuid);
+                resourceSharingService.share(
+                        accountId,
+                        receiverId,
+                        item.getResourceType(),
+                        item.getResourceId()
+                );
+                Notification notification = Notification.show(t("sites.notification.updated"));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                uuidField.clear();
+                showFormFor(item);
+            } catch (Exception ex) {
+                uuidField.setInvalid(true);
+            }
+        });
+        addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        HorizontalLayout addRow = new HorizontalLayout(uuidField, addButton);
+        addRow.setWidthFull();
+        addRow.setFlexGrow(1, uuidField);
+        formLayout.add(title, sharesGrid, addRow);
     }
 
     private void loadAvailableResources() {
