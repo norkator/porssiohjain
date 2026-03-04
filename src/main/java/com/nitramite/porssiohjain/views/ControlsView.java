@@ -32,6 +32,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -233,6 +234,12 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
             ZoneId zone = ZoneId.of(control.getTimezone());
             return ZonedDateTime.ofInstant(control.getUpdatedAt(), zone).format(formatter);
         }).setHeader(t("control.grid.updated")).setAutoWidth(true);
+        controlsGrid.addComponentColumn(control -> {
+            Span badge = new Span(control.getShared() ? t("common.shared") : t("common.mine"));
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(control.getShared() ? "warning" : "contrast");
+            return badge;
+        }).setHeader(t("common.origin")).setAutoWidth(true);
 
         controlsGrid.setWidthFull();
         controlsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
