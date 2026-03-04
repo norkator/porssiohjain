@@ -56,4 +56,9 @@ public interface ResourceSharingRepository extends JpaRepository<ResourceSharing
             @Param("resourceId") Long resourceId
     );
 
+    List<ResourceSharingEntity> findByReceiverAccountIdAndResourceTypeAndEnabledTrue(
+            Long receiverAccountId,
+            ResourceType resourceType
+    );
+
 }

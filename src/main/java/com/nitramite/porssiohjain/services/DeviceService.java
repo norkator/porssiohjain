@@ -16,10 +16,7 @@
 
 package com.nitramite.porssiohjain.services;
 
-import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.entity.ControlEntity;
-import com.nitramite.porssiohjain.entity.DeviceEntity;
-import com.nitramite.porssiohjain.entity.PowerLimitEntity;
+import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.mappers.DeviceMapper;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
@@ -28,7 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +38,7 @@ public class DeviceService {
     private final AccountRepository accountRepository;
     private final ControlRepository controlRepository;
     private final PowerLimitRepository powerLimitRepository;
+    private final ResourceSharingRepository resourceSharingRepository;
 
     @Transactional
     public DeviceResponse createDevice(
@@ -108,26 +108,56 @@ public class DeviceService {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
 
-        List<DeviceEntity> deviceEntities = deviceRepository.findByAccountIdOrderByIdAsc(account.getId());
+        List<DeviceEntity> ownDevices = deviceRepository.findByAccountIdOrderByIdAsc(account.getId());
 
-        return deviceEntities.stream()
-                .map(entity -> DeviceResponse.builder()
-                        .id(entity.getId())
-                        .uuid(entity.getUuid())
-                        .deviceName(entity.getDeviceName())
-                        .timezone(entity.getTimezone())
-                        .lastCommunication(entity.getLastCommunication())
-                        .createdAt(entity.getCreatedAt())
-                        .updatedAt(entity.getUpdatedAt())
-                        .build())
+        List<ResourceSharingEntity> sharedResources =
+                resourceSharingRepository.findByReceiverAccountIdAndResourceTypeAndEnabledTrue(
+                        accountId,
+                        ResourceType.DEVICE
+                );
+        List<Long> sharedDeviceIds = sharedResources.stream()
+                .map(ResourceSharingEntity::getDeviceId)
+                .filter(Objects::nonNull)
                 .toList();
+        List<DeviceEntity> sharedDevices = sharedDeviceIds.isEmpty()
+                ? List.of()
+                : deviceRepository.findAllById(sharedDeviceIds);
+        List<DeviceResponse> responses = new ArrayList<>();
+
+        ownDevices.forEach(entity -> responses.add(DeviceResponse.builder()
+                .id(entity.getId())
+                .uuid(entity.getUuid())
+                .deviceName(entity.getDeviceName())
+                .timezone(entity.getTimezone())
+                .lastCommunication(entity.getLastCommunication())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .accountId(entity.getAccount().getId())
+                .shared(false)
+                .build()));
+
+        sharedDevices.forEach(entity -> responses.add(DeviceResponse.builder()
+                .id(entity.getId())
+                .uuid(entity.getUuid())
+                .deviceName(entity.getDeviceName())
+                .timezone(entity.getTimezone())
+                .lastCommunication(entity.getLastCommunication())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .accountId(entity.getAccount().getId())
+                .shared(true)
+                .build()));
+
+        return responses;
     }
 
     @Transactional
     public void updateDevice(
-            Long deviceId, String newName, String newTimezone
+            Long accountId, Long deviceId, String newName, String newTimezone
     ) {
-        DeviceEntity device = deviceRepository.findById(deviceId)
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
+        DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
         device.setDeviceName(newName);
         device.setTimezone(newTimezone);
