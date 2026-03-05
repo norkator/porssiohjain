@@ -43,7 +43,7 @@ import java.util.Locale;
 import java.util.stream.Stream;
 
 @PageTitle("Pörssiohjain - Home")
-@Route("")
+@Route("home")
 @PermitAll
 public class HomeView extends VerticalLayout {
 
