@@ -1,13 +1,11 @@
 # ===========================
 # Stage 1: Build application
 # ===========================
-FROM gradle:jdk21 AS build
+FROM gradle:8.14.3-jdk21 AS build
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y curl && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    node -v && npm -v
+RUN apt-get update && \
+    apt-get install -y nodejs npm
 
 COPY build.gradle settings.gradle ./
 COPY gradle ./gradle
