@@ -126,6 +126,9 @@ public class ControlSchedulerService {
                 BigDecimal maxPriceSnt = control.getMaxPriceSnt();
                 BigDecimal minPriceSnt = control.getMinPriceSnt();
                 boolean alwaysOnBelowMinPrice = control.isAlwaysOnBelowMinPrice();
+                Map<Instant, BigDecimal> transferPriceByPeriod = computeTransferPrices(
+                        control.getTransferContract(), prices
+                );
 
                 Map<LocalDate, List<NordpoolEntity>> pricesByDay = prices.stream()
                         .collect(Collectors.groupingBy(p ->
@@ -157,9 +160,12 @@ public class ControlSchedulerService {
 
                         for (NordpoolEntity priceEntry : alwaysOnPeriods) {
 
-                            BigDecimal priceSnt = priceEntry.getPriceFi()
+                            BigDecimal nordpoolPrice = priceEntry.getPriceFi()
                                     .multiply(BigDecimal.valueOf(0.1))
                                     .multiply(taxMultiplier);
+                            BigDecimal combinedPrice = nordpoolPrice.add(
+                                    transferPriceByPeriod.getOrDefault(priceEntry.getDeliveryStart(), BigDecimal.ZERO)
+                            );
 
                             int periodMinutes = (int) Duration.between(
                                     priceEntry.getDeliveryStart(), priceEntry.getDeliveryEnd()
@@ -177,7 +183,7 @@ public class ControlSchedulerService {
                                             .control(control)
                                             .startTime(priceEntry.getDeliveryStart())
                                             .endTime(end)
-                                            .priceSnt(priceSnt)
+                                            .priceSnt(combinedPrice)
                                             .status(status)
                                             .build()
                             );
@@ -209,9 +215,12 @@ public class ControlSchedulerService {
                     for (NordpoolEntity priceEntry : eligiblePrices) {
                         if (accumulatedMinutes >= dailyOnMinutes) break;
 
-                        BigDecimal priceSnt = priceEntry.getPriceFi()
+                        BigDecimal nordpoolPrice = priceEntry.getPriceFi()
                                 .multiply(BigDecimal.valueOf(0.1))
                                 .multiply(taxMultiplier);
+                        BigDecimal combinedPrice = nordpoolPrice.add(
+                                transferPriceByPeriod.getOrDefault(priceEntry.getDeliveryStart(), BigDecimal.ZERO)
+                        );
 
                         int periodMinutes = (int) Duration.between(
                                 priceEntry.getDeliveryStart(), priceEntry.getDeliveryEnd()
@@ -230,7 +239,7 @@ public class ControlSchedulerService {
                                 .control(control)
                                 .startTime(priceEntry.getDeliveryStart())
                                 .endTime(end)
-                                .priceSnt(priceSnt)
+                                .priceSnt(combinedPrice)
                                 .status(status)
                                 .build();
 
@@ -254,6 +263,33 @@ public class ControlSchedulerService {
             }
 
         }
+    }
+
+    private Map<Instant, BigDecimal> computeTransferPrices(
+            ElectricityContractEntity transferContract, List<NordpoolEntity> prices
+    ) {
+        Map<Instant, BigDecimal> transferPriceByPeriod = new HashMap<>();
+        if (transferContract == null) return transferPriceByPeriod;
+        BigDecimal staticPrice = transferContract.getStaticPrice();
+        BigDecimal nightPrice = transferContract.getNightPrice();
+        BigDecimal dayPrice = transferContract.getDayPrice();
+        BigDecimal taxAmount = transferContract.getTaxAmount() != null ? transferContract.getTaxAmount() : BigDecimal.ZERO;
+        boolean hasStatic = staticPrice != null;
+        boolean hasDayNight = dayPrice != null || nightPrice != null;
+        for (NordpoolEntity priceEntry : prices) {
+            BigDecimal transferPrice = null;
+            if (hasStatic && !hasDayNight) {
+                transferPrice = staticPrice;
+            } else if (hasDayNight) {
+                int hour = priceEntry.getDeliveryStart().atZone(ZoneId.systemDefault()).getHour();
+                boolean isNight = hour >= 22 || hour < 7;
+                transferPrice = isNight ? nightPrice : dayPrice;
+            }
+            if (transferPrice != null) {
+                transferPriceByPeriod.put(priceEntry.getDeliveryStart(), transferPrice.add(taxAmount));
+            }
+        }
+        return transferPriceByPeriod;
     }
 
 }
