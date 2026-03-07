@@ -32,6 +32,7 @@ public class SitemapController {
 
     private static final List<String> pages = List.of(
             "/",
+            "/home",
             "/login",
             "/createAccount"
             // "/device", // these require login
