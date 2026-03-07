@@ -43,7 +43,7 @@ import java.util.Locale;
 import java.util.stream.Stream;
 
 @PageTitle("Pörssiohjain - Home")
-@Route("")
+@Route("home")
 @PermitAll
 public class HomeView extends VerticalLayout {
 
@@ -142,7 +142,8 @@ public class HomeView extends VerticalLayout {
             session.setAttribute("expiresAt", null);
             Notification notification = Notification.show(t("home.logoutSuccess"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            UI.getCurrent().getPage().reload();
+            UI.getCurrent().navigate(LandingView.class);
+            // UI.getCurrent().getPage().reload();
         });
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
