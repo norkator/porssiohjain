@@ -40,6 +40,7 @@ public class Scheduler {
     private final ProductionSourceService productionSourceService;
     private final PricePredictionDataService pricePredictionDataService;
     private final EmailService emailService;
+    private final AuthService authService;
 
     private boolean firstRun = true;
 
@@ -51,7 +52,8 @@ public class Scheduler {
             SolarmanPvService solarmanPvService,
             ProductionSourceService productionSourceService,
             PricePredictionDataService pricePredictionDataService,
-            EmailService emailService
+            EmailService emailService,
+            AuthService authService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -61,6 +63,7 @@ public class Scheduler {
         this.productionSourceService = productionSourceService;
         this.pricePredictionDataService = pricePredictionDataService;
         this.emailService = emailService;
+        this.authService = authService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -161,6 +164,7 @@ public class Scheduler {
         powerLimitService.deleteOldPowerLimitHistory();
         productionSourceService.deleteOldProductionHistory();
         pricePredictionDataService.deleteOldData();
+        authService.deleteExpiredTokens();
     }
 
     @Scheduled(fixedDelayString = "${solarman.poll-interval}")
