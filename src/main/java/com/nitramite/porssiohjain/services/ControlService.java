@@ -189,27 +189,61 @@ public class ControlService {
     public ControlResponse getControl(
             Long accountId, Long controlId
     ) {
-        return controlRepository.findByIdAndAccountId(controlId, accountId)
-                .map(entity -> ControlResponse.builder()
-                        .id(entity.getId())
-                        .name(entity.getName())
-                        .timezone(entity.getTimezone())
-                        .maxPriceSnt(entity.getMaxPriceSnt())
-                        .minPriceSnt(entity.getMinPriceSnt())
-                        .dailyOnMinutes(entity.getDailyOnMinutes())
-                        .taxPercent(entity.getTaxPercent())
-                        .mode(entity.getMode())
-                        .manualOn(entity.isManualOn())
-                        .alwaysOnBelowMinPrice(entity.isAlwaysOnBelowMinPrice())
-                        .energyContractId(entity.getEnergyContract() != null ? entity.getEnergyContract().getId() : null)
-                        .energyContractName(entity.getEnergyContract() != null ? entity.getEnergyContract().getName() : null)
-                        .transferContractId(entity.getTransferContract() != null ? entity.getTransferContract().getId() : null)
-                        .transferContractName(entity.getTransferContract() != null ? entity.getTransferContract().getName() : null)
-                        .siteId(entity.getSite() != null ? entity.getSite().getId() : null)
-                        .createdAt(entity.getCreatedAt())
-                        .updatedAt(entity.getUpdatedAt())
-                        .build())
-                .orElseThrow(() -> new IllegalArgumentException("Control not found for your account with ID: " + controlId));
+        Optional<ControlEntity> ownControl = controlRepository.findByIdAndAccountId(controlId, accountId);
+        if (ownControl.isPresent()) {
+            ControlEntity entity = ownControl.get();
+            return ControlResponse.builder()
+                    .id(entity.getId())
+                    .name(entity.getName())
+                    .timezone(entity.getTimezone())
+                    .maxPriceSnt(entity.getMaxPriceSnt())
+                    .minPriceSnt(entity.getMinPriceSnt())
+                    .dailyOnMinutes(entity.getDailyOnMinutes())
+                    .taxPercent(entity.getTaxPercent())
+                    .mode(entity.getMode())
+                    .manualOn(entity.isManualOn())
+                    .alwaysOnBelowMinPrice(entity.isAlwaysOnBelowMinPrice())
+                    .energyContractId(entity.getEnergyContract() != null ? entity.getEnergyContract().getId() : null)
+                    .energyContractName(entity.getEnergyContract() != null ? entity.getEnergyContract().getName() : null)
+                    .transferContractId(entity.getTransferContract() != null ? entity.getTransferContract().getId() : null)
+                    .transferContractName(entity.getTransferContract() != null ? entity.getTransferContract().getName() : null)
+                    .siteId(entity.getSite() != null ? entity.getSite().getId() : null)
+                    .createdAt(entity.getCreatedAt())
+                    .updatedAt(entity.getUpdatedAt())
+                    .shared(false)
+                    .build();
+        }
+        boolean hasSharedAccess =
+                resourceSharingRepository.existsByReceiverAccountIdAndResourceTypeAndControlIdAndEnabledTrue(
+                        accountId,
+                        ResourceType.CONTROL,
+                        controlId
+                );
+        if (hasSharedAccess) {
+            ControlEntity entity = controlRepository.findById(controlId)
+                    .orElseThrow(() -> new IllegalArgumentException("Shared control not found with ID: " + controlId));
+            return ControlResponse.builder()
+                    .id(entity.getId())
+                    .name(entity.getName())
+                    .timezone(entity.getTimezone())
+                    .maxPriceSnt(entity.getMaxPriceSnt())
+                    .minPriceSnt(entity.getMinPriceSnt())
+                    .dailyOnMinutes(entity.getDailyOnMinutes())
+                    .taxPercent(entity.getTaxPercent())
+                    .mode(entity.getMode())
+                    .manualOn(entity.isManualOn())
+                    .alwaysOnBelowMinPrice(entity.isAlwaysOnBelowMinPrice())
+                    .energyContractId(entity.getEnergyContract() != null ? entity.getEnergyContract().getId() : null)
+                    .energyContractName(entity.getEnergyContract() != null ? entity.getEnergyContract().getName() : null)
+                    .transferContractId(entity.getTransferContract() != null ? entity.getTransferContract().getId() : null)
+                    .transferContractName(entity.getTransferContract() != null ? entity.getTransferContract().getName() : null)
+                    .siteId(entity.getSite() != null ? entity.getSite().getId() : null)
+                    .createdAt(entity.getCreatedAt())
+                    .updatedAt(entity.getUpdatedAt())
+                    .shared(true)
+                    .build();
+        }
+        throw new IllegalArgumentException("Control not found for your account with ID: " + controlId);
     }
 
     public ControlDeviceResponse addDeviceToControl(
