@@ -47,11 +47,9 @@ class SitemapControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_XML))
                 .andExpect(xpath("/urlset/url[1]/loc").string("http://porssiohjain.nitramite.com/"))
-                .andExpect(xpath("/urlset/url[2]/loc").string("http://porssiohjain.nitramite.com/login"))
-                .andExpect(xpath("/urlset/url[3]/loc").string("http://porssiohjain.nitramite.com/createAccount"))
-                .andExpect(xpath("/urlset/url[4]/loc").string("http://porssiohjain.nitramite.com/device"))
-                .andExpect(xpath("/urlset/url[5]/loc").string("http://porssiohjain.nitramite.com/controls"))
-                .andExpect(xpath("/urlset/url[6]/loc").string("http://porssiohjain.nitramite.com/production-sources"))
+                .andExpect(xpath("/urlset/url[2]/loc").string("http://porssiohjain.nitramite.com/home"))
+                .andExpect(xpath("/urlset/url[3]/loc").string("http://porssiohjain.nitramite.com/login"))
+                .andExpect(xpath("/urlset/url[4]/loc").string("http://porssiohjain.nitramite.com/createAccount"))
                 .andExpect(xpath("/urlset/url[1]/changefreq").string("weekly"))
                 .andExpect(xpath("/urlset/url[1]/priority").string("0.5"));
     }
