@@ -106,7 +106,6 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
 
         VerticalLayout card = new VerticalLayout();
         card.setWidthFull();
-        card.setMaxWidth("1400px");
         card.setPadding(true);
         card.setSpacing(true);
         card.setAlignItems(Alignment.STRETCH);
