@@ -33,16 +33,16 @@ public class SitemapController {
     private static final List<String> pages = List.of(
             "/",
             "/login",
-            "/createAccount",
-            "/device",
-            "/controls",
-            "/production-sources",
-            "/power-limits",
-            "/dashboard",
-            "/electricity-contracts",
-            "/sites",
-            "/settings",
-            "/resource-sharing"
+            "/createAccount"
+            // "/device", // these require login
+            // "/controls", // these require login
+            // "/production-sources", // these require login
+            // "/power-limits", // these require login
+            // "/dashboard", // these require login
+            // "/electricity-contracts", // these require login
+            // "/sites", // these require login
+            // "/settings", // these require login
+            // "/resource-sharing" // these require login
     );
 
     private static final Map<String, List<String>> DOMAIN_PAGES = Map.of(
