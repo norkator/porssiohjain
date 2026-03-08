@@ -68,7 +68,10 @@ public class LandingView extends VerticalLayout {
         VerticalLayout card = createCard();
         card.setPadding(false);
         card.setSpacing(false);
-        card.getStyle().set("background", "var(--lumo-base-color)").set("border-radius", "var(--lumo-border-radius-l)").set("box-shadow", "var(--lumo-box-shadow-xs)");
+        card.getStyle()
+                .set("background", "var(--lumo-base-color)")
+                .set("border-radius", "var(--lumo-border-radius-l)")
+                .set("box-shadow", "var(--lumo-box-shadow-xs)");
         H3 logo = new H3("Pörssiohjain 2000 ™");
         Button fiButton = new Button(t("lang.finnish"), e -> switchLocale("fi"));
         Button enButton = new Button(t("lang.english"), e -> switchLocale("en"));
@@ -77,10 +80,14 @@ public class LandingView extends VerticalLayout {
         HorizontalLayout right = new HorizontalLayout(fiButton, enButton, loginButton);
         right.setAlignItems(Alignment.CENTER);
         right.setSpacing(true);
+        right.getStyle().set("flex-wrap", "wrap");
         HorizontalLayout header = new HorizontalLayout(logo, right);
         header.setWidthFull();
         header.setAlignItems(Alignment.CENTER);
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        header.getStyle().set("flex-wrap", "wrap");
+        right.setWidthFull();
+        right.setJustifyContentMode(JustifyContentMode.END);
         card.add(header);
         return card;
     }
