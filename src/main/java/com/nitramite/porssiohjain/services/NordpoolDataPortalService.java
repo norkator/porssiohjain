@@ -123,7 +123,7 @@ public class NordpoolDataPortalService {
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean hasDataForToday() {
         LocalDate today = LocalDate.now();
-        Instant start = today.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant start = today.atStartOfDay(ZoneId.systemDefault()).plusHours(4).toInstant();
         Instant end = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         return nordpoolRepository.existsByDeliveryStartBetween(start, end);
     }
