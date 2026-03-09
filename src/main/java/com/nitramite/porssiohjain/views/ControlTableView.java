@@ -652,9 +652,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                             zoom: { enabled: false }
                                         },
                                         series: [
+                                            { name: transferLabel, data: dataTransfer, color: '#FFB343' },
                                             { name: nordpoolLabel, data: dataNordpool, color: '#0000FF' },
                                             { name: controlLabel, data: dataControl, color: '#FF0000' },
-                                            { name: transferLabel, data: dataTransfer, color: '#FFB343' }
                                         ],
                                         xaxis: { categories: dataX, title: { text: xAxisLabel }, labels: { rotate: -45 } },
                                         yaxis: { title: { text: yAxisLabel } },
@@ -694,9 +694,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                         }
                                     });
                                     container.chartInstance.updateSeries([
+                                        { data: dataTransfer },
                                         { data: dataNordpool },
                                         { data: dataControl },
-                                        { data: dataTransfer }
                                     ], true);
                                 }
                             }
