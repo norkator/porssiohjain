@@ -21,6 +21,7 @@ import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepositor
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.views.components.Divider;
+import com.nitramite.porssiohjain.views.components.InfoBox;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
@@ -58,6 +59,8 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+
+import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @JsModule("./js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Control table")
@@ -478,6 +481,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 ),
                 new Div(new Text(t("controlTable.section.descriptionCharts"))),
                 createPriceCharts(controlTableResponses, nordpoolPriceResponsesToday, nordpoolPriceResponsesTomorrow),
+                new InfoBox(t("common.hint"), t("controlTable.chartHint")),
+                createDivider(),
                 new Div(new Text(t("controlTable.section.descriptionList"))),
                 controlTableGrid
         );
