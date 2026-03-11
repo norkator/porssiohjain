@@ -107,17 +107,20 @@ public class ControlSchedulerService {
             controlTableRepository.flush();
 
             if (controlMode.equals(ControlMode.BELOW_MAX_PRICE)) {
+                Map<Instant, BigDecimal> transferPriceByPeriod = computeTransferPrices(
+                        control.getTransferContract(), prices, ZoneId.of(control.getTimezone())
+                );
                 for (NordpoolEntity priceEntry : prices) {
-                    BigDecimal priceSnt = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
-                    if (priceSnt.compareTo(control.getMaxPriceSnt()) <= 0) {
+                    BigDecimal nordpoolPrice = priceEntry.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
+                    BigDecimal combinedPrice = nordpoolPrice.add(transferPriceByPeriod.getOrDefault(priceEntry.getDeliveryStart(), BigDecimal.ZERO));
+                    if (combinedPrice.compareTo(control.getMaxPriceSnt()) <= 0) {
                         ControlTableEntity entry = ControlTableEntity.builder()
                                 .control(control)
                                 .startTime(priceEntry.getDeliveryStart())
                                 .endTime(priceEntry.getDeliveryEnd())
-                                .priceSnt(priceSnt)
+                                .priceSnt(combinedPrice)
                                 .status(status)
                                 .build();
-
                         controlTableRepository.save(entry);
                     }
                 }
