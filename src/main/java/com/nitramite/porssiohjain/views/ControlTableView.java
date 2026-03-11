@@ -149,6 +149,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         if (control.getTransferContractId() != null) {
             Optional<ElectricityContractEntity> contract = contractRepository.findById(control.getTransferContractId());
             contract.ifPresent(electricityContractEntity -> this.transferContract = electricityContractEntity);
+        } else {
+            this.transferContract = null;
         }
     }
 
@@ -178,6 +180,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         H2 title = new H2(t("controlTable.title", control.getName()));
         title.getStyle().set("margin-top", "0");
         card.add(title);
+
+        card.add(new InfoBox(t("common.hint"), t("controlTable.transferContractHint")));
 
         TextField controlNameField = new TextField(t("controlTable.field.name"));
         controlNameField.setValue(control.getName());
@@ -298,6 +302,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
                 Notification notification = Notification.show(t("controlTable.notification.saved"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+
+                loadControl();
             } catch (Exception ex) {
                 Notification notification = Notification.show(t("controlTable.notification.failedSave", ex.getMessage()));
                 notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
