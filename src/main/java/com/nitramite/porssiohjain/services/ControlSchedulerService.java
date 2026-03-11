@@ -125,9 +125,10 @@ public class ControlSchedulerService {
                 Integer dailyOnMinutes = control.getDailyOnMinutes();
                 BigDecimal maxPriceSnt = control.getMaxPriceSnt();
                 BigDecimal minPriceSnt = control.getMinPriceSnt();
+                ZoneId controlZone = ZoneId.of(control.getTimezone());
                 boolean alwaysOnBelowMinPrice = control.isAlwaysOnBelowMinPrice();
                 Map<Instant, BigDecimal> transferPriceByPeriod = computeTransferPrices(
-                        control.getTransferContract(), prices
+                        control.getTransferContract(), prices, controlZone
                 );
 
                 Map<LocalDate, List<NordpoolEntity>> pricesByDay = prices.stream()
@@ -266,7 +267,9 @@ public class ControlSchedulerService {
     }
 
     private Map<Instant, BigDecimal> computeTransferPrices(
-            ElectricityContractEntity transferContract, List<NordpoolEntity> prices
+            ElectricityContractEntity transferContract,
+            List<NordpoolEntity> prices,
+            ZoneId zone
     ) {
         Map<Instant, BigDecimal> transferPriceByPeriod = new HashMap<>();
         if (transferContract == null) return transferPriceByPeriod;
@@ -281,7 +284,7 @@ public class ControlSchedulerService {
             if (hasStatic && !hasDayNight) {
                 transferPrice = staticPrice;
             } else if (hasDayNight) {
-                int hour = priceEntry.getDeliveryStart().atZone(ZoneId.systemDefault()).getHour();
+                int hour = priceEntry.getDeliveryStart().atZone(zone).getHour();
                 boolean isNight = hour >= 22 || hour < 7;
                 transferPrice = isNight ? nightPrice : dayPrice;
             }
