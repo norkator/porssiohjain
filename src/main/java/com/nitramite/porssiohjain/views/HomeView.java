@@ -97,18 +97,6 @@ public class HomeView extends VerticalLayout {
         HorizontalLayout langButtons = new HorizontalLayout(enButton, fiButton);
         langButtons.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 
-        HorizontalLayout priceStatsLayout = new HorizontalLayout();
-        priceStatsLayout.setWidthFull();
-        priceStatsLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
-        priceStatsLayout.setSpacing(true);
-        priceStatsLayout.getStyle().set("flex-wrap", "wrap");
-
-        VerticalLayout minBox = createStatBox(t("home.todayMin"), "–");
-        VerticalLayout avgBox = createStatBox(t("home.todayAvg"), "–");
-        VerticalLayout maxBox = createStatBox(t("home.todayMax"), "–");
-
-        priceStatsLayout.add(minBox, avgBox, maxBox);
-
         Button loginButton = new Button(t("home.login"), e -> UI.getCurrent().navigate(LoginView.class));
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -143,7 +131,6 @@ public class HomeView extends VerticalLayout {
             Notification notification = Notification.show(t("home.logoutSuccess"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             UI.getCurrent().navigate(LandingView.class);
-            // UI.getCurrent().getPage().reload();
         });
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
@@ -162,17 +149,9 @@ public class HomeView extends VerticalLayout {
         contentBox.add(langButtons, title, subtitle);
 
         if (loggedIn) {
-            String timezone = ZoneId.systemDefault().getId();
-            TodayPriceStatsResponse stats = nordpoolService.getTodayStats(getAccountId(), timezone);
-
-            updateStatBox(minBox, stats.getMin());
-            updateStatBox(avgBox, stats.getAvg());
-            updateStatBox(maxBox, stats.getMax());
-
             contentBox.add(
-                    devicesButton, controlsButton, myProductionButton, powerLimitsButton, // temperatureControlsButton,
-                    dashboardButton, settingsButton, logoutButton, Divider.createDivider(),
-                    priceStatsLayout, Divider.createDivider()
+                    devicesButton, controlsButton, myProductionButton, powerLimitsButton,
+                    dashboardButton, settingsButton, logoutButton, Divider.createDivider()
             );
         } else {
             contentBox.add(loginButton, createAccountButton);
@@ -193,52 +172,9 @@ public class HomeView extends VerticalLayout {
         UI.getCurrent().getPage().reload();
     }
 
-    private VerticalLayout createStatBox(String label, String value) {
-        VerticalLayout box = new VerticalLayout();
-        box.setAlignItems(Alignment.CENTER);
-        box.setPadding(false);
-        box.setSpacing(false);
-        box.getStyle().set("border", "1px solid var(--lumo-contrast-10pct)");
-        box.getStyle().set("border-radius", "8px");
-        box.getStyle().set("padding", "12px 20px");
-        box.getStyle().set("min-width", "120px");
-        box.getStyle().set("max-width", "120px");
-        box.getStyle().set("flex", "1 1 auto");
-        box.getStyle().set("text-align", "center");
-
-        H2 valueText = new H2(value);
-        valueText.getStyle().set("margin", "0");
-        valueText.getStyle().set("font-size", "1.2em");
-
-        Span labelText = new Span(label);
-        labelText.getStyle().set("font-size", "0.8em");
-        labelText.getStyle().set("color", "var(--lumo-secondary-text-color)");
-
-        box.add(valueText, labelText);
-        return box;
-    }
-
-    private void updateStatBox(VerticalLayout box, BigDecimal value) {
-        H2 valueText = (H2) box.getChildren().findFirst().orElse(null);
-        if (valueText != null) {
-            valueText.setText(value.setScale(2, RoundingMode.HALF_UP) + " c/kWh");
-        }
-    }
-
-    private Long getAccountId() {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("home.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
-        }
-
-        AccountEntity account = authService.authenticate(token);
-        return account.getId();
-    }
-
     protected String t(String key, Object... args) {
         return i18n.t(key, args);
     }
+
 }
 

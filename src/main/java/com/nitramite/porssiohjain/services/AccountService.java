@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.AccountTier;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -53,6 +54,13 @@ public class AccountService {
         accountRepository.save(account);
         account.setSecret(rawSecret);
         return account;
+    }
+
+    @Transactional(readOnly = true)
+    public AccountTier getTier(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::getTier)
+                .orElse(AccountTier.FREE);
     }
 
     @Transactional(readOnly = true)

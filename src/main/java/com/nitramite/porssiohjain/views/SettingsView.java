@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.AccountTier;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -29,6 +30,8 @@ import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
@@ -123,17 +126,6 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         buttonRow.setWidthFull();
         buttonRow.getStyle().set("gap", "var(--lumo-space-m)");
 
-        card.add(
-                pageTitle,
-                createAccountSection(),
-                createNotificationSection(),
-                saveButton,
-                Divider.createDivider(),
-                buttonRow
-        );
-
-        add(card);
-
         String token = (String) VaadinSession.getCurrent().getAttribute("token");
         if (token == null) {
             Notification notification = Notification.show(t("settings.sessionExpired"));
@@ -144,6 +136,25 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         AccountEntity account = authService.authenticate(token);
         accountId = account.getId();
+
+        H3 tierTitle = new H3(t("settings.account.tier"));
+        tierTitle.getStyle().set("margin-top", "16px");
+        AccountTier tier = accountService.getTier(accountId);
+        Component subscriptionCard = createSubscriptionCard(tier);
+
+        card.add(
+                pageTitle,
+                tierTitle,
+                subscriptionCard,
+                Divider.createDivider(),
+                createAccountSection(),
+                createNotificationSection(),
+                saveButton,
+                Divider.createDivider(),
+                buttonRow
+        );
+
+        add(card);
 
         emailField.setValue(Optional.ofNullable(accountService.getEmail(accountId)).orElse(""));
         notifyPowerLimitExceeded.setValue(accountService.getNotifyPowerLimitExceeded(accountId));
@@ -170,28 +181,89 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         VerticalLayout section = new VerticalLayout();
         section.setPadding(false);
         section.setSpacing(true);
-
         H3 title = new H3(t("settings.account.title"));
         title.getStyle().set("margin-top", "16px");
-
         FormLayout form = new FormLayout(emailField, localeSelect);
         form.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2)
         );
-
         section.add(title, form);
         return section;
+    }
+
+    private String getTierDescription(AccountTier tier) {
+        return switch (tier) {
+            case FREE -> t("settings.account.freeTier");
+            case PRO -> t("settings.account.proTier");
+            case BUSINESS -> t("settings.account.businessTier");
+        };
+    }
+
+    private Component createSubscriptionCard(AccountTier tier) {
+        VerticalLayout card = new VerticalLayout();
+        card.setPadding(true);
+        card.setSpacing(false);
+        card.setWidth("320px");
+        card.getStyle()
+                .set("border-radius", "14px")
+                .set("box-shadow", "0 6px 18px rgba(0,0,0,0.08)")
+                .set("border", "1px solid var(--lumo-contrast-10pct)")
+                .set("background", "var(--lumo-base-color)");
+        H4 tierTitle = new H4(tier.name());
+        tierTitle.getStyle()
+                .set("margin", "0")
+                .set("font-weight", "700");
+        Span description = new Span(getTierDescription(tier));
+        description.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.9rem");
+        Span badge = new Span("ACTIVE");
+        badge.getStyle()
+                .set("padding", "3px 10px")
+                .set("border-radius", "10px")
+                .set("font-size", "0.75rem")
+                .set("font-weight", "600")
+                .set("color", "white");
+        switch (tier) {
+            case FREE -> badge.getStyle().set("background", "#6c757d");
+            case PRO -> badge.getStyle().set("background", "#0d6efd");
+            case BUSINESS -> badge.getStyle().set("background", "#198754");
+        }
+        Button manageButton = new Button(t("settings.account.managePlan"));
+        manageButton.setEnabled(false);
+        manageButton.getStyle()
+                .set("margin-top", "12px");
+        HorizontalLayout header = new HorizontalLayout(tierTitle, badge);
+        header.setWidthFull();
+        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        header.setAlignItems(Alignment.CENTER);
+        card.add(header, description, manageButton);
+        return card;
+    }
+
+    private Component createTierBadge(AccountTier tier) {
+        Span badge = new Span(tier.name());
+        badge.getStyle()
+                .set("padding", "4px 10px")
+                .set("border-radius", "12px")
+                .set("font-weight", "600")
+                .set("font-size", "0.8rem")
+                .set("color", "white");
+        switch (tier) {
+            case FREE -> badge.getStyle().set("background", "#6c757d");
+            case PRO -> badge.getStyle().set("background", "#0d6efd");
+            case BUSINESS -> badge.getStyle().set("background", "#198754");
+        }
+        return badge;
     }
 
     private Component createNotificationSection() {
         VerticalLayout section = new VerticalLayout();
         section.setPadding(false);
         section.setSpacing(true);
-
         H2 title = new H2(t("settings.notifications.title"));
         title.getStyle().set("margin-top", "16px");
-
         section.add(title, notifyPowerLimitExceeded);
         return section;
     }
