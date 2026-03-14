@@ -57,7 +57,7 @@ public class LandingView extends VerticalLayout {
         setPadding(false);
         setSpacing(false);
         setSizeFull();
-        getStyle().set("padding", "var(--lumo-space-m) var(--lumo-space-l)");
+        addClassName("landing-view");
         add(createHeader());
         add(createHeroSection());
         add(createFeaturesSection());
@@ -66,26 +66,25 @@ public class LandingView extends VerticalLayout {
 
     private Component createHeader() {
         HorizontalLayout navbar = new HorizontalLayout();
+        navbar.addClassName("landing-navbar");
         navbar.setWidthFull();
         navbar.setPadding(true);
         navbar.setSpacing(true);
-        navbar.getStyle().set("background", "#004d4d").set("color", "white").set("box-shadow", "0 2px 8px rgba(0,0,0,0.15)").set("padding", "0.5rem 2rem");
-
+        navbar.getStyle()
+                .set("background", "#004d4d")
+                .set("color", "white")
+                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.15)");
         H3 logo = new H3("Pörssiohjain 2000 ™");
         logo.getStyle().set("margin", "0").set("color", "white");
-
         Button fiButton = new Button("FI", e -> switchLocale("fi"));
         fiButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
         Button enButton = new Button("EN", e -> switchLocale("en"));
         enButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-
         Button loginButton = new Button(t("home.login"), e -> UI.getCurrent().navigate(LoginView.class));
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
         HorizontalLayout right = new HorizontalLayout(fiButton, enButton, loginButton);
+        right.addClassName("landing-navbar-buttons");
         right.setAlignItems(Alignment.CENTER);
-        right.setSpacing(true);
-
         navbar.add(logo, right);
         navbar.expand(logo);
         navbar.setAlignItems(Alignment.CENTER);
@@ -95,18 +94,14 @@ public class LandingView extends VerticalLayout {
     private Component createHeroSection() {
         VerticalLayout hero = createCard();
         hero.setAlignItems(Alignment.CENTER);
-
         H1 title = new H1("Pörssiohjain 2000 ™");
         Paragraph subtitle = new Paragraph(t("landing.subtitle"));
-
         Button createAccount = new Button(t("home.createAccount"), e -> UI.getCurrent().navigate(CreateAccountView.class));
         createAccount.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         Button login = new Button(t("home.login"), e -> UI.getCurrent().navigate(LoginView.class));
         login.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
         HorizontalLayout buttons = new HorizontalLayout(createAccount, login);
         buttons.setSpacing(true);
-
         hero.add(title, subtitle, buttons);
         return hero;
     }
