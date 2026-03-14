@@ -15,7 +15,7 @@ body {
 }
 
 .responsive-card {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     border-radius: 12px;
     background-color: var(--lumo-base-color);
     padding: 32px;
@@ -104,4 +104,38 @@ vaadin-button[theme~="small"] {
 
 vaadin-button[theme~="large"] {
     padding: 6px 12px;
+}
+
+.landing-view {
+    padding: var(--lumo-space-m) var(--lumo-space-l);
+}
+
+@media (max-width: 600px) {
+    .landing-view {
+        padding: var(--lumo-space-s);
+    }
+}
+
+.landing-navbar {
+    padding: 0.5rem 2rem;
+}
+
+@media (max-width: 768px) {
+
+    .landing-navbar {
+        flex-direction: column;
+        align-items: flex-end;
+        padding: 0.5rem 1rem;
+        gap: 0.5rem;
+    }
+
+    .landing-navbar-buttons {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .landing-navbar-buttons vaadin-button {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
 }

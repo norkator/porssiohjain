@@ -23,6 +23,8 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -40,9 +42,7 @@ public class LandingView extends VerticalLayout {
 
     protected final I18nService i18n;
 
-    public LandingView(
-            I18nService i18n
-    ) {
+    public LandingView(I18nService i18n) {
         this.i18n = i18n;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
@@ -57,7 +57,7 @@ public class LandingView extends VerticalLayout {
         setPadding(false);
         setSpacing(false);
         setSizeFull();
-        getStyle().set("padding", "var(--lumo-space-m) var(--lumo-space-l)");
+        addClassName("landing-view");
         add(createHeader());
         add(createHeroSection());
         add(createFeaturesSection());
@@ -65,120 +65,112 @@ public class LandingView extends VerticalLayout {
     }
 
     private Component createHeader() {
-        VerticalLayout card = createCard();
-        card.setPadding(false);
-        card.setSpacing(false);
-        card.getStyle()
-                .set("background", "var(--lumo-base-color)")
-                .set("border-radius", "var(--lumo-border-radius-l)")
-                .set("box-shadow", "var(--lumo-box-shadow-xs)");
+        HorizontalLayout navbar = new HorizontalLayout();
+        navbar.addClassName("landing-navbar");
+        navbar.setWidthFull();
+        navbar.setPadding(true);
+        navbar.setSpacing(true);
+        navbar.getStyle()
+                .set("background", "#004d4d")
+                .set("color", "white")
+                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.15)");
         H3 logo = new H3("Pörssiohjain 2000 ™");
-        Button fiButton = new Button(t("lang.finnish"), e -> switchLocale("fi"));
-        Button enButton = new Button(t("lang.english"), e -> switchLocale("en"));
+        logo.getStyle().set("margin", "0").set("color", "white");
+        Button fiButton = new Button("FI", e -> switchLocale("fi"));
+        fiButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        Button enButton = new Button("EN", e -> switchLocale("en"));
+        enButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
         Button loginButton = new Button(t("home.login"), e -> UI.getCurrent().navigate(LoginView.class));
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         HorizontalLayout right = new HorizontalLayout(fiButton, enButton, loginButton);
+        right.addClassName("landing-navbar-buttons");
         right.setAlignItems(Alignment.CENTER);
-        right.setSpacing(true);
-        right.getStyle().set("flex-wrap", "wrap");
-        HorizontalLayout header = new HorizontalLayout(logo, right);
-        header.setWidthFull();
-        header.setAlignItems(Alignment.CENTER);
-        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
-        header.getStyle().set("flex-wrap", "wrap");
-        right.setWidthFull();
-        right.setJustifyContentMode(JustifyContentMode.END);
-        card.add(header);
-        return card;
+        navbar.add(logo, right);
+        navbar.expand(logo);
+        navbar.setAlignItems(Alignment.CENTER);
+        return navbar;
     }
 
     private Component createHeroSection() {
-        VerticalLayout card = createCard();
-        card.setAlignItems(Alignment.CENTER);
+        VerticalLayout hero = createCard();
+        hero.setAlignItems(Alignment.CENTER);
         H1 title = new H1("Pörssiohjain 2000 ™");
         Paragraph subtitle = new Paragraph(t("landing.subtitle"));
-        Button createAccount = new Button(t("home.createAccount"),
-                e -> UI.getCurrent().navigate(CreateAccountView.class));
+        Button createAccount = new Button(t("home.createAccount"), e -> UI.getCurrent().navigate(CreateAccountView.class));
         createAccount.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-        Button login = new Button(t("home.login"),
-                e -> UI.getCurrent().navigate(LoginView.class));
+        Button login = new Button(t("home.login"), e -> UI.getCurrent().navigate(LoginView.class));
         login.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         HorizontalLayout buttons = new HorizontalLayout(createAccount, login);
-        card.add(title, subtitle, buttons);
-        return card;
+        buttons.setSpacing(true);
+        hero.add(title, subtitle, buttons);
+        return hero;
     }
 
     private Component createFeaturesSection() {
-        VerticalLayout card = createCard();
-        card.setAlignItems(Alignment.CENTER);
+        VerticalLayout section = createCard();
+        section.setAlignItems(Alignment.CENTER);
+
         H2 title = new H2(t("landing.features"));
+
         FlexLayout features = new FlexLayout();
         features.setFlexWrap(FlexLayout.FlexWrap.WRAP);
         features.setJustifyContentMode(JustifyContentMode.CENTER);
         features.setWidthFull();
         features.getStyle().set("gap", "var(--lumo-space-m)");
+
         features.add(
-                feature(t("landing.feature.cheapestHours.title"), t("landing.feature.cheapestHours.text")),
-                feature(t("landing.feature.avoidExpensive.title"), t("landing.feature.avoidExpensive.text")),
-                feature(t("landing.feature.powerLimits.title"), t("landing.feature.powerLimits.text")),
-                feature(t("landing.feature.selfProduction.title"), t("landing.feature.selfProduction.text")),
-                feature(t("landing.feature.affordable.title"), t("landing.feature.affordable.text"))
+                feature(VaadinIcon.EURO, t("landing.feature.cheapestHours.title"), t("landing.feature.cheapestHours.text")),
+                feature(VaadinIcon.WALLET, t("landing.feature.avoidExpensive.title"), t("landing.feature.avoidExpensive.text")),
+                feature(VaadinIcon.BOLT, t("landing.feature.powerLimits.title"), t("landing.feature.powerLimits.text")),
+                feature(VaadinIcon.SUN_O, t("landing.feature.selfProduction.title"), t("landing.feature.selfProduction.text")),
+                feature(VaadinIcon.MONEY, t("landing.feature.affordable.title"), t("landing.feature.affordable.text"))
         );
-        card.add(title, features);
-        return card;
+
+        section.add(title, features);
+        return section;
     }
 
-    private Component feature(String title, String text) {
+    private Component feature(VaadinIcon icon, String title, String text) {
+        Icon featureIcon = icon.create();
+        featureIcon.setSize("40px");
+        featureIcon.getStyle().set("color", "#008080").set("margin-bottom", "0.5rem");
+
         H3 heading = new H3(title);
         Paragraph description = new Paragraph(text);
-        VerticalLayout content = new VerticalLayout(heading, description);
+
+        VerticalLayout content = new VerticalLayout(featureIcon, heading, description);
+        content.setAlignItems(Alignment.CENTER);
         content.setPadding(false);
         content.setSpacing(false);
+
         Div card = new Div(content);
         card.setWidth("260px");
-        card.getStyle()
-                .set("padding", "var(--lumo-space-m)")
-                .set("border-radius", "var(--lumo-border-radius-l)")
-                .set("box-shadow", "var(--lumo-box-shadow-xs)")
-                .set("background", "var(--lumo-base-color)");
-        card.getStyle().set("transition", "box-shadow 0.2s ease");
-        card.getElement().addEventListener("mouseenter",
-                e -> card.getStyle()
-                        .set("box-shadow", "var(--lumo-box-shadow-s)"));
-        card.getElement().addEventListener("mouseleave",
-                e -> card.getStyle()
-                        .set("box-shadow", "var(--lumo-box-shadow-xs)"));
+        card.getClassNames().add("responsive-card");
+        card.getElement().getStyle().set("cursor", "pointer");
+        card.getElement().addEventListener("mouseenter", e -> card.getStyle().set("box-shadow", "0 8px 20px rgba(0,0,0,0.2)"));
+        card.getElement().addEventListener("mouseleave", e -> card.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)"));
         return card;
     }
 
     private Component createFooter() {
         VerticalLayout card = createCard();
-        card.setPadding(false);
-        card.setSpacing(false);
-        card.getStyle()
-                .set("background", "var(--lumo-base-color)")
-                .set("border-radius", "var(--lumo-border-radius-l)")
-                .set("box-shadow", "var(--lumo-box-shadow-xs)");
-        Paragraph text = new Paragraph("Open source energy automation platform.");
-        Anchor github = new Anchor("https://github.com/norkator/porssiohjain", "GitHub");
-        github.setTarget("_blank");
-
         Paragraph docLink = new Paragraph(t("home.licenseText") + " ");
         Anchor link = new Anchor("https://github.com/norkator/porssiohjain", t("home.docLink"));
         link.setTarget("_blank");
         docLink.add(link);
+
         HorizontalLayout footer = new HorizontalLayout(docLink);
         footer.setJustifyContentMode(JustifyContentMode.CENTER);
         footer.setAlignItems(Alignment.CENTER);
         footer.setWidthFull();
         footer.getStyle().set("padding", "2rem").set("gap", "var(--lumo-space-m)");
+
         card.add(footer);
         return card;
     }
 
     private VerticalLayout createCard() {
         VerticalLayout card = new VerticalLayout();
-        // card.setMaxWidth("900px");
         card.setWidthFull();
         card.setPadding(true);
         card.setSpacing(true);
