@@ -34,8 +34,8 @@ public class ShellyMqttService {
         this.mqttOutboundChannel = mqttOutboundChannel;
     }
 
-    public void switchControl(String deviceId, boolean on) {
-        String topic = deviceId + "/command/switch:0";
+    public void switchControl(String deviceId, int channel, boolean on) {
+        String topic = deviceId + "/command/switch:" + channel;
         String payload = on ? "on" : "off";
         mqttOutboundChannel.send(new GenericMessage<>(payload,
                 Map.of("mqtt_topic", topic)));

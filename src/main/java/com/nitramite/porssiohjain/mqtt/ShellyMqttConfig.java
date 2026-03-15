@@ -31,8 +31,6 @@ import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
-import java.util.Objects;
-
 @Configuration
 @EnableIntegration
 @Slf4j
@@ -61,16 +59,6 @@ public class ShellyMqttConfig {
     }
 
     @Bean
-    @ServiceActivator(inputChannel = "mqttInputChannel")
-    public MessageHandler mqttSubscriber() {
-        return message -> {
-            String topic = Objects.requireNonNull(message.getHeaders().get("mqtt_receivedTopic")).toString();
-            String payload = new String((byte[]) message.getPayload());
-            log.info("Received: {} -> {}", topic, payload);
-        };
-    }
-
-    @Bean
     public MessageChannel mqttOutboundChannel() {
         return new DirectChannel();
     }
@@ -78,7 +66,12 @@ public class ShellyMqttConfig {
     @Bean
     public MqttPahoMessageDrivenChannelAdapter mqttInbound(MqttPahoClientFactory factory) {
         MqttPahoMessageDrivenChannelAdapter adapter =
-                new MqttPahoMessageDrivenChannelAdapter(clientId, factory, "shellies/+/events/rpc");
+                new MqttPahoMessageDrivenChannelAdapter(
+                        clientId,
+                        factory,
+                        "+/online"
+                        // "+/events/rpc" # too much messaging
+                );
         adapter.setOutputChannel(mqttInputChannel());
         return adapter;
     }
