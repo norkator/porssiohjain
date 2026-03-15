@@ -81,14 +81,16 @@ public class NordpoolService {
             }
 
             if (control.getTaxPercent() != null) {
-                taxMultiplier = BigDecimal.ONE.add(control.getTaxPercent().divide(BigDecimal.valueOf(100), RoundingMode.HALF_UP));
+                taxMultiplier = BigDecimal.ONE.add(
+                        control.getTaxPercent().divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+                );
             } else {
                 taxMultiplier = BigDecimal.ONE;
             }
         } else {
             taxMultiplier = BigDecimal.ONE
                     .add(BigDecimal.valueOf(25.5)
-                            .divide(BigDecimal.valueOf(100), RoundingMode.HALF_UP));
+                            .divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP));
             try {
                 if (timezone != null && !timezone.isBlank()) {
                     zone = ZoneId.of(timezone);
@@ -96,9 +98,10 @@ public class NordpoolService {
             } catch (Exception ignored) {
             }
         }
-
-        ZonedDateTime startOfDay = ZonedDateTime.now(zone).truncatedTo(ChronoUnit.DAYS);
-        ZonedDateTime endOfDay = startOfDay.plusDays(1);
+        
+        LocalDate today = LocalDate.now(zone);
+        ZonedDateTime startOfDay = today.atStartOfDay(zone);
+        ZonedDateTime endOfDay = today.plusDays(1).atStartOfDay(zone);
 
         List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(
                 startOfDay.toInstant(), endOfDay.toInstant()
