@@ -34,4 +34,6 @@ public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
 
     Optional<DeviceEntity> findByIdAndAccount(Long id, AccountEntity account);
 
+    Optional<DeviceEntity> findByMqttUsername(String mqttUsername);
+
 }
