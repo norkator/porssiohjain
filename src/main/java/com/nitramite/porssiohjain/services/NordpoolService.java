@@ -98,7 +98,7 @@ public class NordpoolService {
             } catch (Exception ignored) {
             }
         }
-        
+
         LocalDate today = LocalDate.now(zone);
         ZonedDateTime startOfDay = today.atStartOfDay(zone);
         ZonedDateTime endOfDay = today.plusDays(1).atStartOfDay(zone);

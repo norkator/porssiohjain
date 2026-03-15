@@ -138,7 +138,8 @@ public class LandingView extends VerticalLayout {
                 feature(VaadinIcon.WALLET, t("landing.feature.avoidExpensive.title"), t("landing.feature.avoidExpensive.text")),
                 feature(VaadinIcon.BOLT, t("landing.feature.powerLimits.title"), t("landing.feature.powerLimits.text")),
                 feature(VaadinIcon.SUN_O, t("landing.feature.selfProduction.title"), t("landing.feature.selfProduction.text")),
-                feature(VaadinIcon.MONEY, t("landing.feature.affordable.title"), t("landing.feature.affordable.text"))
+                feature(VaadinIcon.MONEY, t("landing.feature.affordable.title"), t("landing.feature.affordable.text")),
+                feature(VaadinIcon.CONNECT, t("landing.feature.openDevices.title"), t("landing.feature.openDevices.text"))
         );
 
         section.add(title, features);
@@ -152,6 +153,7 @@ public class LandingView extends VerticalLayout {
 
         H3 heading = new H3(title);
         Paragraph description = new Paragraph(text);
+        description.getStyle().set("text-align", "center");
 
         VerticalLayout content = new VerticalLayout(featureIcon, heading, description);
         content.setAlignItems(Alignment.CENTER);
