@@ -38,4 +38,7 @@ public class DeviceResponse {
     private Instant updatedAt;
     private Long accountId;
     private Boolean shared;
+    private Boolean mqttOnline;
+    private String mqttUsername;
+    private String mqttPassword;
 }

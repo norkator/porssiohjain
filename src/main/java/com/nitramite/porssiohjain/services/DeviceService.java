@@ -134,6 +134,9 @@ public class DeviceService {
                 .updatedAt(entity.getUpdatedAt())
                 .accountId(entity.getAccount().getId())
                 .shared(false)
+                .mqttOnline(entity.isOnline())
+                .mqttUsername(entity.getMqttUsername())
+                .mqttPassword(entity.getMqttPassword())
                 .build()));
 
         sharedDevices.forEach(entity -> responses.add(DeviceResponse.builder()
@@ -146,6 +149,9 @@ public class DeviceService {
                 .updatedAt(entity.getUpdatedAt())
                 .accountId(entity.getAccount().getId())
                 .shared(true)
+                .mqttOnline(entity.isOnline())
+                .mqttUsername(entity.getMqttUsername())
+                .mqttPassword(entity.getMqttPassword())
                 .build()));
 
         return responses;
