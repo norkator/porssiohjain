@@ -7,10 +7,7 @@ import com.nitramite.porssiohjain.services.models.RabbitMqUserAuthRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -25,19 +22,21 @@ public class RabbitMqAuthController {
 
     @PostMapping("/user")
     public ResponseEntity<RabbitMqAuthResponse> authenticateUser(
-            @RequestBody RabbitMqUserAuthRequest request
+            @RequestParam String username,
+            @RequestParam String password,
+            @RequestParam(required = false) String vhost
     ) {
-        Optional<DeviceEntity> deviceOpt = deviceRepository.findByMqttUsername(request.getUsername());
+        Optional<DeviceEntity> deviceOpt = deviceRepository.findByMqttUsername(username);
         if (deviceOpt.isEmpty()) {
-            log.warn("MQTT auth denied for username '{}' - device not found", request.getUsername());
+            log.warn("MQTT auth denied for username '{}' - device not found", username);
             return ResponseEntity.ok(new RabbitMqAuthResponse("deny"));
         }
         DeviceEntity device = deviceOpt.get();
-        if (!Objects.equals(device.getMqttPassword(), request.getPassword())) {
-            log.warn("MQTT auth denied for username '{}' - invalid password", request.getUsername());
+        if (!Objects.equals(device.getMqttPassword(), password)) {
+            log.warn("MQTT auth denied for username '{}' - invalid password", username);
             return ResponseEntity.ok(new RabbitMqAuthResponse("deny"));
         }
-        log.info("MQTT auth allowed for username '{}' (device uuid: {})", request.getUsername(), device.getUuid());
+        log.info("MQTT auth allowed for username '{}' (device uuid: {})", username, device.getUuid());
         return ResponseEntity.ok(new RabbitMqAuthResponse("allow"));
     }
 

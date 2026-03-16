@@ -65,12 +65,8 @@ Content-Type: application/json
 }
 
 
-### RabbitMQ authetication test
+### RabbitMQ authentication test
 POST http://localhost:8080/rabbitmq/authenticate/user
-Content-Type: application/json
+Content-Type: application/x-www-form-urlencoded
 
-{
-  "username": "device-xyz",
-  "password": "password-xyz",
-  "vhost": "/"
-}
+username=device-xyz&password=password-xyz&vhost=/
