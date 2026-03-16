@@ -24,9 +24,12 @@ public class RabbitMqAuthController {
     public ResponseEntity<RabbitMqAuthResponse> authenticateUser(
             @RequestParam String username,
             @RequestParam String password,
+            @RequestParam String client_id,
             @RequestParam(required = false) String vhost
     ) {
-        Optional<DeviceEntity> deviceOpt = deviceRepository.findByMqttUsername(username);
+        log.info("RabbitMQ HTTP auth request: username='{}', password='{}', client_id='{}', vhost='{}'",
+                username, password, client_id, vhost);
+        Optional<DeviceEntity> deviceOpt = deviceRepository.findByMqttUsername(client_id);
         if (deviceOpt.isEmpty()) {
             log.warn("MQTT auth denied for username '{}' - device not found", username);
             return ResponseEntity.ok(new RabbitMqAuthResponse("deny"));
