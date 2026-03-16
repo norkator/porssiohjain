@@ -19,6 +19,7 @@ package com.nitramite.porssiohjain.mqtt;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.stereotype.Service;
 import org.springframework.messaging.Message;
@@ -27,6 +28,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Service
+@ConditionalOnProperty(name = "mqtt.enabled", havingValue = "true")
 @Slf4j
 @RequiredArgsConstructor
 public class MqttListener {

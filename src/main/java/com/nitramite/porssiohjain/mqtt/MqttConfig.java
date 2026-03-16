@@ -19,6 +19,7 @@ package com.nitramite.porssiohjain.mqtt;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.integration.annotation.ServiceActivator;
@@ -32,6 +33,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
 @Configuration
+@ConditionalOnProperty(name = "mqtt.enabled", havingValue = "true")
 @EnableIntegration
 @Slf4j
 public class MqttConfig {

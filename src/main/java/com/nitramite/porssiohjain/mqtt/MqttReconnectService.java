@@ -18,10 +18,12 @@ package com.nitramite.porssiohjain.mqtt;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
 import org.springframework.stereotype.Service;
 
 @Service
+@ConditionalOnProperty(name = "mqtt.enabled", havingValue = "true")
 @Slf4j
 @AllArgsConstructor
 public class MqttReconnectService {
