@@ -34,19 +34,27 @@ import org.springframework.messaging.MessageHandler;
 @Configuration
 @EnableIntegration
 @Slf4j
-public class ShellyMqttConfig {
+public class MqttConfig {
 
-    private static final String clientId = "porssiohjain-shelly-subscriber";
+    private static final String clientId = "porssiohjain-spring-subscriber";
     private static final String publisher = "porssiohjain-spring-publisher";
 
     @Value("${mqtt.broker.address}")
     private String mqttBrokerAddress;
+
+    @Value("${mqtt.broker.username}")
+    private String mqttBrokerUsername;
+
+    @Value("${mqtt.broker.password}")
+    private String mqttBrokerPassword;
 
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {
         DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
         MqttConnectOptions options = new MqttConnectOptions();
         options.setServerURIs(new String[]{"tcp://" + mqttBrokerAddress + ":1883"});
+        options.setUserName(mqttBrokerUsername);
+        options.setPassword(mqttBrokerPassword.toCharArray());
         options.setAutomaticReconnect(true);
         options.setCleanSession(false);
         factory.setConnectionOptions(options);

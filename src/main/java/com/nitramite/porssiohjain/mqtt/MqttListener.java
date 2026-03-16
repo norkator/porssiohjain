@@ -29,7 +29,7 @@ import java.util.UUID;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class ShellyMqttListener {
+public class MqttListener {
 
     private final DeviceRepository deviceRepository;
 

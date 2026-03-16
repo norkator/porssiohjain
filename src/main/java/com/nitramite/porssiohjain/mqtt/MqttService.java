@@ -26,11 +26,11 @@ import java.util.Map;
 
 @Slf4j
 @Service
-public class ShellyMqttService {
+public class MqttService {
 
     private final MessageChannel mqttOutboundChannel;
 
-    public ShellyMqttService(@Qualifier("mqttOutboundChannel") MessageChannel mqttOutboundChannel) {
+    public MqttService(@Qualifier("mqttOutboundChannel") MessageChannel mqttOutboundChannel) {
         this.mqttOutboundChannel = mqttOutboundChannel;
     }
 

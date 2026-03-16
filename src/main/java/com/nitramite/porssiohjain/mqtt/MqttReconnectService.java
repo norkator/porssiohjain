@@ -24,7 +24,7 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 @AllArgsConstructor
-public class ShellyMqttReconnectService {
+public class MqttReconnectService {
 
     private final MqttPahoMessageDrivenChannelAdapter adapter;
 

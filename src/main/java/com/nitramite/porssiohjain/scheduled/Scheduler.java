@@ -16,7 +16,7 @@
 
 package com.nitramite.porssiohjain.scheduled;
 
-import com.nitramite.porssiohjain.mqtt.ShellyMqttReconnectService;
+import com.nitramite.porssiohjain.mqtt.MqttReconnectService;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
@@ -42,7 +42,7 @@ public class Scheduler {
     private final PricePredictionDataService pricePredictionDataService;
     private final EmailService emailService;
     private final AuthService authService;
-    private final ShellyMqttReconnectService shellyMqttReconnectService;
+    private final MqttReconnectService mqttReconnectService;
 
     private boolean firstRun = true;
 
@@ -56,7 +56,7 @@ public class Scheduler {
             PricePredictionDataService pricePredictionDataService,
             EmailService emailService,
             AuthService authService,
-            ShellyMqttReconnectService shellyMqttReconnectService
+            MqttReconnectService mqttReconnectService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -67,7 +67,7 @@ public class Scheduler {
         this.pricePredictionDataService = pricePredictionDataService;
         this.emailService = emailService;
         this.authService = authService;
-        this.shellyMqttReconnectService = shellyMqttReconnectService;
+        this.mqttReconnectService = mqttReconnectService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -85,7 +85,7 @@ public class Scheduler {
             log.info("No need to fetch price prediction data");
         }
 
-        shellyMqttReconnectService.reconnect();
+        mqttReconnectService.reconnect();
     }
 
     @Scheduled(cron = "0 0 */4 * * *", zone = "Europe/Helsinki")
