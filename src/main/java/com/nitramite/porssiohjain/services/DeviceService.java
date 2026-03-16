@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -190,6 +191,15 @@ public class DeviceService {
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    public void checkOfflineDevices() {
+        Instant threshold = Instant.now().minusSeconds(180);
+        List<DeviceEntity> devices = deviceRepository.findByOnlineTrueAndLastCommunicationBefore(threshold);
+        for (DeviceEntity device : devices) {
+            device.setOnline(false);
+            deviceRepository.save(device);
+        }
     }
 
 }

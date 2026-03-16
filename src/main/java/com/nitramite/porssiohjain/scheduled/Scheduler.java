@@ -42,7 +42,7 @@ public class Scheduler {
     private final PricePredictionDataService pricePredictionDataService;
     private final EmailService emailService;
     private final AuthService authService;
-    private final MqttReconnectService mqttReconnectService;
+    private final DeviceService deviceService;
 
     private boolean firstRun = true;
 
@@ -56,7 +56,8 @@ public class Scheduler {
             PricePredictionDataService pricePredictionDataService,
             EmailService emailService,
             AuthService authService,
-            MqttReconnectService mqttReconnectService
+            MqttReconnectService mqttReconnectService,
+            DeviceService deviceService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -67,7 +68,7 @@ public class Scheduler {
         this.pricePredictionDataService = pricePredictionDataService;
         this.emailService = emailService;
         this.authService = authService;
-        this.mqttReconnectService = mqttReconnectService;
+        this.deviceService = deviceService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -180,6 +181,11 @@ public class Scheduler {
             return;
         }
         solarmanPvService.fetchGenerationData();
+    }
+
+    @Scheduled(fixedDelay = 60000)
+    public void checkOfflineDevices() {
+        deviceService.checkOfflineDevices();
     }
 
 }

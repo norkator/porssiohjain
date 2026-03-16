@@ -20,6 +20,7 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,5 +36,7 @@ public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
     Optional<DeviceEntity> findByIdAndAccount(Long id, AccountEntity account);
 
     Optional<DeviceEntity> findByMqttUsername(String mqttUsername);
+
+    List<DeviceEntity> findByOnlineTrueAndLastCommunicationBefore(Instant time);
 
 }
