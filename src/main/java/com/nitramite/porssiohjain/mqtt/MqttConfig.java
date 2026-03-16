@@ -38,7 +38,9 @@ import org.springframework.messaging.MessageHandler;
 @Slf4j
 public class MqttConfig {
 
-    private static final String clientId = "porssiohjain-spring-subscriber";
+    @Value("${mqtt.client-id}")
+    private String clientId;
+
     private static final String publisher = "porssiohjain-spring-publisher";
 
     @Value("${mqtt.broker.address}")
