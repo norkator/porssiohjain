@@ -16,10 +16,13 @@
 
 package com.nitramite.porssiohjain.entity;
 
+import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.UUID;
 
 @Entity
@@ -47,6 +50,19 @@ public class DeviceEntity {
     @Column(name = "last_communication")
     private Instant lastCommunication;
 
+    @Column(name = "last_telemetry", columnDefinition = "TEXT")
+    private String lastTelemetry;
+
+    @Column(name = "online", nullable = false)
+    private boolean online;
+
+    @Column(name = "mqtt_username", unique = true)
+    private String mqttUsername;
+
+    @Convert(converter = CryptoConverter.class)
+    @Column(name = "mqtt_password")
+    private String mqttPassword;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -62,6 +78,14 @@ public class DeviceEntity {
         uuid = UUID.randomUUID();
         createdAt = Instant.now();
         updatedAt = createdAt;
+
+        if (mqttUsername == null) {
+            mqttUsername = "device-" + uuid.toString().substring(0, 8);
+        }
+        if (mqttPassword == null) {
+            byte[] randomBytes = new SecureRandom().generateSeed(12);
+            mqttPassword = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        }
     }
 
     @PreUpdate

@@ -16,6 +16,7 @@
 
 package com.nitramite.porssiohjain.scheduled;
 
+import com.nitramite.porssiohjain.mqtt.MqttReconnectService;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
@@ -41,6 +42,7 @@ public class Scheduler {
     private final PricePredictionDataService pricePredictionDataService;
     private final EmailService emailService;
     private final AuthService authService;
+    private final DeviceService deviceService;
 
     private boolean firstRun = true;
 
@@ -53,7 +55,9 @@ public class Scheduler {
             ProductionSourceService productionSourceService,
             PricePredictionDataService pricePredictionDataService,
             EmailService emailService,
-            AuthService authService
+            AuthService authService,
+            MqttReconnectService mqttReconnectService,
+            DeviceService deviceService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -64,6 +68,7 @@ public class Scheduler {
         this.pricePredictionDataService = pricePredictionDataService;
         this.emailService = emailService;
         this.authService = authService;
+        this.deviceService = deviceService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -80,6 +85,8 @@ public class Scheduler {
         } else {
             log.info("No need to fetch price prediction data");
         }
+
+        mqttReconnectService.reconnect();
     }
 
     @Scheduled(cron = "0 0 */4 * * *", zone = "Europe/Helsinki")
@@ -174,6 +181,11 @@ public class Scheduler {
             return;
         }
         solarmanPvService.fetchGenerationData();
+    }
+
+    @Scheduled(fixedDelay = 60000)
+    public void checkOfflineDevices() {
+        deviceService.checkOfflineDevices();
     }
 
 }

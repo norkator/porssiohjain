@@ -63,3 +63,14 @@ Content-Type: application/json
   "totalKwh": 1200.605,
   "measuredAt": 1770046375598
 }
+
+
+### RabbitMQ authetication test
+POST http://localhost:8080/rabbitmq/authenticate/user
+Content-Type: application/json
+
+{
+  "username": "device-xyz",
+  "password": "password-xyz",
+  "vhost": "/"
+}

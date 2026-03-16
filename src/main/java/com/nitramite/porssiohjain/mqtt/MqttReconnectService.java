@@ -14,31 +14,28 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.services.models;
+package com.nitramite.porssiohjain.mqtt;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
+import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.util.UUID;
-
-@Data
-@Builder
-@NoArgsConstructor
+@Service
+@Slf4j
 @AllArgsConstructor
-public class DeviceResponse {
-    private Long id;
-    private UUID uuid;
-    private String deviceName;
-    private String timezone;
-    private Instant lastCommunication;
-    private Instant createdAt;
-    private Instant updatedAt;
-    private Long accountId;
-    private Boolean shared;
-    private Boolean mqttOnline;
-    private String mqttUsername;
-    private String mqttPassword;
+public class MqttReconnectService {
+
+    private final MqttPahoMessageDrivenChannelAdapter adapter;
+
+    public void reconnect() {
+        try {
+            adapter.stop();
+            adapter.start();
+            log.info("MQTT adapter reconnected.");
+        } catch (Exception e) {
+            log.error(e.toString());
+        }
+    }
+
 }
