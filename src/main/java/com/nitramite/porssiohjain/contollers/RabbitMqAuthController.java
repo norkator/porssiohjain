@@ -41,4 +41,27 @@ public class RabbitMqAuthController {
         return ResponseEntity.ok("allow");
     }
 
+    @PostMapping("/vhost")
+    public ResponseEntity<String> authorizeVhost(
+            @RequestParam String username,
+            @RequestParam String vhost,
+            @RequestParam(required = false) String ip
+    ) {
+        log.info("VHOST auth: username='{}', vhost='{}', ip='{}'", username, vhost, ip);
+        return ResponseEntity.ok("allow");
+    }
+
+    @PostMapping("/resource")
+    public ResponseEntity<String> authorizeResource(
+            @RequestParam String username,
+            @RequestParam String vhost,
+            @RequestParam String resource,
+            @RequestParam String name,
+            @RequestParam String permission
+    ) {
+        log.info("RESOURCE auth: username='{}', vhost='{}', resource='{}', name='{}', permission='{}'",
+                username, vhost, resource, name, permission);
+        return ResponseEntity.ok("allow");
+    }
+
 }
