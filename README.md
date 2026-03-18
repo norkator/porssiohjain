@@ -245,6 +245,7 @@ export RESEND_API_KEY=re_xxxxxx
 export ALERTS_MAIL_ADDRESS=xxxxxx
 export ADMIN_MAIL_ADDRESS=xxxxxx@xxxxxx.xx
 export APP_CRYPTO_KEY=(run node app_crypto_key.js)
+export MQTT_BROKER_ADDRESS=localhost
 export MQTT_BROKER_PASSWORD=xxxxxx
 export MQTT_CLIENT_ID=xxxxxx
 ``` 

@@ -22,7 +22,7 @@ public class RabbitMqAuthController {
     ResponseEntity<String> authenticateUser(
             @RequestParam String username,
             @RequestParam String password,
-            @RequestParam String client_id,
+            @RequestParam(required = false) String client_id,
             @RequestParam(required = false) String vhost
     ) {
         log.info("RabbitMQ HTTP auth request: username='{}', password='{}', client_id='{}', vhost='{}'",
