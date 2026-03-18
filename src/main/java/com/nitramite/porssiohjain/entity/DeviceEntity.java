@@ -54,7 +54,7 @@ public class DeviceEntity {
     private String lastTelemetry;
 
     @Column(name = "online", nullable = false)
-    private boolean online;
+    private boolean online; // todo make new mqtt online field and use this generally for all cases
 
     @Column(name = "mqtt_username", unique = true)
     private String mqttUsername;

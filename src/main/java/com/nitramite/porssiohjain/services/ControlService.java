@@ -18,6 +18,7 @@ package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
+import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.models.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -47,6 +48,7 @@ public class ControlService {
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
     private final SiteRepository siteRepository;
     private final ResourceSharingRepository resourceSharingRepository;
+    private final MqttService mqttService;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -547,6 +549,19 @@ public class ControlService {
                 .timezone(device.getTimezone())
                 .schedule(merged)
                 .build();
+    }
+
+    public void mqttDeviceControls() {
+        List<DeviceEntity> mqttDevices = deviceRepository.findByOnlineTrue();
+        for (DeviceEntity device : mqttDevices) {
+            String uuid = device.getUuid().toString();
+            Map<Integer, Integer> controls = getControlsForDevice(uuid);
+            for (Map.Entry<Integer, Integer> entry : controls.entrySet()) {
+                Integer channel = entry.getKey();
+                boolean on = entry.getValue() != null && entry.getValue() == 1;
+                mqttService.switchControl(uuid, channel, on);
+            }
+        }
     }
 
 }

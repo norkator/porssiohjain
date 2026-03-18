@@ -43,6 +43,7 @@ public class Scheduler {
     private final EmailService emailService;
     private final AuthService authService;
     private final DeviceService deviceService;
+    private final ControlService controlService;
 
     private boolean firstRun = true;
 
@@ -57,7 +58,8 @@ public class Scheduler {
             EmailService emailService,
             AuthService authService,
             MqttReconnectService mqttReconnectService,
-            DeviceService deviceService
+            DeviceService deviceService,
+            ControlService controlService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -69,6 +71,7 @@ public class Scheduler {
         this.emailService = emailService;
         this.authService = authService;
         this.deviceService = deviceService;
+        this.controlService = controlService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -186,6 +189,11 @@ public class Scheduler {
     @Scheduled(fixedDelay = 60000)
     public void checkOfflineDevices() {
         deviceService.checkOfflineDevices();
+    }
+
+    @Scheduled(cron = "1 0/1 * * * *", zone = "Europe/Helsinki")
+    public void mqttDeviceControls() {
+        controlService.mqttDeviceControls();
     }
 
 }

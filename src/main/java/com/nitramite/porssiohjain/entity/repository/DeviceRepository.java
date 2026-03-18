@@ -39,4 +39,6 @@ public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
 
     List<DeviceEntity> findByOnlineTrueAndLastCommunicationBefore(Instant time);
 
+    List<DeviceEntity> findByOnlineTrue();
+
 }

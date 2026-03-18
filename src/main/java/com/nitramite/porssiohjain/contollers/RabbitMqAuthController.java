@@ -59,7 +59,7 @@ public class RabbitMqAuthController {
             @RequestParam String name,
             @RequestParam String permission
     ) {
-        log.info("RESOURCE auth: username='{}', vhost='{}', resource='{}', name='{}', permission='{}'",
+        log.debug("RESOURCE auth: username='{}', vhost='{}', resource='{}', name='{}', permission='{}'",
                 username, vhost, resource, name, permission);
         return ResponseEntity.ok("allow");
     }
@@ -73,7 +73,7 @@ public class RabbitMqAuthController {
             @RequestParam String permission,
             @RequestParam String routing_key
     ) {
-        log.info("TOPIC auth: username='{}', vhost='{}', resource='{}', name='{}', permission='{}', routing_key='{}'",
+        log.debug("TOPIC auth: username='{}', vhost='{}', resource='{}', name='{}', permission='{}', routing_key='{}'",
                 username, vhost, resource, name, permission, routing_key);
         return ResponseEntity.ok("allow");
     }
