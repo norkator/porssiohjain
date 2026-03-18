@@ -64,4 +64,18 @@ public class RabbitMqAuthController {
         return ResponseEntity.ok("allow");
     }
 
+    @PostMapping("/topic")
+    public ResponseEntity<String> authorizeTopic(
+            @RequestParam String username,
+            @RequestParam String vhost,
+            @RequestParam String resource,
+            @RequestParam String name,
+            @RequestParam String permission,
+            @RequestParam String routing_key
+    ) {
+        log.info("TOPIC auth: username='{}', vhost='{}', resource='{}', name='{}', permission='{}', routing_key='{}'",
+                username, vhost, resource, name, permission, routing_key);
+        return ResponseEntity.ok("allow");
+    }
+
 }
