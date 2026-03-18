@@ -12,6 +12,19 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  rabbitmq:
+    image: rabbitmq:4.2-management
+    container_name: rabbitmq
+    ports:
+      - "1883:1883"
+      - "15673:15672"
+    volumes:
+      - ./compose/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
+      - ./compose/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    restart: "no"
 
 volumes:
   postgres_data:
