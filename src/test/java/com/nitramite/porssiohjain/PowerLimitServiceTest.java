@@ -24,6 +24,7 @@ import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerLimitHistoryRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerLimitRepository;
+import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import com.nitramite.porssiohjain.services.models.DailyUsageCostResponse;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,9 @@ public class PowerLimitServiceTest {
 
     @Autowired
     private PowerLimitService powerLimitService;
+
+    @MockitoBean
+    private MqttService mqttService;
 
     @MockitoBean
     private AccountRepository accountRepository;
