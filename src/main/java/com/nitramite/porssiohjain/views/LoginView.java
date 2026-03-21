@@ -36,6 +36,7 @@ import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.Locale;
 import java.util.UUID;
 
 @PageTitle("Pörssiohjain - Login")
@@ -54,6 +55,15 @@ public class LoginView extends VerticalLayout {
             I18nService i18n
     ) {
         this.i18n = i18n;
+
+        Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
+        if (storedLocale != null) {
+            UI.getCurrent().setLocale(storedLocale);
+        } else {
+            Locale defaultLocale = Locale.of("fi", "FI");
+            UI.getCurrent().setLocale(defaultLocale);
+            VaadinSession.getCurrent().setAttribute(Locale.class, defaultLocale);
+        }
 
         getStyle().set("display", "flex");
         getStyle().set("flex-direction", "column");
