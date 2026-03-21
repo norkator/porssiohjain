@@ -32,7 +32,6 @@ public class SitemapController {
 
     private static final List<String> pages = List.of(
             "/",
-            "/home",
             "/login",
             "/createAccount"
             // "/device", // these require login
@@ -49,8 +48,7 @@ public class SitemapController {
     private static final Map<String, List<String>> DOMAIN_PAGES = Map.of(
             "localhost:8080", pages,
             "porssiohjain.nitramite.com", pages,
-            "porssiohjain.fi", pages,
-            "www.porssiohjain.fi", pages
+            "app.porssiohjain.fi", pages
     );
 
     @GetMapping(value = "/sitemap_index.xml", produces = MediaType.APPLICATION_XML_VALUE)

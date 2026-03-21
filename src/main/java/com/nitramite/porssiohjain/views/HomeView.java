@@ -16,11 +16,9 @@
 
 package com.nitramite.porssiohjain.views;
 
-import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.NordpoolService;
-import com.nitramite.porssiohjain.services.models.TodayPriceStatsResponse;
 import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -36,14 +34,11 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.ZoneId;
 import java.util.Locale;
 import java.util.stream.Stream;
 
 @PageTitle("Pörssiohjain - Home")
-@Route("home")
+@Route("")
 @PermitAll
 public class HomeView extends VerticalLayout {
 
@@ -130,7 +125,7 @@ public class HomeView extends VerticalLayout {
             session.setAttribute("expiresAt", null);
             Notification notification = Notification.show(t("home.logoutSuccess"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            UI.getCurrent().navigate(LandingView.class);
+            UI.getCurrent().getPage().setLocation("https://www.porssiohjain.fi");
         });
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 

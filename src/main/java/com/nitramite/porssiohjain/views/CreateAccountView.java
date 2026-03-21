@@ -94,7 +94,9 @@ public class CreateAccountView extends VerticalLayout {
         resultLayout.setPadding(false);
         resultLayout.setVisible(false);
 
-        Button backButton = new Button(t("createAccount.button.back"), event -> UI.getCurrent().navigate(LandingView.class));
+        Button backButton = new Button(t("createAccount.button.back"), event ->
+                UI.getCurrent().getPage().setLocation("https://www.porssiohjain.fi")
+        );
         backButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         contentBox.add(title, description, createButton, resultLayout, backButton);
