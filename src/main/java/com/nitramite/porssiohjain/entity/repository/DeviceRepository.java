@@ -37,8 +37,10 @@ public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
 
     Optional<DeviceEntity> findByMqttUsername(String mqttUsername);
 
-    List<DeviceEntity> findByOnlineTrueAndLastCommunicationBefore(Instant time);
+    List<DeviceEntity> findByApiOnlineTrueAndLastCommunicationBefore(Instant threshold);
 
-    List<DeviceEntity> findByOnlineTrue();
+    List<DeviceEntity> findByMqttOnlineTrueAndLastCommunicationBefore(Instant threshold);
+
+    List<DeviceEntity> findByMqttOnlineTrue();
 
 }

@@ -378,6 +378,7 @@ public class ControlService {
 
         Instant nowUtc = Instant.now(); // current UTC time
         device.setLastCommunication(nowUtc);
+        device.setApiOnline(true);
         deviceRepository.save(device);
 
         Map<Integer, Integer> channelMap = new HashMap<>();
@@ -552,7 +553,7 @@ public class ControlService {
     }
 
     public void mqttDeviceControls() {
-        List<DeviceEntity> mqttDevices = deviceRepository.findByOnlineTrue();
+        List<DeviceEntity> mqttDevices = deviceRepository.findByMqttOnlineTrue();
         for (DeviceEntity device : mqttDevices) {
             String uuid = device.getUuid().toString();
             Map<Integer, Integer> controls = getControlsForDevice(uuid);

@@ -130,6 +130,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             return badge;
         }).setHeader(t("common.origin")).setAutoWidth(true);
         deviceGrid.addComponentColumn(device -> {
+            Span badge = new Span(device.getApiOnline() != null && device.getApiOnline() ? "Online" : "Offline");
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(device.getApiOnline() != null && device.getApiOnline() ? "success" : "error");
+            return badge;
+        }).setHeader(t("device.grid.apiOnline")).setAutoWidth(true);
+        deviceGrid.addComponentColumn(device -> {
             Span badge = new Span(device.getMqttOnline() != null && device.getMqttOnline() ? "Online" : "Offline");
             badge.getElement().getThemeList().add("badge");
             badge.getElement().getThemeList().add(device.getMqttOnline() != null && device.getMqttOnline() ? "success" : "error");

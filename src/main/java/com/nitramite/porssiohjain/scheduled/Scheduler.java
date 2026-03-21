@@ -186,7 +186,7 @@ public class Scheduler {
         solarmanPvService.fetchGenerationData();
     }
 
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(fixedDelayString = "5m")
     public void checkOfflineDevices() {
         deviceService.checkOfflineDevices();
     }

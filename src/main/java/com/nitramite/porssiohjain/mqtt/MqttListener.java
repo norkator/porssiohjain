@@ -48,7 +48,7 @@ public class MqttListener {
             boolean online = Boolean.parseBoolean(payload);
             deviceRepository.findByUuid(UUID.fromString(deviceId))
                     .ifPresent(device -> {
-                        device.setOnline(online);
+                        device.setMqttOnline(online);
                         device.setLastCommunication(Instant.now());
                         deviceRepository.save(device);
                     });

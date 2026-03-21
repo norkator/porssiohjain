@@ -135,7 +135,8 @@ public class DeviceService {
                 .updatedAt(entity.getUpdatedAt())
                 .accountId(entity.getAccount().getId())
                 .shared(false)
-                .mqttOnline(entity.isOnline())
+                .apiOnline(entity.isApiOnline())
+                .mqttOnline(entity.isMqttOnline())
                 .mqttUsername(entity.getMqttUsername())
                 .mqttPassword(entity.getMqttPassword())
                 .build()));
@@ -150,7 +151,8 @@ public class DeviceService {
                 .updatedAt(entity.getUpdatedAt())
                 .accountId(entity.getAccount().getId())
                 .shared(true)
-                .mqttOnline(entity.isOnline())
+                .apiOnline(entity.isApiOnline())
+                .mqttOnline(entity.isMqttOnline())
                 .mqttUsername(entity.getMqttUsername())
                 .mqttPassword(entity.getMqttPassword())
                 .build()));
@@ -194,10 +196,15 @@ public class DeviceService {
     }
 
     public void checkOfflineDevices() {
-        Instant threshold = Instant.now().minusSeconds(180);
-        List<DeviceEntity> devices = deviceRepository.findByOnlineTrueAndLastCommunicationBefore(threshold);
-        for (DeviceEntity device : devices) {
-            device.setOnline(false);
+        Instant threshold = Instant.now().minusSeconds(300);
+        List<DeviceEntity> apiDevices = deviceRepository.findByApiOnlineTrueAndLastCommunicationBefore(threshold);
+        for (DeviceEntity device : apiDevices) {
+            device.setApiOnline(false);
+            deviceRepository.save(device);
+        }
+        List<DeviceEntity> mqttDevices = deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(threshold);
+        for (DeviceEntity device : mqttDevices) {
+            device.setMqttOnline(false);
             deviceRepository.save(device);
         }
     }

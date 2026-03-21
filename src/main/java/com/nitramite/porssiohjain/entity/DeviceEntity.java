@@ -50,11 +50,14 @@ public class DeviceEntity {
     @Column(name = "last_communication")
     private Instant lastCommunication;
 
+    @Column(name = "api_online", nullable = false)
+    private boolean apiOnline;
+
     @Column(name = "last_telemetry", columnDefinition = "TEXT")
     private String lastTelemetry;
 
-    @Column(name = "online", nullable = false)
-    private boolean online; // todo make new mqtt online field and use this generally for all cases
+    @Column(name = "mqtt_online", nullable = false)
+    private boolean mqttOnline;
 
     @Column(name = "mqtt_username", unique = true)
     private String mqttUsername;

@@ -1,0 +1,5 @@
+ALTER TABLE device
+    RENAME COLUMN online TO mqtt_online;
+
+ALTER TABLE device
+    ADD COLUMN api_online BOOLEAN NOT NULL DEFAULT FALSE;
