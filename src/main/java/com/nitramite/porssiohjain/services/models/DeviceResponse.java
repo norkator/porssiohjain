@@ -16,6 +16,7 @@
 
 package com.nitramite.porssiohjain.services.models;
 
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,6 +32,7 @@ import java.util.UUID;
 public class DeviceResponse {
     private Long id;
     private UUID uuid;
+    private DeviceType deviceType;
     private String deviceName;
     private String timezone;
     private Instant lastCommunication;

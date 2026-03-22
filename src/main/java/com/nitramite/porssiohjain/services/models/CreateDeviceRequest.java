@@ -16,10 +16,12 @@
 
 package com.nitramite.porssiohjain.services.models;
 
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import lombok.Data;
 
 @Data
 public class CreateDeviceRequest {
     private String deviceName;
     private String timezone;
+    private DeviceType deviceType;
 }

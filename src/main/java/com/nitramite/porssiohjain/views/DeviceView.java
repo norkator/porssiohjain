@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -61,6 +62,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private final TextField nameField;
     private final ComboBox<String> timezoneCombo;
+    private final ComboBox<DeviceType> deviceTypeCombo;
+
     private final Button saveButton;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -84,6 +87,16 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         nameField = new TextField(t("device.field.name"));
         timezoneCombo = new ComboBox<>(t("device.field.timezone"));
+        deviceTypeCombo = new ComboBox<>(t("device.grid.type"));
+        deviceTypeCombo.setItems(DeviceType.values());
+        deviceTypeCombo.setItemLabelGenerator(type -> switch (type) {
+            case STANDARD -> t("device.type.standard");
+            case HEAT_PUMP -> t("device.type.heatPump");
+        });
+        deviceTypeCombo.setValue(DeviceType.STANDARD);
+        deviceTypeCombo.setHelperText(t("device.type.helper"));
+        // deviceTypeCombo.setWidth("250px");
+
         saveButton = new Button(t("device.button.save"));
 
         setSizeFull();
@@ -102,6 +115,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         deviceGrid.addColumn(DeviceResponse::getId).setHeader(t("device.grid.id")).setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader(t("device.grid.name")).setAutoWidth(true);
+        deviceGrid.addColumn(device -> {
+            return switch (device.getDeviceType()) {
+                case STANDARD -> t("device.type.standard");
+                case HEAT_PUMP -> t("device.type.heatPump");
+            };
+        }).setHeader(t("device.grid.type")).setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getUuid).setHeader(t("device.grid.uuid")).setAutoWidth(true);
         deviceGrid.addComponentColumn(device -> {
             ZoneId zone = ZoneId.of(device.getTimezone());
@@ -173,7 +192,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         FormLayout formLayout = new FormLayout();
         formLayout.setWidthFull();
         formLayout.getStyle().set("margin-top", "20px");
-        formLayout.add(nameField, timezoneCombo);
+        formLayout.add(nameField, timezoneCombo, deviceTypeCombo);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 3)
@@ -201,6 +220,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
             String deviceName = nameField.getValue();
             String timezone = timezoneCombo.getValue();
+            DeviceType deviceType = deviceTypeCombo.getValue();
 
             if (deviceName == null || deviceName.isBlank()) {
                 Notification notification = Notification.show(t("device.notification.nameEmpty"));
@@ -215,11 +235,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             }
 
             if (selectedDevice != null) {
-                deviceService.updateDevice(accountId, selectedDevice.getId(), deviceName, timezone);
+                deviceService.updateDevice(accountId, selectedDevice.getId(), deviceName, timezone, deviceType);
                 Notification notification = Notification.show(t("device.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {
-                deviceService.createDevice(authAccountId, accountId, deviceName, timezone);
+                deviceService.createDevice(authAccountId, accountId, deviceName, timezone, deviceType);
                 Notification notification = Notification.show(t("device.notification.created"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             }
