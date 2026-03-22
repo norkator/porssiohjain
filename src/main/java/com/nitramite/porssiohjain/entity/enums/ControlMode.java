@@ -14,7 +14,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity;
+package com.nitramite.porssiohjain.entity.enums;
 
 public enum ControlMode {
     BELOW_MAX_PRICE, // turns ON when price < maxPriceSnt
