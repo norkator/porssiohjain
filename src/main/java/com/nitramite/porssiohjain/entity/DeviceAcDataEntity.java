@@ -39,6 +39,12 @@ public class DeviceAcDataEntity {
     @JoinColumn(name = "device_id", nullable = false, unique = true)
     private DeviceEntity device;
 
+
+    @Column(name = "ac_type", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private AcType acType = AcType.NONE;
+
+
     @Column(name = "ac_username", unique = true)
     private String acUsername;
 
