@@ -35,29 +35,47 @@ public class DeviceAcDataEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "device_id", nullable = false, unique = true)
+    // there could be multiple indoor units so many to one is used here
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "device_id", nullable = false)
     private DeviceEntity device;
 
+    @Column(name = "name", nullable = false)
+    private String name; // for multi indoor unit setup like upstairs and living room etc
 
     @Column(name = "ac_type", nullable = false)
     @Enumerated(EnumType.STRING)
     private AcType acType = AcType.NONE;
 
-
-    @Column(name = "ac_username", unique = true)
+    @Column(name = "ac_username")
     private String acUsername;
 
     @Convert(converter = CryptoConverter.class)
     @Column(name = "ac_password")
     private String acPassword;
 
+    @Column(name = "ac_access_token")
+    private String acAccessToken; // jwt token
 
-    // Todo...
+    @Column(name = "ac_consumer_id")
+    private String acConsumerId; // like uuid
 
+    @Column(name = "ac_device_id")
+    private String acDeviceId; // like uuid
+
+    @Column(name = "sas_token")
+    private String sasToken; // needed for azure iot hub to send device state changes
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @PrePersist
+    public void onCreate() {
+        createdAt = Instant.now();
+    }
 
     @PreUpdate
     public void onUpdate() {
