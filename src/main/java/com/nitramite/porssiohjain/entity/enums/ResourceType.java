@@ -14,9 +14,11 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity;
+package com.nitramite.porssiohjain.entity.enums;
 
-public enum ControlAction {
-    TURN_ON,
-    TURN_OFF
+public enum ResourceType {
+    DEVICE,
+    CONTROL,
+    PRODUCTION_SOURCE,
+    POWER_LIMIT,
 }

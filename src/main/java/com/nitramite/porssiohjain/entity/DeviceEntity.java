@@ -16,6 +16,7 @@
 
 package com.nitramite.porssiohjain.entity;
 
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
@@ -40,6 +41,10 @@ public class DeviceEntity {
 
     @Column(nullable = false, unique = true, updatable = false)
     private UUID uuid;
+
+    @Column(name = "device_type", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private DeviceType deviceType = DeviceType.STANDARD;
 
     @Column(nullable = false)
     private String deviceName;
@@ -81,6 +86,10 @@ public class DeviceEntity {
         uuid = UUID.randomUUID();
         createdAt = Instant.now();
         updatedAt = createdAt;
+
+        if (deviceType == null) {
+            deviceType = DeviceType.STANDARD;
+        }
 
         if (mqttUsername == null) {
             mqttUsername = "device-" + uuid.toString().substring(0, 8);

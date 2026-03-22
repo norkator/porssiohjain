@@ -16,6 +16,7 @@
 
 package com.nitramite.porssiohjain.entity;
 
+import com.nitramite.porssiohjain.entity.enums.ContractType;
 import jakarta.persistence.*;
 import lombok.*;
 

@@ -18,7 +18,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ResourceSharingEntity;
-import com.nitramite.porssiohjain.entity.ResourceType;
+import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.vaadin.flow.component.Component;

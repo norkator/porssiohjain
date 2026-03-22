@@ -16,7 +16,7 @@
 
 package com.nitramite.porssiohjain.entity.repository;
 
-import com.nitramite.porssiohjain.entity.ProductionApiType;
+import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 

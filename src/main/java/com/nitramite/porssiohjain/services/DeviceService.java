@@ -17,6 +17,8 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.mappers.DeviceMapper;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
@@ -43,7 +45,7 @@ public class DeviceService {
 
     @Transactional
     public DeviceResponse createDevice(
-            Long authAccountId, Long accountId, String deviceName, String timezone
+            Long authAccountId, Long accountId, String deviceName, String timezone, DeviceType deviceType
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -52,6 +54,7 @@ public class DeviceService {
             DeviceEntity device = DeviceEntity.builder()
                     .deviceName(deviceName)
                     .timezone(timezone)
+                    .deviceType(deviceType)
                     .lastCommunication(null)
                     .account(account)
                     .build();
@@ -128,6 +131,7 @@ public class DeviceService {
         ownDevices.forEach(entity -> responses.add(DeviceResponse.builder()
                 .id(entity.getId())
                 .uuid(entity.getUuid())
+                .deviceType(entity.getDeviceType())
                 .deviceName(entity.getDeviceName())
                 .timezone(entity.getTimezone())
                 .lastCommunication(entity.getLastCommunication())
@@ -144,6 +148,7 @@ public class DeviceService {
         sharedDevices.forEach(entity -> responses.add(DeviceResponse.builder()
                 .id(entity.getId())
                 .uuid(entity.getUuid())
+                .deviceType(entity.getDeviceType())
                 .deviceName(entity.getDeviceName())
                 .timezone(entity.getTimezone())
                 .lastCommunication(entity.getLastCommunication())
@@ -162,7 +167,7 @@ public class DeviceService {
 
     @Transactional
     public void updateDevice(
-            Long accountId, Long deviceId, String newName, String newTimezone
+            Long accountId, Long deviceId, String newName, String newTimezone, DeviceType deviceType
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -170,6 +175,7 @@ public class DeviceService {
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
         device.setDeviceName(newName);
         device.setTimezone(newTimezone);
+        device.setDeviceType(deviceType);
         deviceRepository.save(device);
     }
 

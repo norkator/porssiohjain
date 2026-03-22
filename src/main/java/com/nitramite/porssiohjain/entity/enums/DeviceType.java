@@ -14,11 +14,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity;
+package com.nitramite.porssiohjain.entity.enums;
 
-public enum ControlMode {
-    BELOW_MAX_PRICE, // turns ON when price < maxPriceSnt
-    CHEAPEST_HOURS,  // daily cheapest hours, control on based on dailyOnMinutes
-    MANUAL,          // manual override, use manualOn field
-    SCHEDULED        // user defined schedule
+public enum DeviceType {
+    STANDARD,
+    HEAT_PUMP
 }

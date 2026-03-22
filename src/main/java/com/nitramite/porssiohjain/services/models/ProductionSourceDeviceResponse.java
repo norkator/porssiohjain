@@ -16,8 +16,8 @@
 
 package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.ComparisonType;
-import com.nitramite.porssiohjain.entity.ControlAction;
+import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import lombok.*;
 
 import java.math.BigDecimal;

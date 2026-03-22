@@ -17,6 +17,9 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
+import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
+import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.utils.Utils;

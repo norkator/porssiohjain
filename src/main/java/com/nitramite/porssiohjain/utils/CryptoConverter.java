@@ -45,6 +45,7 @@ public class CryptoConverter implements AttributeConverter<String, String> {
         this.keySpec = new SecretKeySpec(keyBytes, "AES");
         encryptCipher = Cipher.getInstance("AES/GCM/NoPadding");
         decryptCipher = Cipher.getInstance("AES/GCM/NoPadding");
+        // Todo investigate possible thread-safety issue!
     }
 
     @Override

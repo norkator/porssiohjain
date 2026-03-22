@@ -14,23 +14,11 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.services.models;
+package com.nitramite.porssiohjain.entity.enums;
 
-import com.nitramite.porssiohjain.entity.enums.ControlMode;
-import lombok.Data;
-
-import java.math.BigDecimal;
-
-@Data
-public class CreateControlRequest {
-    private Long accountId;
-    private String name;
-    private String timezone;
-    private BigDecimal maxPriceSnt;
-    private BigDecimal minPriceSnt;
-    private Integer dailyOnMinutes;
-    private BigDecimal taxPercent;
-    private ControlMode mode;
-    private Boolean alwaysOnBelowMinPrice;
-    private Boolean manualOn;
+public enum ControlMode {
+    BELOW_MAX_PRICE, // turns ON when price < maxPriceSnt
+    CHEAPEST_HOURS,  // daily cheapest hours, control on based on dailyOnMinutes
+    MANUAL,          // manual override, use manualOn field
+    SCHEDULED        // user defined schedule
 }

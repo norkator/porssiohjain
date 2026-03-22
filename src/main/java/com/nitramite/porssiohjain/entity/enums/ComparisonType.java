@@ -14,15 +14,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity;
+package com.nitramite.porssiohjain.entity.enums;
 
-public enum SiteType {
-    HOME,
-    APARTMENT,
-    OFFICE,
-    WAREHOUSE,
-    FACTORY,
-    COMMERCIAL,
-    SOLAR_PLANT,
-    OTHER
+public enum ComparisonType {
+    GREATER_THAN,
+    LESS_THAN
 }

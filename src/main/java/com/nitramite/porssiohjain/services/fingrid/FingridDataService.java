@@ -14,10 +14,11 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.services;
+package com.nitramite.porssiohjain.services.fingrid;
 
 import com.nitramite.porssiohjain.entity.FingridDataEntity;
 import com.nitramite.porssiohjain.entity.repository.FingridDataRepository;
+import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.WindDataEntry;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
 import lombok.extern.slf4j.Slf4j;

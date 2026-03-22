@@ -16,56 +16,56 @@
 
 package com.nitramite.porssiohjain.entity;
 
-import com.nitramite.porssiohjain.entity.enums.ComparisonType;
-import com.nitramite.porssiohjain.entity.enums.ControlAction;
+import com.nitramite.porssiohjain.entity.enums.AcType;
+import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(
-        name = "production_source_device",
-        uniqueConstraints = @UniqueConstraint(
-                columnNames = {"production_source_id", "device_id", "device_channel"}
-        )
-)
+@Table(name = "device_ac_data")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductionSourceDeviceEntity {
+public class DeviceAcDataEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "production_source_id", nullable = false)
-    private ProductionSourceEntity productionSource;
-
+    // there could be multiple indoor units so many to one is used here
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "device_id", nullable = false)
     private DeviceEntity device;
 
-    @Column(name = "device_channel", nullable = false)
-    private Integer deviceChannel;
+    @Column(name = "name", nullable = false)
+    private String name; // for multi indoor unit setup like upstairs and living room etc
 
-    @Column(name = "trigger_kw", nullable = false, precision = 10, scale = 2)
-    private BigDecimal triggerKw;
-
+    @Column(name = "ac_type", nullable = false)
     @Enumerated(EnumType.STRING)
-    @Column(name = "comparison_type", nullable = false, length = 20)
-    private ComparisonType comparisonType;
+    private AcType acType = AcType.NONE;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "action", nullable = false, length = 20)
-    private ControlAction action;
+    @Column(name = "ac_username")
+    private String acUsername;
 
-    @Column(name = "enabled", nullable = false)
-    private boolean enabled;
+    @Convert(converter = CryptoConverter.class)
+    @Column(name = "ac_password")
+    private String acPassword;
+
+    @Column(name = "ac_access_token")
+    private String acAccessToken; // jwt token
+
+    @Column(name = "ac_consumer_id")
+    private String acConsumerId; // like uuid
+
+    @Column(name = "ac_device_id")
+    private String acDeviceId; // like uuid
+
+    @Column(name = "sas_token")
+    private String sasToken; // needed for azure iot hub to send device state changes
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -75,14 +75,12 @@ public class ProductionSourceDeviceEntity {
 
     @PrePersist
     public void onCreate() {
-        Instant now = Instant.now();
-        this.createdAt = now;
-        this.updatedAt = now;
+        createdAt = Instant.now();
     }
 
     @PreUpdate
     public void onUpdate() {
-        this.updatedAt = Instant.now();
+        updatedAt = Instant.now();
     }
 
 }
