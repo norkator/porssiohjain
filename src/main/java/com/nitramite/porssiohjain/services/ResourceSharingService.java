@@ -1,7 +1,7 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.ResourceSharingEntity;
-import com.nitramite.porssiohjain.entity.ResourceType;
+import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.entity.repository.ResourceSharingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

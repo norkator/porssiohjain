@@ -18,7 +18,7 @@ package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
-import com.nitramite.porssiohjain.entity.SiteType;
+import com.nitramite.porssiohjain.entity.enums.SiteType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.services.models.SiteResponse;

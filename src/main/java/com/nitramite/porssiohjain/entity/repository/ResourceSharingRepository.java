@@ -1,7 +1,7 @@
 package com.nitramite.porssiohjain.entity.repository;
 
 import com.nitramite.porssiohjain.entity.ResourceSharingEntity;
-import com.nitramite.porssiohjain.entity.ResourceType;
+import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

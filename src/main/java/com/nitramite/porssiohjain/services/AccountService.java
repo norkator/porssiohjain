@@ -17,7 +17,7 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.entity.AccountTier;
+import com.nitramite.porssiohjain.entity.enums.AccountTier;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;

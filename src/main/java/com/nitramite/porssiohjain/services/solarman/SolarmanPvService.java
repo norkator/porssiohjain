@@ -16,7 +16,7 @@
 
 package com.nitramite.porssiohjain.services.solarman;
 
-import com.nitramite.porssiohjain.entity.ProductionApiType;
+import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.entity.ProductionHistoryEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import com.nitramite.porssiohjain.entity.repository.ProductionHistoryRepository;

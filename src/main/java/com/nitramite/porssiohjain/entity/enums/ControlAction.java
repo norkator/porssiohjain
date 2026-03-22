@@ -14,9 +14,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity;
+package com.nitramite.porssiohjain.entity.enums;
 
-public enum ProductionApiType {
-    SHELLY,
-    SOFAR_SOLARMANPV
+public enum ControlAction {
+    TURN_ON,
+    TURN_OFF
 }

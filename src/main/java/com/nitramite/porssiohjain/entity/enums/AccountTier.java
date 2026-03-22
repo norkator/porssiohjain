@@ -1,4 +1,4 @@
-package com.nitramite.porssiohjain.entity;
+package com.nitramite.porssiohjain.entity.enums;
 
 public enum AccountTier {
     FREE,
