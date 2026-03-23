@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
@@ -34,6 +35,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -63,6 +65,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final TextField nameField;
     private final ComboBox<String> timezoneCombo;
     private final ComboBox<DeviceType> deviceTypeCombo;
+
+    private FormLayout heatPumpForm;
+    private TextField hpNameField;
+    private ComboBox<AcType> acTypeCombo;
+    private TextField acUsernameField;
+    private PasswordField acPasswordField;
 
     private final Button saveButton;
 
@@ -188,6 +196,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveButton.addClickListener(e -> handleSave());
+        saveButton.getStyle().set("align-self", "start");
 
         FormLayout formLayout = new FormLayout();
         formLayout.setWidthFull();
@@ -197,12 +206,46 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 3)
         );
-        saveButton.getStyle().set("align-self", "start");
+
 
         card.add(title, deviceGrid, formLayout, saveButton);
         add(card);
 
+        initHeatPumpForm();
+        deviceTypeCombo.addValueChangeListener(event -> {
+            DeviceType type = event.getValue();
+            if (type == DeviceType.HEAT_PUMP) {
+                if (card.getChildren().noneMatch(c -> c.equals(heatPumpForm))) {
+                    card.add(heatPumpForm);
+                }
+            } else {
+                card.remove(heatPumpForm);
+            }
+        });
+
         loadDevices();
+    }
+
+    private void initHeatPumpForm() {
+        heatPumpForm = new FormLayout();
+        heatPumpForm.setWidthFull();
+        heatPumpForm.getStyle().set("margin-top", "10px");
+        hpNameField = new TextField(t("device.hp.name"));
+        acTypeCombo = new ComboBox<>(t("device.hp.acType"));
+        acTypeCombo.setItems(AcType.values());
+        acTypeCombo.setItemLabelGenerator(type -> switch (type) {
+            case NONE -> t("acType.none");
+            case TOSHIBA -> t("acType.toshiba");
+            case MITSUBISHI -> t("acType.mitsubishi");
+        });
+        acTypeCombo.setValue(AcType.NONE);
+        acUsernameField = new TextField(t("device.hp.username"));
+        acPasswordField = new PasswordField(t("device.hp.password"));
+        heatPumpForm.add(hpNameField, acTypeCombo, acUsernameField, acPasswordField);
+        heatPumpForm.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2)
+        );
     }
 
     private void handleSave() {
