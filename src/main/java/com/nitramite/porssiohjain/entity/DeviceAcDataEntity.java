@@ -55,6 +55,9 @@ public class DeviceAcDataEntity {
     @Column(name = "ac_password")
     private String acPassword;
 
+    @Column(name = "ac_token_expires_at")
+    private Instant acTokenExpiresAt;
+
     @Column(name = "ac_access_token")
     private String acAccessToken; // jwt token
 
