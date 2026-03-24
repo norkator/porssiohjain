@@ -63,6 +63,9 @@ public class ToshibaAcMappingResponse {
 
         @JsonProperty("Name")
         private String name;
+
+        @JsonProperty("ACStateData")
+        private String acStateData;
     }
 
 }
