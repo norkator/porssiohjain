@@ -14,11 +14,23 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity.enums;
+package com.nitramite.porssiohjain.services.models;
 
-public enum ControlAction {
-    TURN_ON,
-    TURN_OFF,
-    SET_TEMPERATURE,
-    SET_MODE
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ControlHeatPumpResponse {
+    private Long id;
+    private Long controlId;
+    private Long deviceId;
+    private String stateHex;
+    private ControlAction controlAction;
+    private DeviceResponse device;
 }

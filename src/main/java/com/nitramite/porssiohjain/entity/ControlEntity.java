@@ -90,6 +90,9 @@ public class ControlEntity {
     @OneToMany(mappedBy = "control", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ControlDeviceEntity> controlDevices;
 
+    @OneToMany(mappedBy = "control", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ControlHeatPumpEntity> controlHeatPumps;
+
     @PrePersist
     public void onCreate() {
         createdAt = Instant.now();

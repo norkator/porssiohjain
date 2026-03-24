@@ -14,11 +14,19 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity.enums;
+package com.nitramite.porssiohjain.entity.repository;
 
-public enum ControlAction {
-    TURN_ON,
-    TURN_OFF,
-    SET_TEMPERATURE,
-    SET_MODE
+import com.nitramite.porssiohjain.entity.ControlHeatPumpEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface ControlHeatPumpRepository extends JpaRepository<ControlHeatPumpEntity, Long> {
+
+    boolean existsByControlIdAndDeviceIdAndControlAction(Long controlId, Long deviceId, ControlAction controlAction);
+
+    List<ControlHeatPumpEntity> findByDevice(DeviceEntity device);
+
 }

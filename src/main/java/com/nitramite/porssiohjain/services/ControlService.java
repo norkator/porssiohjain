@@ -52,6 +52,7 @@ public class ControlService {
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
     private final SiteRepository siteRepository;
     private final ResourceSharingRepository resourceSharingRepository;
+    private final ControlHeatPumpRepository controlHeatPumpRepository;
     private final MqttService mqttService;
 
     public ControlEntity createControl(
@@ -365,6 +366,83 @@ public class ControlService {
                         )
                         .build())
                 .sorted(Comparator.comparing(ControlDeviceResponse::getDeviceChannel))
+                .toList();
+    }
+
+    public ControlHeatPumpResponse addHeatPumpToControl(
+            Long accountId, Long controlId, Long deviceId, String stateHex, ControlAction controlAction
+    ) {
+        ControlEntity control = controlRepository.findById(controlId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        if (control.getAccount().getId().equals(accountId)) {
+            DeviceEntity device = deviceRepository.findById(deviceId)
+                    .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
+
+            if (controlHeatPumpRepository.existsByControlIdAndDeviceIdAndControlAction(controlId, deviceId, controlAction)) {
+                throw new DuplicateEntityException(
+                        String.format("Device %d with action %s is already linked to control %d",
+                                deviceId, controlAction, controlId)
+                );
+            }
+
+            ControlHeatPumpEntity entity = ControlHeatPumpEntity.builder()
+                    .control(control)
+                    .device(device)
+                    .stateHex(stateHex)
+                    .controlAction(controlAction)
+                    .build();
+
+            ControlHeatPumpEntity saved = controlHeatPumpRepository.save(entity);
+
+            return ControlHeatPumpResponse.builder()
+                    .id(saved.getId())
+                    .controlId(saved.getControl().getId())
+                    .deviceId(saved.getDevice().getId())
+                    .stateHex(saved.getStateHex())
+                    .controlAction(saved.getControlAction())
+                    .build();
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
+    }
+
+    public void deleteControlHeatPump(
+            Long accountId, Long controlHeatPumpId
+    ) {
+        ControlHeatPumpEntity entity = controlHeatPumpRepository.findById(controlHeatPumpId)
+                .orElseThrow(() -> new EntityNotFoundException("ControlHeatPump not found with id: " + controlHeatPumpId));
+        if (entity.getControl().getAccount().getId().equals(accountId)) {
+            controlHeatPumpRepository.deleteById(controlHeatPumpId);
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
+    }
+
+    public List<ControlHeatPumpResponse> getControlHeatPumps(
+            Long controlId
+    ) {
+        ControlEntity control = controlRepository.findById(controlId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        Set<ControlHeatPumpEntity> entities = control.getControlHeatPumps();
+        return entities.stream()
+                .map(entity -> ControlHeatPumpResponse.builder()
+                        .id(entity.getId())
+                        .controlId(control.getId())
+                        .deviceId(entity.getDevice().getId())
+                        .stateHex(entity.getStateHex())
+                        .controlAction(entity.getControlAction())
+                        .device(
+                                DeviceResponse.builder()
+                                        .id(entity.getDevice().getId())
+                                        .uuid(entity.getDevice().getUuid())
+                                        .deviceName(entity.getDevice().getDeviceName())
+                                        .lastCommunication(entity.getDevice().getLastCommunication())
+                                        .createdAt(entity.getDevice().getCreatedAt())
+                                        .updatedAt(entity.getDevice().getUpdatedAt())
+                                        .build()
+                        )
+                        .build())
+                .sorted(Comparator.comparing(ControlHeatPumpResponse::getId))
                 .toList();
     }
 

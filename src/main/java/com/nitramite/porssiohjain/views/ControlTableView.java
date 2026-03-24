@@ -18,7 +18,9 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.ContractType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.ControlMode;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
@@ -82,6 +84,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final SiteService siteService;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
+    private final Grid<ControlHeatPumpResponse> heatPumpGrid = new Grid<>(ControlHeatPumpResponse.class, false);
     private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
 
     private Long controlId;
@@ -356,6 +359,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         card.add(new H3(t("controlTable.section.devices")));
         configureDeviceGrid();
+        configureHeatPumpGrid();
 
         Tab standardTab = new Tab(t("device.type.standard"));
         Tab heatPumpTab = new Tab(t("device.type.heatPump"));
@@ -365,8 +369,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         standardLayout.setPadding(false);
         standardLayout.setSpacing(true);
 
-        VerticalLayout heatPumpLayout = new VerticalLayout(new Text("Heat Pump settings coming soon"));
-        heatPumpLayout.setPadding(true);
+        VerticalLayout heatPumpLayout = new VerticalLayout(heatPumpGrid, createAddHeatPumpLayout());
+        heatPumpLayout.setPadding(false);
         heatPumpLayout.setSpacing(true);
         heatPumpLayout.setVisible(false);
 
@@ -386,6 +390,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         card.add(deviceTabs, pages);
 
         loadControlDevices();
+        loadControlHeatPumps();
         card.add(Divider.createDivider());
         card.add(getControlTableSection());
         card.add(Divider.createDivider());
@@ -416,8 +421,28 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         deviceGrid.setMaxHeight("200px");
     }
 
+    private void configureHeatPumpGrid() {
+        heatPumpGrid.removeAllColumns();
+        heatPumpGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader(t("controlTable.grid.deviceName"));
+        heatPumpGrid.addColumn(cd -> t("controlAction." + cd.getControlAction().name())).setHeader(t("controlTable.grid.action"));
+        heatPumpGrid.addColumn(ControlHeatPumpResponse::getStateHex).setHeader(t("controlTable.grid.stateHex"));
+        heatPumpGrid.addComponentColumn(cd -> {
+            Button delete = new Button(t("controlTable.button.delete"), e -> {
+                controlService.deleteControlHeatPump(getAccountId(), cd.getId());
+                loadControlHeatPumps();
+            });
+            delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            return delete;
+        }).setHeader(t("controlTable.grid.actions"));
+        heatPumpGrid.setMaxHeight("200px");
+    }
+
     private void loadControlDevices() {
         deviceGrid.setItems(controlService.getControlDevices(controlId));
+    }
+
+    private void loadControlHeatPumps() {
+        heatPumpGrid.setItems(controlService.getControlHeatPumps(controlId));
     }
 
     private Component createAddDeviceLayout() {
@@ -456,6 +481,93 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 .set("background-color", "var(--lumo-contrast-5pct)");
 
         return formLayout;
+    }
+
+    private Component createAddHeatPumpLayout() {
+        ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
+        deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
+        deviceSelect.setItems(
+                deviceService.getAllDevicesForControlId(controlId).stream()
+                        .filter(d -> d.getDeviceType() == DeviceType.HEAT_PUMP)
+                        .toList()
+        );
+        deviceSelect.setWidthFull();
+
+        TextField stateHexField = new TextField(t("controlTable.field.stateHex"));
+        stateHexField.setReadOnly(true);
+        stateHexField.setWidthFull();
+
+        Button queryStateButton = new Button(t("controlTable.button.queryState"), e -> {
+            if (deviceSelect.getValue() != null) {
+                openHeatPumpStateDialog(deviceSelect.getValue(), stateHexField);
+            } else {
+                Notification.show(t("controlTable.notification.selectDeviceFirst"), 3000, Notification.Position.MIDDLE);
+            }
+        });
+        queryStateButton.setWidthFull();
+
+        ComboBox<ControlAction> actionCombo = new ComboBox<>(t("controlTable.field.action"));
+        actionCombo.setItems(ControlAction.values());
+        actionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
+        actionCombo.setWidthFull();
+
+        Button addButton = new Button(t("controlTable.button.addDevice"), e -> {
+            if (deviceSelect.getValue() != null && !stateHexField.getValue().isEmpty() && actionCombo.getValue() != null) {
+                controlService.addHeatPumpToControl(
+                        getAccountId(),
+                        controlId,
+                        deviceSelect.getValue().getId(),
+                        stateHexField.getValue(),
+                        actionCombo.getValue()
+                );
+                loadControlHeatPumps();
+                stateHexField.clear();
+            }
+        });
+        addButton.setWidthFull();
+
+        FormLayout formLayout = new FormLayout(deviceSelect, queryStateButton, stateHexField, actionCombo, addButton);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 5)
+        );
+
+        formLayout.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                .set("background-color", "var(--lumo-contrast-5pct)");
+
+        return formLayout;
+    }
+
+    private void openHeatPumpStateDialog(DeviceResponse device, TextField stateHexField) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
+
+        VerticalLayout dialogLayout = new VerticalLayout();
+        dialogLayout.add(new Paragraph(t("controlTable.dialog.queryState.instructions")));
+
+        Button actionButton = new Button(t("controlTable.dialog.queryState.actionButton"), e -> {
+            // Placeholder for querying logic
+            stateHexField.setValue("00112233AABBCC"); // Dummy hex
+            Notification.show(t("controlTable.dialog.queryState.queried"));
+        });
+        dialogLayout.add(actionButton);
+
+        dialog.add(dialogLayout);
+
+        Button saveButton = new Button(t("button.save"), e -> dialog.close());
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(saveButton);
+
+        Button cancelButton = new Button(t("button.cancel"), e -> {
+            stateHexField.clear();
+            dialog.close();
+        });
+        dialog.getFooter().add(cancelButton);
+
+        dialog.open();
     }
 
     private VerticalLayout getControlTableSection() {
