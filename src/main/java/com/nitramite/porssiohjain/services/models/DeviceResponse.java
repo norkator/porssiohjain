@@ -16,6 +16,7 @@
 
 package com.nitramite.porssiohjain.services.models;
 
+import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -44,4 +45,10 @@ public class DeviceResponse {
     private Boolean mqttOnline;
     private String mqttUsername;
     private String mqttPassword;
+
+    // Heat pump related
+    private String hpName;
+    private AcType acType;
+    private String acUsername;
+    private String acPassword;
 }

@@ -187,6 +187,17 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 nameField.setValue(selectedDevice.getDeviceName());
                 timezoneCombo.setValue(selectedDevice.getTimezone());
                 deviceTypeCombo.setValue(selectedDevice.getDeviceType());
+                if (selectedDevice.getDeviceType() == DeviceType.HEAT_PUMP) {
+                    hpNameField.setValue(selectedDevice.getHpName() != null ? selectedDevice.getHpName() : "");
+                    acTypeCombo.setValue(selectedDevice.getAcType() != null ? selectedDevice.getAcType() : AcType.NONE);
+                    acUsernameField.setValue(selectedDevice.getAcUsername() != null ? selectedDevice.getAcUsername() : "");
+                    acPasswordField.setValue(selectedDevice.getAcPassword() != null ? selectedDevice.getAcPassword() : "");
+                } else {
+                    hpNameField.clear();
+                    acTypeCombo.setValue(AcType.NONE);
+                    acUsernameField.clear();
+                    acPasswordField.clear();
+                }
                 saveButton.setText(t("device.button.update"));
             } else {
                 clearForm();
@@ -274,12 +285,36 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 return;
             }
 
+            String hpName = hpNameField.getValue();
+            AcType acType = acTypeCombo.getValue();
+            String acUsername = acUsernameField.getValue();
+            String acPassword = acPasswordField.getValue();
+
+            if (deviceType == DeviceType.HEAT_PUMP) {
+                if (hpName == null || hpName.isBlank()) {
+                    Notification.show(t("device.notification.hpNameEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    return;
+                }
+                if (acUsername == null || acUsername.isBlank()) {
+                    Notification.show(t("device.notification.acUsernameEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    return;
+                }
+                if (acPassword == null || acPassword.isBlank()) {
+                    Notification.show(t("device.notification.acPasswordEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    return;
+                }
+            }
+
             if (selectedDevice != null) {
-                deviceService.updateDevice(accountId, selectedDevice.getId(), deviceName, timezone, deviceType);
+                deviceService.updateDevice(
+                        accountId, selectedDevice.getId(), deviceName, timezone, deviceType, hpName, acType, acUsername, acPassword
+                );
                 Notification notification = Notification.show(t("device.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {
-                deviceService.createDevice(authAccountId, accountId, deviceName, timezone, deviceType);
+                deviceService.createDevice(
+                        authAccountId, accountId, deviceName, timezone, deviceType, hpName, acType, acUsername, acPassword
+                );
                 Notification notification = Notification.show(t("device.notification.created"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             }

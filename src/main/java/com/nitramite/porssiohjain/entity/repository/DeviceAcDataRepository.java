@@ -14,19 +14,18 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.services.models;
+package com.nitramite.porssiohjain.entity.repository;
 
-import com.nitramite.porssiohjain.entity.enums.AcType;
-import com.nitramite.porssiohjain.entity.enums.DeviceType;
-import lombok.Data;
+import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-@Data
-public class CreateDeviceRequest {
-    private String deviceName;
-    private String timezone;
-    private DeviceType deviceType;
-    private String hpName;
-    private AcType acType;
-    private String acUsername;
-    private String acPassword;
+import java.util.Optional;
+
+@Repository
+public interface DeviceAcDataRepository extends JpaRepository<DeviceAcDataEntity, Long> {
+
+    Optional<DeviceAcDataEntity> findByDevice(DeviceEntity device);
+
 }

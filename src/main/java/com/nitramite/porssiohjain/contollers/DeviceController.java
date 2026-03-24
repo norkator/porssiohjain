@@ -43,7 +43,9 @@ public class DeviceController {
     ) {
         Long authAccountId = authContext.getAccountId();
         DeviceResponse device = deviceService.createDevice(
-                authAccountId, accountId, request.getDeviceName(), request.getTimezone(), request.getDeviceType()
+                authAccountId, accountId, request.getDeviceName(), request.getTimezone(), request.getDeviceType(),
+                request.getHpName(), request.getAcType(), request.getAcUsername(), request.getAcPassword()
+
         );
         return ResponseEntity.ok(device);
     }

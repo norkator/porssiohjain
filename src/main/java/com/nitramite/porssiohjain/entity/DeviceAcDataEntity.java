@@ -76,6 +76,7 @@ public class DeviceAcDataEntity {
     @PrePersist
     public void onCreate() {
         createdAt = Instant.now();
+        updatedAt = createdAt;
     }
 
     @PreUpdate
