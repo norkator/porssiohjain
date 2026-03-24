@@ -52,13 +52,13 @@ public class DeviceAcDataEntity {
     private String acUsername;
 
     @Convert(converter = CryptoConverter.class)
-    @Column(name = "ac_password")
+    @Column(name = "ac_password", columnDefinition = "TEXT")
     private String acPassword;
 
     @Column(name = "ac_token_expires_at")
     private Instant acTokenExpiresAt;
 
-    @Column(name = "ac_access_token")
+    @Column(name = "ac_access_token", columnDefinition = "TEXT")
     private String acAccessToken; // jwt token
 
     @Column(name = "ac_consumer_id")
@@ -67,7 +67,7 @@ public class DeviceAcDataEntity {
     @Column(name = "ac_device_id")
     private String acDeviceId; // like uuid
 
-    @Column(name = "sas_token")
+    @Column(name = "sas_token", columnDefinition = "TEXT")
     private String sasToken; // needed for azure iot hub to send device state changes
 
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -23,10 +23,14 @@ import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcDevicesService;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcMappingResponse;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaLoginService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
@@ -34,6 +38,7 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -60,6 +65,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final Grid<DeviceResponse> deviceGrid = new Grid<>(DeviceResponse.class, false);
     private final DeviceService deviceService;
     private final AuthService authService;
+    private final ToshibaLoginService toshibaLoginService;
+    private final ToshibaAcDevicesService toshibaAcDevicesService;
     protected final I18nService i18n;
 
     private final TextField nameField;
@@ -71,6 +78,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private ComboBox<AcType> acTypeCombo;
     private TextField acUsernameField;
     private PasswordField acPasswordField;
+    private final Button selectAcDeviceButton;
 
     private final Button saveButton;
 
@@ -82,11 +90,15 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     public DeviceView(
             DeviceService deviceService,
             AuthService authService,
-            I18nService i18n
+            I18nService i18n,
+            ToshibaLoginService toshibaLoginService,
+            ToshibaAcDevicesService toshibaAcDevicesService
     ) {
         this.deviceService = deviceService;
         this.authService = authService;
         this.i18n = i18n;
+        this.toshibaLoginService = toshibaLoginService;
+        this.toshibaAcDevicesService = toshibaAcDevicesService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -108,6 +120,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         // deviceTypeCombo.setWidth("250px");
 
         saveButton = new Button(t("device.button.save"));
+
+        selectAcDeviceButton = new Button(t("device.hp.selectDeviceButton"));
+        selectAcDeviceButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        selectAcDeviceButton.addClickListener(e -> openAcDeviceSelectionDialog());
+        selectAcDeviceButton.setVisible(false);
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -176,6 +193,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceGrid.addColumn(DeviceResponse::getMqttPassword)
                 .setHeader(t("device.grid.mqttPassword"))
                 .setAutoWidth(true);
+        deviceGrid.addColumn(DeviceResponse::getAcDeviceId)
+                .setHeader(t("device.grid.acDeviceId"))
+                .setAutoWidth(true);
 
         deviceGrid.setWidthFull();
         deviceGrid.getStyle().set("max-height", "300px");
@@ -192,11 +212,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     acTypeCombo.setValue(selectedDevice.getAcType() != null ? selectedDevice.getAcType() : AcType.NONE);
                     acUsernameField.setValue(selectedDevice.getAcUsername() != null ? selectedDevice.getAcUsername() : "");
                     acPasswordField.setValue(selectedDevice.getAcPassword() != null ? selectedDevice.getAcPassword() : "");
+                    selectAcDeviceButton.setVisible(true);
+                    selectAcDeviceButton.setText(selectedDevice.getAcDeviceId() != null ? t("device.hp.changeDeviceButton") : t("device.hp.selectDeviceButton"));
                 } else {
                     hpNameField.clear();
                     acTypeCombo.setValue(AcType.NONE);
                     acUsernameField.clear();
                     acPasswordField.clear();
+                    selectAcDeviceButton.setVisible(false);
                 }
                 saveButton.setText(t("device.button.update"));
             } else {
@@ -223,15 +246,70 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         heatPumpForm.setVisible(false);
 
-        card.add(title, deviceGrid, formLayout, heatPumpForm, saveButton);
+        HorizontalLayout actions = new HorizontalLayout(saveButton, selectAcDeviceButton);
+        actions.setAlignItems(Alignment.CENTER);
+
+        card.add(title, deviceGrid, formLayout, heatPumpForm, actions);
         add(card);
 
         deviceTypeCombo.addValueChangeListener(event -> {
             DeviceType type = event.getValue();
-            heatPumpForm.setVisible(type == DeviceType.HEAT_PUMP);
+            boolean isHeatPump = type == DeviceType.HEAT_PUMP;
+            heatPumpForm.setVisible(isHeatPump);
+            selectAcDeviceButton.setVisible(isHeatPump && selectedDevice != null);
         });
 
         loadDevices();
+    }
+
+    private void openAcDeviceSelectionDialog() {
+        if (selectedDevice == null) return;
+
+        try {
+            String token = (String) VaadinSession.getCurrent().getAttribute("token");
+            AccountEntity currentAccount = authService.authenticate(token);
+            var acData = deviceService.getDeviceAcData(currentAccount.getId(), selectedDevice.getId());
+
+            if (!toshibaLoginService.login(acData)) {
+                Notification.show(t("device.notification.toshibaLoginFailed")).addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
+
+            List<ToshibaAcMappingResponse.AcDevice> acDevices = toshibaAcDevicesService.getAcDevices(acData);
+            if (acDevices.isEmpty()) {
+                Notification.show(t("device.notification.noAcDevicesFound")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                return;
+            }
+
+            Dialog dialog = new Dialog();
+            dialog.setHeaderTitle(t("device.hp.dialog.title"));
+
+            Grid<ToshibaAcMappingResponse.AcDevice> acGrid = new Grid<>();
+            acGrid.addColumn(ToshibaAcMappingResponse.AcDevice::getName).setHeader(t("device.hp.dialog.grid.name"));
+            acGrid.addColumn(ToshibaAcMappingResponse.AcDevice::getId).setHeader(t("device.hp.dialog.grid.id"));
+            acGrid.setItems(acDevices);
+            acGrid.setWidth("500px");
+            acGrid.setHeight("300px");
+
+            Button selectButton = new Button(t("common.select"), e -> {
+                var selected = acGrid.asSingleSelect().getValue();
+                if (selected != null) {
+                    deviceService.updateAcDeviceId(currentAccount.getId(), selectedDevice.getId(), selected.getId());
+                    Notification.show(t("device.notification.acDeviceSelected")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    dialog.close();
+                    loadDevices();
+                }
+            });
+            selectButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            Button cancelButton = new Button(t("common.cancel"), e -> dialog.close());
+
+            dialog.getFooter().add(cancelButton, selectButton);
+            dialog.add(new VerticalLayout(acGrid));
+            dialog.open();
+
+        } catch (Exception e) {
+            Notification.show(t("device.notification.failed", e.getMessage())).addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 
     private void initHeatPumpForm() {
@@ -337,6 +415,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         acTypeCombo.setValue(AcType.NONE);
         acUsernameField.clear();
         acPasswordField.clear();
+        selectAcDeviceButton.setVisible(false);
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
     }

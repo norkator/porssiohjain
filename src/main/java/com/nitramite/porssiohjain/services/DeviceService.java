@@ -166,10 +166,33 @@ public class DeviceService {
                 response.setAcType(acData.getAcType());
                 response.setAcUsername(acData.getAcUsername());
                 response.setAcPassword(acData.getAcPassword());
+                response.setAcDeviceId(acData.getAcDeviceId());
             });
         }
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public DeviceAcDataEntity getDeviceAcData(Long accountId, Long deviceId) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found: " + accountId));
+        DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
+        return deviceAcDataRepository.findByDevice(device)
+                .orElseThrow(() -> new EntityNotFoundException("AC data not found for device: " + deviceId));
+    }
+
+    @Transactional
+    public void updateAcDeviceId(Long accountId, Long deviceId, String acDeviceId) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found"));
+        DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found"));
+        DeviceAcDataEntity acData = deviceAcDataRepository.findByDevice(device)
+                .orElseThrow(() -> new IllegalStateException("AC data not found"));
+        acData.setAcDeviceId(acDeviceId);
+        deviceAcDataRepository.save(acData);
     }
 
     @Transactional
