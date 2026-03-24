@@ -93,6 +93,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             UI.getCurrent().setLocale(storedLocale);
         }
 
+        initHeatPumpForm();
+
         nameField = new TextField(t("device.field.name"));
         timezoneCombo = new ComboBox<>(t("device.field.timezone"));
         deviceTypeCombo = new ComboBox<>(t("device.grid.type"));
@@ -184,6 +186,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             if (selectedDevice != null) {
                 nameField.setValue(selectedDevice.getDeviceName());
                 timezoneCombo.setValue(selectedDevice.getTimezone());
+                deviceTypeCombo.setValue(selectedDevice.getDeviceType());
                 saveButton.setText(t("device.button.update"));
             } else {
                 clearForm();
@@ -207,20 +210,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 new FormLayout.ResponsiveStep("600px", 3)
         );
 
+        heatPumpForm.setVisible(false);
 
-        card.add(title, deviceGrid, formLayout, saveButton);
+        card.add(title, deviceGrid, formLayout, heatPumpForm, saveButton);
         add(card);
 
-        initHeatPumpForm();
         deviceTypeCombo.addValueChangeListener(event -> {
             DeviceType type = event.getValue();
-            if (type == DeviceType.HEAT_PUMP) {
-                if (card.getChildren().noneMatch(c -> c.equals(heatPumpForm))) {
-                    card.add(heatPumpForm);
-                }
-            } else {
-                card.remove(heatPumpForm);
-            }
+            heatPumpForm.setVisible(type == DeviceType.HEAT_PUMP);
         });
 
         loadDevices();
@@ -300,6 +297,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         selectedDevice = null;
         nameField.clear();
         timezoneCombo.setValue(ZoneId.systemDefault().getId());
+        deviceTypeCombo.setValue(DeviceType.STANDARD);
+        hpNameField.clear();
+        acTypeCombo.setValue(AcType.NONE);
+        acUsernameField.clear();
+        acPasswordField.clear();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
     }
