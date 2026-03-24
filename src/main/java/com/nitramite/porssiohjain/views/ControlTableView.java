@@ -50,6 +50,8 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -354,8 +356,35 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         card.add(new H3(t("controlTable.section.devices")));
         configureDeviceGrid();
-        card.add(deviceGrid);
-        card.add(createAddDeviceLayout());
+
+        Tab standardTab = new Tab(t("device.type.standard"));
+        Tab heatPumpTab = new Tab(t("device.type.heatPump"));
+        Tabs deviceTabs = new Tabs(standardTab, heatPumpTab);
+
+        VerticalLayout standardLayout = new VerticalLayout(deviceGrid, createAddDeviceLayout());
+        standardLayout.setPadding(false);
+        standardLayout.setSpacing(true);
+
+        VerticalLayout heatPumpLayout = new VerticalLayout(new Text("Heat Pump settings coming soon"));
+        heatPumpLayout.setPadding(true);
+        heatPumpLayout.setSpacing(true);
+        heatPumpLayout.setVisible(false);
+
+        Map<Tab, Component> tabsToPages = new HashMap<>();
+        tabsToPages.put(standardTab, standardLayout);
+        tabsToPages.put(heatPumpTab, heatPumpLayout);
+
+        Div pages = new Div(standardLayout, heatPumpLayout);
+        pages.setWidthFull();
+
+        deviceTabs.addSelectedChangeListener(event -> {
+            tabsToPages.values().forEach(page -> page.setVisible(false));
+            Component selectedPage = tabsToPages.get(deviceTabs.getSelectedTab());
+            selectedPage.setVisible(true);
+        });
+
+        card.add(deviceTabs, pages);
+
         loadControlDevices();
         card.add(Divider.createDivider());
         card.add(getControlTableSection());
