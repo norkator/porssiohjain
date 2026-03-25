@@ -73,6 +73,7 @@ public class ToshibaLoginService {
                 ToshibaLoginResponse.ResObj resObj = response.getResObj();
                 acData.setAcAccessToken(resObj.getAccess_token());
                 acData.setAcConsumerId(resObj.getConsumerId());
+                // Returns weird expiration values
                 acData.setAcTokenExpiresAt(Instant.now().plusSeconds(resObj.getExpires_in()));
                 deviceAcDataRepository.save(acData);
                 return true;

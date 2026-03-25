@@ -438,7 +438,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private void loadControlDevices() {
-        deviceGrid.setItems(controlService.getControlDevices(controlId));
+        deviceGrid.setItems(
+                controlService.getControlDevices(controlId).stream()
+                        .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.STANDARD)
+                        .toList()
+        );
     }
 
     private void loadControlHeatPumps() {
@@ -448,7 +452,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private Component createAddDeviceLayout() {
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
-        deviceSelect.setItems(deviceService.getAllDevicesForControlId(controlId));
+        deviceSelect.setItems(
+                deviceService.getAllDevicesForControlId(controlId).stream()
+                        .filter(d -> d.getDeviceType() == DeviceType.STANDARD)
+                        .toList()
+        );
         deviceSelect.setWidthFull();
 
         NumberField channelField = new NumberField(t("controlTable.field.channel"));
@@ -557,11 +565,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         dialog.add(dialogLayout);
 
-        Button saveButton = new Button(t("button.save"), e -> dialog.close());
+        Button saveButton = new Button(t("common.save"), e -> dialog.close());
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         dialog.getFooter().add(saveButton);
 
-        Button cancelButton = new Button(t("button.cancel"), e -> {
+        Button cancelButton = new Button(t("common.cancel"), e -> {
             stateHexField.clear();
             dialog.close();
         });
