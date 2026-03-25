@@ -371,7 +371,8 @@ public class ControlService {
     }
 
     public ControlHeatPumpResponse addHeatPumpToControl(
-            Long accountId, Long controlId, Long deviceId, String stateHex, ControlAction controlAction
+            Long accountId, Long controlId, Long deviceId, String stateHex, ControlAction controlAction,
+            ComparisonType comparisonType, BigDecimal priceLimit
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
@@ -379,18 +380,13 @@ public class ControlService {
             DeviceEntity device = deviceRepository.findById(deviceId)
                     .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
 
-            if (controlHeatPumpRepository.existsByControlIdAndDeviceIdAndControlAction(controlId, deviceId, controlAction)) {
-                throw new DuplicateEntityException(
-                        String.format("Device %d with action %s is already linked to control %d",
-                                deviceId, controlAction, controlId)
-                );
-            }
-
             ControlHeatPumpEntity entity = ControlHeatPumpEntity.builder()
                     .control(control)
                     .device(device)
                     .stateHex(stateHex)
                     .controlAction(controlAction)
+                    .comparisonType(comparisonType)
+                    .priceLimit(priceLimit)
                     .build();
 
             ControlHeatPumpEntity saved = controlHeatPumpRepository.save(entity);
@@ -401,6 +397,8 @@ public class ControlService {
                     .deviceId(saved.getDevice().getId())
                     .stateHex(saved.getStateHex())
                     .controlAction(saved.getControlAction())
+                    .comparisonType(saved.getComparisonType())
+                    .priceLimit(saved.getPriceLimit())
                     .build();
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -432,6 +430,8 @@ public class ControlService {
                         .deviceId(entity.getDevice().getId())
                         .stateHex(entity.getStateHex())
                         .controlAction(entity.getControlAction())
+                        .comparisonType(entity.getComparisonType())
+                        .priceLimit(entity.getPriceLimit())
                         .device(
                                 DeviceResponse.builder()
                                         .id(entity.getDevice().getId())

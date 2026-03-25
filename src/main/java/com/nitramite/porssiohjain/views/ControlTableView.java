@@ -17,10 +17,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.*;
-import com.nitramite.porssiohjain.entity.enums.ContractType;
-import com.nitramite.porssiohjain.entity.enums.ControlAction;
-import com.nitramite.porssiohjain.entity.enums.ControlMode;
-import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.*;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
@@ -425,6 +422,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         heatPumpGrid.removeAllColumns();
         heatPumpGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader(t("controlTable.grid.deviceName"));
         heatPumpGrid.addColumn(cd -> t("controlAction." + cd.getControlAction().name())).setHeader(t("controlTable.grid.action"));
+        heatPumpGrid.addColumn(cd -> cd.getComparisonType() != null ? t("comparisonType." + cd.getComparisonType().name()) : "").setHeader(t("controlTable.grid.comparisonType"));
+        heatPumpGrid.addColumn(ControlHeatPumpResponse::getPriceLimit).setHeader(t("controlTable.grid.priceLimit"));
         heatPumpGrid.addColumn(ControlHeatPumpResponse::getStateHex).setHeader(t("controlTable.grid.stateHex"));
         heatPumpGrid.addComponentColumn(cd -> {
             Button delete = new Button(t("controlTable.button.delete"), e -> {
@@ -523,6 +522,15 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         actionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
         actionCombo.setWidthFull();
 
+        ComboBox<ComparisonType> comparisonCombo = new ComboBox<>(t("controlTable.field.comparisonType"));
+        comparisonCombo.setItems(ComparisonType.values());
+        comparisonCombo.setItemLabelGenerator(type -> t("comparisonType." + type.name()));
+        comparisonCombo.setWidthFull();
+
+        NumberField priceLimitField = new NumberField(t("controlTable.field.priceLimit"));
+        priceLimitField.setStep(0.1);
+        priceLimitField.setWidthFull();
+
         Button addButton = new Button(t("controlTable.button.addDevice"), e -> {
             if (deviceSelect.getValue() != null && !stateHexField.getValue().isEmpty() && actionCombo.getValue() != null) {
                 controlService.addHeatPumpToControl(
@@ -530,7 +538,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         controlId,
                         deviceSelect.getValue().getId(),
                         stateHexField.getValue(),
-                        actionCombo.getValue()
+                        actionCombo.getValue(),
+                        comparisonCombo.getValue(),
+                        priceLimitField.getValue() != null ? BigDecimal.valueOf(priceLimitField.getValue()) : null
                 );
                 loadControlHeatPumps();
                 stateHexField.clear();
@@ -538,10 +548,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         });
         addButton.setWidthFull();
 
-        FormLayout formLayout = new FormLayout(deviceSelect, queryStateButton, stateHexField, actionCombo, addButton);
+        FormLayout formLayout = new FormLayout(deviceSelect, queryStateButton, stateHexField, actionCombo, comparisonCombo, priceLimitField, addButton);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 5)
+                new FormLayout.ResponsiveStep("600px", 4)
         );
 
         formLayout.getStyle()

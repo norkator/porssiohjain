@@ -16,16 +16,15 @@
 
 package com.nitramite.porssiohjain.entity;
 
+import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
-@Table(name = "control_heat_pump",
-        uniqueConstraints = @UniqueConstraint(
-                columnNames = {"control_id", "device_id", "control_action"}
-        )
-)
+@Table(name = "control_heat_pump")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -51,5 +50,12 @@ public class ControlHeatPumpEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "control_action", nullable = false)
     private ControlAction controlAction;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "comparison_type")
+    private ComparisonType comparisonType;
+
+    @Column(name = "price_limit", precision = 19, scale = 4)
+    private BigDecimal priceLimit;
 
 }
