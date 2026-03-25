@@ -446,7 +446,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private void loadControlHeatPumps() {
-        heatPumpGrid.setItems(controlService.getControlHeatPumps(controlId));
+        heatPumpGrid.setItems(
+                controlService.getControlHeatPumps(controlId).stream()
+                        .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.HEAT_PUMP)
+                        .toList()
+        );
     }
 
     private Component createAddDeviceLayout() {
