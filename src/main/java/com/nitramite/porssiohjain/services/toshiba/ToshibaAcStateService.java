@@ -31,6 +31,7 @@ public class ToshibaAcStateService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ToshibaLoginService toshibaLoginService;
+    private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
     private static final String STATE_URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=";
 
     public ToshibaAcStateResponse getAcState(DeviceAcDataEntity acData) {
@@ -53,7 +54,13 @@ public class ToshibaAcStateService {
                     ToshibaAcStateResponse.class
             );
 
-            return response.getBody();
+            ToshibaAcStateResponse body = response.getBody();
+            if (body != null && body.getResObj() != null) {
+                body.getResObj().setDecodedAcState(
+                        toshibaAcStateHexDecoderService.decode(body.getResObj().getAcStateData())
+                );
+            }
+            return body;
         } catch (HttpClientErrorException.Forbidden e) {
             if (retryOn403) {
                 log.info("Toshiba AC state query returned 403, attempting re-login");

@@ -62,6 +62,8 @@ public class ToshibaAcStateResponse {
 
         @JsonProperty("UpdatedDate")
         private Instant updatedDate;
+
+        private ToshibaAcStateDecodedResponse decodedAcState;
     }
 
 }
