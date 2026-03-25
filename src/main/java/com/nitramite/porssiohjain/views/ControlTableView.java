@@ -18,9 +18,13 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.*;
+import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
+import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateResponse;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import com.nitramite.porssiohjain.views.components.Divider;
 import com.nitramite.porssiohjain.views.components.InfoBox;
 import com.vaadin.flow.component.Component;
@@ -79,6 +83,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     protected final I18nService i18n;
     private final ElectricityContractRepository contractRepository;
     private final SiteService siteService;
+    private final ToshibaAcStateService toshibaAcStateService;
+    private final DeviceAcDataRepository deviceAcDataRepository;
+    private final DeviceRepository deviceRepository;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlHeatPumpResponse> heatPumpGrid = new Grid<>(ControlHeatPumpResponse.class, false);
@@ -107,7 +114,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             NordpoolService nordpoolService,
             I18nService i18n,
             ElectricityContractRepository contractRepository,
-            SiteService siteService
+            SiteService siteService,
+            ToshibaAcStateService toshibaAcStateService,
+            DeviceAcDataRepository deviceAcDataRepository,
+            DeviceRepository deviceRepository
     ) {
         this.authService = authService;
         this.controlService = controlService;
@@ -117,6 +127,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.i18n = i18n;
         this.contractRepository = contractRepository;
         this.siteService = siteService;
+        this.toshibaAcStateService = toshibaAcStateService;
+        this.deviceAcDataRepository = deviceAcDataRepository;
+        this.deviceRepository = deviceRepository;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -563,19 +576,40 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         return formLayout;
     }
 
-    private void openHeatPumpStateDialog(DeviceResponse device, TextField stateHexField) {
+    private void openHeatPumpStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
 
         VerticalLayout dialogLayout = new VerticalLayout();
         dialogLayout.add(new Paragraph(t("controlTable.dialog.queryState.instructions")));
 
+        Div stateInfoDiv = new Div();
+        stateInfoDiv.setVisible(false);
+
         Button actionButton = new Button(t("controlTable.dialog.queryState.actionButton"), e -> {
-            // Placeholder for querying logic
-            stateHexField.setValue("00112233AABBCC"); // Dummy hex
-            Notification.show(t("controlTable.dialog.queryState.queried"));
+            try {
+                DeviceEntity deviceEntity = deviceRepository.findById(deviceResponse.getId())
+                        .orElseThrow(() -> new IllegalArgumentException("Device not found"));
+                DeviceAcDataEntity acData = deviceAcDataRepository.findByDevice(deviceEntity)
+                        .orElseThrow(() -> new IllegalArgumentException("AC data not found for device"));
+
+                ToshibaAcStateResponse response = toshibaAcStateService.getAcState(acData);
+                if (response != null && response.isSuccess() && response.getResObj() != null) {
+                    String stateHex = response.getResObj().getAcStateData();
+                    stateHexField.setValue(stateHex);
+                    stateInfoDiv.setText(t("controlTable.dialog.queryState.stateHex", stateHex));
+                    stateInfoDiv.setVisible(true);
+                    Notification.show(t("controlTable.dialog.queryState.queried"));
+                } else {
+                    Notification.show(t("controlTable.notification.failedSave", response != null ? response.getMessage() : "Empty response"), 5000, Notification.Position.MIDDLE)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
+            } catch (Exception ex) {
+                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()), 5000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
         });
-        dialogLayout.add(actionButton);
+        dialogLayout.add(actionButton, stateInfoDiv);
 
         dialog.add(dialogLayout);
 
