@@ -21,7 +21,9 @@ import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.HexFormat;
 
 @Entity
 @Table(name = "device_ac_data")
@@ -70,6 +72,9 @@ public class DeviceAcDataEntity {
     @Column(name = "sas_token", columnDefinition = "TEXT")
     private String sasToken; // needed for azure iot hub to send device state changes
 
+    @Column(name = "ac_client_device_suffix", nullable = false, length = 64)
+    private String acClientDeviceSuffix;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -80,6 +85,11 @@ public class DeviceAcDataEntity {
     public void onCreate() {
         createdAt = Instant.now();
         updatedAt = createdAt;
+
+        if (acClientDeviceSuffix == null || acClientDeviceSuffix.isBlank()) {
+            byte[] randomBytes = new SecureRandom().generateSeed(12);
+            acClientDeviceSuffix = HexFormat.of().formatHex(randomBytes);
+        }
     }
 
     @PreUpdate

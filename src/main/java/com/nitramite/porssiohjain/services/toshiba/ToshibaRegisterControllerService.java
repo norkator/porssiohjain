@@ -46,7 +46,14 @@ public class ToshibaRegisterControllerService {
 
     public boolean registerClient(DeviceAcDataEntity acData) {
         try {
-            String deviceId = acData.getAcUsername() + "_xxxxxxxxxxxxx";
+            if (acData.getAcUsername() == null || acData.getAcUsername().isBlank()) {
+                throw new IllegalArgumentException("AC username missing for Toshiba client registration");
+            }
+            if (acData.getAcClientDeviceSuffix() == null || acData.getAcClientDeviceSuffix().isBlank()) {
+                throw new IllegalArgumentException("AC client device suffix missing for Toshiba client registration");
+            }
+
+            String deviceId = acData.getAcUsername() + "_" + acData.getAcClientDeviceSuffix();
 
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(acData.getAcAccessToken());
