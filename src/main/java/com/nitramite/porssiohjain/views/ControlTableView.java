@@ -642,7 +642,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         ToshibaAcStateResponse.ResObj resObj = response.getResObj();
         ToshibaAcStateDecodedResponse decoded = resObj.getDecodedAcState();
 
-        TextArea hexArea = new TextArea("State hex");
+        TextArea hexArea = new TextArea(t("controlTable.dialog.queryState.field.stateHex"));
         hexArea.setValue(Optional.ofNullable(resObj.getAcStateData()).orElse(""));
         hexArea.setReadOnly(true);
         hexArea.setWidthFull();
@@ -650,14 +650,14 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         content.add(hexArea);
 
         if (decoded == null) {
-            content.add(new Paragraph("Decoded state was not available."));
+            content.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
             return content;
         }
 
-        TextField summaryField = createReadOnlyField("Summary", decoded.getSummary());
-        TextField validField = createReadOnlyField("Valid", String.valueOf(decoded.isValid()));
-        TextField normalizedHexField = createReadOnlyField("Normalized hex", decoded.getNormalizedHex());
-        TextField byteLengthField = createReadOnlyField("Byte length", decoded.getByteLength() != null ? String.valueOf(decoded.getByteLength()) : null);
+        TextField summaryField = createReadOnlyField(t("controlTable.dialog.queryState.field.summary"), decoded.getSummary());
+        TextField validField = createReadOnlyField(t("controlTable.dialog.queryState.field.valid"), String.valueOf(decoded.isValid()));
+        TextField normalizedHexField = createReadOnlyField(t("controlTable.dialog.queryState.field.normalizedHex"), decoded.getNormalizedHex());
+        TextField byteLengthField = createReadOnlyField(t("controlTable.dialog.queryState.field.byteLength"), decoded.getByteLength() != null ? String.valueOf(decoded.getByteLength()) : null);
 
         FormLayout metaLayout = new FormLayout(summaryField, validField, normalizedHexField, byteLengthField);
         metaLayout.setWidthFull();
@@ -670,18 +670,18 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         content.add(metaLayout);
 
         FormLayout decodedLayout = new FormLayout(
-                createDecodedValueField("Power", decoded.getPower()),
-                createDecodedValueField("Mode", decoded.getMode()),
-                createTemperatureField("Target temperature", decoded.getTargetTemperature()),
-                createDecodedValueField("Fan mode", decoded.getFanMode()),
-                createDecodedValueField("Swing mode", decoded.getSwingMode()),
-                createDecodedValueField("Power selection", decoded.getPowerSelection()),
-                createDecodedValueField("Merit B", decoded.getMeritB()),
-                createDecodedValueField("Merit A", decoded.getMeritA()),
-                createDecodedValueField("Air pure ion", decoded.getAirPureIon()),
-                createTemperatureField("Indoor temperature", decoded.getIndoorTemperature()),
-                createTemperatureField("Outdoor temperature", decoded.getOutdoorTemperature()),
-                createDecodedValueField("Self-cleaning", decoded.getSelfCleaning())
+                createDecodedValueField(t("controlTable.dialog.queryState.field.power"), decoded.getPower()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.mode"), decoded.getMode()),
+                createTemperatureField(t("controlTable.dialog.queryState.field.targetTemperature"), decoded.getTargetTemperature()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.fanMode"), decoded.getFanMode()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.swingMode"), decoded.getSwingMode()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.powerSelection"), decoded.getPowerSelection()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.meritB"), decoded.getMeritB()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.meritA"), decoded.getMeritA()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.airPureIon"), decoded.getAirPureIon()),
+                createTemperatureField(t("controlTable.dialog.queryState.field.indoorTemperature"), decoded.getIndoorTemperature()),
+                createTemperatureField(t("controlTable.dialog.queryState.field.outdoorTemperature"), decoded.getOutdoorTemperature()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.selfCleaning"), decoded.getSelfCleaning())
         );
         decodedLayout.setWidthFull();
         decodedLayout.setResponsiveSteps(
@@ -691,9 +691,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         );
         content.add(decodedLayout);
 
-        TextArea warningsArea = createReadOnlyTextArea("Warnings", String.join("\n", decoded.getWarnings()));
-        TextArea unknownFieldsArea = createReadOnlyTextArea("Unknown fields", formatUnknownFields(decoded.getUnknownFields()));
-        TextArea rawBytesArea = createReadOnlyTextArea("Raw bytes", formatRawBytes(decoded.getRawBytes()));
+        TextArea warningsArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.warnings"), String.join("\n", decoded.getWarnings()));
+        TextArea unknownFieldsArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.unknownFields"), formatUnknownFields(decoded.getUnknownFields()));
+        TextArea rawBytesArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.rawBytes"), formatRawBytes(decoded.getRawBytes()));
 
         content.add(warningsArea, unknownFieldsArea, rawBytesArea);
         return content;
