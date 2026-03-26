@@ -19,6 +19,7 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.*;
@@ -44,6 +45,7 @@ public class ProductionSourceService {
     private final ProductionSourceRepository productionSourceRepository;
     private final AccountRepository accountRepository;
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
+    private final ProductionSourceHeatPumpRepository productionSourceHeatPumpRepository;
     private final ProductionHistoryRepository productionHistoryRepository;
     private final DeviceRepository deviceRepository;
     private final SiteRepository siteRepository;
@@ -126,8 +128,17 @@ public class ProductionSourceService {
     @Transactional(readOnly = true)
     public List<ProductionSourceDeviceResponse> getSourceDevices(Long sourceId) {
         return productionSourceDeviceRepository.findByProductionSourceId(sourceId).stream()
+                .filter(entity -> entity.getDevice().getDeviceType() == DeviceType.STANDARD)
                 .map(this::mapDeviceToResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductionSourceHeatPumpResponse> getSourceHeatPumps(Long sourceId) {
+        return productionSourceHeatPumpRepository.findByProductionSourceId(sourceId).stream()
+                .filter(entity -> entity.getDevice().getDeviceType() == DeviceType.HEAT_PUMP)
+                .map(this::mapHeatPumpToResponse)
+                .toList();
     }
 
     private ProductionSourceDeviceResponse mapDeviceToResponse(ProductionSourceDeviceEntity entity) {
@@ -148,9 +159,23 @@ public class ProductionSourceService {
         return DeviceResponse.builder()
                 .id(entity.getId())
                 .uuid(entity.getUuid())
+                .deviceType(entity.getDeviceType())
                 .deviceName(entity.getDeviceName())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
+
+    private ProductionSourceHeatPumpResponse mapHeatPumpToResponse(ProductionSourceHeatPumpEntity entity) {
+        return ProductionSourceHeatPumpResponse.builder()
+                .id(entity.getId())
+                .sourceId(entity.getProductionSource().getId())
+                .deviceId(entity.getDevice().getId())
+                .stateHex(entity.getStateHex())
+                .controlAction(entity.getControlAction())
+                .comparisonType(entity.getComparisonType())
+                .triggerKw(entity.getTriggerKw())
+                .device(mapDeviceToResponse(entity.getDevice()))
                 .build();
     }
 
@@ -179,6 +204,33 @@ public class ProductionSourceService {
     }
 
     @Transactional
+    public ProductionSourceHeatPumpResponse addHeatPump(
+            Long accountId, Long sourceId, Long deviceId, String stateHex,
+            ControlAction controlAction, ComparisonType comparisonType, BigDecimal triggerKw
+    ) {
+        AccountEntity account = accountRepository
+                .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        ProductionSourceEntity source = productionSourceRepository
+                .findByIdAndAccountId(sourceId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        DeviceEntity device = deviceRepository
+                .findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found for account"));
+
+        ProductionSourceHeatPumpEntity entity = ProductionSourceHeatPumpEntity.builder()
+                .productionSource(source)
+                .device(device)
+                .stateHex(stateHex)
+                .controlAction(controlAction)
+                .comparisonType(comparisonType)
+                .triggerKw(triggerKw)
+                .build();
+
+        ProductionSourceHeatPumpEntity saved = productionSourceHeatPumpRepository.save(entity);
+        return mapHeatPumpToResponse(saved);
+    }
+
+    @Transactional
     public void removeDevice(Long accountId, Long sourceId, Long deviceMappingId) {
         AccountEntity account = accountRepository
                 .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -186,6 +238,16 @@ public class ProductionSourceService {
                 .findByIdAndAccountId(sourceId, account.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
         productionSourceDeviceRepository.deleteByIdAndProductionSourceId(deviceMappingId, source.getId());
+    }
+
+    @Transactional
+    public void removeHeatPump(Long accountId, Long sourceId, Long heatPumpMappingId) {
+        AccountEntity account = accountRepository
+                .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        ProductionSourceEntity source = productionSourceRepository
+                .findByIdAndAccountId(sourceId, account.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        productionSourceHeatPumpRepository.deleteByIdAndProductionSourceId(heatPumpMappingId, source.getId());
     }
 
     @Transactional
