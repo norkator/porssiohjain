@@ -227,6 +227,7 @@ public class DeviceService {
         Long accountId = limit.getAccount().getId();
         // List<Long> linkedIds = powerLimitDeviceRepository.findDeviceIdsByPowerLimitId(powerLimitId);
         return deviceRepository.findByAccountId(accountId).stream()
+                .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
                 // .filter(d -> !linkedIds.contains(d.getId()))
                 .map(this::mapDeviceToResponse)
                 .collect(Collectors.toList());
@@ -236,6 +237,7 @@ public class DeviceService {
         return DeviceResponse.builder()
                 .id(entity.getId())
                 .uuid(entity.getUuid())
+                .deviceType(entity.getDeviceType())
                 .deviceName(entity.getDeviceName())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

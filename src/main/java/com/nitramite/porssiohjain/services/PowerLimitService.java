@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.utils.Utils;
@@ -133,6 +134,7 @@ public class PowerLimitService {
     @Transactional(readOnly = true)
     public List<PowerLimitDeviceResponse> getPowerLimitDevices(Long powerLimitId) {
         return powerLimitDeviceRepository.findByPowerLimitId(powerLimitId).stream()
+                .filter(entity -> entity.getDevice().getDeviceType() == DeviceType.STANDARD)
                 .map(this::mapDeviceToResponse)
                 .collect(Collectors.toList());
     }
@@ -207,6 +209,7 @@ public class PowerLimitService {
         return DeviceResponse.builder()
                 .id(entity.getId())
                 .uuid(entity.getUuid())
+                .deviceType(entity.getDeviceType())
                 .deviceName(entity.getDeviceName())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
