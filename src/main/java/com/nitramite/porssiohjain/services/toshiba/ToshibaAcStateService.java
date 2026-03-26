@@ -29,6 +29,7 @@ import org.springframework.web.client.RestTemplate;
 @RequiredArgsConstructor
 public class ToshibaAcStateService {
 
+    private static final long RETRY_DELAY_MS = 2000L;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
@@ -65,6 +66,7 @@ public class ToshibaAcStateService {
             if (retryOn403) {
                 log.info("Toshiba AC state query returned 403, attempting re-login");
                 if (toshibaLoginService.login(acData)) {
+                    waitBeforeRetry();
                     return getAcStateInternal(acData, false);
                 }
             }
@@ -73,6 +75,15 @@ public class ToshibaAcStateService {
         } catch (Exception e) {
             log.error("Error fetching Toshiba AC state", e);
             throw e;
+        }
+    }
+
+    private void waitBeforeRetry() {
+        try {
+            Thread.sleep(RETRY_DELAY_MS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted while waiting before Toshiba AC state retry", e);
         }
     }
 
