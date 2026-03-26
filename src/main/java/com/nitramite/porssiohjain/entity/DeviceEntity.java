@@ -44,7 +44,12 @@ public class DeviceEntity {
 
     @Column(name = "device_type", nullable = false)
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private DeviceType deviceType = DeviceType.STANDARD;
+
+    @Column(name = "enabled", nullable = false)
+    @Builder.Default
+    private boolean enabled = true;
 
     @Column(nullable = false)
     private String deviceName;

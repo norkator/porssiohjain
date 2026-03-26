@@ -47,6 +47,7 @@ public class DeviceService {
     @Transactional
     public DeviceResponse createDevice(
             Long authAccountId, Long accountId, String deviceName, String timezone, DeviceType deviceType,
+            boolean enabled,
             String hpName, AcType acType, String acUsername, String acPassword
     ) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -57,6 +58,7 @@ public class DeviceService {
                     .deviceName(deviceName)
                     .timezone(timezone)
                     .deviceType(deviceType)
+                    .enabled(enabled)
                     .lastCommunication(null)
                     .account(account)
                     .build();
@@ -147,6 +149,7 @@ public class DeviceService {
                 .id(entity.getId())
                 .uuid(entity.getUuid())
                 .deviceType(entity.getDeviceType())
+                .enabled(entity.isEnabled())
                 .deviceName(entity.getDeviceName())
                 .timezone(entity.getTimezone())
                 .lastCommunication(entity.getLastCommunication())
@@ -197,7 +200,7 @@ public class DeviceService {
 
     @Transactional
     public void updateDevice(
-            Long accountId, Long deviceId, String newName, String newTimezone, DeviceType deviceType,
+            Long accountId, Long deviceId, String newName, String newTimezone, DeviceType deviceType, boolean enabled,
             String hpName, AcType acType, String acUsername, String acPassword
     ) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -207,6 +210,7 @@ public class DeviceService {
         device.setDeviceName(newName);
         device.setTimezone(newTimezone);
         device.setDeviceType(deviceType);
+        device.setEnabled(enabled);
         deviceRepository.save(device);
 
         if (deviceType == DeviceType.HEAT_PUMP) {
@@ -238,6 +242,7 @@ public class DeviceService {
                 .id(entity.getId())
                 .uuid(entity.getUuid())
                 .deviceType(entity.getDeviceType())
+                .enabled(entity.isEnabled())
                 .deviceName(entity.getDeviceName())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

@@ -87,8 +87,6 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
         getStyle().set("padding-top", "20px");
 
         VerticalLayout card = new VerticalLayout();
-        card.setWidthFull();
-        card.setMaxWidth("1400px");
         card.setPadding(true);
         card.setSpacing(true);
         card.setAlignItems(Alignment.STRETCH);

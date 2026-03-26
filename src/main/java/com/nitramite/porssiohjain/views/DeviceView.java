@@ -29,6 +29,7 @@ import com.nitramite.porssiohjain.services.toshiba.ToshibaLoginService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -72,6 +73,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final TextField nameField;
     private final ComboBox<String> timezoneCombo;
     private final ComboBox<DeviceType> deviceTypeCombo;
+    private final Checkbox enabledField;
 
     private FormLayout heatPumpForm;
     private TextField hpNameField;
@@ -110,6 +112,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         nameField = new TextField(t("device.field.name"));
         timezoneCombo = new ComboBox<>(t("device.field.timezone"));
         deviceTypeCombo = new ComboBox<>(t("device.grid.type"));
+        enabledField = new Checkbox(t("device.field.enabled"));
+        enabledField.setValue(true);
         deviceTypeCombo.setItems(DeviceType.values());
         deviceTypeCombo.setItemLabelGenerator(type -> switch (type) {
             case STANDARD -> t("device.type.standard");
@@ -148,6 +152,13 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 case HEAT_PUMP -> t("device.type.heatPump");
             };
         }).setHeader(t("device.grid.type")).setAutoWidth(true);
+        deviceGrid.addComponentColumn(device -> {
+            boolean enabled = device.getEnabled() != null && device.getEnabled();
+            Span badge = new Span(enabled ? t("common.yes") : t("common.no"));
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(enabled ? "success" : "error");
+            return badge;
+        }).setHeader(t("device.grid.enabled")).setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getUuid).setHeader(t("device.grid.uuid")).setAutoWidth(true);
         deviceGrid.addComponentColumn(device -> {
             ZoneId zone = ZoneId.of(device.getTimezone());
@@ -207,6 +218,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 nameField.setValue(selectedDevice.getDeviceName());
                 timezoneCombo.setValue(selectedDevice.getTimezone());
                 deviceTypeCombo.setValue(selectedDevice.getDeviceType());
+                enabledField.setValue(selectedDevice.getEnabled() == null || selectedDevice.getEnabled());
                 if (selectedDevice.getDeviceType() == DeviceType.HEAT_PUMP) {
                     hpNameField.setValue(selectedDevice.getHpName() != null ? selectedDevice.getHpName() : "");
                     acTypeCombo.setValue(selectedDevice.getAcType() != null ? selectedDevice.getAcType() : AcType.NONE);
@@ -238,10 +250,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         FormLayout formLayout = new FormLayout();
         formLayout.setWidthFull();
         formLayout.getStyle().set("margin-top", "20px");
-        formLayout.add(nameField, timezoneCombo, deviceTypeCombo);
+        formLayout.add(nameField, timezoneCombo, deviceTypeCombo, enabledField);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 3)
+                new FormLayout.ResponsiveStep("600px", 4)
         );
 
         heatPumpForm.setVisible(false);
@@ -350,6 +362,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             String deviceName = nameField.getValue();
             String timezone = timezoneCombo.getValue();
             DeviceType deviceType = deviceTypeCombo.getValue();
+            boolean enabled = enabledField.getValue();
 
             if (deviceName == null || deviceName.isBlank()) {
                 Notification notification = Notification.show(t("device.notification.nameEmpty"));
@@ -385,13 +398,13 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
             if (selectedDevice != null) {
                 deviceService.updateDevice(
-                        accountId, selectedDevice.getId(), deviceName, timezone, deviceType, hpName, acType, acUsername, acPassword
+                        accountId, selectedDevice.getId(), deviceName, timezone, deviceType, enabled, hpName, acType, acUsername, acPassword
                 );
                 Notification notification = Notification.show(t("device.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {
                 deviceService.createDevice(
-                        authAccountId, accountId, deviceName, timezone, deviceType, hpName, acType, acUsername, acPassword
+                        authAccountId, accountId, deviceName, timezone, deviceType, enabled, hpName, acType, acUsername, acPassword
                 );
                 Notification notification = Notification.show(t("device.notification.created"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
@@ -411,6 +424,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         nameField.clear();
         timezoneCombo.setValue(ZoneId.systemDefault().getId());
         deviceTypeCombo.setValue(DeviceType.STANDARD);
+        enabledField.setValue(true);
         hpNameField.clear();
         acTypeCombo.setValue(AcType.NONE);
         acUsernameField.clear();

@@ -34,6 +34,7 @@ public class DeviceResponse {
     private Long id;
     private UUID uuid;
     private DeviceType deviceType;
+    private Boolean enabled;
     private String deviceName;
     private String timezone;
     private Instant lastCommunication;

@@ -25,6 +25,7 @@ public class CreateDeviceRequest {
     private String deviceName;
     private String timezone;
     private DeviceType deviceType;
+    private Boolean enabled;
     private String hpName;
     private AcType acType;
     private String acUsername;

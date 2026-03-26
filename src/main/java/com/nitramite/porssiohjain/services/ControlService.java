@@ -466,6 +466,9 @@ public class ControlService {
         deviceRepository.save(device);
 
         Map<Integer, Integer> channelMap = new HashMap<>();
+        if (!device.isEnabled()) {
+            return channelMap;
+        }
 
         // Check for power limits as first priority
         List<PowerLimitDeviceEntity> powerLimitDevices = powerLimitDeviceRepository.findByDevice(device);
