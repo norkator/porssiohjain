@@ -72,7 +72,7 @@ public class DeviceAcDataEntity {
     @Column(name = "sas_token", columnDefinition = "TEXT")
     private String sasToken; // needed for azure iot hub to send device state changes
 
-    @Column(name = "ac_client_device_suffix", nullable = false, length = 64)
+    @Column(name = "ac_client_device_suffix", length = 64)
     private String acClientDeviceSuffix;
 
     @Column(name = "created_at", nullable = false, updatable = false)

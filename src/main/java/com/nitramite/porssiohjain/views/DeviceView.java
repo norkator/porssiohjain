@@ -282,7 +282,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             AccountEntity currentAccount = authService.authenticate(token);
             var acData = deviceService.getDeviceAcData(currentAccount.getId(), selectedDevice.getId());
 
-            if (!toshibaLoginService.login(acData)) {
+            if (!toshibaLoginService.login(acData).isSuccess()) {
                 Notification.show(t("device.notification.toshibaLoginFailed")).addThemeVariants(NotificationVariant.LUMO_ERROR);
                 return;
             }

@@ -20,6 +20,7 @@ import com.microsoft.azure.sdk.iot.device.DeviceClient;
 import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
 import com.microsoft.azure.sdk.iot.device.Message;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -119,7 +120,9 @@ public class ToshibaAcAmqpSendService {
         if (toshibaRegisterControllerService.registerClient(acData)) {
             return;
         }
-        if (toshibaLoginService.login(acData) && toshibaRegisterControllerService.registerClient(acData)) {
+        AcLoginResponse acLoginResponse = toshibaLoginService.login(acData);
+        acData.setAcAccessToken(acLoginResponse.getAccessToken());
+        if (acLoginResponse.isSuccess() && toshibaRegisterControllerService.registerClient(acData)) {
             return;
         }
         throw new IllegalStateException("Failed to acquire Toshiba SAS token");

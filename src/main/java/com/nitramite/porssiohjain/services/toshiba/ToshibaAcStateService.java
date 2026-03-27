@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.services.toshiba;
 
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -29,7 +30,7 @@ import org.springframework.web.client.RestTemplate;
 @RequiredArgsConstructor
 public class ToshibaAcStateService {
 
-    private static final long RETRY_DELAY_MS = 2000L;
+    private static final long RETRY_DELAY_MS = 1000L;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
@@ -39,7 +40,10 @@ public class ToshibaAcStateService {
         return getAcStateInternal(acData, true);
     }
 
-    private ToshibaAcStateResponse getAcStateInternal(DeviceAcDataEntity acData, boolean retryOn403) {
+    private ToshibaAcStateResponse getAcStateInternal(
+            DeviceAcDataEntity acData,
+            boolean retryOn403
+    ) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(acData.getAcAccessToken());
@@ -65,7 +69,9 @@ public class ToshibaAcStateService {
         } catch (HttpClientErrorException.Forbidden e) {
             if (retryOn403) {
                 log.info("Toshiba AC state query returned 403, attempting re-login");
-                if (toshibaLoginService.login(acData)) {
+                AcLoginResponse acLoginResponse = toshibaLoginService.login(acData);
+                if (acLoginResponse.isSuccess()) {
+                    acData.setAcAccessToken(acLoginResponse.getAccessToken());
                     waitBeforeRetry();
                     return getAcStateInternal(acData, false);
                 }

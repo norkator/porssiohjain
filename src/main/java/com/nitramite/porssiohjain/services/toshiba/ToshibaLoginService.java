@@ -18,6 +18,8 @@ package com.nitramite.porssiohjain.services.toshiba;
 
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
+import com.nitramite.porssiohjain.services.models.AcLoginResponse;
+import jakarta.transaction.Transactional;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +49,8 @@ public class ToshibaLoginService {
         private String Password;
     }
 
-    public boolean login(
+    @Transactional
+    public AcLoginResponse login(
             DeviceAcDataEntity acData
     ) {
         try {
@@ -76,14 +79,21 @@ public class ToshibaLoginService {
                 // Returns weird expiration values
                 acData.setAcTokenExpiresAt(Instant.now().plusSeconds(resObj.getExpires_in()));
                 deviceAcDataRepository.save(acData);
-                return true;
+
+                return AcLoginResponse.builder()
+                        .success(true)
+                        .accessToken(resObj.getAccess_token())
+                        .build();
             } else {
                 log.error("Toshiba login failed: {}", response != null ? response.getMessage() : "Empty response");
             }
         } catch (Exception e) {
             log.error("Error during Toshiba login", e);
         }
-        return false;
+        return AcLoginResponse.builder()
+                .success(false)
+                .accessToken(null)
+                .build();
     }
 
 }
