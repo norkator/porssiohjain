@@ -54,6 +54,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private Long editingSiteId = null;
 
     private final TextField nameField;
+    private final TextField weatherPlaceField;
     private final ComboBox<SiteType> typeField;
     private final Checkbox enabledToggle;
     private final Button saveButton;
@@ -64,6 +65,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         this.i18n = i18n;
 
         nameField = new TextField(t("sites.field.name"));
+        weatherPlaceField = new TextField(t("sites.field.weatherPlace"));
         typeField = new ComboBox<>(t("sites.field.type"));
         enabledToggle = new Checkbox(t("sites.field.enabled"));
         saveButton = new Button(t("sites.button.create"));
@@ -96,6 +98,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
 
     private void configureForm() {
         nameField.setWidthFull();
+        weatherPlaceField.setWidthFull();
+        weatherPlaceField.setPlaceholder(t("sites.field.weatherPlace.placeholder"));
 
         typeField.setItems(SiteType.values());
         typeField.setItemLabelGenerator(type -> t("siteType." + type.name()));
@@ -114,7 +118,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private Component createFormLayout() {
-        FormLayout form = new FormLayout(nameField, typeField, enabledToggle);
+        FormLayout form = new FormLayout(nameField, weatherPlaceField, typeField, enabledToggle);
         form.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2)
@@ -131,6 +135,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         sitesGrid.addColumn(SiteResponse::getName).setHeader(t("sites.grid.name")).setAutoWidth(true);
         sitesGrid.addColumn(site -> t("siteType." + site.getType().name()))
                 .setHeader(t("sites.grid.type")).setAutoWidth(true);
+        sitesGrid.addColumn(SiteResponse::getWeatherPlace)
+                .setHeader(t("sites.grid.weatherPlace")).setAutoWidth(true);
         sitesGrid.addComponentColumn(site -> {
             boolean enabled = site.getEnabled();
             String text = enabled ? t("common.yes") : t("common.no");
@@ -148,6 +154,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
             if (selected != null) {
                 editingSiteId = selected.getId();
                 nameField.setValue(selected.getName());
+                weatherPlaceField.setValue(selected.getWeatherPlace() != null ? selected.getWeatherPlace() : "");
                 typeField.setValue(selected.getType());
                 enabledToggle.setValue(selected.getEnabled());
                 saveButton.setText(t("sites.button.update"));
@@ -156,7 +163,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void createNewSite() {
-        siteService.createSite(accountId, nameField.getValue(), typeField.getValue(), enabledToggle.getValue());
+        siteService.createSite(accountId, nameField.getValue(), typeField.getValue(), enabledToggle.getValue(), weatherPlaceField.getValue());
         Notification notification = Notification.show(t("sites.notification.created"));
         notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         clearForm();
@@ -164,7 +171,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void updateSite() {
-        siteService.updateSite(editingSiteId, nameField.getValue(), typeField.getValue(), enabledToggle.getValue());
+        siteService.updateSite(editingSiteId, nameField.getValue(), typeField.getValue(), enabledToggle.getValue(), weatherPlaceField.getValue());
         Notification notification = Notification.show(t("sites.notification.updated"));
         notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         clearForm();
@@ -174,6 +181,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private void clearForm() {
         editingSiteId = null;
         nameField.clear();
+        weatherPlaceField.clear();
         typeField.clear();
         enabledToggle.setValue(true);
         saveButton.setText(t("sites.button.create"));

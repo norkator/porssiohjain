@@ -48,6 +48,9 @@ public class SiteEntity {
     @Column(nullable = false)
     private Boolean enabled = true;
 
+    @Column(name = "weather_place")
+    private String weatherPlace;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "account_id")
     private AccountEntity account;

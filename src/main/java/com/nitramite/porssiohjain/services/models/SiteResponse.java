@@ -29,6 +29,7 @@ public class SiteResponse {
     private String name;
     private SiteType type;
     private Boolean enabled;
+    private String weatherPlace;
     private Instant createdAt;
     private Instant updatedAt;
 }

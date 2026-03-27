@@ -35,7 +35,7 @@ public class SiteService {
     private final AccountRepository accountRepository;
 
     public void createSite(
-            Long accountId, String name, SiteType type, Boolean enabled
+            Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
@@ -43,17 +43,19 @@ public class SiteService {
                 .name(name)
                 .type(type)
                 .enabled(enabled)
+                .weatherPlace(normalizeWeatherPlace(weatherPlace))
                 .account(account)
                 .build();
         siteRepository.save(site);
     }
 
-    public void updateSite(Long siteId, String name, SiteType type, Boolean enabled) {
+    public void updateSite(Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace) {
         SiteEntity site = siteRepository.findById(siteId)
                 .orElseThrow(() -> new IllegalArgumentException("Site not found"));
         site.setName(name);
         site.setType(type);
         site.setEnabled(enabled);
+        site.setWeatherPlace(normalizeWeatherPlace(weatherPlace));
         siteRepository.save(site);
     }
 
@@ -70,9 +72,18 @@ public class SiteService {
                 .name(site.getName())
                 .type(site.getType())
                 .enabled(site.getEnabled())
+                .weatherPlace(site.getWeatherPlace())
                 .createdAt(site.getCreatedAt())
                 .updatedAt(site.getUpdatedAt())
                 .build();
+    }
+
+    private String normalizeWeatherPlace(String weatherPlace) {
+        if (weatherPlace == null) {
+            return null;
+        }
+        String trimmed = weatherPlace.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
 }
