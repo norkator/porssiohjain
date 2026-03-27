@@ -104,6 +104,9 @@ public class HomeView extends VerticalLayout {
         Button controlsButton = new Button(t("home.myControls"), e -> UI.getCurrent().navigate(ControlsView.class));
         controlsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
+        Button weatherControlsButton = new Button(t("home.weatherControls"), e -> UI.getCurrent().navigate(WeatherControlsView.class));
+        weatherControlsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+
         Button myProductionButton = new Button(t("home.myProduction"), e -> UI.getCurrent().navigate(ProductionSourcesView.class));
         myProductionButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
@@ -130,7 +133,7 @@ public class HomeView extends VerticalLayout {
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
         Stream.of(
-                loginButton, createAccountButton, devicesButton, controlsButton, myProductionButton, powerLimitsButton, temperatureControlsButton,
+                loginButton, createAccountButton, devicesButton, controlsButton, weatherControlsButton, myProductionButton, powerLimitsButton, temperatureControlsButton,
                 dashboardButton, settingsButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
@@ -145,7 +148,7 @@ public class HomeView extends VerticalLayout {
 
         if (loggedIn) {
             contentBox.add(
-                    devicesButton, controlsButton, myProductionButton, powerLimitsButton,
+                    devicesButton, controlsButton, weatherControlsButton, myProductionButton, powerLimitsButton,
                     dashboardButton, settingsButton, logoutButton, Divider.createDivider()
             );
         } else {
@@ -172,4 +175,3 @@ public class HomeView extends VerticalLayout {
     }
 
 }
-

@@ -114,12 +114,16 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         Button sitesButton = new Button(t("settings.sites"), e -> UI.getCurrent().navigate(SitesView.class));
         sitesButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
+        Button weatherControlsButton = new Button(t("settings.weatherControls"), e -> UI.getCurrent().navigate(WeatherControlsView.class));
+        weatherControlsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
         Button resourceSharingButton = new Button(t("settings.resourceSharing"), e -> UI.getCurrent().navigate(ResourceSharingView.class));
         resourceSharingButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         FlexLayout buttonRow = new FlexLayout(
                 electricityContractsButton,
                 sitesButton,
+                weatherControlsButton,
                 resourceSharingButton
         );
         buttonRow.setFlexWrap(FlexLayout.FlexWrap.WRAP);
