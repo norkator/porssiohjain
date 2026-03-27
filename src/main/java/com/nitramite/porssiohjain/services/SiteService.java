@@ -22,6 +22,8 @@ import com.nitramite.porssiohjain.entity.enums.SiteType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.services.models.SiteResponse;
+import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
+import com.nitramite.porssiohjain.services.fmi.FmiWeatherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +35,7 @@ public class SiteService {
 
     private final SiteRepository siteRepository;
     private final AccountRepository accountRepository;
+    private final FmiWeatherService fmiWeatherService;
 
     public void createSite(
             Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace
@@ -64,6 +67,12 @@ public class SiteService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    public SiteWeatherForecastResponse getSiteWeatherForecast(Long accountId, Long siteId) {
+        SiteEntity site = siteRepository.findByIdAndAccountId(siteId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Site not found"));
+        return fmiWeatherService.getForecastForSite(site);
     }
 
     private SiteResponse toResponse(SiteEntity site) {
