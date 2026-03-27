@@ -14,11 +14,18 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity;
+package com.nitramite.porssiohjain.entity.repository;
 
-public enum ControlMode {
-    BELOW_MAX_PRICE, // turns ON when price < maxPriceSnt
-    CHEAPEST_HOURS,  // daily cheapest hours, control on based on dailyOnMinutes
-    MANUAL,          // manual override, use manualOn field
-    SCHEDULED        // user defined schedule
+import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface DeviceAcDataRepository extends JpaRepository<DeviceAcDataEntity, Long> {
+
+    Optional<DeviceAcDataEntity> findByDevice(DeviceEntity device);
+
 }

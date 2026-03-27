@@ -17,9 +17,16 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.*;
+import com.nitramite.porssiohjain.entity.enums.*;
+import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
+import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateDecodedResponse;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateHexDecoderService;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateResponse;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import com.nitramite.porssiohjain.views.components.Divider;
 import com.nitramite.porssiohjain.views.components.InfoBox;
 import com.vaadin.flow.component.Component;
@@ -42,12 +49,15 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -76,8 +86,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     protected final I18nService i18n;
     private final ElectricityContractRepository contractRepository;
     private final SiteService siteService;
+    private final ToshibaAcStateService toshibaAcStateService;
+    private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
+    private final DeviceAcDataRepository deviceAcDataRepository;
+    private final DeviceRepository deviceRepository;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
+    private final Grid<ControlHeatPumpResponse> heatPumpGrid = new Grid<>(ControlHeatPumpResponse.class, false);
     private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
 
     private Long controlId;
@@ -103,7 +118,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             NordpoolService nordpoolService,
             I18nService i18n,
             ElectricityContractRepository contractRepository,
-            SiteService siteService
+            SiteService siteService,
+            ToshibaAcStateService toshibaAcStateService,
+            ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService,
+            DeviceAcDataRepository deviceAcDataRepository,
+            DeviceRepository deviceRepository
     ) {
         this.authService = authService;
         this.controlService = controlService;
@@ -113,6 +132,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.i18n = i18n;
         this.contractRepository = contractRepository;
         this.siteService = siteService;
+        this.toshibaAcStateService = toshibaAcStateService;
+        this.toshibaAcStateHexDecoderService = toshibaAcStateHexDecoderService;
+        this.deviceAcDataRepository = deviceAcDataRepository;
+        this.deviceRepository = deviceRepository;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -352,9 +375,38 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         card.add(new H3(t("controlTable.section.devices")));
         configureDeviceGrid();
-        card.add(deviceGrid);
-        card.add(createAddDeviceLayout());
+        configureHeatPumpGrid();
+
+        Tab standardTab = new Tab(t("device.type.standard"));
+        Tab heatPumpTab = new Tab(t("device.type.heatPump"));
+        Tabs deviceTabs = new Tabs(standardTab, heatPumpTab);
+
+        VerticalLayout standardLayout = new VerticalLayout(deviceGrid, createAddDeviceLayout());
+        standardLayout.setPadding(false);
+        standardLayout.setSpacing(true);
+
+        VerticalLayout heatPumpLayout = new VerticalLayout(heatPumpGrid, createAddHeatPumpLayout());
+        heatPumpLayout.setPadding(false);
+        heatPumpLayout.setSpacing(true);
+        heatPumpLayout.setVisible(false);
+
+        Map<Tab, Component> tabsToPages = new HashMap<>();
+        tabsToPages.put(standardTab, standardLayout);
+        tabsToPages.put(heatPumpTab, heatPumpLayout);
+
+        Div pages = new Div(standardLayout, heatPumpLayout);
+        pages.setWidthFull();
+
+        deviceTabs.addSelectedChangeListener(event -> {
+            tabsToPages.values().forEach(page -> page.setVisible(false));
+            Component selectedPage = tabsToPages.get(deviceTabs.getSelectedTab());
+            selectedPage.setVisible(true);
+        });
+
+        card.add(deviceTabs, pages);
+
         loadControlDevices();
+        loadControlHeatPumps();
         card.add(Divider.createDivider());
         card.add(getControlTableSection());
         card.add(Divider.createDivider());
@@ -385,14 +437,53 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         deviceGrid.setMaxHeight("200px");
     }
 
+    private void configureHeatPumpGrid() {
+        heatPumpGrid.removeAllColumns();
+        heatPumpGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader(t("controlTable.grid.deviceName"));
+        heatPumpGrid.addColumn(cd -> t("controlAction." + cd.getControlAction().name())).setHeader(t("controlTable.grid.action"));
+        heatPumpGrid.addColumn(cd -> cd.getComparisonType() != null ? t("comparisonType." + cd.getComparisonType().name()) : "").setHeader(t("controlTable.grid.comparisonType"));
+        heatPumpGrid.addColumn(ControlHeatPumpResponse::getPriceLimit).setHeader(t("controlTable.grid.priceLimit"));
+        heatPumpGrid.addColumn(ControlHeatPumpResponse::getStateHex).setHeader(t("controlTable.grid.stateHex"));
+        heatPumpGrid.addComponentColumn(cd -> {
+            Button decode = new Button(t("controlTable.button.decodeState"), e -> openHeatPumpStateHexDialog(cd.getStateHex()));
+            Button delete = new Button(t("controlTable.button.delete"), e -> {
+                controlService.deleteControlHeatPump(getAccountId(), cd.getId());
+                loadControlHeatPumps();
+            });
+            delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            HorizontalLayout actions = new HorizontalLayout(decode, delete);
+            actions.setPadding(false);
+            actions.setSpacing(true);
+            actions.setMargin(false);
+            return actions;
+        }).setHeader(t("controlTable.grid.actions"));
+        heatPumpGrid.setMaxHeight("200px");
+    }
+
     private void loadControlDevices() {
-        deviceGrid.setItems(controlService.getControlDevices(controlId));
+        deviceGrid.setItems(
+                controlService.getControlDevices(controlId).stream()
+                        .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.STANDARD)
+                        .toList()
+        );
+    }
+
+    private void loadControlHeatPumps() {
+        heatPumpGrid.setItems(
+                controlService.getControlHeatPumps(controlId).stream()
+                        .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.HEAT_PUMP)
+                        .toList()
+        );
     }
 
     private Component createAddDeviceLayout() {
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
-        deviceSelect.setItems(deviceService.getAllDevicesForControlId(controlId));
+        deviceSelect.setItems(
+                deviceService.getAllDevicesForControlId(controlId).stream()
+                        .filter(d -> d.getDeviceType() == DeviceType.STANDARD)
+                        .toList()
+        );
         deviceSelect.setWidthFull();
 
         NumberField channelField = new NumberField(t("controlTable.field.channel"));
@@ -425,6 +516,301 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 .set("background-color", "var(--lumo-contrast-5pct)");
 
         return formLayout;
+    }
+
+    private Component createAddHeatPumpLayout() {
+        ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
+        deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
+        deviceSelect.setItems(
+                deviceService.getAllDevicesForControlId(controlId).stream()
+                        .filter(d -> d.getDeviceType() == DeviceType.HEAT_PUMP)
+                        .toList()
+        );
+        deviceSelect.setWidthFull();
+
+        TextField stateHexField = new TextField(t("controlTable.field.stateHex"));
+        stateHexField.setReadOnly(true);
+        stateHexField.setWidthFull();
+
+        Button queryStateButton = new Button(t("controlTable.button.queryState"), e -> {
+            if (deviceSelect.getValue() != null) {
+                openHeatPumpStateDialog(deviceSelect.getValue(), stateHexField);
+            } else {
+                Notification.show(t("controlTable.notification.selectDeviceFirst"), 3000, Notification.Position.MIDDLE);
+            }
+        });
+        queryStateButton.setWidthFull();
+
+        ComboBox<ControlAction> actionCombo = new ComboBox<>(t("controlTable.field.action"));
+        actionCombo.setItems(ControlAction.values());
+        actionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
+        actionCombo.setWidthFull();
+
+        ComboBox<ComparisonType> comparisonCombo = new ComboBox<>(t("controlTable.field.comparisonType"));
+        comparisonCombo.setItems(ComparisonType.values());
+        comparisonCombo.setItemLabelGenerator(type -> t("comparisonType." + type.name()));
+        comparisonCombo.setWidthFull();
+
+        NumberField priceLimitField = new NumberField(t("controlTable.field.priceLimit"));
+        priceLimitField.setStep(0.1);
+        priceLimitField.setWidthFull();
+
+        Button addButton = new Button(t("controlTable.button.addDevice"), e -> {
+            if (deviceSelect.getValue() != null && !stateHexField.getValue().isEmpty() && actionCombo.getValue() != null) {
+                controlService.addHeatPumpToControl(
+                        getAccountId(),
+                        controlId,
+                        deviceSelect.getValue().getId(),
+                        stateHexField.getValue(),
+                        actionCombo.getValue(),
+                        comparisonCombo.getValue(),
+                        priceLimitField.getValue() != null ? BigDecimal.valueOf(priceLimitField.getValue()) : null
+                );
+                loadControlHeatPumps();
+                stateHexField.clear();
+            }
+        });
+        addButton.setWidthFull();
+
+        FormLayout formLayout = new FormLayout(deviceSelect, queryStateButton, stateHexField, actionCombo, comparisonCombo, priceLimitField, addButton);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 4)
+        );
+
+        formLayout.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                .set("background-color", "var(--lumo-contrast-5pct)");
+
+        return formLayout;
+    }
+
+    private void openHeatPumpStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
+        dialog.setWidth("900px");
+        dialog.setMaxWidth("95vw");
+
+        VerticalLayout dialogLayout = new VerticalLayout();
+        dialogLayout.add(new Paragraph(t("controlTable.dialog.queryState.instructions")));
+        dialogLayout.setWidthFull();
+
+        Div stateInfoDiv = new Div();
+        stateInfoDiv.setVisible(false);
+        stateInfoDiv.setWidthFull();
+
+        Button actionButton = new Button(t("controlTable.dialog.queryState.actionButton"), e -> {
+            try {
+                DeviceEntity deviceEntity = deviceRepository.findById(deviceResponse.getId())
+                        .orElseThrow(() -> new IllegalArgumentException("Device not found"));
+                DeviceAcDataEntity acData = deviceAcDataRepository.findByDevice(deviceEntity)
+                        .orElseThrow(() -> new IllegalArgumentException("AC data not found for device"));
+
+                ToshibaAcStateResponse response = toshibaAcStateService.getAcState(acData);
+                if (response != null && response.isSuccess() && response.getResObj() != null) {
+                    String stateHex = response.getResObj().getAcStateData();
+                    stateHexField.setValue(stateHex);
+                    stateInfoDiv.removeAll();
+                    stateInfoDiv.add(createAcStateInfoContent(response));
+                    stateInfoDiv.setVisible(true);
+                    Notification.show(t("controlTable.dialog.queryState.queried"));
+                } else {
+                    Notification.show(t("controlTable.notification.failedSave", response != null ? response.getMessage() : "Empty response"), 5000, Notification.Position.MIDDLE)
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
+            } catch (Exception ex) {
+                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()), 5000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        dialogLayout.add(actionButton, stateInfoDiv);
+
+        dialog.add(dialogLayout);
+
+        Button saveButton = new Button(t("common.save"), e -> dialog.close());
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(saveButton);
+
+        Button cancelButton = new Button(t("common.cancel"), e -> {
+            stateHexField.clear();
+            dialog.close();
+        });
+        dialog.getFooter().add(cancelButton);
+
+        dialog.open();
+    }
+
+    private void openHeatPumpStateHexDialog(String stateHex) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.dialog.decodeState.title"));
+        dialog.setWidth("900px");
+        dialog.setMaxWidth("95vw");
+
+        ToshibaAcStateResponse response = new ToshibaAcStateResponse();
+        response.setSuccess(true);
+
+        ToshibaAcStateResponse.ResObj resObj = new ToshibaAcStateResponse.ResObj();
+        resObj.setAcStateData(stateHex);
+        resObj.setDecodedAcState(toshibaAcStateHexDecoderService.decode(stateHex));
+        response.setResObj(resObj);
+
+        VerticalLayout dialogLayout = new VerticalLayout();
+        dialogLayout.setWidthFull();
+        dialogLayout.add(
+                new Paragraph(t("controlTable.dialog.decodeState.instructions")),
+                createAcStateInfoContent(response)
+        );
+
+        dialog.add(dialogLayout);
+        dialog.getFooter().add(new Button(t("common.cancel"), e -> dialog.close()));
+        dialog.open();
+    }
+
+    private Component createAcStateInfoContent(ToshibaAcStateResponse response) {
+        VerticalLayout content = new VerticalLayout();
+        content.setSpacing(true);
+        content.setPadding(false);
+        content.setWidthFull();
+
+        ToshibaAcStateResponse.ResObj resObj = response.getResObj();
+        ToshibaAcStateDecodedResponse decoded = resObj.getDecodedAcState();
+
+        TextArea hexArea = new TextArea(t("controlTable.dialog.queryState.field.stateHex"));
+        hexArea.setValue(Optional.ofNullable(resObj.getAcStateData()).orElse(""));
+        hexArea.setReadOnly(true);
+        hexArea.setWidthFull();
+
+        content.add(hexArea);
+
+        if (decoded == null) {
+            content.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
+            return content;
+        }
+
+        TextField summaryField = createReadOnlyField(t("controlTable.dialog.queryState.field.summary"), decoded.getSummary());
+        TextField validField = createReadOnlyField(t("controlTable.dialog.queryState.field.valid"), String.valueOf(decoded.isValid()));
+        TextField normalizedHexField = createReadOnlyField(t("controlTable.dialog.queryState.field.normalizedHex"), decoded.getNormalizedHex());
+        TextField byteLengthField = createReadOnlyField(t("controlTable.dialog.queryState.field.byteLength"), decoded.getByteLength() != null ? String.valueOf(decoded.getByteLength()) : null);
+
+        FormLayout metaLayout = new FormLayout(summaryField, validField, normalizedHexField, byteLengthField);
+        metaLayout.setWidthFull();
+        metaLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2)
+        );
+        metaLayout.setColspan(summaryField, 2);
+        metaLayout.setColspan(normalizedHexField, 2);
+        content.add(metaLayout);
+
+        FormLayout decodedLayout = new FormLayout(
+                createDecodedValueField(t("controlTable.dialog.queryState.field.power"), decoded.getPower()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.mode"), decoded.getMode()),
+                createTemperatureField(t("controlTable.dialog.queryState.field.targetTemperature"), decoded.getTargetTemperature()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.fanMode"), decoded.getFanMode()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.swingMode"), decoded.getSwingMode()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.powerSelection"), decoded.getPowerSelection()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.meritB"), decoded.getMeritB()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.meritA"), decoded.getMeritA()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.airPureIon"), decoded.getAirPureIon()),
+                createTemperatureField(t("controlTable.dialog.queryState.field.indoorTemperature"), decoded.getIndoorTemperature()),
+                createTemperatureField(t("controlTable.dialog.queryState.field.outdoorTemperature"), decoded.getOutdoorTemperature()),
+                createDecodedValueField(t("controlTable.dialog.queryState.field.selfCleaning"), decoded.getSelfCleaning())
+        );
+        decodedLayout.setWidthFull();
+        decodedLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2),
+                new FormLayout.ResponsiveStep("900px", 3)
+        );
+        content.add(decodedLayout);
+
+        TextArea warningsArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.warnings"), String.join("\n", decoded.getWarnings()));
+        TextArea unknownFieldsArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.unknownFields"), formatUnknownFields(decoded.getUnknownFields()));
+        TextArea rawBytesArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.rawBytes"), formatRawBytes(decoded.getRawBytes()));
+
+        content.add(warningsArea, unknownFieldsArea, rawBytesArea);
+        return content;
+    }
+
+    private TextField createDecodedValueField(String label, ToshibaAcStateDecodedResponse.DecodedValue value) {
+        if (value == null) {
+            return createReadOnlyField(label, "");
+        }
+        String text = value.getLabel();
+        if (value.getCode() != null && !value.getCode().isBlank()) {
+            text = (text == null || text.isBlank() ? "" : text + " | ") + value.getCode();
+        }
+        if (value.getRawHex() != null && !value.getRawHex().isBlank()) {
+            text = (text == null || text.isBlank() ? "" : text + " | ") + value.getRawHex();
+        }
+        return createReadOnlyField(label, text);
+    }
+
+    private TextField createTemperatureField(String label, ToshibaAcStateDecodedResponse.TemperatureValue value) {
+        if (value == null) {
+            return createReadOnlyField(label, "");
+        }
+        String text = value.getLabel();
+        if (value.getRawHex() != null && !value.getRawHex().isBlank()) {
+            text = (text == null || text.isBlank() ? "" : text + " | ") + value.getRawHex();
+        }
+        return createReadOnlyField(label, text);
+    }
+
+    private TextField createReadOnlyField(String label, String value) {
+        TextField field = new TextField(label);
+        field.setReadOnly(true);
+        field.setWidthFull();
+        field.setValue(value != null ? value : "");
+        return field;
+    }
+
+    private TextArea createReadOnlyTextArea(String label, String value) {
+        TextArea area = new TextArea(label);
+        area.setReadOnly(true);
+        area.setWidthFull();
+        area.setValue(value != null && !value.isBlank() ? value : "-");
+        area.setMinHeight("120px");
+        return area;
+    }
+
+    private String formatUnknownFields(List<ToshibaAcStateDecodedResponse.UnknownFieldValue> unknownFields) {
+        if (unknownFields == null || unknownFields.isEmpty()) {
+            return "";
+        }
+        return unknownFields.stream()
+                .map(field -> String.format(
+                        Locale.ROOT,
+                        "%s: index=%d, raw=%s, unsigned=%s, signed=%s, note=%s",
+                        field.getField(),
+                        field.getIndex(),
+                        field.getRawHex(),
+                        field.getRawUnsigned(),
+                        field.getRawSigned(),
+                        field.getNote()
+                ))
+                .reduce((a, b) -> a + "\n" + b)
+                .orElse("");
+    }
+
+    private String formatRawBytes(List<ToshibaAcStateDecodedResponse.RawByteValue> rawBytes) {
+        if (rawBytes == null || rawBytes.isEmpty()) {
+            return "";
+        }
+        return rawBytes.stream()
+                .map(rawByte -> String.format(
+                        Locale.ROOT,
+                        "[%d] %s | unsigned=%s | signed=%s | %s",
+                        rawByte.getIndex(),
+                        rawByte.getRawHex(),
+                        rawByte.getRawUnsigned(),
+                        rawByte.getRawSigned(),
+                        rawByte.getMeaning()
+                ))
+                .reduce((a, b) -> a + "\n" + b)
+                .orElse("");
     }
 
     private VerticalLayout getControlTableSection() {

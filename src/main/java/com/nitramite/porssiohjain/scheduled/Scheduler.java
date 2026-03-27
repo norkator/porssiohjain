@@ -18,8 +18,11 @@ package com.nitramite.porssiohjain.scheduled;
 
 import com.nitramite.porssiohjain.mqtt.MqttReconnectService;
 import com.nitramite.porssiohjain.services.*;
+import com.nitramite.porssiohjain.services.fingrid.FingridDataService;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import com.nitramite.porssiohjain.services.models.WindForecastResponse;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolDataPortalService;
+import com.nitramite.porssiohjain.services.solarman.SolarmanPvService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;

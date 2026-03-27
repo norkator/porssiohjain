@@ -16,6 +16,8 @@
 
 package com.nitramite.porssiohjain.services.models;
 
+import com.nitramite.porssiohjain.entity.enums.AcType;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -31,6 +33,8 @@ import java.util.UUID;
 public class DeviceResponse {
     private Long id;
     private UUID uuid;
+    private DeviceType deviceType;
+    private Boolean enabled;
     private String deviceName;
     private String timezone;
     private Instant lastCommunication;
@@ -42,4 +46,11 @@ public class DeviceResponse {
     private Boolean mqttOnline;
     private String mqttUsername;
     private String mqttPassword;
+
+    // Heat pump related
+    private String hpName;
+    private AcType acType;
+    private String acUsername;
+    private String acPassword;
+    private String acDeviceId;
 }

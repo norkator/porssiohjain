@@ -17,7 +17,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.entity.ProductionApiType;
+import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.ProductionSourceService;
@@ -100,8 +100,6 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
         getStyle().set("padding-top", "20px");
 
         VerticalLayout card = new VerticalLayout();
-        card.setWidthFull();
-        card.setMaxWidth("1400px");
         card.setPadding(true);
         card.setSpacing(true);
         card.setAlignItems(Alignment.STRETCH);

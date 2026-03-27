@@ -29,6 +29,8 @@ public class DeviceMapper {
         return DeviceResponse.builder()
                 .id(entity.getId())
                 .uuid(entity.getUuid())
+                .deviceType(entity.getDeviceType())
+                .enabled(entity.isEnabled())
                 .deviceName(entity.getDeviceName())
                 .timezone(entity.getTimezone())
                 .lastCommunication(entity.getLastCommunication())

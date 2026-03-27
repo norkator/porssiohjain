@@ -1,0 +1,36 @@
+### Toshiba login
+POST https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+
+{
+  "Username": "{{toshiba_ac_username}}",
+  "Password": "{{toshiba_ac_password}}"
+}
+
+
+### Get AC devices (mapping)
+GET https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId={{toshiba_ac_consumer_id}}
+Authorization: Bearer {{toshiba_ac_access_token}}
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+
+
+### Get AC state
+GET https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId={{toshiba_ac_device_id}}
+Authorization: Bearer {{toshiba_ac_access_token}}
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+
+
+### Register Toshiba “controller” device and get SAS token for AMQP IoT client (needed for commanding unit), same called again for new SAS token?
+POST https://mobileapi.toshibahomeaccontrols.com/api/Consumer/RegisterMobileDevice
+Authorization: Bearer {{toshiba_ac_access_token}}
+Content-Type: application/json
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+
+{
+  "DeviceID": "{{toshiba_ac_username}}_bf6b1ac271ec15e9",
+  "DeviceType": "1",
+  "Username": "{{toshiba_ac_username}}"
+}

@@ -16,6 +16,7 @@
 
 package com.nitramite.porssiohjain.entity;
 
+import com.nitramite.porssiohjain.entity.enums.ControlMode;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -88,6 +89,9 @@ public class ControlEntity {
 
     @OneToMany(mappedBy = "control", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ControlDeviceEntity> controlDevices;
+
+    @OneToMany(mappedBy = "control", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ControlHeatPumpEntity> controlHeatPumps;
 
     @PrePersist
     public void onCreate() {

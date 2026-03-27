@@ -16,7 +16,7 @@
 
 package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.ControlMode;
+import com.nitramite.porssiohjain.entity.enums.ControlMode;
 import lombok.Data;
 
 import java.math.BigDecimal;

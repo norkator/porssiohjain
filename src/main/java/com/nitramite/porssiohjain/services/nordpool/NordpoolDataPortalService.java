@@ -14,10 +14,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.services;
+package com.nitramite.porssiohjain.services.nordpool;
 
 import com.nitramite.porssiohjain.entity.NordpoolEntity;
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
+import com.nitramite.porssiohjain.services.Day;
+import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

@@ -16,7 +16,7 @@
 
 package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.SiteType;
+import com.nitramite.porssiohjain.entity.enums.SiteType;
 import lombok.Builder;
 import lombok.Getter;
 

@@ -16,7 +16,7 @@
 
 package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.Status;
+import com.nitramite.porssiohjain.entity.enums.Status;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -14,13 +14,14 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.services;
+package com.nitramite.porssiohjain.services.solarman;
 
-import com.nitramite.porssiohjain.entity.ProductionApiType;
+import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.entity.ProductionHistoryEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import com.nitramite.porssiohjain.entity.repository.ProductionHistoryRepository;
 import com.nitramite.porssiohjain.entity.repository.ProductionSourceRepository;
+import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.SolarmanStationResponse;
 import com.nitramite.porssiohjain.services.models.SolarmanTokenCache;
 import com.nitramite.porssiohjain.services.models.SolarmanTokenResponse;

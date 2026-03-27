@@ -17,6 +17,10 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
+import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
+import com.nitramite.porssiohjain.entity.enums.ControlMode;
+import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.models.*;
@@ -48,6 +52,7 @@ public class ControlService {
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
     private final SiteRepository siteRepository;
     private final ResourceSharingRepository resourceSharingRepository;
+    private final ControlHeatPumpRepository controlHeatPumpRepository;
     private final MqttService mqttService;
 
     public ControlEntity createControl(
@@ -353,6 +358,7 @@ public class ControlService {
                                 DeviceResponse.builder()
                                         .id(entity.getDevice().getId())
                                         .uuid(entity.getDevice().getUuid())
+                                        .deviceType(entity.getDevice().getDeviceType())
                                         .deviceName(entity.getDevice().getDeviceName())
                                         .lastCommunication(entity.getDevice().getLastCommunication())
                                         .createdAt(entity.getDevice().getCreatedAt())
@@ -361,6 +367,84 @@ public class ControlService {
                         )
                         .build())
                 .sorted(Comparator.comparing(ControlDeviceResponse::getDeviceChannel))
+                .toList();
+    }
+
+    public ControlHeatPumpResponse addHeatPumpToControl(
+            Long accountId, Long controlId, Long deviceId, String stateHex, ControlAction controlAction,
+            ComparisonType comparisonType, BigDecimal priceLimit
+    ) {
+        ControlEntity control = controlRepository.findById(controlId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        if (control.getAccount().getId().equals(accountId)) {
+            DeviceEntity device = deviceRepository.findById(deviceId)
+                    .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
+
+            ControlHeatPumpEntity entity = ControlHeatPumpEntity.builder()
+                    .control(control)
+                    .device(device)
+                    .stateHex(stateHex)
+                    .controlAction(controlAction)
+                    .comparisonType(comparisonType)
+                    .priceLimit(priceLimit)
+                    .build();
+
+            ControlHeatPumpEntity saved = controlHeatPumpRepository.save(entity);
+
+            return ControlHeatPumpResponse.builder()
+                    .id(saved.getId())
+                    .controlId(saved.getControl().getId())
+                    .deviceId(saved.getDevice().getId())
+                    .stateHex(saved.getStateHex())
+                    .controlAction(saved.getControlAction())
+                    .comparisonType(saved.getComparisonType())
+                    .priceLimit(saved.getPriceLimit())
+                    .build();
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
+    }
+
+    public void deleteControlHeatPump(
+            Long accountId, Long controlHeatPumpId
+    ) {
+        ControlHeatPumpEntity entity = controlHeatPumpRepository.findById(controlHeatPumpId)
+                .orElseThrow(() -> new EntityNotFoundException("ControlHeatPump not found with id: " + controlHeatPumpId));
+        if (entity.getControl().getAccount().getId().equals(accountId)) {
+            controlHeatPumpRepository.deleteById(controlHeatPumpId);
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
+    }
+
+    public List<ControlHeatPumpResponse> getControlHeatPumps(
+            Long controlId
+    ) {
+        ControlEntity control = controlRepository.findById(controlId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        Set<ControlHeatPumpEntity> entities = control.getControlHeatPumps();
+        return entities.stream()
+                .map(entity -> ControlHeatPumpResponse.builder()
+                        .id(entity.getId())
+                        .controlId(control.getId())
+                        .deviceId(entity.getDevice().getId())
+                        .stateHex(entity.getStateHex())
+                        .controlAction(entity.getControlAction())
+                        .comparisonType(entity.getComparisonType())
+                        .priceLimit(entity.getPriceLimit())
+                        .device(
+                                DeviceResponse.builder()
+                                        .id(entity.getDevice().getId())
+                                        .uuid(entity.getDevice().getUuid())
+                                        .deviceType(entity.getDevice().getDeviceType())
+                                        .deviceName(entity.getDevice().getDeviceName())
+                                        .lastCommunication(entity.getDevice().getLastCommunication())
+                                        .createdAt(entity.getDevice().getCreatedAt())
+                                        .updatedAt(entity.getDevice().getUpdatedAt())
+                                        .build()
+                        )
+                        .build())
+                .sorted(Comparator.comparing(ControlHeatPumpResponse::getId))
                 .toList();
     }
 
@@ -382,6 +466,9 @@ public class ControlService {
         deviceRepository.save(device);
 
         Map<Integer, Integer> channelMap = new HashMap<>();
+        if (!device.isEnabled()) {
+            return channelMap;
+        }
 
         // Check for power limits as first priority
         List<PowerLimitDeviceEntity> powerLimitDevices = powerLimitDeviceRepository.findByDevice(device);

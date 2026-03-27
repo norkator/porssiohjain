@@ -42,7 +42,12 @@ public class DeviceController {
             @RequestBody CreateDeviceRequest request
     ) {
         Long authAccountId = authContext.getAccountId();
-        DeviceResponse device = deviceService.createDevice(authAccountId, accountId, request.getDeviceName(), request.getTimezone());
+        DeviceResponse device = deviceService.createDevice(
+                authAccountId, accountId, request.getDeviceName(), request.getTimezone(), request.getDeviceType(),
+                request.getEnabled() != null ? request.getEnabled() : true,
+                request.getHpName(), request.getAcType(), request.getAcUsername(), request.getAcPassword()
+
+        );
         return ResponseEntity.ok(device);
     }
 

@@ -16,6 +16,7 @@
 
 package com.nitramite.porssiohjain.entity;
 
+import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
@@ -102,6 +103,13 @@ public class ProductionSourceEntity {
             orphanRemoval = true
     )
     private Set<ProductionHistoryEntity> history;
+
+    @OneToMany(
+            mappedBy = "productionSource",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private Set<ProductionSourceHeatPumpEntity> productionSourceHeatPumps;
 
     @PrePersist
     public void onCreate() {
