@@ -17,17 +17,22 @@
 package com.nitramite.porssiohjain.entity.repository;
 
 import com.nitramite.porssiohjain.entity.SiteEntity;
+import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
-public interface SiteRepository extends JpaRepository<SiteEntity, Long> {
+public interface SiteWeatherRepository extends JpaRepository<SiteWeatherEntity, Long> {
 
-    List<SiteEntity> findByAccountId(Long accountId);
+    List<SiteWeatherEntity> findBySiteAndForecastTimeBetween(SiteEntity site, Instant start, Instant end);
 
-    Optional<SiteEntity> findByIdAndAccountId(Long id, Long accountId);
+    List<SiteWeatherEntity> findBySiteOrderByForecastTimeAsc(SiteEntity site);
 
-    List<SiteEntity> findByEnabledTrueAndWeatherPlaceIsNotNull();
+    List<SiteWeatherEntity> findBySiteAndForecastTimeBetweenOrderByForecastTimeAsc(SiteEntity site, Instant start, Instant end);
+
+    boolean existsBySiteAndForecastTimeBetween(SiteEntity site, Instant start, Instant end);
+
+    long deleteByForecastTimeBefore(Instant cutoff);
 
 }
