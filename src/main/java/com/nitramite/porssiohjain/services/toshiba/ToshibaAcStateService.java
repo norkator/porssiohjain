@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.services.toshiba;
 
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,9 +35,12 @@ public class ToshibaAcStateService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
+    private final DeviceAcDataRepository deviceAcDataRepository;
     private static final String STATE_URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=";
 
-    public ToshibaAcStateResponse getAcState(DeviceAcDataEntity acData) {
+    public ToshibaAcStateResponse getAcState(
+            DeviceAcDataEntity acData
+    ) {
         return getAcStateInternal(acData, true);
     }
 
@@ -61,6 +65,8 @@ public class ToshibaAcStateService {
 
             ToshibaAcStateResponse body = response.getBody();
             if (body != null && body.getResObj() != null) {
+                acData.setLastPolledStateHex(body.getResObj().getAcStateData());
+                deviceAcDataRepository.save(acData);
                 body.getResObj().setDecodedAcState(
                         toshibaAcStateHexDecoderService.decode(body.getResObj().getAcStateData())
                 );

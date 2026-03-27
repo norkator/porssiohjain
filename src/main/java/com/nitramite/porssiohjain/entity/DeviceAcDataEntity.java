@@ -75,6 +75,9 @@ public class DeviceAcDataEntity {
     @Column(name = "ac_client_device_suffix", length = 64)
     private String acClientDeviceSuffix;
 
+    @Column(name = "last_polled_state_hex", columnDefinition = "TEXT")
+    private String lastPolledStateHex;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
