@@ -24,6 +24,7 @@ import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepositor
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateDecodedResponse;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateHexDecoderService;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import com.nitramite.porssiohjain.views.components.Divider;
@@ -86,6 +87,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final ElectricityContractRepository contractRepository;
     private final SiteService siteService;
     private final ToshibaAcStateService toshibaAcStateService;
+    private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final DeviceRepository deviceRepository;
 
@@ -118,6 +120,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             ElectricityContractRepository contractRepository,
             SiteService siteService,
             ToshibaAcStateService toshibaAcStateService,
+            ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService,
             DeviceAcDataRepository deviceAcDataRepository,
             DeviceRepository deviceRepository
     ) {
@@ -130,6 +133,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.contractRepository = contractRepository;
         this.siteService = siteService;
         this.toshibaAcStateService = toshibaAcStateService;
+        this.toshibaAcStateHexDecoderService = toshibaAcStateHexDecoderService;
         this.deviceAcDataRepository = deviceAcDataRepository;
         this.deviceRepository = deviceRepository;
 
@@ -441,12 +445,17 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         heatPumpGrid.addColumn(ControlHeatPumpResponse::getPriceLimit).setHeader(t("controlTable.grid.priceLimit"));
         heatPumpGrid.addColumn(ControlHeatPumpResponse::getStateHex).setHeader(t("controlTable.grid.stateHex"));
         heatPumpGrid.addComponentColumn(cd -> {
+            Button decode = new Button(t("controlTable.button.decodeState"), e -> openHeatPumpStateHexDialog(cd.getStateHex()));
             Button delete = new Button(t("controlTable.button.delete"), e -> {
                 controlService.deleteControlHeatPump(getAccountId(), cd.getId());
                 loadControlHeatPumps();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
-            return delete;
+            HorizontalLayout actions = new HorizontalLayout(decode, delete);
+            actions.setPadding(false);
+            actions.setSpacing(true);
+            actions.setMargin(false);
+            return actions;
         }).setHeader(t("controlTable.grid.actions"));
         heatPumpGrid.setMaxHeight("200px");
     }
@@ -630,6 +639,32 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         });
         dialog.getFooter().add(cancelButton);
 
+        dialog.open();
+    }
+
+    private void openHeatPumpStateHexDialog(String stateHex) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.dialog.decodeState.title"));
+        dialog.setWidth("900px");
+        dialog.setMaxWidth("95vw");
+
+        ToshibaAcStateResponse response = new ToshibaAcStateResponse();
+        response.setSuccess(true);
+
+        ToshibaAcStateResponse.ResObj resObj = new ToshibaAcStateResponse.ResObj();
+        resObj.setAcStateData(stateHex);
+        resObj.setDecodedAcState(toshibaAcStateHexDecoderService.decode(stateHex));
+        response.setResObj(resObj);
+
+        VerticalLayout dialogLayout = new VerticalLayout();
+        dialogLayout.setWidthFull();
+        dialogLayout.add(
+                new Paragraph(t("controlTable.dialog.decodeState.instructions")),
+                createAcStateInfoContent(response)
+        );
+
+        dialog.add(dialogLayout);
+        dialog.getFooter().add(new Button(t("common.cancel"), e -> dialog.close()));
         dialog.open();
     }
 
