@@ -102,7 +102,9 @@ public class SolarmanPvService {
 
     private String getValidToken(ProductionSourceEntity source) {
         SolarmanTokenCache cache = tokenCache.get(source.getId());
-        if (cache != null && cache.getExpiresAt().isAfter(Instant.now().plusSeconds(30))) {
+        // Use 5-minute buffer to ensure token is still valid
+        // Avoids unnecessary token requests when token has plenty of time left
+        if (cache != null && cache.getExpiresAt().isAfter(Instant.now().plusSeconds(300))) {
             return cache.getToken();
         }
         return requestNewToken(source);
