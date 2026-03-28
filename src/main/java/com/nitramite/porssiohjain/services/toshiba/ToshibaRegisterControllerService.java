@@ -35,16 +35,18 @@ import org.springframework.web.client.RestTemplate;
 public class ToshibaRegisterControllerService {
 
     private final RestTemplate restTemplate = new RestTemplate();
-    private static final String REGISTER_CLIENT_URL = "https://mobileapi.toshibahomeaccontrols.com/api/Consumer/RegisterClient";
+    private static final String REGISTER_CLIENT_URL = "https://mobileapi.toshibahomeaccontrols.com/api/Consumer/RegisterMobileDevice";
     private final DeviceAcDataRepository deviceAcDataRepository;
 
     @Data
     @Builder
     private static class RegisterClientRequest {
         private String DeviceId;
+        private String DeviceType = "1";
+        private String Username;
     }
 
-    public boolean registerClient(DeviceAcDataEntity acData) {
+    public String registerClient(DeviceAcDataEntity acData) {
         try {
             if (acData.getAcUsername() == null || acData.getAcUsername().isBlank()) {
                 throw new IllegalArgumentException("AC username missing for Toshiba client registration");
@@ -62,6 +64,8 @@ public class ToshibaRegisterControllerService {
 
             RegisterClientRequest registerRequest = RegisterClientRequest.builder()
                     .DeviceId(deviceId)
+                    .DeviceType("1")
+                    .Username(acData.getAcUsername())
                     .build();
 
             HttpEntity<RegisterClientRequest> request = new HttpEntity<>(registerRequest, headers);
@@ -78,14 +82,14 @@ public class ToshibaRegisterControllerService {
                 acData.setSasToken(response.getResObj().getSasToken());
                 deviceAcDataRepository.save(acData);
                 log.info("Toshiba client registration successful, SAS token obtained");
-                return true;
+                return response.getResObj().getSasToken();
             } else {
                 log.error("Toshiba client registration failed: {}", response != null ? response.getMessage() : "Empty response");
             }
         } catch (Exception e) {
             log.error("Error during Toshiba client registration", e);
         }
-        return false;
+        return null;
     }
 
 }

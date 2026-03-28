@@ -117,12 +117,14 @@ public class ToshibaAcAmqpSendService {
     }
 
     private void refreshSasToken(DeviceAcDataEntity acData) {
-        if (toshibaRegisterControllerService.registerClient(acData)) {
+        String sasToken = toshibaRegisterControllerService.registerClient(acData);
+        if (sasToken != null) {
             return;
         }
         AcLoginResponse acLoginResponse = toshibaLoginService.login(acData);
         acData.setAcAccessToken(acLoginResponse.getAccessToken());
-        if (acLoginResponse.isSuccess() && toshibaRegisterControllerService.registerClient(acData)) {
+        sasToken = toshibaRegisterControllerService.registerClient(acData);
+        if (acLoginResponse.isSuccess() && sasToken != null) {
             return;
         }
         throw new IllegalStateException("Failed to acquire Toshiba SAS token");
