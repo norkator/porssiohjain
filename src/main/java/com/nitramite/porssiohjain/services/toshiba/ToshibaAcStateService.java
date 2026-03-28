@@ -65,6 +65,8 @@ public class ToshibaAcStateService {
 
             ToshibaAcStateResponse body = response.getBody();
             if (body != null && body.getResObj() != null) {
+                acData.setAcDeviceId(body.getResObj().getAcId());
+                acData.setAcDeviceUniqueId(body.getResObj().getAcDeviceUniqueId());
                 acData.setLastPolledStateHex(body.getResObj().getAcStateData());
                 deviceAcDataRepository.save(acData);
                 body.getResObj().setDecodedAcState(

@@ -69,6 +69,9 @@ public class DeviceAcDataEntity {
     @Column(name = "ac_device_id")
     private String acDeviceId; // like uuid
 
+    @Column(name = "ac_device_unique_id")
+    private String acDeviceUniqueId; // Toshiba AMQP target id
+
     @Column(name = "sas_token", columnDefinition = "TEXT")
     private String sasToken; // needed for azure iot hub to send device state changes
 

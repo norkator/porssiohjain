@@ -53,4 +53,5 @@ public class DeviceResponse {
     private String acUsername;
     private String acPassword;
     private String acDeviceId;
+    private String acDeviceUniqueId;
 }

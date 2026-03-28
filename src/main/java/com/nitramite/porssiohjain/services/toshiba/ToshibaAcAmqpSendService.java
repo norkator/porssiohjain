@@ -17,7 +17,7 @@
 package com.nitramite.porssiohjain.services.toshiba;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.sdk.iot.device.DeviceClient;
 import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
 import com.microsoft.azure.sdk.iot.device.Message;
@@ -51,7 +51,7 @@ public class ToshibaAcAmqpSendService {
     private final ToshibaRegisterControllerService toshibaRegisterControllerService;
     private final ToshibaLoginService toshibaLoginService;
     private final DeviceAcDataRepository deviceAcDataRepository;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void sendMessage(DeviceAcDataEntity acData, String payload) {
         if (payload == null || payload.isBlank()) {
@@ -62,7 +62,18 @@ public class ToshibaAcAmqpSendService {
     }
 
     public void sendHexState(DeviceAcDataEntity acData, String hexState) {
-        sendMessage(acData, buildHexStatePayload(acData, hexState));
+        String payload = buildHexStatePayload(acData, hexState);
+        log.info(
+                "Prepared Toshiba AMQP hex command. deviceId={}, acDataId={}, sourceId={}, targetId={}, acConsumerId={}, acDeviceId={}, payload={}",
+                acData.getDevice().getId(),
+                acData.getId(),
+                buildClientDeviceId(acData),
+                acData.getAcDeviceId(),
+                acData.getAcConsumerId(),
+                acData.getAcDeviceId(),
+                payload
+        );
+        sendMessage(acData, payload);
         acData.setLastPolledStateHex(hexState);
         deviceAcDataRepository.save(acData);
         log.info(
@@ -80,6 +91,14 @@ public class ToshibaAcAmqpSendService {
         String connectionString = "HostName=" + connectionInfo.hostName()
                 + ";DeviceId=" + connectionInfo.deviceId()
                 + ";SharedAccessSignature=" + acData.getSasToken();
+        log.info(
+                "Opening Toshiba AMQP connection. deviceId={}, acDataId={}, iotHost={}, iotDeviceId={}, sasTokenPresent={}",
+                acData.getDevice().getId(),
+                acData.getId(),
+                connectionInfo.hostName(),
+                connectionInfo.deviceId(),
+                acData.getSasToken() != null && !acData.getSasToken().isBlank()
+        );
 
         DeviceClient deviceClient = null;
         try {
@@ -97,6 +116,18 @@ public class ToshibaAcAmqpSendService {
             deviceClient.sendEventAsync(message, (sentMessage, clientException, callbackContext) -> {
                 if (clientException != null) {
                     sendFailure.set(clientException);
+                    log.error(
+                            "Toshiba AMQP callback reported failure. deviceId={}, acDataId={}",
+                            acData.getDevice().getId(),
+                            acData.getId(),
+                            clientException
+                    );
+                } else {
+                    log.info(
+                            "Toshiba AMQP callback reported success. deviceId={}, acDataId={}",
+                            acData.getDevice().getId(),
+                            acData.getId()
+                    );
                 }
                 latch.countDown();
             }, null);
@@ -149,9 +180,9 @@ public class ToshibaAcAmqpSendService {
 
     private String buildHexStatePayload(DeviceAcDataEntity acData, String hexState) {
         String sourceId = buildClientDeviceId(acData);
-        String targetId = acData.getAcDeviceId();
+        String targetId = acData.getAcDeviceUniqueId();
         if (targetId == null || targetId.isBlank()) {
-            throw new IllegalArgumentException("AC device id is missing for Toshiba AMQP send");
+            throw new IllegalArgumentException("AC device unique id is missing for Toshiba AMQP send");
         }
 
         ToshibaAmqpCommandPayload payload = new ToshibaAmqpCommandPayload(
@@ -163,7 +194,11 @@ public class ToshibaAcAmqpSendService {
                 String.valueOf(Instant.now().toEpochMilli())
         );
 
-        return objectMapper.writeValueAsString(payload);
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize Toshiba AMQP payload", e);
+        }
     }
 
     private String buildClientDeviceId(DeviceAcDataEntity acData) {

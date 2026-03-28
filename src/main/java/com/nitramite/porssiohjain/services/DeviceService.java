@@ -170,6 +170,7 @@ public class DeviceService {
                 response.setAcUsername(acData.getAcUsername());
                 response.setAcPassword(acData.getAcPassword());
                 response.setAcDeviceId(acData.getAcDeviceId());
+                response.setAcDeviceUniqueId(acData.getAcDeviceUniqueId());
             });
         }
 
@@ -195,6 +196,7 @@ public class DeviceService {
         DeviceAcDataEntity acData = deviceAcDataRepository.findByDevice(device)
                 .orElseThrow(() -> new IllegalStateException("AC data not found"));
         acData.setAcDeviceId(acDeviceId);
+        acData.setAcDeviceUniqueId(null);
         deviceAcDataRepository.save(acData);
     }
 
