@@ -477,7 +477,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     }
 
     private ComboBox<ComparisonType> createComparisonCombo() {
-        ComboBox<ComparisonType> comparisonCombo = new ComboBox<>(t("controlTable.field.comparisonType"));
+        ComboBox<ComparisonType> comparisonCombo = new ComboBox<>(t("weatherControl.field.comparisonType"));
         comparisonCombo.setItems(ComparisonType.values());
         comparisonCombo.setItemLabelGenerator(type -> t("comparisonType." + type.name()));
         comparisonCombo.setWidthFull();
