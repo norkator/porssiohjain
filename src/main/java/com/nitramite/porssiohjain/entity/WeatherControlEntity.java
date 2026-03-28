@@ -20,6 +20,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.Set;
 
 @Entity
 @Table(name = "weather_control")
@@ -44,6 +45,12 @@ public class WeatherControlEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "site_id", nullable = false)
     private SiteEntity site;
+
+    @OneToMany(mappedBy = "weatherControl", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<WeatherControlDeviceEntity> weatherControlDevices;
+
+    @OneToMany(mappedBy = "weatherControl", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<WeatherControlHeatPumpEntity> weatherControlHeatPumps;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
