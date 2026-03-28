@@ -22,6 +22,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public interface SiteWeatherRepository extends JpaRepository<SiteWeatherEntity, Long> {
 
@@ -30,6 +31,16 @@ public interface SiteWeatherRepository extends JpaRepository<SiteWeatherEntity, 
     List<SiteWeatherEntity> findBySiteOrderByForecastTimeAsc(SiteEntity site);
 
     List<SiteWeatherEntity> findBySiteAndForecastTimeBetweenOrderByForecastTimeAsc(SiteEntity site, Instant start, Instant end);
+
+    Optional<SiteWeatherEntity> findFirstBySiteAndForecastTimeLessThanEqualOrderByForecastTimeDesc(
+            SiteEntity site,
+            Instant forecastTime
+    );
+
+    Optional<SiteWeatherEntity> findFirstBySiteAndForecastTimeGreaterThanEqualOrderByForecastTimeAsc(
+            SiteEntity site,
+            Instant forecastTime
+    );
 
     boolean existsBySiteAndForecastTimeBetween(SiteEntity site, Instant start, Instant end);
 

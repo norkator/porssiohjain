@@ -48,6 +48,7 @@ public class Scheduler {
     private final AuthService authService;
     private final DeviceService deviceService;
     private final ControlService controlService;
+    private final HeatPumpControlService heatPumpControlService;
 
     private boolean firstRun = true;
 
@@ -64,7 +65,8 @@ public class Scheduler {
             AuthService authService,
             MqttReconnectService mqttReconnectService,
             DeviceService deviceService,
-            ControlService controlService
+            ControlService controlService,
+            HeatPumpControlService heatPumpControlService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -78,6 +80,7 @@ public class Scheduler {
         this.authService = authService;
         this.deviceService = deviceService;
         this.controlService = controlService;
+        this.heatPumpControlService = heatPumpControlService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -226,6 +229,11 @@ public class Scheduler {
     @Scheduled(cron = "1 0/1 * * * *", zone = "Europe/Helsinki")
     public void mqttDeviceControls() {
         controlService.mqttDeviceControls();
+    }
+
+    @Scheduled(fixedDelayString = "${heatpump.control-interval}")
+    public void scheduledHeatPumpControls() {
+        heatPumpControlService.runScheduledHeatPumpControls();
     }
 
 }

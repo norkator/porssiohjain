@@ -23,6 +23,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public interface NordpoolRepository extends JpaRepository<NordpoolEntity, Long> {
 
@@ -32,6 +33,11 @@ public interface NordpoolRepository extends JpaRepository<NordpoolEntity, Long> 
             "WHERE n.deliveryStart >= :start AND n.deliveryStart <= :end " +
             "ORDER BY n.deliveryStart ASC")
     List<NordpoolEntity> findPricesBetween(@Param("start") Instant start, @Param("end") Instant end);
+
+    Optional<NordpoolEntity> findFirstByDeliveryStartLessThanEqualAndDeliveryEndGreaterThan(
+            Instant deliveryStart,
+            Instant deliveryEnd
+    );
 
     boolean existsByDeliveryStartBetween(Instant start, Instant end);
 
