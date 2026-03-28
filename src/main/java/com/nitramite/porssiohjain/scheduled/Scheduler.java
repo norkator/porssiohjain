@@ -233,7 +233,7 @@ public class Scheduler {
 
     @Scheduled(fixedDelayString = "${heatpump.control-interval}")
     public void scheduledHeatPumpControls() {
-        // heatPumpControlService.runScheduledHeatPumpControls();
+        heatPumpControlService.runScheduledHeatPumpControls();
     }
 
 }
