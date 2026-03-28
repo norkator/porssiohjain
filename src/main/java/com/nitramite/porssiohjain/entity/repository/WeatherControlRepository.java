@@ -16,18 +16,17 @@
 
 package com.nitramite.porssiohjain.entity.repository;
 
-import com.nitramite.porssiohjain.entity.SiteEntity;
+import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.WeatherControlEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface SiteRepository extends JpaRepository<SiteEntity, Long> {
+public interface WeatherControlRepository extends JpaRepository<WeatherControlEntity, Long> {
 
-    List<SiteEntity> findByAccountId(Long accountId);
+    List<WeatherControlEntity> findAllByAccountOrderByIdAsc(AccountEntity account);
 
-    Optional<SiteEntity> findByIdAndAccountId(Long id, Long accountId);
-
-    List<SiteEntity> findByEnabledTrueAndWeatherPlaceIsNotNull();
+    Optional<WeatherControlEntity> findByIdAndAccountId(Long id, Long accountId);
 
 }

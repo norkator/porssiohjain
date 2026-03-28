@@ -43,6 +43,7 @@ public class Scheduler {
     private final SolarmanPvService solarmanPvService;
     private final ProductionSourceService productionSourceService;
     private final PricePredictionDataService pricePredictionDataService;
+    private final SiteWeatherService siteWeatherService;
     private final EmailService emailService;
     private final AuthService authService;
     private final DeviceService deviceService;
@@ -58,6 +59,7 @@ public class Scheduler {
             SolarmanPvService solarmanPvService,
             ProductionSourceService productionSourceService,
             PricePredictionDataService pricePredictionDataService,
+            SiteWeatherService siteWeatherService,
             EmailService emailService,
             AuthService authService,
             MqttReconnectService mqttReconnectService,
@@ -71,6 +73,7 @@ public class Scheduler {
         this.powerLimitService = powerLimitService;
         this.productionSourceService = productionSourceService;
         this.pricePredictionDataService = pricePredictionDataService;
+        this.siteWeatherService = siteWeatherService;
         this.emailService = emailService;
         this.authService = authService;
         this.deviceService = deviceService;
@@ -90,6 +93,11 @@ public class Scheduler {
             pricePredictionDataService.fetchData();
         } else {
             log.info("No need to fetch price prediction data");
+        }
+        if (!siteWeatherService.hasWeatherDataForTomorrowForConfiguredSites()) {
+            siteWeatherService.fetchForecastsForConfiguredSites();
+        } else {
+            log.info("No need to fetch site weather data");
         }
 
         mqttReconnectService.reconnect();
@@ -170,6 +178,26 @@ public class Scheduler {
         pricePredictionDataService.fetchData();
     }
 
+    @Scheduled(cron = "0 0 6 * * *", zone = "Europe/Helsinki")
+    public void fetchSiteWeatherDataDaily() {
+        try {
+            int fetchedSites = siteWeatherService.fetchForecastsForConfiguredSites();
+            log.info("Site weather data fetched for {} sites", fetchedSites);
+        } catch (Exception e) {
+            log.error("Error fetching site weather data", e);
+        }
+    }
+
+    @Scheduled(cron = "0 0 13 * * *", zone = "Europe/Helsinki")
+    public void fetchSiteWeatherDataDailyBackup() {
+        try {
+            int fetchedSites = siteWeatherService.fetchForecastsForConfiguredSites();
+            log.info("Site weather data backup fetch completed for {} sites", fetchedSites);
+        } catch (Exception e) {
+            log.error("Error fetching site weather data on backup schedule", e);
+        }
+    }
+
     @Scheduled(cron = "0 0 12 * * *", zone = "Europe/Helsinki")
     public void deleteOldData() {
         nordpoolDataPortalService.deleteOldNordpoolData();
@@ -177,6 +205,7 @@ public class Scheduler {
         powerLimitService.deleteOldPowerLimitHistory();
         productionSourceService.deleteOldProductionHistory();
         pricePredictionDataService.deleteOldData();
+        siteWeatherService.deleteOldSiteWeatherData();
         authService.deleteExpiredTokens();
     }
 

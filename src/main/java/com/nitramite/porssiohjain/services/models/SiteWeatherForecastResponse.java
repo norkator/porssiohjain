@@ -14,20 +14,23 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity.repository;
+package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.SiteEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
+import lombok.Builder;
+import lombok.Data;
 
+import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
-public interface SiteRepository extends JpaRepository<SiteEntity, Long> {
-
-    List<SiteEntity> findByAccountId(Long accountId);
-
-    Optional<SiteEntity> findByIdAndAccountId(Long id, Long accountId);
-
-    List<SiteEntity> findByEnabledTrueAndWeatherPlaceIsNotNull();
-
+@Data
+@Builder
+public class SiteWeatherForecastResponse {
+    private Long siteId;
+    private String siteName;
+    private String weatherPlace;
+    private Instant fetchedAt;
+    private Instant forecastStartTime;
+    private Instant forecastEndTime;
+    private Integer timestepMinutes;
+    private List<SiteWeatherForecastPointResponse> points;
 }

@@ -14,20 +14,23 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity.repository;
+package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.SiteEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
+import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.util.List;
-import java.util.Optional;
-
-public interface SiteRepository extends JpaRepository<SiteEntity, Long> {
-
-    List<SiteEntity> findByAccountId(Long accountId);
-
-    Optional<SiteEntity> findByIdAndAccountId(Long id, Long accountId);
-
-    List<SiteEntity> findByEnabledTrueAndWeatherPlaceIsNotNull();
-
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class WeatherControlDeviceResponse {
+    private Long id;
+    private Long weatherControlId;
+    private Long deviceId;
+    private Integer deviceChannel;
+    private WeatherMetricType weatherMetric;
+    private DeviceResponse device;
 }

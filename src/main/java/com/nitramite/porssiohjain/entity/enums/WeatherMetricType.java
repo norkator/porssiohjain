@@ -14,20 +14,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity.repository;
+package com.nitramite.porssiohjain.entity.enums;
 
-import com.nitramite.porssiohjain.entity.SiteEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.util.List;
-import java.util.Optional;
-
-public interface SiteRepository extends JpaRepository<SiteEntity, Long> {
-
-    List<SiteEntity> findByAccountId(Long accountId);
-
-    Optional<SiteEntity> findByIdAndAccountId(Long id, Long accountId);
-
-    List<SiteEntity> findByEnabledTrueAndWeatherPlaceIsNotNull();
-
+public enum WeatherMetricType {
+    TEMPERATURE,
+    HUMIDITY
 }
