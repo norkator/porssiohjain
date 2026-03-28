@@ -16,6 +16,8 @@
 
 package com.nitramite.porssiohjain.services.toshiba;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.databind.ObjectMapper;
 import com.microsoft.azure.sdk.iot.device.DeviceClient;
 import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
 import com.microsoft.azure.sdk.iot.device.Message;
@@ -28,8 +30,11 @@ import org.springframework.stereotype.Service;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,6 +51,7 @@ public class ToshibaAcAmqpSendService {
     private final ToshibaRegisterControllerService toshibaRegisterControllerService;
     private final ToshibaLoginService toshibaLoginService;
     private final DeviceAcDataRepository deviceAcDataRepository;
+    private final ObjectMapper objectMapper;
 
     public void sendMessage(DeviceAcDataEntity acData, String payload) {
         if (payload == null || payload.isBlank()) {
@@ -56,7 +62,7 @@ public class ToshibaAcAmqpSendService {
     }
 
     public void sendHexState(DeviceAcDataEntity acData, String hexState) {
-        sendMessage(acData, hexState);
+        sendMessage(acData, buildHexStatePayload(acData, hexState));
         acData.setLastPolledStateHex(hexState);
         deviceAcDataRepository.save(acData);
         log.info(
@@ -66,7 +72,9 @@ public class ToshibaAcAmqpSendService {
         );
     }
 
-    private void sendMessageInternal(DeviceAcDataEntity acData, String payload, boolean retryWithNewSasToken) {
+    private void sendMessageInternal(
+            DeviceAcDataEntity acData, String payload, boolean retryWithNewSasToken
+    ) {
         ensureSasToken(acData);
         SasTokenConnectionInfo connectionInfo = parseConnectionInfo(acData.getSasToken());
         String connectionString = "HostName=" + connectionInfo.hostName()
@@ -139,6 +147,35 @@ public class ToshibaAcAmqpSendService {
         throw new IllegalStateException("Failed to acquire Toshiba SAS token");
     }
 
+    private String buildHexStatePayload(DeviceAcDataEntity acData, String hexState) {
+        String sourceId = buildClientDeviceId(acData);
+        String targetId = acData.getAcDeviceId();
+        if (targetId == null || targetId.isBlank()) {
+            throw new IllegalArgumentException("AC device id is missing for Toshiba AMQP send");
+        }
+
+        ToshibaAmqpCommandPayload payload = new ToshibaAmqpCommandPayload(
+                sourceId,
+                UUID.randomUUID().toString(),
+                List.of(targetId),
+                "CMD_FCU_TO_AC",
+                new ToshibaAmqpHexPayload(hexState),
+                String.valueOf(Instant.now().toEpochMilli())
+        );
+
+        return objectMapper.writeValueAsString(payload);
+    }
+
+    private String buildClientDeviceId(DeviceAcDataEntity acData) {
+        if (acData.getAcUsername() == null || acData.getAcUsername().isBlank()) {
+            throw new IllegalArgumentException("AC username missing for Toshiba AMQP send");
+        }
+        if (acData.getAcClientDeviceSuffix() == null || acData.getAcClientDeviceSuffix().isBlank()) {
+            throw new IllegalArgumentException("AC client device suffix missing for Toshiba AMQP send");
+        }
+        return acData.getAcUsername() + "_" + acData.getAcClientDeviceSuffix();
+    }
+
     private SasTokenConnectionInfo parseConnectionInfo(String sasToken) {
         if (sasToken == null || sasToken.isBlank()) {
             throw new IllegalArgumentException("SAS token cannot be empty");
@@ -168,5 +205,18 @@ public class ToshibaAcAmqpSendService {
     }
 
     private record SasTokenConnectionInfo(String hostName, String deviceId) {
+    }
+
+    private record ToshibaAmqpCommandPayload(
+            String sourceId,
+            String messageId,
+            List<String> targetId,
+            String cmd,
+            ToshibaAmqpHexPayload payload,
+            String timeStamp
+    ) {
+    }
+
+    private record ToshibaAmqpHexPayload(String data) {
     }
 }

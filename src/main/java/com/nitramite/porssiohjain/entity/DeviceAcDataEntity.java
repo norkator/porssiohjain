@@ -76,7 +76,7 @@ public class DeviceAcDataEntity {
     private String acClientDeviceSuffix;
 
     @Column(name = "last_polled_state_hex", columnDefinition = "TEXT")
-    private String lastPolledStateHex;
+    private String lastPolledStateHex; // last polled or sent state to avoid repeating
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
