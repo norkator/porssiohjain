@@ -135,9 +135,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         setSizeFull();
         setAlignItems(Alignment.CENTER);
         setJustifyContentMode(JustifyContentMode.START);
-        getStyle().set("padding-top", "20px");
+        getStyle()
+                .set("padding-top", "20px")
+                .set("overflow", "auto");
 
         VerticalLayout card = new VerticalLayout();
+        card.setWidthFull();
         card.setPadding(true);
         card.setSpacing(true);
         card.setAlignItems(Alignment.STRETCH);
@@ -211,7 +214,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 .setAutoWidth(true);
 
         deviceGrid.setWidthFull();
-        deviceGrid.getStyle().set("max-height", "300px");
+        deviceGrid.setAllRowsVisible(true);
         deviceGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 
         deviceGrid.asSingleSelect().addValueChangeListener(event -> {
