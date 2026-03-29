@@ -48,7 +48,7 @@ public class DeviceService {
     public DeviceResponse createDevice(
             Long authAccountId, Long accountId, String deviceName, String timezone, DeviceType deviceType,
             boolean enabled,
-            String hpName, AcType acType, String acUsername, String acPassword
+            String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -65,12 +65,14 @@ public class DeviceService {
             device = deviceRepository.save(device);
 
             if (deviceType == DeviceType.HEAT_PUMP) {
+                validateHeatPumpConfiguration(hpName, acUsername, acPassword, acDeviceId);
                 DeviceAcDataEntity acData = DeviceAcDataEntity.builder()
                         .device(device)
                         .name(hpName)
                         .acType(acType)
                         .acUsername(acUsername)
                         .acPassword(acPassword)
+                        .acDeviceId(acDeviceId)
                         .build();
                 deviceAcDataRepository.save(acData);
             }
@@ -203,7 +205,7 @@ public class DeviceService {
     @Transactional
     public void updateDevice(
             Long accountId, Long deviceId, String newName, String newTimezone, DeviceType deviceType, boolean enabled,
-            String hpName, AcType acType, String acUsername, String acPassword
+            String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -216,13 +218,33 @@ public class DeviceService {
         deviceRepository.save(device);
 
         if (deviceType == DeviceType.HEAT_PUMP) {
+            validateHeatPumpConfiguration(hpName, acUsername, acPassword, acDeviceId);
             DeviceAcDataEntity acData = deviceAcDataRepository.findByDevice(device)
                     .orElseGet(() -> DeviceAcDataEntity.builder().device(device).build());
+            if (!Objects.equals(acData.getAcDeviceId(), acDeviceId)) {
+                acData.setAcDeviceUniqueId(null);
+            }
             acData.setName(hpName);
             acData.setAcType(acType);
             acData.setAcUsername(acUsername);
             acData.setAcPassword(acPassword);
+            acData.setAcDeviceId(acDeviceId);
             deviceAcDataRepository.save(acData);
+        }
+    }
+
+    private void validateHeatPumpConfiguration(String hpName, String acUsername, String acPassword, String acDeviceId) {
+        if (hpName == null || hpName.isBlank()) {
+            throw new IllegalArgumentException("Heat pump name is required");
+        }
+        if (acUsername == null || acUsername.isBlank()) {
+            throw new IllegalArgumentException("AC username is required");
+        }
+        if (acPassword == null || acPassword.isBlank()) {
+            throw new IllegalArgumentException("AC password is required");
+        }
+        if (acDeviceId == null || acDeviceId.isBlank()) {
+            throw new IllegalArgumentException("AC device selection is required");
         }
     }
 

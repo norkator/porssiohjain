@@ -16,11 +16,14 @@
 
 package com.nitramite.porssiohjain.services.models;
 
+import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 
 @Data
 @Builder
@@ -32,5 +35,7 @@ public class WeatherControlDeviceResponse {
     private Long deviceId;
     private Integer deviceChannel;
     private WeatherMetricType weatherMetric;
+    private ComparisonType comparisonType;
+    private BigDecimal thresholdValue;
     private DeviceResponse device;
 }

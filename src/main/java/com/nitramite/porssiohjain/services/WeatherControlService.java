@@ -100,7 +100,8 @@ public class WeatherControlService {
     }
 
     public WeatherControlDeviceResponse addDeviceToWeatherControl(
-            Long accountId, Long weatherControlId, Long deviceId, Integer deviceChannel, WeatherMetricType weatherMetric
+            Long accountId, Long weatherControlId, Long deviceId, Integer deviceChannel, WeatherMetricType weatherMetric,
+            ComparisonType comparisonType, BigDecimal thresholdValue
     ) {
         WeatherControlEntity weatherControl = getOwnedWeatherControl(accountId, weatherControlId);
         DeviceEntity device = getOwnedDevice(accountId, deviceId);
@@ -114,6 +115,8 @@ public class WeatherControlService {
                 .device(device)
                 .deviceChannel(deviceChannel)
                 .weatherMetric(weatherMetric)
+                .comparisonType(comparisonType)
+                .thresholdValue(thresholdValue)
                 .build();
 
         return toDeviceResponse(weatherControlDeviceRepository.save(entity));
@@ -212,6 +215,8 @@ public class WeatherControlService {
                 .deviceId(entity.getDevice().getId())
                 .deviceChannel(entity.getDeviceChannel())
                 .weatherMetric(entity.getWeatherMetric())
+                .comparisonType(entity.getComparisonType())
+                .thresholdValue(entity.getThresholdValue())
                 .device(toDeviceResponse(entity.getDevice()))
                 .build();
     }

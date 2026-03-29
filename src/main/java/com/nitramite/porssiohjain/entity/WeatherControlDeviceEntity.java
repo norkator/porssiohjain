@@ -16,9 +16,12 @@
 
 package com.nitramite.porssiohjain.entity;
 
+import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "weather_control_device",
@@ -51,5 +54,12 @@ public class WeatherControlDeviceEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "weather_metric", nullable = false, length = 32)
     private WeatherMetricType weatherMetric;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "comparison_type", length = 32)
+    private ComparisonType comparisonType;
+
+    @Column(name = "threshold_value", precision = 19, scale = 4)
+    private BigDecimal thresholdValue;
 
 }

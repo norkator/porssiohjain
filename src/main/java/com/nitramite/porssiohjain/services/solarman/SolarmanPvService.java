@@ -49,7 +49,7 @@ public class SolarmanPvService {
     private final ProductionHistoryRepository productionHistoryRepository;
     private final SystemLogService systemLogService;
 
-    private final Map<Long, SolarmanTokenCache> tokenCache = new ConcurrentHashMap<>();
+    private final Map<String, SolarmanTokenCache> tokenCache = new ConcurrentHashMap<>();
     private static final long MAX_DATA_AGE_SECONDS = 1800;
 
     private final String baseUrl = "https://globalapi.solarmanpv.com";
@@ -62,6 +62,10 @@ public class SolarmanPvService {
         this.productionSourceRepository = productionSourceRepository;
         this.systemLogService = systemLogService;
         this.productionHistoryRepository = productionHistoryRepository;
+    }
+
+    private String getCacheKey(ProductionSourceEntity source) {
+        return source.getAppId() + ":" + source.getEmail();
     }
 
     @Transactional
@@ -101,7 +105,7 @@ public class SolarmanPvService {
     }
 
     private String getValidToken(ProductionSourceEntity source) {
-        SolarmanTokenCache cache = tokenCache.get(source.getId());
+        SolarmanTokenCache cache = tokenCache.get(getCacheKey(source));
         if (cache != null && cache.getExpiresAt().isAfter(Instant.now().plusSeconds(30))) {
             return cache.getToken();
         }
@@ -134,9 +138,9 @@ public class SolarmanPvService {
         }
 
         Instant expiresAt = Instant.now().plusSeconds(tokenResponse.getExpires_in());
-        tokenCache.put(source.getId(), new SolarmanTokenCache(tokenResponse.getAccess_token(), expiresAt));
+        tokenCache.put(getCacheKey(source), new SolarmanTokenCache(tokenResponse.getAccess_token(), expiresAt));
 
-        systemLogService.log("Solarman token refreshed for source " + source.getId());
+        systemLogService.log("Solarman token refreshed for " + source.getAppId() + " " + source.getEmail());
         return tokenResponse.getAccess_token();
     }
 

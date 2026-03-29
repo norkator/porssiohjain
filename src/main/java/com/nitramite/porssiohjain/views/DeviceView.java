@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.services.AuthService;
@@ -87,6 +88,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private DeviceResponse selectedDevice;
+    private String pendingAcDeviceId;
 
     @Autowired
     public DeviceView(
@@ -224,14 +226,15 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     acTypeCombo.setValue(selectedDevice.getAcType() != null ? selectedDevice.getAcType() : AcType.NONE);
                     acUsernameField.setValue(selectedDevice.getAcUsername() != null ? selectedDevice.getAcUsername() : "");
                     acPasswordField.setValue(selectedDevice.getAcPassword() != null ? selectedDevice.getAcPassword() : "");
-                    selectAcDeviceButton.setVisible(true);
-                    selectAcDeviceButton.setText(selectedDevice.getAcDeviceId() != null ? t("device.hp.changeDeviceButton") : t("device.hp.selectDeviceButton"));
+                    pendingAcDeviceId = selectedDevice.getAcDeviceId();
+                    updateSelectAcDeviceButton();
                 } else {
                     hpNameField.clear();
                     acTypeCombo.setValue(AcType.NONE);
                     acUsernameField.clear();
                     acPasswordField.clear();
-                    selectAcDeviceButton.setVisible(false);
+                    pendingAcDeviceId = null;
+                    updateSelectAcDeviceButton();
                 }
                 saveButton.setText(t("device.button.update"));
             } else {
@@ -268,19 +271,24 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             DeviceType type = event.getValue();
             boolean isHeatPump = type == DeviceType.HEAT_PUMP;
             heatPumpForm.setVisible(isHeatPump);
-            selectAcDeviceButton.setVisible(isHeatPump && selectedDevice != null);
+            if (!isHeatPump) {
+                pendingAcDeviceId = null;
+            }
+            updateSelectAcDeviceButton();
         });
 
         loadDevices();
     }
 
     private void openAcDeviceSelectionDialog() {
-        if (selectedDevice == null) return;
-
         try {
+            if (deviceTypeCombo.getValue() != DeviceType.HEAT_PUMP) {
+                return;
+            }
+
             String token = (String) VaadinSession.getCurrent().getAttribute("token");
             AccountEntity currentAccount = authService.authenticate(token);
-            var acData = deviceService.getDeviceAcData(currentAccount.getId(), selectedDevice.getId());
+            DeviceAcDataEntity acData = buildAcDataForSelection(currentAccount.getId());
 
             if (!toshibaLoginService.login(acData).isSuccess()) {
                 Notification.show(t("device.notification.toshibaLoginFailed")).addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -306,7 +314,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             Button selectButton = new Button(t("common.select"), e -> {
                 var selected = acGrid.asSingleSelect().getValue();
                 if (selected != null) {
-                    deviceService.updateAcDeviceId(currentAccount.getId(), selectedDevice.getId(), selected.getId());
+                    pendingAcDeviceId = selected.getId();
+                    if (selectedDevice != null) {
+                        deviceService.updateAcDeviceId(currentAccount.getId(), selectedDevice.getId(), selected.getId());
+                    }
+                    updateSelectAcDeviceButton();
                     Notification.show(t("device.notification.acDeviceSelected")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                     dialog.close();
                     loadDevices();
@@ -394,17 +406,23 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     Notification.show(t("device.notification.acPasswordEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
                     return;
                 }
+                if (pendingAcDeviceId == null || pendingAcDeviceId.isBlank()) {
+                    Notification.show(t("device.notification.acDeviceRequired")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    return;
+                }
             }
 
             if (selectedDevice != null) {
                 deviceService.updateDevice(
-                        accountId, selectedDevice.getId(), deviceName, timezone, deviceType, enabled, hpName, acType, acUsername, acPassword
+                        accountId, selectedDevice.getId(), deviceName, timezone, deviceType, enabled,
+                        hpName, acType, acUsername, acPassword, pendingAcDeviceId
                 );
                 Notification notification = Notification.show(t("device.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {
                 deviceService.createDevice(
-                        authAccountId, accountId, deviceName, timezone, deviceType, enabled, hpName, acType, acUsername, acPassword
+                        authAccountId, accountId, deviceName, timezone, deviceType, enabled,
+                        hpName, acType, acUsername, acPassword, pendingAcDeviceId
                 );
                 Notification notification = Notification.show(t("device.notification.created"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
@@ -421,6 +439,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private void clearForm() {
         selectedDevice = null;
+        pendingAcDeviceId = null;
         nameField.clear();
         timezoneCombo.setValue(ZoneId.systemDefault().getId());
         deviceTypeCombo.setValue(DeviceType.STANDARD);
@@ -429,9 +448,51 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         acTypeCombo.setValue(AcType.NONE);
         acUsernameField.clear();
         acPasswordField.clear();
-        selectAcDeviceButton.setVisible(false);
+        updateSelectAcDeviceButton();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
+    }
+
+    private void updateSelectAcDeviceButton() {
+        boolean isHeatPump = deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
+        selectAcDeviceButton.setVisible(isHeatPump);
+        if (isHeatPump) {
+            selectAcDeviceButton.setText(pendingAcDeviceId != null && !pendingAcDeviceId.isBlank()
+                    ? t("device.hp.changeDeviceButton")
+                    : t("device.hp.selectDeviceButton"));
+        }
+    }
+
+    private DeviceAcDataEntity buildAcDataForSelection(Long accountId) {
+        String hpName = hpNameField.getValue();
+        String acUsername = acUsernameField.getValue();
+        String acPassword = acPasswordField.getValue();
+
+        if (hpName == null || hpName.isBlank()) {
+            throw new IllegalArgumentException(t("device.notification.hpNameEmpty"));
+        }
+        if (acUsername == null || acUsername.isBlank()) {
+            throw new IllegalArgumentException(t("device.notification.acUsernameEmpty"));
+        }
+        if (acPassword == null || acPassword.isBlank()) {
+            throw new IllegalArgumentException(t("device.notification.acPasswordEmpty"));
+        }
+
+        if (selectedDevice != null) {
+            DeviceAcDataEntity acData = deviceService.getDeviceAcData(accountId, selectedDevice.getId());
+            acData.setName(hpName);
+            acData.setAcType(acTypeCombo.getValue());
+            acData.setAcUsername(acUsername);
+            acData.setAcPassword(acPassword);
+            return acData;
+        }
+
+        return DeviceAcDataEntity.builder()
+                .name(hpName)
+                .acType(acTypeCombo.getValue())
+                .acUsername(acUsername)
+                .acPassword(acPassword)
+                .build();
     }
 
     private void loadDevices() {

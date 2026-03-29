@@ -304,6 +304,10 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         deviceGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader(t("controlTable.grid.deviceName"));
         deviceGrid.addColumn(WeatherControlDeviceResponse::getDeviceChannel).setHeader(t("controlTable.grid.channel"));
         deviceGrid.addColumn(cd -> t("weatherMetricType." + cd.getWeatherMetric().name())).setHeader(t("weatherControl.grid.metric"));
+        deviceGrid.addColumn(cd -> cd.getComparisonType() != null ? t("comparisonType." + cd.getComparisonType().name()) : "")
+                .setHeader(t("controlTable.grid.comparisonType"));
+        deviceGrid.addColumn(cd -> formatDecimal(cd.getThresholdValue(), ""))
+                .setHeader(t("weatherControl.grid.threshold"));
         deviceGrid.addColumn(cd -> cd.getDevice().getUuid()).setHeader(t("controlTable.grid.uuid"));
         deviceGrid.addComponentColumn(cd -> {
             Button delete = new Button(t("controlTable.button.delete"), event -> {
@@ -359,10 +363,15 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         channelField.setWidthFull();
 
         ComboBox<WeatherMetricType> metricCombo = createMetricCombo();
+        ComboBox<ComparisonType> comparisonCombo = createComparisonCombo();
+        NumberField thresholdField = new NumberField(t("weatherControl.field.threshold"));
+        thresholdField.setStep(0.1);
+        thresholdField.setWidthFull();
 
         Button addButton = new Button(t("controlTable.button.addDevice"), event -> {
             try {
-                if (deviceSelect.getValue() == null || channelField.getValue() == null || metricCombo.getValue() == null) {
+                if (deviceSelect.getValue() == null || channelField.getValue() == null || metricCombo.getValue() == null
+                        || comparisonCombo.getValue() == null || thresholdField.getValue() == null) {
                     showWarning(t("weatherControl.notification.ruleFieldsMissing"));
                     return;
                 }
@@ -372,11 +381,15 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                         weatherControlId,
                         deviceSelect.getValue().getId(),
                         channelField.getValue().intValue(),
-                        metricCombo.getValue()
+                        metricCombo.getValue(),
+                        comparisonCombo.getValue(),
+                        BigDecimal.valueOf(thresholdField.getValue())
                 );
                 loadControlDevices();
                 channelField.clear();
                 metricCombo.clear();
+                comparisonCombo.clear();
+                thresholdField.clear();
             } catch (Exception ex) {
                 Notification.show(t("weatherControl.notification.failedSave", ex.getMessage()))
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -384,10 +397,11 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         });
         addButton.setWidthFull();
 
-        FormLayout formLayout = new FormLayout(deviceSelect, channelField, metricCombo, addButton);
+        FormLayout formLayout = new FormLayout(deviceSelect, channelField, metricCombo, comparisonCombo, thresholdField, addButton);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 4)
+                new FormLayout.ResponsiveStep("600px", 4),
+                new FormLayout.ResponsiveStep("900px", 6)
         );
         formLayout.getStyle()
                 .set("padding", "16px")
