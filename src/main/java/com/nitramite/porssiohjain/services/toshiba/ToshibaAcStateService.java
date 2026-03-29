@@ -17,7 +17,9 @@
 package com.nitramite.porssiohjain.services.toshiba;
 
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
+import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,8 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+
+import java.time.Instant;
 
 @Slf4j
 @Service
@@ -36,6 +40,7 @@ public class ToshibaAcStateService {
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
     private final DeviceAcDataRepository deviceAcDataRepository;
+    private final DeviceRepository deviceRepository;
     private static final String STATE_URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=";
 
     public ToshibaAcStateResponse getAcState(
@@ -69,6 +74,7 @@ public class ToshibaAcStateService {
                 acData.setAcDeviceUniqueId(body.getResObj().getAcDeviceUniqueId());
                 acData.setLastPolledStateHex(body.getResObj().getAcStateData());
                 deviceAcDataRepository.save(acData);
+                markDeviceReachable(acData);
                 body.getResObj().setDecodedAcState(
                         toshibaAcStateHexDecoderService.decode(body.getResObj().getAcStateData())
                 );
@@ -99,6 +105,16 @@ public class ToshibaAcStateService {
             Thread.currentThread().interrupt();
             log.warn("Interrupted while waiting before Toshiba AC state retry", e);
         }
+    }
+
+    private void markDeviceReachable(DeviceAcDataEntity acData) {
+        DeviceEntity device = acData.getDevice();
+        if (device == null) {
+            return;
+        }
+        device.setLastCommunication(Instant.now());
+        device.setApiOnline(true);
+        deviceRepository.save(device);
     }
 
 }

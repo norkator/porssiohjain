@@ -22,7 +22,9 @@ import com.microsoft.azure.sdk.iot.device.DeviceClient;
 import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
 import com.microsoft.azure.sdk.iot.device.Message;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
+import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +53,7 @@ public class ToshibaAcAmqpSendService {
     private final ToshibaRegisterControllerService toshibaRegisterControllerService;
     private final ToshibaLoginService toshibaLoginService;
     private final DeviceAcDataRepository deviceAcDataRepository;
+    private final DeviceRepository deviceRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void sendMessage(DeviceAcDataEntity acData, String payload) {
@@ -76,6 +79,7 @@ public class ToshibaAcAmqpSendService {
         sendMessage(acData, payload);
         acData.setLastPolledStateHex(hexState);
         deviceAcDataRepository.save(acData);
+        markDeviceReachable(acData);
         log.info(
                 "Persisted lastPolledStateHex after successful Toshiba send. deviceId={}, acDataId={}",
                 acData.getDevice().getId(),
@@ -253,5 +257,15 @@ public class ToshibaAcAmqpSendService {
     }
 
     private record ToshibaAmqpHexPayload(String data) {
+    }
+
+    private void markDeviceReachable(DeviceAcDataEntity acData) {
+        DeviceEntity device = acData.getDevice();
+        if (device == null) {
+            return;
+        }
+        device.setLastCommunication(Instant.now());
+        device.setApiOnline(true);
+        deviceRepository.save(device);
     }
 }
