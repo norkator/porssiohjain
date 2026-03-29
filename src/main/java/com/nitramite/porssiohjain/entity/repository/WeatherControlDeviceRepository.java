@@ -16,11 +16,16 @@
 
 package com.nitramite.porssiohjain.entity.repository;
 
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlDeviceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
 
 public interface WeatherControlDeviceRepository extends JpaRepository<WeatherControlDeviceEntity, Long> {
 
     boolean existsByWeatherControlIdAndDeviceIdAndDeviceChannel(Long weatherControlId, Long deviceId, Integer deviceChannel);
+
+    List<WeatherControlDeviceEntity> findByDevice(DeviceEntity device);
 
 }

@@ -16,8 +16,13 @@
 
 package com.nitramite.porssiohjain.entity.repository;
 
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlHeatPumpEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 public interface WeatherControlHeatPumpRepository extends JpaRepository<WeatherControlHeatPumpEntity, Long> {
+
+    List<WeatherControlHeatPumpEntity> findByDevice(DeviceEntity device);
 }

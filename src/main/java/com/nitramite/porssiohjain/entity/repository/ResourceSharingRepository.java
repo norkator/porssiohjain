@@ -61,6 +61,11 @@ public interface ResourceSharingRepository extends JpaRepository<ResourceSharing
             ResourceType resourceType
     );
 
+    List<ResourceSharingEntity> findByResourceTypeAndDeviceId(
+            ResourceType resourceType,
+            Long deviceId
+    );
+
     boolean existsByReceiverAccountIdAndResourceTypeAndControlIdAndEnabledTrue(
             Long receiverAccountId,
             ResourceType resourceType,

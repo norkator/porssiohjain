@@ -43,6 +43,13 @@ public class DeviceService {
     private final PowerLimitRepository powerLimitRepository;
     private final ResourceSharingRepository resourceSharingRepository;
     private final DeviceAcDataRepository deviceAcDataRepository;
+    private final ControlDeviceRepository controlDeviceRepository;
+    private final PowerLimitDeviceRepository powerLimitDeviceRepository;
+    private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
+    private final WeatherControlDeviceRepository weatherControlDeviceRepository;
+    private final ControlHeatPumpRepository controlHeatPumpRepository;
+    private final ProductionSourceHeatPumpRepository productionSourceHeatPumpRepository;
+    private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
 
     @Transactional
     public DeviceResponse createDevice(
@@ -231,6 +238,25 @@ public class DeviceService {
             acData.setAcDeviceId(acDeviceId);
             deviceAcDataRepository.save(acData);
         }
+    }
+
+    @Transactional
+    public void deleteDevice(Long accountId, Long deviceId) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
+        DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
+
+        deviceAcDataRepository.findByDevice(device).ifPresent(deviceAcDataRepository::delete);
+        controlDeviceRepository.deleteAll(controlDeviceRepository.findByDevice(device));
+        powerLimitDeviceRepository.deleteAll(powerLimitDeviceRepository.findByDevice(device));
+        productionSourceDeviceRepository.deleteAll(productionSourceDeviceRepository.findByDevice(device));
+        weatherControlDeviceRepository.deleteAll(weatherControlDeviceRepository.findByDevice(device));
+        controlHeatPumpRepository.deleteAll(controlHeatPumpRepository.findByDevice(device));
+        productionSourceHeatPumpRepository.deleteAll(productionSourceHeatPumpRepository.findByDevice(device));
+        weatherControlHeatPumpRepository.deleteAll(weatherControlHeatPumpRepository.findByDevice(device));
+        resourceSharingRepository.deleteAll(resourceSharingRepository.findByResourceTypeAndDeviceId(ResourceType.DEVICE, deviceId));
+        deviceRepository.delete(device);
     }
 
     private void validateHeatPumpConfiguration(String hpName, String acUsername, String acPassword, String acDeviceId) {

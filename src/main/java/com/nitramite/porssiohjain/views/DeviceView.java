@@ -212,6 +212,15 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceGrid.addColumn(DeviceResponse::getAcDeviceId)
                 .setHeader(t("device.grid.acDeviceId"))
                 .setAutoWidth(true);
+        deviceGrid.addComponentColumn(device -> {
+            if (device.getShared()) {
+                return new Span();
+            }
+
+            Button deleteButton = new Button(t("button.delete"), event -> openDeleteDeviceDialog(device));
+            deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            return deleteButton;
+        }).setHeader(t("controlTable.grid.actions")).setAutoWidth(true);
 
         deviceGrid.setWidthFull();
         deviceGrid.setAllRowsVisible(true);
@@ -438,6 +447,43 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             Notification notification = Notification.show(t("device.notification.failed", e.getMessage()));
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void openDeleteDeviceDialog(DeviceResponse device) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("delete.confirmTitle"));
+        dialog.add(t("delete.confirmDescription"));
+
+        Button deleteButton = new Button(t("button.delete"), event -> {
+            try {
+                String token = (String) VaadinSession.getCurrent().getAttribute("token");
+                if (token == null) {
+                    Notification.show(t("device.notification.notLoggedIn"))
+                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    dialog.close();
+                    return;
+                }
+
+                AccountEntity currentAccount = authService.authenticate(token);
+                deviceService.deleteDevice(currentAccount.getId(), device.getId());
+                dialog.close();
+                if (selectedDevice != null && selectedDevice.getId().equals(device.getId())) {
+                    clearForm();
+                }
+                loadDevices();
+            } catch (Exception e) {
+                Notification.show(t("device.notification.failed", e.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+        deleteButton.getStyle().set("margin-right", "auto");
+        dialog.getFooter().add(deleteButton);
+
+        Button cancelButton = new Button(t("button.cancel"), event -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        dialog.getFooter().add(cancelButton);
+        dialog.open();
     }
 
     private void clearForm() {
