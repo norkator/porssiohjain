@@ -39,7 +39,7 @@ public class SiteService {
     private final FmiWeatherService fmiWeatherService;
     private final SiteWeatherService siteWeatherService;
 
-    public void createSite(
+    public SiteEntity createSite(
             Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace
     ) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -51,17 +51,21 @@ public class SiteService {
                 .weatherPlace(normalizeWeatherPlace(weatherPlace))
                 .account(account)
                 .build();
-        siteRepository.save(site);
+        site = siteRepository.save(site);
+        siteWeatherService.fetchForecastForSite(site);
+        return site;
     }
 
-    public void updateSite(Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace) {
+    public SiteEntity updateSite(Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace) {
         SiteEntity site = siteRepository.findById(siteId)
                 .orElseThrow(() -> new IllegalArgumentException("Site not found"));
         site.setName(name);
         site.setType(type);
         site.setEnabled(enabled);
         site.setWeatherPlace(normalizeWeatherPlace(weatherPlace));
-        siteRepository.save(site);
+        site = siteRepository.save(site);
+        siteWeatherService.fetchForecastForSite(site);
+        return site;
     }
 
     public List<SiteResponse> getAllSites(Long accountId) {

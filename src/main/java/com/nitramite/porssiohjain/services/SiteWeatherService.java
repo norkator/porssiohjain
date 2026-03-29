@@ -50,6 +50,20 @@ public class SiteWeatherService {
     private Integer deleteAfterDays;
 
     @Transactional
+    public void fetchForecastForSite(SiteEntity site) {
+        if (site.getWeatherPlace() == null || site.getWeatherPlace().isBlank()) {
+            return;
+        }
+        try {
+            SiteWeatherForecastResponse forecast = fmiWeatherService.getForecastForSite(site);
+            saveForecast(site, forecast);
+            log.info("Fetched and saved {} weather forecast rows for site {}", forecast.getPoints().size(), site.getId());
+        } catch (Exception e) {
+            log.error("Failed to fetch weather forecast for site {}", site.getId(), e);
+        }
+    }
+
+    @Transactional
     public int fetchForecastsForConfiguredSites() {
         List<SiteEntity> sites = getSitesWithWeatherPlace();
         int fetchedSites = 0;
