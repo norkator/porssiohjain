@@ -18,6 +18,7 @@ package com.nitramite.porssiohjain;
 
 import com.nitramite.porssiohjain.services.SystemLogService;
 import com.vaadin.flow.component.dependency.CssImport;
+import com.vaadin.flow.server.AppShellSettings;
 import com.vaadin.flow.component.page.Push;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
@@ -39,6 +40,12 @@ public class PorssiohjainApplication implements AppShellConfigurator {
 
     public static void main(String[] args) {
         SpringApplication.run(PorssiohjainApplication.class, args);
+    }
+
+    @Override
+    public void configurePage(AppShellSettings settings) {
+        settings.addFavIcon("icon", "favicon.ico", "any");
+        settings.addLink("apple-touch-icon", "favicon.png");
     }
 
     @EventListener(ApplicationReadyEvent.class)
