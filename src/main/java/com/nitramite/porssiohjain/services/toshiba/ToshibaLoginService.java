@@ -78,7 +78,9 @@ public class ToshibaLoginService {
                 acData.setAcConsumerId(resObj.getConsumerId());
                 // Returns weird expiration values
                 acData.setAcTokenExpiresAt(Instant.now().plusSeconds(resObj.getExpires_in()));
-                deviceAcDataRepository.save(acData);
+                if (acData.getId() != null) {
+                    deviceAcDataRepository.save(acData);
+                }
 
                 return AcLoginResponse.builder()
                         .success(true)

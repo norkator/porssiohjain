@@ -30,4 +30,5 @@ public class CreateDeviceRequest {
     private AcType acType;
     private String acUsername;
     private String acPassword;
+    private String acDeviceId;
 }
