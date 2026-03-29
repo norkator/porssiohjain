@@ -108,13 +108,26 @@ public class ToshibaAcStateService {
     }
 
     private void markDeviceReachable(DeviceAcDataEntity acData) {
-        DeviceEntity device = acData.getDevice();
+        Long deviceId = getDeviceId(acData);
+        if (deviceId == null) {
+            return;
+        }
+        DeviceEntity device = deviceRepository.findById(deviceId)
+                .orElse(null);
         if (device == null) {
             return;
         }
         device.setLastCommunication(Instant.now());
         device.setApiOnline(true);
         deviceRepository.save(device);
+    }
+
+    private Long getDeviceId(DeviceAcDataEntity acData) {
+        DeviceEntity device = acData.getDevice();
+        if (device == null) {
+            return null;
+        }
+        return device.getId();
     }
 
 }

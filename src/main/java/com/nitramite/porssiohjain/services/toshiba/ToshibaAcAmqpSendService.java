@@ -66,9 +66,10 @@ public class ToshibaAcAmqpSendService {
 
     public void sendHexState(DeviceAcDataEntity acData, String hexState) {
         String payload = buildHexStatePayload(acData, hexState);
+        Long deviceId = getDeviceId(acData);
         log.info(
                 "Prepared Toshiba AMQP hex command. deviceId={}, acDataId={}, sourceId={}, targetId={}, acConsumerId={}, acDeviceId={}, payload={}",
-                acData.getDevice().getId(),
+                deviceId,
                 acData.getId(),
                 buildClientDeviceId(acData),
                 acData.getAcDeviceId(),
@@ -82,7 +83,7 @@ public class ToshibaAcAmqpSendService {
         markDeviceReachable(acData);
         log.info(
                 "Persisted lastPolledStateHex after successful Toshiba send. deviceId={}, acDataId={}",
-                acData.getDevice().getId(),
+                deviceId,
                 acData.getId()
         );
     }
@@ -95,9 +96,10 @@ public class ToshibaAcAmqpSendService {
         String connectionString = "HostName=" + connectionInfo.hostName()
                 + ";DeviceId=" + connectionInfo.deviceId()
                 + ";SharedAccessSignature=" + acData.getSasToken();
+        Long deviceId = getDeviceId(acData);
         log.info(
                 "Opening Toshiba AMQP connection. deviceId={}, acDataId={}, iotHost={}, iotDeviceId={}, sasTokenPresent={}",
-                acData.getDevice().getId(),
+                deviceId,
                 acData.getId(),
                 connectionInfo.hostName(),
                 connectionInfo.deviceId(),
@@ -122,14 +124,14 @@ public class ToshibaAcAmqpSendService {
                     sendFailure.set(clientException);
                     log.error(
                             "Toshiba AMQP callback reported failure. deviceId={}, acDataId={}",
-                            acData.getDevice().getId(),
+                            deviceId,
                             acData.getId(),
                             clientException
                     );
                 } else {
                     log.info(
                             "Toshiba AMQP callback reported success. deviceId={}, acDataId={}",
-                            acData.getDevice().getId(),
+                            deviceId,
                             acData.getId()
                     );
                 }
@@ -260,12 +262,25 @@ public class ToshibaAcAmqpSendService {
     }
 
     private void markDeviceReachable(DeviceAcDataEntity acData) {
-        DeviceEntity device = acData.getDevice();
+        Long deviceId = getDeviceId(acData);
+        if (deviceId == null) {
+            return;
+        }
+        DeviceEntity device = deviceRepository.findById(deviceId)
+                .orElse(null);
         if (device == null) {
             return;
         }
         device.setLastCommunication(Instant.now());
         device.setApiOnline(true);
         deviceRepository.save(device);
+    }
+
+    private Long getDeviceId(DeviceAcDataEntity acData) {
+        DeviceEntity device = acData.getDevice();
+        if (device == null) {
+            return null;
+        }
+        return device.getId();
     }
 }
