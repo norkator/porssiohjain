@@ -140,7 +140,7 @@ public class SolarmanPvService {
         Instant expiresAt = Instant.now().plusSeconds(tokenResponse.getExpires_in());
         tokenCache.put(getCacheKey(source), new SolarmanTokenCache(tokenResponse.getAccess_token(), expiresAt));
 
-        systemLogService.log("Solarman token refreshed for " + source.getAppId() + " " + source.getEmail());
+        systemLogService.log("Solarman token refreshed for " + source.getAppId());
         return tokenResponse.getAccess_token();
     }
 
