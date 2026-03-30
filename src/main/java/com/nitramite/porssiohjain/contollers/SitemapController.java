@@ -40,11 +40,15 @@ public class SitemapController {
             "/docs/en/weather-controls",
             "/docs/en/power-limits",
             "/docs/en/devices-and-sites",
+            "/docs/en/api-documentation",
+            "/docs/en/shelly-scripts",
             "/docs/fi/controls",
             "/docs/fi/own-production",
             "/docs/fi/weather-controls",
             "/docs/fi/power-limits",
-            "/docs/fi/devices-and-sites"
+            "/docs/fi/devices-and-sites",
+            "/docs/fi/api-documentation",
+            "/docs/fi/shelly-scripts"
             // "/device", // these require login
             // "/controls", // these require login
             // "/production-sources", // these require login

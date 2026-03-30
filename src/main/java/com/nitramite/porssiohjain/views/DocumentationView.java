@@ -116,6 +116,18 @@ public class DocumentationView extends VerticalLayout {
                         t("docs.card.devices.description"),
                         "/docs/en/devices-and-sites",
                         "/docs/fi/devices-and-sites"
+                ),
+                createDocCard(
+                        t("docs.card.api.title"),
+                        t("docs.card.api.description"),
+                        "/docs/en/api-documentation",
+                        "/docs/fi/api-documentation"
+                ),
+                createDocCard(
+                        t("docs.card.shellyScripts.title"),
+                        t("docs.card.shellyScripts.description"),
+                        "/docs/en/shelly-scripts",
+                        "/docs/fi/shelly-scripts"
                 )
         );
 
