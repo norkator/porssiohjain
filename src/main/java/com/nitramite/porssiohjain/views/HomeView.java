@@ -98,6 +98,9 @@ public class HomeView extends VerticalLayout {
         Button createAccountButton = new Button(t("home.createAccount"), e -> UI.getCurrent().navigate(CreateAccountView.class));
         createAccountButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
 
+        Button documentationButton = new Button(t("home.documentation"), e -> UI.getCurrent().navigate(DocumentationView.class));
+        documentationButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
         Button devicesButton = new Button(t("home.myDevices"), e -> UI.getCurrent().navigate(DeviceView.class));
         devicesButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -133,7 +136,7 @@ public class HomeView extends VerticalLayout {
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
         Stream.of(
-                loginButton, createAccountButton, devicesButton, controlsButton, weatherControlsButton, myProductionButton, powerLimitsButton, temperatureControlsButton,
+                loginButton, createAccountButton, documentationButton, devicesButton, controlsButton, weatherControlsButton, myProductionButton, powerLimitsButton, temperatureControlsButton,
                 dashboardButton, settingsButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
@@ -149,10 +152,10 @@ public class HomeView extends VerticalLayout {
         if (loggedIn) {
             contentBox.add(
                     devicesButton, controlsButton, weatherControlsButton, myProductionButton, powerLimitsButton,
-                    dashboardButton, settingsButton, logoutButton, Divider.createDivider()
+                    dashboardButton, settingsButton, documentationButton, logoutButton, Divider.createDivider()
             );
         } else {
-            contentBox.add(loginButton, createAccountButton);
+            contentBox.add(loginButton, createAccountButton, documentationButton);
         }
 
         Paragraph docLink = new Paragraph(t("home.licenseText") + " ");

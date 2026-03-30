@@ -33,7 +33,18 @@ public class SitemapController {
     private static final List<String> pages = List.of(
             "/",
             "/login",
-            "/createAccount"
+            "/createAccount",
+            "/docs",
+            "/docs/en/controls",
+            "/docs/en/own-production",
+            "/docs/en/weather-controls",
+            "/docs/en/power-limits",
+            "/docs/en/devices-and-sites",
+            "/docs/fi/controls",
+            "/docs/fi/own-production",
+            "/docs/fi/weather-controls",
+            "/docs/fi/power-limits",
+            "/docs/fi/devices-and-sites"
             // "/device", // these require login
             // "/controls", // these require login
             // "/production-sources", // these require login
