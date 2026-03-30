@@ -1,1 +1,115 @@
-####
+### Mitsubishi MELCloud login
+POST https://app.melcloud.com/Mitsubishi.Wifi.Client/Login/ClientLogin
+Content-Type: application/json
+Accept: application/json, text/javascript, */*; q=0.01
+X-Requested-With: XMLHttpRequest
+Cookie: policyaccepted=true
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0
+
+{
+  "Email": "{{mitsubishi_ac_username}}",
+  "Password": "{{mitsubishi_ac_password}}",
+  "Language": 0,
+  "AppVersion": "1.19.1.1",
+  "Persist": true,
+  "CaptchaResponse": null
+}
+
+
+### Get all MELCloud devices
+### Check response manually and pick your AC unit DeviceID and BuildingID.
+GET https://app.melcloud.com/Mitsubishi.Wifi.Client/User/ListDevices
+Content-Type: application/json
+Accept: application/json, text/javascript, */*; q=0.01
+X-Requested-With: XMLHttpRequest
+Cookie: policyaccepted=true
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0
+X-MitsContextKey: {{mitsubishi_ac_context_key}}
+
+
+### Get AC state
+GET https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/Get?id={{mitsubishi_ac_device_id}}&
+    buildingID={{mitsubishi_ac_building_id}}
+Content-Type: application/json
+Accept: application/json, text/javascript, */*; q=0.01
+X-Requested-With: XMLHttpRequest
+Cookie: policyaccepted=true
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0
+X-MitsContextKey: {{mitsubishi_ac_context_key}}
+
+
+### Get AC unit details
+POST https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/ListDeviceUnits
+Content-Type: application/json
+Accept: application/json, text/javascript, */*; q=0.01
+X-Requested-With: XMLHttpRequest
+Cookie: policyaccepted=true
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0
+X-MitsContextKey: {{mitsubishi_ac_context_key}}
+
+{
+  "deviceId": {{mitsubishi_ac_device_id}}
+}
+
+
+### Set AC state
+### Study flow:
+### 1. Call "Get AC state"
+### 2. Copy full JSON response here
+### 3. Modify only needed fields
+### 4. Set matching EffectiveFlags
+###
+### Useful fields for air-to-air units:
+### - Power: true / false
+### - OperationMode: 1=heat, 2=dry, 3=cool, 7=fan_only, 8=auto
+### - SetTemperature: target temperature
+### - SetFanSpeed: 0=auto, 1..N=speeds
+### - VaneVertical: 0=auto, 1..5=fixed, 7=swing
+### - VaneHorizontal: 0=auto, 1..5=fixed, 8=split, 12=swing
+###
+### EffectiveFlags bits:
+### - 0x01 power
+### - 0x02 mode
+### - 0x04 temperature
+### - 0x08 fan speed
+### - 0x10 vertical vane
+### - 0x100 horizontal vane
+POST https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/SetAta
+Content-Type: application/json
+Accept: application/json, text/javascript, */*; q=0.01
+X-Requested-With: XMLHttpRequest
+Cookie: policyaccepted=true
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0
+X-MitsContextKey: {{mitsubishi_ac_context_key}}
+
+{
+  "DeviceID": {{mitsubishi_ac_device_id}},
+  "BuildingID": {{mitsubishi_ac_building_id}},
+  "Power": true,
+  "OperationMode": 3,
+  "SetTemperature": 21.0,
+  "SetFanSpeed": 0,
+  "VaneVertical": 0,
+  "VaneHorizontal": 0,
+  "EffectiveFlags": 15,
+  "HasPendingCommand": true
+}
+
+
+### Example: turn AC off
+### In real use, copy full state from "Get AC state" and only change fields you want.
+POST https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/SetAta
+Content-Type: application/json
+Accept: application/json, text/javascript, */*; q=0.01
+X-Requested-With: XMLHttpRequest
+Cookie: policyaccepted=true
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0
+X-MitsContextKey: {{mitsubishi_ac_context_key}}
+
+{
+  "DeviceID": {{mitsubishi_ac_device_id}},
+  "BuildingID": {{mitsubishi_ac_building_id}},
+  "Power": false,
+  "EffectiveFlags": 1,
+  "HasPendingCommand": true
+}
