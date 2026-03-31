@@ -1,6 +1,7 @@
 # Sääohjaukset
 
-Sääohjaukset antavat Porssiohjainille mahdollisuuden reagoida kohteen säätietoihin sähkön hinnan tai oman tuotannon sijaan.
+Sääohjaukset antavat Pörssiohjainille mahdollisuuden reagoida kohteen säätietoihin sähkön hinnan tai oman tuotannon
+sijaan.
 
 ## Esivaatimus: kohde, jolla on sääpaikka
 
@@ -72,7 +73,8 @@ Esimerkkejä:
 
 ## Ennusteen käyttö
 
-Sovellus etsii nykyhetken ympäriltä lähimmän tallennetun ennustearvon. Jos sopivaa sääarvoa ei löydy, sääntö ohitetaan siihen asti, kunnes ennustedataa on saatavilla.
+Sovellus etsii nykyhetken ympäriltä lähimmän tallennetun ennustearvon. Jos sopivaa sääarvoa ei löydy, sääntö ohitetaan
+siihen asti, kunnes ennustedataa on saatavilla.
 
 ## Hyviä käyttökohteita
 

@@ -1,6 +1,6 @@
 # Shelly Device Scripts
 
-This page contains the current Shelly script examples used with Porssiohjain for:
+This page contains the current Shelly script examples used with Pörssiohjain for:
 
 - Relay control based on device control states
 - Power-limit measurement reporting with Shelly Pro 3EM

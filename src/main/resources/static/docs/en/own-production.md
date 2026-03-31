@@ -1,6 +1,6 @@
 # Own production
 
-Own production sources let Porssiohjain react to local generation, such as solar production, and use that live power value to automate devices and heat pumps.
+Own production sources let Pörssiohjain react to local generation, such as solar production, and use that live power value to automate devices and heat pumps.
 
 ## What a production source does
 

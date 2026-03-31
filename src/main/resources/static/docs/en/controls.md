@@ -1,6 +1,6 @@
 # Controls
 
-Porssiohjain controls are used for price-based switching of standard device channels and for scheduled heat-pump state changes.
+Pörssiohjain controls are used for price-based switching of standard device channels and for scheduled heat-pump state changes.
 
 ## What a control does
 
