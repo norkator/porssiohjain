@@ -197,4 +197,4 @@ Timer.set(POLL_INTERVAL_MS, true, sendCurrentKw);
 
 - The relay script polls the control endpoint and applies channel states returned by the service.
 - The power-limit script sends current power and total energy data to the power endpoint once per minute.
-- Update the UUIDs and endpoint hostnames to match your actual deployment if needed.
+- Update the UUIDs and endpoint hostnames to match your actual deployment.
