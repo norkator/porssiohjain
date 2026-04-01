@@ -17,15 +17,12 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
-import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
-import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
-import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
+import com.nitramite.porssiohjain.services.HeatPumpStateDialogService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.SiteService;
 import com.nitramite.porssiohjain.services.WeatherControlService;
@@ -36,10 +33,6 @@ import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlHeatPumpResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlResponse;
-import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateDecodedResponse;
-import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateHexDecoderService;
-import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateResponse;
-import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -90,10 +83,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     private final WeatherControlService weatherControlService;
     private final SiteService siteService;
     private final DeviceService deviceService;
-    private final ToshibaAcStateService toshibaAcStateService;
-    private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
-    private final DeviceAcDataRepository deviceAcDataRepository;
-    private final DeviceRepository deviceRepository;
+    private final HeatPumpStateDialogService heatPumpStateDialogService;
     protected final I18nService i18n;
 
     private final Grid<WeatherControlDeviceResponse> deviceGrid = new Grid<>(WeatherControlDeviceResponse.class, false);
@@ -116,20 +106,14 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
             WeatherControlService weatherControlService,
             SiteService siteService,
             DeviceService deviceService,
-            ToshibaAcStateService toshibaAcStateService,
-            ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService,
-            DeviceAcDataRepository deviceAcDataRepository,
-            DeviceRepository deviceRepository,
+            HeatPumpStateDialogService heatPumpStateDialogService,
             I18nService i18n
     ) {
         this.authService = authService;
         this.weatherControlService = weatherControlService;
         this.siteService = siteService;
         this.deviceService = deviceService;
-        this.toshibaAcStateService = toshibaAcStateService;
-        this.toshibaAcStateHexDecoderService = toshibaAcStateHexDecoderService;
-        this.deviceAcDataRepository = deviceAcDataRepository;
-        this.deviceRepository = deviceRepository;
+        this.heatPumpStateDialogService = heatPumpStateDialogService;
         this.i18n = i18n;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
@@ -550,59 +534,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     }
 
     private void openHeatPumpStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
-        dialog.setWidth("900px");
-        dialog.setMaxWidth("95vw");
-
-        VerticalLayout dialogLayout = new VerticalLayout();
-        dialogLayout.add(new Paragraph(t("controlTable.dialog.queryState.instructions")));
-        dialogLayout.setWidthFull();
-
-        Div stateInfoDiv = new Div();
-        stateInfoDiv.setVisible(false);
-        stateInfoDiv.setWidthFull();
-
-        Button actionButton = new Button(t("controlTable.dialog.queryState.actionButton"), event -> {
-            try {
-                DeviceEntity deviceEntity = deviceRepository.findById(deviceResponse.getId())
-                        .orElseThrow(() -> new IllegalArgumentException("Device not found"));
-                DeviceAcDataEntity acData = deviceAcDataRepository.findByDevice(deviceEntity)
-                        .orElseThrow(() -> new IllegalArgumentException("AC data not found for device"));
-
-                ToshibaAcStateResponse response = toshibaAcStateService.getAcState(acData);
-                if (response != null && response.isSuccess() && response.getResObj() != null) {
-                    String stateHex = response.getResObj().getAcStateData();
-                    stateHexField.setValue(stateHex);
-                    stateInfoDiv.removeAll();
-                    stateInfoDiv.add(createAcStateInfoContent(response));
-                    stateInfoDiv.setVisible(true);
-                    Notification.show(t("controlTable.dialog.queryState.queried"))
-                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                } else {
-                    Notification.show(t("weatherControl.notification.failedSave", response != null ? response.getMessage() : "Empty response"))
-                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                }
-            } catch (Exception ex) {
-                Notification.show(t("weatherControl.notification.failedSave", ex.getMessage()))
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
-        dialogLayout.add(actionButton, stateInfoDiv);
-
-        dialog.add(dialogLayout);
-
-        Button saveButton = new Button(t("common.save"), event -> dialog.close());
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        dialog.getFooter().add(saveButton);
-
-        Button cancelButton = new Button(t("common.cancel"), event -> {
-            stateHexField.clear();
-            dialog.close();
-        });
-        dialog.getFooter().add(cancelButton);
-
-        dialog.open();
+        heatPumpStateDialogService.openStateDialog(deviceResponse, stateHexField);
     }
 
     private void openHeatPumpStateHexDialog(String stateHex) {
@@ -611,114 +543,16 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         dialog.setWidth("900px");
         dialog.setMaxWidth("95vw");
 
-        ToshibaAcStateResponse response = new ToshibaAcStateResponse();
-        response.setSuccess(true);
-
-        ToshibaAcStateResponse.ResObj resObj = new ToshibaAcStateResponse.ResObj();
-        resObj.setAcStateData(stateHex);
-        resObj.setDecodedAcState(toshibaAcStateHexDecoderService.decode(stateHex));
-        response.setResObj(resObj);
-
         VerticalLayout dialogLayout = new VerticalLayout();
         dialogLayout.setWidthFull();
         dialogLayout.add(
                 new Paragraph(t("controlTable.dialog.decodeState.instructions")),
-                createAcStateInfoContent(response)
+                heatPumpStateDialogService.createAcStateInfoContentFromHex(stateHex)
         );
 
         dialog.add(dialogLayout);
         dialog.getFooter().add(new Button(t("common.cancel"), event -> dialog.close()));
         dialog.open();
-    }
-
-    private Component createAcStateInfoContent(ToshibaAcStateResponse response) {
-        VerticalLayout content = new VerticalLayout();
-        content.setSpacing(true);
-        content.setPadding(false);
-        content.setWidthFull();
-
-        ToshibaAcStateResponse.ResObj resObj = response.getResObj();
-        ToshibaAcStateDecodedResponse decoded = resObj.getDecodedAcState();
-
-        TextArea hexArea = new TextArea(t("controlTable.dialog.queryState.field.stateHex"));
-        hexArea.setValue(Optional.ofNullable(resObj.getAcStateData()).orElse(""));
-        hexArea.setReadOnly(true);
-        hexArea.setWidthFull();
-        content.add(hexArea);
-
-        if (decoded == null) {
-            content.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
-            return content;
-        }
-
-        TextField summaryField = createReadOnlyField(t("controlTable.dialog.queryState.field.summary"), decoded.getSummary());
-        TextField validField = createReadOnlyField(t("controlTable.dialog.queryState.field.valid"), String.valueOf(decoded.isValid()));
-        TextField normalizedHexField = createReadOnlyField(t("controlTable.dialog.queryState.field.normalizedHex"), decoded.getNormalizedHex());
-        TextField byteLengthField = createReadOnlyField(t("controlTable.dialog.queryState.field.byteLength"), decoded.getByteLength() != null ? String.valueOf(decoded.getByteLength()) : null);
-
-        FormLayout metaLayout = new FormLayout(summaryField, validField, normalizedHexField, byteLengthField);
-        metaLayout.setWidthFull();
-        metaLayout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2)
-        );
-        metaLayout.setColspan(summaryField, 2);
-        metaLayout.setColspan(normalizedHexField, 2);
-        content.add(metaLayout);
-
-        FormLayout decodedLayout = new FormLayout(
-                createDecodedValueField(t("controlTable.dialog.queryState.field.power"), decoded.getPower()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.mode"), decoded.getMode()),
-                createTemperatureField(t("controlTable.dialog.queryState.field.targetTemperature"), decoded.getTargetTemperature()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.fanMode"), decoded.getFanMode()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.swingMode"), decoded.getSwingMode()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.powerSelection"), decoded.getPowerSelection()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.meritB"), decoded.getMeritB()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.meritA"), decoded.getMeritA()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.airPureIon"), decoded.getAirPureIon()),
-                createTemperatureField(t("controlTable.dialog.queryState.field.indoorTemperature"), decoded.getIndoorTemperature()),
-                createTemperatureField(t("controlTable.dialog.queryState.field.outdoorTemperature"), decoded.getOutdoorTemperature()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.selfCleaning"), decoded.getSelfCleaning())
-        );
-        decodedLayout.setWidthFull();
-        decodedLayout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2),
-                new FormLayout.ResponsiveStep("900px", 3)
-        );
-        content.add(decodedLayout);
-
-        TextArea warningsArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.warnings"), String.join("\n", decoded.getWarnings()));
-        TextArea unknownFieldsArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.unknownFields"), formatUnknownFields(decoded.getUnknownFields()));
-        TextArea rawBytesArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.rawBytes"), formatRawBytes(decoded.getRawBytes()));
-
-        content.add(warningsArea, unknownFieldsArea, rawBytesArea);
-        return content;
-    }
-
-    private TextField createDecodedValueField(String label, ToshibaAcStateDecodedResponse.DecodedValue value) {
-        if (value == null) {
-            return createReadOnlyField(label, "");
-        }
-        String text = value.getLabel();
-        if (value.getCode() != null && !value.getCode().isBlank()) {
-            text = (text == null || text.isBlank() ? "" : text + " | ") + value.getCode();
-        }
-        if (value.getRawHex() != null && !value.getRawHex().isBlank()) {
-            text = (text == null || text.isBlank() ? "" : text + " | ") + value.getRawHex();
-        }
-        return createReadOnlyField(label, text);
-    }
-
-    private TextField createTemperatureField(String label, ToshibaAcStateDecodedResponse.TemperatureValue value) {
-        if (value == null) {
-            return createReadOnlyField(label, "");
-        }
-        String text = value.getLabel();
-        if (value.getRawHex() != null && !value.getRawHex().isBlank()) {
-            text = (text == null || text.isBlank() ? "" : text + " | ") + value.getRawHex();
-        }
-        return createReadOnlyField(label, text);
     }
 
     private TextField createReadOnlyField(String label, String value) {
@@ -729,51 +563,6 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         return field;
     }
 
-    private TextArea createReadOnlyTextArea(String label, String value) {
-        TextArea area = new TextArea(label);
-        area.setReadOnly(true);
-        area.setWidthFull();
-        area.setValue(value != null && !value.isBlank() ? value : "-");
-        area.setMinHeight("120px");
-        return area;
-    }
-
-    private String formatUnknownFields(List<ToshibaAcStateDecodedResponse.UnknownFieldValue> unknownFields) {
-        if (unknownFields == null || unknownFields.isEmpty()) {
-            return "";
-        }
-        return unknownFields.stream()
-                .map(field -> String.format(
-                        Locale.ROOT,
-                        "%s: index=%d, raw=%s, unsigned=%s, signed=%s, note=%s",
-                        field.getField(),
-                        field.getIndex(),
-                        field.getRawHex(),
-                        field.getRawUnsigned(),
-                        field.getRawSigned(),
-                        field.getNote()
-                ))
-                .reduce((a, b) -> a + "\n" + b)
-                .orElse("");
-    }
-
-    private String formatRawBytes(List<ToshibaAcStateDecodedResponse.RawByteValue> rawBytes) {
-        if (rawBytes == null || rawBytes.isEmpty()) {
-            return "";
-        }
-        return rawBytes.stream()
-                .map(rawByte -> String.format(
-                        Locale.ROOT,
-                        "[%d] %s | unsigned=%s | signed=%s | %s",
-                        rawByte.getIndex(),
-                        rawByte.getRawHex(),
-                        rawByte.getRawUnsigned(),
-                        rawByte.getRawSigned(),
-                        rawByte.getMeaning()
-                ))
-                .reduce((a, b) -> a + "\n" + b)
-                .orElse("");
-    }
 
     private String formatDecimal(BigDecimal value, String unit) {
         if (value == null) {

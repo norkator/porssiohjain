@@ -16,18 +16,11 @@
 
 package com.nitramite.porssiohjain.views;
 
-import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
-import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
-import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
-import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
-import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateDecodedResponse;
-import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateResponse;
-import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
@@ -86,9 +79,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     private final ProductionSourceService productionSourceService;
     private final DeviceService deviceService;
     private final SiteService siteService;
-    private final ToshibaAcStateService toshibaAcStateService;
-    private final DeviceAcDataRepository deviceAcDataRepository;
-    private final DeviceRepository deviceRepository;
+    private final HeatPumpStateDialogService heatPumpStateDialogService;
 
     private Long sourceId;
     private Long accountId;
@@ -110,18 +101,14 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
             ProductionSourceService productionSourceService,
             DeviceService deviceService,
             SiteService siteService,
-            ToshibaAcStateService toshibaAcStateService,
-            DeviceAcDataRepository deviceAcDataRepository,
-            DeviceRepository deviceRepository
+            HeatPumpStateDialogService heatPumpStateDialogService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.productionSourceService = productionSourceService;
         this.deviceService = deviceService;
         this.siteService = siteService;
-        this.toshibaAcStateService = toshibaAcStateService;
-        this.deviceAcDataRepository = deviceAcDataRepository;
-        this.deviceRepository = deviceRepository;
+        this.heatPumpStateDialogService = heatPumpStateDialogService;
 
         setSizeFull();
         setSpacing(true);
@@ -475,201 +462,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     }
 
     private void openHeatPumpStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
-        dialog.setWidth("900px");
-        dialog.setMaxWidth("95vw");
-
-        VerticalLayout dialogLayout = new VerticalLayout();
-        dialogLayout.add(new Paragraph(t("controlTable.dialog.queryState.instructions")));
-        dialogLayout.setWidthFull();
-
-        Div stateInfoDiv = new Div();
-        stateInfoDiv.setVisible(false);
-        stateInfoDiv.setWidthFull();
-
-        Button actionButton = new Button(t("controlTable.dialog.queryState.actionButton"), e -> {
-            try {
-                DeviceEntity deviceEntity = deviceRepository.findById(deviceResponse.getId())
-                        .orElseThrow(() -> new IllegalArgumentException("Device not found"));
-                DeviceAcDataEntity acData = deviceAcDataRepository.findByDevice(deviceEntity)
-                        .orElseThrow(() -> new IllegalArgumentException("AC data not found for device"));
-
-                ToshibaAcStateResponse response = toshibaAcStateService.getAcState(acData);
-                if (response != null && response.isSuccess() && response.getResObj() != null) {
-                    String stateHex = response.getResObj().getAcStateData();
-                    stateHexField.setValue(stateHex);
-                    stateInfoDiv.removeAll();
-                    stateInfoDiv.add(createAcStateInfoContent(response));
-                    stateInfoDiv.setVisible(true);
-                    Notification.show(t("controlTable.dialog.queryState.queried"));
-                } else {
-                    Notification.show(t("controlTable.notification.failedSave", response != null ? response.getMessage() : "Empty response"), 5000, Notification.Position.MIDDLE)
-                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                }
-            } catch (Exception ex) {
-                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()), 5000, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
-        dialogLayout.add(actionButton, stateInfoDiv);
-
-        dialog.add(dialogLayout);
-
-        Button saveButton = new Button(t("common.save"), e -> dialog.close());
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        dialog.getFooter().add(saveButton);
-
-        Button cancelButton = new Button(t("common.cancel"), e -> {
-            stateHexField.clear();
-            dialog.close();
-        });
-        dialog.getFooter().add(cancelButton);
-
-        dialog.open();
-    }
-
-    private Component createAcStateInfoContent(ToshibaAcStateResponse response) {
-        VerticalLayout content = new VerticalLayout();
-        content.setSpacing(true);
-        content.setPadding(false);
-        content.setWidthFull();
-
-        ToshibaAcStateResponse.ResObj resObj = response.getResObj();
-        ToshibaAcStateDecodedResponse decoded = resObj.getDecodedAcState();
-
-        TextArea hexArea = new TextArea(t("controlTable.dialog.queryState.field.stateHex"));
-        hexArea.setValue(Optional.ofNullable(resObj.getAcStateData()).orElse(""));
-        hexArea.setReadOnly(true);
-        hexArea.setWidthFull();
-
-        content.add(hexArea);
-
-        if (decoded == null) {
-            content.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
-            return content;
-        }
-
-        TextField summaryField = createReadOnlyField(t("controlTable.dialog.queryState.field.summary"), decoded.getSummary());
-        TextField validField = createReadOnlyField(t("controlTable.dialog.queryState.field.valid"), String.valueOf(decoded.isValid()));
-        TextField normalizedHexField = createReadOnlyField(t("controlTable.dialog.queryState.field.normalizedHex"), decoded.getNormalizedHex());
-        TextField byteLengthField = createReadOnlyField(t("controlTable.dialog.queryState.field.byteLength"), decoded.getByteLength() != null ? String.valueOf(decoded.getByteLength()) : null);
-
-        FormLayout metaLayout = new FormLayout(summaryField, validField, normalizedHexField, byteLengthField);
-        metaLayout.setWidthFull();
-        metaLayout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2)
-        );
-        metaLayout.setColspan(summaryField, 2);
-        metaLayout.setColspan(normalizedHexField, 2);
-        content.add(metaLayout);
-
-        FormLayout decodedLayout = new FormLayout(
-                createDecodedValueField(t("controlTable.dialog.queryState.field.power"), decoded.getPower()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.mode"), decoded.getMode()),
-                createTemperatureField(t("controlTable.dialog.queryState.field.targetTemperature"), decoded.getTargetTemperature()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.fanMode"), decoded.getFanMode()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.swingMode"), decoded.getSwingMode()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.powerSelection"), decoded.getPowerSelection()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.meritB"), decoded.getMeritB()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.meritA"), decoded.getMeritA()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.airPureIon"), decoded.getAirPureIon()),
-                createTemperatureField(t("controlTable.dialog.queryState.field.indoorTemperature"), decoded.getIndoorTemperature()),
-                createTemperatureField(t("controlTable.dialog.queryState.field.outdoorTemperature"), decoded.getOutdoorTemperature()),
-                createDecodedValueField(t("controlTable.dialog.queryState.field.selfCleaning"), decoded.getSelfCleaning())
-        );
-        decodedLayout.setWidthFull();
-        decodedLayout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 2),
-                new FormLayout.ResponsiveStep("900px", 3)
-        );
-        content.add(decodedLayout);
-
-        TextArea warningsArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.warnings"), String.join("\n", decoded.getWarnings()));
-        TextArea unknownFieldsArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.unknownFields"), formatUnknownFields(decoded.getUnknownFields()));
-        TextArea rawBytesArea = createReadOnlyTextArea(t("controlTable.dialog.queryState.field.rawBytes"), formatRawBytes(decoded.getRawBytes()));
-
-        content.add(warningsArea, unknownFieldsArea, rawBytesArea);
-        return content;
-    }
-
-    private TextField createDecodedValueField(String label, ToshibaAcStateDecodedResponse.DecodedValue value) {
-        if (value == null) {
-            return createReadOnlyField(label, "");
-        }
-        String text = value.getLabel();
-        if (value.getCode() != null && !value.getCode().isBlank()) {
-            text = (text == null || text.isBlank() ? "" : text + " | ") + value.getCode();
-        }
-        if (value.getRawHex() != null && !value.getRawHex().isBlank()) {
-            text = (text == null || text.isBlank() ? "" : text + " | ") + value.getRawHex();
-        }
-        return createReadOnlyField(label, text);
-    }
-
-    private TextField createTemperatureField(String label, ToshibaAcStateDecodedResponse.TemperatureValue value) {
-        if (value == null) {
-            return createReadOnlyField(label, "");
-        }
-        String text = value.getLabel();
-        if (value.getRawHex() != null && !value.getRawHex().isBlank()) {
-            text = (text == null || text.isBlank() ? "" : text + " | ") + value.getRawHex();
-        }
-        return createReadOnlyField(label, text);
-    }
-
-    private TextField createReadOnlyField(String label, String value) {
-        TextField field = new TextField(label);
-        field.setReadOnly(true);
-        field.setWidthFull();
-        field.setValue(value != null ? value : "");
-        return field;
-    }
-
-    private TextArea createReadOnlyTextArea(String label, String value) {
-        TextArea area = new TextArea(label);
-        area.setReadOnly(true);
-        area.setWidthFull();
-        area.setValue(value != null && !value.isBlank() ? value : "-");
-        area.setMinHeight("120px");
-        return area;
-    }
-
-    private String formatUnknownFields(List<ToshibaAcStateDecodedResponse.UnknownFieldValue> unknownFields) {
-        if (unknownFields == null || unknownFields.isEmpty()) {
-            return "";
-        }
-        return unknownFields.stream()
-                .map(field -> String.format(
-                        "%s: index=%d, raw=%s, unsigned=%s, signed=%s, note=%s",
-                        field.getField(),
-                        field.getIndex(),
-                        field.getRawHex(),
-                        field.getRawUnsigned(),
-                        field.getRawSigned(),
-                        field.getNote()
-                ))
-                .reduce((a, b) -> a + "\n" + b)
-                .orElse("");
-    }
-
-    private String formatRawBytes(List<ToshibaAcStateDecodedResponse.RawByteValue> rawBytes) {
-        if (rawBytes == null || rawBytes.isEmpty()) {
-            return "";
-        }
-        return rawBytes.stream()
-                .map(rawByte -> String.format(
-                        "[%d] %s | unsigned=%s | signed=%s | %s",
-                        rawByte.getIndex(),
-                        rawByte.getRawHex(),
-                        rawByte.getRawUnsigned(),
-                        rawByte.getRawSigned(),
-                        rawByte.getMeaning()
-                ))
-                .reduce((a, b) -> a + "\n" + b)
-                .orElse("");
+        heatPumpStateDialogService.openStateDialog(deviceResponse, stateHexField);
     }
 
     private Component createCurrentStatsRow(ProductionSourceResponse s) {

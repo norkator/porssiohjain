@@ -23,6 +23,9 @@ import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesResponse;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesService;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiLoginService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcDevicesService;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcMappingResponse;
@@ -69,6 +72,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final AuthService authService;
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcDevicesService toshibaAcDevicesService;
+    private final MitsubishiLoginService mitsubishiLoginService;
+    private final MitsubishiAcDevicesService mitsubishiAcDevicesService;
     protected final I18nService i18n;
 
     private final TextField nameField;
@@ -89,6 +94,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private DeviceResponse selectedDevice;
     private String pendingAcDeviceId;
+    private String pendingBuildingId;
 
     @Autowired
     public DeviceView(
@@ -96,13 +102,17 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             AuthService authService,
             I18nService i18n,
             ToshibaLoginService toshibaLoginService,
-            ToshibaAcDevicesService toshibaAcDevicesService
+            ToshibaAcDevicesService toshibaAcDevicesService,
+            MitsubishiLoginService mitsubishiLoginService,
+            MitsubishiAcDevicesService mitsubishiAcDevicesService
     ) {
         this.deviceService = deviceService;
         this.authService = authService;
         this.i18n = i18n;
         this.toshibaLoginService = toshibaLoginService;
         this.toshibaAcDevicesService = toshibaAcDevicesService;
+        this.mitsubishiLoginService = mitsubishiLoginService;
+        this.mitsubishiAcDevicesService = mitsubishiAcDevicesService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -239,6 +249,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     acUsernameField.setValue(selectedDevice.getAcUsername() != null ? selectedDevice.getAcUsername() : "");
                     acPasswordField.setValue(selectedDevice.getAcPassword() != null ? selectedDevice.getAcPassword() : "");
                     pendingAcDeviceId = selectedDevice.getAcDeviceId();
+                    pendingBuildingId = selectedDevice.getBuildingId();
                     updateSelectAcDeviceButton();
                 } else {
                     hpNameField.clear();
@@ -246,12 +257,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     acUsernameField.clear();
                     acPasswordField.clear();
                     pendingAcDeviceId = null;
+                    pendingBuildingId = null;
                     updateSelectAcDeviceButton();
                 }
                 saveButton.setText(t("device.button.update"));
             } else {
                 clearForm();
             }
+            updateSaveButtonState();
         });
 
         timezoneCombo.setItems(ZoneId.getAvailableZoneIds());
@@ -273,8 +286,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         heatPumpForm.setVisible(false);
 
-        HorizontalLayout actions = new HorizontalLayout(saveButton, selectAcDeviceButton);
-        actions.setAlignItems(Alignment.CENTER);
+        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, saveButton);
+        actions.setPadding(false);
+        actions.setSpacing(true);
+        actions.setAlignItems(Alignment.START);
 
         card.add(title, deviceGrid, formLayout, heatPumpForm, actions);
         add(card);
@@ -285,8 +300,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             heatPumpForm.setVisible(isHeatPump);
             if (!isHeatPump) {
                 pendingAcDeviceId = null;
+                pendingBuildingId = null;
             }
             updateSelectAcDeviceButton();
+            updateSaveButtonState();
         });
 
         loadDevices();
@@ -301,51 +318,112 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             String token = (String) VaadinSession.getCurrent().getAttribute("token");
             AccountEntity currentAccount = authService.authenticate(token);
             DeviceAcDataEntity acData = buildAcDataForSelection(currentAccount.getId());
-
-            if (!toshibaLoginService.login(acData).isSuccess()) {
-                Notification.show(t("device.notification.toshibaLoginFailed")).addThemeVariants(NotificationVariant.LUMO_ERROR);
-                return;
+            AcType acType = acTypeCombo.getValue();
+            if (acType == AcType.TOSHIBA) {
+                openToshibaAcDeviceSelectionDialog(currentAccount, acData);
+            } else if (acType == AcType.MITSUBISHI) {
+                openMitsubishiAcDeviceSelectionDialog(currentAccount, acData);
+            } else {
+                Notification.show(t("device.notification.failed", "Unsupported AC type"))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
-
-            List<ToshibaAcMappingResponse.AcDevice> acDevices = toshibaAcDevicesService.getAcDevices(acData);
-            if (acDevices.isEmpty()) {
-                Notification.show(t("device.notification.noAcDevicesFound")).addThemeVariants(NotificationVariant.LUMO_WARNING);
-                return;
-            }
-
-            Dialog dialog = new Dialog();
-            dialog.setHeaderTitle(t("device.hp.dialog.title"));
-
-            Grid<ToshibaAcMappingResponse.AcDevice> acGrid = new Grid<>();
-            acGrid.addColumn(ToshibaAcMappingResponse.AcDevice::getName).setHeader(t("device.hp.dialog.grid.name"));
-            acGrid.addColumn(ToshibaAcMappingResponse.AcDevice::getId).setHeader(t("device.hp.dialog.grid.id"));
-            acGrid.setItems(acDevices);
-            acGrid.setWidth("500px");
-            acGrid.setHeight("300px");
-
-            Button selectButton = new Button(t("common.select"), e -> {
-                var selected = acGrid.asSingleSelect().getValue();
-                if (selected != null) {
-                    pendingAcDeviceId = selected.getId();
-                    if (selectedDevice != null) {
-                        deviceService.updateAcDeviceId(currentAccount.getId(), selectedDevice.getId(), selected.getId());
-                    }
-                    updateSelectAcDeviceButton();
-                    Notification.show(t("device.notification.acDeviceSelected")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    dialog.close();
-                    loadDevices();
-                }
-            });
-            selectButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-            Button cancelButton = new Button(t("common.cancel"), e -> dialog.close());
-
-            dialog.getFooter().add(cancelButton, selectButton);
-            dialog.add(new VerticalLayout(acGrid));
-            dialog.open();
 
         } catch (Exception e) {
             Notification.show(t("device.notification.failed", e.getMessage())).addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void openToshibaAcDeviceSelectionDialog(AccountEntity currentAccount, DeviceAcDataEntity acData) {
+        if (!toshibaLoginService.login(acData).isSuccess()) {
+            Notification.show(t("device.notification.toshibaLoginFailed")).addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+
+        List<ToshibaAcMappingResponse.AcDevice> acDevices = toshibaAcDevicesService.getAcDevices(acData);
+        if (acDevices.isEmpty()) {
+            Notification.show(t("device.notification.noAcDevicesFound")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+            return;
+        }
+
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("device.hp.dialog.title"));
+
+        Grid<ToshibaAcMappingResponse.AcDevice> acGrid = new Grid<>();
+        acGrid.addColumn(ToshibaAcMappingResponse.AcDevice::getName).setHeader(t("device.hp.dialog.grid.name"));
+        acGrid.addColumn(ToshibaAcMappingResponse.AcDevice::getId).setHeader(t("device.hp.dialog.grid.id"));
+        acGrid.setItems(acDevices);
+        acGrid.setWidth("500px");
+        acGrid.setHeight("300px");
+
+        Button selectButton = new Button(t("common.select"), e -> {
+            ToshibaAcMappingResponse.AcDevice selected = acGrid.asSingleSelect().getValue();
+            if (selected != null) {
+                persistSelectedAcDevice(currentAccount.getId(), selected.getId(), null);
+                Notification.show(t("device.notification.acDeviceSelected")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                dialog.close();
+                loadDevices();
+            }
+        });
+        selectButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button cancelButton = new Button(t("common.cancel"), e -> dialog.close());
+
+        dialog.getFooter().add(cancelButton, selectButton);
+        dialog.add(new VerticalLayout(acGrid));
+        dialog.open();
+    }
+
+    private void openMitsubishiAcDeviceSelectionDialog(AccountEntity currentAccount, DeviceAcDataEntity acData) {
+        if (!mitsubishiLoginService.login(acData).isSuccess()) {
+            Notification.show(t("device.notification.failed", "Mitsubishi login failed"))
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+
+        List<MitsubishiAcDevicesResponse.Device> acDevices = mitsubishiAcDevicesService.getAcDevices(acData);
+        if (acDevices.isEmpty()) {
+            Notification.show(t("device.notification.noAcDevicesFound")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+            return;
+        }
+
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("device.hp.dialog.title"));
+
+        Grid<MitsubishiAcDevicesResponse.Device> acGrid = new Grid<>();
+        acGrid.addColumn(MitsubishiAcDevicesResponse.Device::getDeviceName).setHeader(t("device.hp.dialog.grid.name"));
+        acGrid.addColumn(device -> String.valueOf(device.getDeviceId())).setHeader(t("device.hp.dialog.grid.id"));
+        acGrid.setItems(acDevices);
+        acGrid.setWidth("500px");
+        acGrid.setHeight("300px");
+
+        Button selectButton = new Button(t("common.select"), e -> {
+            MitsubishiAcDevicesResponse.Device selected = acGrid.asSingleSelect().getValue();
+            if (selected != null) {
+                persistSelectedAcDevice(
+                        currentAccount.getId(),
+                        String.valueOf(selected.getDeviceId()),
+                        selected.getBuildingId() != null ? String.valueOf(selected.getBuildingId()) : null
+                );
+                Notification.show(t("device.notification.acDeviceSelected")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                dialog.close();
+                loadDevices();
+            }
+        });
+        selectButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button cancelButton = new Button(t("common.cancel"), e -> dialog.close());
+
+        dialog.getFooter().add(cancelButton, selectButton);
+        dialog.add(new VerticalLayout(acGrid));
+        dialog.open();
+    }
+
+    private void persistSelectedAcDevice(Long accountId, String acDeviceId, String buildingId) {
+        pendingAcDeviceId = acDeviceId;
+        pendingBuildingId = buildingId;
+        if (selectedDevice != null) {
+            deviceService.updateAcDeviceId(accountId, selectedDevice.getId(), acDeviceId, buildingId);
+        }
+        updateSelectAcDeviceButton();
+        updateSaveButtonState();
     }
 
     private void initHeatPumpForm() {
@@ -427,14 +505,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             if (selectedDevice != null) {
                 deviceService.updateDevice(
                         accountId, selectedDevice.getId(), deviceName, timezone, deviceType, enabled,
-                        hpName, acType, acUsername, acPassword, pendingAcDeviceId
+                        hpName, acType, acUsername, acPassword, pendingAcDeviceId, pendingBuildingId
                 );
                 Notification notification = Notification.show(t("device.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {
                 deviceService.createDevice(
                         authAccountId, accountId, deviceName, timezone, deviceType, enabled,
-                        hpName, acType, acUsername, acPassword, pendingAcDeviceId
+                        hpName, acType, acUsername, acPassword, pendingAcDeviceId, pendingBuildingId
                 );
                 Notification notification = Notification.show(t("device.notification.created"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
@@ -489,6 +567,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private void clearForm() {
         selectedDevice = null;
         pendingAcDeviceId = null;
+        pendingBuildingId = null;
         nameField.clear();
         timezoneCombo.setValue(ZoneId.systemDefault().getId());
         deviceTypeCombo.setValue(DeviceType.STANDARD);
@@ -498,6 +577,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         acUsernameField.clear();
         acPasswordField.clear();
         updateSelectAcDeviceButton();
+        updateSaveButtonState();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
     }
@@ -510,6 +590,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     ? t("device.hp.changeDeviceButton")
                     : t("device.hp.selectDeviceButton"));
         }
+    }
+
+    private void updateSaveButtonState() {
+        boolean creatingHeatPump = selectedDevice == null && deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
+        boolean hasAcSelection = pendingAcDeviceId != null && !pendingAcDeviceId.isBlank();
+        saveButton.setEnabled(!creatingHeatPump || hasAcSelection);
     }
 
     private DeviceAcDataEntity buildAcDataForSelection(Long accountId) {
