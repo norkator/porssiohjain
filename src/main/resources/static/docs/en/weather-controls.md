@@ -1,6 +1,6 @@
 # Weather controls
 
-Weather controls let Porssiohjain react to site weather data instead of electricity price or production.
+Weather controls let Pörssiohjain react to site weather data instead of electricity price or production.
 
 ## Prerequisite: a site with weather place
 

@@ -1,6 +1,6 @@
 # Laitteet ja kohteet
 
-Suurin osa Porssiohjainin automaatioista toimii kunnolla vasta, kun laitteet ja kohteet on määritetty oikein.
+Suurin osa Pörssiohjainin automaatioista toimii kunnolla vasta, kun laitteet ja kohteet on määritetty oikein.
 
 ## Laitteet
 
@@ -73,4 +73,5 @@ Siirron verosumma lisätään valitun siirtohinnan päälle.
 
 ## Käytännön suositus
 
-Käytä yhtenäisiä nimiä laitteissa, kohteissa ja automaatioissa. Se helpottaa markkinointimateriaalien, käyttöohjeiden ja sovelluksen asetusten pitämistä linjassa.
+Käytä yhtenäisiä nimiä laitteissa, kohteissa ja automaatioissa. Se helpottaa markkinointimateriaalien, käyttöohjeiden ja
+sovelluksen asetusten pitämistä linjassa.

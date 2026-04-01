@@ -1,35 +1,36 @@
 # Shelly-laiteskriptit
 
-T\u00E4m\u00E4 sivu sis\u00E4lt\u00E4\u00E4 nykyiset Shelly-skriptiesimerkit P\u00F6rssiohjainin k\u00E4ytt\u00F6\u00F6n:
+Tämä sivu sisältää nykyiset Shelly-skriptiesimerkit Pörssiohjainin käyttöön:
 
-- Releohjaus laitteen ohjaustilojen perusteella
-- Tehorajan mittaustiedon l\u00E4hetys Shelly Pro 3EM:ll\u00E4
+- Releohjaus laitteen ohjaustilojen perusteella.
+- Tehorajan mittaustiedon lähetys Shelly Pro 3EM:llä.
 
 ## Ennen aloittamista
 
 ### 1. Luo tili ja laite
 
-Luo ensin palveluun k\u00E4ytt\u00E4j\u00E4tili ja tallenna tunnukset talteen.
+Luo ensin palveluun käyttäjätili ja tallenna tunnukset talteen.
 
-Kirjautumisen j\u00E4lkeen lis\u00E4\u00E4 laite sovellukseen ja kopioi laitteen UUID. T\u00E4t\u00E4 UUID:ta k\u00E4ytet\u00E4\u00E4n skripteiss\u00E4 kent\u00E4ss\u00E4 `DEVICE_UUID`.
+Kirjautumisen jälkeen lisää laite sovellukseen ja kopioi laitteen UUID. Tätä UUID:ta käytetään skripteissä kentässä
+`DEVICE_UUID`.
 
 ### 2. Luo automaatio palvelussa
 
 Releohjausta varten:
 
-- Luo ohjaus `My controls` -n\u00E4kym\u00E4ss\u00E4
-- Aseta tila, vero ja hintarajat
-- Liit\u00E4 halutut laitekanavat ohjaukseen
+- Luo ohjaus `My controls` -näkymässä
+- Aseta ohjauksen halutut asetukset
+- Liitä halutut laitekanavat ohjaukseen
 
 Tehorajavalvontaa varten:
 
 - Luo palvelussa tehoraja
 - Kopioi tehorajan UUID talteen
-- Aseta t\u00E4m\u00E4 UUID mittausskriptiin, joka ajetaan l\u00E4hett\u00E4v\u00E4ll\u00E4 laitteella, esimerkiksi Shelly Pro 3EM:ll\u00E4
+- Aseta tämä UUID mittausskriptiin, joka ajetaan lähettävällä laitteella, esimerkiksi Shelly Pro 3EM:llä
 
-## Shelly-skripti ohjauksille
+## Shelly-skripti rele ohjauksille
 
-Huomioi, ett\u00E4 kanavien numerointi alkaa arvosta `0`.
+Huomioi, että kanavien numerointi alkaa arvosta `0`.
 
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
@@ -122,9 +123,9 @@ fetchControlData();
 scheduleEveryFiveMinutes();
 ```
 
-## Shelly-skripti tehorajoille
+## Shelly-skripti tehorajoille (energian mittaus)
 
-T\u00E4m\u00E4 skripti on tarkoitettu mittaustietoa l\u00E4hett\u00E4v\u00E4lle laitteelle, esimerkiksi Shelly Pro 3EM:lle.
+Tämä skripti on tarkoitettu mittaustietoa lähettävälle laitteelle, esimerkiksi Shelly Pro 3EM:lle.
 
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
@@ -196,5 +197,5 @@ Timer.set(POLL_INTERVAL_MS, true, sendCurrentKw);
 ## Huomioita
 
 - Releohjausskripti kyselee ohjausrajapintaa ja asettaa palvelun palauttamat kanavien tilat laitteelle.
-- Tehorajaskripti l\u00E4hett\u00E4\u00E4 nykyisen tehon ja kokonaisenergian power-rajapintaan kerran minuutissa.
-- P\u00E4ivit\u00E4 UUID:t ja palveluosoite vastaamaan omaa asennustasi tarvittaessa.
+- Tehorajaskripti lähettää nykyisen tehon ja kokonaisenergian power-rajapintaan kerran minuutissa.
+- Päivitä UUID:t ja palveluosoite vastaamaan omaa asennustasi.

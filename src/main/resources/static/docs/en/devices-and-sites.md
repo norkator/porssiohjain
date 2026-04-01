@@ -1,6 +1,6 @@
 # Devices and sites
 
-Most Porssiohjain automations depend on devices and sites being configured correctly first.
+Most Pörssiohjain automations depend on devices and sites being configured correctly first.
 
 ## Devices
 

@@ -1,6 +1,7 @@
 # Tehorajat
 
-Tehorajat suojaavat kohdetta tai ryhmää pakottamalla liitetyt laitekanavat pois päältä, kun mitattu kulutus ylittää asetetun rajan valitulla tarkasteluvälillä.
+Tehorajat suojaavat kohdetta tai ryhmää pakottamalla liitetyt laitekanavat pois päältä, kun mitattu kulutus ylittää
+asetetun rajan valitulla tarkasteluvälillä.
 
 ## Mitä tehoraja tekee
 
@@ -28,7 +29,8 @@ Tarkempi näkymä näyttää myös:
 
 ## Laiteprioriteetti
 
-Tavallisilla laitekanavilla tehorajat ovat korkein ajonaikainen prioriteetti. Jos kanavalle liitetty tehoraja on aktiivinen, kanava pakotetaan pois päältä, vaikka tuotantosääntö tai ohjausaikataulu yrittäisi kytkeä sen päälle.
+Tavallisilla laitekanavilla tehorajat ovat korkein ajonaikainen prioriteetti. Jos kanavalle liitetty tehoraja on
+aktiivinen, kanava pakotetaan pois päältä, vaikka tuotantosääntö tai ohjausaikataulu yrittäisi kytkeä sen päälle.
 
 Prioriteettijärjestys:
 
@@ -44,11 +46,13 @@ Sovellus vastaanottaa tehorajan UUID:lle mitatut arvot:
 - Kokonais-kWh
 - Mittausaikaleima
 
-Sovellus tallentaa historiatiedon ja laskee kulutuksen summan valitun tarkasteluvälin sisällä. Jos summakulutus on suurempi kuin `Raja kW`, tehoraja aktivoituu ja liitetyt kanavat kytketään pois päältä.
+Sovellus tallentaa historiatiedon ja laskee kulutuksen summan valitun tarkasteluvälin sisällä. Jos summakulutus on
+suurempi kuin `Raja kW`, tehoraja aktivoituu ja liitetyt kanavat kytketään pois päältä.
 
 ## Ilmoitukset
 
-Jos ilmoitukset ovat käytössä, sovellus voi lähettää sähköpostin tehorajan ylittymisestä. Roskapostin estämiseksi nykyinen toteutus lähettää enintään yhden ilmoituksen per tehoraja 24 tunnin aikana.
+Jos ilmoitukset ovat käytössä, sovellus voi lähettää sähköpostin tehorajan ylittymisestä. Roskapostin estämiseksi
+nykyinen toteutus lähettää enintään yhden ilmoituksen per tehoraja 24 tunnin aikana.
 
 ## Laitteiden liittäminen
 

@@ -10,7 +10,7 @@ User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:73.0) Gecko/20100101 Firefox/73.0
   "Email": "{{mitsubishi_ac_username}}",
   "Password": "{{mitsubishi_ac_password}}",
   "Language": 0,
-  "AppVersion": "1.19.1.1",
+  "AppVersion": "1.38.0.1",
   "Persist": true,
   "CaptchaResponse": null
 }
