@@ -54,6 +54,7 @@ public class HeatPumpStateDialogService {
     private final DeviceRepository deviceRepository;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final ToshibaAcStateService toshibaAcStateService;
+    private final AcCommandDispatchService acCommandDispatchService;
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
     private final ToshibaAcStateHexEditorService toshibaAcStateHexEditorService;
     private final I18nService i18n;
@@ -225,7 +226,26 @@ public class HeatPumpStateDialogService {
         });
         useLastPolledStateButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        HorizontalLayout buttonRow = new HorizontalLayout(acquireCurrentStateButton, useLastPolledStateButton);
+        Button sendStateButton = new Button(t("controlTable.dialog.queryState.sendButton"), event -> {
+            try {
+                String normalizedHex = toshibaAcStateHexEditorService.normalizeEditableHex(editableHexArea.getValue());
+                DeviceAcDataEntity acData = getAcData(deviceResponse);
+                acCommandDispatchService.dispatchHexState(acData, normalizedHex);
+                renderHexState.accept(normalizedHex);
+                Notification.show(t("controlTable.dialog.queryState.sent"))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (Exception ex) {
+                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        sendStateButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        HorizontalLayout buttonRow = new HorizontalLayout(
+                acquireCurrentStateButton,
+                useLastPolledStateButton,
+                sendStateButton
+        );
         buttonRow.setWidthFull();
         buttonRow.setWrap(true);
 
