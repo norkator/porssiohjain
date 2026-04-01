@@ -50,3 +50,9 @@ target/dev-bundle/*
 .vaadin-node-tasks.lock
 src/main/bundles/dev.bundle
 vite.generated.ts
+
+### AI Metadata ###
+.codex
+.gemini
+.cursorrules
+.aichat
