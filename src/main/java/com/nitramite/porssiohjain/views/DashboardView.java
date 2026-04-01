@@ -80,6 +80,11 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         this.siteService = siteService;
         this.powerLimitService = powerLimitService;
 
+        Long accountId = getAccountId();
+        if (accountId == null) {
+            return;
+        }
+
         setWidthFull();
         setPadding(true);
         setSpacing(true);
@@ -104,7 +109,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         deviceLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
         deviceLayout.getStyle().set("gap", "16px");
 
-        List<DeviceResponse> devices = deviceService.getAllDevices(getAccountId());
+        List<DeviceResponse> devices = deviceService.getAllDevices(accountId);
         for (DeviceResponse device : devices) {
             deviceLayout.add(createDeviceCard(device));
         }
@@ -405,8 +410,10 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
     }
 
     private Long getAccountId() {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        AccountEntity account = authService.authenticate(token);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, "Session expired. Please log in again.");
+        if (account == null) {
+            return null;
+        }
         return account.getId();
     }
 
@@ -416,9 +423,8 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null || token.isBlank()) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 

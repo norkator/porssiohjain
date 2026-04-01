@@ -57,6 +57,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
 
     private final Grid<ControlResponse> controlsGrid = new Grid<>(ControlResponse.class, false);
     private final ControlService controlService;
+    private final AuthService authService;
     protected final I18nService i18n;
     private Long accountId;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -79,6 +80,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
             I18nService i18n
     ) {
         this.controlService = controlService;
+        this.authService = authService;
         this.i18n = i18n;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
@@ -120,15 +122,10 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         card.add(title, controlsGrid, createFormLayout());
         add(card);
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("control.notification.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("control.notification.sessionExpired"));
+        if (account == null) {
             return;
         }
-
-        AccountEntity account = authService.authenticate(token);
         accountId = account.getId();
 
         loadControls();
@@ -317,9 +314,8 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 

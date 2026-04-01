@@ -52,6 +52,7 @@ import java.util.Optional;
 @PermitAll
 public class SettingsView extends VerticalLayout implements BeforeEnterObserver {
 
+    private final AuthService authService;
     private final I18nService i18n;
     private final AccountService accountService;
     private Long accountId;
@@ -66,6 +67,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
             I18nService i18n,
             AccountService accountService
     ) {
+        this.authService = authService;
         this.i18n = i18n;
         this.accountService = accountService;
 
@@ -130,15 +132,10 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         buttonRow.setWidthFull();
         buttonRow.getStyle().set("gap", "var(--lumo-space-m)");
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("settings.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("settings.sessionExpired"));
+        if (account == null) {
             return;
         }
-
-        AccountEntity account = authService.authenticate(token);
         accountId = account.getId();
 
         H3 tierTitle = new H3(t("settings.account.tier"));
@@ -274,9 +271,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 

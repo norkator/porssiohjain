@@ -144,8 +144,7 @@ public class HomeView extends VerticalLayout {
             btn.getElement().addEventListener("mouseout", e -> btn.getStyle().remove("transform"));
         });
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        boolean loggedIn = token != null && !token.isBlank();
+        boolean loggedIn = ViewAuthUtils.hasValidSession(authService);
 
         contentBox.add(langButtons, title, subtitle);
 
