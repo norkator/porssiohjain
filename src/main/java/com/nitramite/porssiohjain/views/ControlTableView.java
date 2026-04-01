@@ -133,9 +133,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
             return;
         }
 
@@ -163,14 +161,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private Long getAccountId() {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("controlTable.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("controlTable.sessionExpired"));
+        if (account == null) {
+            return null;
         }
-
-        AccountEntity account = authService.authenticate(token);
         return account.getId();
     }
 
@@ -178,6 +172,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         removeAll();
 
         Long accountId = getAccountId();
+        if (accountId == null) {
+            return;
+        }
 
         VerticalLayout card = new VerticalLayout();
         card.setPadding(true);

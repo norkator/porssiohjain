@@ -49,6 +49,7 @@ import java.util.UUID;
 public class ResourceSharingView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<ResourceSharingItem> resourcesGrid = new Grid<>(ResourceSharingItem.class, false);
+    private final AuthService authService;
     private final I18nService i18n;
 
     private final Long accountId;
@@ -73,6 +74,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
             PowerLimitService powerLimitService,
             ResourceSharingService resourceSharingService
     ) {
+        this.authService = authService;
         this.i18n = i18n;
         this.deviceService = deviceService;
         this.controlService = controlService;
@@ -99,8 +101,11 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         card.add(title, resourcesGrid, createFormLayout());
         add(card);
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        AccountEntity account = authService.authenticate(token);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("resourceSharing.notification.sessionExpired"));
+        if (account == null) {
+            accountId = null;
+            return;
+        }
         accountId = account.getId();
 
         loadAvailableResources();
@@ -256,8 +261,8 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        if (VaadinSession.getCurrent().getAttribute("token") == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 

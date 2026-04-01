@@ -103,15 +103,11 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
             UI.getCurrent().setLocale(storedLocale);
         }
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("powerlimit.notification.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("powerlimit.notification.sessionExpired"));
+        if (account == null) {
             return;
         }
-
-        authService.authenticate(token);
+        accountId = account.getId();
 
         setSizeFull();
         setSpacing(true);
@@ -119,9 +115,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
             return;
         }
 
@@ -267,14 +261,10 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     }
 
     private Long getAccountId() {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("controlTable.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("powerlimit.notification.sessionExpired"));
+        if (account == null) {
+            return null;
         }
-
-        AccountEntity account = authService.authenticate(token);
         return account.getId();
     }
 

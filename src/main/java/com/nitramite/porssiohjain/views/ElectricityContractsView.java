@@ -51,6 +51,7 @@ import java.util.Locale;
 @PermitAll
 public class ElectricityContractsView extends VerticalLayout implements BeforeEnterObserver {
 
+    private final AuthService authService;
     private final I18nService i18n;
     private final ElectricityContractRepository contractRepository;
     private final AccountRepository accountRepository;
@@ -83,6 +84,7 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
             ElectricityContractRepository contractRepository,
             AccountRepository accountRepository
     ) {
+        this.authService = authService;
         this.i18n = i18n;
         this.contractRepository = contractRepository;
         this.accountRepository = accountRepository;
@@ -125,15 +127,10 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
 
         add(card);
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("electricityContracts.notification.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("electricityContracts.notification.sessionExpired"));
+        if (account == null) {
             return;
         }
-
-        AccountEntity account = authService.authenticate(token);
         accountId = account.getId();
 
         loadContracts();
@@ -317,9 +314,8 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 

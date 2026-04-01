@@ -56,6 +56,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
 
     private final Grid<ProductionSourceResponse> sourcesGrid = new Grid<>(ProductionSourceResponse.class, false);
     private final ProductionSourceService productionSourceService;
+    private final AuthService authService;
     private final I18nService i18n;
 
     private Long accountId;
@@ -78,6 +79,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
             I18nService i18n
     ) {
         this.productionSourceService = productionSourceService;
+        this.authService = authService;
         this.i18n = i18n;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
@@ -114,15 +116,10 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
         card.add(title, sourcesGrid, createFormLayout());
         add(card);
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("productionsources.notification.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("productionsources.notification.sessionExpired"));
+        if (account == null) {
             return;
         }
-
-        AccountEntity account = authService.authenticate(token);
         accountId = account.getId();
 
         loadSources();
@@ -286,9 +283,8 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 

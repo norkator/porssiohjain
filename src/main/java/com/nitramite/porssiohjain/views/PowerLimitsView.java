@@ -53,6 +53,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
 
     private final Grid<PowerLimitResponse> limitsGrid = new Grid<>(PowerLimitResponse.class, false);
     private final PowerLimitService powerLimitService;
+    private final AuthService authService;
     private final I18nService i18n;
 
     private Long accountId;
@@ -70,6 +71,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
             I18nService i18n
     ) {
         this.powerLimitService = powerLimitService;
+        this.authService = authService;
         this.i18n = i18n;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
@@ -101,15 +103,10 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
         card.add(title, limitsGrid, createFormLayout());
         add(card);
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("powerlimits.notification.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("powerlimits.notification.sessionExpired"));
+        if (account == null) {
             return;
         }
-
-        AccountEntity account = authService.authenticate(token);
         accountId = account.getId();
 
         loadLimits();
@@ -252,9 +249,8 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 

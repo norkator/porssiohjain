@@ -127,14 +127,15 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
             return;
         }
 
         try {
-            AccountEntity account = authService.authenticate(token);
+            AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("weatherControl.notification.sessionExpired"));
+            if (account == null) {
+                return;
+            }
             accountId = account.getId();
             weatherControlId = Long.valueOf(event.getRouteParameters().get("weatherControlId").orElseThrow());
             sites = siteService.getAllSites(accountId);

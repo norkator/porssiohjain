@@ -315,8 +315,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 return;
             }
 
-            String token = (String) VaadinSession.getCurrent().getAttribute("token");
-            AccountEntity currentAccount = authService.authenticate(token);
+            AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+            if (currentAccount == null) {
+                return;
+            }
             DeviceAcDataEntity acData = buildAcDataForSelection(currentAccount.getId());
             AcType acType = acTypeCombo.getValue();
             if (acType == AcType.TOSHIBA) {
@@ -450,14 +452,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private void handleSave() {
         try {
-            String token = (String) VaadinSession.getCurrent().getAttribute("token");
-            if (token == null) {
-                Notification notification = Notification.show("Not logged in");
-                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
+            AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+            if (currentAccount == null) {
                 return;
             }
-
-            AccountEntity currentAccount = authService.authenticate(token);
             Long authAccountId = currentAccount.getId();
             Long accountId = currentAccount.getId();
 
@@ -534,15 +532,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         Button deleteButton = new Button(t("button.delete"), event -> {
             try {
-                String token = (String) VaadinSession.getCurrent().getAttribute("token");
-                if (token == null) {
-                    Notification.show(t("device.notification.notLoggedIn"))
-                            .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+                if (currentAccount == null) {
                     dialog.close();
                     return;
                 }
-
-                AccountEntity currentAccount = authService.authenticate(token);
                 deviceService.deleteDevice(currentAccount.getId(), device.getId());
                 dialog.close();
                 if (selectedDevice != null && selectedDevice.getId().equals(device.getId())) {
@@ -632,14 +626,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private void loadDevices() {
         try {
-            String token = (String) VaadinSession.getCurrent().getAttribute("token");
-            if (token == null) {
-                Notification notification = Notification.show(t("device.notification.notLoggedIn"));
-                notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
+            AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+            if (currentAccount == null) {
                 return;
             }
-
-            AccountEntity currentAccount = authService.authenticate(token);
             Long accountId = currentAccount.getId();
 
             List<DeviceResponse> devices = deviceService.getAllDevices(accountId);
@@ -652,9 +642,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 

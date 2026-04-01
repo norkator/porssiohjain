@@ -48,6 +48,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<SiteResponse> sitesGrid = new Grid<>(SiteResponse.class, false);
     private final SiteService siteService;
+    private final AuthService authService;
     private final I18nService i18n;
 
     private Long accountId;
@@ -62,6 +63,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     @Autowired
     public SitesView(SiteService siteService, AuthService authService, I18nService i18n) {
         this.siteService = siteService;
+        this.authService = authService;
         this.i18n = i18n;
 
         nameField = new TextField(t("sites.field.name"));
@@ -89,8 +91,10 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         card.add(title, sitesGrid, createFormLayout());
         add(card);
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        AccountEntity account = authService.authenticate(token);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("sites.notification.sessionExpired"));
+        if (account == null) {
+            return;
+        }
         accountId = account.getId();
 
         loadSites();
@@ -194,8 +198,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        if (VaadinSession.getCurrent().getAttribute("token") == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 

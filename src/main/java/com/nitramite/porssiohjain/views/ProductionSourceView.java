@@ -16,6 +16,7 @@
 
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
@@ -116,12 +117,14 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
             return;
         }
-        accountId = authService.authenticate(token).getId();
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, "Session expired. Please log in again.");
+        if (account == null) {
+            return;
+        }
+        accountId = account.getId();
         String idParam = event.getRouteParameters().get("sourceId").orElse(null);
         if (idParam == null) {
             event.forwardTo(ProductionSourcesView.class);

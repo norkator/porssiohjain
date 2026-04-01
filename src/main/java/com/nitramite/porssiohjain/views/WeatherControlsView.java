@@ -56,6 +56,7 @@ import java.util.Locale;
 public class WeatherControlsView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<WeatherControlResponse> weatherControlsGrid = new Grid<>(WeatherControlResponse.class, false);
+    private final AuthService authService;
     private final WeatherControlService weatherControlService;
     private final SiteService siteService;
     protected final I18nService i18n;
@@ -73,6 +74,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
             AuthService authService,
             I18nService i18n
     ) {
+        this.authService = authService;
         this.weatherControlService = weatherControlService;
         this.siteService = siteService;
         this.i18n = i18n;
@@ -107,15 +109,10 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
         card.add(title, weatherControlsGrid, createFormLayout());
         add(card);
 
-        String token = (String) VaadinSession.getCurrent().getAttribute("token");
-        if (token == null) {
-            Notification notification = Notification.show(t("weatherControl.notification.sessionExpired"));
-            notification.addThemeVariants(NotificationVariant.LUMO_WARNING);
-            UI.getCurrent().navigate(LoginView.class);
+        AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("weatherControl.notification.sessionExpired"));
+        if (account == null) {
             return;
         }
-
-        AccountEntity account = authService.authenticate(token);
         accountId = account.getId();
 
         siteField.setItems(siteService.getAllSites(accountId));
@@ -217,8 +214,8 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        if (VaadinSession.getCurrent().getAttribute("token") == null) {
-            event.forwardTo(LoginView.class);
+        if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
+            return;
         }
     }
 
