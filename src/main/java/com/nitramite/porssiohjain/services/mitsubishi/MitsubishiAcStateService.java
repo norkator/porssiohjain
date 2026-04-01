@@ -46,7 +46,7 @@ public class MitsubishiAcStateService {
 
             String urlWithParams = UriComponentsBuilder.fromUriString(GET_DEVICE_URL)
                     .queryParam("id", acData.getAcDeviceId())
-                    .queryParam("buildingID", acData.getAcConsumerId())
+                    .queryParam("buildingID", acData.getBuildingId())
                     .build(true)
                     .toUriString();
 

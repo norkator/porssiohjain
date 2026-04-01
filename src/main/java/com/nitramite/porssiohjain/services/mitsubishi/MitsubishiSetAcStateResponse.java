@@ -14,22 +14,27 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.services.models;
+package com.nitramite.porssiohjain.services.mitsubishi;
 
-import com.nitramite.porssiohjain.entity.enums.AcType;
-import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-public class CreateDeviceRequest {
-    private String deviceName;
-    private String timezone;
-    private DeviceType deviceType;
-    private Boolean enabled;
-    private String hpName;
-    private AcType acType;
-    private String acUsername;
-    private String acPassword;
-    private String acDeviceId;
-    private String buildingId;
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class MitsubishiSetAcStateResponse {
+
+    @JsonProperty("ErrorMessage")
+    private String errorMessage;
+
+    @JsonProperty("ErrorCode")
+    private Integer errorCode;
+
+    @JsonProperty("HasPendingCommand")
+    private Boolean hasPendingCommand;
+
+    public boolean isSuccess() {
+        return errorCode == null || errorCode == 0;
+    }
+
 }

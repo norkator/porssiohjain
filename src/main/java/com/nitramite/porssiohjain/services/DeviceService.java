@@ -55,7 +55,7 @@ public class DeviceService {
     public DeviceResponse createDevice(
             Long authAccountId, Long accountId, String deviceName, String timezone, DeviceType deviceType,
             boolean enabled,
-            String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId
+            String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId, String buildingId
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -80,6 +80,7 @@ public class DeviceService {
                         .acUsername(acUsername)
                         .acPassword(acPassword)
                         .acDeviceId(acDeviceId)
+                        .buildingId(buildingId)
                         .build();
                 deviceAcDataRepository.save(acData);
             }
@@ -179,6 +180,7 @@ public class DeviceService {
                 response.setAcUsername(acData.getAcUsername());
                 response.setAcPassword(acData.getAcPassword());
                 response.setAcDeviceId(acData.getAcDeviceId());
+                response.setBuildingId(acData.getBuildingId());
                 response.setAcDeviceUniqueId(acData.getAcDeviceUniqueId());
             });
         }
@@ -197,7 +199,7 @@ public class DeviceService {
     }
 
     @Transactional
-    public void updateAcDeviceId(Long accountId, Long deviceId, String acDeviceId) {
+    public void updateAcDeviceId(Long accountId, Long deviceId, String acDeviceId, String buildingId) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found"));
         DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
@@ -205,6 +207,7 @@ public class DeviceService {
         DeviceAcDataEntity acData = deviceAcDataRepository.findByDevice(device)
                 .orElseThrow(() -> new IllegalStateException("AC data not found"));
         acData.setAcDeviceId(acDeviceId);
+        acData.setBuildingId(buildingId);
         acData.setAcDeviceUniqueId(null);
         deviceAcDataRepository.save(acData);
     }
@@ -212,7 +215,7 @@ public class DeviceService {
     @Transactional
     public void updateDevice(
             Long accountId, Long deviceId, String newName, String newTimezone, DeviceType deviceType, boolean enabled,
-            String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId
+            String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId, String buildingId
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -231,11 +234,15 @@ public class DeviceService {
             if (!Objects.equals(acData.getAcDeviceId(), acDeviceId)) {
                 acData.setAcDeviceUniqueId(null);
             }
+            if (!Objects.equals(acData.getBuildingId(), buildingId)) {
+                acData.setBuildingId(buildingId);
+            }
             acData.setName(hpName);
             acData.setAcType(acType);
             acData.setAcUsername(acUsername);
             acData.setAcPassword(acPassword);
             acData.setAcDeviceId(acDeviceId);
+            acData.setBuildingId(buildingId);
             deviceAcDataRepository.save(acData);
         }
     }
