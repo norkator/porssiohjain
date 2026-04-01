@@ -264,6 +264,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             } else {
                 clearForm();
             }
+            updateSaveButtonState();
         });
 
         timezoneCombo.setItems(ZoneId.getAvailableZoneIds());
@@ -285,8 +286,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         heatPumpForm.setVisible(false);
 
-        HorizontalLayout actions = new HorizontalLayout(saveButton, selectAcDeviceButton);
-        actions.setAlignItems(Alignment.CENTER);
+        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, saveButton);
+        actions.setPadding(false);
+        actions.setSpacing(true);
+        actions.setAlignItems(Alignment.START);
 
         card.add(title, deviceGrid, formLayout, heatPumpForm, actions);
         add(card);
@@ -300,6 +303,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 pendingBuildingId = null;
             }
             updateSelectAcDeviceButton();
+            updateSaveButtonState();
         });
 
         loadDevices();
@@ -419,6 +423,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             deviceService.updateAcDeviceId(accountId, selectedDevice.getId(), acDeviceId, buildingId);
         }
         updateSelectAcDeviceButton();
+        updateSaveButtonState();
     }
 
     private void initHeatPumpForm() {
@@ -572,6 +577,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         acUsernameField.clear();
         acPasswordField.clear();
         updateSelectAcDeviceButton();
+        updateSaveButtonState();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
     }
@@ -584,6 +590,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     ? t("device.hp.changeDeviceButton")
                     : t("device.hp.selectDeviceButton"));
         }
+    }
+
+    private void updateSaveButtonState() {
+        boolean creatingHeatPump = selectedDevice == null && deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
+        boolean hasAcSelection = pendingAcDeviceId != null && !pendingAcDeviceId.isBlank();
+        saveButton.setEnabled(!creatingHeatPump || hasAcSelection);
     }
 
     private DeviceAcDataEntity buildAcDataForSelection(Long accountId) {
