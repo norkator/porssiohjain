@@ -117,4 +117,11 @@ public class AccountService {
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
     }
 
+    @Transactional(readOnly = true)
+    public Instant getCreatedAt(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::getCreatedAt)
+                .orElse(null);
+    }
+
 }

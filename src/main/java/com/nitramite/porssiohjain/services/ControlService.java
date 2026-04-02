@@ -370,6 +370,13 @@ public class ControlService {
                 .toList();
     }
 
+    public List<ControlDeviceResponse> getControlDeviceLinks(
+            Long accountId, Long controlId
+    ) {
+        getControl(accountId, controlId);
+        return getControlDevices(controlId);
+    }
+
     public ControlHeatPumpResponse addHeatPumpToControl(
             Long accountId, Long controlId, Long deviceId, String stateHex, ControlAction controlAction,
             ComparisonType comparisonType, BigDecimal priceLimit
