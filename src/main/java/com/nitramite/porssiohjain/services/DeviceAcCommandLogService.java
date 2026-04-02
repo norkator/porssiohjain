@@ -45,11 +45,14 @@ public class DeviceAcCommandLogService {
     private final DeviceRepository deviceRepository;
 
     @Transactional
-    public void logSentCommand(DeviceEntity device, String sentData) {
-        if (device == null || device.getId() == null) {
+    public void logSentCommand(Long deviceId, String sentData) {
+        if (deviceId == null) {
             return;
         }
-        if (device.getDeviceType() != DeviceType.HEAT_PUMP) {
+
+        DeviceEntity device = deviceRepository.findById(deviceId)
+                .orElse(null);
+        if (device == null || device.getDeviceType() != DeviceType.HEAT_PUMP) {
             return;
         }
         if (sentData == null || sentData.isBlank()) {

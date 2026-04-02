@@ -81,7 +81,7 @@ public class ToshibaAcAmqpSendService {
         );
         sendMessage(acData, payload);
         try {
-            deviceAcCommandLogService.logSentCommand(acData.getDevice(), payload);
+            deviceAcCommandLogService.logSentCommand(deviceId, payload);
         } catch (Exception e) {
             log.error("Failed to persist Toshiba AC command log. deviceId={}, acDataId={}", deviceId, acData.getId(), e);
         }
