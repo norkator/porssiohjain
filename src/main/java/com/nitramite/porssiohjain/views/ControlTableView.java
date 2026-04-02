@@ -733,7 +733,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     ) {
         List<String> timestamps = new ArrayList<>();
         List<Double> nordpoolPrices = new ArrayList<>();
-        List<Double> controlPrices = new ArrayList<>();
+        List<Double> finalControlPrices = new ArrayList<>();
+        List<Double> plannedControlPrices = new ArrayList<>();
         List<Double> transferPrices = new ArrayList<>();
 
         ZoneId zone = ZoneId.systemDefault();
@@ -753,15 +754,29 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             nordpoolPrices.add(entry.getPriceFiWithTax().doubleValue());
         }
 
-        Map<String, Double> controlMap = new HashMap<>();
+        Map<String, ControlTableResponse> controlMap = new HashMap<>();
         for (ControlTableResponse ctrl : controlTableResponses) {
             String ts = jsFormatter.format(ctrl.getStartTime());
-            controlMap.put(ts, ctrl.getPriceSnt().doubleValue());
+            controlMap.put(ts, ctrl);
         }
 
         for (String ts : timestamps) {
-            Double value = controlMap.get(ts);
-            controlPrices.add(value);
+            ControlTableResponse ctrl = controlMap.get(ts);
+            if (ctrl != null) {
+                if (ctrl.getStatus() == Status.FINAL) {
+                    finalControlPrices.add(ctrl.getPriceSnt().doubleValue());
+                    plannedControlPrices.add(null);
+                } else if (ctrl.getStatus() == Status.PLANNED) {
+                    finalControlPrices.add(null);
+                    plannedControlPrices.add(ctrl.getPriceSnt().doubleValue());
+                } else {
+                    finalControlPrices.add(null);
+                    plannedControlPrices.add(null);
+                }
+            } else {
+                finalControlPrices.add(null);
+                plannedControlPrices.add(null);
+            }
         }
 
         if (transferContract != null) {
@@ -795,7 +810,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         }
 
         String nordpoolLabel = t("controlTable.chart.nordpoolPrice");
-        String controlLabel = t("controlTable.chart.controlPrice");
+        String finalControlLabel = t("controlTable.chart.controlPriceFinal");
+        String plannedControlLabel = t("controlTable.chart.controlPricePlanned");
         String transferLabel = transferContract != null ? transferContract.getName() : t("controlTable.chart.noTransferContract");
         String xAxisLabel = t("controlTable.chart.time");
         String yAxisLabel = t("controlTable.chart.price");
@@ -804,15 +820,16 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         chartDiv.getElement().executeJs("""
                             const container = this;
-                            const nordpoolLabel = $4;
-                            const controlLabel = $5;
-                            const transferLabel = $6;
-                            const xAxisLabel = $7;
-                            const yAxisLabel = $8;
-                            const chartTitle = $9;
-                            const nowLabel = $10;
+                            const nordpoolLabel = $5;
+                            const finalControlLabel = $6;
+                            const plannedControlLabel = $7;
+                            const transferLabel = $8;
+                            const xAxisLabel = $9;
+                            const yAxisLabel = $10;
+                            const chartTitle = $11;
+                            const nowLabel = $12;
                         
-                            function renderOrUpdate(dataX, dataNordpool, dataControl, dataTransfer) {
+                            function renderOrUpdate(dataX, dataNordpool, dataFinalControl, dataPlannedControl, dataTransfer) {
                                 const now = new Date();
                                 const nowISO = now.toISOString().slice(0, 16);
                                 const closest = dataX.reduce((prev, curr) => {
@@ -830,7 +847,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                         series: [
                                             { name: transferLabel, data: dataTransfer, color: '#FFB343' },
                                             { name: nordpoolLabel, data: dataNordpool, color: '#0000FF' },
-                                            { name: controlLabel, data: dataControl, color: '#FF0000' },
+                                            { name: finalControlLabel, data: dataFinalControl, color: '#FF0000' },
+                                            { name: plannedControlLabel, data: dataPlannedControl, color: '#800080' },
                                         ],
                                         xaxis: { categories: dataX, title: { text: xAxisLabel }, labels: { rotate: -45 } },
                                         yaxis: { title: { text: yAxisLabel } },
@@ -872,15 +890,16 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                     container.chartInstance.updateSeries([
                                         { data: dataTransfer },
                                         { data: dataNordpool },
-                                        { data: dataControl },
+                                        { data: dataFinalControl },
+                                        { data: dataPlannedControl },
                                     ], true);
                                 }
                             }
                         
-                            renderOrUpdate($0, $1, $2, $3);
+                            renderOrUpdate($0, $1, $2, $3, $4);
                         """,
-                timestamps, nordpoolPrices, controlPrices, transferPrices,
-                nordpoolLabel, controlLabel, transferLabel, xAxisLabel, yAxisLabel, chartTitle, nowLabel
+                timestamps, nordpoolPrices, finalControlPrices, plannedControlPrices, transferPrices,
+                nordpoolLabel, finalControlLabel, plannedControlLabel, transferLabel, xAxisLabel, yAxisLabel, chartTitle, nowLabel
         );
     }
 

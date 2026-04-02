@@ -25,10 +25,7 @@ import com.nitramite.porssiohjain.entity.ProductionSourceHeatPumpEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlHeatPumpEntity;
-import com.nitramite.porssiohjain.entity.enums.ComparisonType;
-import com.nitramite.porssiohjain.entity.enums.ControlMode;
-import com.nitramite.porssiohjain.entity.enums.DeviceType;
-import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
+import com.nitramite.porssiohjain.entity.enums.*;
 import com.nitramite.porssiohjain.entity.repository.ControlHeatPumpRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
@@ -305,8 +302,9 @@ public class HeatPumpControlService {
         ZoneId controlZone = ZoneId.of(control.getTimezone());
         ZonedDateTime nowInControlZone = now.atZone(controlZone);
 
-        return controlTableRepository.findByControlIdAndStartTimeAfterOrderByStartTimeAsc(
+        return controlTableRepository.findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
                         control.getId(),
+                        Status.FINAL,
                         now.minusSeconds(CONTROL_LOOKBACK_SECONDS)
                 ).stream()
                 .anyMatch(controlTable -> {

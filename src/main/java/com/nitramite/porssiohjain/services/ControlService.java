@@ -17,10 +17,7 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
-import com.nitramite.porssiohjain.entity.enums.ComparisonType;
-import com.nitramite.porssiohjain.entity.enums.ControlAction;
-import com.nitramite.porssiohjain.entity.enums.ControlMode;
-import com.nitramite.porssiohjain.entity.enums.ResourceType;
+import com.nitramite.porssiohjain.entity.enums.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.models.*;
@@ -512,8 +509,8 @@ public class ControlService {
             } else if (mode.equals(ControlMode.CHEAPEST_HOURS) || mode.equals(ControlMode.BELOW_MAX_PRICE)) {
                 ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
 
-                boolean active = controlTableRepository.findByControlIdAndStartTimeAfterOrderByStartTimeAsc(
-                                control.getId(), nowUtc.minusSeconds(30 * 60)) // last 30 minutes
+                boolean active = controlTableRepository.findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
+                                control.getId(), Status.FINAL, nowUtc.minusSeconds(30 * 60)) // last 30 minutes
                         .stream()
                         .anyMatch(ct -> {
                             ZonedDateTime start = ct.getStartTime().atZone(controlZone);
@@ -602,8 +599,8 @@ public class ControlService {
             Instant toUtc = endOfNextDay.toInstant();
 
             List<ControlTableEntity> controlTables =
-                    controlTableRepository.findByControlIdAndStartTimeBetweenOrderByStartTimeAsc(
-                            control.getId(), fromUtc, toUtc);
+                    controlTableRepository.findByControlIdAndStatusAndStartTimeBetweenOrderByStartTimeAsc(
+                            control.getId(), Status.FINAL, fromUtc, toUtc);
 
             for (ControlTableEntity ct : controlTables) {
                 ZonedDateTime start = ct.getStartTime().atZone(controlZone);
