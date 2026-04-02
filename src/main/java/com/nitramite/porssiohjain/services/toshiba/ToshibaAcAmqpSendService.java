@@ -25,6 +25,7 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,7 @@ public class ToshibaAcAmqpSendService {
     private final ToshibaLoginService toshibaLoginService;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final DeviceRepository deviceRepository;
+    private final DeviceAcCommandLogService deviceAcCommandLogService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void sendMessage(DeviceAcDataEntity acData, String payload) {
@@ -78,6 +80,11 @@ public class ToshibaAcAmqpSendService {
                 payload
         );
         sendMessage(acData, payload);
+        try {
+            deviceAcCommandLogService.logSentCommand(acData.getDevice(), payload);
+        } catch (Exception e) {
+            log.error("Failed to persist Toshiba AC command log. deviceId={}, acDataId={}", deviceId, acData.getId(), e);
+        }
         acData.setLastPolledStateHex(hexState);
         deviceAcDataRepository.save(acData);
         markDeviceReachable(acData);

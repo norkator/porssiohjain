@@ -21,8 +21,10 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.models.DeviceAcCommandLogResponse;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesResponse;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesService;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiLoginService;
@@ -69,6 +71,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<DeviceResponse> deviceGrid = new Grid<>(DeviceResponse.class, false);
     private final DeviceService deviceService;
+    private final DeviceAcCommandLogService deviceAcCommandLogService;
     private final AuthService authService;
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcDevicesService toshibaAcDevicesService;
@@ -87,6 +90,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private TextField acUsernameField;
     private PasswordField acPasswordField;
     private final Button selectAcDeviceButton;
+    private final Button showAcCommandLogButton;
 
     private final Button saveButton;
 
@@ -99,6 +103,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     @Autowired
     public DeviceView(
             DeviceService deviceService,
+            DeviceAcCommandLogService deviceAcCommandLogService,
             AuthService authService,
             I18nService i18n,
             ToshibaLoginService toshibaLoginService,
@@ -107,6 +112,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             MitsubishiAcDevicesService mitsubishiAcDevicesService
     ) {
         this.deviceService = deviceService;
+        this.deviceAcCommandLogService = deviceAcCommandLogService;
         this.authService = authService;
         this.i18n = i18n;
         this.toshibaLoginService = toshibaLoginService;
@@ -141,6 +147,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         selectAcDeviceButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         selectAcDeviceButton.addClickListener(e -> openAcDeviceSelectionDialog());
         selectAcDeviceButton.setVisible(false);
+
+        showAcCommandLogButton = new Button(t("device.hp.commandLogButton"));
+        showAcCommandLogButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        showAcCommandLogButton.addClickListener(e -> openAcCommandLogDialog());
+        showAcCommandLogButton.setVisible(false);
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -260,6 +271,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     pendingBuildingId = null;
                     updateSelectAcDeviceButton();
                 }
+                updateAcCommandLogButton();
                 saveButton.setText(t("device.button.update"));
             } else {
                 clearForm();
@@ -286,7 +298,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         heatPumpForm.setVisible(false);
 
-        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, saveButton);
+        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, showAcCommandLogButton, saveButton);
         actions.setPadding(false);
         actions.setSpacing(true);
         actions.setAlignItems(Alignment.START);
@@ -303,6 +315,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 pendingBuildingId = null;
             }
             updateSelectAcDeviceButton();
+            updateAcCommandLogButton();
             updateSaveButtonState();
         });
 
@@ -571,6 +584,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         acUsernameField.clear();
         acPasswordField.clear();
         updateSelectAcDeviceButton();
+        updateAcCommandLogButton();
         updateSaveButtonState();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
@@ -584,6 +598,13 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     ? t("device.hp.changeDeviceButton")
                     : t("device.hp.selectDeviceButton"));
         }
+    }
+
+    private void updateAcCommandLogButton() {
+        boolean visible = selectedDevice != null
+                && !Boolean.TRUE.equals(selectedDevice.getShared())
+                && deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
+        showAcCommandLogButton.setVisible(visible);
     }
 
     private void updateSaveButtonState() {
@@ -649,6 +670,46 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     protected String t(String key, Object... args) {
         return i18n.t(key, args);
+    }
+
+    private void openAcCommandLogDialog() {
+        if (selectedDevice == null || selectedDevice.getDeviceType() != DeviceType.HEAT_PUMP) {
+            return;
+        }
+        try {
+            AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+            if (currentAccount == null) {
+                return;
+            }
+
+            List<DeviceAcCommandLogResponse> commandLogs = deviceAcCommandLogService.getCommandLogs(currentAccount.getId(), selectedDevice.getId());
+
+            Dialog dialog = new Dialog();
+            dialog.setHeaderTitle(t("device.hp.commandLogDialog.title", selectedDevice.getDeviceName()));
+            dialog.setWidth("min(1100px, 95vw)");
+            dialog.setHeight("min(800px, 90vh)");
+
+            Grid<DeviceAcCommandLogResponse> logGrid = new Grid<>(DeviceAcCommandLogResponse.class, false);
+            logGrid.addColumn(log -> {
+                ZoneId zone = ZoneId.of(selectedDevice.getTimezone());
+                return ZonedDateTime.ofInstant(log.getSentAt(), zone).format(formatter);
+            }).setHeader(t("device.hp.commandLogGrid.sentAt")).setAutoWidth(true).setFlexGrow(0);
+            logGrid.addColumn(DeviceAcCommandLogResponse::getSentData)
+                    .setHeader(t("device.hp.commandLogGrid.sentData"))
+                    .setAutoWidth(false)
+                    .setFlexGrow(1);
+            logGrid.setItems(commandLogs);
+            logGrid.setWidthFull();
+            logGrid.setHeightFull();
+
+            Button closeButton = new Button(t("common.cancel"), event -> dialog.close());
+            dialog.getFooter().add(closeButton);
+            dialog.add(logGrid);
+            dialog.open();
+        } catch (Exception e) {
+            Notification.show(t("device.notification.failed", e.getMessage()))
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 
 }
