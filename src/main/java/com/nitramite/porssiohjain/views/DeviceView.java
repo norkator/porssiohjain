@@ -334,12 +334,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             if (currentAccount == null) {
                 return;
             }
-            DeviceAcDataEntity acData = buildAcDataForSelection(currentAccount.getId());
+            DeviceAcDataEntity acData = buildAcDataForSelection();
             AcType acType = acTypeCombo.getValue();
             if (acType == AcType.TOSHIBA) {
-                openToshibaAcDeviceSelectionDialog(currentAccount, acData);
+                openToshibaAcDeviceSelectionDialog(acData);
             } else if (acType == AcType.MITSUBISHI) {
-                openMitsubishiAcDeviceSelectionDialog(currentAccount, acData);
+                openMitsubishiAcDeviceSelectionDialog(acData);
             } else {
                 Notification.show(t("device.notification.failed", "Unsupported AC type"))
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -350,7 +350,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         }
     }
 
-    private void openToshibaAcDeviceSelectionDialog(AccountEntity currentAccount, DeviceAcDataEntity acData) {
+    private void openToshibaAcDeviceSelectionDialog(DeviceAcDataEntity acData) {
         if (!toshibaLoginService.login(acData).isSuccess()) {
             Notification.show(t("device.notification.toshibaLoginFailed")).addThemeVariants(NotificationVariant.LUMO_ERROR);
             return;
@@ -375,10 +375,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         Button selectButton = new Button(t("common.select"), e -> {
             ToshibaAcMappingResponse.AcDevice selected = acGrid.asSingleSelect().getValue();
             if (selected != null) {
-                persistSelectedAcDevice(currentAccount.getId(), selected.getId(), null);
+                persistSelectedAcDevice(selected.getId(), null);
                 Notification.show(t("device.notification.acDeviceSelected")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 dialog.close();
-                loadDevices();
             }
         });
         selectButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -389,7 +388,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         dialog.open();
     }
 
-    private void openMitsubishiAcDeviceSelectionDialog(AccountEntity currentAccount, DeviceAcDataEntity acData) {
+    private void openMitsubishiAcDeviceSelectionDialog(DeviceAcDataEntity acData) {
         if (!mitsubishiLoginService.login(acData).isSuccess()) {
             Notification.show(t("device.notification.failed", "Mitsubishi login failed"))
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -416,13 +415,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             MitsubishiAcDevicesResponse.Device selected = acGrid.asSingleSelect().getValue();
             if (selected != null) {
                 persistSelectedAcDevice(
-                        currentAccount.getId(),
                         String.valueOf(selected.getDeviceId()),
                         selected.getBuildingId() != null ? String.valueOf(selected.getBuildingId()) : null
                 );
                 Notification.show(t("device.notification.acDeviceSelected")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 dialog.close();
-                loadDevices();
             }
         });
         selectButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -433,12 +430,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         dialog.open();
     }
 
-    private void persistSelectedAcDevice(Long accountId, String acDeviceId, String buildingId) {
+    private void persistSelectedAcDevice(String acDeviceId, String buildingId) {
         pendingAcDeviceId = acDeviceId;
         pendingBuildingId = buildingId;
-        if (selectedDevice != null) {
-            deviceService.updateAcDeviceId(accountId, selectedDevice.getId(), acDeviceId, buildingId);
-        }
         updateSelectAcDeviceButton();
         updateSaveButtonState();
     }
@@ -615,7 +609,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         saveButton.setEnabled(!creatingHeatPump || hasAcSelection);
     }
 
-    private DeviceAcDataEntity buildAcDataForSelection(Long accountId) {
+    private DeviceAcDataEntity buildAcDataForSelection() {
         String hpName = hpNameField.getValue();
         String acUsername = acUsernameField.getValue();
         String acPassword = acPasswordField.getValue();
@@ -628,15 +622,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         }
         if (acPassword == null || acPassword.isBlank()) {
             throw new IllegalArgumentException(t("device.notification.acPasswordEmpty"));
-        }
-
-        if (selectedDevice != null) {
-            DeviceAcDataEntity acData = deviceService.getDeviceAcData(accountId, selectedDevice.getId());
-            acData.setName(hpName);
-            acData.setAcType(acTypeCombo.getValue());
-            acData.setAcUsername(acUsername);
-            acData.setAcPassword(acPassword);
-            return acData;
         }
 
         return DeviceAcDataEntity.builder()
