@@ -80,7 +80,7 @@ public class ControlSchedulerService {
         Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
         Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
 
-        generateInternal(List.of(control), startOfDay, endOfDay, Status.FINAL);
+        generateInternal(List.of(control), startOfDay, endOfDay, determineStatus(startOfDay));
     }
 
     @Transactional
@@ -88,9 +88,18 @@ public class ControlSchedulerService {
         Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
         Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
         List<ControlEntity> controls = controlRepository.findAll();
-        log.info("generatePlannedForTomorrow for time {} - {}", startOfDay, endOfDay.toString());
-        generateInternal(controls, startOfDay, endOfDay, Status.FINAL);
+        Status status = determineStatus(startOfDay);
+        log.info("generatePlannedForTomorrow for time {} - {} with status {}", startOfDay, endOfDay.toString(), status);
+        generateInternal(controls, startOfDay, endOfDay, status);
         systemLogService.log("Scheduled run of function 'generatePlannedForTomorrow' completed.");
+    }
+
+    private Status determineStatus(Instant startOfToday) {
+        Instant tomorrowStart = startOfToday.plus(1, ChronoUnit.DAYS);
+        Instant tomorrowEnd = startOfToday.plus(2, ChronoUnit.DAYS);
+        return nordpoolRepository.existsByDeliveryStartBetween(tomorrowStart, tomorrowEnd)
+                ? Status.FINAL
+                : Status.PLANNED;
     }
 
     private void generateInternal(
