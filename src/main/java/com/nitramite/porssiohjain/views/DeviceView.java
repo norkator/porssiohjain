@@ -49,6 +49,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -95,6 +96,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final Button saveButton;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final int COMMAND_LOG_PREVIEW_LENGTH = 120;
 
     private DeviceResponse selectedDevice;
     private String pendingAcDeviceId;
@@ -694,13 +696,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 ZoneId zone = ZoneId.of(selectedDevice.getTimezone());
                 return ZonedDateTime.ofInstant(log.getSentAt(), zone).format(formatter);
             }).setHeader(t("device.hp.commandLogGrid.sentAt")).setAutoWidth(true).setFlexGrow(0);
-            logGrid.addColumn(DeviceAcCommandLogResponse::getSentData)
+            logGrid.addColumn(log -> abbreviateCommandPayload(log.getSentData()))
                     .setHeader(t("device.hp.commandLogGrid.sentData"))
                     .setAutoWidth(false)
                     .setFlexGrow(1);
             logGrid.setItems(commandLogs);
             logGrid.setWidthFull();
             logGrid.setHeightFull();
+            logGrid.addItemClickListener(event -> openAcCommandPayloadDialog(event.getItem()));
 
             Button closeButton = new Button(t("common.cancel"), event -> dialog.close());
             dialog.getFooter().add(closeButton);
@@ -710,6 +713,31 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             Notification.show(t("device.notification.failed", e.getMessage()))
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void openAcCommandPayloadDialog(DeviceAcCommandLogResponse logEntry) {
+        Dialog payloadDialog = new Dialog();
+        payloadDialog.setHeaderTitle(t("device.hp.commandLogDialog.title", selectedDevice.getDeviceName()));
+        payloadDialog.setWidth("min(1200px, 96vw)");
+        payloadDialog.setHeight("min(900px, 92vh)");
+
+        TextArea payloadArea = new TextArea(t("device.hp.commandLogGrid.sentData"));
+        payloadArea.setValue(logEntry.getSentData() != null ? logEntry.getSentData() : "");
+        payloadArea.setReadOnly(true);
+        payloadArea.setWidthFull();
+        payloadArea.setHeightFull();
+
+        Button closeButton = new Button(t("common.cancel"), event -> payloadDialog.close());
+        payloadDialog.getFooter().add(closeButton);
+        payloadDialog.add(payloadArea);
+        payloadDialog.open();
+    }
+
+    private String abbreviateCommandPayload(String payload) {
+        if (payload == null || payload.length() <= COMMAND_LOG_PREVIEW_LENGTH) {
+            return payload;
+        }
+        return payload.substring(0, COMMAND_LOG_PREVIEW_LENGTH - 3) + "...";
     }
 
 }
