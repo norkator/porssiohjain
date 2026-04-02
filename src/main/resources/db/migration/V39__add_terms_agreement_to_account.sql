@@ -1,0 +1,3 @@
+ALTER TABLE account
+    ADD COLUMN agreed_terms BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN agreed_terms_at TIMESTAMP NULL;

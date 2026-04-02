@@ -64,6 +64,8 @@ class AccountControllerTest {
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.uuid").isString())
                 .andExpect(jsonPath("$.secret").isString())
+                .andExpect(jsonPath("$.agreedTerms").value(true))
+                .andExpect(jsonPath("$.agreedTermsAt").isString())
                 .andExpect(jsonPath("$.createdAt").isString());
 
         assertThat(accountRepository.count()).isGreaterThan(0);

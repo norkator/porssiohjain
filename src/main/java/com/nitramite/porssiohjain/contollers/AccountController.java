@@ -47,7 +47,7 @@ public class AccountController {
             return ResponseEntity.status(429).body("Too many account creations. Try again later.");
         }
 
-        return ResponseEntity.ok(accountService.createAccount(ip));
+        return ResponseEntity.ok(accountService.createAccount(ip, true));
     }
 
     @PostMapping("/login")

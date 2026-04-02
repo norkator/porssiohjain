@@ -36,19 +36,25 @@ public class AccountService {
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public AccountEntity createAccount(String ip) {
+    public AccountEntity createAccount(String ip, boolean agreedTerms) {
         if (!rateLimitService.allowAccountCreation(ip)) {
             throw new IllegalStateException("Rate limit exceeded. Try again later.");
+        }
+        if (!agreedTerms) {
+            throw new IllegalArgumentException("Terms of service must be accepted before creating an account.");
         }
 
         String rawSecret = UUID.randomUUID().toString().replace("-", "");
         String hashedSecret = passwordEncoder.encode(rawSecret);
+        Instant now = Instant.now();
 
         AccountEntity account = AccountEntity.builder()
                 .uuid(UUID.randomUUID())
                 .secret(hashedSecret)
-                .createdAt(Instant.now())
-                .updatedAt(Instant.now())
+                .agreedTerms(true)
+                .agreedTermsAt(now)
+                .createdAt(now)
+                .updatedAt(now)
                 .build();
 
         accountRepository.save(account);

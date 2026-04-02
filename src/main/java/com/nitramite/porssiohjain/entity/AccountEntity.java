@@ -58,6 +58,13 @@ public class AccountEntity {
     @Builder.Default
     private AccountTier tier = AccountTier.FREE;
 
+    @Column(name = "agreed_terms", nullable = false)
+    @Builder.Default
+    private boolean agreedTerms = false;
+
+    @Column(name = "agreed_terms_at")
+    private Instant agreedTermsAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
