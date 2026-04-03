@@ -28,7 +28,6 @@ public class NordpoolController {
 
     private final NordpoolService nordpoolService;
 
-    @CrossOrigin(origins = "https://www.porssiohjain.fi")
     @GetMapping("/today-stats")
     public TodayPriceStatsResponse getTodayStats(
             @RequestParam(required = false) String timezone
