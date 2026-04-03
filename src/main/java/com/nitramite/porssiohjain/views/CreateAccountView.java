@@ -146,6 +146,7 @@ public class CreateAccountView extends VerticalLayout {
 
         Markdown markdownComponent = new Markdown(markdown);
         markdownComponent.setWidthFull();
+        markdownComponent.addClassName("terms-markdown");
 
         Div scrollContainer = new Div(markdownComponent);
         scrollContainer.setWidthFull();

@@ -120,6 +120,10 @@ vaadin-button[theme~="large"] {
     padding: 0.5rem 2rem;
 }
 
+.terms-markdown > :first-child {
+    margin-top: 0;
+}
+
 @media (max-width: 768px) {
 
     .landing-navbar {

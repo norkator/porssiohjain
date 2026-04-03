@@ -1,23 +1,26 @@
-# Kayttoehdot
+# Käyttöehdot
 
-Luomalla tilin Porssiohjain-palveluun sitoudut kayttamaan palvelua vastuullisesti ja sovellettavan lainsaadannon mukaisesti.
+Luomalla tilin Pörssiohjain-palveluun sitoudut käyttämään palvelua vastuullisesti ja sovellettavan lainsäädännön
+mukaisesti.
 
 ## Tilin vastuu
 
 - Olet vastuussa UUID-tunnuksesi ja salaisen avaimesi suojaamisesta.
-- Olet vastuussa kaikista toimista, joita tehdaan tilisi tunnuksilla.
+- Olet vastuussa kaikista toimista, joita tehdään tilisi tunnuksilla.
 
 ## Palvelun saatavuus
 
-- Palvelu tarjotaan sellaisenaan ilman takuuta keskeytyksettomasta saatavuudesta.
-- Ominaisuuksia voidaan muuttaa, paivittaa tai poistaa ajan myota.
+- Palvelu tarjotaan sellaisenaan ilman takuuta keskeytyksettömästa saatavuudesta.
+- Ominaisuuksia voidaan muuttaa, päivittää tai poistaa ajan myötä.
 
 ## Automaatiovastuu
 
-- Olet vastuussa kaikkien maarittamiesi automaatioiden, ohjaussaantojen ja laiteintegraatioiden tarkistamisesta ja validoimisesta.
-- Porssiohjain ei vastaa vahingoista, kustannuksista tai menetyksista, jotka johtuvat virheellisista automaatioasetuksista, laitteiden toiminnasta tai kolmannen osapuolen integraatioista.
+- Olet vastuussa kaikkien määrittämiesi automaatioiden, ohjaussääntöjen ja laiteintegraatioiden tarkistamisesta ja
+  validoimisesta.
+- Pörssiohjain ei vastaa vahingoista, kustannuksista tai menetyksistä, jotka johtuvat virheellisistä
+  automaatioasetuksista, laitteiden toiminnasta tai kolmannen osapuolen integraatioista.
 
-## Paivitykset
+## Päivitykset
 
-- Ehtoja voidaan paivittaa myohemmin.
-- Palvelun kayton jatkaminen voi edellyttaa paivitettyjen ehtojen hyvaksyntaa.
+- Ehtoja voidaan paivittää myöhemmin.
+- Palvelun käytön jatkaminen voi edellyttää päivitettyjen ehtojen hyväksyntää.

@@ -1,6 +1,7 @@
 # Terms of Service
 
-By creating an account for Porssiohjain, you agree to use the service responsibly and in accordance with applicable laws.
+By creating an account for Pörssiohjain, you agree to use the service responsibly and in accordance with applicable
+laws.
 
 ## Account Responsibility
 
@@ -15,7 +16,8 @@ By creating an account for Porssiohjain, you agree to use the service responsibl
 ## Automation Responsibility
 
 - You are responsible for reviewing and validating any automations, control rules, or device integrations you configure.
-- Porssiohjain is not responsible for damage, cost, or loss caused by incorrect automation settings, device behavior, or third-party integrations.
+- Pörssiohjain is not responsible for damage, cost, or loss caused by incorrect automation settings, device behavior, or
+  third-party integrations.
 
 ## Updates
 
