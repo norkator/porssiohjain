@@ -76,11 +76,9 @@ public class ControlSchedulerService {
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new IllegalArgumentException("Control not found: " + controlId));
-
         Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
         Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
-
-        generateInternal(List.of(control), startOfDay, endOfDay, determineStatus(startOfDay));
+        generateInternal(List.of(control), startOfDay, endOfDay);
     }
 
     @Transactional
@@ -88,25 +86,15 @@ public class ControlSchedulerService {
         Instant startOfDay = Instant.now().truncatedTo(ChronoUnit.DAYS);
         Instant endOfDay = startOfDay.plus(2, ChronoUnit.DAYS);
         List<ControlEntity> controls = controlRepository.findAll();
-        Status status = determineStatus(startOfDay);
-        log.info("generatePlannedForTomorrow for time {} - {} with status {}", startOfDay, endOfDay.toString(), status);
-        generateInternal(controls, startOfDay, endOfDay, status);
+        log.info("generatePlannedForTomorrow for time {} - {}", startOfDay, endOfDay.toString());
+        generateInternal(controls, startOfDay, endOfDay);
         systemLogService.log("Scheduled run of function 'generatePlannedForTomorrow' completed.");
-    }
-
-    private Status determineStatus(Instant startOfToday) {
-        Instant tomorrowStart = startOfToday.plus(1, ChronoUnit.DAYS);
-        Instant tomorrowEnd = startOfToday.plus(2, ChronoUnit.DAYS);
-        return nordpoolRepository.existsByDeliveryStartBetween(tomorrowStart, tomorrowEnd)
-                ? Status.FINAL
-                : Status.PLANNED;
     }
 
     private void generateInternal(
             List<ControlEntity> controls,
             Instant startTime,
-            Instant endTime,
-            Status status
+            Instant endTime
     ) {
         List<NordpoolEntity> prices = nordpoolRepository.findByDeliveryStartBetween(startTime, endTime);
 
@@ -130,7 +118,7 @@ public class ControlSchedulerService {
                                 .startTime(priceEntry.getDeliveryStart())
                                 .endTime(priceEntry.getDeliveryEnd())
                                 .priceSnt(combinedPrice)
-                                .status(status)
+                                .status(Status.FINAL)
                                 .build();
                         controlTableRepository.save(entry);
                     }
@@ -164,7 +152,7 @@ public class ControlSchedulerService {
                             int minutesToUse = (periodMinutes / 15) * 15;
                             if (minutesToUse <= 0) continue;
                             Instant end = priceEntry.getDeliveryStart().plus(Duration.ofMinutes(minutesToUse));
-                            controlTableRepository.save(ControlTableEntity.builder().control(control).startTime(priceEntry.getDeliveryStart()).endTime(end).priceSnt(combinedPrice).status(status).build());
+                            controlTableRepository.save(ControlTableEntity.builder().control(control).startTime(priceEntry.getDeliveryStart()).endTime(end).priceSnt(combinedPrice).status(Status.FINAL).build());
                             accumulatedMinutes += minutesToUse;
                         }
                     }
@@ -184,7 +172,7 @@ public class ControlSchedulerService {
                         minutesToUse = (minutesToUse / 15) * 15;
                         if (minutesToUse <= 0) continue;
                         Instant end = priceEntry.getDeliveryStart().plus(Duration.ofMinutes(minutesToUse));
-                        controlTableRepository.save(ControlTableEntity.builder().control(control).startTime(priceEntry.getDeliveryStart()).endTime(end).priceSnt(combinedPrice).status(status).build());
+                        controlTableRepository.save(ControlTableEntity.builder().control(control).startTime(priceEntry.getDeliveryStart()).endTime(end).priceSnt(combinedPrice).status(Status.FINAL).build());
                         accumulatedMinutes += minutesToUse;
                     }
                 }
@@ -196,7 +184,7 @@ public class ControlSchedulerService {
                             .startTime(priceEntry.getDeliveryStart())
                             .endTime(priceEntry.getDeliveryEnd())
                             .priceSnt(priceSnt)
-                            .status(status)
+                            .status(Status.FINAL)
                             .build();
                     controlTableRepository.save(entry);
                 }
