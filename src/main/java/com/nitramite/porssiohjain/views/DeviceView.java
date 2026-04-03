@@ -16,11 +16,13 @@
 
 package com.nitramite.porssiohjain.views;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -64,6 +66,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @PageTitle("Pörssiohjain - Devices")
 @Route("device")
@@ -72,6 +75,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Grid<DeviceResponse> deviceGrid = new Grid<>(DeviceResponse.class, false);
     private final DeviceService deviceService;
+    private final ControlService controlService;
     private final DeviceAcCommandLogService deviceAcCommandLogService;
     private final AuthService authService;
     private final ToshibaLoginService toshibaLoginService;
@@ -92,8 +96,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private PasswordField acPasswordField;
     private final Button selectAcDeviceButton;
     private final Button showAcCommandLogButton;
+    private final Button showControlsJsonButton;
 
     private final Button saveButton;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int COMMAND_LOG_PREVIEW_LENGTH = 120;
@@ -105,6 +111,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     @Autowired
     public DeviceView(
             DeviceService deviceService,
+            ControlService controlService,
             DeviceAcCommandLogService deviceAcCommandLogService,
             AuthService authService,
             I18nService i18n,
@@ -114,6 +121,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             MitsubishiAcDevicesService mitsubishiAcDevicesService
     ) {
         this.deviceService = deviceService;
+        this.controlService = controlService;
         this.deviceAcCommandLogService = deviceAcCommandLogService;
         this.authService = authService;
         this.i18n = i18n;
@@ -154,6 +162,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         showAcCommandLogButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         showAcCommandLogButton.addClickListener(e -> openAcCommandLogDialog());
         showAcCommandLogButton.setVisible(false);
+
+        showControlsJsonButton = new Button(t("device.controls.button"));
+        showControlsJsonButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        showControlsJsonButton.addClickListener(e -> openControlsJsonDialog());
+        showControlsJsonButton.setVisible(false);
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -274,6 +287,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     updateSelectAcDeviceButton();
                 }
                 updateAcCommandLogButton();
+                updateControlsJsonButton();
                 saveButton.setText(t("device.button.update"));
             } else {
                 clearForm();
@@ -300,7 +314,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         heatPumpForm.setVisible(false);
 
-        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, showAcCommandLogButton, saveButton);
+        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, showAcCommandLogButton, showControlsJsonButton, saveButton);
         actions.setPadding(false);
         actions.setSpacing(true);
         actions.setAlignItems(Alignment.START);
@@ -318,6 +332,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             }
             updateSelectAcDeviceButton();
             updateAcCommandLogButton();
+            updateControlsJsonButton();
             updateSaveButtonState();
         });
 
@@ -581,6 +596,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         acPasswordField.clear();
         updateSelectAcDeviceButton();
         updateAcCommandLogButton();
+        updateControlsJsonButton();
         updateSaveButtonState();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
@@ -601,6 +617,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 && !Boolean.TRUE.equals(selectedDevice.getShared())
                 && deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
         showAcCommandLogButton.setVisible(visible);
+    }
+
+    private void updateControlsJsonButton() {
+        boolean visible = selectedDevice != null && selectedDevice.getDeviceType() == DeviceType.STANDARD;
+        showControlsJsonButton.setVisible(visible);
     }
 
     private void updateSaveButtonState() {
@@ -723,6 +744,36 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             return payload;
         }
         return payload.substring(0, COMMAND_LOG_PREVIEW_LENGTH - 3) + "...";
+    }
+
+    private void openControlsJsonDialog() {
+        if (selectedDevice == null || selectedDevice.getDeviceType() != DeviceType.STANDARD) {
+            return;
+        }
+
+        try {
+            Map<Integer, Integer> controls = controlService.getControlsForDevice(selectedDevice.getUuid());
+            String formattedJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(controls);
+
+            Dialog dialog = new Dialog();
+            dialog.setHeaderTitle(t("device.controls.dialog.title", selectedDevice.getDeviceName()));
+            dialog.setWidth("min(900px, 95vw)");
+            dialog.setHeight("min(700px, 90vh)");
+
+            TextArea jsonArea = new TextArea(t("device.controls.dialog.label"));
+            jsonArea.setReadOnly(true);
+            jsonArea.setWidthFull();
+            jsonArea.setHeightFull();
+            jsonArea.setValue(formattedJson);
+
+            Button closeButton = new Button(t("common.cancel"), event -> dialog.close());
+            dialog.getFooter().add(closeButton);
+            dialog.add(jsonArea);
+            dialog.open();
+        } catch (Exception e) {
+            Notification.show(t("device.notification.failed", e.getMessage()))
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 
 }
