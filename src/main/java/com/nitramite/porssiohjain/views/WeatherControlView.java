@@ -99,6 +99,15 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     private TextField temperatureField;
     private TextField windSpeedField;
     private TextField humidityField;
+    private ComboBox<DeviceResponse> heatPumpDeviceSelect;
+    private TextField heatPumpStateHexField;
+    private ComboBox<WeatherMetricType> heatPumpMetricCombo;
+    private ComboBox<ComparisonType> heatPumpComparisonCombo;
+    private NumberField heatPumpThresholdField;
+    private Button heatPumpQueryStateButton;
+    private Button heatPumpSaveButton;
+    private Button heatPumpCancelButton;
+    private WeatherControlHeatPumpResponse selectedHeatPumpRule;
 
     @Autowired
     public WeatherControlView(
@@ -123,6 +132,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
 
         setSpacing(true);
         setPadding(true);
+        heatPumpGrid.addItemClickListener(event -> editHeatPumpRule(event.getItem()));
     }
 
     @Override
@@ -302,7 +312,8 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
             return delete;
         }).setHeader(t("controlTable.grid.actions"));
-        deviceGrid.setMaxHeight("200px");
+        deviceGrid.setWidthFull();
+        deviceGrid.setAllRowsVisible(true);
     }
 
     private void configureHeatPumpGrid() {
@@ -316,6 +327,9 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
             Button decode = new Button(t("controlTable.button.decodeState"), event -> openHeatPumpStateHexDialog(cd.getStateHex()));
             Button delete = new Button(t("controlTable.button.delete"), event -> {
                 weatherControlService.deleteWeatherControlHeatPump(accountId, cd.getId());
+                if (selectedHeatPumpRule != null && selectedHeatPumpRule.getId().equals(cd.getId())) {
+                    clearHeatPumpForm();
+                }
                 loadControlHeatPumps();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -324,7 +338,8 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
             actions.setSpacing(true);
             return actions;
         }).setHeader(t("controlTable.grid.actions"));
-        heatPumpGrid.setMaxHeight("200px");
+        heatPumpGrid.setWidthFull();
+        heatPumpGrid.setAllRowsVisible(true);
     }
 
     private void loadControlDevices() {
@@ -397,64 +412,87 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     }
 
     private Component createAddHeatPumpLayout() {
-        ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
-        deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
-        deviceSelect.setItems(deviceService.getAllDevices(accountId).stream()
+        heatPumpDeviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
+        heatPumpDeviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
+        heatPumpDeviceSelect.setItems(deviceService.getAllDevices(accountId).stream()
                 .filter(device -> device.getDeviceType() == DeviceType.HEAT_PUMP)
                 .toList());
-        deviceSelect.setWidthFull();
+        heatPumpDeviceSelect.setWidthFull();
 
-        Button queryStateButton = new Button(t("controlTable.button.queryState"));
-        queryStateButton.setWidthFull();
+        heatPumpQueryStateButton = new Button(t("controlTable.button.queryState"));
+        heatPumpQueryStateButton.setWidthFull();
 
-        TextField stateHexField = new TextField(t("controlTable.field.stateHex"));
-        stateHexField.setReadOnly(true);
-        stateHexField.setWidthFull();
+        heatPumpStateHexField = new TextField(t("controlTable.field.stateHex"));
+        heatPumpStateHexField.setReadOnly(true);
+        heatPumpStateHexField.setWidthFull();
 
-        queryStateButton.addClickListener(event -> {
-            if (deviceSelect.getValue() == null) {
+        heatPumpQueryStateButton.addClickListener(event -> {
+            if (heatPumpDeviceSelect.getValue() == null) {
                 showWarning(t("controlTable.notification.selectDeviceFirst"));
                 return;
             }
-            openHeatPumpStateDialog(deviceSelect.getValue(), stateHexField);
+            openHeatPumpStateDialog(heatPumpDeviceSelect.getValue(), heatPumpStateHexField);
         });
 
-        ComboBox<WeatherMetricType> metricCombo = createMetricCombo();
-        ComboBox<ComparisonType> comparisonCombo = createComparisonCombo();
-        NumberField thresholdField = new NumberField(t("weatherControl.field.threshold"));
-        thresholdField.setStep(0.1);
-        thresholdField.setWidthFull();
+        heatPumpMetricCombo = createMetricCombo();
+        heatPumpComparisonCombo = createComparisonCombo();
+        heatPumpThresholdField = new NumberField(t("weatherControl.field.threshold"));
+        heatPumpThresholdField.setStep(0.1);
+        heatPumpThresholdField.setWidthFull();
 
-        Button addButton = new Button(t("controlTable.button.addDevice"), event -> {
+        heatPumpSaveButton = new Button(t("controlTable.button.addDevice"), event -> {
             try {
-                if (deviceSelect.getValue() == null || stateHexField.getValue().isBlank() || metricCombo.getValue() == null
-                        || comparisonCombo.getValue() == null || thresholdField.getValue() == null) {
+                if (heatPumpDeviceSelect.getValue() == null || heatPumpStateHexField.getValue().isBlank() || heatPumpMetricCombo.getValue() == null
+                        || heatPumpComparisonCombo.getValue() == null || heatPumpThresholdField.getValue() == null) {
                     showWarning(t("weatherControl.notification.ruleFieldsMissing"));
                     return;
                 }
 
-                weatherControlService.addHeatPumpToWeatherControl(
-                        accountId,
-                        weatherControlId,
-                        deviceSelect.getValue().getId(),
-                        stateHexField.getValue(),
-                        metricCombo.getValue(),
-                        comparisonCombo.getValue(),
-                        BigDecimal.valueOf(thresholdField.getValue())
-                );
+                if (selectedHeatPumpRule != null) {
+                    weatherControlService.updateWeatherControlHeatPump(
+                            accountId,
+                            selectedHeatPumpRule.getId(),
+                            heatPumpDeviceSelect.getValue().getId(),
+                            heatPumpStateHexField.getValue(),
+                            heatPumpMetricCombo.getValue(),
+                            heatPumpComparisonCombo.getValue(),
+                            BigDecimal.valueOf(heatPumpThresholdField.getValue())
+                    );
+                } else {
+                    weatherControlService.addHeatPumpToWeatherControl(
+                            accountId,
+                            weatherControlId,
+                            heatPumpDeviceSelect.getValue().getId(),
+                            heatPumpStateHexField.getValue(),
+                            heatPumpMetricCombo.getValue(),
+                            heatPumpComparisonCombo.getValue(),
+                            BigDecimal.valueOf(heatPumpThresholdField.getValue())
+                    );
+                }
                 loadControlHeatPumps();
-                stateHexField.clear();
-                metricCombo.clear();
-                comparisonCombo.clear();
-                thresholdField.clear();
+                clearHeatPumpForm();
             } catch (Exception ex) {
                 Notification.show(t("weatherControl.notification.failedSave", ex.getMessage()))
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
-        addButton.setWidthFull();
+        heatPumpSaveButton.setWidthFull();
 
-        FormLayout formLayout = new FormLayout(deviceSelect, queryStateButton, stateHexField, metricCombo, comparisonCombo, thresholdField, addButton);
+        heatPumpCancelButton = new Button(t("common.cancel"), event -> clearHeatPumpForm());
+        heatPumpCancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        heatPumpCancelButton.setWidthFull();
+        heatPumpCancelButton.setVisible(false);
+
+        FormLayout formLayout = new FormLayout(
+                heatPumpDeviceSelect,
+                heatPumpQueryStateButton,
+                heatPumpStateHexField,
+                heatPumpMetricCombo,
+                heatPumpComparisonCombo,
+                heatPumpThresholdField,
+                heatPumpSaveButton,
+                heatPumpCancelButton
+        );
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 4)
@@ -464,6 +502,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                 .set("border-radius", "12px")
                 .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
                 .set("background-color", "var(--lumo-contrast-5pct)");
+        clearHeatPumpForm();
         return formLayout;
     }
 
@@ -554,6 +593,43 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         dialog.add(dialogLayout);
         dialog.getFooter().add(new Button(t("common.cancel"), event -> dialog.close()));
         dialog.open();
+    }
+
+    private void editHeatPumpRule(WeatherControlHeatPumpResponse rule) {
+        selectedHeatPumpRule = rule;
+        if (heatPumpDeviceSelect == null) {
+            return;
+        }
+
+        DeviceResponse matchingDevice = deviceService.getAllDevices(accountId).stream()
+                .filter(device -> device.getDeviceType() == DeviceType.HEAT_PUMP)
+                .filter(device -> device.getId().equals(rule.getDeviceId()))
+                .findFirst()
+                .orElse(null);
+
+        heatPumpDeviceSelect.setValue(matchingDevice);
+        heatPumpStateHexField.setValue(rule.getStateHex() != null ? rule.getStateHex() : "");
+        heatPumpMetricCombo.setValue(rule.getWeatherMetric());
+        heatPumpComparisonCombo.setValue(rule.getComparisonType());
+        heatPumpThresholdField.setValue(rule.getThresholdValue() != null ? rule.getThresholdValue().doubleValue() : null);
+        heatPumpSaveButton.setText(t("controlTable.button.save"));
+        heatPumpCancelButton.setVisible(true);
+    }
+
+    private void clearHeatPumpForm() {
+        selectedHeatPumpRule = null;
+        if (heatPumpDeviceSelect == null) {
+            return;
+        }
+
+        heatPumpGrid.deselectAll();
+        heatPumpDeviceSelect.clear();
+        heatPumpStateHexField.clear();
+        heatPumpMetricCombo.clear();
+        heatPumpComparisonCombo.clear();
+        heatPumpThresholdField.clear();
+        heatPumpSaveButton.setText(t("controlTable.button.addDevice"));
+        heatPumpCancelButton.setVisible(false);
     }
 
     private TextField createReadOnlyField(String label, String value) {

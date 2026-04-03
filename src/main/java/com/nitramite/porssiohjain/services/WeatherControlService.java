@@ -160,6 +160,24 @@ public class WeatherControlService {
         return toHeatPumpResponse(weatherControlHeatPumpRepository.save(entity));
     }
 
+    public WeatherControlHeatPumpResponse updateWeatherControlHeatPump(
+            Long accountId, Long weatherControlHeatPumpId, Long deviceId, String stateHex, WeatherMetricType weatherMetric,
+            ComparisonType comparisonType, BigDecimal thresholdValue
+    ) {
+        WeatherControlHeatPumpEntity entity = weatherControlHeatPumpRepository.findById(weatherControlHeatPumpId)
+                .orElseThrow(() -> new EntityNotFoundException("WeatherControlHeatPump not found with id: " + weatherControlHeatPumpId));
+        ensureOwnership(accountId, entity.getWeatherControl().getAccount().getId());
+
+        DeviceEntity device = getOwnedDevice(accountId, deviceId);
+        entity.setDevice(device);
+        entity.setStateHex(stateHex);
+        entity.setWeatherMetric(weatherMetric);
+        entity.setComparisonType(comparisonType);
+        entity.setThresholdValue(thresholdValue);
+
+        return toHeatPumpResponse(weatherControlHeatPumpRepository.save(entity));
+    }
+
     public void deleteWeatherControlHeatPump(Long accountId, Long weatherControlHeatPumpId) {
         WeatherControlHeatPumpEntity entity = weatherControlHeatPumpRepository.findById(weatherControlHeatPumpId)
                 .orElseThrow(() -> new EntityNotFoundException("WeatherControlHeatPump not found with id: " + weatherControlHeatPumpId));
