@@ -30,8 +30,19 @@ public class WebConfig implements WebMvcConfigurer {
     private static final String[] DEFAULT_ALLOWED_ORIGINS = {
             "https://app.porssiohjain.fi",
             "https://app.energiaohjain.fi",
-            "https://www.porssiohjain.fi",
-            "http://localhost:5173"
+            "https://www.porssiohjain.fi"
+    };
+    private static final String[] MOBILE_API_PATHS = {
+            "/account/**",
+            "/me/**",
+            "/devices/**",
+            "/api/**",
+            "/onboarding/**",
+            "/dashboard/**",
+            "/nordpool/**",
+            "/power/**",
+            "/control/**",
+            "/device/**"
     };
 
     private final AuthInterceptor authInterceptor;
@@ -50,16 +61,24 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(
             CorsRegistry registry
     ) {
-        var registration = registry.addMapping("/**")
+        registry.addMapping("/**")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .allowCredentials(true);
+                .allowCredentials(true)
+                .allowedOrigins(DEFAULT_ALLOWED_ORIGINS);
 
-        if (allowAllCorsOrigins) {
-            registration.allowedOriginPatterns("*");
+        if (!allowAllCorsOrigins) {
             return;
         }
 
-        registration.allowedOrigins(DEFAULT_ALLOWED_ORIGINS);
+        // Native mobile HTTP clients do not need CORS, but hybrid/mobile WebView clients do.
+        // For token-based API calls, allow any origin on API routes without CORS credentials.
+        for (String path : MOBILE_API_PATHS) {
+            registry.addMapping(path)
+                    .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                    .allowedHeaders("*")
+                    .allowedOriginPatterns("*")
+                    .allowCredentials(false);
+        }
     }
 }
