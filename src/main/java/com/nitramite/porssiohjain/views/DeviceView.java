@@ -752,7 +752,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         }
 
         try {
-            Map<Integer, Integer> controls = controlService.getControlsForDevice(selectedDevice.getUuid());
+            Map<Integer, Integer> controls = controlService.getControlsForDevice(selectedDevice.getUuid().toString());
             String formattedJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(controls);
 
             Dialog dialog = new Dialog();
