@@ -266,14 +266,19 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         Tab standardTab = new Tab(t("weatherControl.tab.devices"));
         Tab heatPumpTab = new Tab(t("weatherControl.tab.heatPumps"));
         Tabs tabs = new Tabs(standardTab, heatPumpTab);
+        tabs.setWidthFull();
 
         VerticalLayout deviceLayout = new VerticalLayout(deviceGrid, createAddDeviceLayout());
+        deviceLayout.setWidthFull();
         deviceLayout.setPadding(false);
         deviceLayout.setSpacing(true);
+        deviceLayout.setMargin(false);
 
         VerticalLayout heatPumpLayout = new VerticalLayout(heatPumpGrid, createAddHeatPumpLayout());
+        heatPumpLayout.setWidthFull();
         heatPumpLayout.setPadding(false);
         heatPumpLayout.setSpacing(true);
+        heatPumpLayout.setMargin(false);
         heatPumpLayout.setVisible(false);
 
         Map<Tab, Component> tabsToPages = new LinkedHashMap<>();
@@ -282,6 +287,9 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
 
         Div pages = new Div(deviceLayout, heatPumpLayout);
         pages.setWidthFull();
+        pages.getStyle()
+                .set("padding", "0")
+                .set("margin", "0");
 
         tabs.addSelectedChangeListener(event -> {
             tabsToPages.values().forEach(page -> page.setVisible(false));
@@ -291,7 +299,12 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
             }
         });
 
-        return new VerticalLayout(tabs, pages);
+        VerticalLayout tabsSection = new VerticalLayout(tabs, pages);
+        tabsSection.setWidthFull();
+        tabsSection.setPadding(false);
+        tabsSection.setSpacing(true);
+        tabsSection.setMargin(false);
+        return tabsSection;
     }
 
     private void configureDeviceGrid() {
