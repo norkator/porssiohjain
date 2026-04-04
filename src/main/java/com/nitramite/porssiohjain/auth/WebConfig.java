@@ -61,18 +61,6 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(
             CorsRegistry registry
     ) {
-        registry.addMapping("/**")
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true)
-                .allowedOrigins(DEFAULT_ALLOWED_ORIGINS);
-
-        if (!allowAllCorsOrigins) {
-            return;
-        }
-
-        // Native mobile HTTP clients do not need CORS, but hybrid/mobile WebView clients do.
-        // For token-based API calls, allow any origin on API routes without CORS credentials.
         for (String path : MOBILE_API_PATHS) {
             registry.addMapping(path)
                     .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
@@ -80,5 +68,20 @@ public class WebConfig implements WebMvcConfigurer {
                     .allowedOriginPatterns("*")
                     .allowCredentials(false);
         }
+
+        if (allowAllCorsOrigins) {
+            registry.addMapping("/**")
+                    .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                    .allowedHeaders("*")
+                    .allowedOriginPatterns("*")
+                    .allowCredentials(false);
+            return;
+        }
+
+        registry.addMapping("/**")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true)
+                .allowedOrigins(DEFAULT_ALLOWED_ORIGINS);
     }
 }
