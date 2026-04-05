@@ -38,6 +38,8 @@ import java.util.*;
 @Transactional
 public class ControlService {
 
+    private static final long CONTROL_LOOKBACK_SECONDS = 30L * 60L;
+
     private final ControlRepository controlRepository;
     private final ControlDeviceRepository controlDeviceRepository;
     private final AccountRepository accountRepository;
@@ -47,6 +49,8 @@ public class ControlService {
     private final ElectricityContractRepository electricityContractRepository;
     private final PowerLimitService powerLimitService;
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
+    private final WeatherControlDeviceRepository weatherControlDeviceRepository;
+    private final SiteWeatherRepository siteWeatherRepository;
     private final SiteRepository siteRepository;
     private final ResourceSharingRepository resourceSharingRepository;
     private final ControlHeatPumpRepository controlHeatPumpRepository;
@@ -483,7 +487,13 @@ public class ControlService {
             }
         }
 
-        // Production source has second priority
+        // Check for weather configurations as second priority
+        Map<Integer, Integer> priorityWeatherOverrides = getWeatherOverrides(device, nowUtc, true);
+        for (Map.Entry<Integer, Integer> entry : priorityWeatherOverrides.entrySet()) {
+            channelMap.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+
+        // Production source has third priority
         List<ProductionSourceDeviceEntity> prodDevices = productionSourceDeviceRepository.findByDevice(device);
         for (ProductionSourceDeviceEntity psd : prodDevices) {
             int channel = psd.getDeviceChannel();
@@ -494,7 +504,12 @@ public class ControlService {
             }
         }
 
-        // Third and last priority is controls
+        Map<Integer, Integer> weatherOverrides = getWeatherOverrides(device, nowUtc, false);
+        for (Map.Entry<Integer, Integer> entry : weatherOverrides.entrySet()) {
+            channelMap.putIfAbsent(entry.getKey(), entry.getValue());
+        }
+
+        // Last priority is controls
         List<ControlDeviceEntity> controlDevices = controlDeviceRepository.findByDevice(device);
         for (ControlDeviceEntity cd : controlDevices) {
             int channel = cd.getDeviceChannel();
@@ -510,7 +525,7 @@ public class ControlService {
                 ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
 
                 boolean active = controlTableRepository.findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
-                                control.getId(), Status.FINAL, nowUtc.minusSeconds(30 * 60)) // last 30 minutes
+                                control.getId(), Status.FINAL, nowUtc.minusSeconds(CONTROL_LOOKBACK_SECONDS)) // last 30 minutes
                         .stream()
                         .anyMatch(ct -> {
                             ZonedDateTime start = ct.getStartTime().atZone(controlZone);
@@ -572,6 +587,73 @@ public class ControlService {
             }
         }
         return null;
+    }
+
+    private Map<Integer, Integer> getWeatherOverrides(
+            DeviceEntity device,
+            Instant now,
+            boolean priorityRule
+    ) {
+        Map<Integer, Integer> overrides = new HashMap<>();
+        List<WeatherControlDeviceEntity> rules = weatherControlDeviceRepository.findByDevice(device);
+        for (WeatherControlDeviceEntity rule : rules) {
+            if (rule.isPriorityRule() != priorityRule) {
+                continue;
+            }
+            Integer weatherOverride = getWeatherOverride(rule, now);
+            if (weatherOverride != null) {
+                overrides.putIfAbsent(rule.getDeviceChannel(), weatherOverride);
+            }
+        }
+        return overrides;
+    }
+
+    private Integer getWeatherOverride(
+            WeatherControlDeviceEntity rule,
+            Instant now
+    ) {
+        if (rule.getWeatherControl() == null || rule.getWeatherControl().getSite() == null) {
+            return null;
+        }
+        Optional<BigDecimal> metricValue = getCurrentWeatherMetricValue(
+                rule.getWeatherControl().getSite(),
+                rule.getWeatherMetric(),
+                now
+        );
+        if (metricValue.isEmpty() || !matches(metricValue.get(), rule.getComparisonType(), rule.getThresholdValue())) {
+            return null;
+        }
+        return rule.getControlAction() == ControlAction.TURN_OFF ? 0 : 1;
+    }
+
+    private Optional<BigDecimal> getCurrentWeatherMetricValue(
+            SiteEntity site,
+            WeatherMetricType metricType,
+            Instant now
+    ) {
+        Optional<SiteWeatherEntity> weather = siteWeatherRepository
+                .findFirstBySiteAndForecastTimeLessThanEqualOrderByForecastTimeDesc(site, now)
+                .or(() -> siteWeatherRepository.findFirstBySiteAndForecastTimeGreaterThanEqualOrderByForecastTimeAsc(site, now));
+
+        return weather.map(entity -> switch (metricType) {
+            case TEMPERATURE -> entity.getTemperature();
+            case HUMIDITY -> entity.getHumidity();
+        });
+    }
+
+    private boolean matches(
+            BigDecimal actualValue,
+            ComparisonType comparisonType,
+            BigDecimal thresholdValue
+    ) {
+        if (actualValue == null || comparisonType == null || thresholdValue == null) {
+            return false;
+        }
+        int comparison = actualValue.compareTo(thresholdValue);
+        return switch (comparisonType) {
+            case GREATER_THAN -> comparison > 0;
+            case LESS_THAN -> comparison < 0;
+        };
     }
 
 

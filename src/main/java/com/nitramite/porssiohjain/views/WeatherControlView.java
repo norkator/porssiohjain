@@ -18,6 +18,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import com.nitramite.porssiohjain.services.AuthService;
@@ -48,6 +49,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -316,6 +318,8 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                 .setHeader(t("controlTable.grid.comparisonType"));
         deviceGrid.addColumn(cd -> formatDecimal(cd.getThresholdValue(), ""))
                 .setHeader(t("weatherControl.grid.threshold"));
+        deviceGrid.addColumn(cd -> t("controlAction." + cd.getControlAction().name())).setHeader(t("controlTable.grid.action"));
+        deviceGrid.addColumn(cd -> cd.isPriorityRule() ? t("common.yes") : t("common.no")).setHeader(t("weatherControl.grid.priorityRule"));
         deviceGrid.addColumn(cd -> cd.getDevice().getUuid()).setHeader(t("controlTable.grid.uuid"));
         deviceGrid.addComponentColumn(cd -> {
             Button delete = new Button(t("controlTable.button.delete"), event -> {
@@ -380,11 +384,18 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         NumberField thresholdField = new NumberField(t("weatherControl.field.threshold"));
         thresholdField.setStep(0.1);
         thresholdField.setWidthFull();
+        ComboBox<ControlAction> actionCombo = new ComboBox<>(t("controlTable.field.action"));
+        actionCombo.setItems(ControlAction.TURN_ON, ControlAction.TURN_OFF);
+        actionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
+        actionCombo.setValue(ControlAction.TURN_ON);
+        actionCombo.setWidthFull();
+        Checkbox priorityRuleCheckbox = new Checkbox(t("weatherControl.field.priorityRule"));
+        priorityRuleCheckbox.setWidthFull();
 
         Button addButton = new Button(t("controlTable.button.addDevice"), event -> {
             try {
                 if (deviceSelect.getValue() == null || channelField.getValue() == null || metricCombo.getValue() == null
-                        || comparisonCombo.getValue() == null || thresholdField.getValue() == null) {
+                        || comparisonCombo.getValue() == null || thresholdField.getValue() == null || actionCombo.getValue() == null) {
                     showWarning(t("weatherControl.notification.ruleFieldsMissing"));
                     return;
                 }
@@ -396,13 +407,17 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                         channelField.getValue().intValue(),
                         metricCombo.getValue(),
                         comparisonCombo.getValue(),
-                        BigDecimal.valueOf(thresholdField.getValue())
+                        BigDecimal.valueOf(thresholdField.getValue()),
+                        actionCombo.getValue(),
+                        priorityRuleCheckbox.getValue()
                 );
                 loadControlDevices();
                 channelField.clear();
                 metricCombo.clear();
                 comparisonCombo.clear();
                 thresholdField.clear();
+                actionCombo.setValue(ControlAction.TURN_ON);
+                priorityRuleCheckbox.setValue(false);
             } catch (Exception ex) {
                 Notification.show(t("weatherControl.notification.failedSave", ex.getMessage()))
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -410,7 +425,16 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         });
         addButton.setWidthFull();
 
-        FormLayout formLayout = new FormLayout(deviceSelect, channelField, metricCombo, comparisonCombo, thresholdField, addButton);
+        FormLayout formLayout = new FormLayout(
+                deviceSelect,
+                channelField,
+                metricCombo,
+                comparisonCombo,
+                thresholdField,
+                actionCombo,
+                priorityRuleCheckbox,
+                addButton
+        );
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 4),

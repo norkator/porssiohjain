@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.entity;
 
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -61,5 +62,12 @@ public class WeatherControlDeviceEntity {
 
     @Column(name = "threshold_value", precision = 19, scale = 4)
     private BigDecimal thresholdValue;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "control_action", nullable = false, length = 32)
+    private ControlAction controlAction;
+
+    @Column(name = "priority_rule", nullable = false)
+    private boolean priorityRule;
 
 }

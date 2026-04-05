@@ -23,6 +23,7 @@ import com.nitramite.porssiohjain.entity.WeatherControlEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlHeatPumpEntity;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
@@ -101,7 +102,7 @@ public class WeatherControlService {
 
     public WeatherControlDeviceResponse addDeviceToWeatherControl(
             Long accountId, Long weatherControlId, Long deviceId, Integer deviceChannel, WeatherMetricType weatherMetric,
-            ComparisonType comparisonType, BigDecimal thresholdValue
+            ComparisonType comparisonType, BigDecimal thresholdValue, ControlAction controlAction, boolean priorityRule
     ) {
         WeatherControlEntity weatherControl = getOwnedWeatherControl(accountId, weatherControlId);
         DeviceEntity device = getOwnedDevice(accountId, deviceId);
@@ -117,6 +118,8 @@ public class WeatherControlService {
                 .weatherMetric(weatherMetric)
                 .comparisonType(comparisonType)
                 .thresholdValue(thresholdValue)
+                .controlAction(controlAction)
+                .priorityRule(priorityRule)
                 .build();
 
         return toDeviceResponse(weatherControlDeviceRepository.save(entity));
@@ -235,6 +238,8 @@ public class WeatherControlService {
                 .weatherMetric(entity.getWeatherMetric())
                 .comparisonType(entity.getComparisonType())
                 .thresholdValue(entity.getThresholdValue())
+                .controlAction(entity.getControlAction())
+                .priorityRule(entity.isPriorityRule())
                 .device(toDeviceResponse(entity.getDevice()))
                 .build();
     }

@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.services.models;
 
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,5 +38,7 @@ public class WeatherControlDeviceResponse {
     private WeatherMetricType weatherMetric;
     private ComparisonType comparisonType;
     private BigDecimal thresholdValue;
+    private ControlAction controlAction;
+    private boolean priorityRule;
     private DeviceResponse device;
 }
