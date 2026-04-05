@@ -34,6 +34,7 @@ import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlHeatPumpResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlResponse;
+import com.nitramite.porssiohjain.views.components.InfoBox;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -101,6 +102,16 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     private TextField temperatureField;
     private TextField windSpeedField;
     private TextField humidityField;
+    private ComboBox<DeviceResponse> standardDeviceSelect;
+    private NumberField standardChannelField;
+    private ComboBox<WeatherMetricType> standardMetricCombo;
+    private ComboBox<ComparisonType> standardComparisonCombo;
+    private NumberField standardThresholdField;
+    private ComboBox<ControlAction> standardActionCombo;
+    private Checkbox standardPriorityRuleCheckbox;
+    private Button standardSaveButton;
+    private Button standardCancelButton;
+    private WeatherControlDeviceResponse selectedDeviceRule;
     private ComboBox<DeviceResponse> heatPumpDeviceSelect;
     private TextField heatPumpStateHexField;
     private ComboBox<WeatherMetricType> heatPumpMetricCombo;
@@ -134,6 +145,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
 
         setSpacing(true);
         setPadding(true);
+        deviceGrid.addItemClickListener(event -> editDeviceRule(event.getItem()));
         heatPumpGrid.addItemClickListener(event -> editHeatPumpRule(event.getItem()));
     }
 
@@ -324,6 +336,9 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         deviceGrid.addComponentColumn(cd -> {
             Button delete = new Button(t("controlTable.button.delete"), event -> {
                 weatherControlService.deleteWeatherControlDevice(accountId, cd.getId());
+                if (selectedDeviceRule != null && selectedDeviceRule.getId().equals(cd.getId())) {
+                    clearDeviceForm();
+                }
                 loadControlDevices();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -368,72 +383,87 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     }
 
     private Component createAddDeviceLayout() {
-        ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
-        deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
-        deviceSelect.setItems(deviceService.getAllDevices(accountId).stream()
+        standardDeviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
+        standardDeviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
+        standardDeviceSelect.setItems(deviceService.getAllDevices(accountId).stream()
                 .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
                 .toList());
-        deviceSelect.setWidthFull();
+        standardDeviceSelect.setWidthFull();
 
-        NumberField channelField = new NumberField(t("controlTable.field.channel"));
-        channelField.setStep(1);
-        channelField.setWidthFull();
+        standardChannelField = new NumberField(t("controlTable.field.channel"));
+        standardChannelField.setStep(1);
+        standardChannelField.setWidthFull();
 
-        ComboBox<WeatherMetricType> metricCombo = createMetricCombo();
-        ComboBox<ComparisonType> comparisonCombo = createComparisonCombo();
-        NumberField thresholdField = new NumberField(t("weatherControl.field.threshold"));
-        thresholdField.setStep(0.1);
-        thresholdField.setWidthFull();
-        ComboBox<ControlAction> actionCombo = new ComboBox<>(t("controlTable.field.action"));
-        actionCombo.setItems(ControlAction.TURN_ON, ControlAction.TURN_OFF);
-        actionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
-        actionCombo.setValue(ControlAction.TURN_ON);
-        actionCombo.setWidthFull();
-        Checkbox priorityRuleCheckbox = new Checkbox(t("weatherControl.field.priorityRule"));
-        priorityRuleCheckbox.setWidthFull();
+        standardMetricCombo = createMetricCombo();
+        standardComparisonCombo = createComparisonCombo();
+        standardThresholdField = new NumberField(t("weatherControl.field.threshold"));
+        standardThresholdField.setStep(0.1);
+        standardThresholdField.setWidthFull();
+        standardActionCombo = new ComboBox<>(t("controlTable.field.action"));
+        standardActionCombo.setItems(ControlAction.TURN_ON, ControlAction.TURN_OFF);
+        standardActionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
+        standardActionCombo.setValue(ControlAction.TURN_ON);
+        standardActionCombo.setWidthFull();
+        standardPriorityRuleCheckbox = new Checkbox(t("weatherControl.field.priorityRule"));
+        standardPriorityRuleCheckbox.setWidthFull();
 
-        Button addButton = new Button(t("controlTable.button.addDevice"), event -> {
+        standardSaveButton = new Button(t("controlTable.button.addDevice"), event -> {
             try {
-                if (deviceSelect.getValue() == null || channelField.getValue() == null || metricCombo.getValue() == null
-                        || comparisonCombo.getValue() == null || thresholdField.getValue() == null || actionCombo.getValue() == null) {
+                if (standardDeviceSelect.getValue() == null || standardChannelField.getValue() == null || standardMetricCombo.getValue() == null
+                        || standardComparisonCombo.getValue() == null || standardThresholdField.getValue() == null || standardActionCombo.getValue() == null) {
                     showWarning(t("weatherControl.notification.ruleFieldsMissing"));
                     return;
                 }
 
-                weatherControlService.addDeviceToWeatherControl(
-                        accountId,
-                        weatherControlId,
-                        deviceSelect.getValue().getId(),
-                        channelField.getValue().intValue(),
-                        metricCombo.getValue(),
-                        comparisonCombo.getValue(),
-                        BigDecimal.valueOf(thresholdField.getValue()),
-                        actionCombo.getValue(),
-                        priorityRuleCheckbox.getValue()
-                );
+                if (selectedDeviceRule != null) {
+                    weatherControlService.updateWeatherControlDevice(
+                            accountId,
+                            selectedDeviceRule.getId(),
+                            standardDeviceSelect.getValue().getId(),
+                            standardChannelField.getValue().intValue(),
+                            standardMetricCombo.getValue(),
+                            standardComparisonCombo.getValue(),
+                            BigDecimal.valueOf(standardThresholdField.getValue()),
+                            standardActionCombo.getValue(),
+                            standardPriorityRuleCheckbox.getValue()
+                    );
+                } else {
+                    weatherControlService.addDeviceToWeatherControl(
+                            accountId,
+                            weatherControlId,
+                            standardDeviceSelect.getValue().getId(),
+                            standardChannelField.getValue().intValue(),
+                            standardMetricCombo.getValue(),
+                            standardComparisonCombo.getValue(),
+                            BigDecimal.valueOf(standardThresholdField.getValue()),
+                            standardActionCombo.getValue(),
+                            standardPriorityRuleCheckbox.getValue()
+                    );
+                }
                 loadControlDevices();
-                channelField.clear();
-                metricCombo.clear();
-                comparisonCombo.clear();
-                thresholdField.clear();
-                actionCombo.setValue(ControlAction.TURN_ON);
-                priorityRuleCheckbox.setValue(false);
+                clearDeviceForm();
             } catch (Exception ex) {
                 Notification.show(t("weatherControl.notification.failedSave", ex.getMessage()))
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
-        addButton.setWidthFull();
+        standardSaveButton.setWidthFull();
+
+        standardCancelButton = new Button(t("common.cancel"), event -> clearDeviceForm());
+        standardCancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        standardCancelButton.setWidthFull();
+        standardCancelButton.setVisible(false);
 
         FormLayout formLayout = new FormLayout(
-                deviceSelect,
-                channelField,
-                metricCombo,
-                comparisonCombo,
-                thresholdField,
-                actionCombo,
-                priorityRuleCheckbox,
-                addButton
+                standardDeviceSelect,
+                standardChannelField,
+                standardMetricCombo,
+                standardComparisonCombo,
+                standardThresholdField,
+                standardActionCombo,
+                standardPriorityRuleCheckbox,
+                standardSaveButton,
+                standardCancelButton
         );
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
@@ -445,7 +475,14 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                 .set("border-radius", "12px")
                 .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
                 .set("background-color", "var(--lumo-contrast-5pct)");
-        return formLayout;
+        clearDeviceForm();
+        return new VerticalLayout(
+                formLayout,
+                new InfoBox(
+                        t("weatherControl.priorityInfo.title"),
+                        t("weatherControl.priorityInfo.description")
+                )
+        );
     }
 
     private Component createAddHeatPumpLayout() {
@@ -651,6 +688,47 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         heatPumpThresholdField.setValue(rule.getThresholdValue() != null ? rule.getThresholdValue().doubleValue() : null);
         heatPumpSaveButton.setText(t("controlTable.button.save"));
         heatPumpCancelButton.setVisible(true);
+    }
+
+    private void editDeviceRule(WeatherControlDeviceResponse rule) {
+        selectedDeviceRule = rule;
+        if (standardDeviceSelect == null) {
+            return;
+        }
+
+        DeviceResponse matchingDevice = deviceService.getAllDevices(accountId).stream()
+                .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
+                .filter(device -> device.getId().equals(rule.getDeviceId()))
+                .findFirst()
+                .orElse(null);
+
+        standardDeviceSelect.setValue(matchingDevice);
+        standardChannelField.setValue(rule.getDeviceChannel() != null ? rule.getDeviceChannel().doubleValue() : null);
+        standardMetricCombo.setValue(rule.getWeatherMetric());
+        standardComparisonCombo.setValue(rule.getComparisonType());
+        standardThresholdField.setValue(rule.getThresholdValue() != null ? rule.getThresholdValue().doubleValue() : null);
+        standardActionCombo.setValue(rule.getControlAction());
+        standardPriorityRuleCheckbox.setValue(rule.isPriorityRule());
+        standardSaveButton.setText(t("controlTable.button.save"));
+        standardCancelButton.setVisible(true);
+    }
+
+    private void clearDeviceForm() {
+        selectedDeviceRule = null;
+        if (standardDeviceSelect == null) {
+            return;
+        }
+
+        deviceGrid.deselectAll();
+        standardDeviceSelect.clear();
+        standardChannelField.clear();
+        standardMetricCombo.clear();
+        standardComparisonCombo.clear();
+        standardThresholdField.clear();
+        standardActionCombo.setValue(ControlAction.TURN_ON);
+        standardPriorityRuleCheckbox.setValue(false);
+        standardSaveButton.setText(t("controlTable.button.addDevice"));
+        standardCancelButton.setVisible(false);
     }
 
     private void clearHeatPumpForm() {

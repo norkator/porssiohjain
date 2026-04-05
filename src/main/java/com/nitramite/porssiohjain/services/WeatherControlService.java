@@ -125,6 +125,26 @@ public class WeatherControlService {
         return toDeviceResponse(weatherControlDeviceRepository.save(entity));
     }
 
+    public WeatherControlDeviceResponse updateWeatherControlDevice(
+            Long accountId, Long weatherControlDeviceId, Long deviceId, Integer deviceChannel, WeatherMetricType weatherMetric,
+            ComparisonType comparisonType, BigDecimal thresholdValue, ControlAction controlAction, boolean priorityRule
+    ) {
+        WeatherControlDeviceEntity entity = weatherControlDeviceRepository.findById(weatherControlDeviceId)
+                .orElseThrow(() -> new EntityNotFoundException("WeatherControlDevice not found with id: " + weatherControlDeviceId));
+        ensureOwnership(accountId, entity.getWeatherControl().getAccount().getId());
+
+        DeviceEntity device = getOwnedDevice(accountId, deviceId);
+        entity.setDevice(device);
+        entity.setDeviceChannel(deviceChannel);
+        entity.setWeatherMetric(weatherMetric);
+        entity.setComparisonType(comparisonType);
+        entity.setThresholdValue(thresholdValue);
+        entity.setControlAction(controlAction);
+        entity.setPriorityRule(priorityRule);
+
+        return toDeviceResponse(weatherControlDeviceRepository.save(entity));
+    }
+
     public void deleteWeatherControlDevice(Long accountId, Long weatherControlDeviceId) {
         WeatherControlDeviceEntity entity = weatherControlDeviceRepository.findById(weatherControlDeviceId)
                 .orElseThrow(() -> new EntityNotFoundException("WeatherControlDevice not found with id: " + weatherControlDeviceId));
