@@ -19,8 +19,11 @@ package com.nitramite.porssiohjain.contollers;
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.services.DeviceService;
+import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
 import com.nitramite.porssiohjain.services.models.CreateDeviceRequest;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.models.HeatPumpAcDeviceResponse;
+import com.nitramite.porssiohjain.services.models.HeatPumpAcDevicesRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +38,7 @@ public class DevicesController {
 
     private final AuthContext authContext;
     private final DeviceService deviceService;
+    private final HeatPumpAcDeviceSelectionService heatPumpAcDeviceSelectionService;
 
     @GetMapping
     public List<DeviceResponse> listDevices() {
@@ -99,5 +103,13 @@ public class DevicesController {
     ) {
         deviceService.deleteDevice(authContext.getAccountId(), deviceId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/heat-pump/ac-devices")
+    public List<HeatPumpAcDeviceResponse> listSelectableHeatPumpAcDevices(
+            @RequestBody HeatPumpAcDevicesRequest request
+    ) {
+        authContext.getAccountId();
+        return heatPumpAcDeviceSelectionService.getSelectableDevices(request);
     }
 }

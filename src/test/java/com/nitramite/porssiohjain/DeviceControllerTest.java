@@ -19,17 +19,19 @@ package com.nitramite.porssiohjain;
 import com.jayway.jsonpath.JsonPath;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.TokenRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
+import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
+import com.nitramite.porssiohjain.services.models.HeatPumpAcDeviceResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -37,12 +39,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -66,6 +70,9 @@ class DeviceControllerTest {
 
     @MockitoBean
     private MqttService mqttService;
+
+    @MockitoBean
+    private HeatPumpAcDeviceSelectionService heatPumpAcDeviceSelectionService;
 
     private AccountEntity testAccount;
     private String authToken;
@@ -161,6 +168,38 @@ class DeviceControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(saved.getId()))
                 .andExpect(jsonPath("$.deviceName").value("Device1"));
+    }
+
+    @Test
+    @DisplayName("List selectable Toshiba AC devices for heat pump setup")
+    void listSelectableHeatPumpAcDevicesShouldReturnNormalizedDeviceList() throws Exception {
+        when(heatPumpAcDeviceSelectionService.getSelectableDevices(any())).thenReturn(List.of(
+                HeatPumpAcDeviceResponse.builder()
+                        .acType(AcType.TOSHIBA)
+                        .id("ac-123")
+                        .name("Living room")
+                        .deviceUniqueId("unique-123")
+                        .build()
+        ));
+
+        String json = """
+                {
+                    "acType": "TOSHIBA",
+                    "acUsername": "user@example.com",
+                    "acPassword": "secret"
+                }
+                """;
+
+        mockMvc.perform(post("/device/heat-pump/ac-devices")
+                        .header("Authorization", authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$[0].acType").value("TOSHIBA"))
+                .andExpect(jsonPath("$[0].id").value("ac-123"))
+                .andExpect(jsonPath("$[0].name").value("Living room"))
+                .andExpect(jsonPath("$[0].deviceUniqueId").value("unique-123"));
     }
 
 }
