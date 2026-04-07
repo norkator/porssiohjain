@@ -255,7 +255,7 @@ public class ControlService {
     }
 
     public ControlDeviceResponse addDeviceToControl(
-            Long accountId, Long controlId, Long deviceId, Integer deviceChannel
+            Long accountId, Long controlId, Long deviceId, Integer deviceChannel, BigDecimal estimatedPowerKw
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
@@ -274,6 +274,7 @@ public class ControlService {
                     .control(control)
                     .device(device)
                     .deviceChannel(deviceChannel)
+                    .estimatedPowerKw(estimatedPowerKw)
                     .build();
 
             ControlDeviceEntity saved = controlDeviceRepository.save(controlDevice);
@@ -283,6 +284,7 @@ public class ControlService {
                     .controlId(saved.getControl().getId())
                     .deviceId(saved.getDevice().getId())
                     .deviceChannel(saved.getDeviceChannel())
+                    .estimatedPowerKw(saved.getEstimatedPowerKw())
                     .build();
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -290,7 +292,7 @@ public class ControlService {
     }
 
     public ControlDeviceResponse updateControlDevice(
-            Long accountId, Long controlDeviceId, Long deviceId, Integer deviceChannel
+            Long accountId, Long controlDeviceId, Long deviceId, Integer deviceChannel, BigDecimal estimatedPowerKw
     ) {
         ControlDeviceEntity controlDevice = controlDeviceRepository.findById(controlDeviceId)
                 .orElseThrow(() -> new EntityNotFoundException("ControlDevice not found with id: " + controlDeviceId));
@@ -305,6 +307,9 @@ public class ControlService {
             if (deviceChannel != null) {
                 controlDevice.setDeviceChannel(deviceChannel);
             }
+            if (estimatedPowerKw != null) {
+                controlDevice.setEstimatedPowerKw(estimatedPowerKw);
+            }
 
             ControlDeviceEntity updated = controlDeviceRepository.save(controlDevice);
 
@@ -313,6 +318,7 @@ public class ControlService {
                     .controlId(updated.getControl().getId())
                     .deviceId(updated.getDevice().getId())
                     .deviceChannel(updated.getDeviceChannel())
+                    .estimatedPowerKw(updated.getEstimatedPowerKw())
                     .build();
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -355,6 +361,7 @@ public class ControlService {
                         .controlId(control.getId())
                         .deviceId(entity.getDevice().getId())
                         .deviceChannel(entity.getDeviceChannel())
+                        .estimatedPowerKw(entity.getEstimatedPowerKw())
                         .device(
                                 DeviceResponse.builder()
                                         .id(entity.getDevice().getId())
@@ -380,7 +387,7 @@ public class ControlService {
 
     public ControlHeatPumpResponse addHeatPumpToControl(
             Long accountId, Long controlId, Long deviceId, String stateHex, ControlAction controlAction,
-            ComparisonType comparisonType, BigDecimal priceLimit
+            ComparisonType comparisonType, BigDecimal priceLimit, BigDecimal estimatedPowerKw
     ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
@@ -395,6 +402,7 @@ public class ControlService {
                     .controlAction(controlAction)
                     .comparisonType(comparisonType)
                     .priceLimit(priceLimit)
+                    .estimatedPowerKw(estimatedPowerKw)
                     .build();
 
             ControlHeatPumpEntity saved = controlHeatPumpRepository.save(entity);
@@ -407,6 +415,7 @@ public class ControlService {
                     .controlAction(saved.getControlAction())
                     .comparisonType(saved.getComparisonType())
                     .priceLimit(saved.getPriceLimit())
+                    .estimatedPowerKw(saved.getEstimatedPowerKw())
                     .build();
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -440,6 +449,7 @@ public class ControlService {
                         .controlAction(entity.getControlAction())
                         .comparisonType(entity.getComparisonType())
                         .priceLimit(entity.getPriceLimit())
+                        .estimatedPowerKw(entity.getEstimatedPowerKw())
                         .device(
                                 DeviceResponse.builder()
                                         .id(entity.getDevice().getId())

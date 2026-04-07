@@ -113,7 +113,8 @@ public class ControlsController {
                 authContext.getAccountId(),
                 controlId,
                 request.getDeviceId(),
-                request.getDeviceChannel()
+                request.getDeviceChannel(),
+                request.getEstimatedPowerKw()
         );
     }
 }

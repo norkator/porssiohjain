@@ -14,23 +14,27 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.entity.repository;
+package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.entity.ControlEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.util.List;
-import java.util.Optional;
+import java.math.BigDecimal;
 
-public interface ControlRepository extends JpaRepository<ControlEntity, Long> {
-
-    List<ControlEntity> findAllByAccountOrderByIdAsc(AccountEntity account);
-
-    Optional<ControlEntity> findByIdAndAccountId(Long id, Long accountId);
-
-    Optional<ControlEntity> findFirstByAccountId(Long accountId);
-
-    List<ControlEntity> findByAccountId(Long accountId);
-
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ControlSavingsResponse {
+    private Long controlId;
+    private String controlName;
+    private BigDecimal estimatedPowerKw;
+    private BigDecimal estimatedUsageKwh;
+    private BigDecimal baselineCostEur;
+    private BigDecimal controlledCostEur;
+    private BigDecimal estimatedSavingsEur;
+    private int scheduleEntryCount;
+    private int estimatedLoadCount;
 }

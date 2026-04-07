@@ -37,5 +37,6 @@ public class ControlHeatPumpResponse {
     private ControlAction controlAction;
     private ComparisonType comparisonType;
     private BigDecimal priceLimit;
+    private BigDecimal estimatedPowerKw;
     private DeviceResponse device;
 }
