@@ -2,71 +2,76 @@
 
 ![ukjx6lcc](./doc/odw6ej6ii.png)
 
-<b>Pörssiohjain</b> on Springin päälle rakennettu verkkopalvelu, joka hakee Nord Poolista pörssisähkön hinnat ja ohjaa
-laitteita niiden perusteella.
+<b>Pörssiohjain</b> is a Spring-based web service that fetches electricity spot prices from Nord Pool and controls
+devices based on those prices.
 
-Ohjauksien avulla käyttäjä voi:
+With controls, users can:
 
-* ajastaa laitteita käymään halvimpien tuntien aikana halutun ajan
-* estää laitteiden käynnin, kun sähkön hinta ylittää asetetun rajan
-* tehdä myös manuaalisia ohjauksia
+* schedule devices to run during the cheapest hours for a selected duration
+* prevent devices from running when the electricity price exceeds a configured limit
+* also apply manual controls
 
-Tehorajoitukset tuovat järjestelmään tiedon talon reaaliaikaisesta kulutuksesta. Jos kulutus nousee liian korkeaksi,
-järjestelmä voi kytkeä ohjattuja laitteita pois päältä. Tavoitteena on pienentää tai välttyä tehomaksuilta.
+Power limits provide the system with real-time information about the building's electricity consumption. If consumption
+rises too high, the system can turn controlled devices off. The goal is to reduce or avoid power-based fees.
 
-Laitteet (esim. Shelly) kutsuvat control-rajapintaa ja saavat vastauksena kanavakohtaiset ohjaustilat — käytännössä
-tiedon siitä, mitkä konfiguroidut kanavat ovat päällä tai pois päältä.
+Devices, such as Shelly devices, call the control API and receive channel-specific control states in response. In
+practice, this tells the device which configured channels should be on or off.
 
-Pörssiohjain tukee myös oman sähköntuotannon hyödyntämistä omaan kulutukseen. Jatkossa järjestelmä mahdollistaa
-optimoinnin oman käytön ja verkkoon myynnin välillä.
+Pörssiohjain also supports using your own electricity production for your own consumption. In the future, the system
+will support optimization between self-consumption and selling electricity back to the grid.
 
-Käyttöliittymä on toteutettu Vaadinilla ja renderöidään palvelinpuolella. Sen on tarkoitus olla mahdollisimman
-yksinkertainen, koska sitä käytetään vain satunnaisesti.
+The UI is built with Vaadin and rendered on the server side. It is intentionally kept as simple as possible because it
+is
+only used occasionally.
 
-⚠️ Pörssiohjainta saa käyttää ilmaiseksi omaan kotitalouskäyttöön, joko valmiina palveluna tai ajamalla omaa instanssia.
+⚠️ Pörssiohjain may be used free of charge by private individuals for their own household use, either as the hosted
+service or by running a private self-hosted instance.
 
-Kaupallinen käyttö, jälleenmyynti tai palvelun tarjoaminen kolmansille osapuolille ei ole sallittua. Kehitän tästä
-erillistä maksullista palvelua, jossa on laajemmat ominaisuudet ja eri palvelutasot.
+Commercial use, resale, managed hosting, customer installations, or offering the software or a hosted instance to third
+parties is not allowed without a separate written commercial license. I am developing this as a paid company product
+with
+broader functionality and different service tiers.
 
-Jos olet hyötynyt Pörssiohjaimesta taloudellisesti niin [lahjoita kahvirahaa](https://buymeacoffee.com/norkator).
+If Pörssiohjain has helped you financially, consider [donating coffee money](https://buymeacoffee.com/norkator).
 
-## Ominaisuudet
+## Features
 
-* Laitteiden ohjaus pörssisähkön hinnoittelun mukaan.
-    * Voit ohjata halvimpien tuntien mukaan halutun aikaa päivässä.
-    * Voit ohjata kalliimpien tuntien mukaan jos haluat aiheuttaa markkinoille haittaa kiinteällä sopimuksella.
-* Sähkön kulutuksen seuranta tehomaksuja varten.
-    * Ohjelma kytkee valittua kuormaa pois kun asetettu tehoraja ylittyy.
-    * Hälytykset sähköpostilla.
-* Oman sähköntuotannon seuranta.
-    * Ohjaa laitteita päälle kun aurinkopaneelit tai jokin muu lähde tuottaa halutun määrän energiaa.
+* Device control based on electricity spot prices.
+    * Run devices during the cheapest hours for a selected duration each day.
+    * Run devices during the most expensive hours if you want to create market impact while using a fixed-price
+      contract.
+* Electricity consumption monitoring for power-based fees.
+    * The software turns selected loads off when the configured power limit is exceeded.
+    * Email alerts.
+* Own electricity production monitoring.
+    * Turn devices on when solar panels or another source produces the desired amount of energy.
 
-## Asennusohje
+## Installation Guide
 
-### Palvelun tili ja asetukset
+### Service Account and Settings
 
-#### Käyttäjätili
+#### User Account
 
-Aloita luomalla käyttäjätili ja kopioi tiedot talteen, sillä ne näkyvät vain tämän kerran.
+Start by creating a user account and copy the credentials immediately, because they are shown only once.
 
 ![account](./doc/account.png)
 
-#### Laitteiden lisäys
+#### Adding Devices
 
-Kirjautumisen jälkeen mene lisäämään laitteet ja ota UUID talteen.
-UUID laitetaan esim Shelly scriptissä `DEVICE_UUID` kohtaan.
+After logging in, add your devices and copy the UUID.
+For example, in the Shelly script, this UUID is used as the `DEVICE_UUID` value.
 
 ![my-devices](./doc/my_devices.png)
 
-#### Ohjausten tekeminen
+#### Creating Controls
 
-Luo ohjaukset `My controls` näkymässä asettaen moodi, vero, max hinnat.
+Create controls in the `My controls` view by setting the mode, tax, and maximum prices.
 
-Ohjauksissa lisätään valikosta laitteet ja kanavat mitä haluat ohjata.
+In each control, add the devices and channels you want to control from the menu.
 
-### Shelly skripti (ohjauksiin)
+### Shelly Script for Controls
 
-Huomioi, että konfiguroinnissa kanavat alkavat arvosta `0`
+Note that channel numbering starts from `0` in the configuration.
 
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
@@ -159,10 +164,10 @@ fetchControlData();
 scheduleEveryFiveMinutes();
 ```
 
-### Shelly skripti (tehorajat)
+### Shelly Script for Power Limits
 
-Luo palvelussa tehoraja ja ota tehorajan UUID talteeen. Aseta se alla olevaan scriptiin, joka tulee
-lähettävälle laitteelle esim Shelly Pro 3EM.
+Create a power limit in the service and copy the power limit UUID. Set it in the script below, which should be installed
+on the sending device, such as a Shelly Pro 3EM.
 
 ```javascript
 const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
@@ -231,7 +236,7 @@ sendCurrentKw();
 Timer.set(POLL_INTERVAL_MS, true, sendCurrentKw);
 ```
 
-### Ympäristömuuttujat
+### Environment Variables
 
 ```env
 export DB_HOST=localhost
@@ -250,11 +255,11 @@ export MQTT_BROKER_PASSWORD=xxxxxx
 export MQTT_CLIENT_ID=xxxxxx
 ``` 
 
-## Lisenssi | License
+## License
 
-**Tämä projekti on lisensoitu GNU Affero General Public License v3.0 (AGPL-3.0) -lisenssillä.
-Katso lisätiedot LICENSE-tiedostosta.**
+This project is licensed under the Pörssiohjain Personal Use License v1.0.
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+Private individuals may self-host it for their own household use. Commercial use, resale, managed hosting, customer
+installations, or offering it as a service to third parties requires a separate written commercial license.
+
 See the LICENSE file for details.
-
