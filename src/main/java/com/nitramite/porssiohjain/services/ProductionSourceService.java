@@ -49,6 +49,7 @@ public class ProductionSourceService {
     private final ProductionHistoryRepository productionHistoryRepository;
     private final DeviceRepository deviceRepository;
     private final SiteRepository siteRepository;
+    private final AccountLimitService accountLimitService;
 
     @Transactional
     public void deleteOldProductionHistory() {
@@ -72,6 +73,7 @@ public class ProductionSourceService {
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+        accountLimitService.assertCanCreateProductionSource(accountId);
 
         ProductionSourceEntity entity = ProductionSourceEntity.builder()
                 .name(name)

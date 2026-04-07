@@ -18,6 +18,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.AccountTier;
+import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -55,6 +56,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
     private final AuthService authService;
     private final I18nService i18n;
     private final AccountService accountService;
+    private final AccountLimitService accountLimitService;
     private Long accountId;
 
     private final EmailField emailField;
@@ -65,11 +67,13 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
     public SettingsView(
             AuthService authService,
             I18nService i18n,
-            AccountService accountService
+            AccountService accountService,
+            AccountLimitService accountLimitService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.accountService = accountService;
+        this.accountLimitService = accountLimitService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -142,11 +146,13 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         tierTitle.getStyle().set("margin-top", "16px");
         AccountTier tier = accountService.getTier(accountId);
         Component subscriptionCard = createSubscriptionCard(tier);
+        Component limitsCard = createLimitsCard();
 
         card.add(
                 pageTitle,
                 tierTitle,
                 subscriptionCard,
+                limitsCard,
                 Divider.createDivider(),
                 createAccountSection(),
                 createNotificationSection(),
@@ -241,6 +247,35 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         header.setAlignItems(Alignment.CENTER);
         card.add(header, description, manageButton);
         return card;
+    }
+
+    private Component createLimitsCard() {
+        VerticalLayout card = new VerticalLayout();
+        card.setPadding(true);
+        card.setSpacing(false);
+        card.setWidth("320px");
+        card.getStyle()
+                .set("border-radius", "14px")
+                .set("border", "1px solid var(--lumo-contrast-10pct)")
+                .set("background", "var(--lumo-contrast-5pct)");
+
+        H4 title = new H4(t("settings.account.limits"));
+        title.getStyle().set("margin", "0 0 8px 0");
+        Span deviceLimit = new Span(t("settings.account.deviceLimit", accountLimitService.getEffectiveDeviceLimit(accountId)));
+        Span controlLimit = new Span(t("settings.account.controlLimit", formatLimit(accountLimitService.getEffectiveControlLimit(accountId))));
+        Span productionLimit = new Span(t("settings.account.productionSourceLimit", formatLimit(accountLimitService.getEffectiveProductionSourceLimit(accountId))));
+        Span weatherLimit = new Span(t("settings.account.weatherControlLimit", formatLimit(accountLimitService.getEffectiveWeatherControlLimit(accountId))));
+        Span hint = new Span(t("settings.account.deviceLimitHint"));
+        hint.getStyle()
+                .set("margin-top", "8px")
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.85rem");
+        card.add(title, deviceLimit, controlLimit, productionLimit, weatherLimit, hint);
+        return card;
+    }
+
+    private String formatLimit(Integer limit) {
+        return limit != null ? limit.toString() : t("settings.account.unlimited");
     }
 
     private Component createTierBadge(AccountTier tier) {

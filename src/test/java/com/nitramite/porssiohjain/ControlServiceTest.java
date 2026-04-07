@@ -42,6 +42,7 @@ import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlDeviceRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
+import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import org.junit.jupiter.api.BeforeEach;
@@ -109,6 +110,9 @@ class ControlServiceTest {
     @Mock
     private MqttService mqttService;
 
+    @Mock
+    private AccountLimitService accountLimitService;
+
     private ControlService controlService;
 
     @BeforeEach
@@ -128,7 +132,8 @@ class ControlServiceTest {
                 siteRepository,
                 resourceSharingRepository,
                 controlHeatPumpRepository,
-                mqttService
+                mqttService,
+                accountLimitService
         );
     }
 

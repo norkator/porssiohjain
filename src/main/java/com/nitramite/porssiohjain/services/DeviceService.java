@@ -50,6 +50,7 @@ public class DeviceService {
     private final ControlHeatPumpRepository controlHeatPumpRepository;
     private final ProductionSourceHeatPumpRepository productionSourceHeatPumpRepository;
     private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
+    private final AccountLimitService accountLimitService;
 
     @Transactional
     public DeviceResponse createDevice(
@@ -61,6 +62,7 @@ public class DeviceService {
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
         if (account.getId().equals(authAccountId)) {
+            accountLimitService.assertCanCreateDevice(accountId);
             DeviceEntity device = DeviceEntity.builder()
                     .deviceName(deviceName)
                     .timezone(timezone)

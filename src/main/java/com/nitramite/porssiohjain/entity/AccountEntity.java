@@ -58,6 +58,9 @@ public class AccountEntity {
     @Builder.Default
     private AccountTier tier = AccountTier.FREE;
 
+    @Column(name = "device_limit")
+    private Integer deviceLimit;
+
     @Column(name = "agreed_terms", nullable = false)
     @Builder.Default
     private boolean agreedTerms = false;

@@ -55,6 +55,7 @@ public class ControlService {
     private final ResourceSharingRepository resourceSharingRepository;
     private final ControlHeatPumpRepository controlHeatPumpRepository;
     private final MqttService mqttService;
+    private final AccountLimitService accountLimitService;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -66,6 +67,7 @@ public class ControlService {
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
 
         if (account.getId().equals(accountId)) {
+            accountLimitService.assertCanCreateControl(accountId);
             ControlEntity control = ControlEntity.builder()
                     .account(account)
                     .name(name)

@@ -33,4 +33,6 @@ public interface ControlRepository extends JpaRepository<ControlEntity, Long> {
 
     List<ControlEntity> findByAccountId(Long accountId);
 
+    long countByAccountId(Long accountId);
+
 }

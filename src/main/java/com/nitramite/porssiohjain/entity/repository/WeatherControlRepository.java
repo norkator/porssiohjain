@@ -27,6 +27,8 @@ public interface WeatherControlRepository extends JpaRepository<WeatherControlEn
 
     List<WeatherControlEntity> findAllByAccountOrderByIdAsc(AccountEntity account);
 
+    long countByAccountId(Long accountId);
+
     Optional<WeatherControlEntity> findByIdAndAccountId(Long id, Long accountId);
 
 }
