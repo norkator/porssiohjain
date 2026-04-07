@@ -56,6 +56,26 @@ public class AccountLimitService {
     }
 
     @Transactional(readOnly = true)
+    public long getDeviceCount(Long accountId) {
+        return deviceRepository.countByAccountId(accountId);
+    }
+
+    @Transactional(readOnly = true)
+    public long getControlCount(Long accountId) {
+        return controlRepository.countByAccountId(accountId);
+    }
+
+    @Transactional(readOnly = true)
+    public long getProductionSourceCount(Long accountId) {
+        return productionSourceRepository.countByAccountId(accountId);
+    }
+
+    @Transactional(readOnly = true)
+    public long getWeatherControlCount(Long accountId) {
+        return weatherControlRepository.countByAccountId(accountId);
+    }
+
+    @Transactional(readOnly = true)
     public Integer getEffectiveControlLimit(Long accountId) {
         return getAccount(accountId).getTier() == AccountTier.FREE ? FREE_RESOURCE_LIMIT : null;
     }

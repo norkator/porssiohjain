@@ -21,6 +21,7 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
@@ -82,6 +83,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final ToshibaAcDevicesService toshibaAcDevicesService;
     private final MitsubishiLoginService mitsubishiLoginService;
     private final MitsubishiAcDevicesService mitsubishiAcDevicesService;
+    private final AccountLimitService accountLimitService;
     protected final I18nService i18n;
 
     private final TextField nameField;
@@ -99,6 +101,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final Button showControlsJsonButton;
 
     private final Button saveButton;
+    private final Span limitInfo;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -118,7 +121,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             ToshibaLoginService toshibaLoginService,
             ToshibaAcDevicesService toshibaAcDevicesService,
             MitsubishiLoginService mitsubishiLoginService,
-            MitsubishiAcDevicesService mitsubishiAcDevicesService
+            MitsubishiAcDevicesService mitsubishiAcDevicesService,
+            AccountLimitService accountLimitService
     ) {
         this.deviceService = deviceService;
         this.controlService = controlService;
@@ -129,6 +133,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         this.toshibaAcDevicesService = toshibaAcDevicesService;
         this.mitsubishiLoginService = mitsubishiLoginService;
         this.mitsubishiAcDevicesService = mitsubishiAcDevicesService;
+        this.accountLimitService = accountLimitService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -152,6 +157,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         // deviceTypeCombo.setWidth("250px");
 
         saveButton = new Button(t("device.button.save"));
+        limitInfo = new Span();
+        limitInfo.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.9rem");
 
         selectAcDeviceButton = new Button(t("device.hp.selectDeviceButton"));
         selectAcDeviceButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
@@ -292,7 +301,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             } else {
                 clearForm();
             }
-            updateSaveButtonState();
+            updateLimitInfo();
         });
 
         timezoneCombo.setItems(ZoneId.getAvailableZoneIds());
@@ -314,7 +323,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         heatPumpForm.setVisible(false);
 
-        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, showAcCommandLogButton, showControlsJsonButton, saveButton);
+        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, showAcCommandLogButton, showControlsJsonButton, limitInfo, saveButton);
         actions.setPadding(false);
         actions.setSpacing(true);
         actions.setAlignItems(Alignment.START);
@@ -597,9 +606,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         updateSelectAcDeviceButton();
         updateAcCommandLogButton();
         updateControlsJsonButton();
-        updateSaveButtonState();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
+        updateLimitInfo();
     }
 
     private void updateSelectAcDeviceButton() {
@@ -627,7 +636,31 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private void updateSaveButtonState() {
         boolean creatingHeatPump = selectedDevice == null && deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
         boolean hasAcSelection = pendingAcDeviceId != null && !pendingAcDeviceId.isBlank();
-        saveButton.setEnabled(!creatingHeatPump || hasAcSelection);
+        boolean createLimitReached = selectedDevice == null && isDeviceLimitReached();
+        saveButton.setEnabled(!createLimitReached && (!creatingHeatPump || hasAcSelection));
+    }
+
+    private boolean isDeviceLimitReached() {
+        AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+        if (currentAccount == null) {
+            return false;
+        }
+        long count = accountLimitService.getDeviceCount(currentAccount.getId());
+        int limit = accountLimitService.getEffectiveDeviceLimit(currentAccount.getId());
+        return count >= limit;
+    }
+
+    private void updateLimitInfo() {
+        AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+        if (currentAccount == null) {
+            return;
+        }
+        long count = accountLimitService.getDeviceCount(currentAccount.getId());
+        int limit = accountLimitService.getEffectiveDeviceLimit(currentAccount.getId());
+        limitInfo.setText(t("accountLimits.devices", count, limit));
+        limitInfo.getElement().getThemeList().set("badge", true);
+        limitInfo.getElement().getThemeList().set("error", selectedDevice == null && count >= limit);
+        updateSaveButtonState();
     }
 
     private DeviceAcDataEntity buildAcDataForSelection() {
@@ -663,6 +696,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
             List<DeviceResponse> devices = deviceService.getAllDevices(accountId);
             deviceGrid.setItems(devices);
+            updateLimitInfo();
         } catch (Exception e) {
             Notification notification = Notification.show(t("device.notification.loadFailed", e.getMessage()));
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
