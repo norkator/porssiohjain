@@ -18,6 +18,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.ControlMode;
+import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -57,6 +58,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
 
     private final Grid<ControlResponse> controlsGrid = new Grid<>(ControlResponse.class, false);
     private final ControlService controlService;
+    private final AccountLimitService accountLimitService;
     private final AuthService authService;
     protected final I18nService i18n;
     private Long accountId;
@@ -72,14 +74,17 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
     private final Checkbox manualOnToggle;
     private final Checkbox alwaysOnBelowMinPriceToggle;
     private final Button createButton;
+    private final Span limitInfo;
 
     @Autowired
     public ControlsView(
             ControlService controlService,
+            AccountLimitService accountLimitService,
             AuthService authService,
             I18nService i18n
     ) {
         this.controlService = controlService;
+        this.accountLimitService = accountLimitService;
         this.authService = authService;
         this.i18n = i18n;
 
@@ -100,6 +105,10 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         alwaysOnBelowMinPriceToggle = new Checkbox(t("control.field.alwaysOnBelowMinPrice"));
         alwaysOnBelowMinPriceToggle.getStyle().set("margin-top", "12px");
         createButton = new Button(t("control.button.create"));
+        limitInfo = new Span();
+        limitInfo.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.9rem");
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -210,7 +219,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         createButton.getStyle().set("margin-top", "16px");
 
-        formContainer.add(formLayout, createButton);
+        formContainer.add(formLayout, limitInfo, createButton);
 
         return formContainer;
     }
@@ -306,10 +315,24 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
     private void loadControls() {
         try {
             controlsGrid.setItems(controlService.getAllControls(accountId));
+            updateLimitInfo();
         } catch (Exception e) {
             Notification notification = Notification.show(t("control.notification.loadFailed", e.getMessage()));
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void updateLimitInfo() {
+        long count = accountLimitService.getControlCount(accountId);
+        Integer limit = accountLimitService.getEffectiveControlLimit(accountId);
+        String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(accountId));
+        limitInfo.setText(limit != null
+                ? t("accountLimits.controls", count, limit, tier)
+                : t("accountLimits.controlsUnlimited", count, tier));
+        boolean limitReached = limit != null && count >= limit;
+        limitInfo.getElement().getThemeList().set("badge", true);
+        limitInfo.getElement().getThemeList().set("error", limitReached);
+        createButton.setEnabled(!limitReached);
     }
 
     @Override

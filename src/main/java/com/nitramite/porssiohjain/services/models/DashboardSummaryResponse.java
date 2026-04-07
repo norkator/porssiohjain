@@ -23,6 +23,7 @@ import lombok.Data;
 @Builder
 public class DashboardSummaryResponse {
     private TodayPriceStatsResponse todayPriceStats;
+    private ControlSavingsSummaryResponse controlSavings;
     private int deviceCount;
     private int controlCount;
     private int siteCount;

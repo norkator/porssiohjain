@@ -407,6 +407,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         deviceGrid.removeAllColumns();
         deviceGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader(t("controlTable.grid.deviceName"));
         deviceGrid.addColumn(ControlDeviceResponse::getDeviceChannel).setHeader(t("controlTable.grid.channel"));
+        deviceGrid.addColumn(ControlDeviceResponse::getEstimatedPowerKw).setHeader(t("controlTable.grid.estimatedPowerKw"));
         deviceGrid.addColumn(cd -> cd.getDevice().getUuid()).setHeader(t("controlTable.grid.uuid"));
         deviceGrid.addComponentColumn(cd -> {
             Button delete = new Button(t("controlTable.button.delete"), e -> {
@@ -425,6 +426,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         heatPumpGrid.addColumn(cd -> t("controlAction." + cd.getControlAction().name())).setHeader(t("controlTable.grid.action"));
         heatPumpGrid.addColumn(cd -> cd.getComparisonType() != null ? t("comparisonType." + cd.getComparisonType().name()) : "").setHeader(t("controlTable.grid.comparisonType"));
         heatPumpGrid.addColumn(ControlHeatPumpResponse::getPriceLimit).setHeader(t("controlTable.grid.priceLimit"));
+        heatPumpGrid.addColumn(ControlHeatPumpResponse::getEstimatedPowerKw).setHeader(t("controlTable.grid.estimatedPowerKw"));
         heatPumpGrid.addColumn(ControlHeatPumpResponse::getStateHex).setHeader(t("controlTable.grid.stateHex"));
         heatPumpGrid.addComponentColumn(cd -> {
             Button decode = new Button(t("controlTable.button.decodeState"), e -> openHeatPumpStateHexDialog(cd.getStateHex()));
@@ -472,20 +474,26 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         channelField.setStep(1);
         channelField.setWidthFull();
 
+        NumberField estimatedPowerKwField = new NumberField(t("controlTable.field.estimatedPowerKw"));
+        estimatedPowerKwField.setStep(0.1);
+        estimatedPowerKwField.setMin(0);
+        estimatedPowerKwField.setWidthFull();
+
         Button addButton = new Button(t("controlTable.button.addDevice"), e -> {
             if (deviceSelect.getValue() != null && channelField.getValue() != null) {
                 controlService.addDeviceToControl(
                         getAccountId(),
                         controlId,
                         deviceSelect.getValue().getId(),
-                        channelField.getValue().intValue()
+                        channelField.getValue().intValue(),
+                        estimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(estimatedPowerKwField.getValue()) : null
                 );
                 loadControlDevices();
             }
         });
         addButton.setWidthFull();
 
-        FormLayout formLayout = new FormLayout(deviceSelect, channelField, addButton);
+        FormLayout formLayout = new FormLayout(deviceSelect, channelField, estimatedPowerKwField, addButton);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 3)
@@ -537,6 +545,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         priceLimitField.setStep(0.1);
         priceLimitField.setWidthFull();
 
+        NumberField estimatedPowerKwField = new NumberField(t("controlTable.field.estimatedPowerKw"));
+        estimatedPowerKwField.setStep(0.1);
+        estimatedPowerKwField.setMin(0);
+        estimatedPowerKwField.setWidthFull();
+
         Button addButton = new Button(t("controlTable.button.addDevice"), e -> {
             if (deviceSelect.getValue() != null && !stateHexField.getValue().isEmpty() && actionCombo.getValue() != null) {
                 controlService.addHeatPumpToControl(
@@ -546,7 +559,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         stateHexField.getValue(),
                         actionCombo.getValue(),
                         comparisonCombo.getValue(),
-                        priceLimitField.getValue() != null ? BigDecimal.valueOf(priceLimitField.getValue()) : null
+                        priceLimitField.getValue() != null ? BigDecimal.valueOf(priceLimitField.getValue()) : null,
+                        estimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(estimatedPowerKwField.getValue()) : null
                 );
                 loadControlHeatPumps();
                 stateHexField.clear();
@@ -554,7 +568,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         });
         addButton.setWidthFull();
 
-        FormLayout formLayout = new FormLayout(deviceSelect, queryStateButton, stateHexField, actionCombo, comparisonCombo, priceLimitField, addButton);
+        FormLayout formLayout = new FormLayout(deviceSelect, queryStateButton, stateHexField, actionCombo, comparisonCombo, priceLimitField, estimatedPowerKwField, addButton);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 4)

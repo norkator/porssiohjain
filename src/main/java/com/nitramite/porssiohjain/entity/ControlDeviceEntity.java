@@ -19,6 +19,8 @@ package com.nitramite.porssiohjain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "control_device",
         uniqueConstraints = @UniqueConstraint(
@@ -46,5 +48,8 @@ public class ControlDeviceEntity {
 
     @Column(name = "device_channel", nullable = false)
     private Integer deviceChannel;
+
+    @Column(name = "estimated_power_kw", precision = 10, scale = 3)
+    private BigDecimal estimatedPowerKw;
 
 }

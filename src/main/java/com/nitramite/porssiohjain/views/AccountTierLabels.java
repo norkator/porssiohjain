@@ -14,24 +14,21 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.nitramite.porssiohjain.services.models;
+package com.nitramite.porssiohjain.views;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.nitramite.porssiohjain.entity.enums.AccountTier;
+import com.nitramite.porssiohjain.services.I18nService;
 
-import java.math.BigDecimal;
+final class AccountTierLabels {
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ControlDeviceResponse {
-    private Long id;
-    private Long controlId;
-    private Long deviceId;
-    private Integer deviceChannel;
-    private BigDecimal estimatedPowerKw;
-    private DeviceResponse device;
+    private AccountTierLabels() {
+    }
+
+    static String label(I18nService i18n, AccountTier tier) {
+        return switch (tier) {
+            case FREE -> i18n.t("accountTier.free");
+            case PRO -> i18n.t("accountTier.pro");
+            case BUSINESS -> i18n.t("accountTier.business");
+        };
+    }
 }

@@ -42,6 +42,7 @@ public class ToshibaRegisterControllerService {
     @Builder
     private static class RegisterClientRequest {
         private String DeviceId;
+        @Builder.Default
         private String DeviceType = "1";
         private String Username;
     }

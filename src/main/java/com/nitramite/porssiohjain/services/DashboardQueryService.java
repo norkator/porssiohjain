@@ -35,6 +35,7 @@ public class DashboardQueryService {
     private final SiteRepository siteRepository;
     private final NordpoolService nordpoolService;
     private final OnboardingService onboardingService;
+    private final ControlSavingsService controlSavingsService;
 
     public DashboardSummaryResponse getSummary(Long accountId, String timezone) {
         List<DeviceResponse> devices = deviceService.getAllDevices(accountId);
@@ -53,6 +54,7 @@ public class DashboardQueryService {
 
         return DashboardSummaryResponse.builder()
                 .todayPriceStats(nordpoolService.getTodayStats(accountId, timezone))
+                .controlSavings(controlSavingsService.getCurrentMonthSavings(accountId, timezone))
                 .deviceCount(devices.size())
                 .controlCount(controlService.getAllControls(accountId).size())
                 .siteCount(siteRepository.findByAccountId(accountId).size())

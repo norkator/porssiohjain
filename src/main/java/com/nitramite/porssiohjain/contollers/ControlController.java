@@ -25,6 +25,7 @@ import com.nitramite.porssiohjain.services.models.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -115,10 +116,11 @@ public class ControlController {
     public ControlDeviceResponse addDeviceToControl(
             @PathVariable Long controlId,
             @RequestParam Long deviceId,
-            @RequestParam Integer deviceChannel
+            @RequestParam Integer deviceChannel,
+            @RequestParam(required = false) BigDecimal estimatedPowerKw
     ) {
         Long accountId = authContext.getAccountId();
-        return controlService.addDeviceToControl(accountId, controlId, deviceId, deviceChannel);
+        return controlService.addDeviceToControl(accountId, controlId, deviceId, deviceChannel, estimatedPowerKw);
     }
 
     @RequireAuth
@@ -126,10 +128,11 @@ public class ControlController {
     public ControlDeviceResponse updateControlDevice(
             @PathVariable Long id,
             @RequestParam(required = false) Long deviceId,
-            @RequestParam(required = false) Integer deviceChannel
+            @RequestParam(required = false) Integer deviceChannel,
+            @RequestParam(required = false) BigDecimal estimatedPowerKw
     ) {
         Long accountId = authContext.getAccountId();
-        return controlService.updateControlDevice(accountId, id, deviceId, deviceChannel);
+        return controlService.updateControlDevice(accountId, id, deviceId, deviceChannel, estimatedPowerKw);
     }
 
     @RequireAuth

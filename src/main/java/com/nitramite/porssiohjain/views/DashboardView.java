@@ -62,6 +62,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
     private final PricePredictionService pricePredictionService;
     private final SiteService siteService;
     private final PowerLimitService powerLimitService;
+    private final ControlSavingsService controlSavingsService;
 
     public DashboardView(
             AuthService authService,
@@ -71,7 +72,8 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
             FingridService fingridService,
             PricePredictionService pricePredictionService,
             SiteService siteService,
-            PowerLimitService powerLimitService
+            PowerLimitService powerLimitService,
+            ControlSavingsService controlSavingsService
     ) {
         this.authService = authService;
         this.i18n = i18n;
@@ -79,6 +81,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         this.pricePredictionService = pricePredictionService;
         this.siteService = siteService;
         this.powerLimitService = powerLimitService;
+        this.controlSavingsService = controlSavingsService;
 
         Long accountId = getAccountId();
         if (accountId == null) {
@@ -231,6 +234,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         card.add(
                 backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(),
                 energyForecastChart, createDivider(),
+                createControlSavingsSection(accountId), createDivider(),
                 sitePowerUsage, siteBox, siteContentContainer,
                 createDivider(), logTitle, logList
         );
@@ -337,6 +341,46 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
         layout.add(monthPicker, contentContainer);
         return layout;
+    }
+
+    private Component createControlSavingsSection(Long accountId) {
+        ControlSavingsSummaryResponse savings = controlSavingsService.getCurrentMonthSavings(accountId, null);
+        Div wrapper = new Div();
+        wrapper.getStyle()
+                .set("width", "100%")
+                .set("padding", "14px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-10pct)")
+                .set("text-align", "center");
+
+        H2 title = new H2(t("dashboard.controlSavingsTitle"));
+        title.getStyle().set("margin", "0 0 8px 0");
+
+        Div savingsValue = new Div();
+        savingsValue.setText(savings.getEstimatedSavingsEur() + "€");
+        savingsValue.getStyle()
+                .set("font-size", "2rem")
+                .set("font-weight", "bold");
+
+        Paragraph details = new Paragraph(t(
+                "dashboard.controlSavingsDetails",
+                savings.getEstimatedUsageKwh(),
+                savings.getControlledCostEur(),
+                savings.getBaselineCostEur()
+        ));
+        details.getStyle().set("margin", "8px 0 0 0");
+
+        Paragraph hint = new Paragraph(t(
+                "dashboard.controlSavingsHint",
+                savings.getControlsWithEstimatedPowerCount(),
+                savings.getControlCount()
+        ));
+        hint.getStyle()
+                .set("margin", "4px 0 0 0")
+                .set("color", "var(--lumo-secondary-text-color)");
+
+        wrapper.add(title, savingsValue, details, hint);
+        return wrapper;
     }
 
     private void refreshLimitContent(

@@ -58,4 +58,7 @@ public class ControlHeatPumpEntity {
     @Column(name = "price_limit", precision = 19, scale = 4)
     private BigDecimal priceLimit;
 
+    @Column(name = "estimated_power_kw", precision = 10, scale = 3)
+    private BigDecimal estimatedPowerKw;
+
 }

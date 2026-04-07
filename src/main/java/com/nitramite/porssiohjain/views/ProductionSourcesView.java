@@ -18,6 +18,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
+import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.ProductionSourceService;
@@ -56,6 +57,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
 
     private final Grid<ProductionSourceResponse> sourcesGrid = new Grid<>(ProductionSourceResponse.class, false);
     private final ProductionSourceService productionSourceService;
+    private final AccountLimitService accountLimitService;
     private final AuthService authService;
     private final I18nService i18n;
 
@@ -71,14 +73,17 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
     private final TextField stationIdField;
     private final Checkbox enabledToggle;
     private final Button createButton;
+    private final Span limitInfo;
 
     @Autowired
     public ProductionSourcesView(
             ProductionSourceService productionSourceService,
+            AccountLimitService accountLimitService,
             AuthService authService,
             I18nService i18n
     ) {
         this.productionSourceService = productionSourceService;
+        this.accountLimitService = accountLimitService;
         this.authService = authService;
         this.i18n = i18n;
 
@@ -96,6 +101,10 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
         stationIdField = new TextField(t("productionsources.field.stationId"));
         enabledToggle = new Checkbox(t("productionsources.field.enabled"));
         createButton = new Button(t("productionsources.button.create"));
+        limitInfo = new Span();
+        limitInfo.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.9rem");
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -172,7 +181,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
                 new FormLayout.ResponsiveStep("900px", 3)
         );
 
-        container.add(form, createButton);
+        container.add(form, limitInfo, createButton);
         return container;
     }
 
@@ -275,10 +284,24 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
     private void loadSources() {
         try {
             sourcesGrid.setItems(productionSourceService.getAllSources(accountId));
+            updateLimitInfo();
         } catch (Exception e) {
             Notification notification = Notification.show(t("productionsources.notification.loadFailed", e.getMessage()));
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void updateLimitInfo() {
+        long count = accountLimitService.getProductionSourceCount(accountId);
+        Integer limit = accountLimitService.getEffectiveProductionSourceLimit(accountId);
+        String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(accountId));
+        limitInfo.setText(limit != null
+                ? t("accountLimits.productionSources", count, limit, tier)
+                : t("accountLimits.productionSourcesUnlimited", count, tier));
+        boolean limitReached = limit != null && count >= limit;
+        limitInfo.getElement().getThemeList().set("badge", true);
+        limitInfo.getElement().getThemeList().set("error", limitReached);
+        createButton.setEnabled(!limitReached);
     }
 
     @Override

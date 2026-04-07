@@ -30,6 +30,8 @@ public interface ProductionSourceRepository extends JpaRepository<ProductionSour
 
     List<ProductionSourceEntity> findByAccountId(Long accountId);
 
+    long countByAccountId(Long accountId);
+
     Optional<ProductionSourceEntity> findByIdAndAccountId(Long id, Long accountId);
 
     Optional<ProductionSourceEntity> findByUuidAndAccountId(UUID uuid, Long accountId);

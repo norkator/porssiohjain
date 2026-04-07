@@ -17,6 +17,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.SiteService;
@@ -32,6 +33,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -58,6 +60,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
     private final Grid<WeatherControlResponse> weatherControlsGrid = new Grid<>(WeatherControlResponse.class, false);
     private final AuthService authService;
     private final WeatherControlService weatherControlService;
+    private final AccountLimitService accountLimitService;
     private final SiteService siteService;
     protected final I18nService i18n;
     private Long accountId;
@@ -66,16 +69,19 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
     private final TextField nameField;
     private final ComboBox<SiteResponse> siteField;
     private final Button createButton;
+    private final Span limitInfo;
 
     @Autowired
     public WeatherControlsView(
             WeatherControlService weatherControlService,
+            AccountLimitService accountLimitService,
             SiteService siteService,
             AuthService authService,
             I18nService i18n
     ) {
         this.authService = authService;
         this.weatherControlService = weatherControlService;
+        this.accountLimitService = accountLimitService;
         this.siteService = siteService;
         this.i18n = i18n;
 
@@ -87,6 +93,10 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
         nameField = new TextField(t("weatherControl.field.name"));
         siteField = new ComboBox<>(t("weatherControl.field.site"));
         createButton = new Button(t("weatherControl.button.create"));
+        limitInfo = new Span();
+        limitInfo.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.9rem");
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -149,7 +159,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
         );
 
         createButton.getStyle().set("margin-top", "16px");
-        formContainer.add(formLayout, createButton);
+        formContainer.add(formLayout, limitInfo, createButton);
         return formContainer;
     }
 
@@ -210,6 +220,20 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
 
     private void loadWeatherControls() {
         weatherControlsGrid.setItems(weatherControlService.getAllWeatherControls(accountId));
+        updateLimitInfo();
+    }
+
+    private void updateLimitInfo() {
+        long count = accountLimitService.getWeatherControlCount(accountId);
+        Integer limit = accountLimitService.getEffectiveWeatherControlLimit(accountId);
+        String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(accountId));
+        limitInfo.setText(limit != null
+                ? t("accountLimits.weatherControls", count, limit, tier)
+                : t("accountLimits.weatherControlsUnlimited", count, tier));
+        boolean limitReached = limit != null && count >= limit;
+        limitInfo.getElement().getThemeList().set("badge", true);
+        limitInfo.getElement().getThemeList().set("error", limitReached);
+        createButton.setEnabled(!limitReached);
     }
 
     @Override

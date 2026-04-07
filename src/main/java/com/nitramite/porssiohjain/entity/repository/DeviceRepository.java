@@ -31,6 +31,8 @@ public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
 
     List<DeviceEntity> findByAccountIdOrderByIdAsc(Long accountId);
 
+    long countByAccountId(Long accountId);
+
     Optional<DeviceEntity> findByUuid(UUID uuid);
 
     Optional<DeviceEntity> findByIdAndAccount(Long id, AccountEntity account);

@@ -27,11 +27,14 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ControlDeviceResponse {
-    private Long id;
+public class ControlSavingsResponse {
     private Long controlId;
-    private Long deviceId;
-    private Integer deviceChannel;
+    private String controlName;
     private BigDecimal estimatedPowerKw;
-    private DeviceResponse device;
+    private BigDecimal estimatedUsageKwh;
+    private BigDecimal baselineCostEur;
+    private BigDecimal controlledCostEur;
+    private BigDecimal estimatedSavingsEur;
+    private int scheduleEntryCount;
+    private int estimatedLoadCount;
 }

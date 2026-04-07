@@ -56,10 +56,12 @@ public class WeatherControlService {
     private final DeviceRepository deviceRepository;
     private final WeatherControlDeviceRepository weatherControlDeviceRepository;
     private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
+    private final AccountLimitService accountLimitService;
 
     public WeatherControlEntity createWeatherControl(Long accountId, String name, Long siteId) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
+        accountLimitService.assertCanCreateWeatherControl(accountId);
 
         SiteEntity site = siteRepository.findByIdAndAccountId(siteId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Site not found with id: " + siteId));
