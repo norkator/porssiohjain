@@ -2,49 +2,73 @@
 
 ![ukjx6lcc](./doc/odw6ej6ii.png)
 
-<b>Pörssiohjain</b> is a Spring-based web service that fetches electricity spot prices from Nord Pool and controls
-devices based on those prices.
+<b>Pörssiohjain</b> is an energy automation service for controlling household loads with electricity spot prices,
+consumption limits, own production and weather data. It is built with Spring Boot and a simple server-rendered Vaadin
+UI.
 
-With controls, users can:
+## Service Domains
 
-* schedule devices to run during the cheapest hours for a selected duration
-* prevent devices from running when the electricity price exceeds a configured limit
-* also apply manual controls
+Official Pörssiohjain services are available at:
 
-Power limits provide the system with real-time information about the building's electricity consumption. If consumption
-rises too high, the system can turn controlled devices off. The goal is to reduce or avoid power-based fees.
+* [https://app.porssiohjain.fi](https://app.porssiohjain.fi)
+* [https://app.energiaohjain.fi](https://app.energiaohjain.fi)
+* Marketing page: https://www.porssiohjain.fi
 
-Devices, such as Shelly devices, call the control API and receive channel-specific control states in response. In
-practice, this tells the device which configured channels should be on or off.
+Only domains listed here should be treated as official service domains.
 
-Pörssiohjain also supports using your own electricity production for your own consumption. In the future, the system
-will support optimization between self-consumption and selling electricity back to the grid.
-
-The UI is built with Vaadin and rendered on the server side. It is intentionally kept as simple as possible because it
-is
-only used occasionally.
-
-⚠️ Pörssiohjain may be used free of charge by private individuals for their own household use, either as the hosted
-service or by running a private self-hosted instance.
+⚠️ Pörssiohjain may be used free of charge with limitations by private individuals for their own household use
+by running a private self-hosted instance.
 
 Commercial use, resale, managed hosting, customer installations, or offering the software or a hosted instance to third
 parties is not allowed without a separate written commercial license. I am developing this as a paid company product
-with
-broader functionality and different service tiers.
+with broader functionality and different service tiers.
 
 If Pörssiohjain has helped you financially, consider [donating coffee money](https://buymeacoffee.com/norkator).
 
 ## Features
 
-* Device control based on electricity spot prices.
-    * Run devices during the cheapest hours for a selected duration each day.
-    * Run devices during the most expensive hours if you want to create market impact while using a fixed-price
-      contract.
-* Electricity consumption monitoring for power-based fees.
-    * The software turns selected loads off when the configured power limit is exceeded.
-    * Email alerts.
-* Own electricity production monitoring.
-    * Turn devices on when solar panels or another source produces the desired amount of energy.
+* Nord Pool spot price fetching and scheduled price-based control.
+    * Below-max-price, cheapest-hours and manual control modes.
+    * Daily runtime targets and always-on-below-min-price support.
+    * Energy and transfer contract support, including static and day/night transfer pricing.
+* Standard device control.
+    * Channel-based control output for devices such as Shelly relays.
+    * HTTP control API and MQTT authentication support.
+    * Per-device online status, credentials and UUID-based device integration.
+* Heat pump control.
+    * Toshiba and Mitsubishi AC account integrations.
+    * Device discovery and saved heat-pump state control.
+    * Toshiba state hex decoding/editing for power, mode and target temperature.
+* Power limits.
+    * Real-time consumption reporting endpoint for meters such as Shelly Pro 3EM.
+    * Automatic load shedding when the configured power limit is exceeded.
+    * Current kW, peak kW, interval history and consumption charting.
+    * Optional power-limit exceeded email alerts.
+* Own production automation.
+    * SOFAR / SolarmanPV production polling.
+    * Current production, peak production and production history charting.
+    * Production-based device and heat-pump rules.
+* Weather controls.
+    * FMI weather forecast fetching for configured sites.
+    * Temperature and humidity based device and heat-pump rules.
+    * Weather control priority support for overriding lower-priority automation.
+* Automation priority handling.
+    * Standard devices: power limit, own production, then price control.
+    * Heat pumps: weather control, own production, then price control.
+* Dashboard and reporting.
+    * Device status overview and system log.
+    * Fingrid wind forecast and price prediction widgets.
+    * Site energy usage, monthly cost charts and estimated control savings.
+* Sites, contracts and account settings.
+    * Site grouping with weather places and site types.
+    * Electricity contract management.
+    * Account tiers, resource limits, language selection and notification settings.
+* Resource sharing and onboarding.
+    * Share devices, controls, production sources and power limits with other account UUIDs.
+    * Onboarding status and checklist API.
+* Documentation and APIs.
+    * Built-in documentation pages.
+    * REST endpoints for account, device, control, power, dashboard, onboarding and Nord Pool data.
 
 ## Installation Guide
 
