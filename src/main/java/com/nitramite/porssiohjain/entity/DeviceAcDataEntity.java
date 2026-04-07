@@ -48,6 +48,7 @@ public class DeviceAcDataEntity {
 
     @Column(name = "ac_type", nullable = false)
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private AcType acType = AcType.NONE;
 
     @Column(name = "ac_username")
