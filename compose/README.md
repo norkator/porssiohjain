@@ -74,7 +74,7 @@ openssl req -new -key server.key -out server.csr -config server.cnf
 Sign the server certificate with your CA:
 
 ```sh
-openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 825 -sha256 -extensions req_ext -extfile server.cnf
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650 -sha256 -extensions req_ext -extfile server.cnf
 ```
 
 Restrict key permissions:
