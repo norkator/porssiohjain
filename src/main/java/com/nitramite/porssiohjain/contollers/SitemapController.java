@@ -63,7 +63,8 @@ public class SitemapController {
     private static final Map<String, List<String>> DOMAIN_PAGES = Map.of(
             "localhost:8080", pages,
             "porssiohjain.nitramite.com", pages,
-            "app.porssiohjain.fi", pages
+            "app.porssiohjain.fi", pages,
+            "app.energiaohjain.fi", pages
     );
 
     @GetMapping(value = "/sitemap_index.xml", produces = MediaType.APPLICATION_XML_VALUE)
