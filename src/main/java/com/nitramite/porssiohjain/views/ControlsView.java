@@ -325,9 +325,10 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
     private void updateLimitInfo() {
         long count = accountLimitService.getControlCount(accountId);
         Integer limit = accountLimitService.getEffectiveControlLimit(accountId);
+        String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(accountId));
         limitInfo.setText(limit != null
-                ? t("accountLimits.controls", count, limit)
-                : t("accountLimits.controlsUnlimited", count));
+                ? t("accountLimits.controls", count, limit, tier)
+                : t("accountLimits.controlsUnlimited", count, tier));
         boolean limitReached = limit != null && count >= limit;
         limitInfo.getElement().getThemeList().set("badge", true);
         limitInfo.getElement().getThemeList().set("error", limitReached);

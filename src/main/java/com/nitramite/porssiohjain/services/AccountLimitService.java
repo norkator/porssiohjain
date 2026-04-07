@@ -56,6 +56,11 @@ public class AccountLimitService {
     }
 
     @Transactional(readOnly = true)
+    public AccountTier getTier(Long accountId) {
+        return getAccount(accountId).getTier();
+    }
+
+    @Transactional(readOnly = true)
     public long getDeviceCount(Long accountId) {
         return deviceRepository.countByAccountId(accountId);
     }

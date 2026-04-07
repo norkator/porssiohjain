@@ -147,12 +147,17 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         AccountTier tier = accountService.getTier(accountId);
         Component subscriptionCard = createSubscriptionCard(tier);
         Component limitsCard = createLimitsCard();
+        FlexLayout tierCards = new FlexLayout(subscriptionCard, limitsCard);
+        tierCards.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+        tierCards.setWidthFull();
+        tierCards.getStyle()
+                .set("gap", "var(--lumo-space-m)")
+                .set("align-items", "stretch");
 
         card.add(
                 pageTitle,
                 tierTitle,
-                subscriptionCard,
-                limitsCard,
+                tierCards,
                 Divider.createDivider(),
                 createAccountSection(),
                 createNotificationSection(),
@@ -211,7 +216,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         VerticalLayout card = new VerticalLayout();
         card.setPadding(true);
         card.setSpacing(false);
-        card.setWidth("320px");
+        card.setWidth("min(320px, 100%)");
         card.getStyle()
                 .set("border-radius", "14px")
                 .set("box-shadow", "0 6px 18px rgba(0,0,0,0.08)")
@@ -253,7 +258,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         VerticalLayout card = new VerticalLayout();
         card.setPadding(true);
         card.setSpacing(false);
-        card.setWidth("320px");
+        card.setWidth("min(320px, 100%)");
         card.getStyle()
                 .set("border-radius", "14px")
                 .set("border", "1px solid var(--lumo-contrast-10pct)")

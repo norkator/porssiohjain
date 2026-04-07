@@ -294,9 +294,10 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
     private void updateLimitInfo() {
         long count = accountLimitService.getProductionSourceCount(accountId);
         Integer limit = accountLimitService.getEffectiveProductionSourceLimit(accountId);
+        String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(accountId));
         limitInfo.setText(limit != null
-                ? t("accountLimits.productionSources", count, limit)
-                : t("accountLimits.productionSourcesUnlimited", count));
+                ? t("accountLimits.productionSources", count, limit, tier)
+                : t("accountLimits.productionSourcesUnlimited", count, tier));
         boolean limitReached = limit != null && count >= limit;
         limitInfo.getElement().getThemeList().set("badge", true);
         limitInfo.getElement().getThemeList().set("error", limitReached);

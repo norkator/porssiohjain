@@ -657,7 +657,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         }
         long count = accountLimitService.getDeviceCount(currentAccount.getId());
         int limit = accountLimitService.getEffectiveDeviceLimit(currentAccount.getId());
-        limitInfo.setText(t("accountLimits.devices", count, limit));
+        String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(currentAccount.getId()));
+        limitInfo.setText(t("accountLimits.devices", count, limit, tier));
         limitInfo.getElement().getThemeList().set("badge", true);
         limitInfo.getElement().getThemeList().set("error", selectedDevice == null && count >= limit);
         updateSaveButtonState();

@@ -226,9 +226,10 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
     private void updateLimitInfo() {
         long count = accountLimitService.getWeatherControlCount(accountId);
         Integer limit = accountLimitService.getEffectiveWeatherControlLimit(accountId);
+        String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(accountId));
         limitInfo.setText(limit != null
-                ? t("accountLimits.weatherControls", count, limit)
-                : t("accountLimits.weatherControlsUnlimited", count));
+                ? t("accountLimits.weatherControls", count, limit, tier)
+                : t("accountLimits.weatherControlsUnlimited", count, tier));
         boolean limitReached = limit != null && count >= limit;
         limitInfo.getElement().getThemeList().set("badge", true);
         limitInfo.getElement().getThemeList().set("error", limitReached);
