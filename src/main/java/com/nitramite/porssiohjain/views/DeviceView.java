@@ -94,6 +94,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final Button selectAcDeviceButton;
     private final Button showAcCommandLogButton;
     private final Button showControlsJsonButton;
+    private final Button mqttRelayDebugButton;
 
     private final Button saveButton;
     private final Span limitInfo;
@@ -171,6 +172,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         showControlsJsonButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         showControlsJsonButton.addClickListener(e -> openControlsJsonDialog());
         showControlsJsonButton.setVisible(false);
+
+        mqttRelayDebugButton = new Button(t("device.mqttDebug.button"));
+        mqttRelayDebugButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        mqttRelayDebugButton.addClickListener(e -> openMqttRelayDebugDialog());
+        mqttRelayDebugButton.setVisible(false);
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -292,6 +298,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 }
                 updateAcCommandLogButton();
                 updateControlsJsonButton();
+                updateMqttRelayDebugButton();
                 saveButton.setText(t("device.button.update"));
             } else {
                 clearForm();
@@ -318,7 +325,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         heatPumpForm.setVisible(false);
 
-        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, showAcCommandLogButton, showControlsJsonButton, limitInfo, saveButton);
+        VerticalLayout actions = new VerticalLayout(
+                selectAcDeviceButton,
+                showAcCommandLogButton,
+                showControlsJsonButton,
+                mqttRelayDebugButton,
+                limitInfo,
+                saveButton
+        );
         actions.setPadding(false);
         actions.setSpacing(true);
         actions.setAlignItems(Alignment.START);
@@ -337,6 +351,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             updateSelectAcDeviceButton();
             updateAcCommandLogButton();
             updateControlsJsonButton();
+            updateMqttRelayDebugButton();
             updateSaveButtonState();
         });
 
@@ -601,6 +616,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         updateSelectAcDeviceButton();
         updateAcCommandLogButton();
         updateControlsJsonButton();
+        updateMqttRelayDebugButton();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
         updateLimitInfo();
@@ -626,6 +642,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private void updateControlsJsonButton() {
         boolean visible = selectedDevice != null && selectedDevice.getDeviceType() == DeviceType.STANDARD;
         showControlsJsonButton.setVisible(visible);
+    }
+
+    private void updateMqttRelayDebugButton() {
+        boolean visible = selectedDevice != null
+                && !Boolean.TRUE.equals(selectedDevice.getShared())
+                && selectedDevice.getDeviceType() == DeviceType.STANDARD
+                && Boolean.TRUE.equals(selectedDevice.getMqttOnline());
+        mqttRelayDebugButton.setVisible(visible);
     }
 
     private void updateSaveButtonState() {
@@ -804,6 +828,76 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             Notification.show(t("device.notification.failed", e.getMessage()))
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void openMqttRelayDebugDialog() {
+        if (selectedDevice == null
+                || selectedDevice.getDeviceType() != DeviceType.STANDARD
+                || Boolean.TRUE.equals(selectedDevice.getShared())
+                || !Boolean.TRUE.equals(selectedDevice.getMqttOnline())) {
+            return;
+        }
+
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("device.mqttDebug.dialog.title", selectedDevice.getDeviceName()));
+        dialog.setWidth("min(520px, 95vw)");
+
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+        content.setSpacing(true);
+
+        Span description = new Span(t("device.mqttDebug.dialog.description"));
+        description.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        content.add(description);
+
+        boolean[] channelStates = new boolean[4];
+        for (int channel = 0; channel < 4; channel++) {
+            content.add(createMqttRelayChannelRow(channel, channelStates));
+        }
+
+        Button closeButton = new Button(t("common.cancel"), event -> dialog.close());
+        dialog.getFooter().add(closeButton);
+        dialog.add(content);
+        dialog.open();
+    }
+
+    private HorizontalLayout createMqttRelayChannelRow(int channel, boolean[] channelStates) {
+        Span channelLabel = new Span(t("device.mqttDebug.channel", channel));
+        channelLabel.getStyle().set("min-width", "90px");
+
+        Button toggleButton = new Button();
+        applyMqttRelayButtonState(toggleButton, channelStates[channel]);
+        toggleButton.addClickListener(event -> {
+            boolean nextState = !channelStates[channel];
+            try {
+                AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+                if (currentAccount == null || selectedDevice == null) {
+                    return;
+                }
+
+                controlService.sendDebugMqttRelayCommand(currentAccount.getId(), selectedDevice.getId(), channel, nextState);
+                channelStates[channel] = nextState;
+                applyMqttRelayButtonState(toggleButton, nextState);
+                String stateLabel = nextState ? t("device.mqttDebug.state.on") : t("device.mqttDebug.state.off");
+                Notification.show(t("device.mqttDebug.notification.sent", channel, stateLabel))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (Exception e) {
+                Notification.show(t("device.notification.failed", e.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+
+        HorizontalLayout row = new HorizontalLayout(channelLabel, toggleButton);
+        row.setWidthFull();
+        row.setAlignItems(Alignment.CENTER);
+        row.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        return row;
+    }
+
+    private void applyMqttRelayButtonState(Button button, boolean on) {
+        button.setText(on ? t("device.mqttDebug.state.on") : t("device.mqttDebug.state.off"));
+        button.getThemeNames().clear();
+        button.addThemeVariants(on ? ButtonVariant.LUMO_SUCCESS : ButtonVariant.LUMO_ERROR);
     }
 
 }

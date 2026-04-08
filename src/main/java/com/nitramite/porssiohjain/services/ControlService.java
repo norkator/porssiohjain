@@ -745,4 +745,24 @@ public class ControlService {
         }
     }
 
+    public void sendDebugMqttRelayCommand(Long accountId, Long deviceId, int channel, boolean on) {
+        if (channel < 0 || channel > 3) {
+            throw new IllegalArgumentException("Unsupported relay channel: " + channel);
+        }
+
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
+        DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
+
+        if (device.getDeviceType() != DeviceType.STANDARD) {
+            throw new IllegalArgumentException("Debug relay command is only supported for standard devices");
+        }
+        if (!device.isMqttOnline()) {
+            throw new IllegalArgumentException("Device is not connected with MQTT");
+        }
+
+        mqttService.switchControl(device.getUuid().toString(), channel, on);
+    }
+
 }
