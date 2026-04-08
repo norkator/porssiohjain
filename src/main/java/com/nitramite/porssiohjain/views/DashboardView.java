@@ -62,7 +62,6 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
     public DashboardView(
             AuthService authService,
             DeviceService deviceService,
-            SystemLogService systemLogService,
             I18nService i18n,
             FingridService fingridService,
             PricePredictionService pricePredictionService,
@@ -110,29 +109,6 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         List<DeviceResponse> devices = deviceService.getAllDevices(accountId);
         for (DeviceResponse device : devices) {
             deviceLayout.add(createDeviceCard(device));
-        }
-
-        H2 logTitle = new H2(t("dashboard.systemLogTitle"));
-
-        VerticalLayout logList = new VerticalLayout();
-        logList.setWidth("100%");
-        logList.setPadding(false);
-        logList.setSpacing(false);
-        logList.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
-        logList.getStyle().set("border-radius", "8px");
-        logList.getStyle().set("background-color", "var(--lumo-base-color)");
-
-        ZoneId helsinkiZone = ZoneId.of("Europe/Helsinki");
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                .withZone(helsinkiZone);
-
-        List<SystemLogResponse> logs = systemLogService.findLatest();
-        for (SystemLogResponse log : logs) {
-            String formattedTime = formatter.format(log.getCreatedAt());
-            Span line = new Span("[" + formattedTime + "] " + log.getMessage());
-            line.getStyle().set("display", "block");
-            line.getStyle().set("padding", "6px 12px");
-            logList.add(line);
         }
 
         Button backButton = new Button("← " + t("dashboard.back"), e -> UI.getCurrent().navigate(HomeView.class));
@@ -230,8 +206,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
                 backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(),
                 energyForecastChart, createDivider(),
                 createControlSavingsSection(accountId), createDivider(),
-                sitePowerUsage, siteBox, siteContentContainer,
-                createDivider(), logTitle, logList
+                sitePowerUsage, siteBox, siteContentContainer
         );
         add(card);
     }

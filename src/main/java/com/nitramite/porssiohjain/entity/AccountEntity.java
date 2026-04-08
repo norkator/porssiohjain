@@ -63,6 +63,10 @@ public class AccountEntity {
     @Column(name = "agreed_terms_at")
     private Instant agreedTermsAt;
 
+    @Column(name = "admin", nullable = false)
+    @Builder.Default
+    private boolean admin = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

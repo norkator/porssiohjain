@@ -42,6 +42,22 @@ public final class ViewAuthUtils {
         }
     }
 
+    public static AccountEntity findAuthenticatedAccount(AuthService authService) {
+        VaadinSession session = VaadinSession.getCurrent();
+        String token = session != null ? (String) session.getAttribute("token") : null;
+        if (token == null || token.isBlank()) {
+            clearSession(session);
+            return null;
+        }
+
+        try {
+            return authService.authenticate(token);
+        } catch (IllegalArgumentException e) {
+            clearSession(session);
+            return null;
+        }
+    }
+
     public static boolean rerouteToLoginIfUnauthenticated(BeforeEnterEvent event, AuthService authService) {
         VaadinSession session = VaadinSession.getCurrent();
         String token = session != null ? (String) session.getAttribute("token") : null;
@@ -62,20 +78,20 @@ public final class ViewAuthUtils {
     }
 
     public static boolean hasValidSession(AuthService authService) {
-        VaadinSession session = VaadinSession.getCurrent();
-        String token = session != null ? (String) session.getAttribute("token") : null;
-        if (token == null || token.isBlank()) {
-            clearSession(session);
-            return false;
-        }
+        return findAuthenticatedAccount(authService) != null;
+    }
 
-        try {
-            authService.authenticate(token);
+    public static boolean rerouteToHomeIfNotAdmin(BeforeEnterEvent event, AuthService authService) {
+        AccountEntity account = findAuthenticatedAccount(authService);
+        if (account == null) {
+            event.forwardTo(LoginView.class);
             return true;
-        } catch (IllegalArgumentException e) {
-            clearSession(session);
-            return false;
         }
+        if (!account.isAdmin()) {
+            event.forwardTo(HomeView.class);
+            return true;
+        }
+        return false;
     }
 
     private static void clearSession(VaadinSession session) {

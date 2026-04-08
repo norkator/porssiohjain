@@ -120,6 +120,9 @@ public class HomeView extends VerticalLayout {
         Button settingsButton = new Button(t("home.settings"), e -> UI.getCurrent().navigate(SettingsView.class));
         settingsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
+        Button adminButton = new Button(t("home.admin"), e -> UI.getCurrent().navigate(AdminView.class));
+        adminButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+
         Button logoutButton = new Button(t("home.logout"), e -> {
             VaadinSession session = VaadinSession.getCurrent();
             session.setAttribute("token", null);
@@ -132,22 +135,28 @@ public class HomeView extends VerticalLayout {
 
         Stream.of(
                 loginButton, createAccountButton, documentationButton, devicesButton, controlsButton, weatherControlsButton, myProductionButton, powerLimitsButton, temperatureControlsButton,
-                dashboardButton, settingsButton, logoutButton
+                dashboardButton, settingsButton, adminButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
             btn.getElement().addEventListener("mouseover", e -> btn.getStyle().set("transform", "scale(1.03)"));
             btn.getElement().addEventListener("mouseout", e -> btn.getStyle().remove("transform"));
         });
 
-        boolean loggedIn = ViewAuthUtils.hasValidSession(authService);
+        var authenticatedAccount = ViewAuthUtils.findAuthenticatedAccount(authService);
+        boolean loggedIn = authenticatedAccount != null;
+        boolean admin = loggedIn && authenticatedAccount.isAdmin();
 
         contentBox.add(langButtons, title, subtitle);
 
         if (loggedIn) {
             contentBox.add(
                     devicesButton, controlsButton, weatherControlsButton, myProductionButton, powerLimitsButton,
-                    dashboardButton, settingsButton, documentationButton, logoutButton, Divider.createDivider()
+                    dashboardButton, settingsButton, documentationButton
             );
+            if (admin) {
+                contentBox.add(adminButton);
+            }
+            contentBox.add(logoutButton, Divider.createDivider());
         } else {
             contentBox.add(loginButton, createAccountButton, documentationButton);
         }
