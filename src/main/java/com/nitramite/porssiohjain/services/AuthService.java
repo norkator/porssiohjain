@@ -61,7 +61,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AccountEntity authenticate(String tokenValue) {
-        TokenEntity token = tokenRepository.findByToken(tokenValue)
+        TokenEntity token = tokenRepository.findByTokenWithAccount(tokenValue)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid token"));
 
         if (token.getExpiresAt().isBefore(java.time.Instant.now())) {

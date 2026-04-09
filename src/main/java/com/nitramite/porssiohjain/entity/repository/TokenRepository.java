@@ -25,6 +25,9 @@ public interface TokenRepository extends JpaRepository<TokenEntity, Long> {
 
     Optional<TokenEntity> findByToken(String token);
 
+    @Query("SELECT t FROM TokenEntity t JOIN FETCH t.account WHERE t.token = :token")
+    Optional<TokenEntity> findByTokenWithAccount(@Param("token") String token);
+
     @Transactional
     @Modifying
     @Query("DELETE FROM TokenEntity t WHERE t.expiresAt <= :now")
