@@ -76,6 +76,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
     private final IntegerField nodeXField = new IntegerField();
     private final IntegerField nodeYField = new IntegerField();
     private final Button saveNodeButton = new Button();
+    private final Button newNodeButton = new Button();
     private final Button clearNodeButton = new Button();
     private final Button deleteNodeButton = new Button();
 
@@ -84,6 +85,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
     private final ComboBox<LoadSheddingTriggerState> triggerStateCombo = new ComboBox<>();
     private final ComboBox<ControlAction> targetActionCombo = new ComboBox<>();
     private final Button saveLinkButton = new Button();
+    private final Button newLinkButton = new Button();
     private final Button clearLinkButton = new Button();
     private final Button deleteLinkButton = new Button();
 
@@ -129,6 +131,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         nodeXField.setLabel(t("loadShedding.node.x"));
         nodeYField.setLabel(t("loadShedding.node.y"));
         saveNodeButton.setText(t("loadShedding.button.saveNode"));
+        newNodeButton.setText(t("loadShedding.button.newNode"));
         clearNodeButton.setText(t("loadShedding.button.clear"));
         deleteNodeButton.setText(t("loadShedding.button.deleteNode"));
         sourceNodeCombo.setLabel(t("loadShedding.link.source"));
@@ -136,6 +139,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         triggerStateCombo.setLabel(t("loadShedding.link.trigger"));
         targetActionCombo.setLabel(t("loadShedding.link.action"));
         saveLinkButton.setText(t("loadShedding.button.saveLink"));
+        newLinkButton.setText(t("loadShedding.button.newLink"));
         clearLinkButton.setText(t("loadShedding.button.clear"));
         deleteLinkButton.setText(t("loadShedding.button.deleteLink"));
 
@@ -239,7 +243,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
                 new FormLayout.ResponsiveStep("300px", 2)
         );
 
-        HorizontalLayout actions = new HorizontalLayout(saveNodeButton, clearNodeButton, deleteNodeButton);
+        HorizontalLayout actions = new HorizontalLayout(saveNodeButton, newNodeButton, clearNodeButton, deleteNodeButton);
         actions.setWrap(true);
 
         card.add(title, formLayout, actions);
@@ -262,7 +266,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
                 new FormLayout.ResponsiveStep("300px", 2)
         );
 
-        HorizontalLayout actions = new HorizontalLayout(saveLinkButton, clearLinkButton, deleteLinkButton);
+        HorizontalLayout actions = new HorizontalLayout(saveLinkButton, newLinkButton, clearLinkButton, deleteLinkButton);
         actions.setWrap(true);
 
         card.add(title, formLayout, actions);
@@ -305,6 +309,8 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
 
         saveNodeButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveNodeButton.addClickListener(event -> saveNode());
+        newNodeButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        newNodeButton.addClickListener(event -> clearNodeSelection());
         clearNodeButton.addClickListener(event -> clearNodeSelection());
         deleteNodeButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         deleteNodeButton.addClickListener(event -> deleteSelectedNode());
@@ -330,6 +336,8 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
 
         saveLinkButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveLinkButton.addClickListener(event -> saveLink());
+        newLinkButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        newLinkButton.addClickListener(event -> clearLinkSelection());
         clearLinkButton.addClickListener(event -> clearLinkSelection());
         deleteLinkButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         deleteLinkButton.addClickListener(event -> deleteSelectedLink());
@@ -573,6 +581,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
             Notification.show(t("loadShedding.notification.nodeSaved"))
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             reloadData();
+            clearNodeSelection();
         } catch (Exception ex) {
             showError(t("loadShedding.notification.failed", ex.getMessage()));
         }
@@ -599,6 +608,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
             Notification.show(t("loadShedding.notification.linkSaved"))
                     .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             reloadData();
+            clearLinkSelection();
         } catch (Exception ex) {
             showError(t("loadShedding.notification.failed", ex.getMessage()));
         }
@@ -628,6 +638,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         nodeChannelField.setValue(node.getDeviceChannel());
         nodeXField.setValue(node.getCanvasX());
         nodeYField.setValue(node.getCanvasY());
+        saveNodeButton.setText(t("loadShedding.button.updateNode"));
         deleteNodeButton.setEnabled(true);
         renderBoard();
     }
@@ -638,6 +649,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         targetNodeCombo.setValue(findNode(link.getTargetNode().getId()));
         triggerStateCombo.setValue(link.getTriggerState());
         targetActionCombo.setValue(link.getTargetAction());
+        saveLinkButton.setText(t("loadShedding.button.updateLink"));
         deleteLinkButton.setEnabled(true);
     }
 
@@ -647,6 +659,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         nodeChannelField.setValue(0);
         nodeXField.setValue(nextDefaultX());
         nodeYField.setValue(nextDefaultY());
+        saveNodeButton.setText(t("loadShedding.button.saveNode"));
         deleteNodeButton.setEnabled(false);
         renderBoard();
     }
@@ -657,6 +670,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         targetNodeCombo.clear();
         triggerStateCombo.setValue(LoadSheddingTriggerState.TURNED_ON);
         targetActionCombo.setValue(ControlAction.TURN_OFF);
+        saveLinkButton.setText(t("loadShedding.button.saveLink"));
         deleteLinkButton.setEnabled(false);
     }
 
