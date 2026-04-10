@@ -492,50 +492,51 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
     private void enableDrag(Div nodeCard, LoadSheddingNodeResponse node) {
         nodeCard.getElement().executeJs("""
                 const element = this;
+                const viewElement = $3;
                 if (element.__loadSheddingDragBound) {
                   return;
-                    }
-                    element.__loadSheddingDragBound = true;
-                    element.style.touchAction = 'none';
-                    let dragging = false;
-                    let startX = 0;
-                    let startY = 0;
-                    let originLeft = 0;
-                    let originTop = 0;
-                    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-                    element.addEventListener('pointerdown', event => {
-                      if (event.target.closest('vaadin-button')) {
+                }
+                        element.__loadSheddingDragBound = true;
+                        element.style.touchAction = 'none';
+                        let dragging = false;
+                        let startX = 0;
+                        let startY = 0;
+                        let originLeft = 0;
+                        let originTop = 0;
+                        const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+                        element.addEventListener('pointerdown', event => {
+                          if (event.target.closest('vaadin-button')) {
+                            return;
+                          }
+                          dragging = true;
+                          startX = event.clientX;
+                          startY = event.clientY;
+                          originLeft = parseInt(element.style.left || '0', 10);
+                          originTop = parseInt(element.style.top || '0', 10);
+                          element.setPointerCapture(event.pointerId);
+                        });
+                    element.addEventListener('pointermove', event => {
+                      if (!dragging) {
                         return;
                       }
-                      dragging = true;
-                      startX = event.clientX;
-                      startY = event.clientY;
-                      originLeft = parseInt(element.style.left || '0', 10);
-                      originTop = parseInt(element.style.top || '0', 10);
-                      element.setPointerCapture(event.pointerId);
+                      const nextLeft = clamp(originLeft + (event.clientX - startX), 0, $0);
+                      const nextTop = clamp(originTop + (event.clientY - startY), 0, $1);
+                      element.style.left = `${nextLeft}px`;
+                      element.style.top = `${nextTop}px`;
                     });
-                element.addEventListener('pointermove', event => {
-                  if (!dragging) {
-                    return;
-                  }
-                  const nextLeft = clamp(originLeft + (event.clientX - startX), 0, $0);
-                  const nextTop = clamp(originTop + (event.clientY - startY), 0, $1);
-                  element.style.left = `${nextLeft}px`;
-                  element.style.top = `${nextTop}px`;
-                });
-                const finish = event => {
-                  if (!dragging) {
-                        return;
-                  }
+                    const finish = event => {
+                      if (!dragging) {
+                            return;
+                      }
                   dragging = false;
                   const nextLeft = parseInt(element.style.left || '0', 10);
                   const nextTop = parseInt(element.style.top || '0', 10);
                   element.releasePointerCapture?.(event.pointerId);
-                  element.$server.updateNodePosition($2, nextLeft, nextTop);
+                  viewElement.$server.updateNodePosition($2, nextLeft, nextTop);
                 };
                 element.addEventListener('pointerup', finish);
                 element.addEventListener('pointercancel', finish);
-                """, BOARD_WIDTH - NODE_WIDTH, BOARD_HEIGHT - NODE_HEIGHT, node.getId());
+                """, BOARD_WIDTH - NODE_WIDTH, BOARD_HEIGHT - NODE_HEIGHT, node.getId(), getElement());
     }
 
     @ClientCallable
