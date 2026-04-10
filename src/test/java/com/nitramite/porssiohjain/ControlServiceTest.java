@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain;
 import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlDeviceEntity;
@@ -30,6 +31,8 @@ import com.nitramite.porssiohjain.entity.repository.ControlRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
+import com.nitramite.porssiohjain.entity.repository.LoadSheddingLinkRepository;
+import com.nitramite.porssiohjain.entity.repository.LoadSheddingNodeRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerLimitDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ProductionSourceDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ResourceSharingRepository;
@@ -54,6 +57,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -91,6 +95,12 @@ class ControlServiceTest {
     private WeatherControlDeviceRepository weatherControlDeviceRepository;
 
     @Mock
+    private LoadSheddingNodeRepository loadSheddingNodeRepository;
+
+    @Mock
+    private LoadSheddingLinkRepository loadSheddingLinkRepository;
+
+    @Mock
     private SiteWeatherRepository siteWeatherRepository;
 
     @Mock
@@ -123,6 +133,8 @@ class ControlServiceTest {
                 powerLimitService,
                 productionSourceDeviceRepository,
                 weatherControlDeviceRepository,
+                loadSheddingNodeRepository,
+                loadSheddingLinkRepository,
                 siteWeatherRepository,
                 siteRepository,
                 resourceSharingRepository,
@@ -130,6 +142,8 @@ class ControlServiceTest {
                 mqttService,
                 accountLimitService
         );
+        lenient().when(loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
+        lenient().when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
     }
 
     @Test
@@ -140,6 +154,9 @@ class ControlServiceTest {
         device.setUuid(deviceUuid);
         device.setEnabled(true);
         device.setDeviceType(DeviceType.STANDARD);
+        AccountEntity account = new AccountEntity();
+        account.setId(99L);
+        device.setAccount(account);
 
         SiteEntity site = new SiteEntity();
         site.setId(10L);

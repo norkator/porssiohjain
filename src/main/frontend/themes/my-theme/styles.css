@@ -124,6 +124,87 @@ vaadin-button[theme~="large"] {
     margin-top: 0;
 }
 
+.load-shedding-editor {
+    min-width: 320px;
+}
+
+.load-shedding-section {
+    padding: 16px;
+    border: 2px solid #fff;
+    box-shadow: inset -2px -2px #808080, inset 2px 2px #fff;
+}
+
+.load-shedding-canvas-panel {
+    min-width: 0;
+}
+
+.load-shedding-board {
+    position: relative;
+    overflow: hidden;
+    background-color: #f2efe5;
+    background-image:
+            linear-gradient(rgba(0, 62, 77, 0.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 62, 77, 0.08) 1px, transparent 1px);
+    background-size: 32px 32px;
+    border: 2px solid #fff;
+    box-shadow: inset -2px -2px #808080, inset 2px 2px #fff;
+}
+
+.load-shedding-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.load-shedding-line {
+    stroke: #003e4d;
+    stroke-width: 3;
+}
+
+.load-shedding-line-label {
+    fill: #003e4d;
+    font-size: 13px;
+    font-family: Tahoma, sans-serif;
+    text-anchor: middle;
+}
+
+.load-shedding-node {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px;
+    cursor: grab;
+    user-select: none;
+    background: #fffff4;
+    border: 2px solid #fff;
+    box-shadow: inset -2px -2px #808080, inset 2px 2px #fff;
+}
+
+.load-shedding-node.selected {
+    outline: 3px solid #003e4d;
+    outline-offset: 2px;
+}
+
+.load-shedding-node-title {
+    font-weight: bold;
+    color: #111;
+}
+
+.load-shedding-node-meta,
+.load-shedding-node-uuid {
+    font-size: 0.8rem;
+    color: #333;
+    word-break: break-all;
+}
+
+.load-shedding-node-delete {
+    margin-top: auto;
+    align-self: flex-start;
+}
+
 @media (max-width: 768px) {
 
     .landing-navbar {
@@ -141,5 +222,9 @@ vaadin-button[theme~="large"] {
     .landing-navbar-buttons vaadin-button {
         font-size: 0.8rem;
         padding: 0.25rem 0.5rem;
+    }
+
+    .load-shedding-editor {
+        width: 100% !important;
     }
 }
