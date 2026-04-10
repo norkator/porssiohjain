@@ -125,3 +125,13 @@ If the certificate chain is trusted, the output should end with `Verify return c
 
 - `rabbitmq.config`: production config, plain MQTT on `1883` and TLS MQTT on `8883`
 - `rabbitmq.local-dev.config`: local development config, plain MQTT only on `1883`
+
+## RabbitMQ server
+
+Remember when mounting server.key and crt to rabbitmq container set permissions:
+
+```terminal
+chown 999:999 server.crt server.key
+chmod 644 server.crt ca.crt
+chmod 600 server.key 
+```
