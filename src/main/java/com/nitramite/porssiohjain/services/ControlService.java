@@ -827,15 +827,25 @@ public class ControlService {
 
     public void mqttDeviceControls() {
         List<DeviceEntity> mqttDevices = deviceRepository.findByMqttOnlineTrue();
+        List<MqttControlCommand> commands = new ArrayList<>();
         for (DeviceEntity device : mqttDevices) {
             String uuid = device.getUuid().toString();
             Map<Integer, Integer> controls = getControlsForDevice(uuid);
             for (Map.Entry<Integer, Integer> entry : controls.entrySet()) {
                 Integer channel = entry.getKey();
                 boolean on = entry.getValue() != null && entry.getValue() == 1;
-                mqttService.switchControl(uuid, channel, on);
+                commands.add(new MqttControlCommand(uuid, channel, on));
             }
         }
+        commands.stream()
+                .sorted(Comparator
+                        .comparing(MqttControlCommand::on)
+                        .thenComparing(MqttControlCommand::uuid)
+                        .thenComparing(MqttControlCommand::channel))
+                .forEach(command -> mqttService.switchControl(command.uuid(), command.channel(), command.on()));
+    }
+
+    private record MqttControlCommand(String uuid, Integer channel, boolean on) {
     }
 
     public void sendDebugMqttRelayCommand(Long accountId, Long deviceId, int channel, boolean on) {

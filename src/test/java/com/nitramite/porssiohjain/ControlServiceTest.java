@@ -15,6 +15,8 @@ import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.LoadSheddingLinkEntity;
+import com.nitramite.porssiohjain.entity.LoadSheddingNodeEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlDeviceEntity;
@@ -23,6 +25,7 @@ import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.ControlMode;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.LoadSheddingTriggerState;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlDeviceRepository;
@@ -47,6 +50,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -57,6 +61,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -206,5 +211,95 @@ class ControlServiceTest {
 
         assertEquals(Map.of(1, 0), controls);
         verify(controlDeviceRepository).findByDevice(device);
+    }
+
+    @Test
+    void mqttLoadSheddingSwitchesRequiredLoadsOffBeforeTurningLoadsOn() {
+        UUID sourceDeviceUuid = UUID.randomUUID();
+        UUID targetDeviceUuid = UUID.randomUUID();
+        AccountEntity account = new AccountEntity();
+        account.setId(99L);
+
+        DeviceEntity sourceDevice = new DeviceEntity();
+        sourceDevice.setId(1L);
+        sourceDevice.setUuid(sourceDeviceUuid);
+        sourceDevice.setEnabled(true);
+        sourceDevice.setMqttOnline(true);
+        sourceDevice.setDeviceType(DeviceType.STANDARD);
+        sourceDevice.setAccount(account);
+
+        DeviceEntity targetDevice = new DeviceEntity();
+        targetDevice.setId(2L);
+        targetDevice.setUuid(targetDeviceUuid);
+        targetDevice.setEnabled(true);
+        targetDevice.setMqttOnline(true);
+        targetDevice.setDeviceType(DeviceType.STANDARD);
+        targetDevice.setAccount(account);
+
+        ControlEntity control = new ControlEntity();
+        control.setId(200L);
+        control.setMode(ControlMode.MANUAL);
+        control.setManualOn(true);
+        control.setTimezone("Europe/Helsinki");
+
+        ControlDeviceEntity sourceControlDevice = new ControlDeviceEntity();
+        sourceControlDevice.setId(300L);
+        sourceControlDevice.setDevice(sourceDevice);
+        sourceControlDevice.setDeviceChannel(1);
+        sourceControlDevice.setControl(control);
+
+        ControlDeviceEntity targetControlDevice = new ControlDeviceEntity();
+        targetControlDevice.setId(301L);
+        targetControlDevice.setDevice(targetDevice);
+        targetControlDevice.setDeviceChannel(2);
+        targetControlDevice.setControl(control);
+
+        LoadSheddingNodeEntity sourceNode = LoadSheddingNodeEntity.builder()
+                .id(400L)
+                .account(account)
+                .device(sourceDevice)
+                .deviceChannel(1)
+                .canvasX(0)
+                .canvasY(0)
+                .build();
+
+        LoadSheddingNodeEntity targetNode = LoadSheddingNodeEntity.builder()
+                .id(401L)
+                .account(account)
+                .device(targetDevice)
+                .deviceChannel(2)
+                .canvasX(0)
+                .canvasY(0)
+                .build();
+
+        LoadSheddingLinkEntity link = LoadSheddingLinkEntity.builder()
+                .id(500L)
+                .account(account)
+                .sourceNode(sourceNode)
+                .targetNode(targetNode)
+                .triggerState(LoadSheddingTriggerState.TURNED_ON)
+                .targetAction(ControlAction.TURN_OFF)
+                .build();
+
+        when(deviceRepository.findByMqttOnlineTrue()).thenReturn(List.of(sourceDevice, targetDevice));
+        when(deviceRepository.findByUuid(sourceDeviceUuid)).thenReturn(Optional.of(sourceDevice));
+        when(deviceRepository.findByUuid(targetDeviceUuid)).thenReturn(Optional.of(targetDevice));
+        when(deviceRepository.save(any(DeviceEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(powerLimitDeviceRepository.findByDevice(sourceDevice)).thenReturn(List.of());
+        when(powerLimitDeviceRepository.findByDevice(targetDevice)).thenReturn(List.of());
+        when(productionSourceDeviceRepository.findByDevice(sourceDevice)).thenReturn(List.of());
+        when(productionSourceDeviceRepository.findByDevice(targetDevice)).thenReturn(List.of());
+        when(weatherControlDeviceRepository.findByDevice(sourceDevice)).thenReturn(List.of());
+        when(weatherControlDeviceRepository.findByDevice(targetDevice)).thenReturn(List.of());
+        when(controlDeviceRepository.findByDevice(sourceDevice)).thenReturn(List.of(sourceControlDevice));
+        when(controlDeviceRepository.findByDevice(targetDevice)).thenReturn(List.of(targetControlDevice));
+        when(loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(account.getId())).thenReturn(List.of(sourceNode, targetNode));
+        when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(account.getId())).thenReturn(List.of(link));
+
+        controlService.mqttDeviceControls();
+
+        InOrder inOrder = inOrder(mqttService);
+        inOrder.verify(mqttService).switchControl(targetDeviceUuid.toString(), 2, false);
+        inOrder.verify(mqttService).switchControl(sourceDeviceUuid.toString(), 1, true);
     }
 }
