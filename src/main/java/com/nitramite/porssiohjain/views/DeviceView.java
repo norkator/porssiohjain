@@ -21,6 +21,7 @@ import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.DeviceService;
+import com.nitramite.porssiohjain.services.FileService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.DeviceAcCommandLogResponse;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesResponse;
@@ -30,6 +31,8 @@ import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcDevicesService;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcMappingResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaLoginService;
+import com.nitramite.porssiohjain.views.components.Divider;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -52,10 +55,12 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.io.ByteArrayInputStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -74,6 +79,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final ControlService controlService;
     private final DeviceAcCommandLogService deviceAcCommandLogService;
     private final AuthService authService;
+    private final FileService fileService;
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcDevicesService toshibaAcDevicesService;
     private final MitsubishiLoginService mitsubishiLoginService;
@@ -95,6 +101,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final Button showAcCommandLogButton;
     private final Button showControlsJsonButton;
     private final Button mqttRelayDebugButton;
+    private final Anchor userCaDownloadLink;
+    private final Span userCaStatus;
 
     private final Button saveButton;
     private final Span limitInfo;
@@ -113,6 +121,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             ControlService controlService,
             DeviceAcCommandLogService deviceAcCommandLogService,
             AuthService authService,
+            FileService fileService,
             I18nService i18n,
             ToshibaLoginService toshibaLoginService,
             ToshibaAcDevicesService toshibaAcDevicesService,
@@ -124,6 +133,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         this.controlService = controlService;
         this.deviceAcCommandLogService = deviceAcCommandLogService;
         this.authService = authService;
+        this.fileService = fileService;
         this.i18n = i18n;
         this.toshibaLoginService = toshibaLoginService;
         this.toshibaAcDevicesService = toshibaAcDevicesService;
@@ -177,6 +187,18 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         mqttRelayDebugButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
         mqttRelayDebugButton.addClickListener(e -> openMqttRelayDebugDialog());
         mqttRelayDebugButton.setVisible(false);
+
+        userCaDownloadLink = new Anchor(new StreamResource(
+                FileService.USER_CA_PEM_FILE_NAME,
+                () -> new ByteArrayInputStream(fileService.getRequiredFileBytes(FileService.USER_CA_PEM_FILE_NAME))
+        ), t("device.ca.download"));
+        userCaDownloadLink.getElement().setAttribute("download", true);
+        userCaDownloadLink.getElement().setAttribute("theme", "button primary");
+
+        userCaStatus = new Span();
+        userCaStatus.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.9rem");
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -337,7 +359,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         actions.setSpacing(true);
         actions.setAlignItems(Alignment.START);
 
-        card.add(title, deviceGrid, formLayout, heatPumpForm, actions);
+        VerticalLayout certificateSection = createCertificateSection();
+
+        card.add(title, deviceGrid, formLayout, heatPumpForm, actions, Divider.createDivider(), certificateSection);
         add(card);
 
         deviceTypeCombo.addValueChangeListener(event -> {
@@ -356,6 +380,23 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         });
 
         loadDevices();
+    }
+
+    private VerticalLayout createCertificateSection() {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(true);
+        section.setAlignItems(Alignment.START);
+
+        H2 title = new H2(t("device.ca.title"));
+        title.getStyle().set("margin", "0");
+
+        Span description = new Span(t("device.ca.description"));
+        description.getStyle().set("color", "var(--lumo-secondary-text-color)");
+
+        section.add(title, description, userCaDownloadLink, userCaStatus);
+        updateUserCaDownloadState();
+        return section;
     }
 
     private void openAcDeviceSelectionDialog() {
@@ -717,10 +758,19 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             List<DeviceResponse> devices = deviceService.getAllDevices(accountId);
             deviceGrid.setItems(devices);
             updateLimitInfo();
+            updateUserCaDownloadState();
         } catch (Exception e) {
             Notification notification = Notification.show(t("device.notification.loadFailed", e.getMessage()));
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void updateUserCaDownloadState() {
+        boolean available = fileService.fileExists(FileService.USER_CA_PEM_FILE_NAME);
+        userCaDownloadLink.setVisible(available);
+        userCaStatus.setText(available
+                ? t("device.ca.ready")
+                : t("device.ca.missing", FileService.USER_CA_PEM_FILE_NAME));
     }
 
     @Override

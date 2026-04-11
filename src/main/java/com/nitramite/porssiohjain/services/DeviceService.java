@@ -42,6 +42,8 @@ public class DeviceService {
     private final PowerLimitDeviceRepository powerLimitDeviceRepository;
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
     private final WeatherControlDeviceRepository weatherControlDeviceRepository;
+    private final LoadSheddingNodeRepository loadSheddingNodeRepository;
+    private final LoadSheddingLinkRepository loadSheddingLinkRepository;
     private final ControlHeatPumpRepository controlHeatPumpRepository;
     private final ProductionSourceHeatPumpRepository productionSourceHeatPumpRepository;
     private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
@@ -256,6 +258,11 @@ public class DeviceService {
         powerLimitDeviceRepository.deleteAll(powerLimitDeviceRepository.findByDevice(device));
         productionSourceDeviceRepository.deleteAll(productionSourceDeviceRepository.findByDevice(device));
         weatherControlDeviceRepository.deleteAll(weatherControlDeviceRepository.findByDevice(device));
+        loadSheddingNodeRepository.findByDevice(device).forEach(node -> {
+            loadSheddingLinkRepository.deleteAll(loadSheddingLinkRepository.findBySourceNode(node));
+            loadSheddingLinkRepository.deleteAll(loadSheddingLinkRepository.findByTargetNode(node));
+        });
+        loadSheddingNodeRepository.deleteAll(loadSheddingNodeRepository.findByDevice(device));
         controlHeatPumpRepository.deleteAll(controlHeatPumpRepository.findByDevice(device));
         productionSourceHeatPumpRepository.deleteAll(productionSourceHeatPumpRepository.findByDevice(device));
         weatherControlHeatPumpRepository.deleteAll(weatherControlHeatPumpRepository.findByDevice(device));

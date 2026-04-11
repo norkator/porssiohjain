@@ -45,6 +45,8 @@ public class ControlService {
     private final PowerLimitService powerLimitService;
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
     private final WeatherControlDeviceRepository weatherControlDeviceRepository;
+    private final LoadSheddingNodeRepository loadSheddingNodeRepository;
+    private final LoadSheddingLinkRepository loadSheddingLinkRepository;
     private final SiteWeatherRepository siteWeatherRepository;
     private final SiteRepository siteRepository;
     private final ResourceSharingRepository resourceSharingRepository;
@@ -485,7 +487,19 @@ public class ControlService {
             return channelMap;
         }
 
-        // Check for power limits as first priority
+        channelMap.putAll(getBaseControlsForDevice(device, nowUtc));
+        applyLoadSheddingOverrides(device, nowUtc, channelMap);
+        enforcePowerLimitPriority(device, channelMap);
+
+        return channelMap;
+    }
+
+    private Map<Integer, Integer> getBaseControlsForDevice(
+            DeviceEntity device,
+            Instant nowUtc
+    ) {
+        Map<Integer, Integer> channelMap = new HashMap<>();
+
         List<PowerLimitDeviceEntity> powerLimitDevices = powerLimitDeviceRepository.findByDevice(device);
         for (PowerLimitDeviceEntity pld : powerLimitDevices) {
             int channel = pld.getDeviceChannel();
@@ -494,17 +508,15 @@ public class ControlService {
             }
         }
 
-        // Check for weather configurations as second priority
         Map<Integer, Integer> priorityWeatherOverrides = getWeatherOverrides(device, nowUtc, true);
         for (Map.Entry<Integer, Integer> entry : priorityWeatherOverrides.entrySet()) {
             channelMap.putIfAbsent(entry.getKey(), entry.getValue());
         }
 
-        // Production source has third priority
         List<ProductionSourceDeviceEntity> prodDevices = productionSourceDeviceRepository.findByDevice(device);
         for (ProductionSourceDeviceEntity psd : prodDevices) {
             int channel = psd.getDeviceChannel();
-            if (channelMap.containsKey(channel)) continue; // power limit already forced
+            if (channelMap.containsKey(channel)) continue;
             Integer productionOverride = getProductionOverride(device, channel);
             if (productionOverride != null) {
                 channelMap.put(channel, productionOverride);
@@ -516,11 +528,10 @@ public class ControlService {
             channelMap.putIfAbsent(entry.getKey(), entry.getValue());
         }
 
-        // Last priority is controls
         List<ControlDeviceEntity> controlDevices = controlDeviceRepository.findByDevice(device);
         for (ControlDeviceEntity cd : controlDevices) {
             int channel = cd.getDeviceChannel();
-            if (channelMap.containsKey(channel)) continue; // higher rule already decided
+            if (channelMap.containsKey(channel)) continue;
 
             ControlEntity control = cd.getControl();
             ZoneId controlZone = ZoneId.of(control.getTimezone());
@@ -532,7 +543,7 @@ public class ControlService {
                 ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
 
                 boolean active = controlTableRepository.findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
-                                control.getId(), Status.FINAL, nowUtc.minusSeconds(CONTROL_LOOKBACK_SECONDS)) // last 30 minutes
+                                control.getId(), Status.FINAL, nowUtc.minusSeconds(CONTROL_LOOKBACK_SECONDS))
                         .stream()
                         .anyMatch(ct -> {
                             ZonedDateTime start = ct.getStartTime().atZone(controlZone);
@@ -542,13 +553,95 @@ public class ControlService {
 
                 channelMap.put(cd.getDeviceChannel(), active ? 1 : 0);
             } else {
-                // default off
                 channelMap.put(cd.getDeviceChannel(), 0);
             }
-
         }
 
         return channelMap;
+    }
+
+    private void applyLoadSheddingOverrides(
+            DeviceEntity targetDevice,
+            Instant nowUtc,
+            Map<Integer, Integer> channelMap
+    ) {
+        if (targetDevice.getDeviceType() != DeviceType.STANDARD) {
+            return;
+        }
+
+        Long accountId = targetDevice.getAccount().getId();
+        List<LoadSheddingNodeEntity> nodes = loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(accountId);
+        if (nodes.isEmpty()) {
+            return;
+        }
+
+        List<LoadSheddingLinkEntity> links = loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(accountId);
+        if (links.isEmpty()) {
+            return;
+        }
+
+        Map<Long, Map<Integer, Integer>> baseStatesByDeviceId = new HashMap<>();
+        Map<Long, Integer> stateByNodeId = new HashMap<>();
+
+        for (LoadSheddingNodeEntity node : nodes) {
+            Map<Integer, Integer> deviceBaseStates = baseStatesByDeviceId.computeIfAbsent(
+                    node.getDevice().getId(),
+                    ignored -> getBaseControlsForDevice(node.getDevice(), nowUtc)
+            );
+            stateByNodeId.put(node.getId(), deviceBaseStates.getOrDefault(node.getDeviceChannel(), 0));
+        }
+
+        int maxIterations = Math.max(links.size() * 4, 8);
+        for (int i = 0; i < maxIterations; i++) {
+            boolean changed = false;
+            for (LoadSheddingLinkEntity link : links) {
+                Integer sourceState = stateByNodeId.get(link.getSourceNode().getId());
+                if (sourceState == null || !matchesLoadSheddingTrigger(sourceState, link.getTriggerState())) {
+                    continue;
+                }
+
+                int nextTargetState = link.getTargetAction() == ControlAction.TURN_ON ? 1 : 0;
+                Long targetNodeId = link.getTargetNode().getId();
+                if (!Objects.equals(stateByNodeId.get(targetNodeId), nextTargetState)) {
+                    stateByNodeId.put(targetNodeId, nextTargetState);
+                    changed = true;
+                }
+            }
+            if (!changed) {
+                break;
+            }
+        }
+
+        for (LoadSheddingNodeEntity node : nodes) {
+            if (node.getDevice().getId().equals(targetDevice.getId())) {
+                channelMap.put(node.getDeviceChannel(), stateByNodeId.getOrDefault(node.getId(), 0));
+            }
+        }
+    }
+
+    private boolean matchesLoadSheddingTrigger(
+            Integer sourceState,
+            LoadSheddingTriggerState triggerState
+    ) {
+        if (sourceState == null || triggerState == null) {
+            return false;
+        }
+        return switch (triggerState) {
+            case TURNED_ON -> sourceState == 1;
+            case TURNED_OFF -> sourceState == 0;
+        };
+    }
+
+    private void enforcePowerLimitPriority(
+            DeviceEntity device,
+            Map<Integer, Integer> channelMap
+    ) {
+        for (PowerLimitDeviceEntity pld : powerLimitDeviceRepository.findByDevice(device)) {
+            int channel = pld.getDeviceChannel();
+            if (isPowerLimitActiveForDeviceChannel(device, channel)) {
+                channelMap.put(channel, 0);
+            }
+        }
     }
 
 
@@ -734,15 +827,25 @@ public class ControlService {
 
     public void mqttDeviceControls() {
         List<DeviceEntity> mqttDevices = deviceRepository.findByMqttOnlineTrue();
+        List<MqttControlCommand> commands = new ArrayList<>();
         for (DeviceEntity device : mqttDevices) {
             String uuid = device.getUuid().toString();
             Map<Integer, Integer> controls = getControlsForDevice(uuid);
             for (Map.Entry<Integer, Integer> entry : controls.entrySet()) {
                 Integer channel = entry.getKey();
                 boolean on = entry.getValue() != null && entry.getValue() == 1;
-                mqttService.switchControl(uuid, channel, on);
+                commands.add(new MqttControlCommand(uuid, channel, on));
             }
         }
+        commands.stream()
+                .sorted(Comparator
+                        .comparing(MqttControlCommand::on)
+                        .thenComparing(MqttControlCommand::uuid)
+                        .thenComparing(MqttControlCommand::channel))
+                .forEach(command -> mqttService.switchControl(command.uuid(), command.channel(), command.on()));
+    }
+
+    private record MqttControlCommand(String uuid, Integer channel, boolean on) {
     }
 
     public void sendDebugMqttRelayCommand(Long accountId, Long deviceId, int channel, boolean on) {
