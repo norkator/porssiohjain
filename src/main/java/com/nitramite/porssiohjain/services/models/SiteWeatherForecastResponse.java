@@ -23,6 +23,7 @@ public class SiteWeatherForecastResponse {
     private Long siteId;
     private String siteName;
     private String weatherPlace;
+    private String timezone;
     private Instant fetchedAt;
     private Instant forecastStartTime;
     private Instant forecastEndTime;

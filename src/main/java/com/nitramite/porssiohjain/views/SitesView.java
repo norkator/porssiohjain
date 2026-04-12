@@ -36,6 +36,8 @@ import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.time.ZoneId;
+
 @PageTitle("Pörssiohjain - Sites")
 @Route("sites")
 @PermitAll
@@ -51,6 +53,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
 
     private final TextField nameField;
     private final TextField weatherPlaceField;
+    private final ComboBox<String> timezoneField;
     private final ComboBox<SiteType> typeField;
     private final Checkbox enabledToggle;
     private final Button saveButton;
@@ -63,6 +66,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
 
         nameField = new TextField(t("sites.field.name"));
         weatherPlaceField = new TextField(t("sites.field.weatherPlace"));
+        timezoneField = new ComboBox<>(t("sites.field.timezone"));
         typeField = new ComboBox<>(t("sites.field.type"));
         enabledToggle = new Checkbox(t("sites.field.enabled"));
         saveButton = new Button(t("sites.button.create"));
@@ -100,6 +104,10 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         weatherPlaceField.setWidthFull();
         weatherPlaceField.setPlaceholder(t("sites.field.weatherPlace.placeholder"));
 
+        timezoneField.setItems(ZoneId.getAvailableZoneIds().stream().sorted().toList());
+        timezoneField.setValue("Europe/Helsinki");
+        timezoneField.setWidthFull();
+
         typeField.setItems(SiteType.values());
         typeField.setItemLabelGenerator(type -> t("siteType." + type.name()));
         typeField.setWidthFull();
@@ -117,7 +125,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private Component createFormLayout() {
-        FormLayout form = new FormLayout(nameField, weatherPlaceField, typeField, enabledToggle);
+        FormLayout form = new FormLayout(nameField, weatherPlaceField, timezoneField, typeField, enabledToggle);
         form.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2)
@@ -136,6 +144,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                 .setHeader(t("sites.grid.type")).setAutoWidth(true);
         sitesGrid.addColumn(SiteResponse::getWeatherPlace)
                 .setHeader(t("sites.grid.weatherPlace")).setAutoWidth(true);
+        sitesGrid.addColumn(SiteResponse::getTimezone)
+                .setHeader(t("sites.grid.timezone")).setAutoWidth(true);
         sitesGrid.addComponentColumn(site -> {
             boolean enabled = site.getEnabled();
             String text = enabled ? t("common.yes") : t("common.no");
@@ -154,6 +164,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                 editingSiteId = selected.getId();
                 nameField.setValue(selected.getName());
                 weatherPlaceField.setValue(selected.getWeatherPlace() != null ? selected.getWeatherPlace() : "");
+                timezoneField.setValue(selected.getTimezone() != null ? selected.getTimezone() : "Europe/Helsinki");
                 typeField.setValue(selected.getType());
                 enabledToggle.setValue(selected.getEnabled());
                 saveButton.setText(t("sites.button.update"));
@@ -162,7 +173,14 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void createNewSite() {
-        siteService.createSite(accountId, nameField.getValue(), typeField.getValue(), enabledToggle.getValue(), weatherPlaceField.getValue());
+        siteService.createSite(
+                accountId,
+                nameField.getValue(),
+                typeField.getValue(),
+                enabledToggle.getValue(),
+                weatherPlaceField.getValue(),
+                timezoneField.getValue()
+        );
         Notification notification = Notification.show(t("sites.notification.created"));
         notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         clearForm();
@@ -170,7 +188,14 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void updateSite() {
-        siteService.updateSite(editingSiteId, nameField.getValue(), typeField.getValue(), enabledToggle.getValue(), weatherPlaceField.getValue());
+        siteService.updateSite(
+                editingSiteId,
+                nameField.getValue(),
+                typeField.getValue(),
+                enabledToggle.getValue(),
+                weatherPlaceField.getValue(),
+                timezoneField.getValue()
+        );
         Notification notification = Notification.show(t("sites.notification.updated"));
         notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         clearForm();
@@ -181,6 +206,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         editingSiteId = null;
         nameField.clear();
         weatherPlaceField.clear();
+        timezoneField.setValue("Europe/Helsinki");
         typeField.clear();
         enabledToggle.setValue(true);
         saveButton.setText(t("sites.button.create"));

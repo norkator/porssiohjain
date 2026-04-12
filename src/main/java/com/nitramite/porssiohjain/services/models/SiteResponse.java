@@ -25,6 +25,7 @@ public class SiteResponse {
     private SiteType type;
     private Boolean enabled;
     private String weatherPlace;
+    private String timezone;
     private Instant createdAt;
     private Instant updatedAt;
 }

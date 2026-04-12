@@ -46,6 +46,10 @@ public class SiteEntity {
     @Column(name = "weather_place")
     private String weatherPlace;
 
+    @Builder.Default
+    @Column(name = "timezone", nullable = false, length = 64)
+    private String timezone = "Europe/Helsinki";
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "account_id")
     private AccountEntity account;
@@ -72,11 +76,17 @@ public class SiteEntity {
     public void onCreate() {
         createdAt = Instant.now();
         updatedAt = createdAt;
+        if (timezone == null || timezone.isBlank()) {
+            timezone = "Europe/Helsinki";
+        }
     }
 
     @PreUpdate
     public void onUpdate() {
         updatedAt = Instant.now();
+        if (timezone == null || timezone.isBlank()) {
+            timezone = "Europe/Helsinki";
+        }
     }
 
 }

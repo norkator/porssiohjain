@@ -609,7 +609,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
             return;
         }
 
-        weatherTimestampField.setValue(formatInstant(point.getTime()));
+        weatherTimestampField.setValue(formatInstant(point.getTime(), getSiteTimezone(siteId)));
         temperatureField.setValue(formatDecimal(point.getTemperature(), "°C"));
         windSpeedField.setValue(formatDecimal(point.getWindSpeedMs(), "m/s"));
         humidityField.setValue(formatDecimal(point.getHumidity(), "%"));
@@ -640,6 +640,13 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
 
     private Optional<SiteResponse> findSiteById(Long siteId) {
         return sites.stream().filter(site -> site.getId().equals(siteId)).findFirst();
+    }
+
+    private String getSiteTimezone(Long siteId) {
+        return findSiteById(siteId)
+                .map(SiteResponse::getTimezone)
+                .filter(timezone -> timezone != null && !timezone.isBlank())
+                .orElse("Europe/Helsinki");
     }
 
     private void openHeatPumpStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
@@ -759,9 +766,9 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         return unit == null || unit.isBlank() ? number : number + " " + unit;
     }
 
-    private String formatInstant(Instant instant) {
+    private String formatInstant(Instant instant, String timezone) {
         return instant != null
-                ? ZonedDateTime.ofInstant(instant, ZoneId.systemDefault()).format(formatter)
+                ? ZonedDateTime.ofInstant(instant, ZoneId.of(timezone)).format(formatter)
                 : "-";
     }
 

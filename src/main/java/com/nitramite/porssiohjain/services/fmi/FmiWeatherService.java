@@ -118,6 +118,7 @@ public class FmiWeatherService {
                 .siteId(site.getId())
                 .siteName(site.getName())
                 .weatherPlace(site.getWeatherPlace())
+                .timezone(site.getTimezone())
                 .fetchedAt(Instant.now())
                 .forecastStartTime(forecastStart)
                 .forecastEndTime(forecastEnd)

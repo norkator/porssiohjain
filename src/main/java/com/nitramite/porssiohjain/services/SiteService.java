@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 
 @Service
@@ -35,7 +36,7 @@ public class SiteService {
     private final SiteWeatherService siteWeatherService;
 
     public SiteEntity createSite(
-            Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace
+            Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone
     ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
@@ -44,6 +45,7 @@ public class SiteService {
                 .type(type)
                 .enabled(enabled)
                 .weatherPlace(normalizeWeatherPlace(weatherPlace))
+                .timezone(normalizeTimezone(timezone))
                 .account(account)
                 .build();
         site = siteRepository.save(site);
@@ -51,13 +53,14 @@ public class SiteService {
         return site;
     }
 
-    public SiteEntity updateSite(Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace) {
+    public SiteEntity updateSite(Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone) {
         SiteEntity site = siteRepository.findById(siteId)
                 .orElseThrow(() -> new IllegalArgumentException("Site not found"));
         site.setName(name);
         site.setType(type);
         site.setEnabled(enabled);
         site.setWeatherPlace(normalizeWeatherPlace(weatherPlace));
+        site.setTimezone(normalizeTimezone(timezone));
         site = siteRepository.save(site);
         siteWeatherService.fetchForecastForSite(site);
         return site;
@@ -89,6 +92,7 @@ public class SiteService {
                 .type(site.getType())
                 .enabled(site.getEnabled())
                 .weatherPlace(site.getWeatherPlace())
+                .timezone(site.getTimezone())
                 .createdAt(site.getCreatedAt())
                 .updatedAt(site.getUpdatedAt())
                 .build();
@@ -100,6 +104,13 @@ public class SiteService {
         }
         String trimmed = weatherPlace.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeTimezone(String timezone) {
+        if (timezone == null || timezone.isBlank()) {
+            return "Europe/Helsinki";
+        }
+        return ZoneId.of(timezone.trim()).getId();
     }
 
 }

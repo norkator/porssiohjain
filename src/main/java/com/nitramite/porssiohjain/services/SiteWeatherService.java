@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -84,18 +85,17 @@ public class SiteWeatherService {
             return true;
         }
 
-        Instant start = LocalDate.now(ZoneId.of("Europe/Helsinki")).plusDays(1).atStartOfDay(ZoneId.of("Europe/Helsinki")).toInstant();
-        Instant end = LocalDate.now(ZoneId.of("Europe/Helsinki")).plusDays(2).atStartOfDay(ZoneId.of("Europe/Helsinki")).toInstant();
-
-        return sites.stream().allMatch(site -> siteWeatherRepository.existsBySiteAndForecastTimeBetween(site, start, end));
+        return sites.stream().allMatch(site -> {
+            ZoneId zone = resolveSiteZone(site);
+            Instant start = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant();
+            Instant end = LocalDate.now(zone).plusDays(2).atStartOfDay(zone).toInstant();
+            return siteWeatherRepository.existsBySiteAndForecastTimeBetween(site, start, end);
+        });
     }
 
     @Transactional
     public void deleteOldSiteWeatherData() {
-        Instant cutoff = LocalDate.now()
-                .minusDays(deleteAfterDays)
-                .atStartOfDay(ZoneId.systemDefault())
-                .toInstant();
+        Instant cutoff = Instant.now().minus(deleteAfterDays, ChronoUnit.DAYS);
         long deleted = siteWeatherRepository.deleteByForecastTimeBefore(cutoff);
         if (deleted > 0) {
             log.info("Deleted {} site weather rows older than {}", deleted, cutoff);
@@ -119,6 +119,7 @@ public class SiteWeatherService {
                 .siteId(site.getId())
                 .siteName(site.getName())
                 .weatherPlace(site.getWeatherPlace())
+                .timezone(site.getTimezone())
                 .fetchedAt(fetchedAt)
                 .forecastStartTime(forecastStart)
                 .forecastEndTime(forecastEnd)
@@ -164,6 +165,13 @@ public class SiteWeatherService {
         return siteRepository.findByEnabledTrueAndWeatherPlaceIsNotNull().stream()
                 .filter(site -> site.getWeatherPlace() != null && !site.getWeatherPlace().isBlank())
                 .toList();
+    }
+
+    private ZoneId resolveSiteZone(SiteEntity site) {
+        if (site.getTimezone() == null || site.getTimezone().isBlank()) {
+            return ZoneId.of("Europe/Helsinki");
+        }
+        return ZoneId.of(site.getTimezone());
     }
 
     private SiteWeatherForecastPointResponse toPointResponse(SiteWeatherEntity entity) {
