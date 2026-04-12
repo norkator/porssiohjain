@@ -56,7 +56,7 @@ public class MitsubishiSetAcStateService {
                     .vaneVertical(state.getVaneVertical())
                     .vaneHorizontal(state.getVaneHorizontal())
                     .effectiveFlags(state.getEffectiveFlags())
-                    .hasPendingCommand(Boolean.TRUE.equals(state.getHasPendingCommand()))
+                    .hasPendingCommand(true)
                     .build();
 
             HttpEntity<SetAtaRequest> request = new HttpEntity<>(payload, headers);

@@ -11,10 +11,15 @@
 
 package com.nitramite.porssiohjain.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateDecodedResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateHexDecoderService;
@@ -49,12 +54,23 @@ public class HeatPumpStateDialogService {
     private final DeviceRepository deviceRepository;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final ToshibaAcStateService toshibaAcStateService;
+    private final MitsubishiAcStateService mitsubishiAcStateService;
     private final AcCommandDispatchService acCommandDispatchService;
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
     private final ToshibaAcStateHexEditorService toshibaAcStateHexEditorService;
     private final I18nService i18n;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void openStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
+        DeviceAcDataEntity acData = getAcData(deviceResponse);
+        if (acData.getAcType() == AcType.MITSUBISHI) {
+            openMitsubishiStateDialog(deviceResponse, stateHexField);
+            return;
+        }
+        openToshibaStateDialog(deviceResponse, stateHexField);
+    }
+
+    private void openToshibaStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
         dialog.setWidth("900px");
@@ -280,7 +296,166 @@ public class HeatPumpStateDialogService {
         dialog.open();
     }
 
+    private void openMitsubishiStateDialog(DeviceResponse deviceResponse, TextField stateJsonField) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
+        dialog.setWidth("900px");
+        dialog.setMaxWidth("95vw");
+
+        VerticalLayout dialogLayout = new VerticalLayout();
+        dialogLayout.setWidthFull();
+        dialogLayout.add(new Paragraph(t("controlTable.dialog.queryState.instructions")));
+
+        TextArea editableJsonArea = new TextArea("State JSON");
+        editableJsonArea.setWidthFull();
+        editableJsonArea.setMinHeight("260px");
+
+        Div stateInfoDiv = new Div();
+        stateInfoDiv.setVisible(false);
+        stateInfoDiv.setWidthFull();
+
+        java.util.function.Consumer<String> renderJsonState = jsonState -> {
+            editableJsonArea.setValue(Optional.ofNullable(jsonState).orElse(""));
+            stateJsonField.setValue(Optional.ofNullable(jsonState).orElse(""));
+            stateInfoDiv.removeAll();
+
+            if (jsonState == null || jsonState.isBlank()) {
+                stateInfoDiv.setVisible(false);
+                return;
+            }
+
+            try {
+                MitsubishiAcStateResponse state = parseMitsubishiState(jsonState);
+                stateInfoDiv.add(createMitsubishiAcStateInfoContent(state));
+            } catch (Exception ex) {
+                stateInfoDiv.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
+            }
+            stateInfoDiv.setVisible(true);
+        };
+
+        editableJsonArea.addValueChangeListener(event -> {
+            String value = Optional.ofNullable(event.getValue()).orElse("");
+            stateJsonField.setValue(value);
+            stateInfoDiv.removeAll();
+
+            if (value.isBlank()) {
+                stateInfoDiv.setVisible(false);
+                return;
+            }
+
+            try {
+                stateInfoDiv.add(createMitsubishiAcStateInfoContent(parseMitsubishiState(value)));
+            } catch (Exception ex) {
+                stateInfoDiv.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
+            }
+            stateInfoDiv.setVisible(true);
+        });
+
+        Button acquireCurrentStateButton = new Button(t("controlTable.dialog.queryState.actionButton"), event -> {
+            try {
+                DeviceAcDataEntity acData = getAcData(deviceResponse);
+                MitsubishiAcStateResponse response = mitsubishiAcStateService.getAcState(acData);
+                if (response != null && !hasMitsubishiError(response)) {
+                    renderJsonState.accept(formatMitsubishiState(response));
+                    Notification.show(t("controlTable.dialog.queryState.queried"))
+                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                } else {
+                    Notification.show(t("controlTable.notification.failedSave", getMitsubishiErrorMessage(response)))
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
+            } catch (Exception ex) {
+                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+
+        Button useLastPolledStateButton = new Button(t("controlTable.dialog.queryState.useLastPolledButton"), event -> {
+            try {
+                DeviceAcDataEntity acData = getAcData(deviceResponse);
+                if (acData.getLastPolledStateHex() == null || acData.getLastPolledStateHex().isBlank()) {
+                    Notification.show(t("controlTable.dialog.queryState.noLastPolledState"))
+                            .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    return;
+                }
+                renderJsonState.accept(acData.getLastPolledStateHex());
+                Notification.show(t("controlTable.dialog.queryState.loadedLastPolled"))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (Exception ex) {
+                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        useLastPolledStateButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button sendStateButton = new Button(t("controlTable.dialog.queryState.sendButton"), event -> {
+            try {
+                String formattedJson = formatMitsubishiState(parseMitsubishiState(editableJsonArea.getValue()));
+                DeviceAcDataEntity acData = getAcData(deviceResponse);
+                acCommandDispatchService.dispatchHexState(acData, formattedJson);
+                renderJsonState.accept(formattedJson);
+                Notification.show(t("controlTable.dialog.queryState.sent"))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (Exception ex) {
+                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        sendStateButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        HorizontalLayout buttonRow = new HorizontalLayout(
+                acquireCurrentStateButton,
+                useLastPolledStateButton,
+                sendStateButton
+        );
+        buttonRow.setWidthFull();
+        buttonRow.setWrap(true);
+
+        dialogLayout.add(
+                buttonRow,
+                new Paragraph("Edit the JSON state copied from MELCloud. EffectiveFlags controls which fields SetAta applies."),
+                editableJsonArea,
+                stateInfoDiv
+        );
+        dialog.add(dialogLayout);
+
+        String existingState = stateJsonField.getValue();
+        if (existingState != null && !existingState.isBlank()) {
+            renderJsonState.accept(existingState);
+        }
+
+        Button saveButton = new Button(t("common.save"), event -> {
+            try {
+                String formattedJson = formatMitsubishiState(parseMitsubishiState(editableJsonArea.getValue()));
+                stateJsonField.setValue(formattedJson);
+                dialog.close();
+            } catch (Exception ex) {
+                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(saveButton);
+
+        Button cancelButton = new Button(t("common.cancel"), event -> {
+            stateJsonField.clear();
+            dialog.close();
+        });
+        dialog.getFooter().add(cancelButton);
+
+        dialog.open();
+    }
+
     public Component createAcStateInfoContentFromHex(String stateHex) {
+        if (isJsonState(stateHex)) {
+            try {
+                return createMitsubishiAcStateInfoContent(parseMitsubishiState(stateHex));
+            } catch (Exception ignored) {
+                VerticalLayout content = new VerticalLayout();
+                content.setPadding(false);
+                content.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
+                return content;
+            }
+        }
         return createAcStateInfoContent(buildDecodedResponse(stateHex));
     }
 
@@ -390,6 +565,129 @@ public class HeatPumpStateDialogService {
         resObj.setDecodedAcState(toshibaAcStateHexDecoderService.decode(stateHex));
         response.setResObj(resObj);
         return response;
+    }
+
+    private Component createMitsubishiAcStateInfoContent(MitsubishiAcStateResponse state) {
+        VerticalLayout content = new VerticalLayout();
+        content.setSpacing(true);
+        content.setPadding(false);
+        content.setWidthFull();
+
+        TextArea jsonArea = new TextArea("State JSON");
+        jsonArea.setValue(formatMitsubishiState(state));
+        jsonArea.setReadOnly(true);
+        jsonArea.setWidthFull();
+        jsonArea.setMinHeight("220px");
+        content.add(jsonArea);
+
+        FormLayout stateLayout = new FormLayout(
+                createReadOnlyField("Name", state.getName()),
+                createReadOnlyField("DeviceID", state.getDeviceId() != null ? String.valueOf(state.getDeviceId()) : null),
+                createReadOnlyField(t("controlTable.dialog.queryState.field.power"), String.valueOf(state.getPower())),
+                createReadOnlyField(t("controlTable.dialog.queryState.field.mode"), formatMitsubishiMode(state.getOperationMode())),
+                createReadOnlyField(t("controlTable.dialog.queryState.field.targetTemperature"), formatDouble(state.getSetTemperature())),
+                createReadOnlyField(t("controlTable.dialog.queryState.field.indoorTemperature"), formatDouble(state.getRoomTemperature())),
+                createReadOnlyField(t("controlTable.dialog.queryState.field.fanMode"), formatMitsubishiFanSpeed(state.getSetFanSpeed())),
+                createReadOnlyField("Vane vertical", formatMitsubishiVerticalVane(state.getVaneVertical())),
+                createReadOnlyField("Vane horizontal", formatMitsubishiHorizontalVane(state.getVaneHorizontal())),
+                createReadOnlyField("EffectiveFlags", state.getEffectiveFlags() != null ? String.valueOf(state.getEffectiveFlags()) : null),
+                createReadOnlyField("Has pending command", String.valueOf(state.getHasPendingCommand())),
+                createReadOnlyField("Offline", String.valueOf(state.getOffline())),
+                createReadOnlyField("ErrorCode", state.getErrorCode() != null ? String.valueOf(state.getErrorCode()) : null),
+                createReadOnlyField("ErrorMessage", state.getErrorMessage())
+        );
+        stateLayout.setWidthFull();
+        stateLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2),
+                new FormLayout.ResponsiveStep("900px", 3)
+        );
+        content.add(stateLayout);
+        return content;
+    }
+
+    private MitsubishiAcStateResponse parseMitsubishiState(String stateJson) throws JsonProcessingException {
+        if (stateJson == null || stateJson.isBlank()) {
+            throw new IllegalArgumentException("Mitsubishi state JSON cannot be blank");
+        }
+        return objectMapper.readValue(stateJson, MitsubishiAcStateResponse.class);
+    }
+
+    private String formatMitsubishiState(MitsubishiAcStateResponse state) {
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(state);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Failed to format Mitsubishi state JSON", e);
+        }
+    }
+
+    private boolean isJsonState(String state) {
+        return state != null && state.stripLeading().startsWith("{");
+    }
+
+    private boolean hasMitsubishiError(MitsubishiAcStateResponse response) {
+        return response != null && response.getErrorCode() != null && response.getErrorCode() != 0;
+    }
+
+    private String getMitsubishiErrorMessage(MitsubishiAcStateResponse response) {
+        if (response == null) {
+            return "Empty response";
+        }
+        if (response.getErrorMessage() != null && !response.getErrorMessage().isBlank()) {
+            return response.getErrorMessage();
+        }
+        return response.getErrorCode() != null ? "MELCloud error code " + response.getErrorCode() : "Empty response";
+    }
+
+    private String formatMitsubishiMode(Integer mode) {
+        if (mode == null) {
+            return "";
+        }
+        String label = switch (mode) {
+            case 1 -> "Heat";
+            case 2 -> "Dry";
+            case 3 -> "Cool";
+            case 7 -> "Fan only";
+            case 8 -> "Auto";
+            default -> "Unknown";
+        };
+        return label + " | " + mode;
+    }
+
+    private String formatMitsubishiFanSpeed(Integer fanSpeed) {
+        if (fanSpeed == null) {
+            return "";
+        }
+        return fanSpeed == 0 ? "Auto | 0" : "Speed " + fanSpeed + " | " + fanSpeed;
+    }
+
+    private String formatMitsubishiVerticalVane(Integer vane) {
+        if (vane == null) {
+            return "";
+        }
+        String label = switch (vane) {
+            case 0 -> "Auto";
+            case 7 -> "Swing";
+            default -> "Fixed";
+        };
+        return label + " | " + vane;
+    }
+
+    private String formatMitsubishiHorizontalVane(Integer vane) {
+        if (vane == null) {
+            return "";
+        }
+        String label = switch (vane) {
+            case 0 -> "Auto";
+            case 8 -> "Split";
+            case 12 -> "Swing";
+            default -> "Fixed";
+        };
+        return label + " | " + vane;
+    }
+
+    private String formatDouble(Double value) {
+        return value != null ? String.valueOf(value) : "";
     }
 
     private TextField createDecodedValueField(String label, ToshibaAcStateDecodedResponse.DecodedValue value) {

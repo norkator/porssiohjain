@@ -11,7 +11,12 @@
 
 package com.nitramite.porssiohjain.services.mitsubishi;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
+import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -22,6 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Instant;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -29,6 +36,9 @@ public class MitsubishiAcStateService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String GET_DEVICE_URL = "https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/Get";
+    private final DeviceAcDataRepository deviceAcDataRepository;
+    private final DeviceRepository deviceRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public MitsubishiAcStateResponse getAcState(DeviceAcDataEntity acData) {
         try {
@@ -54,11 +64,38 @@ public class MitsubishiAcStateService {
                     MitsubishiAcStateResponse.class
             );
 
-            return responseEntity.getBody();
+            MitsubishiAcStateResponse body = responseEntity.getBody();
+            if (body != null) {
+                if (body.getDeviceId() != null) {
+                    acData.setAcDeviceId(String.valueOf(body.getDeviceId()));
+                }
+                acData.setLastPolledStateHex(formatStateJson(body));
+                deviceAcDataRepository.save(acData);
+                markDeviceReachable(acData);
+            }
+            return body;
         } catch (Exception e) {
             log.error("Error fetching Mitsubishi AC state for device id: {}", acData.getAcDeviceId(), e);
         }
         return null;
+    }
+
+    private String formatStateJson(MitsubishiAcStateResponse state) throws JsonProcessingException {
+        return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(state);
+    }
+
+    private void markDeviceReachable(DeviceAcDataEntity acData) {
+        DeviceEntity device = acData.getDevice();
+        if (device == null || device.getId() == null) {
+            return;
+        }
+        DeviceEntity managedDevice = deviceRepository.findById(device.getId()).orElse(null);
+        if (managedDevice == null) {
+            return;
+        }
+        managedDevice.setLastCommunication(Instant.now());
+        managedDevice.setApiOnline(true);
+        deviceRepository.save(managedDevice);
     }
 
 }
