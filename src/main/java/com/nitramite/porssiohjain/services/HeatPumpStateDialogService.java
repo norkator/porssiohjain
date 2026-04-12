@@ -39,6 +39,7 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,11 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class HeatPumpStateDialogService {
+
+    private static final long MITSUBISHI_EFFECTIVE_FLAG_POWER = 0x01L;
+    private static final long MITSUBISHI_EFFECTIVE_FLAG_MODE = 0x02L;
+    private static final long MITSUBISHI_EFFECTIVE_FLAG_TEMPERATURE = 0x04L;
+    private static final long MITSUBISHI_EFFECTIVE_FLAG_FAN_SPEED = 0x08L;
 
     private final DeviceRepository deviceRepository;
     private final DeviceAcDataRepository deviceAcDataRepository;
@@ -310,30 +316,76 @@ public class HeatPumpStateDialogService {
         editableJsonArea.setWidthFull();
         editableJsonArea.setMinHeight("260px");
 
+        ComboBox<PowerOption> powerField = new ComboBox<>(t("controlTable.dialog.queryState.editor.power"));
+        powerField.setItems(PowerOption.values());
+        powerField.setItemLabelGenerator(PowerOption::label);
+        powerField.setClearButtonVisible(true);
+        powerField.setWidthFull();
+
+        ComboBox<MitsubishiModeOption> modeField = new ComboBox<>(t("controlTable.dialog.queryState.editor.mode"));
+        modeField.setItems(MitsubishiModeOption.values());
+        modeField.setItemLabelGenerator(MitsubishiModeOption::labelWithCode);
+        modeField.setClearButtonVisible(true);
+        modeField.setWidthFull();
+
+        NumberField targetTemperatureField = new NumberField(t("controlTable.dialog.queryState.editor.targetTemperature"));
+        targetTemperatureField.setWidthFull();
+        targetTemperatureField.setStepButtonsVisible(true);
+        targetTemperatureField.setStep(0.5);
+
+        IntegerField fanSpeedField = new IntegerField(t("controlTable.dialog.queryState.field.fanMode"));
+        fanSpeedField.setWidthFull();
+        fanSpeedField.setStepButtonsVisible(true);
+        fanSpeedField.setMin(0);
+        fanSpeedField.setHelperText("0=auto, 1..N=speeds");
+
+        FormLayout editorLayout = new FormLayout(powerField, modeField, targetTemperatureField, fanSpeedField);
+        editorLayout.setWidthFull();
+        editorLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("700px", 4)
+        );
+
         Div stateInfoDiv = new Div();
         stateInfoDiv.setVisible(false);
         stateInfoDiv.setWidthFull();
 
+        boolean[] syncing = new boolean[]{false};
+        long[] effectiveFlags = new long[]{0L};
+
         java.util.function.Consumer<String> renderJsonState = jsonState -> {
-            editableJsonArea.setValue(Optional.ofNullable(jsonState).orElse(""));
-            stateJsonField.setValue(Optional.ofNullable(jsonState).orElse(""));
-            stateInfoDiv.removeAll();
-
-            if (jsonState == null || jsonState.isBlank()) {
-                stateInfoDiv.setVisible(false);
-                return;
-            }
-
+            syncing[0] = true;
             try {
-                MitsubishiAcStateResponse state = parseMitsubishiState(jsonState);
-                stateInfoDiv.add(createMitsubishiAcStateInfoContent(state));
-            } catch (Exception ex) {
-                stateInfoDiv.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
+                editableJsonArea.setValue(Optional.ofNullable(jsonState).orElse(""));
+                stateJsonField.setValue(Optional.ofNullable(jsonState).orElse(""));
+                stateInfoDiv.removeAll();
+
+                if (jsonState == null || jsonState.isBlank()) {
+                    powerField.clear();
+                    modeField.clear();
+                    targetTemperatureField.clear();
+                    fanSpeedField.clear();
+                    stateInfoDiv.setVisible(false);
+                    return;
+                }
+
+                try {
+                    MitsubishiAcStateResponse state = parseMitsubishiState(jsonState);
+                    syncMitsubishiEditorFields(state, powerField, modeField, targetTemperatureField, fanSpeedField, effectiveFlags);
+                    stateInfoDiv.add(createMitsubishiAcStateInfoContent(state));
+                } catch (Exception ex) {
+                    stateInfoDiv.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
+                }
+                stateInfoDiv.setVisible(true);
+            } finally {
+                syncing[0] = false;
             }
-            stateInfoDiv.setVisible(true);
         };
 
         editableJsonArea.addValueChangeListener(event -> {
+            if (syncing[0]) {
+                return;
+            }
             String value = Optional.ofNullable(event.getValue()).orElse("");
             stateJsonField.setValue(value);
             stateInfoDiv.removeAll();
@@ -344,12 +396,52 @@ public class HeatPumpStateDialogService {
             }
 
             try {
-                stateInfoDiv.add(createMitsubishiAcStateInfoContent(parseMitsubishiState(value)));
+                MitsubishiAcStateResponse state = parseMitsubishiState(value);
+                syncing[0] = true;
+                try {
+                    syncMitsubishiEditorFields(state, powerField, modeField, targetTemperatureField, fanSpeedField, effectiveFlags);
+                } finally {
+                    syncing[0] = false;
+                }
+                stateInfoDiv.add(createMitsubishiAcStateInfoContent(state));
             } catch (Exception ex) {
                 stateInfoDiv.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
             }
             stateInfoDiv.setVisible(true);
         });
+
+        java.util.function.LongConsumer applyEditorChange = changedFlag -> {
+            if (syncing[0]) {
+                return;
+            }
+            try {
+                MitsubishiAcStateResponse state = parseMitsubishiState(editableJsonArea.getValue());
+                if (powerField.getValue() != null) {
+                    state.setPower(powerField.getValue().powerOn());
+                }
+                if (modeField.getValue() != null) {
+                    state.setOperationMode(modeField.getValue().code());
+                }
+                if (targetTemperatureField.getValue() != null) {
+                    state.setSetTemperature(targetTemperatureField.getValue());
+                }
+                if (fanSpeedField.getValue() != null) {
+                    state.setSetFanSpeed(fanSpeedField.getValue());
+                }
+                effectiveFlags[0] |= changedFlag;
+                state.setEffectiveFlags(effectiveFlags[0]);
+                state.setHasPendingCommand(true);
+                renderJsonState.accept(formatMitsubishiState(state));
+            } catch (Exception ex) {
+                Notification.show(t("controlTable.notification.failedSave", ex.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        };
+
+        powerField.addValueChangeListener(event -> applyEditorChange.accept(MITSUBISHI_EFFECTIVE_FLAG_POWER));
+        modeField.addValueChangeListener(event -> applyEditorChange.accept(MITSUBISHI_EFFECTIVE_FLAG_MODE));
+        targetTemperatureField.addValueChangeListener(event -> applyEditorChange.accept(MITSUBISHI_EFFECTIVE_FLAG_TEMPERATURE));
+        fanSpeedField.addValueChangeListener(event -> applyEditorChange.accept(MITSUBISHI_EFFECTIVE_FLAG_FAN_SPEED));
 
         Button acquireCurrentStateButton = new Button(t("controlTable.dialog.queryState.actionButton"), event -> {
             try {
@@ -413,6 +505,7 @@ public class HeatPumpStateDialogService {
         dialogLayout.add(
                 buttonRow,
                 new Paragraph("Edit the JSON state copied from MELCloud. EffectiveFlags controls which fields SetAta applies."),
+                editorLayout,
                 editableJsonArea,
                 stateInfoDiv
         );
@@ -547,6 +640,45 @@ public class HeatPumpStateDialogService {
         } else {
             targetTemperatureField.clear();
         }
+    }
+
+    private void syncMitsubishiEditorFields(
+            MitsubishiAcStateResponse state,
+            ComboBox<PowerOption> powerField,
+            ComboBox<MitsubishiModeOption> modeField,
+            NumberField targetTemperatureField,
+            IntegerField fanSpeedField,
+            long[] effectiveFlags
+    ) {
+        if (state == null) {
+            powerField.clear();
+            modeField.clear();
+            targetTemperatureField.clear();
+            fanSpeedField.clear();
+            effectiveFlags[0] = 0L;
+            return;
+        }
+
+        powerField.setValue(PowerOption.fromBoolean(state.getPower()));
+        modeField.setValue(MitsubishiModeOption.fromCode(state.getOperationMode()));
+
+        if (state.getSetTemperature() != null) {
+            targetTemperatureField.setValue(state.getSetTemperature());
+        } else {
+            targetTemperatureField.clear();
+        }
+
+        if (state.getNumberOfFanSpeeds() != null && state.getNumberOfFanSpeeds() > 0) {
+            fanSpeedField.setMax(state.getNumberOfFanSpeeds());
+            fanSpeedField.setHelperText("0=auto, 1.." + state.getNumberOfFanSpeeds() + "=speeds");
+        }
+        if (state.getSetFanSpeed() != null) {
+            fanSpeedField.setValue(state.getSetFanSpeed());
+        } else {
+            fanSpeedField.clear();
+        }
+
+        effectiveFlags[0] = state.getEffectiveFlags() != null ? state.getEffectiveFlags() : 0L;
     }
 
     private DeviceAcDataEntity getAcData(DeviceResponse deviceResponse) {
@@ -801,12 +933,55 @@ public class HeatPumpStateDialogService {
             return powerOn;
         }
 
+        public static PowerOption fromBoolean(Boolean powerOn) {
+            if (powerOn == null) {
+                return null;
+            }
+            return powerOn ? ON : OFF;
+        }
+
         public static PowerOption fromDecoderCode(String decoderCode) {
             if (decoderCode == null || decoderCode.isBlank()) {
                 return null;
             }
             for (PowerOption option : values()) {
                 if (option.decoderCode.equalsIgnoreCase(decoderCode)) {
+                    return option;
+                }
+            }
+            return null;
+        }
+    }
+
+    private enum MitsubishiModeOption {
+        HEAT("Heat", 1),
+        DRY("Dry", 2),
+        COOL("Cool", 3),
+        FAN_ONLY("Fan only", 7),
+        AUTO("Auto", 8);
+
+        private final String label;
+        private final int code;
+
+        MitsubishiModeOption(String label, int code) {
+            this.label = label;
+            this.code = code;
+        }
+
+        public String labelWithCode() {
+            return label + " | " + code;
+        }
+
+        public int code() {
+            return code;
+        }
+
+        public static MitsubishiModeOption fromCode(Integer code) {
+            if (code == null) {
+                return null;
+            }
+            for (MitsubishiModeOption option : values()) {
+                if (option.code == code) {
                     return option;
                 }
             }
