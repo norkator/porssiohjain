@@ -626,7 +626,7 @@ public class HeatPumpStateDialogService {
     }
 
     private boolean hasMitsubishiError(MitsubishiAcStateResponse response) {
-        return response != null && response.getErrorCode() != null && response.getErrorCode() != 0;
+        return response == null || !hasMitsubishiStateData(response);
     }
 
     private String getMitsubishiErrorMessage(MitsubishiAcStateResponse response) {
@@ -637,6 +637,14 @@ public class HeatPumpStateDialogService {
             return response.getErrorMessage();
         }
         return response.getErrorCode() != null ? "MELCloud error code " + response.getErrorCode() : "Empty response";
+    }
+
+    private boolean hasMitsubishiStateData(MitsubishiAcStateResponse response) {
+        return response.getDeviceId() != null
+                || response.getPower() != null
+                || response.getOperationMode() != null
+                || response.getSetTemperature() != null
+                || response.getRoomTemperature() != null;
     }
 
     private String formatMitsubishiMode(Integer mode) {
