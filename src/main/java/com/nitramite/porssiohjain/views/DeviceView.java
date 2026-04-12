@@ -482,6 +482,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         Grid<MitsubishiAcDevicesResponse.Device> acGrid = new Grid<>();
         acGrid.addColumn(MitsubishiAcDevicesResponse.Device::getDeviceName).setHeader(t("device.hp.dialog.grid.name"));
         acGrid.addColumn(device -> String.valueOf(device.getDeviceId())).setHeader(t("device.hp.dialog.grid.id"));
+        acGrid.addColumn(device -> Boolean.TRUE.equals(device.getIsSplitSystem()) ? t("common.yes") : t("common.no"))
+                .setHeader(t("device.hp.dialog.grid.splitSystem"));
         acGrid.setItems(acDevices);
         acGrid.setWidth("500px");
         acGrid.setHeight("300px");

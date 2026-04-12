@@ -39,6 +39,16 @@ public class MitsubishiAcDevicesResponse {
     public static class Structure {
         @JsonProperty("Devices")
         private List<Device> devices;
+
+        @JsonProperty("Floors")
+        private List<Floor> floors;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Floor {
+        @JsonProperty("Devices")
+        private List<Device> devices;
     }
 
     @Data
@@ -52,6 +62,20 @@ public class MitsubishiAcDevicesResponse {
 
         @JsonProperty("BuildingID")
         private Integer buildingId;
+
+        @JsonProperty("Device")
+        private DeviceInfo deviceInfo;
+
+        public Boolean getIsSplitSystem() {
+            return deviceInfo != null ? deviceInfo.getIsSplitSystem() : null;
+        }
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class DeviceInfo {
+        @JsonProperty("IsSplitSystem")
+        private Boolean isSplitSystem;
     }
 
 }

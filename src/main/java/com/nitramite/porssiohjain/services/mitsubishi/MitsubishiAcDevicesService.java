@@ -59,6 +59,13 @@ public class MitsubishiAcDevicesService {
                     if (building.getStructure() != null && building.getStructure().getDevices() != null) {
                         allDevices.addAll(building.getStructure().getDevices());
                     }
+                    if (building.getStructure() != null && building.getStructure().getFloors() != null) {
+                        for (MitsubishiAcDevicesResponse.Floor floor : building.getStructure().getFloors()) {
+                            if (floor.getDevices() != null) {
+                                allDevices.addAll(floor.getDevices());
+                            }
+                        }
+                    }
                 }
                 return allDevices;
             } else {
