@@ -100,6 +100,33 @@ public class AccountService {
         });
     }
 
+    @Transactional
+    public boolean changeSecret(Long accountId, String currentSecret, String newSecret) {
+        if (!isValidSecret(newSecret)) {
+            throw new IllegalArgumentException("New password does not meet requirements.");
+        }
+
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+
+        if (!passwordEncoder.matches(currentSecret, account.getSecret())) {
+            return false;
+        }
+
+        account.setSecret(passwordEncoder.encode(newSecret));
+        accountRepository.save(account);
+        return true;
+    }
+
+    public static boolean isValidSecret(String secret) {
+        if (secret == null || secret.length() < 8) {
+            return false;
+        }
+        return secret.chars().anyMatch(Character::isLetter)
+                && secret.chars().anyMatch(Character::isDigit)
+                && secret.chars().anyMatch(Character::isUpperCase);
+    }
+
     public UUID getUuidById(Long accountId) {
         return accountRepository.findById(accountId)
                 .map(AccountEntity::getUuid)

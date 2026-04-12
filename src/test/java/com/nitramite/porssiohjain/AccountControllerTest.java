@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
+import com.nitramite.porssiohjain.services.AccountService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,9 @@ class AccountControllerTest {
 
     @Autowired
     private AccountRepository accountRepository;
+
+    @Autowired
+    private AccountService accountService;
 
     @Test
     @DisplayName("Should create account in real DB and return JSON")
@@ -141,6 +145,35 @@ class AccountControllerTest {
                         .content(requestBody))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(content().string("Too many login attempts. Try again later."));
+    }
+
+    @Test
+    @DisplayName("Should change account password when current password is correct")
+    void shouldChangeAccountPassword() {
+        String password = "Supersecret1";
+        String newPassword = "Newsecret1";
+        AccountEntity account = new AccountEntity();
+        account.setUuid(UUID.randomUUID());
+        account.setSecret(passwordEncoder.encode(password));
+        account.setCreatedAt(Instant.now());
+        account.setUpdatedAt(Instant.now());
+        accountRepository.save(account);
+
+        boolean changed = accountService.changeSecret(account.getId(), password, newPassword);
+
+        AccountEntity saved = accountRepository.findById(account.getId()).orElseThrow();
+        assertThat(changed).isTrue();
+        assertThat(passwordEncoder.matches(newPassword, saved.getSecret())).isTrue();
+        assertThat(passwordEncoder.matches(password, saved.getSecret())).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should reject account password that does not meet requirements")
+    void shouldRejectInvalidAccountPassword() {
+        assertThat(AccountService.isValidSecret("short1A")).isFalse();
+        assertThat(AccountService.isValidSecret("lowercase1")).isFalse();
+        assertThat(AccountService.isValidSecret("NoNumbers")).isFalse();
+        assertThat(AccountService.isValidSecret("Validpass1")).isTrue();
     }
 
 }

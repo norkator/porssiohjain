@@ -34,7 +34,7 @@ public class AccountEntity {
     @Column(nullable = false, unique = true, updatable = false)
     private UUID uuid;
 
-    @Column(nullable = false, unique = true, updatable = false)
+    @Column(nullable = false, unique = true)
     private String secret;
 
     @Column(name = "locale", length = 10, nullable = false)

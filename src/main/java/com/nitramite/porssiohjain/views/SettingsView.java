@@ -35,6 +35,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.EmailField;
+import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
@@ -57,6 +58,9 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
     private final EmailField emailField;
     private final Checkbox notifyPowerLimitExceeded;
     private final Select<String> localeSelect;
+    private final PasswordField currentPasswordField;
+    private final PasswordField newPasswordField;
+    private final PasswordField confirmNewPasswordField;
 
     @Autowired
     public SettingsView(
@@ -79,6 +83,19 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         emailField.setPlaceholder("user@example.com");
         emailField.setWidthFull();
 
+        currentPasswordField = new PasswordField(t("settings.password.current"));
+        currentPasswordField.setWidthFull();
+        currentPasswordField.setRequiredIndicatorVisible(true);
+
+        newPasswordField = new PasswordField(t("settings.password.new"));
+        newPasswordField.setWidthFull();
+        newPasswordField.setRequiredIndicatorVisible(true);
+        newPasswordField.setHelperText(t("settings.password.requirements"));
+
+        confirmNewPasswordField = new PasswordField(t("settings.password.confirm"));
+        confirmNewPasswordField.setWidthFull();
+        confirmNewPasswordField.setRequiredIndicatorVisible(true);
+
         localeSelect = new Select<>();
         localeSelect.setLabel(t("settings.locale"));
         localeSelect.setItems("en", "fi");
@@ -93,6 +110,9 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         Button saveButton = new Button(t("settings.button.save"));
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Button changePasswordButton = new Button(t("settings.password.change"));
+        changePasswordButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -155,6 +175,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 tierCards,
                 Divider.createDivider(),
                 createAccountSection(),
+                createPasswordSection(changePasswordButton),
+                Divider.createDivider(),
                 createNotificationSection(),
                 saveButton,
                 Divider.createDivider(),
@@ -182,6 +204,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
             Notification notification = Notification.show(t("settings.saved"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
+
+        changePasswordButton.addClickListener(e -> changePassword());
     }
 
     private Component createAccountSection() {
@@ -197,6 +221,59 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         );
         section.add(title, form);
         return section;
+    }
+
+    private Component createPasswordSection(Button changePasswordButton) {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(true);
+        H3 title = new H3(t("settings.password.title"));
+        title.getStyle().set("margin-top", "16px");
+        FormLayout form = new FormLayout(currentPasswordField, newPasswordField, confirmNewPasswordField);
+        form.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2)
+        );
+        section.add(title, form, changePasswordButton);
+        return section;
+    }
+
+    private void changePassword() {
+        String currentPassword = currentPasswordField.getValue();
+        String newPassword = newPasswordField.getValue();
+        String confirmNewPassword = confirmNewPasswordField.getValue();
+
+        if (currentPassword == null || currentPassword.isBlank()) {
+            showNotification(t("settings.password.currentRequired"), NotificationVariant.LUMO_ERROR);
+            return;
+        }
+        if (!AccountService.isValidSecret(newPassword)) {
+            showNotification(t("settings.password.invalid"), NotificationVariant.LUMO_ERROR);
+            return;
+        }
+        if (!newPassword.equals(confirmNewPassword)) {
+            showNotification(t("settings.password.mismatch"), NotificationVariant.LUMO_ERROR);
+            return;
+        }
+
+        try {
+            boolean changed = accountService.changeSecret(accountId, currentPassword, newPassword);
+            if (!changed) {
+                showNotification(t("settings.password.currentIncorrect"), NotificationVariant.LUMO_ERROR);
+                return;
+            }
+            currentPasswordField.clear();
+            newPasswordField.clear();
+            confirmNewPasswordField.clear();
+            showNotification(t("settings.password.changed"), NotificationVariant.LUMO_SUCCESS);
+        } catch (IllegalArgumentException ex) {
+            showNotification(t("settings.password.failed"), NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    private void showNotification(String message, NotificationVariant variant) {
+        Notification notification = Notification.show(message);
+        notification.addThemeVariants(variant);
     }
 
     private String getTierDescription(AccountTier tier) {
