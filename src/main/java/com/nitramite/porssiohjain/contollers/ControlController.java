@@ -18,6 +18,8 @@ import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.models.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -33,10 +35,12 @@ public class ControlController {
     private final AuthContext authContext;
 
     @GetMapping("/{deviceUuid}")
-    public Map<Integer, Integer> controlsForDevice(
+    public ResponseEntity<Map<Integer, Integer>> controlsForDevice(
             @PathVariable String deviceUuid
     ) {
-        return controlService.getControlsForDevice(deviceUuid);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(controlService.getControlsForDevice(deviceUuid));
     }
 
     @GetMapping("/{deviceUuid}/timetable")
