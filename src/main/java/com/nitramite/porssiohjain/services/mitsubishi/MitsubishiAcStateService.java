@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -25,6 +26,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -35,14 +37,32 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class MitsubishiAcStateService {
 
+    private static final long RETRY_DELAY_MS = 1000L;
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String GET_DEVICE_URL = "https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/Get";
+    private final MitsubishiLoginService mitsubishiLoginService;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final DeviceRepository deviceRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public MitsubishiAcStateResponse getAcState(DeviceAcDataEntity acData) {
+        return getAcStateInternal(acData, true);
+    }
+
+    private MitsubishiAcStateResponse getAcStateInternal(DeviceAcDataEntity acData, boolean retryOnAuthorizationFailure) {
         try {
+            if (retryOnAuthorizationFailure && shouldRefreshAccessToken(acData)) {
+                log.info("Mitsubishi AC state query requires fresh access token, attempting login");
+                AcLoginResponse acLoginResponse = mitsubishiLoginService.login(acData);
+                if (!acLoginResponse.isSuccess()) {
+                    log.error("Mitsubishi AC state query failed because re-login did not return an access token");
+                    return null;
+                }
+                acData.setAcAccessToken(acLoginResponse.getAccessToken());
+                waitBeforeRetry();
+                return getAcStateInternal(acData, false);
+            }
+
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-MitsContextKey", acData.getAcAccessToken());
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -85,10 +105,58 @@ public class MitsubishiAcStateService {
                 markDeviceReachable(acData);
             }
             return body;
+        } catch (HttpClientErrorException.Unauthorized e) {
+            MitsubishiAcStateResponse response = retryAfterAuthorizationFailure(acData, retryOnAuthorizationFailure, 401);
+            if (response != null) {
+                return response;
+            }
+            throw e;
+        } catch (HttpClientErrorException.Forbidden e) {
+            MitsubishiAcStateResponse response = retryAfterAuthorizationFailure(acData, retryOnAuthorizationFailure, 403);
+            if (response != null) {
+                return response;
+            }
+            throw e;
         } catch (Exception e) {
             log.error("Error fetching Mitsubishi AC state for device id: {}", acData.getAcDeviceId(), e);
         }
         return null;
+    }
+
+    private MitsubishiAcStateResponse retryAfterAuthorizationFailure(
+            DeviceAcDataEntity acData,
+            boolean retryOnAuthorizationFailure,
+            int statusCode
+    ) {
+        if (retryOnAuthorizationFailure) {
+            log.info("Mitsubishi AC state query returned {}, attempting re-login", statusCode);
+            AcLoginResponse acLoginResponse = mitsubishiLoginService.login(acData);
+            if (acLoginResponse.isSuccess()) {
+                acData.setAcAccessToken(acLoginResponse.getAccessToken());
+                waitBeforeRetry();
+                return getAcStateInternal(acData, false);
+            }
+        }
+        log.error("Mitsubishi AC state query failed with {} even after re-login attempt", statusCode);
+        return null;
+    }
+
+    private boolean shouldRefreshAccessToken(DeviceAcDataEntity acData) {
+        String accessToken = acData.getAcAccessToken();
+        if (accessToken == null || accessToken.isBlank()) {
+            return true;
+        }
+        Instant expiresAt = acData.getAcTokenExpiresAt();
+        return expiresAt != null && !expiresAt.isAfter(Instant.now());
+    }
+
+    private void waitBeforeRetry() {
+        try {
+            Thread.sleep(RETRY_DELAY_MS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted while waiting before Mitsubishi AC state retry", e);
+        }
     }
 
     private String formatStateJson(MitsubishiAcStateResponse state) throws JsonProcessingException {
