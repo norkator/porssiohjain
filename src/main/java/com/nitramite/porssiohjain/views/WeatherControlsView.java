@@ -159,13 +159,20 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
     }
 
     private void configureGrid() {
-        weatherControlsGrid.addColumn(WeatherControlResponse::getId).setHeader("ID").setAutoWidth(true);
+        weatherControlsGrid.addColumn(WeatherControlResponse::getId).setHeader(t("weatherControl.grid.id")).setAutoWidth(true);
         weatherControlsGrid.addColumn(WeatherControlResponse::getName).setHeader(t("weatherControl.grid.name")).setAutoWidth(true);
         weatherControlsGrid.addColumn(WeatherControlResponse::getSiteName).setHeader(t("weatherControl.grid.site")).setAutoWidth(true);
         weatherControlsGrid.addColumn(control -> ZonedDateTime.ofInstant(control.getCreatedAt(), ZoneId.systemDefault()).format(formatter))
                 .setHeader(t("weatherControl.grid.created")).setAutoWidth(true);
         weatherControlsGrid.addColumn(control -> ZonedDateTime.ofInstant(control.getUpdatedAt(), ZoneId.systemDefault()).format(formatter))
                 .setHeader(t("weatherControl.grid.updated")).setAutoWidth(true);
+        weatherControlsGrid.addComponentColumn(control -> {
+            boolean shared = Boolean.TRUE.equals(control.getShared());
+            Span badge = new Span(shared ? t("common.shared") : t("common.mine"));
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(shared ? "warning" : "contrast");
+            return badge;
+        }).setHeader(t("common.origin")).setAutoWidth(true);
 
         weatherControlsGrid.setWidthFull();
         weatherControlsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);

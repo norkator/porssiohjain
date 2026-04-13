@@ -41,6 +41,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -202,6 +203,30 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     }
 
     private Component createSettingsForm() {
+        if (isSharedWeatherControl()) {
+            TextField nameField = new TextField(t("weatherControl.field.name"));
+            nameField.setValue(weatherControl.getName());
+            nameField.setReadOnly(true);
+            nameField.setWidthFull();
+
+            TextField siteField = new TextField(t("weatherControl.field.site"));
+            siteField.setValue(weatherControl.getSiteName() != null ? weatherControl.getSiteName() : "");
+            siteField.setReadOnly(true);
+            siteField.setWidthFull();
+
+            FormLayout formLayout = new FormLayout(nameField, siteField, createReadOnlyNotice());
+            formLayout.setResponsiveSteps(
+                    new FormLayout.ResponsiveStep("0", 1),
+                    new FormLayout.ResponsiveStep("600px", 3)
+            );
+            formLayout.getStyle()
+                    .set("padding", "16px")
+                    .set("border-radius", "12px")
+                    .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                    .set("background-color", "var(--lumo-contrast-5pct)");
+            return formLayout;
+        }
+
         TextField nameField = new TextField(t("weatherControl.field.name"));
         nameField.setValue(weatherControl.getName());
         nameField.setWidthFull();
@@ -277,13 +302,19 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         Tabs tabs = new Tabs(standardTab, heatPumpTab);
         tabs.setWidthFull();
 
-        VerticalLayout deviceLayout = new VerticalLayout(deviceGrid, createAddDeviceLayout());
+        VerticalLayout deviceLayout = new VerticalLayout(
+                deviceGrid,
+                isSharedWeatherControl() ? createReadOnlyNotice() : createAddDeviceLayout()
+        );
         deviceLayout.setWidthFull();
         deviceLayout.setPadding(false);
         deviceLayout.setSpacing(true);
         deviceLayout.setMargin(false);
 
-        VerticalLayout heatPumpLayout = new VerticalLayout(heatPumpGrid, createAddHeatPumpLayout());
+        VerticalLayout heatPumpLayout = new VerticalLayout(
+                heatPumpGrid,
+                isSharedWeatherControl() ? createReadOnlyNotice() : createAddHeatPumpLayout()
+        );
         heatPumpLayout.setWidthFull();
         heatPumpLayout.setPadding(false);
         heatPumpLayout.setSpacing(true);
@@ -329,6 +360,9 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         deviceGrid.addColumn(cd -> cd.isPriorityRule() ? t("common.yes") : t("common.no")).setHeader(t("weatherControl.grid.priorityRule"));
         deviceGrid.addColumn(cd -> cd.getDevice().getUuid()).setHeader(t("controlTable.grid.uuid"));
         deviceGrid.addComponentColumn(cd -> {
+            if (isSharedWeatherControl()) {
+                return new Span("-");
+            }
             Button delete = new Button(t("controlTable.button.delete"), event -> {
                 weatherControlService.deleteWeatherControlDevice(accountId, cd.getId());
                 if (selectedDeviceRule != null && selectedDeviceRule.getId().equals(cd.getId())) {
@@ -352,6 +386,9 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         heatPumpGrid.addColumn(WeatherControlHeatPumpResponse::getStateHex).setHeader(t("controlTable.grid.stateHex"));
         heatPumpGrid.addComponentColumn(cd -> {
             Button decode = new Button(t("controlTable.button.decodeState"), event -> openHeatPumpStateHexDialog(cd.getStateHex()));
+            if (isSharedWeatherControl()) {
+                return decode;
+            }
             Button delete = new Button(t("controlTable.button.delete"), event -> {
                 weatherControlService.deleteWeatherControlHeatPump(accountId, cd.getId());
                 if (selectedHeatPumpRule != null && selectedHeatPumpRule.getId().equals(cd.getId())) {
@@ -595,6 +632,13 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         if (weatherTimestampField == null) {
             return;
         }
+        if (isSharedWeatherControl()) {
+            weatherTimestampField.setValue(t("weatherControl.shared.weatherUnavailable"));
+            temperatureField.setValue("-");
+            windSpeedField.setValue("-");
+            humidityField.setValue("-");
+            return;
+        }
         if (siteId == null) {
             clearWeatherInfo();
             return;
@@ -672,6 +716,9 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     }
 
     private void editHeatPumpRule(WeatherControlHeatPumpResponse rule) {
+        if (isSharedWeatherControl()) {
+            return;
+        }
         selectedHeatPumpRule = rule;
         if (heatPumpDeviceSelect == null) {
             return;
@@ -693,6 +740,9 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     }
 
     private void editDeviceRule(WeatherControlDeviceResponse rule) {
+        if (isSharedWeatherControl()) {
+            return;
+        }
         selectedDeviceRule = rule;
         if (standardDeviceSelect == null) {
             return;
@@ -774,6 +824,17 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
 
     private void showWarning(String message) {
         Notification.show(message).addThemeVariants(NotificationVariant.LUMO_WARNING);
+    }
+
+    private boolean isSharedWeatherControl() {
+        return weatherControl != null && Boolean.TRUE.equals(weatherControl.getShared());
+    }
+
+    private Span createReadOnlyNotice() {
+        Span notice = new Span(t("weatherControl.shared.readOnly"));
+        notice.getElement().getThemeList().add("badge");
+        notice.getElement().getThemeList().add("warning");
+        return notice;
     }
 
     protected String t(String key, Object... args) {

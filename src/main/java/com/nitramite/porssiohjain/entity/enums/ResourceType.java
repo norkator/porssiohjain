@@ -16,4 +16,5 @@ public enum ResourceType {
     CONTROL,
     PRODUCTION_SOURCE,
     POWER_LIMIT,
+    WEATHER_CONTROL
 }

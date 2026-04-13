@@ -53,6 +53,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
     private final ControlService controlService;
     private final ProductionSourceService productionSourceService;
     private final PowerLimitService powerLimitService;
+    private final WeatherControlService weatherControlService;
     private final ResourceSharingService resourceSharingService;
 
     private VerticalLayout formLayout;
@@ -66,6 +67,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
             ControlService controlService,
             ProductionSourceService productionSourceService,
             PowerLimitService powerLimitService,
+            WeatherControlService weatherControlService,
             ResourceSharingService resourceSharingService
     ) {
         this.authService = authService;
@@ -74,6 +76,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         this.controlService = controlService;
         this.productionSourceService = productionSourceService;
         this.powerLimitService = powerLimitService;
+        this.weatherControlService = weatherControlService;
         this.resourceSharingService = resourceSharingService;
         this.accountService = accountService;
 
@@ -198,6 +201,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         List<ControlResponse> controls = controlService.getAllControls(accountId);
         List<ProductionSourceResponse> productionSources = productionSourceService.getAllSources(accountId);
         List<PowerLimitResponse> powerLimits = powerLimitService.getAllLimits(accountId);
+        List<WeatherControlResponse> weatherControls = weatherControlService.getOwnedWeatherControls(accountId);
 
         List<ResourceSharingItem> resourceSharingItems = new ArrayList<>();
         long listIndex = 0;
@@ -245,6 +249,18 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.POWER_LIMIT)
                             .resourceId(pl.getId())
                             .name(pl.getName())
+                            .build()
+            );
+            listIndex++;
+        }
+
+        for (WeatherControlResponse wc : weatherControls) {
+            resourceSharingItems.add(
+                    ResourceSharingItem.builder()
+                            .id(listIndex)
+                            .resourceType(ResourceType.WEATHER_CONTROL)
+                            .resourceId(wc.getId())
+                            .name(wc.getName())
                             .build()
             );
             listIndex++;
