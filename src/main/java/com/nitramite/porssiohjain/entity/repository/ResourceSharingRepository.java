@@ -79,6 +79,12 @@ public interface ResourceSharingRepository extends JpaRepository<ResourceSharing
             Long controlId
     );
 
+    boolean existsByReceiverAccountIdAndResourceTypeAndProductionSourceIdAndEnabledTrue(
+            Long receiverAccountId,
+            ResourceType resourceType,
+            Long productionSourceId
+    );
+
     boolean existsByReceiverAccountIdAndResourceTypeAndWeatherControlIdAndEnabledTrue(
             Long receiverAccountId,
             ResourceType resourceType,

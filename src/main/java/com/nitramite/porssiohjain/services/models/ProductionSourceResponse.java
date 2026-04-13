@@ -41,4 +41,6 @@ public class ProductionSourceResponse {
     private String email;
     private String password;
     private String stationId;
+    private String siteName;
+    private Boolean shared;
 }

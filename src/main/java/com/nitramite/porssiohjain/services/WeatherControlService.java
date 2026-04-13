@@ -30,6 +30,7 @@ import com.nitramite.porssiohjain.entity.repository.WeatherControlDeviceReposito
 import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlRepository;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlHeatPumpResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlResponse;
@@ -58,6 +59,7 @@ public class WeatherControlService {
     private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
     private final ResourceSharingRepository resourceSharingRepository;
     private final AccountLimitService accountLimitService;
+    private final SiteWeatherService siteWeatherService;
 
     public WeatherControlEntity createWeatherControl(Long accountId, String name, Long siteId) {
         AccountEntity account = accountRepository.findById(accountId)
@@ -244,6 +246,11 @@ public class WeatherControlService {
                 .toList();
     }
 
+    public SiteWeatherForecastResponse getStoredWeatherForecast(Long accountId, Long weatherControlId, Instant start, Instant end) {
+        WeatherControlEntity weatherControl = getAccessibleWeatherControl(accountId, weatherControlId);
+        return siteWeatherService.getStoredForecastForSite(weatherControl.getSite(), start, end);
+    }
+
     private WeatherControlEntity getOwnedWeatherControl(Long accountId, Long weatherControlId) {
         return weatherControlRepository.findByIdAndAccountId(weatherControlId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Weather control not found for your account with ID: " + weatherControlId));
@@ -291,6 +298,7 @@ public class WeatherControlService {
                 .name(entity.getName())
                 .siteId(entity.getSite().getId())
                 .siteName(entity.getSite().getName())
+                .siteTimezone(entity.getSite().getTimezone())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .shared(shared)

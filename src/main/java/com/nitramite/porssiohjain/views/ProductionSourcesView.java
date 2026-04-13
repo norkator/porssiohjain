@@ -220,6 +220,14 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
             return ZonedDateTime.ofInstant(src.getUpdatedAt(), zone).format(formatter);
         }).setHeader(t("productionsources.grid.updated")).setAutoWidth(true);
 
+        sourcesGrid.addComponentColumn(source -> {
+            boolean shared = Boolean.TRUE.equals(source.getShared());
+            Span badge = new Span(shared ? t("common.shared") : t("common.mine"));
+            badge.getElement().getThemeList().add("badge");
+            badge.getElement().getThemeList().add(shared ? "warning" : "contrast");
+            return badge;
+        }).setHeader(t("common.origin")).setAutoWidth(true);
+
         sourcesGrid.setWidthFull();
         sourcesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
         sourcesGrid.getStyle().set("max-height", "300px");

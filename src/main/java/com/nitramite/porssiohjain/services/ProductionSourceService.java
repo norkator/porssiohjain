@@ -16,6 +16,7 @@ import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
+import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.utils.Utils;
@@ -44,6 +45,7 @@ public class ProductionSourceService {
     private final ProductionHistoryRepository productionHistoryRepository;
     private final DeviceRepository deviceRepository;
     private final SiteRepository siteRepository;
+    private final ResourceSharingRepository resourceSharingRepository;
     private final AccountLimitService accountLimitService;
 
     @Transactional
@@ -88,13 +90,38 @@ public class ProductionSourceService {
 
     @Transactional(readOnly = true)
     public List<ProductionSourceResponse> getAllSources(Long accountId) {
+        List<ProductionSourceResponse> responses = new ArrayList<>(productionSourceRepository.findByAccountId(accountId)
+                .stream()
+                .map(entity -> toResponse(entity, false))
+                .toList());
+
+        List<Long> sharedProductionSourceIds = resourceSharingRepository
+                .findByReceiverAccountIdAndResourceTypeAndEnabledTrue(accountId, ResourceType.PRODUCTION_SOURCE).stream()
+                .map(ResourceSharingEntity::getProductionSourceId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (!sharedProductionSourceIds.isEmpty()) {
+            productionSourceRepository.findAllById(sharedProductionSourceIds).stream()
+                    .map(entity -> toResponse(entity, true))
+                    .forEach(responses::add);
+        }
+
+        return responses;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductionSourceResponse> getOwnedSources(Long accountId) {
         return productionSourceRepository.findByAccountId(accountId)
                 .stream()
-                .map(this::toResponse)
+                .map(entity -> toResponse(entity, false))
                 .toList();
     }
 
     private ProductionSourceResponse toResponse(ProductionSourceEntity e) {
+        return toResponse(e, false);
+    }
+
+    private ProductionSourceResponse toResponse(ProductionSourceEntity e, boolean shared) {
         return ProductionSourceResponse.builder()
                 .id(e.getId())
                 .uuid(e.getUuid())
@@ -106,26 +133,25 @@ public class ProductionSourceService {
                 .timezone(e.getTimezone())
                 .createdAt(e.getCreatedAt())
                 .updatedAt(e.getUpdatedAt())
-                .appId(e.getAppId())
-                .appSecret(e.getAppSecret())
-                .email(e.getEmail())
-                .password(e.getPassword())
-                .stationId(e.getStationId())
+                .appId(shared ? null : e.getAppId())
+                .appSecret(shared ? null : e.getAppSecret())
+                .email(shared ? null : e.getEmail())
+                .password(shared ? null : e.getPassword())
+                .stationId(shared ? null : e.getStationId())
                 .siteId(e.getSite() != null ? e.getSite().getId() : null)
+                .siteName(e.getSite() != null ? e.getSite().getName() : null)
+                .shared(shared)
                 .build();
     }
 
     @Transactional(readOnly = true)
     public ProductionSourceResponse getSource(Long accountId, Long sourceId) {
-        return productionSourceRepository.findByIdAndAccountId(sourceId, accountId)
-                .map(this::toResponse)
-                .orElseThrow(() -> new IllegalArgumentException("Source not found"));
+        return toResponse(getAccessibleProductionSource(accountId, sourceId), isSharedProductionSource(accountId, sourceId));
     }
 
     @Transactional(readOnly = true)
     public List<ProductionSourceDeviceResponse> getSourceDevices(Long accountId, Long sourceId) {
-        ProductionSourceEntity source = productionSourceRepository.findByIdAndAccountId(sourceId, accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        ProductionSourceEntity source = getAccessibleProductionSource(accountId, sourceId);
         return productionSourceDeviceRepository.findByProductionSourceId(source.getId()).stream()
                 .filter(entity -> entity.getDevice().getDeviceType() == DeviceType.STANDARD)
                 .map(this::mapDeviceToResponse)
@@ -134,8 +160,7 @@ public class ProductionSourceService {
 
     @Transactional(readOnly = true)
     public List<ProductionSourceHeatPumpResponse> getSourceHeatPumps(Long accountId, Long sourceId) {
-        ProductionSourceEntity source = productionSourceRepository.findByIdAndAccountId(sourceId, accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        ProductionSourceEntity source = getAccessibleProductionSource(accountId, sourceId);
         return productionSourceHeatPumpRepository.findByProductionSourceId(source.getId()).stream()
                 .filter(entity -> entity.getDevice().getDeviceType() == DeviceType.HEAT_PUMP)
                 .map(this::mapHeatPumpToResponse)
@@ -319,8 +344,7 @@ public class ProductionSourceService {
 
     @Transactional(readOnly = true)
     public List<ProductionHistoryResponse> getProductionHistory(Long accountId, Long sourceId, int hours) {
-        ProductionSourceEntity source = productionSourceRepository.findByIdAndAccountId(sourceId, accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Production source not found for account: " + sourceId));
+        ProductionSourceEntity source = getAccessibleProductionSource(accountId, sourceId);
         ZoneId zone = ZoneId.of(source.getTimezone());
         Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
         Map<Instant, List<ProductionHistoryEntity>> grouped =
@@ -355,6 +379,25 @@ public class ProductionSourceService {
                 .findByIdAndAccountId(sourceId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
         productionSourceRepository.delete(source);
+    }
+
+    private ProductionSourceEntity getAccessibleProductionSource(Long accountId, Long sourceId) {
+        return productionSourceRepository.findByIdAndAccountId(sourceId, accountId)
+                .orElseGet(() -> {
+                    if (!isSharedProductionSource(accountId, sourceId)) {
+                        throw new IllegalArgumentException("Source not found for account");
+                    }
+                    return productionSourceRepository.findById(sourceId)
+                            .orElseThrow(() -> new IllegalArgumentException("Shared source not found"));
+                });
+    }
+
+    private boolean isSharedProductionSource(Long accountId, Long sourceId) {
+        return resourceSharingRepository.existsByReceiverAccountIdAndResourceTypeAndProductionSourceIdAndEnabledTrue(
+                accountId,
+                ResourceType.PRODUCTION_SOURCE,
+                sourceId
+        );
     }
 
 }

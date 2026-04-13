@@ -35,6 +35,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -79,6 +80,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
 
     private Long sourceId;
     private Long accountId;
+    private ProductionSourceResponse source;
 
     private final Grid<ProductionSourceDeviceResponse> deviceGrid = new Grid<>(ProductionSourceDeviceResponse.class, false);
     private final Grid<ProductionSourceHeatPumpResponse> heatPumpGrid = new Grid<>(ProductionSourceHeatPumpResponse.class, false);
@@ -139,7 +141,8 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     }
 
     private void buildView() {
-        ProductionSourceResponse source = productionSourceService.getSource(accountId, sourceId);
+        removeAll();
+        source = productionSourceService.getSource(accountId, sourceId);
         VerticalLayout card = createCard();
         card.add(new H3(t("productionsource.title")));
         card.add(createSourceInfoSection(source));
@@ -153,11 +156,11 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         card.add(chartDiv);
         updateProductionChart(chartDiv, source);
         card.add(Divider.createDivider());
-        Button deleteButton = new Button(t("button.delete"), e -> {
-            deleteResourceDialog();
-        });
-        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-        card.add(deleteButton);
+        if (!isSharedProductionSource()) {
+            Button deleteButton = new Button(t("button.delete"), e -> deleteResourceDialog());
+            deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            card.add(deleteButton);
+        }
         add(card);
     }
 
@@ -165,6 +168,32 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         TextField uuid = new TextField("UUID");
         uuid.setValue(s.getUuid().toString());
         uuid.setReadOnly(true);
+
+        if (isSharedProductionSource()) {
+            TextField name = createReadOnlyField(t("productionsources.field.name"), s.getName());
+            TextField enabled = createReadOnlyField(t("productionsources.field.enabled"), s.isEnabled() ? t("common.yes") : t("common.no"));
+            TextField apiType = createReadOnlyField(t("productionsources.field.apiType"), s.getApiType() != null ? s.getApiType().name() : "");
+            TextField timezone = createReadOnlyField(t("productionsources.field.timezone"), s.getTimezone());
+            TextField site = createReadOnlyField(t("controlTable.field.site"), s.getSiteName());
+
+            FormLayout form = new FormLayout(
+                    uuid,
+                    name,
+                    enabled,
+                    apiType,
+                    timezone,
+                    site,
+                    createReadOnlyNotice()
+            );
+            form.setResponsiveSteps(
+                    new FormLayout.ResponsiveStep("0", 1),
+                    new FormLayout.ResponsiveStep("600px", 2)
+            );
+
+            Div wrap = styledBox();
+            wrap.add(form);
+            return wrap;
+        }
 
         TextField name = new TextField(t("productionsources.field.name"));
         name.setValue(Optional.ofNullable(s.getName()).orElse(""));
@@ -263,6 +292,9 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                 .setHeader(t("productionsources.devices.action"));
 
         deviceGrid.addComponentColumn(d -> {
+            if (isSharedProductionSource()) {
+                return new Span("-");
+            }
             Button delete = new Button(t("common.delete"), e -> {
                 productionSourceService.removeDevice(accountId, sourceId, d.getId());
                 loadDevices();
@@ -288,6 +320,10 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         heatPumpGrid.addColumn(ProductionSourceHeatPumpResponse::getStateHex)
                 .setHeader(t("controlTable.grid.stateHex"));
         heatPumpGrid.addComponentColumn(d -> {
+            Button decode = new Button(t("controlTable.button.decodeState"), e -> openHeatPumpStateHexDialog(d.getStateHex()));
+            if (isSharedProductionSource()) {
+                return decode;
+            }
             Button delete = new Button(t("common.delete"), e -> {
                 productionSourceService.removeHeatPump(accountId, sourceId, d.getId());
                 if (selectedHeatPumpRule != null && selectedHeatPumpRule.getId().equals(d.getId())) {
@@ -296,7 +332,10 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                 loadHeatPumps();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
-            return delete;
+            HorizontalLayout actions = new HorizontalLayout(decode, delete);
+            actions.setPadding(false);
+            actions.setSpacing(true);
+            return actions;
         }).setHeader(t("controlTable.grid.actions"));
 
         heatPumpGrid.setMinHeight("200px");
@@ -316,11 +355,17 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         Tab heatPumpTab = new Tab(t("device.type.heatPump"));
         Tabs tabs = new Tabs(standardTab, heatPumpTab);
 
-        VerticalLayout standardLayout = new VerticalLayout(deviceGrid, createAddDeviceLayout());
+        VerticalLayout standardLayout = new VerticalLayout(
+                deviceGrid,
+                isSharedProductionSource() ? createReadOnlyNotice() : createAddDeviceLayout()
+        );
         standardLayout.setPadding(false);
         standardLayout.setSpacing(true);
 
-        VerticalLayout heatPumpLayout = new VerticalLayout(heatPumpGrid, createAddHeatPumpLayout());
+        VerticalLayout heatPumpLayout = new VerticalLayout(
+                heatPumpGrid,
+                isSharedProductionSource() ? createReadOnlyNotice() : createAddHeatPumpLayout()
+        );
         heatPumpLayout.setPadding(false);
         heatPumpLayout.setSpacing(true);
         heatPumpLayout.setVisible(false);
@@ -500,6 +545,9 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     }
 
     private void editHeatPumpRule(ProductionSourceHeatPumpResponse rule) {
+        if (isSharedProductionSource()) {
+            return;
+        }
         selectedHeatPumpRule = rule;
         if (heatPumpDeviceSelect == null) {
             return;
@@ -538,6 +586,24 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
 
     private void openHeatPumpStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
         heatPumpStateDialogService.openStateDialog(deviceResponse, stateHexField);
+    }
+
+    private void openHeatPumpStateHexDialog(String stateHex) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.dialog.decodeState.title"));
+        dialog.setWidth("900px");
+        dialog.setMaxWidth("95vw");
+
+        VerticalLayout dialogLayout = new VerticalLayout();
+        dialogLayout.setWidthFull();
+        dialogLayout.add(
+                new Paragraph(t("controlTable.dialog.decodeState.instructions")),
+                heatPumpStateDialogService.createAcStateInfoContentFromHex(stateHex)
+        );
+
+        dialog.add(dialogLayout);
+        dialog.getFooter().add(new Button(t("common.cancel"), event -> dialog.close()));
+        dialog.open();
     }
 
     private Component createCurrentStatsRow(ProductionSourceResponse s) {
@@ -733,6 +799,25 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-5pct)");
         return d;
+    }
+
+    private TextField createReadOnlyField(String label, String value) {
+        TextField field = new TextField(label);
+        field.setValue(value != null ? value : "");
+        field.setReadOnly(true);
+        field.setWidthFull();
+        return field;
+    }
+
+    private boolean isSharedProductionSource() {
+        return source != null && Boolean.TRUE.equals(source.getShared());
+    }
+
+    private Span createReadOnlyNotice() {
+        Span notice = new Span(t("productionsource.shared.readOnly"));
+        notice.getElement().getThemeList().add("badge");
+        notice.getElement().getThemeList().add("warning");
+        return notice;
     }
 
     @Override

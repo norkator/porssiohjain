@@ -632,13 +632,6 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         if (weatherTimestampField == null) {
             return;
         }
-        if (isSharedWeatherControl()) {
-            weatherTimestampField.setValue(t("weatherControl.shared.weatherUnavailable"));
-            temperatureField.setValue("-");
-            windSpeedField.setValue("-");
-            humidityField.setValue("-");
-            return;
-        }
         if (siteId == null) {
             clearWeatherInfo();
             return;
@@ -667,7 +660,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     }
 
     private SiteWeatherForecastPointResponse getCurrentWeatherPoint(Long siteId) {
-        SiteWeatherForecastResponse response = siteService.getStoredSiteWeatherForecast(accountId, siteId, null, null);
+        SiteWeatherForecastResponse response = weatherControlService.getStoredWeatherForecast(accountId, weatherControlId, null, null);
         if (response.getPoints() == null || response.getPoints().isEmpty()) {
             return null;
         }
@@ -690,6 +683,8 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         return findSiteById(siteId)
                 .map(SiteResponse::getTimezone)
                 .filter(timezone -> timezone != null && !timezone.isBlank())
+                .or(() -> Optional.ofNullable(weatherControl.getSiteTimezone())
+                        .filter(timezone -> !timezone.isBlank()))
                 .orElse("Europe/Helsinki");
     }
 

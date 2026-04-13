@@ -23,6 +23,7 @@ public class WeatherControlResponse {
     private String name;
     private Long siteId;
     private String siteName;
+    private String siteTimezone;
     private Instant createdAt;
     private Instant updatedAt;
     private Boolean shared;

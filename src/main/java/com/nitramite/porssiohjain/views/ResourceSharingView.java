@@ -201,7 +201,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
     private void loadAvailableResources() {
         List<DeviceResponse> devices = deviceService.getAllDevices(accountId);
         List<ControlResponse> controls = controlService.getAllControls(accountId);
-        List<ProductionSourceResponse> productionSources = productionSourceService.getAllSources(accountId);
+        List<ProductionSourceResponse> productionSources = productionSourceService.getOwnedSources(accountId);
         List<PowerLimitResponse> powerLimits = powerLimitService.getAllLimits(accountId);
         List<WeatherControlResponse> weatherControls = weatherControlService.getOwnedWeatherControls(accountId);
 
