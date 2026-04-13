@@ -55,8 +55,9 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.DownloadResponse;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -188,10 +189,22 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         mqttRelayDebugButton.addClickListener(e -> openMqttRelayDebugDialog());
         mqttRelayDebugButton.setVisible(false);
 
-        userCaDownloadLink = new Anchor(new StreamResource(
-                FileService.USER_CA_PEM_FILE_NAME,
-                () -> new ByteArrayInputStream(fileService.getRequiredFileBytes(FileService.USER_CA_PEM_FILE_NAME))
-        ), t("device.ca.download"));
+        userCaDownloadLink = new Anchor(
+                DownloadHandler.fromInputStream(event -> {
+                    try {
+                        byte[] bytes = fileService.getRequiredFileBytes(FileService.USER_CA_PEM_FILE_NAME);
+                        return new DownloadResponse(
+                                new ByteArrayInputStream(bytes),
+                                FileService.USER_CA_PEM_FILE_NAME,
+                                "application/x-pem-file",
+                                bytes.length
+                        );
+                    } catch (Exception e) {
+                        return DownloadResponse.error(500);
+                    }
+                }),
+                t("device.ca.download")
+        );
         userCaDownloadLink.getElement().setAttribute("download", true);
         userCaDownloadLink.getElement().setAttribute("theme", "button primary");
 
