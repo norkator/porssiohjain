@@ -38,10 +38,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@PageTitle("Pörssiohjain - Resource sharing")
 @Route("resource-sharing")
 @PermitAll
-public class ResourceSharingView extends VerticalLayout implements BeforeEnterObserver {
+public class ResourceSharingView extends VerticalLayout implements BeforeEnterObserver, HasDynamicTitle {
 
     private final Grid<ResourceSharingItem> resourcesGrid = new Grid<>(ResourceSharingItem.class, false);
     private final AuthService authService;
@@ -110,12 +109,12 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         formLayout = new VerticalLayout();
         formLayout.setWidthFull();
         formLayout.getStyle().set("margin-top", "20px");
-        formLayout.add(new Span("Select a resource to manage sharing."));
+        formLayout.add(new Span(t("resourceSharing.form.selectResource")));
         return formLayout;
     }
 
     private void configureGrid() {
-        resourcesGrid.addColumn(ResourceSharingItem::getId).setHeader("ID").setAutoWidth(true);
+        resourcesGrid.addColumn(ResourceSharingItem::getId).setHeader(t("resourceSharing.grid.id")).setAutoWidth(true);
         resourcesGrid.addColumn(ResourceSharingItem::getName).setHeader(t("resourceSharing.grid.name")).setAutoWidth(true);
         resourcesGrid.addColumn(r -> t("resourceSharing.type." + r.getResourceType()))
                 .setHeader(t("resourceSharing.grid.type")).setAutoWidth(true);
@@ -130,7 +129,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
 
         resourcesGrid.setWidthFull();
         resourcesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-        resourcesGrid.setMaxHeight("200px");
+        resourcesGrid.setAllRowsVisible(true);
 
         resourcesGrid.asSingleSelect().addValueChangeListener(event -> {
             ResourceSharingItem selected = event.getValue();
@@ -156,10 +155,10 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
             });
             remove.addThemeVariants(ButtonVariant.LUMO_ERROR);
             return remove;
-        });
+        }).setHeader(t("resourceSharing.form.actions")).setAutoWidth(true);
         sharesGrid.setWidthFull();
         sharesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-        sharesGrid.setMaxHeight("200px");
+        sharesGrid.setAllRowsVisible(true);
         List<ResourceSharingEntity> shares =
                 resourceSharingService.getSharesForResource(
                         accountId,
@@ -259,6 +258,11 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
             return;
         }
+    }
+
+    @Override
+    public String getPageTitle() {
+        return t("app.pageTitle", t("resourceSharing.title"));
     }
 
     protected String t(String key, Object... args) {
