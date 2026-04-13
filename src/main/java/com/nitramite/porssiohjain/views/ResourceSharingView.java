@@ -154,6 +154,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         sharesGrid.addComponentColumn(share -> {
             Button remove = new Button(t("resourceSharing.form.remove"), e -> {
                 resourceSharingService.delete(accountId, share.getId());
+                refreshSharingStatus(item);
                 showFormFor(item);
             });
             remove.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -184,6 +185,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                 Notification notification = Notification.show(t("sites.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 uuidField.clear();
+                refreshSharingStatus(item);
                 showFormFor(item);
             } catch (Exception ex) {
                 uuidField.setInvalid(true);
@@ -213,6 +215,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.DEVICE)
                             .resourceId(device.getId())
                             .name(device.getDeviceName())
+                            .shared(isShared(ResourceType.DEVICE, device.getId()))
                             .build()
             );
             listIndex++;
@@ -225,6 +228,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.CONTROL)
                             .resourceId(control.getId())
                             .name(control.getName())
+                            .shared(isShared(ResourceType.CONTROL, control.getId()))
                             .build()
             );
             listIndex++;
@@ -237,6 +241,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.PRODUCTION_SOURCE)
                             .resourceId(ps.getId())
                             .name(ps.getName())
+                            .shared(isShared(ResourceType.PRODUCTION_SOURCE, ps.getId()))
                             .build()
             );
             listIndex++;
@@ -249,6 +254,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.POWER_LIMIT)
                             .resourceId(pl.getId())
                             .name(pl.getName())
+                            .shared(isShared(ResourceType.POWER_LIMIT, pl.getId()))
                             .build()
             );
             listIndex++;
@@ -261,12 +267,22 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.WEATHER_CONTROL)
                             .resourceId(wc.getId())
                             .name(wc.getName())
+                            .shared(isShared(ResourceType.WEATHER_CONTROL, wc.getId()))
                             .build()
             );
             listIndex++;
         }
 
         resourcesGrid.setItems(resourceSharingItems);
+    }
+
+    private void refreshSharingStatus(ResourceSharingItem item) {
+        item.setShared(isShared(item.getResourceType(), item.getResourceId()));
+        resourcesGrid.getDataProvider().refreshItem(item);
+    }
+
+    private boolean isShared(ResourceType resourceType, Long resourceId) {
+        return !resourceSharingService.getSharesForResource(accountId, resourceType, resourceId).isEmpty();
     }
 
     @Override
