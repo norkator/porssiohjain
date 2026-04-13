@@ -25,4 +25,5 @@ public class WeatherControlResponse {
     private String siteName;
     private Instant createdAt;
     private Instant updatedAt;
+    private Boolean shared;
 }

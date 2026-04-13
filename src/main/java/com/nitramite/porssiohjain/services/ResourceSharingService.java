@@ -36,6 +36,10 @@ public class ResourceSharingService {
             case POWER_LIMIT -> repository
                     .findBySharerAccountIdAndResourceTypeAndPowerLimitIdAndEnabledTrue(
                             sharerAccountId, type, resourceId);
+
+            case WEATHER_CONTROL -> repository
+                    .findBySharerAccountIdAndResourceTypeAndWeatherControlIdAndEnabledTrue(
+                            sharerAccountId, type, resourceId);
         };
     }
 
@@ -66,6 +70,7 @@ public class ResourceSharingService {
             case CONTROL -> entity.setControlId(resourceId);
             case PRODUCTION_SOURCE -> entity.setProductionSourceId(resourceId);
             case POWER_LIMIT -> entity.setPowerLimitId(resourceId);
+            case WEATHER_CONTROL -> entity.setWeatherControlId(resourceId);
         }
         repository.save(entity);
     }

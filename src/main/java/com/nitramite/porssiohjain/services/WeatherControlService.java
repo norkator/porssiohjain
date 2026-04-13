@@ -17,11 +17,14 @@ import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.WeatherControlHeatPumpEntity;
+import com.nitramite.porssiohjain.entity.ResourceSharingEntity;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
+import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.ResourceSharingRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpRepository;
@@ -36,8 +39,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -51,6 +56,7 @@ public class WeatherControlService {
     private final DeviceRepository deviceRepository;
     private final WeatherControlDeviceRepository weatherControlDeviceRepository;
     private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
+    private final ResourceSharingRepository resourceSharingRepository;
     private final AccountLimitService accountLimitService;
 
     public WeatherControlEntity createWeatherControl(Long accountId, String name, Long siteId) {
@@ -74,15 +80,36 @@ public class WeatherControlService {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
 
+        List<WeatherControlResponse> responses = new ArrayList<>();
+        weatherControlRepository.findAllByAccountOrderByIdAsc(account).stream()
+                .map(entity -> toResponse(entity, false))
+                .forEach(responses::add);
+
+        List<Long> sharedWeatherControlIds = resourceSharingRepository
+                .findByReceiverAccountIdAndResourceTypeAndEnabledTrue(accountId, ResourceType.WEATHER_CONTROL).stream()
+                .map(ResourceSharingEntity::getWeatherControlId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (!sharedWeatherControlIds.isEmpty()) {
+            weatherControlRepository.findAllById(sharedWeatherControlIds).stream()
+                    .map(entity -> toResponse(entity, true))
+                    .forEach(responses::add);
+        }
+
+        return responses;
+    }
+
+    public List<WeatherControlResponse> getOwnedWeatherControls(Long accountId) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
+
         return weatherControlRepository.findAllByAccountOrderByIdAsc(account).stream()
-                .map(this::toResponse)
+                .map(entity -> toResponse(entity, false))
                 .toList();
     }
 
     public WeatherControlResponse getWeatherControl(Long accountId, Long weatherControlId) {
-        WeatherControlEntity entity = weatherControlRepository.findByIdAndAccountId(weatherControlId, accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Weather control not found for your account with ID: " + weatherControlId));
-        return toResponse(entity);
+        return toResponse(getAccessibleWeatherControl(accountId, weatherControlId), isSharedWeatherControl(accountId, weatherControlId));
     }
 
     public WeatherControlResponse updateWeatherControl(Long accountId, Long weatherControlId, String name, Long siteId) {
@@ -150,7 +177,7 @@ public class WeatherControlService {
     }
 
     public List<WeatherControlDeviceResponse> getWeatherControlDevices(Long accountId, Long weatherControlId) {
-        WeatherControlEntity weatherControl = getOwnedWeatherControl(accountId, weatherControlId);
+        WeatherControlEntity weatherControl = getAccessibleWeatherControl(accountId, weatherControlId);
         Set<WeatherControlDeviceEntity> entities = weatherControl.getWeatherControlDevices();
         if (entities == null) {
             return List.of();
@@ -206,7 +233,7 @@ public class WeatherControlService {
     }
 
     public List<WeatherControlHeatPumpResponse> getWeatherControlHeatPumps(Long accountId, Long weatherControlId) {
-        WeatherControlEntity weatherControl = getOwnedWeatherControl(accountId, weatherControlId);
+        WeatherControlEntity weatherControl = getAccessibleWeatherControl(accountId, weatherControlId);
         Set<WeatherControlHeatPumpEntity> entities = weatherControl.getWeatherControlHeatPumps();
         if (entities == null) {
             return List.of();
@@ -220,6 +247,25 @@ public class WeatherControlService {
     private WeatherControlEntity getOwnedWeatherControl(Long accountId, Long weatherControlId) {
         return weatherControlRepository.findByIdAndAccountId(weatherControlId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Weather control not found for your account with ID: " + weatherControlId));
+    }
+
+    private WeatherControlEntity getAccessibleWeatherControl(Long accountId, Long weatherControlId) {
+        return weatherControlRepository.findByIdAndAccountId(weatherControlId, accountId)
+                .orElseGet(() -> {
+                    if (!isSharedWeatherControl(accountId, weatherControlId)) {
+                        throw new IllegalArgumentException("Weather control not found for your account with ID: " + weatherControlId);
+                    }
+                    return weatherControlRepository.findById(weatherControlId)
+                            .orElseThrow(() -> new IllegalArgumentException("Shared weather control not found with ID: " + weatherControlId));
+                });
+    }
+
+    private boolean isSharedWeatherControl(Long accountId, Long weatherControlId) {
+        return resourceSharingRepository.existsByReceiverAccountIdAndResourceTypeAndWeatherControlIdAndEnabledTrue(
+                accountId,
+                ResourceType.WEATHER_CONTROL,
+                weatherControlId
+        );
     }
 
     private DeviceEntity getOwnedDevice(Long accountId, Long deviceId) {
@@ -236,6 +282,10 @@ public class WeatherControlService {
     }
 
     private WeatherControlResponse toResponse(WeatherControlEntity entity) {
+        return toResponse(entity, false);
+    }
+
+    private WeatherControlResponse toResponse(WeatherControlEntity entity, boolean shared) {
         return WeatherControlResponse.builder()
                 .id(entity.getId())
                 .name(entity.getName())
@@ -243,6 +293,7 @@ public class WeatherControlService {
                 .siteName(entity.getSite().getName())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .shared(shared)
                 .build();
     }
 

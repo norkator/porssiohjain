@@ -36,6 +36,12 @@ public interface ResourceSharingRepository extends JpaRepository<ResourceSharing
             Long powerLimitId
     );
 
+    List<ResourceSharingEntity> findBySharerAccountIdAndResourceTypeAndWeatherControlIdAndEnabledTrue(
+            Long sharerAccountId,
+            ResourceType resourceType,
+            Long weatherControlId
+    );
+
     @Query("""
                 SELECT COUNT(r) > 0
                 FROM ResourceSharingEntity r
@@ -46,7 +52,8 @@ public interface ResourceSharingRepository extends JpaRepository<ResourceSharing
                         (:type = 'DEVICE' AND r.deviceId = :resourceId) OR
                         (:type = 'CONTROL' AND r.controlId = :resourceId) OR
                         (:type = 'PRODUCTION_SOURCE' AND r.productionSourceId = :resourceId) OR
-                        (:type = 'POWER_LIMIT' AND r.powerLimitId = :resourceId)
+                        (:type = 'POWER_LIMIT' AND r.powerLimitId = :resourceId) OR
+                        (:type = 'WEATHER_CONTROL' AND r.weatherControlId = :resourceId)
                       )
             """)
     boolean existsBySharerAccountIdAndReceiverAccountIdAndResourceTypeAndResourceId(
@@ -70,6 +77,12 @@ public interface ResourceSharingRepository extends JpaRepository<ResourceSharing
             Long receiverAccountId,
             ResourceType resourceType,
             Long controlId
+    );
+
+    boolean existsByReceiverAccountIdAndResourceTypeAndWeatherControlIdAndEnabledTrue(
+            Long receiverAccountId,
+            ResourceType resourceType,
+            Long weatherControlId
     );
 
 }

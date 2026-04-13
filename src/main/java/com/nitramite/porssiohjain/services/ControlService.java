@@ -107,6 +107,10 @@ public class ControlService {
                         "Transfer contract not found or does not belong to account"));
 
         if (control.getAccount().getId().equals(accountId)) {
+            SiteEntity site = siteId == null
+                    ? null
+                    : siteRepository.findByIdAndAccountId(siteId, accountId)
+                    .orElseThrow(() -> new EntityNotFoundException("Site not found or does not belong to account"));
             control.setName(name);
             control.setMaxPriceSnt(maxPriceSnt);
             control.setMinPriceSnt(minPriceSnt);
@@ -117,7 +121,7 @@ public class ControlService {
             control.setAlwaysOnBelowMinPrice(alwaysOnBelowMinPrice);
             control.setEnergyContract(e);
             control.setTransferContract(t);
-            control.setSite(siteId != null ? siteRepository.getReferenceById(siteId) : null);
+            control.setSite(site);
             return controlRepository.save(control);
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -259,8 +263,7 @@ public class ControlService {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
         if (control.getAccount().getId().equals(accountId)) {
-            DeviceEntity device = deviceRepository.findById(deviceId)
-                    .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
+            DeviceEntity device = getOwnedDevice(accountId, deviceId);
 
             if (controlDeviceRepository.existsByControlIdAndDeviceIdAndDeviceChannel(controlId, deviceId, deviceChannel)) {
                 throw new DuplicateEntityException(
@@ -298,8 +301,7 @@ public class ControlService {
 
         if (controlDevice.getControl().getAccount().getId().equals(accountId)) {
             if (deviceId != null) {
-                DeviceEntity device = deviceRepository.findById(deviceId)
-                        .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
+                DeviceEntity device = getOwnedDevice(accountId, deviceId);
                 controlDevice.setDevice(device);
             }
 
@@ -349,10 +351,9 @@ public class ControlService {
     }
 
     public List<ControlDeviceResponse> getControlDevices(
-            Long controlId
+            Long accountId, Long controlId
     ) {
-        ControlEntity control = controlRepository.findById(controlId)
-                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        ControlEntity control = getOwnedControl(accountId, controlId);
         Set<ControlDeviceEntity> controlDeviceEntities = control.getControlDevices();
         return controlDeviceEntities.stream()
                 .map(entity -> ControlDeviceResponse.builder()
@@ -381,7 +382,7 @@ public class ControlService {
             Long accountId, Long controlId
     ) {
         getControl(accountId, controlId);
-        return getControlDevices(controlId);
+        return getControlDevices(accountId, controlId);
     }
 
     public ControlHeatPumpResponse addHeatPumpToControl(
@@ -391,8 +392,7 @@ public class ControlService {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
         if (control.getAccount().getId().equals(accountId)) {
-            DeviceEntity device = deviceRepository.findById(deviceId)
-                    .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
+            DeviceEntity device = getOwnedDevice(accountId, deviceId);
 
             ControlHeatPumpEntity entity = ControlHeatPumpEntity.builder()
                     .control(control)
@@ -434,10 +434,9 @@ public class ControlService {
     }
 
     public List<ControlHeatPumpResponse> getControlHeatPumps(
-            Long controlId
+            Long accountId, Long controlId
     ) {
-        ControlEntity control = controlRepository.findById(controlId)
-                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        ControlEntity control = getOwnedControl(accountId, controlId);
         Set<ControlHeatPumpEntity> entities = control.getControlHeatPumps();
         return entities.stream()
                 .map(entity -> ControlHeatPumpResponse.builder()
@@ -463,6 +462,18 @@ public class ControlService {
                         .build())
                 .sorted(Comparator.comparing(ControlHeatPumpResponse::getId))
                 .toList();
+    }
+
+    private ControlEntity getOwnedControl(Long accountId, Long controlId) {
+        return controlRepository.findByIdAndAccountId(controlId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found for account with id: " + controlId));
+    }
+
+    private DeviceEntity getOwnedDevice(Long accountId, Long deviceId) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
+        return deviceRepository.findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new EntityNotFoundException("Device not found for account with id: " + deviceId));
     }
 
     /**

@@ -441,7 +441,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private void loadControlDevices() {
         deviceGrid.setItems(
-                controlService.getControlDevices(controlId).stream()
+                controlService.getControlDevices(getAccountId(), controlId).stream()
                         .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.STANDARD)
                         .toList()
         );
@@ -449,7 +449,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private void loadControlHeatPumps() {
         heatPumpGrid.setItems(
-                controlService.getControlHeatPumps(controlId).stream()
+                controlService.getControlHeatPumps(getAccountId(), controlId).stream()
                         .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.HEAT_PUMP)
                         .toList()
         );
@@ -459,7 +459,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
         deviceSelect.setItems(
-                deviceService.getAllDevicesForControlId(controlId).stream()
+                deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
                         .filter(d -> d.getDeviceType() == DeviceType.STANDARD)
                         .toList()
         );
@@ -507,7 +507,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
         deviceSelect.setItems(
-                deviceService.getAllDevicesForControlId(controlId).stream()
+                deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
                         .filter(d -> d.getDeviceType() == DeviceType.HEAT_PUMP)
                         .toList()
         );

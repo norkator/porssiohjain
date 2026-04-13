@@ -99,13 +99,17 @@ public class PowerLimitService {
                 : electricityContractRepository.findByIdAndAccountId(transferContractId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Transfer contract not found or does not belong to account"));
+        SiteEntity site = siteId == null
+                ? null
+                : siteRepository.findByIdAndAccountId(siteId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Site not found or does not belong to account"));
         entity.setName(name);
         entity.setLimitKw(limitKw);
         entity.setLimitIntervalMinutes(limitIntervalMinutes);
         entity.setEnabled(enabled);
         entity.setNotifyEnabled(notifyEnabled);
         entity.setTimezone(timezone);
-        entity.setSite(siteId != null ? siteRepository.getReferenceById(siteId) : null);
+        entity.setSite(site);
         entity.setEnergyContract(e);
         entity.setTransferContract(t);
         powerLimitRepository.save(entity);
@@ -127,8 +131,12 @@ public class PowerLimitService {
     }
 
     @Transactional(readOnly = true)
-    public List<PowerLimitDeviceResponse> getPowerLimitDevices(Long powerLimitId) {
-        return powerLimitDeviceRepository.findByPowerLimitId(powerLimitId).stream()
+    public List<PowerLimitDeviceResponse> getPowerLimitDevices(Long accountId, Long powerLimitId) {
+        PowerLimitEntity limit = powerLimitRepository.findByAccountIdAndId(accountId, powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+        return powerLimitDeviceRepository.findByPowerLimitId(limit.getId()).stream()
                 .filter(entity -> entity.getDevice().getDeviceType() == DeviceType.STANDARD)
                 .map(this::mapDeviceToResponse)
                 .collect(Collectors.toList());
@@ -143,8 +151,10 @@ public class PowerLimitService {
             throw new IllegalArgumentException("Access denied");
         }
 
-        DeviceEntity device = deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found for account: " + deviceId));
 
         PowerLimitDeviceEntity entity = PowerLimitDeviceEntity.builder()
                 .powerLimit(limit)

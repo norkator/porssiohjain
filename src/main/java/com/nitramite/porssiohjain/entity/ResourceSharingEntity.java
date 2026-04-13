@@ -52,6 +52,9 @@ public class ResourceSharingEntity {
     @Column(name = "power_limit_id")
     private Long powerLimitId;
 
+    @Column(name = "weather_control_id")
+    private Long weatherControlId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -71,6 +74,7 @@ public class ResourceSharingEntity {
             case CONTROL -> this.controlId;
             case PRODUCTION_SOURCE -> this.productionSourceId;
             case POWER_LIMIT -> this.powerLimitId;
+            case WEATHER_CONTROL -> this.weatherControlId;
         };
     }
 }

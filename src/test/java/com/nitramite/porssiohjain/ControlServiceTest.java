@@ -46,6 +46,7 @@ import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
+import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,6 +61,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -149,6 +151,25 @@ class ControlServiceTest {
         );
         lenient().when(loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
         lenient().when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
+    }
+
+    @Test
+    void addDeviceToControlRejectsDeviceFromAnotherAccount() {
+        AccountEntity owner = new AccountEntity();
+        owner.setId(1L);
+
+        ControlEntity control = new ControlEntity();
+        control.setId(10L);
+        control.setAccount(owner);
+
+        when(controlRepository.findById(control.getId())).thenReturn(Optional.of(control));
+        when(accountRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
+        when(deviceRepository.findByIdAndAccount(20L, owner)).thenReturn(Optional.empty());
+
+        assertThrows(
+                EntityNotFoundException.class,
+                () -> controlService.addDeviceToControl(owner.getId(), control.getId(), 20L, 1, BigDecimal.ONE)
+        );
     }
 
     @Test

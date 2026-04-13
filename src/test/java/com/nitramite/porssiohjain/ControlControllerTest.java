@@ -32,6 +32,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -64,6 +65,21 @@ public class ControlControllerTest {
         mockMvc.perform(get("/control/{deviceUuid}", testDeviceUuid)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.['0']").value(1))
+                .andExpect(jsonPath("$.['1']").value(0));
+    }
+
+    @Test
+    @DisplayName("GET /control/{deviceUuid} should still return JSON when client accepts XML")
+    void controlsForDeviceShouldReturnJsonWhenClientAcceptsXml() throws Exception {
+        Map<Integer, Integer> mockMap = Map.of(0, 1, 1, 0);
+        Mockito.when(controlService.getControlsForDevice(anyString())).thenReturn(mockMap);
+
+        mockMvc.perform(get("/control/{deviceUuid}", testDeviceUuid)
+                        .accept(MediaType.APPLICATION_XML))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.['0']").value(1))
                 .andExpect(jsonPath("$.['1']").value(0));
     }

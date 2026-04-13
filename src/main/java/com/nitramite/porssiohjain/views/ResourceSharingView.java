@@ -38,10 +38,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@PageTitle("Pörssiohjain - Resource sharing")
 @Route("resource-sharing")
 @PermitAll
-public class ResourceSharingView extends VerticalLayout implements BeforeEnterObserver {
+public class ResourceSharingView extends VerticalLayout implements BeforeEnterObserver, HasDynamicTitle {
 
     private final Grid<ResourceSharingItem> resourcesGrid = new Grid<>(ResourceSharingItem.class, false);
     private final AuthService authService;
@@ -54,6 +53,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
     private final ControlService controlService;
     private final ProductionSourceService productionSourceService;
     private final PowerLimitService powerLimitService;
+    private final WeatherControlService weatherControlService;
     private final ResourceSharingService resourceSharingService;
 
     private VerticalLayout formLayout;
@@ -67,6 +67,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
             ControlService controlService,
             ProductionSourceService productionSourceService,
             PowerLimitService powerLimitService,
+            WeatherControlService weatherControlService,
             ResourceSharingService resourceSharingService
     ) {
         this.authService = authService;
@@ -75,6 +76,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         this.controlService = controlService;
         this.productionSourceService = productionSourceService;
         this.powerLimitService = powerLimitService;
+        this.weatherControlService = weatherControlService;
         this.resourceSharingService = resourceSharingService;
         this.accountService = accountService;
 
@@ -110,12 +112,12 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         formLayout = new VerticalLayout();
         formLayout.setWidthFull();
         formLayout.getStyle().set("margin-top", "20px");
-        formLayout.add(new Span("Select a resource to manage sharing."));
+        formLayout.add(new Span(t("resourceSharing.form.selectResource")));
         return formLayout;
     }
 
     private void configureGrid() {
-        resourcesGrid.addColumn(ResourceSharingItem::getId).setHeader("ID").setAutoWidth(true);
+        resourcesGrid.addColumn(ResourceSharingItem::getId).setHeader(t("resourceSharing.grid.id")).setAutoWidth(true);
         resourcesGrid.addColumn(ResourceSharingItem::getName).setHeader(t("resourceSharing.grid.name")).setAutoWidth(true);
         resourcesGrid.addColumn(r -> t("resourceSharing.type." + r.getResourceType()))
                 .setHeader(t("resourceSharing.grid.type")).setAutoWidth(true);
@@ -130,7 +132,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
 
         resourcesGrid.setWidthFull();
         resourcesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-        resourcesGrid.setMaxHeight("200px");
+        resourcesGrid.setAllRowsVisible(true);
 
         resourcesGrid.asSingleSelect().addValueChangeListener(event -> {
             ResourceSharingItem selected = event.getValue();
@@ -152,14 +154,15 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         sharesGrid.addComponentColumn(share -> {
             Button remove = new Button(t("resourceSharing.form.remove"), e -> {
                 resourceSharingService.delete(accountId, share.getId());
+                refreshSharingStatus(item);
                 showFormFor(item);
             });
             remove.addThemeVariants(ButtonVariant.LUMO_ERROR);
             return remove;
-        });
+        }).setHeader(t("resourceSharing.form.actions")).setAutoWidth(true);
         sharesGrid.setWidthFull();
         sharesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-        sharesGrid.setMaxHeight("200px");
+        sharesGrid.setAllRowsVisible(true);
         List<ResourceSharingEntity> shares =
                 resourceSharingService.getSharesForResource(
                         accountId,
@@ -182,6 +185,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                 Notification notification = Notification.show(t("sites.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 uuidField.clear();
+                refreshSharingStatus(item);
                 showFormFor(item);
             } catch (Exception ex) {
                 uuidField.setInvalid(true);
@@ -199,6 +203,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         List<ControlResponse> controls = controlService.getAllControls(accountId);
         List<ProductionSourceResponse> productionSources = productionSourceService.getAllSources(accountId);
         List<PowerLimitResponse> powerLimits = powerLimitService.getAllLimits(accountId);
+        List<WeatherControlResponse> weatherControls = weatherControlService.getOwnedWeatherControls(accountId);
 
         List<ResourceSharingItem> resourceSharingItems = new ArrayList<>();
         long listIndex = 0;
@@ -210,6 +215,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.DEVICE)
                             .resourceId(device.getId())
                             .name(device.getDeviceName())
+                            .shared(isShared(ResourceType.DEVICE, device.getId()))
                             .build()
             );
             listIndex++;
@@ -222,6 +228,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.CONTROL)
                             .resourceId(control.getId())
                             .name(control.getName())
+                            .shared(isShared(ResourceType.CONTROL, control.getId()))
                             .build()
             );
             listIndex++;
@@ -234,6 +241,7 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.PRODUCTION_SOURCE)
                             .resourceId(ps.getId())
                             .name(ps.getName())
+                            .shared(isShared(ResourceType.PRODUCTION_SOURCE, ps.getId()))
                             .build()
             );
             listIndex++;
@@ -246,6 +254,20 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
                             .resourceType(ResourceType.POWER_LIMIT)
                             .resourceId(pl.getId())
                             .name(pl.getName())
+                            .shared(isShared(ResourceType.POWER_LIMIT, pl.getId()))
+                            .build()
+            );
+            listIndex++;
+        }
+
+        for (WeatherControlResponse wc : weatherControls) {
+            resourceSharingItems.add(
+                    ResourceSharingItem.builder()
+                            .id(listIndex)
+                            .resourceType(ResourceType.WEATHER_CONTROL)
+                            .resourceId(wc.getId())
+                            .name(wc.getName())
+                            .shared(isShared(ResourceType.WEATHER_CONTROL, wc.getId()))
                             .build()
             );
             listIndex++;
@@ -254,11 +276,25 @@ public class ResourceSharingView extends VerticalLayout implements BeforeEnterOb
         resourcesGrid.setItems(resourceSharingItems);
     }
 
+    private void refreshSharingStatus(ResourceSharingItem item) {
+        item.setShared(isShared(item.getResourceType(), item.getResourceId()));
+        resourcesGrid.getDataProvider().refreshItem(item);
+    }
+
+    private boolean isShared(ResourceType resourceType, Long resourceId) {
+        return !resourceSharingService.getSharesForResource(accountId, resourceType, resourceId).isEmpty();
+    }
+
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         if (ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, authService)) {
             return;
         }
+    }
+
+    @Override
+    public String getPageTitle() {
+        return t("app.pageTitle", t("resourceSharing.title"));
     }
 
     protected String t(String key, Object... args) {
