@@ -232,6 +232,36 @@ public class ProductionSourceService {
     }
 
     @Transactional
+    public ProductionSourceHeatPumpResponse updateHeatPump(
+            Long accountId, Long sourceId, Long heatPumpMappingId, Long deviceId, String stateHex,
+            ControlAction controlAction, ComparisonType comparisonType, BigDecimal triggerKw
+    ) {
+        AccountEntity account = accountRepository
+                .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        ProductionSourceEntity source = productionSourceRepository
+                .findByIdAndAccountId(sourceId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        DeviceEntity device = deviceRepository
+                .findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found for account"));
+        if (device.getDeviceType() != DeviceType.HEAT_PUMP) {
+            throw new IllegalArgumentException("Device is not a heat pump");
+        }
+
+        ProductionSourceHeatPumpEntity entity = productionSourceHeatPumpRepository
+                .findById(heatPumpMappingId)
+                .filter(mapping -> mapping.getProductionSource().getId().equals(source.getId()))
+                .orElseThrow(() -> new IllegalArgumentException("Heat pump mapping not found for source"));
+        entity.setDevice(device);
+        entity.setStateHex(stateHex);
+        entity.setControlAction(controlAction);
+        entity.setComparisonType(comparisonType);
+        entity.setTriggerKw(triggerKw);
+
+        return mapHeatPumpToResponse(entity);
+    }
+
+    @Transactional
     public void removeDevice(Long accountId, Long sourceId, Long deviceMappingId) {
         AccountEntity account = accountRepository
                 .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
