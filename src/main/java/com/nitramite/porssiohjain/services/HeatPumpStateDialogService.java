@@ -504,7 +504,7 @@ public class HeatPumpStateDialogService {
 
         dialogLayout.add(
                 buttonRow,
-                new Paragraph("Edit the JSON state copied from MELCloud. EffectiveFlags controls which fields SetAta applies."),
+                new Paragraph(t("controlTable.dialog.queryState.mitsubishiEditor.instructions")),
                 editorLayout,
                 editableJsonArea,
                 stateInfoDiv
