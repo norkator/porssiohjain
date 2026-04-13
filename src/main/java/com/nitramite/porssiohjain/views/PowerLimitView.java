@@ -214,13 +214,13 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
 
     private void loadPowerLimitDevices() {
-        deviceGrid.setItems(powerLimitService.getPowerLimitDevices(powerLimitId));
+        deviceGrid.setItems(powerLimitService.getPowerLimitDevices(getAccountId(), powerLimitId));
     }
 
     private Component createAddDeviceLayout() {
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
-        deviceSelect.setItems(deviceService.getAllDevicesForPowerLimitId(powerLimitId));
+        deviceSelect.setItems(deviceService.getAllDevicesForPowerLimitId(getAccountId(), powerLimitId));
         deviceSelect.setWidthFull();
 
         NumberField channelField = new NumberField(t("controlTable.field.channel"));

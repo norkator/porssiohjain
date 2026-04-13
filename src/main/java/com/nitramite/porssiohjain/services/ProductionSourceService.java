@@ -123,16 +123,20 @@ public class ProductionSourceService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProductionSourceDeviceResponse> getSourceDevices(Long sourceId) {
-        return productionSourceDeviceRepository.findByProductionSourceId(sourceId).stream()
+    public List<ProductionSourceDeviceResponse> getSourceDevices(Long accountId, Long sourceId) {
+        ProductionSourceEntity source = productionSourceRepository.findByIdAndAccountId(sourceId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        return productionSourceDeviceRepository.findByProductionSourceId(source.getId()).stream()
                 .filter(entity -> entity.getDevice().getDeviceType() == DeviceType.STANDARD)
                 .map(this::mapDeviceToResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<ProductionSourceHeatPumpResponse> getSourceHeatPumps(Long sourceId) {
-        return productionSourceHeatPumpRepository.findByProductionSourceId(sourceId).stream()
+    public List<ProductionSourceHeatPumpResponse> getSourceHeatPumps(Long accountId, Long sourceId) {
+        ProductionSourceEntity source = productionSourceRepository.findByIdAndAccountId(sourceId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Source not found for account"));
+        return productionSourceHeatPumpRepository.findByProductionSourceId(source.getId()).stream()
                 .filter(entity -> entity.getDevice().getDeviceType() == DeviceType.HEAT_PUMP)
                 .map(this::mapHeatPumpToResponse)
                 .toList();
@@ -276,13 +280,17 @@ public class ProductionSourceService {
         if (password != null && !password.isBlank()) {
             entity.setPassword(password);
         }
-        entity.setSite(siteId != null ? siteRepository.getReferenceById(siteId) : null);
+        SiteEntity site = siteId == null
+                ? null
+                : siteRepository.findByIdAndAccountId(siteId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Site not found for account"));
+        entity.setSite(site);
     }
 
     @Transactional(readOnly = true)
-    public List<ProductionHistoryResponse> getProductionHistory(Long sourceId, int hours) {
-        ProductionSourceEntity source = productionSourceRepository.findById(sourceId)
-                .orElseThrow(() -> new IllegalArgumentException("Production source not found: " + sourceId));
+    public List<ProductionHistoryResponse> getProductionHistory(Long accountId, Long sourceId, int hours) {
+        ProductionSourceEntity source = productionSourceRepository.findByIdAndAccountId(sourceId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Production source not found for account: " + sourceId));
         ZoneId zone = ZoneId.of(source.getTimezone());
         Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
         Map<Instant, List<ProductionHistoryEntity>> grouped =

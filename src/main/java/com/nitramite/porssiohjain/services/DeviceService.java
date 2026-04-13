@@ -114,10 +114,10 @@ public class DeviceService {
 
     @Transactional(readOnly = true)
     public List<DeviceResponse> getAllDevicesForControlId(
-            Long controlId
+            Long accountId, Long controlId
     ) {
-        ControlEntity control = controlRepository.findById(controlId)
-                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        ControlEntity control = controlRepository.findByIdAndAccountId(controlId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found for account with id: " + controlId));
         List<DeviceEntity> deviceEntities = deviceRepository.findByAccountId(control.getAccount().getId());
         return deviceEntities.stream()
                 .map(d -> mapToResponse(d, false))
@@ -286,12 +286,13 @@ public class DeviceService {
     }
 
     @Transactional(readOnly = true)
-    public List<DeviceResponse> getAllDevicesForPowerLimitId(Long powerLimitId) {
-        PowerLimitEntity limit = powerLimitRepository.findById(powerLimitId)
-                .orElseThrow(() -> new IllegalArgumentException("Power limit not found: " + powerLimitId));
-        Long accountId = limit.getAccount().getId();
+    public List<DeviceResponse> getAllDevicesForPowerLimitId(Long accountId, Long powerLimitId) {
+        PowerLimitEntity limit = powerLimitRepository.findByAccountIdAndId(accountId, powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
         // List<Long> linkedIds = powerLimitDeviceRepository.findDeviceIdsByPowerLimitId(powerLimitId);
-        return deviceRepository.findByAccountId(accountId).stream()
+        return deviceRepository.findByAccountId(limit.getAccount().getId()).stream()
                 .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
                 // .filter(d -> !linkedIds.contains(d.getId()))
                 .map(this::mapDeviceToResponse)

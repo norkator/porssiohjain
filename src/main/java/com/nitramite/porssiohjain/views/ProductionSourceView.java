@@ -292,11 +292,11 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     }
 
     private void loadDevices() {
-        deviceGrid.setItems(productionSourceService.getSourceDevices(sourceId));
+        deviceGrid.setItems(productionSourceService.getSourceDevices(accountId, sourceId));
     }
 
     private void loadHeatPumps() {
-        heatPumpGrid.setItems(productionSourceService.getSourceHeatPumps(sourceId));
+        heatPumpGrid.setItems(productionSourceService.getSourceHeatPumps(accountId, sourceId));
     }
 
     private Component createDeviceManagementSection() {
@@ -534,7 +534,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
             Div chartDiv, ProductionSourceResponse sourceResponse
     ) {
         List<ProductionHistoryResponse> history = productionSourceService
-                .getProductionHistory(sourceResponse.getId(), 24);
+                .getProductionHistory(accountId, sourceResponse.getId(), 24);
 
         List<String> timestamps = new ArrayList<>();
         List<Double> values = new ArrayList<>();
