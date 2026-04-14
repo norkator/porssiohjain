@@ -700,8 +700,11 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
 
         VerticalLayout dialogLayout = new VerticalLayout();
         dialogLayout.setWidthFull();
+        String instructionsKey = heatPumpStateDialogService.isJsonState(stateHex)
+                ? "controlTable.dialog.decodeState.jsonInstructions"
+                : "controlTable.dialog.decodeState.instructions";
         dialogLayout.add(
-                new Paragraph(t("controlTable.dialog.decodeState.instructions")),
+                new Paragraph(t(instructionsKey)),
                 heatPumpStateDialogService.createAcStateInfoContentFromHex(stateHex)
         );
 

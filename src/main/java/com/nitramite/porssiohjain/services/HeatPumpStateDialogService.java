@@ -678,7 +678,7 @@ public class HeatPumpStateDialogService {
             fanSpeedField.clear();
         }
 
-        effectiveFlags[0] = state.getEffectiveFlags() != null ? state.getEffectiveFlags() : 0L;
+        effectiveFlags[0] = 0L;
     }
 
     private DeviceAcDataEntity getAcData(DeviceResponse deviceResponse) {
@@ -753,7 +753,7 @@ public class HeatPumpStateDialogService {
         }
     }
 
-    private boolean isJsonState(String state) {
+    public boolean isJsonState(String state) {
         return state != null && state.stripLeading().startsWith("{");
     }
 

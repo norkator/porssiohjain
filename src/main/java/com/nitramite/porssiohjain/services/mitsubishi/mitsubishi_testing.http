@@ -57,7 +57,8 @@ X-MitsContextKey: {{mitsubishi_ac_context_key}}
 ### 1. Call "Get AC state"
 ### 2. Copy full JSON response here
 ### 3. Modify only needed fields
-### 4. Set matching EffectiveFlags
+### 4. Set EffectiveFlags to only the changed fields
+### 5. Set HasPendingCommand to true
 ###
 ### Useful fields for air-to-air units:
 ### - Power: true / false
@@ -97,7 +98,8 @@ X-MitsContextKey: {{mitsubishi_ac_context_key}}
 
 
 ### Example: turn AC off
-### In real use, copy full state from "Get AC state" and only change fields you want.
+### In real use, copy full state from "Get AC state".
+### Only change Power, set EffectiveFlags to 1, and set HasPendingCommand to true.
 POST https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/SetAta
 Content-Type: application/json
 Accept: application/json, text/javascript, */*; q=0.01
@@ -110,6 +112,11 @@ X-MitsContextKey: {{mitsubishi_ac_context_key}}
   "DeviceID": {{mitsubishi_ac_device_id}},
   "BuildingID": {{mitsubishi_ac_building_id}},
   "Power": false,
+  "OperationMode": 3,
+  "SetTemperature": 21.0,
+  "SetFanSpeed": 0,
+  "VaneVertical": 0,
+  "VaneHorizontal": 0,
   "EffectiveFlags": 1,
   "HasPendingCommand": true
 }
