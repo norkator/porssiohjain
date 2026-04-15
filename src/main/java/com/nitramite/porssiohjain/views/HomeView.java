@@ -57,6 +57,10 @@ public class HomeView extends VerticalLayout {
             VaadinSession.getCurrent().setAttribute(Locale.class, defaultLocale);
         }
 
+        buildContent();
+    }
+
+    private void buildContent() {
         getStyle().set("display", "flex");
         getStyle().set("flex-direction", "column");
         getStyle().set("align-items", "center");
@@ -130,9 +134,10 @@ public class HomeView extends VerticalLayout {
             VaadinSession session = VaadinSession.getCurrent();
             session.setAttribute("token", null);
             session.setAttribute("expiresAt", null);
+            removeAll();
+            buildContent();
             Notification notification = Notification.show(t("home.logoutSuccess"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            UI.getCurrent().getPage().setLocation("https://www.porssiohjain.fi");
         });
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
