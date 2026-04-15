@@ -26,6 +26,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -33,6 +34,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -43,8 +45,9 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.WeekFields;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -58,6 +61,11 @@ import java.util.concurrent.TimeUnit;
 @Route("power-limit/:powerLimitId")
 @PermitAll
 public class PowerLimitView extends VerticalLayout implements BeforeEnterObserver {
+
+    private enum HistoryPeriod {
+        WEEK,
+        MONTH
+    }
 
     private final I18nService i18n;
     private final AuthService authService;
@@ -155,6 +163,15 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         card.add(createAddDeviceLayout());
 
         card.add(createCurrentUsageRow(powerLimit));
+
+        HorizontalLayout chartActions = new HorizontalLayout();
+        chartActions.setWidthFull();
+        chartActions.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
+        Button historyButton = new Button(t("powerlimit.history.button"), e -> openPowerLimitHistoryDialog(
+                powerLimitService.getPowerLimit(getAccountId(), powerLimitId)
+        ));
+        chartActions.add(historyButton);
+        card.add(chartActions);
 
         chartDiv = new Div();
         chartDiv.setId("kw-history-chart");
@@ -524,23 +541,33 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
             Div chartDiv,
             PowerLimitResponse powerLimit
     ) {
+        ZoneId zone = getPowerLimitZone(powerLimit);
         List<PowerLimitHistoryResponse> history =
                 powerLimitService.getPowerLimitHistoryWithInterval(
                         getAccountId(),
                         powerLimit.getId(),
                         24
                 );
+        renderPowerLimitHistoryChart(
+                chartDiv,
+                powerLimit,
+                history,
+                t("powerlimit.chart.title"),
+                zone,
+                true
+        );
+    }
 
+    private void renderPowerLimitHistoryChart(
+            Div chartDiv,
+            PowerLimitResponse powerLimit,
+            List<PowerLimitHistoryResponse> history,
+            String chartTitle,
+            ZoneId zone,
+            boolean showNowAnnotation
+    ) {
         List<String> timestamps = new ArrayList<>();
         List<Double> values = new ArrayList<>();
-
-        ZoneId zone = ZoneId.systemDefault();
-        try {
-            if (powerLimit.getTimezone() != null) {
-                zone = ZoneId.of(powerLimit.getTimezone());
-            }
-        } catch (Exception ignored) {
-        }
 
         DateTimeFormatter jsFormatter = DateTimeFormatter
                 .ofPattern("yyyy-MM-dd HH:mm")
@@ -554,8 +581,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         String seriesLabel = t("powerlimit.chart.series");
         String xAxisLabel = t("powerlimit.chart.time");
         String yAxisLabel = t("powerlimit.chart.kw");
-        String chartTitle = t("powerlimit.chart.title");
-        String nowLabel = ""; // t("powerlimit.chart.now");
+        String nowLabel = t("powerlimit.chart.now");
         String limitLabel = t("powerlimit.chart.limit");
 
         Double limitKw = powerLimit.getLimitKw() != null
@@ -565,23 +591,24 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         chartDiv.getElement().executeJs("""
                         const container = this;
                         
-                        function renderOrUpdate(dataX, dataY, limitKw) {
-                            const now = new Date();
-                            const closest = dataX.reduce((prev, curr) =>
-                                Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now)
-                                    ? curr : prev
-                            );
-                        
-                            const annotations = {
-                                xaxis: [{
+                        function renderOrUpdate(dataX, dataY, limitKw, showNowAnnotation) {
+                            const annotations = {};
+                            
+                            if (showNowAnnotation && dataX.length > 0) {
+                                const now = new Date();
+                                const closest = dataX.reduce((prev, curr) =>
+                                    Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now)
+                                        ? curr : prev
+                                );
+                                annotations.xaxis = [{
                                     x: closest,
                                     borderColor: '#00E396',
                                     label: {
                                         style: { color: '#fff', background: '#00E396' },
                                         text: $6
                                     }
-                                }]
-                            };
+                                }];
+                            }
                         
                             if (limitKw !== null) {
                                 annotations.yaxis = [{
@@ -620,6 +647,9 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                                     },
                                     markers: { size: 3 },
                                     tooltip: { shared: true },
+                                    noData: {
+                                        text: $10
+                                    },
                                     title: {
                                         text: $2,
                                         align: 'center'
@@ -631,7 +661,9 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                                 container.chartInstance.render();
                             } else {
                                 container.chartInstance.updateOptions({
-                                    xaxis: { categories: dataX },
+                                    xaxis: { categories: dataX, title: { text: $4 }, labels: { rotate: -45 } },
+                                    yaxis: { title: { text: $5 } },
+                                    title: { text: $2, align: 'center' },
                                     annotations: annotations
                                 });
                                 container.chartInstance.updateSeries([
@@ -640,7 +672,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                             }
                         }
                         
-                        renderOrUpdate($0, $1, $7);
+                        renderOrUpdate($0, $1, $7, $9);
                         """,
                 timestamps,
                 values,
@@ -650,8 +682,137 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 yAxisLabel,
                 nowLabel,
                 limitKw,
-                limitLabel
+                limitLabel,
+                showNowAnnotation,
+                t("dashboard.noHistoryData")
         );
+    }
+
+    private void openPowerLimitHistoryDialog(PowerLimitResponse powerLimit) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("powerlimit.history.title"));
+        dialog.setWidth("min(1100px, 96vw)");
+        dialog.setHeight("min(760px, 92vh)");
+
+        ZoneId zone = getPowerLimitZone(powerLimit);
+
+        ComboBox<HistoryPeriod> periodSelect = new ComboBox<>(t("powerlimit.history.period"));
+        periodSelect.setItems(HistoryPeriod.WEEK, HistoryPeriod.MONTH);
+        periodSelect.setItemLabelGenerator(this::getHistoryPeriodLabel);
+        periodSelect.setValue(HistoryPeriod.WEEK);
+        periodSelect.setWidth("220px");
+
+        DatePicker datePicker = new DatePicker(t("powerlimit.history.selectWeek"));
+        datePicker.setValue(LocalDate.now(zone));
+        datePicker.setWidth("250px");
+
+        Div historyChartDiv = new Div();
+        historyChartDiv.setWidthFull();
+        historyChartDiv.setHeight("500px");
+        historyChartDiv.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("box-sizing", "border-box");
+
+        Runnable refresh = () -> refreshHistoryDialogChart(
+                historyChartDiv,
+                powerLimit,
+                periodSelect.getValue(),
+                datePicker.getValue(),
+                zone
+        );
+
+        periodSelect.addValueChangeListener(event -> {
+            HistoryPeriod period = event.getValue();
+            datePicker.setLabel(period == HistoryPeriod.MONTH
+                    ? t("powerlimit.history.selectMonth")
+                    : t("powerlimit.history.selectWeek"));
+            refresh.run();
+        });
+        datePicker.addValueChangeListener(event -> refresh.run());
+
+        HorizontalLayout controls = new HorizontalLayout(periodSelect, datePicker);
+        controls.setWidthFull();
+        controls.setSpacing(true);
+        controls.getStyle().set("flex-wrap", "wrap");
+
+        VerticalLayout content = new VerticalLayout(controls, historyChartDiv);
+        content.setPadding(false);
+        content.setSpacing(true);
+        content.setWidthFull();
+
+        dialog.add(content);
+
+        Button closeButton = new Button(t("button.cancel"), event -> dialog.close());
+        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        dialog.getFooter().add(closeButton);
+
+        dialog.open();
+        refresh.run();
+    }
+
+    private void refreshHistoryDialogChart(
+            Div historyChartDiv,
+            PowerLimitResponse powerLimit,
+            HistoryPeriod period,
+            LocalDate selectedDate,
+            ZoneId zone
+    ) {
+        if (period == null || selectedDate == null) {
+            return;
+        }
+
+        LocalDate startDate;
+        LocalDate endDate;
+        String chartTitle;
+
+        if (period == HistoryPeriod.MONTH) {
+            YearMonth selectedMonth = YearMonth.from(selectedDate);
+            startDate = selectedMonth.atDay(1);
+            endDate = selectedMonth.plusMonths(1).atDay(1);
+            chartTitle = t("powerlimit.history.monthTitle", selectedMonth);
+        } else {
+            WeekFields weekFields = WeekFields.of(getCurrentLocale());
+            int daysFromWeekStart = selectedDate.getDayOfWeek().getValue()
+                    - weekFields.getFirstDayOfWeek().getValue();
+            if (daysFromWeekStart < 0) {
+                daysFromWeekStart += 7;
+            }
+            startDate = selectedDate.minusDays(daysFromWeekStart);
+            endDate = startDate.plusWeeks(1);
+            chartTitle = t("powerlimit.history.weekTitle", startDate, endDate.minusDays(1));
+        }
+
+        List<PowerLimitHistoryResponse> history = powerLimitService.getPowerLimitHistoryForRange(
+                getAccountId(),
+                powerLimit.getId(),
+                startDate.atStartOfDay(zone).toInstant(),
+                endDate.atStartOfDay(zone).toInstant()
+        );
+
+        renderPowerLimitHistoryChart(historyChartDiv, powerLimit, history, chartTitle, zone, false);
+    }
+
+    private ZoneId getPowerLimitZone(PowerLimitResponse powerLimit) {
+        try {
+            if (powerLimit.getTimezone() != null) {
+                return ZoneId.of(powerLimit.getTimezone());
+            }
+        } catch (Exception ignored) {
+        }
+        return ZoneId.systemDefault();
+    }
+
+    private Locale getCurrentLocale() {
+        return UI.getCurrent() != null ? UI.getCurrent().getLocale() : Locale.getDefault();
+    }
+
+    private String getHistoryPeriodLabel(HistoryPeriod period) {
+        return switch (period) {
+            case WEEK -> t("powerlimit.history.period.week");
+            case MONTH -> t("powerlimit.history.period.month");
+        };
     }
 
     private void startAutoRefresh() {

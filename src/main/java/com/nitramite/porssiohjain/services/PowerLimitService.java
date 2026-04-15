@@ -313,6 +313,15 @@ public class PowerLimitService {
     public List<PowerLimitHistoryResponse> getPowerLimitHistoryWithInterval(
             Long accountId, Long powerLimitId, int hours
     ) {
+        Instant end = Instant.now();
+        Instant start = end.minus(hours, ChronoUnit.HOURS);
+        return getPowerLimitHistoryForRange(accountId, powerLimitId, start, end);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PowerLimitHistoryResponse> getPowerLimitHistoryForRange(
+            Long accountId, Long powerLimitId, Instant start, Instant end
+    ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         PowerLimitEntity powerLimitEntity = powerLimitRepository
@@ -322,11 +331,9 @@ public class PowerLimitService {
                 ));
         ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
         int intervalMinutes = powerLimitEntity.getLimitIntervalMinutes();
-        Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
         Map<Instant, List<PowerLimitHistoryEntity>> grouped =
-                powerLimitHistoryRepository.findAllByPowerLimitAndAccount(accountId, powerLimitId)
+                powerLimitHistoryRepository.findByPowerLimitAndCreatedAtBetween(accountId, powerLimitId, start, end)
                         .stream()
-                        .filter(h -> h.getCreatedAt().isAfter(since))
                         .collect(Collectors.groupingBy(h -> Utils.toInterval(h.getCreatedAt(), zone, intervalMinutes)));
         return grouped.entrySet().stream()
                 .map(entry -> {
