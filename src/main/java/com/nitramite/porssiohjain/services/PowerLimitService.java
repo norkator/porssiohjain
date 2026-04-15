@@ -322,6 +322,13 @@ public class PowerLimitService {
     public List<PowerLimitHistoryResponse> getPowerLimitHistoryForRange(
             Long accountId, Long powerLimitId, Instant start, Instant end
     ) {
+        return getPowerLimitHistoryForRange(accountId, powerLimitId, start, end, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PowerLimitHistoryResponse> getPowerLimitHistoryForRange(
+            Long accountId, Long powerLimitId, Instant start, Instant end, Integer intervalMinutesOverride
+    ) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         PowerLimitEntity powerLimitEntity = powerLimitRepository
@@ -330,7 +337,9 @@ public class PowerLimitService {
                         "Power limit not found for account " + accountId + " and id " + powerLimitId
                 ));
         ZoneId zone = ZoneId.of(powerLimitEntity.getTimezone());
-        int intervalMinutes = powerLimitEntity.getLimitIntervalMinutes();
+        int intervalMinutes = intervalMinutesOverride != null
+                ? intervalMinutesOverride
+                : powerLimitEntity.getLimitIntervalMinutes();
         Map<Instant, List<PowerLimitHistoryEntity>> grouped =
                 powerLimitHistoryRepository.findByPowerLimitAndCreatedAtBetween(accountId, powerLimitId, start, end)
                         .stream()

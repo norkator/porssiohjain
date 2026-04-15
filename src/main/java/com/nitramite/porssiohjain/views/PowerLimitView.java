@@ -63,6 +63,8 @@ import java.util.concurrent.TimeUnit;
 @PermitAll
 public class PowerLimitView extends VerticalLayout implements BeforeEnterObserver {
 
+    private static final int HISTORY_DIALOG_INTERVAL_MINUTES = 60;
+
     private enum HistoryPeriod {
         WEEK,
         MONTH
@@ -789,7 +791,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 getAccountId(),
                 powerLimit.getId(),
                 startDate.atStartOfDay(zone).toInstant(),
-                endDate.atStartOfDay(zone).toInstant()
+                endDate.atStartOfDay(zone).toInstant(),
+                HISTORY_DIALOG_INTERVAL_MINUTES
         );
 
         renderPowerLimitHistoryChart(historyChartDiv, powerLimit, history, chartTitle, zone, false);

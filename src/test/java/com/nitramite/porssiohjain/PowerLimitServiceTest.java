@@ -22,6 +22,7 @@ import com.nitramite.porssiohjain.entity.repository.PowerLimitRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import com.nitramite.porssiohjain.services.models.DailyUsageCostResponse;
+import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -111,6 +112,44 @@ public class PowerLimitServiceTest {
         assertEquals(BigDecimal.valueOf(1.5), result.getFirst().getTotalUsageKwh());
         assertEquals(BigDecimal.valueOf(0.0002332005).stripTrailingZeros(), result.getFirst().getTotalCostEur().stripTrailingZeros()
         );
+    }
+
+    @Test
+    void getPowerLimitHistoryForRange_UsesIntervalOverride() {
+        AccountEntity account = new AccountEntity();
+        Long accountId = 1L;
+        account.setId(accountId);
+
+        PowerLimitEntity powerLimit = new PowerLimitEntity();
+        Long powerLimitId = 1L;
+        powerLimit.setId(powerLimitId);
+        powerLimit.setTimezone("Europe/Helsinki");
+        powerLimit.setLimitIntervalMinutes(15);
+
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        when(powerLimitRepository.findByAccountIdAndId(accountId, powerLimitId))
+                .thenReturn(Optional.of(powerLimit));
+
+        ZoneId zone = ZoneId.of(powerLimit.getTimezone());
+        Instant start = ZonedDateTime.of(2026, 1, 1, 10, 0, 0, 0, zone).toInstant();
+        Instant end = start.plusSeconds(3600);
+        List<PowerLimitHistoryEntity> historyEntities = new ArrayList<>();
+        historyEntities.add(getPowerLimitHistoryEntity(
+                1L, powerLimit, account, start.plusSeconds(5 * 60), BigDecimal.valueOf(1.0)
+        ));
+        historyEntities.add(getPowerLimitHistoryEntity(
+                2L, powerLimit, account, start.plusSeconds(20 * 60), BigDecimal.valueOf(0.5)
+        ));
+
+        when(powerLimitHistoryRepository.findByPowerLimitAndCreatedAtBetween(accountId, powerLimitId, start, end))
+                .thenReturn(historyEntities);
+
+        List<PowerLimitHistoryResponse> result = powerLimitService
+                .getPowerLimitHistoryForRange(accountId, powerLimitId, start, end, 60);
+
+        assertEquals(1, result.size());
+        assertEquals(start, result.getFirst().getCreatedAt());
+        assertEquals(BigDecimal.valueOf(1.5), result.getFirst().getKilowatts());
     }
 
     private PowerLimitHistoryEntity getPowerLimitHistoryEntity(
