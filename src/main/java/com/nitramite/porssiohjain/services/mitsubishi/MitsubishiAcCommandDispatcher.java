@@ -69,13 +69,12 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
                 setAtaState.getEffectiveFlags()
         );
         systemLogService.log(String.format(
-                "Dry-run Mitsubishi SetAta skipped. deviceId=%s, acDataId=%s, acDeviceId=%s, buildingId=%s, effectiveFlags=%s, payload=%s",
+                "Dry-run Mitsubishi SetAta skipped. deviceId=%s, acDataId=%s, acDeviceId=%s, buildingId=%s, payload=%s",
                 acData.getDevice().getId(),
                 acData.getId(),
                 acData.getAcDeviceId(),
                 acData.getBuildingId(),
-                setAtaState.getEffectiveFlags(),
-                formattedState
+                formatLogState(setAtaState)
         ));
 
         // Uncomment this block to enable real Mitsubishi MELCloud SetAta dispatch.
@@ -152,6 +151,16 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Failed to format Mitsubishi state JSON", e);
         }
+    }
+
+    private String formatLogState(MitsubishiAcStateResponse state) {
+        return String.format(
+                "Power=%s, OperationMode=%s, SetTemperature=%s, EffectiveFlags=%s",
+                state.getPower(),
+                state.getOperationMode(),
+                state.getSetTemperature(),
+                state.getEffectiveFlags()
+        );
     }
 
     private Long parseAcDeviceId(String acDeviceId) {
