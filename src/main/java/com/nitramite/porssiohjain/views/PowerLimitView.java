@@ -45,6 +45,7 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.WeekFields;
@@ -453,7 +454,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         H2 title = new H2(t("powerlimit.lastTotalKwh"));
         title.getStyle().set("margin", "0");
         lastTotalKwh = new Div();
-        lastTotalKwh.setText(p.getLastTotalKwh() + " kW");
+        lastTotalKwh.setText(formatLastTotalKwh(p.getLastTotalKwh()));
         lastTotalKwh.getStyle()
                 .set("font-size", "2rem")
                 .set("font-weight", "bold");
@@ -808,6 +809,13 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         return UI.getCurrent() != null ? UI.getCurrent().getLocale() : Locale.getDefault();
     }
 
+    private String formatLastTotalKwh(BigDecimal value) {
+        if (value == null) {
+            return "0 kW";
+        }
+        return value.setScale(0, RoundingMode.HALF_UP) + " kW";
+    }
+
     private String getHistoryPeriodLabel(HistoryPeriod period) {
         return switch (period) {
             case WEEK -> t("powerlimit.history.period.week");
@@ -828,7 +836,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                         powerLimitId
                 );
                 ui.access(() -> {
-                    lastTotalKwh.setText(updated.getLastTotalKwh() + " kW");
+                    lastTotalKwh.setText(formatLastTotalKwh(updated.getLastTotalKwh()));
                     peakKwValue.setText(updated.getPeakKw() + " kW");
                     currentKwValue.setText(updated.getCurrentKw() + " kW");
                     quarterSumValue.setText(
