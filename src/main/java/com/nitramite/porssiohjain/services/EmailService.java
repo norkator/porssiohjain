@@ -21,6 +21,8 @@ import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 @Slf4j
@@ -189,6 +191,101 @@ public class EmailService {
             log.error("System error email sent, Resend id {}", data.getId());
         } catch (Exception e) {
             log.error("Failed to send system error email", e);
+        }
+    }
+
+    public void sendControlNotificationEmail(
+            String recipientEmail,
+            String controlName,
+            String notificationName,
+            String description,
+            ZonedDateTime activeSince,
+            Locale locale
+    ) {
+        try {
+            String subject = messageSource.getMessage(
+                    "mail.controlNotification.subject",
+                    new Object[]{notificationName},
+                    locale
+            );
+
+            String title = messageSource.getMessage(
+                    "mail.controlNotification.title",
+                    null,
+                    locale
+            );
+
+            String intro = messageSource.getMessage(
+                    "mail.controlNotification.intro",
+                    new Object[]{controlName, notificationName},
+                    locale
+            );
+
+            String descriptionLabel = messageSource.getMessage(
+                    "mail.controlNotification.description",
+                    null,
+                    locale
+            );
+
+            String activeSinceLabel = messageSource.getMessage(
+                    "mail.controlNotification.activeSince",
+                    null,
+                    locale
+            );
+
+            String footer = messageSource.getMessage(
+                    "mail.controlNotification.footer",
+                    null,
+                    locale
+            );
+
+            String safeDescription = description == null || description.isBlank()
+                    ? "-"
+                    : description.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+            String activeSinceText = activeSince.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm z"));
+
+            String htmlBody = """
+                    <div style="font-family: Arial, sans-serif; color: #333;">
+                        <h2 style="color: #1976d2;">%s</h2>
+                    
+                        <p>%s</p>
+                    
+                        <table style="border-collapse: collapse; margin-top: 12px;">
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s</td>
+                            </tr>
+                        </table>
+                    
+                        <hr style="margin-top: 24px;" />
+                        <p style="font-size: 12px; color: #777;">%s</p>
+                    </div>
+                    """
+                    .formatted(
+                            title,
+                            intro,
+                            descriptionLabel,
+                            safeDescription,
+                            activeSinceLabel,
+                            activeSinceText,
+                            footer
+                    );
+
+            Resend resend = new Resend(resentApiKey);
+            CreateEmailOptions params = CreateEmailOptions.builder()
+                    .from(from)
+                    .to(recipientEmail)
+                    .subject(subject)
+                    .html(htmlBody)
+                    .build();
+            CreateEmailResponse data = resend.emails().send(params);
+            log.info("Control notification email sent with Resend id {}", data.getId());
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to send control notification email", e);
         }
     }
 
