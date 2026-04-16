@@ -14,6 +14,8 @@ package com.nitramite.porssiohjain.entity.repository;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlTableEntity;
 import com.nitramite.porssiohjain.entity.enums.Status;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -46,6 +48,20 @@ public interface ControlTableRepository extends JpaRepository<ControlTableEntity
 
     List<ControlTableEntity> findByControlIdAndStatusAndStartTimeBetweenOrderByStartTimeAsc(
             Long controlId, Status status, Instant from, Instant to
+    );
+
+    @Query("""
+            select count(ct) > 0
+            from ControlTableEntity ct
+            where ct.control.id = :controlId
+              and ct.status = :status
+              and ct.startTime <= :time
+              and ct.endTime > :time
+            """)
+    boolean existsActiveAt(
+            @Param("controlId") Long controlId,
+            @Param("status") Status status,
+            @Param("time") Instant time
     );
 
 }

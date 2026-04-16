@@ -40,6 +40,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -76,9 +77,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final ElectricityContractRepository contractRepository;
     private final SiteService siteService;
     private final HeatPumpStateDialogService heatPumpStateDialogService;
+    private final ControlNotificationService controlNotificationService;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlHeatPumpResponse> heatPumpGrid = new Grid<>(ControlHeatPumpResponse.class, false);
+    private final Grid<ControlNotificationResponse> notificationGrid = new Grid<>(ControlNotificationResponse.class, false);
     private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
 
     private Long controlId;
@@ -105,7 +108,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             I18nService i18n,
             ElectricityContractRepository contractRepository,
             SiteService siteService,
-            HeatPumpStateDialogService heatPumpStateDialogService
+            HeatPumpStateDialogService heatPumpStateDialogService,
+            ControlNotificationService controlNotificationService
     ) {
         this.authService = authService;
         this.controlService = controlService;
@@ -116,6 +120,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.contractRepository = contractRepository;
         this.siteService = siteService;
         this.heatPumpStateDialogService = heatPumpStateDialogService;
+        this.controlNotificationService = controlNotificationService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -353,10 +358,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         card.add(new H3(t("controlTable.section.devices")));
         configureDeviceGrid();
         configureHeatPumpGrid();
+        configureNotificationGrid();
 
         Tab standardTab = new Tab(t("device.type.standard"));
         Tab heatPumpTab = new Tab(t("device.type.heatPump"));
-        Tabs deviceTabs = new Tabs(standardTab, heatPumpTab);
+        Tab notificationsTab = new Tab(t("controlTable.notifications.tab"));
+        Tabs deviceTabs = new Tabs(standardTab, heatPumpTab, notificationsTab);
 
         VerticalLayout standardLayout = new VerticalLayout(deviceGrid, createAddDeviceLayout());
         standardLayout.setPadding(false);
@@ -367,11 +374,17 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         heatPumpLayout.setSpacing(true);
         heatPumpLayout.setVisible(false);
 
+        VerticalLayout notificationsLayout = new VerticalLayout(notificationGrid, createAddNotificationLayout());
+        notificationsLayout.setPadding(false);
+        notificationsLayout.setSpacing(true);
+        notificationsLayout.setVisible(false);
+
         Map<Tab, Component> tabsToPages = new HashMap<>();
         tabsToPages.put(standardTab, standardLayout);
         tabsToPages.put(heatPumpTab, heatPumpLayout);
+        tabsToPages.put(notificationsTab, notificationsLayout);
 
-        Div pages = new Div(standardLayout, heatPumpLayout);
+        Div pages = new Div(standardLayout, heatPumpLayout, notificationsLayout);
         pages.setWidthFull();
 
         deviceTabs.addSelectedChangeListener(event -> {
@@ -384,6 +397,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         loadControlDevices();
         loadControlHeatPumps();
+        loadControlNotifications();
         card.add(Divider.createDivider());
         card.add(getControlTableSection());
         card.add(Divider.createDivider());
@@ -439,12 +453,39 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         heatPumpGrid.setMaxHeight("200px");
     }
 
+    private void configureNotificationGrid() {
+        notificationGrid.removeAllColumns();
+        notificationGrid.addColumn(ControlNotificationResponse::getName).setHeader(t("controlTable.notifications.grid.name"));
+        notificationGrid.addColumn(ControlNotificationResponse::getDescription).setHeader(t("controlTable.notifications.grid.description"));
+        notificationGrid.addColumn(n -> n.getActiveFrom() + " - " + n.getActiveTo()).setHeader(t("controlTable.notifications.grid.activeTime"));
+        notificationGrid.addColumn(n -> n.isEnabled() ? t("common.yes") : t("common.no")).setHeader(t("controlTable.notifications.grid.enabled"));
+        notificationGrid.addColumn(n -> formatInstant(n.getLastSentAt())).setHeader(t("controlTable.notifications.grid.lastSent"));
+        notificationGrid.addComponentColumn(n -> {
+            Button edit = new Button(t("controlTable.button.edit"), e -> openEditNotificationDialog(n));
+            Button delete = new Button(t("controlTable.button.delete"), e -> {
+                controlNotificationService.deleteControlNotification(getAccountId(), n.getId());
+                loadControlNotifications();
+            });
+            delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            HorizontalLayout actions = new HorizontalLayout(edit, delete);
+            actions.setPadding(false);
+            actions.setSpacing(true);
+            actions.setMargin(false);
+            return actions;
+        }).setHeader(t("controlTable.grid.actions"));
+        notificationGrid.setAllRowsVisible(true);
+    }
+
     private void loadControlDevices() {
         deviceGrid.setItems(
                 controlService.getControlDevices(getAccountId(), controlId).stream()
                         .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.STANDARD)
-                        .toList()
+                .toList()
         );
+    }
+
+    private void loadControlNotifications() {
+        notificationGrid.setItems(controlNotificationService.getControlNotifications(getAccountId(), controlId));
     }
 
     private void loadControlHeatPumps() {
@@ -576,6 +617,121 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 .set("background-color", "var(--lumo-contrast-5pct)");
 
         return formLayout;
+    }
+
+    private Component createAddNotificationLayout() {
+        TextField nameField = new TextField(t("controlTable.notifications.field.name"));
+        nameField.setWidthFull();
+
+        TextArea descriptionField = new TextArea(t("controlTable.notifications.field.description"));
+        descriptionField.setWidthFull();
+
+        TimePicker activeFrom = new TimePicker(t("controlTable.notifications.field.activeFrom"));
+        activeFrom.setValue(java.time.LocalTime.of(0, 0));
+        activeFrom.setWidthFull();
+
+        TimePicker activeTo = new TimePicker(t("controlTable.notifications.field.activeTo"));
+        activeTo.setValue(java.time.LocalTime.of(23, 59));
+        activeTo.setWidthFull();
+
+        Checkbox enabled = new Checkbox(t("controlTable.notifications.field.enabled"));
+        enabled.setValue(true);
+        enabled.getStyle().set("margin-top", "12px");
+
+        Button addButton = new Button(t("controlTable.notifications.button.add"), e -> {
+            try {
+                controlNotificationService.createControlNotification(
+                        getAccountId(),
+                        controlId,
+                        nameField.getValue(),
+                        descriptionField.getValue(),
+                        activeFrom.getValue(),
+                        activeTo.getValue(),
+                        enabled.getValue()
+                );
+                nameField.clear();
+                descriptionField.clear();
+                activeFrom.setValue(java.time.LocalTime.of(0, 0));
+                activeTo.setValue(java.time.LocalTime.of(23, 59));
+                enabled.setValue(true);
+                loadControlNotifications();
+            } catch (Exception ex) {
+                Notification notification = Notification.show(t("controlTable.notifications.notification.failed", ex.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addButton.setWidthFull();
+
+        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, enabled, addButton);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 3)
+        );
+
+        formLayout.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                .set("background-color", "var(--lumo-contrast-5pct)");
+
+        return formLayout;
+    }
+
+    private void openEditNotificationDialog(ControlNotificationResponse notificationResponse) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.notifications.editTitle"));
+        dialog.setWidth("700px");
+        dialog.setMaxWidth("95vw");
+
+        TextField nameField = new TextField(t("controlTable.notifications.field.name"));
+        nameField.setValue(notificationResponse.getName() != null ? notificationResponse.getName() : "");
+        nameField.setWidthFull();
+
+        TextArea descriptionField = new TextArea(t("controlTable.notifications.field.description"));
+        descriptionField.setValue(notificationResponse.getDescription() != null ? notificationResponse.getDescription() : "");
+        descriptionField.setWidthFull();
+
+        TimePicker activeFrom = new TimePicker(t("controlTable.notifications.field.activeFrom"));
+        activeFrom.setValue(notificationResponse.getActiveFrom());
+        activeFrom.setWidthFull();
+
+        TimePicker activeTo = new TimePicker(t("controlTable.notifications.field.activeTo"));
+        activeTo.setValue(notificationResponse.getActiveTo());
+        activeTo.setWidthFull();
+
+        Checkbox enabled = new Checkbox(t("controlTable.notifications.field.enabled"));
+        enabled.setValue(notificationResponse.isEnabled());
+
+        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, enabled);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2)
+        );
+        dialog.add(formLayout);
+
+        Button saveButton = new Button(t("controlTable.button.save"), e -> {
+            try {
+                controlNotificationService.updateControlNotification(
+                        getAccountId(),
+                        notificationResponse.getId(),
+                        nameField.getValue(),
+                        descriptionField.getValue(),
+                        activeFrom.getValue(),
+                        activeTo.getValue(),
+                        enabled.getValue()
+                );
+                loadControlNotifications();
+                dialog.close();
+            } catch (Exception ex) {
+                Notification n = Notification.show(t("controlTable.notifications.notification.failed", ex.getMessage()));
+                n.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(saveButton);
+        dialog.getFooter().add(new Button(t("common.cancel"), e -> dialog.close()));
+        dialog.open();
     }
 
     private void openHeatPumpStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
@@ -917,6 +1073,20 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     protected String t(String key, Object... args) {
         return i18n.t(key, args);
+    }
+
+    private String formatInstant(Instant instant) {
+        if (instant == null) {
+            return "";
+        }
+        ZoneId zone = ZoneId.systemDefault();
+        try {
+            if (control != null && control.getTimezone() != null) {
+                zone = ZoneId.of(control.getTimezone());
+            }
+        } catch (Exception ignored) {
+        }
+        return ZonedDateTime.ofInstant(instant, zone).format(formatter);
     }
 
 }
