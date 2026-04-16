@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.services.models;
 
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalTime;
 
@@ -30,6 +31,7 @@ public class ControlNotificationResponse {
     private LocalTime activeFrom;
     private LocalTime activeTo;
     private boolean enabled;
+    private BigDecimal cheapestHours;
     private Instant lastSentAt;
     private Instant createdAt;
     private Instant updatedAt;

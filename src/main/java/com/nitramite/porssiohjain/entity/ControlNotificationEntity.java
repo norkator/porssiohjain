@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalTime;
 
@@ -52,6 +53,10 @@ public class ControlNotificationEntity {
 
     @Column(nullable = false)
     private boolean enabled;
+
+    @Builder.Default
+    @Column(name = "cheapest_hours", nullable = false, precision = 5, scale = 2)
+    private BigDecimal cheapestHours = BigDecimal.ZERO;
 
     @Column(name = "last_sent_at")
     private Instant lastSentAt;

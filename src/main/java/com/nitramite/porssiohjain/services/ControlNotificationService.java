@@ -14,11 +14,13 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
+import com.nitramite.porssiohjain.entity.NordpoolEntity;
 import com.nitramite.porssiohjain.entity.enums.Status;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlNotificationRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
+import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.services.models.ControlNotificationResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -26,11 +28,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -44,6 +49,7 @@ public class ControlNotificationService {
     private final ControlRepository controlRepository;
     private final AccountRepository accountRepository;
     private final ControlTableRepository controlTableRepository;
+    private final NordpoolRepository nordpoolRepository;
     private final EmailService emailService;
 
     public List<ControlNotificationResponse> getControlNotifications(Long accountId, Long controlId) {
@@ -61,9 +67,10 @@ public class ControlNotificationService {
             String description,
             LocalTime activeFrom,
             LocalTime activeTo,
-            boolean enabled
+            boolean enabled,
+            Double cheapestHours
     ) {
-        validate(name, activeFrom, activeTo);
+        validate(name, activeFrom, activeTo, cheapestHours);
         ControlEntity control = ensureOwnedControl(accountId, controlId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -76,6 +83,7 @@ public class ControlNotificationService {
                 .activeFrom(activeFrom)
                 .activeTo(activeTo)
                 .enabled(enabled)
+                .cheapestHours(normalizeCheapestHours(cheapestHours))
                 .build();
 
         return mapToResponse(controlNotificationRepository.save(entity));
@@ -88,9 +96,10 @@ public class ControlNotificationService {
             String description,
             LocalTime activeFrom,
             LocalTime activeTo,
-            boolean enabled
+            boolean enabled,
+            Double cheapestHours
     ) {
-        validate(name, activeFrom, activeTo);
+        validate(name, activeFrom, activeTo, cheapestHours);
         ControlNotificationEntity entity = controlNotificationRepository.findByIdAndAccountId(notificationId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Control notification not found: " + notificationId));
 
@@ -99,6 +108,7 @@ public class ControlNotificationService {
         entity.setActiveFrom(activeFrom);
         entity.setActiveTo(activeTo);
         entity.setEnabled(enabled);
+        entity.setCheapestHours(normalizeCheapestHours(cheapestHours));
 
         return mapToResponse(controlNotificationRepository.save(entity));
     }
@@ -125,6 +135,10 @@ public class ControlNotificationService {
         ZoneId zone = ZoneId.of(control.getTimezone());
         ZonedDateTime nowLocal = now.atZone(zone);
         if (!isInsideActiveWindow(nowLocal.toLocalTime(), notification.getActiveFrom(), notification.getActiveTo())) {
+            return;
+        }
+
+        if (!isInsideCheapestHoursWindow(notification, nowLocal)) {
             return;
         }
 
@@ -169,13 +183,66 @@ public class ControlNotificationService {
         return lastSentAt != null && lastSentAt.atZone(zone).toLocalDate().equals(today);
     }
 
-    private void validate(String name, LocalTime activeFrom, LocalTime activeTo) {
+    private boolean isInsideCheapestHoursWindow(ControlNotificationEntity notification, ZonedDateTime nowLocal) {
+        BigDecimal cheapestHours = notification.getCheapestHours();
+        if (cheapestHours == null || cheapestHours.compareTo(BigDecimal.ZERO) <= 0) {
+            return true;
+        }
+
+        ActiveWindow activeWindow = resolveActiveWindow(nowLocal, notification.getActiveFrom(), notification.getActiveTo());
+        long activeWindowMinutes = Duration.between(activeWindow.start(), activeWindow.end()).toMinutes();
+        int periodsToUse = (int) Math.ceil(cheapestHours.doubleValue() * 4);
+        int maxPeriods = (int) Math.ceil(activeWindowMinutes / 15.0);
+        periodsToUse = Math.min(periodsToUse, maxPeriods);
+        if (periodsToUse <= 0) {
+            return false;
+        }
+
+        Instant windowStart = activeWindow.start().toInstant();
+        Instant windowEnd = activeWindow.end().toInstant();
+        List<NordpoolEntity> cheapestPeriods = nordpoolRepository.findPricesBetween(windowStart, windowEnd.minusNanos(1))
+                .stream()
+                .filter(price -> !price.getDeliveryStart().isBefore(windowStart))
+                .filter(price -> price.getDeliveryStart().isBefore(windowEnd))
+                .sorted(Comparator.comparing(NordpoolEntity::getPriceFi)
+                        .thenComparing(NordpoolEntity::getDeliveryStart))
+                .limit(periodsToUse)
+                .toList();
+
+        Instant now = nowLocal.toInstant();
+        return cheapestPeriods.stream()
+                .anyMatch(price -> !now.isBefore(price.getDeliveryStart()) && now.isBefore(price.getDeliveryEnd()));
+    }
+
+    private ActiveWindow resolveActiveWindow(ZonedDateTime nowLocal, LocalTime from, LocalTime to) {
+        ZonedDateTime start = nowLocal.toLocalDate().atTime(from).atZone(nowLocal.getZone());
+        ZonedDateTime end = nowLocal.toLocalDate().atTime(to).atZone(nowLocal.getZone());
+        if (from.equals(to)) {
+            return new ActiveWindow(start, start.plusDays(1));
+        }
+        if (from.isBefore(to)) {
+            return new ActiveWindow(start, end);
+        }
+        if (nowLocal.toLocalTime().isBefore(to)) {
+            return new ActiveWindow(start.minusDays(1), end);
+        }
+        return new ActiveWindow(start, end.plusDays(1));
+    }
+
+    private void validate(String name, LocalTime activeFrom, LocalTime activeTo, Double cheapestHours) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Notification name cannot be empty");
         }
         if (activeFrom == null || activeTo == null) {
             throw new IllegalArgumentException("Active time from and to are required");
         }
+        if (cheapestHours != null && cheapestHours < 0) {
+            throw new IllegalArgumentException("Cheapest hours cannot be negative");
+        }
+    }
+
+    private BigDecimal normalizeCheapestHours(Double cheapestHours) {
+        return cheapestHours != null ? BigDecimal.valueOf(cheapestHours) : BigDecimal.ZERO;
     }
 
     private ControlEntity ensureOwnedControl(Long accountId, Long controlId) {
@@ -192,9 +259,13 @@ public class ControlNotificationService {
                 .activeFrom(entity.getActiveFrom())
                 .activeTo(entity.getActiveTo())
                 .enabled(entity.isEnabled())
+                .cheapestHours(entity.getCheapestHours())
                 .lastSentAt(entity.getLastSentAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+    }
+
+    private record ActiveWindow(ZonedDateTime start, ZonedDateTime end) {
     }
 }
