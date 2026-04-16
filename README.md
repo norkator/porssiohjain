@@ -287,3 +287,4 @@ Private individuals may self-host it for their own household use. Commercial use
 installations, or offering it as a service to third parties requires a separate written commercial license.
 
 See the LICENSE file for details.
+
