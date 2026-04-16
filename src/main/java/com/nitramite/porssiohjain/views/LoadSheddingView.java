@@ -27,6 +27,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
@@ -84,6 +85,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
     private final ComboBox<LoadSheddingNodeResponse> targetNodeCombo = new ComboBox<>();
     private final ComboBox<LoadSheddingTriggerState> triggerStateCombo = new ComboBox<>();
     private final ComboBox<ControlAction> targetActionCombo = new ComboBox<>();
+    private final Checkbox reverseOnClearCheckbox = new Checkbox();
     private final Button saveLinkButton = new Button();
     private final Button newLinkButton = new Button();
     private final Button clearLinkButton = new Button();
@@ -138,6 +140,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         targetNodeCombo.setLabel(t("loadShedding.link.target"));
         triggerStateCombo.setLabel(t("loadShedding.link.trigger"));
         targetActionCombo.setLabel(t("loadShedding.link.action"));
+        reverseOnClearCheckbox.setLabel(t("loadShedding.link.reverseOnClear"));
         saveLinkButton.setText(t("loadShedding.button.saveLink"));
         newLinkButton.setText(t("loadShedding.button.newLink"));
         clearLinkButton.setText(t("loadShedding.button.clear"));
@@ -260,7 +263,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         title.getStyle().set("font-size", "1.1rem");
         title.getStyle().set("margin", "0");
 
-        FormLayout formLayout = new FormLayout(sourceNodeCombo, targetNodeCombo, triggerStateCombo, targetActionCombo);
+        FormLayout formLayout = new FormLayout(sourceNodeCombo, targetNodeCombo, triggerStateCombo, targetActionCombo, reverseOnClearCheckbox);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("300px", 2)
@@ -334,6 +337,8 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         targetActionCombo.setValue(ControlAction.TURN_OFF);
         targetActionCombo.setWidthFull();
 
+        reverseOnClearCheckbox.setValue(false);
+
         saveLinkButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveLinkButton.addClickListener(event -> saveLink());
         newLinkButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
@@ -353,6 +358,9 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
                 .setAutoWidth(true);
         linkGrid.addColumn(link -> t("controlAction." + link.getTargetAction().name()))
                 .setHeader(t("loadShedding.grid.action"))
+                .setAutoWidth(true);
+        linkGrid.addColumn(link -> link.isReverseOnClear() ? t("common.yes") : t("common.no"))
+                .setHeader(t("loadShedding.grid.reverseOnClear"))
                 .setAutoWidth(true);
         linkGrid.addColumn(link -> nodeLabel(link.getTargetNode()))
                 .setHeader(t("loadShedding.grid.target"))
@@ -602,7 +610,8 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
                     source.getId(),
                     target.getId(),
                     triggerStateCombo.getValue(),
-                    targetActionCombo.getValue()
+                    targetActionCombo.getValue(),
+                    reverseOnClearCheckbox.getValue()
             );
             selectedLink = saved;
             Notification.show(t("loadShedding.notification.linkSaved"))
@@ -649,6 +658,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         targetNodeCombo.setValue(findNode(link.getTargetNode().getId()));
         triggerStateCombo.setValue(link.getTriggerState());
         targetActionCombo.setValue(link.getTargetAction());
+        reverseOnClearCheckbox.setValue(link.isReverseOnClear());
         saveLinkButton.setText(t("loadShedding.button.updateLink"));
         deleteLinkButton.setEnabled(true);
     }
@@ -670,6 +680,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         targetNodeCombo.clear();
         triggerStateCombo.setValue(LoadSheddingTriggerState.TURNED_ON);
         targetActionCombo.setValue(ControlAction.TURN_OFF);
+        reverseOnClearCheckbox.setValue(false);
         saveLinkButton.setText(t("loadShedding.button.saveLink"));
         deleteLinkButton.setEnabled(false);
     }
@@ -721,7 +732,11 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
     }
 
     private String linkLabel(LoadSheddingLinkResponse link) {
-        return t("loadShedding.trigger." + link.getTriggerState().name()) + " -> " + t("controlAction." + link.getTargetAction().name());
+        String label = t("loadShedding.trigger." + link.getTriggerState().name()) + " -> " + t("controlAction." + link.getTargetAction().name());
+        if (link.isReverseOnClear()) {
+            label += " / " + t("loadShedding.link.reversibleShort");
+        }
+        return label;
     }
 
     private void showWarning(String message) {

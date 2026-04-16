@@ -30,6 +30,7 @@ public class LoadSheddingLinkResponse {
     private LoadSheddingNodeResponse targetNode;
     private LoadSheddingTriggerState triggerState;
     private ControlAction targetAction;
+    private boolean reverseOnClear;
     private Instant createdAt;
     private Instant updatedAt;
 }

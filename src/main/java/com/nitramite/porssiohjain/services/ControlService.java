@@ -607,11 +607,16 @@ public class ControlService {
             boolean changed = false;
             for (LoadSheddingLinkEntity link : links) {
                 Integer sourceState = stateByNodeId.get(link.getSourceNode().getId());
-                if (sourceState == null || !matchesLoadSheddingTrigger(sourceState, link.getTriggerState())) {
+                if (sourceState == null) {
                     continue;
                 }
 
-                int nextTargetState = link.getTargetAction() == ControlAction.TURN_ON ? 1 : 0;
+                boolean triggerMatches = matchesLoadSheddingTrigger(sourceState, link.getTriggerState());
+                if (!triggerMatches && !link.isReverseOnClear()) {
+                    continue;
+                }
+
+                int nextTargetState = resolveLoadSheddingTargetState(link.getTargetAction(), triggerMatches);
                 Long targetNodeId = link.getTargetNode().getId();
                 if (!Objects.equals(stateByNodeId.get(targetNodeId), nextTargetState)) {
                     stateByNodeId.put(targetNodeId, nextTargetState);
@@ -641,6 +646,14 @@ public class ControlService {
             case TURNED_ON -> sourceState == 1;
             case TURNED_OFF -> sourceState == 0;
         };
+    }
+
+    private int resolveLoadSheddingTargetState(ControlAction targetAction, boolean triggerMatches) {
+        boolean turnOn = targetAction == ControlAction.TURN_ON;
+        if (!triggerMatches) {
+            turnOn = !turnOn;
+        }
+        return turnOn ? 1 : 0;
     }
 
     private void enforcePowerLimitPriority(

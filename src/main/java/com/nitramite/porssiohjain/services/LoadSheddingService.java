@@ -105,7 +105,8 @@ public class LoadSheddingService {
             Long sourceNodeId,
             Long targetNodeId,
             LoadSheddingTriggerState triggerState,
-            ControlAction targetAction
+            ControlAction targetAction,
+            boolean reverseOnClear
     ) {
         if (triggerState == null) {
             throw new IllegalArgumentException("Trigger state is required");
@@ -133,6 +134,7 @@ public class LoadSheddingService {
         entity.setTargetNode(targetNode);
         entity.setTriggerState(triggerState);
         entity.setTargetAction(targetAction);
+        entity.setReverseOnClear(reverseOnClear);
 
         return mapLink(loadSheddingLinkRepository.save(entity));
     }
@@ -204,6 +206,7 @@ public class LoadSheddingService {
                 .targetNode(mapNode(entity.getTargetNode()))
                 .triggerState(entity.getTriggerState())
                 .targetAction(entity.getTargetAction())
+                .reverseOnClear(entity.isReverseOnClear())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

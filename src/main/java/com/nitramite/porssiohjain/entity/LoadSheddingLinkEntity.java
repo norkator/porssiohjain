@@ -55,6 +55,10 @@ public class LoadSheddingLinkEntity {
     @Column(name = "target_action", nullable = false, length = 32)
     private ControlAction targetAction;
 
+    @Builder.Default
+    @Column(name = "reverse_on_clear", nullable = false)
+    private boolean reverseOnClear = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
