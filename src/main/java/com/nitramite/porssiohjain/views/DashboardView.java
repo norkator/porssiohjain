@@ -318,10 +318,13 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         Div wrapper = new Div();
         wrapper.getStyle()
                 .set("width", "100%")
+                .set("max-width", "100%")
+                .set("box-sizing", "border-box")
                 .set("padding", "14px")
                 .set("border-radius", "12px")
                 .set("background-color", "var(--lumo-contrast-10pct)")
-                .set("text-align", "center");
+                .set("text-align", "center")
+                .set("overflow-wrap", "anywhere");
 
         H2 title = new H2(t("dashboard.controlSavingsTitle"));
         title.getStyle().set("margin", "0 0 8px 0");
