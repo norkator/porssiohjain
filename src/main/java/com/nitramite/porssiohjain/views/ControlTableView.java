@@ -459,6 +459,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         notificationGrid.addColumn(ControlNotificationResponse::getDescription).setHeader(t("controlTable.notifications.grid.description"));
         notificationGrid.addColumn(n -> n.getActiveFrom() + " - " + n.getActiveTo()).setHeader(t("controlTable.notifications.grid.activeTime"));
         notificationGrid.addColumn(n -> formatCheapestHours(n.getCheapestHours())).setHeader(t("controlTable.notifications.grid.cheapestHours"));
+        notificationGrid.addColumn(n -> n.getSendEarlierMinutes() != null ? n.getSendEarlierMinutes() : 0).setHeader(t("controlTable.notifications.grid.sendEarlierMinutes"));
         notificationGrid.addColumn(n -> n.isEnabled() ? t("common.yes") : t("common.no")).setHeader(t("controlTable.notifications.grid.enabled"));
         notificationGrid.addColumn(n -> formatInstant(n.getLastSentAt())).setHeader(t("controlTable.notifications.grid.lastSent"));
         notificationGrid.addComponentColumn(n -> {
@@ -645,6 +646,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         cheapestHours.setStep(0.25);
         cheapestHours.setWidthFull();
 
+        NumberField sendEarlierMinutes = new NumberField(t("controlTable.notifications.field.sendEarlierMinutes"));
+        sendEarlierMinutes.setValue(0.0);
+        sendEarlierMinutes.setMin(0);
+        sendEarlierMinutes.setStep(1);
+        sendEarlierMinutes.setWidthFull();
+
         Button addButton = new Button(t("controlTable.notifications.button.add"), e -> {
             try {
                 controlNotificationService.createControlNotification(
@@ -655,7 +662,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         activeFrom.getValue(),
                         activeTo.getValue(),
                         enabled.getValue(),
-                        cheapestHours.getValue()
+                        cheapestHours.getValue(),
+                        sendEarlierMinutes.getValue() != null ? sendEarlierMinutes.getValue().intValue() : 0
                 );
                 nameField.clear();
                 descriptionField.clear();
@@ -663,6 +671,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 activeTo.setValue(java.time.LocalTime.of(23, 59));
                 enabled.setValue(true);
                 cheapestHours.setValue(0.0);
+                sendEarlierMinutes.setValue(0.0);
                 loadControlNotifications();
             } catch (Exception ex) {
                 Notification notification = Notification.show(t("controlTable.notifications.notification.failed", ex.getMessage()));
@@ -672,7 +681,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         addButton.setWidthFull();
 
-        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, cheapestHours, enabled, addButton);
+        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, cheapestHours, sendEarlierMinutes, enabled, addButton);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 3)
@@ -718,7 +727,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         cheapestHours.setStep(0.25);
         cheapestHours.setWidthFull();
 
-        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, cheapestHours, enabled);
+        NumberField sendEarlierMinutes = new NumberField(t("controlTable.notifications.field.sendEarlierMinutes"));
+        sendEarlierMinutes.setValue(notificationResponse.getSendEarlierMinutes() != null ? notificationResponse.getSendEarlierMinutes().doubleValue() : 0.0);
+        sendEarlierMinutes.setMin(0);
+        sendEarlierMinutes.setStep(1);
+        sendEarlierMinutes.setWidthFull();
+
+        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, cheapestHours, sendEarlierMinutes, enabled);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2)
@@ -735,7 +750,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         activeFrom.getValue(),
                         activeTo.getValue(),
                         enabled.getValue(),
-                        cheapestHours.getValue()
+                        cheapestHours.getValue(),
+                        sendEarlierMinutes.getValue() != null ? sendEarlierMinutes.getValue().intValue() : 0
                 );
                 loadControlNotifications();
                 dialog.close();

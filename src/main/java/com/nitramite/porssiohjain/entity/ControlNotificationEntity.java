@@ -58,6 +58,10 @@ public class ControlNotificationEntity {
     @Column(name = "cheapest_hours", nullable = false, precision = 5, scale = 2)
     private BigDecimal cheapestHours = BigDecimal.ZERO;
 
+    @Builder.Default
+    @Column(name = "send_earlier_minutes", nullable = false)
+    private Integer sendEarlierMinutes = 0;
+
     @Column(name = "last_sent_at")
     private Instant lastSentAt;
 

@@ -32,6 +32,7 @@ public class ControlNotificationResponse {
     private LocalTime activeTo;
     private boolean enabled;
     private BigDecimal cheapestHours;
+    private Integer sendEarlierMinutes;
     private Instant lastSentAt;
     private Instant createdAt;
     private Instant updatedAt;

@@ -68,9 +68,10 @@ public class ControlNotificationService {
             LocalTime activeFrom,
             LocalTime activeTo,
             boolean enabled,
-            Double cheapestHours
+            Double cheapestHours,
+            Integer sendEarlierMinutes
     ) {
-        validate(name, activeFrom, activeTo, cheapestHours);
+        validate(name, activeFrom, activeTo, cheapestHours, sendEarlierMinutes);
         ControlEntity control = ensureOwnedControl(accountId, controlId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -84,6 +85,7 @@ public class ControlNotificationService {
                 .activeTo(activeTo)
                 .enabled(enabled)
                 .cheapestHours(normalizeCheapestHours(cheapestHours))
+                .sendEarlierMinutes(normalizeSendEarlierMinutes(sendEarlierMinutes))
                 .build();
 
         return mapToResponse(controlNotificationRepository.save(entity));
@@ -97,9 +99,10 @@ public class ControlNotificationService {
             LocalTime activeFrom,
             LocalTime activeTo,
             boolean enabled,
-            Double cheapestHours
+            Double cheapestHours,
+            Integer sendEarlierMinutes
     ) {
-        validate(name, activeFrom, activeTo, cheapestHours);
+        validate(name, activeFrom, activeTo, cheapestHours, sendEarlierMinutes);
         ControlNotificationEntity entity = controlNotificationRepository.findByIdAndAccountId(notificationId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Control notification not found: " + notificationId));
 
@@ -109,6 +112,7 @@ public class ControlNotificationService {
         entity.setActiveTo(activeTo);
         entity.setEnabled(enabled);
         entity.setCheapestHours(normalizeCheapestHours(cheapestHours));
+        entity.setSendEarlierMinutes(normalizeSendEarlierMinutes(sendEarlierMinutes));
 
         return mapToResponse(controlNotificationRepository.save(entity));
     }
@@ -134,19 +138,22 @@ public class ControlNotificationService {
         ControlEntity control = notification.getControl();
         ZoneId zone = ZoneId.of(control.getTimezone());
         ZonedDateTime nowLocal = now.atZone(zone);
-        if (!isInsideActiveWindow(nowLocal.toLocalTime(), notification.getActiveFrom(), notification.getActiveTo())) {
+        int sendEarlierMinutes = normalizeSendEarlierMinutes(notification.getSendEarlierMinutes());
+        Instant matchTime = now.plus(Duration.ofMinutes(sendEarlierMinutes));
+        ZonedDateTime matchLocal = matchTime.atZone(zone);
+        if (!isInsideActiveWindow(matchLocal.toLocalTime(), notification.getActiveFrom(), notification.getActiveTo())) {
             return;
         }
 
-        if (!isInsideCheapestHoursWindow(notification, nowLocal)) {
+        if (!isInsideCheapestHoursWindow(notification, matchLocal)) {
             return;
         }
 
-        if (wasSentToday(notification.getLastSentAt(), nowLocal.toLocalDate(), zone)) {
+        if (wasSentForNotificationDate(notification.getLastSentAt(), matchLocal.toLocalDate(), zone, sendEarlierMinutes)) {
             return;
         }
 
-        boolean controlActive = controlTableRepository.existsActiveAt(control.getId(), Status.FINAL, now);
+        boolean controlActive = controlTableRepository.existsActiveAt(control.getId(), Status.FINAL, matchTime);
         if (!controlActive) {
             return;
         }
@@ -179,8 +186,9 @@ public class ControlNotificationService {
         return !now.isBefore(from) || now.isBefore(to);
     }
 
-    private boolean wasSentToday(Instant lastSentAt, LocalDate today, ZoneId zone) {
-        return lastSentAt != null && lastSentAt.atZone(zone).toLocalDate().equals(today);
+    private boolean wasSentForNotificationDate(Instant lastSentAt, LocalDate notificationDate, ZoneId zone, int sendEarlierMinutes) {
+        return lastSentAt != null
+                && lastSentAt.plus(Duration.ofMinutes(sendEarlierMinutes)).atZone(zone).toLocalDate().equals(notificationDate);
     }
 
     private boolean isInsideCheapestHoursWindow(ControlNotificationEntity notification, ZonedDateTime nowLocal) {
@@ -229,7 +237,7 @@ public class ControlNotificationService {
         return new ActiveWindow(start, end.plusDays(1));
     }
 
-    private void validate(String name, LocalTime activeFrom, LocalTime activeTo, Double cheapestHours) {
+    private void validate(String name, LocalTime activeFrom, LocalTime activeTo, Double cheapestHours, Integer sendEarlierMinutes) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Notification name cannot be empty");
         }
@@ -239,10 +247,17 @@ public class ControlNotificationService {
         if (cheapestHours != null && cheapestHours < 0) {
             throw new IllegalArgumentException("Cheapest hours cannot be negative");
         }
+        if (sendEarlierMinutes != null && sendEarlierMinutes < 0) {
+            throw new IllegalArgumentException("Send earlier minutes cannot be negative");
+        }
     }
 
     private BigDecimal normalizeCheapestHours(Double cheapestHours) {
         return cheapestHours != null ? BigDecimal.valueOf(cheapestHours) : BigDecimal.ZERO;
+    }
+
+    private int normalizeSendEarlierMinutes(Integer sendEarlierMinutes) {
+        return sendEarlierMinutes != null ? sendEarlierMinutes : 0;
     }
 
     private ControlEntity ensureOwnedControl(Long accountId, Long controlId) {
@@ -260,6 +275,7 @@ public class ControlNotificationService {
                 .activeTo(entity.getActiveTo())
                 .enabled(entity.isEnabled())
                 .cheapestHours(entity.getCheapestHours())
+                .sendEarlierMinutes(entity.getSendEarlierMinutes())
                 .lastSentAt(entity.getLastSentAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
