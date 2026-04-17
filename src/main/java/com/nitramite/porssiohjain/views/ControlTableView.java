@@ -462,6 +462,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         notificationGrid.addColumn(n -> n.getSendEarlierMinutes() != null ? n.getSendEarlierMinutes() : 0).setHeader(t("controlTable.notifications.grid.sendEarlierMinutes"));
         notificationGrid.addColumn(n -> n.isEnabled() ? t("common.yes") : t("common.no")).setHeader(t("controlTable.notifications.grid.enabled"));
         notificationGrid.addColumn(n -> formatInstant(n.getLastSentAt())).setHeader(t("controlTable.notifications.grid.lastSent"));
+        notificationGrid.addColumn(n -> formatInstant(n.getNextSendAt())).setHeader(t("controlTable.notifications.grid.nextSend"));
         notificationGrid.addComponentColumn(n -> {
             Button edit = new Button(t("controlTable.button.edit"), e -> openEditNotificationDialog(n));
             Button delete = new Button(t("controlTable.button.delete"), e -> {

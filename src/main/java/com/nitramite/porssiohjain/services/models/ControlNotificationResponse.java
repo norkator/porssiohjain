@@ -34,6 +34,7 @@ public class ControlNotificationResponse {
     private BigDecimal cheapestHours;
     private Integer sendEarlierMinutes;
     private Instant lastSentAt;
+    private Instant nextSendAt;
     private Instant createdAt;
     private Instant updatedAt;
 }

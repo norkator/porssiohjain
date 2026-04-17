@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
+import com.nitramite.porssiohjain.entity.ControlTableEntity;
 import com.nitramite.porssiohjain.entity.NordpoolEntity;
 import com.nitramite.porssiohjain.entity.enums.Status;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
@@ -44,6 +45,8 @@ import java.util.Locale;
 @RequiredArgsConstructor
 @Transactional
 public class ControlNotificationService {
+
+    private static final Duration NEXT_SEND_LOOKAHEAD = Duration.ofDays(2);
 
     private final ControlNotificationRepository controlNotificationRepository;
     private final ControlRepository controlRepository;
@@ -141,20 +144,7 @@ public class ControlNotificationService {
         int sendEarlierMinutes = normalizeSendEarlierMinutes(notification.getSendEarlierMinutes());
         Instant matchTime = now.plus(Duration.ofMinutes(sendEarlierMinutes));
         ZonedDateTime matchLocal = matchTime.atZone(zone);
-        if (!isInsideActiveWindow(matchLocal.toLocalTime(), notification.getActiveFrom(), notification.getActiveTo())) {
-            return;
-        }
-
-        if (!isInsideCheapestHoursWindow(notification, matchLocal)) {
-            return;
-        }
-
-        if (wasSentForNotificationDate(notification.getLastSentAt(), matchLocal.toLocalDate(), zone, sendEarlierMinutes)) {
-            return;
-        }
-
-        boolean controlActive = controlTableRepository.existsActiveAt(control.getId(), Status.FINAL, matchTime);
-        if (!controlActive) {
+        if (!matchesNotificationTime(notification, matchLocal, zone, sendEarlierMinutes)) {
             return;
         }
 
@@ -174,6 +164,67 @@ public class ControlNotificationService {
         );
         notification.setLastSentAt(now);
         controlNotificationRepository.save(notification);
+    }
+
+    private Instant resolveNextSendAt(ControlNotificationEntity notification, Instant now) {
+        if (!notification.isEnabled()) {
+            return null;
+        }
+        ControlEntity control = notification.getControl();
+        AccountEntity account = notification.getAccount();
+        if (account.getEmail() == null || account.getEmail().isBlank()) {
+            return null;
+        }
+
+        ZoneId zone = ZoneId.of(control.getTimezone());
+        int sendEarlierMinutes = normalizeSendEarlierMinutes(notification.getSendEarlierMinutes());
+        Duration leadTime = Duration.ofMinutes(sendEarlierMinutes);
+        Instant firstSchedulerTick = nextSchedulerTick(now);
+        Instant matchFrom = firstSchedulerTick.plus(leadTime);
+        Instant matchTo = firstSchedulerTick.plus(NEXT_SEND_LOOKAHEAD).plus(leadTime);
+
+        List<ControlTableEntity> activePeriods = controlTableRepository.findActivePeriodsOverlapping(
+                control.getId(),
+                Status.FINAL,
+                matchFrom,
+                matchTo
+        );
+
+        for (ControlTableEntity activePeriod : activePeriods) {
+            Instant firstCandidate = max(firstSchedulerTick, activePeriod.getStartTime().minus(leadTime));
+            Instant lastCandidateExclusive = min(firstSchedulerTick.plus(NEXT_SEND_LOOKAHEAD), activePeriod.getEndTime().minus(leadTime));
+            Instant candidate = alignToSchedulerTick(firstCandidate);
+            while (candidate.isBefore(lastCandidateExclusive)) {
+                ZonedDateTime matchLocal = candidate.plus(leadTime).atZone(zone);
+                if (matchesNotificationTime(notification, matchLocal, zone, sendEarlierMinutes)) {
+                    return candidate;
+                }
+                candidate = candidate.plus(Duration.ofMinutes(1));
+            }
+        }
+        return null;
+    }
+
+    private boolean matchesNotificationTime(
+            ControlNotificationEntity notification,
+            ZonedDateTime matchLocal,
+            ZoneId zone,
+            int sendEarlierMinutes
+    ) {
+        Instant matchTime = matchLocal.toInstant();
+        if (!isInsideActiveWindow(matchLocal.toLocalTime(), notification.getActiveFrom(), notification.getActiveTo())) {
+            return false;
+        }
+
+        if (!isInsideCheapestHoursWindow(notification, matchLocal)) {
+            return false;
+        }
+
+        if (wasSentForNotificationDate(notification.getLastSentAt(), matchLocal.toLocalDate(), zone, sendEarlierMinutes)) {
+            return false;
+        }
+
+        return controlTableRepository.existsActiveAt(notification.getControl().getId(), Status.FINAL, matchTime);
     }
 
     private boolean isInsideActiveWindow(LocalTime now, LocalTime from, LocalTime to) {
@@ -260,6 +311,30 @@ public class ControlNotificationService {
         return sendEarlierMinutes != null ? sendEarlierMinutes : 0;
     }
 
+    private Instant nextSchedulerTick(Instant now) {
+        Instant currentMinuteTick = now.truncatedTo(java.time.temporal.ChronoUnit.MINUTES).plusSeconds(15);
+        if (now.isAfter(currentMinuteTick)) {
+            return currentMinuteTick.plus(Duration.ofMinutes(1));
+        }
+        return currentMinuteTick;
+    }
+
+    private Instant alignToSchedulerTick(Instant instant) {
+        Instant tick = instant.truncatedTo(java.time.temporal.ChronoUnit.MINUTES).plusSeconds(15);
+        if (instant.isAfter(tick)) {
+            return tick.plus(Duration.ofMinutes(1));
+        }
+        return tick;
+    }
+
+    private Instant max(Instant a, Instant b) {
+        return a.isAfter(b) ? a : b;
+    }
+
+    private Instant min(Instant a, Instant b) {
+        return a.isBefore(b) ? a : b;
+    }
+
     private ControlEntity ensureOwnedControl(Long accountId, Long controlId) {
         return controlRepository.findByIdAndAccountId(controlId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found for account with id: " + controlId));
@@ -277,6 +352,7 @@ public class ControlNotificationService {
                 .cheapestHours(entity.getCheapestHours())
                 .sendEarlierMinutes(entity.getSendEarlierMinutes())
                 .lastSentAt(entity.getLastSentAt())
+                .nextSendAt(resolveNextSendAt(entity, Instant.now()))
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

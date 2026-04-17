@@ -51,6 +51,22 @@ public interface ControlTableRepository extends JpaRepository<ControlTableEntity
     );
 
     @Query("""
+            select ct
+            from ControlTableEntity ct
+            where ct.control.id = :controlId
+              and ct.status = :status
+              and ct.endTime > :from
+              and ct.startTime < :to
+            order by ct.startTime asc
+            """)
+    List<ControlTableEntity> findActivePeriodsOverlapping(
+            @Param("controlId") Long controlId,
+            @Param("status") Status status,
+            @Param("from") Instant from,
+            @Param("to") Instant to
+    );
+
+    @Query("""
             select count(ct) > 0
             from ControlTableEntity ct
             where ct.control.id = :controlId
