@@ -15,13 +15,11 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
 import com.nitramite.porssiohjain.entity.ControlTableEntity;
-import com.nitramite.porssiohjain.entity.NordpoolEntity;
 import com.nitramite.porssiohjain.entity.enums.Status;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlNotificationRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
-import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.services.models.ControlNotificationResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -36,7 +34,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -52,7 +49,6 @@ public class ControlNotificationService {
     private final ControlRepository controlRepository;
     private final AccountRepository accountRepository;
     private final ControlTableRepository controlTableRepository;
-    private final NordpoolRepository nordpoolRepository;
     private final EmailService emailService;
 
     public List<ControlNotificationResponse> getControlNotifications(Long accountId, Long controlId) {
@@ -127,7 +123,10 @@ public class ControlNotificationService {
     }
 
     public void sendDueNotifications() {
-        Instant now = Instant.now();
+        sendDueNotifications(Instant.now());
+    }
+
+    void sendDueNotifications(Instant now) {
         for (ControlNotificationEntity notification : controlNotificationRepository.findByEnabledTrueOrderByIdAsc()) {
             try {
                 sendIfDue(notification, now);
@@ -242,35 +241,60 @@ public class ControlNotificationService {
                 && lastSentAt.plus(Duration.ofMinutes(sendEarlierMinutes)).atZone(zone).toLocalDate().equals(notificationDate);
     }
 
-    private boolean isInsideCheapestHoursWindow(ControlNotificationEntity notification, ZonedDateTime nowLocal) {
+    private boolean isInsideCheapestHoursWindow(ControlNotificationEntity notification, ZonedDateTime matchLocal) {
         BigDecimal cheapestHours = notification.getCheapestHours();
         if (cheapestHours == null || cheapestHours.compareTo(BigDecimal.ZERO) <= 0) {
             return true;
         }
 
-        ActiveWindow activeWindow = resolveActiveWindow(nowLocal, notification.getActiveFrom(), notification.getActiveTo());
+        ActiveWindow activeWindow = resolveActiveWindow(matchLocal, notification.getActiveFrom(), notification.getActiveTo());
+        long requiredMinutes = (long) Math.ceil(cheapestHours.doubleValue() * 60);
         long activeWindowMinutes = Duration.between(activeWindow.start(), activeWindow.end()).toMinutes();
-        int periodsToUse = (int) Math.ceil(cheapestHours.doubleValue() * 4);
-        int maxPeriods = (int) Math.ceil(activeWindowMinutes / 15.0);
-        periodsToUse = Math.min(periodsToUse, maxPeriods);
-        if (periodsToUse <= 0) {
+        requiredMinutes = Math.min(requiredMinutes, activeWindowMinutes);
+        if (requiredMinutes <= 0) {
             return false;
         }
 
         Instant windowStart = activeWindow.start().toInstant();
         Instant windowEnd = activeWindow.end().toInstant();
-        List<NordpoolEntity> cheapestPeriods = nordpoolRepository.findPricesBetween(windowStart, windowEnd.minusNanos(1))
-                .stream()
-                .filter(price -> !price.getDeliveryStart().isBefore(windowStart))
-                .filter(price -> price.getDeliveryStart().isBefore(windowEnd))
-                .sorted(Comparator.comparing(NordpoolEntity::getPriceFi)
-                        .thenComparing(NordpoolEntity::getDeliveryStart))
-                .limit(periodsToUse)
-                .toList();
+        Instant matchTime = matchLocal.toInstant();
+        List<ControlTableEntity> activePeriods = controlTableRepository.findActivePeriodsOverlapping(
+                notification.getControl().getId(),
+                Status.FINAL,
+                windowStart,
+                windowEnd
+        );
 
-        Instant now = nowLocal.toInstant();
-        return cheapestPeriods.stream()
-                .anyMatch(price -> !now.isBefore(price.getDeliveryStart()) && now.isBefore(price.getDeliveryEnd()));
+        Instant runStart = null;
+        Instant runEnd = null;
+        for (ControlTableEntity activePeriod : activePeriods) {
+            Instant periodStart = max(activePeriod.getStartTime(), windowStart);
+            Instant periodEnd = min(activePeriod.getEndTime(), windowEnd);
+            if (!periodStart.isBefore(periodEnd)) {
+                continue;
+            }
+
+            if (runStart == null || periodStart.isAfter(runEnd)) {
+                if (isMatchInsideLongEnoughRun(matchTime, runStart, runEnd, requiredMinutes)) {
+                    return true;
+                }
+                runStart = periodStart;
+                runEnd = periodEnd;
+            } else if (periodEnd.isAfter(runEnd)) {
+                runEnd = periodEnd;
+            }
+        }
+
+        return isMatchInsideLongEnoughRun(matchTime, runStart, runEnd, requiredMinutes);
+    }
+
+    private boolean isMatchInsideLongEnoughRun(Instant matchTime, Instant runStart, Instant runEnd, long requiredMinutes) {
+        if (runStart == null || runEnd == null) {
+            return false;
+        }
+        return !matchTime.isBefore(runStart)
+                && matchTime.isBefore(runEnd)
+                && Duration.between(runStart, runEnd).toMinutes() >= requiredMinutes;
     }
 
     private ActiveWindow resolveActiveWindow(ZonedDateTime nowLocal, LocalTime from, LocalTime to) {
