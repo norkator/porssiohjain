@@ -455,14 +455,14 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private void configureNotificationGrid() {
         notificationGrid.removeAllColumns();
-        notificationGrid.addColumn(ControlNotificationResponse::getName).setHeader(t("controlTable.notifications.grid.name"));
-        notificationGrid.addColumn(ControlNotificationResponse::getDescription).setHeader(t("controlTable.notifications.grid.description"));
-        notificationGrid.addColumn(n -> n.getActiveFrom() + " - " + n.getActiveTo()).setHeader(t("controlTable.notifications.grid.activeTime"));
-        notificationGrid.addColumn(n -> formatCheapestHours(n.getCheapestHours())).setHeader(t("controlTable.notifications.grid.cheapestHours"));
-        notificationGrid.addColumn(n -> n.getSendEarlierMinutes() != null ? n.getSendEarlierMinutes() : 0).setHeader(t("controlTable.notifications.grid.sendEarlierMinutes"));
-        notificationGrid.addColumn(n -> n.isEnabled() ? t("common.yes") : t("common.no")).setHeader(t("controlTable.notifications.grid.enabled"));
-        notificationGrid.addColumn(n -> formatInstant(n.getLastSentAt())).setHeader(t("controlTable.notifications.grid.lastSent"));
-        notificationGrid.addColumn(n -> formatInstant(n.getNextSendAt())).setHeader(t("controlTable.notifications.grid.nextSend"));
+        notificationGrid.addColumn(ControlNotificationResponse::getName).setHeader(t("controlTable.notifications.grid.name")).setAutoWidth(true);
+        notificationGrid.addColumn(ControlNotificationResponse::getDescription).setHeader(t("controlTable.notifications.grid.description")).setAutoWidth(true);
+        notificationGrid.addColumn(n -> n.getActiveFrom() + " - " + n.getActiveTo()).setHeader(t("controlTable.notifications.grid.activeTime")).setAutoWidth(true);
+        notificationGrid.addColumn(n -> formatCheapestHours(n.getCheapestHours())).setHeader(t("controlTable.notifications.grid.cheapestHours")).setAutoWidth(true);
+        notificationGrid.addColumn(n -> n.getSendEarlierMinutes() != null ? n.getSendEarlierMinutes() : 0).setHeader(t("controlTable.notifications.grid.sendEarlierMinutes")).setAutoWidth(true);
+        notificationGrid.addColumn(n -> n.isEnabled() ? t("common.yes") : t("common.no")).setHeader(t("controlTable.notifications.grid.enabled")).setAutoWidth(true);
+        notificationGrid.addColumn(n -> formatInstant(n.getLastSentAt())).setHeader(t("controlTable.notifications.grid.lastSent")).setAutoWidth(true);
+        notificationGrid.addColumn(n -> formatInstant(n.getNextSendAt())).setHeader(t("controlTable.notifications.grid.nextSend")).setAutoWidth(true);
         notificationGrid.addComponentColumn(n -> {
             Button edit = new Button(t("controlTable.button.edit"), e -> openEditNotificationDialog(n));
             Button delete = new Button(t("controlTable.button.delete"), e -> {
@@ -474,8 +474,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             actions.setPadding(false);
             actions.setSpacing(true);
             actions.setMargin(false);
+            actions.getStyle().set("min-width", "max-content");
             return actions;
-        }).setHeader(t("controlTable.grid.actions"));
+        }).setHeader(t("controlTable.grid.actions")).setAutoWidth(true).setFlexGrow(0);
         notificationGrid.setAllRowsVisible(true);
     }
 
