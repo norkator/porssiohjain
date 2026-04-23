@@ -52,6 +52,8 @@ export default function ManagePowerLimitView() {
   const [notifyEnabled, setNotifyEnabled] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [deviceChannel, setDeviceChannel] = useState("1");
+  const [deleteLinkConfirmId, setDeleteLinkConfirmId] = useState<number | null>(null);
+  const [isDeletingLinkId, setIsDeletingLinkId] = useState<number | null>(null);
 
   async function loadData() {
     setIsLoading(true);
@@ -137,6 +139,21 @@ export default function ManagePowerLimitView() {
     }
   };
 
+  const handleDeleteLink = async (linkId: number) => {
+    setError(null);
+    setIsDeletingLinkId(linkId);
+
+    try {
+      await deletePowerLimitDeviceLink(linkId);
+      setLinks((current) => current.filter((item) => item.id !== linkId));
+      setDeleteLinkConfirmId((current) => (current === linkId ? null : current));
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to remove linked device");
+    } finally {
+      setIsDeletingLinkId((current) => (current === linkId ? null : current));
+    }
+  };
+
   return (
     <>
       <PageHeader title="Manage Power Limit" compact />
@@ -164,7 +181,46 @@ export default function ManagePowerLimitView() {
                 <div className="space-y-3">
                   {links.map((link) => (
                     <div className="rounded-xl bg-surface-container p-4" key={link.id}>
-                      <div className="flex items-start justify-between gap-3"><div><p className="font-headline font-bold">{link.device.deviceName}</p><p className="font-mono text-xs text-outline">UUID: {link.device.uuid}</p></div><button className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container" onClick={async () => { await deletePowerLimitDeviceLink(link.id); setLinks((current) => current.filter((item) => item.id !== link.id)); }} type="button">Remove</button></div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-headline font-bold">{link.device.deviceName}</p>
+                          <p className="font-mono text-xs text-outline">UUID: {link.device.uuid}</p>
+                        </div>
+                        {deleteLinkConfirmId === link.id ? (
+                          <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
+                            <div>
+                              <p className="font-headline text-sm font-bold text-on-error-container">Confirm removal</p>
+                              <p className="text-xs text-on-error-container">This unlinks the device from this power limit.</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={isDeletingLinkId === link.id}
+                                onClick={() => handleDeleteLink(link.id)}
+                                type="button"
+                              >
+                                {isDeletingLinkId === link.id ? "Removing..." : "Confirm"}
+                              </button>
+                              <button
+                                className="secondary-action justify-center px-3 py-2 text-xs"
+                                disabled={isDeletingLinkId === link.id}
+                                onClick={() => setDeleteLinkConfirmId(null)}
+                                type="button"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
+                            onClick={() => setDeleteLinkConfirmId(link.id)}
+                            type="button"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
                       <div className="mt-3 text-sm"><span className="metric-label">Channel</span><p className="font-semibold">{link.deviceChannel}</p></div>
                     </div>
                   ))}

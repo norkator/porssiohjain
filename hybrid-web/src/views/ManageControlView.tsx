@@ -70,6 +70,8 @@ export default function ManageControlView() {
   const [deviceChannel, setDeviceChannel] = useState("1");
   const [estimatedPowerKw, setEstimatedPowerKw] = useState("");
   const [isAddingLink, setIsAddingLink] = useState(false);
+  const [deleteLinkConfirmId, setDeleteLinkConfirmId] = useState<number | null>(null);
+  const [isDeletingLinkId, setIsDeletingLinkId] = useState<number | null>(null);
   const timezoneIsValid = availableTimezones.includes(timezone);
   const canSave = name.trim().length > 0 && timezoneIsValid && !control?.shared && !isSaving && !isDeleting;
   const standardLinks = deviceLinks.filter((link) => link.device.deviceType === "STANDARD");
@@ -250,12 +252,16 @@ export default function ManageControlView() {
 
   const handleDeleteDeviceLink = async (linkId: number) => {
     setLinksError(null);
+    setIsDeletingLinkId(linkId);
 
     try {
       await deleteControlDeviceLink(linkId);
       setDeviceLinks((current) => current.filter((link) => link.id !== linkId));
+      setDeleteLinkConfirmId((current) => (current === linkId ? null : current));
     } catch (error) {
       setLinksError(error instanceof Error ? error.message : "Failed to remove linked device");
+    } finally {
+      setIsDeletingLinkId((current) => (current === linkId ? null : current));
     }
   };
 
@@ -480,13 +486,40 @@ export default function ManageControlView() {
                           <p className="font-mono text-xs text-outline">UUID: {link.device.uuid}</p>
                         </div>
                         {!control?.shared ? (
-                          <button
-                            className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
-                            onClick={() => handleDeleteDeviceLink(link.id)}
-                            type="button"
-                          >
-                            Remove
-                          </button>
+                          deleteLinkConfirmId === link.id ? (
+                            <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
+                              <div>
+                                <p className="font-headline text-sm font-bold text-on-error-container">Confirm removal</p>
+                                <p className="text-xs text-on-error-container">This unlinks the device from this control.</p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                                  disabled={isDeletingLinkId === link.id}
+                                  onClick={() => handleDeleteDeviceLink(link.id)}
+                                  type="button"
+                                >
+                                  {isDeletingLinkId === link.id ? "Removing..." : "Confirm"}
+                                </button>
+                                <button
+                                  className="secondary-action justify-center px-3 py-2 text-xs"
+                                  disabled={isDeletingLinkId === link.id}
+                                  onClick={() => setDeleteLinkConfirmId(null)}
+                                  type="button"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
+                              onClick={() => setDeleteLinkConfirmId(link.id)}
+                              type="button"
+                            >
+                              Remove
+                            </button>
+                          )
                         ) : null}
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">

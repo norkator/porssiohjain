@@ -53,6 +53,8 @@ export default function ManageWeatherControlView() {
   const [thresholdValue, setThresholdValue] = useState("0");
   const [controlAction, setControlAction] = useState<ControlAction>("TURN_ON");
   const [priorityRule, setPriorityRule] = useState(false);
+  const [deleteLinkConfirmId, setDeleteLinkConfirmId] = useState<number | null>(null);
+  const [isDeletingLinkId, setIsDeletingLinkId] = useState<number | null>(null);
 
   async function loadData() {
     setIsLoading(true);
@@ -126,11 +128,15 @@ export default function ManageWeatherControlView() {
 
   const handleDeleteLink = async (linkId: number) => {
     setError(null);
+    setIsDeletingLinkId(linkId);
     try {
       await deleteWeatherControlDeviceLink(linkId);
       setLinks((current) => current.filter((link) => link.id !== linkId));
+      setDeleteLinkConfirmId((current) => (current === linkId ? null : current));
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "Failed to remove device rule");
+    } finally {
+      setIsDeletingLinkId((current) => (current === linkId ? null : current));
     }
   };
 
@@ -171,7 +177,40 @@ export default function ManageWeatherControlView() {
                           <p className="font-headline font-bold">{link.device.deviceName}</p>
                           <p className="text-sm text-on-surface-variant">{label(link.weatherMetric)} {label(link.comparisonType)} {link.thresholdValue}</p>
                         </div>
-                        <button className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container" onClick={() => handleDeleteLink(link.id)} type="button">Remove</button>
+                        {deleteLinkConfirmId === link.id ? (
+                          <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
+                            <div>
+                              <p className="font-headline text-sm font-bold text-on-error-container">Confirm removal</p>
+                              <p className="text-xs text-on-error-container">This removes the device rule from this weather control.</p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                                disabled={isDeletingLinkId === link.id}
+                                onClick={() => handleDeleteLink(link.id)}
+                                type="button"
+                              >
+                                {isDeletingLinkId === link.id ? "Removing..." : "Confirm"}
+                              </button>
+                              <button
+                                className="secondary-action justify-center px-3 py-2 text-xs"
+                                disabled={isDeletingLinkId === link.id}
+                                onClick={() => setDeleteLinkConfirmId(null)}
+                                type="button"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
+                            onClick={() => setDeleteLinkConfirmId(link.id)}
+                            type="button"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
                       <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
                         <div><span className="metric-label">Channel</span><p className="font-semibold">{link.deviceChannel}</p></div>
