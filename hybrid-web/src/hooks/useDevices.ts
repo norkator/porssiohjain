@@ -1,0 +1,59 @@
+import { useEffect, useState } from "react";
+import { fetchDevices, getLatestDeviceCommunication, getOnlineDeviceCount, type ApiDevice } from "@/lib/devices";
+
+type UseDevicesState = {
+  devices: ApiDevice[];
+  isLoading: boolean;
+  error: string | null;
+};
+
+export function useDevices() {
+  const [state, setState] = useState<UseDevicesState>({
+    devices: [],
+    isLoading: true,
+    error: null
+  });
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadDevices() {
+      try {
+        const devices = await fetchDevices();
+
+        if (!isActive) {
+          return;
+        }
+
+        setState({
+          devices,
+          isLoading: false,
+          error: null
+        });
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setState({
+          devices: [],
+          isLoading: false,
+          error: error instanceof Error ? error.message : "Failed to load devices"
+        });
+      }
+    }
+
+    loadDevices();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  return {
+    ...state,
+    onlineCount: getOnlineDeviceCount(state.devices),
+    totalCount: state.devices.length,
+    latestCommunication: getLatestDeviceCommunication(state.devices)
+  };
+}
