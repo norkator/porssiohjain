@@ -39,6 +39,13 @@ Browser dev auth:
 - `localStorage` overrides take precedence over `.env.local` during browser development
 - Android WebView production keeps using `getBootstrapData()` from native side
 
+Nginx container:
+
+- `.github/workflows/hybrid-web-container.yml` builds `ghcr.io/norkator/porssiohjain-hybrid-web:latest`
+- the container serves the Vite build with nginx on port `80`
+- the workflow passes `VITE_API_BASE_URL=https://app.porssiohjain.fi/` as a Docker build argument
+- the intended hosted UI origin is `https://mobile.porssiohjain.fi/`
+
 Current structure:
 
 - `src/views/`: route-backed pages derived from your HTML mocks
