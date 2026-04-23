@@ -2,11 +2,17 @@ import PageHeader from "@/components/PageHeader";
 import {Link} from "react-router-dom";
 import {formatKw} from "@/lib/account-stats";
 import {useAccountStats} from "@/hooks/useAccountStats";
+import {useControls} from "@/hooks/useControls";
 import {useDevices} from "@/hooks/useDevices";
 import {logoutNative} from "@/lib/android-bridge";
 
 export default function MainMenuView() {
     const {error, isLoading, onlineCount, totalCount} = useDevices();
+    const {
+        error: controlsError,
+        isLoading: isControlsLoading,
+        totalCount: controlsCount
+    } = useControls();
     const {
         error: statsError,
         isLoading: isStatsLoading,
@@ -29,9 +35,14 @@ export default function MainMenuView() {
         : statsError
             ? "Power limit sync unavailable"
             : `${formatKw(totalConsumptionKw)} kW active`;
+    const controlsDetail = isControlsLoading
+        ? "Loading controls..."
+        : controlsError
+            ? "Control sync unavailable"
+            : `${controlsCount} Controls configured`;
     const tiles = [
         {title: "Devices", detail: deviceTileDetail, to: "/devices", icon: "D"},
-        {title: "Controls", detail: "Smart Home Optimized", to: "/devices", icon: "C"},
+        {title: "Controls", detail: controlsDetail, to: "/controls", icon: "C"},
         {title: "Own Production", detail: ownProductionDetail, to: "/devices", icon: "P"},
         {title: "Power Limits", detail: powerLimitsDetail, to: "/devices", icon: "L"}
     ];
@@ -150,6 +161,7 @@ export default function MainMenuView() {
                                         <p
                                             className={`text-sm ${
                                                 (tile.title === "Devices" && error) || ((tile.title === "Own Production" || tile.title === "Power Limits") && statsError)
+                                                    || (tile.title === "Controls" && controlsError)
                                                     ? "text-on-error-container"
                                                     : "text-on-surface-variant"
                                             }`}

@@ -5,8 +5,11 @@ import AddDeviceConfigureView from "@/views/AddDeviceConfigureView";
 import AddDeviceIntegrationView from "@/views/AddDeviceIntegrationView";
 import AddDeviceReviewView from "@/views/AddDeviceReviewView";
 import AddDeviceTypeView from "@/views/AddDeviceTypeView";
+import AddControlView from "@/views/AddControlView";
+import ControlsView from "@/views/ControlsView";
 import DevicesView from "@/views/DevicesView";
 import MainMenuView from "@/views/MainMenuView";
+import ManageControlView from "@/views/ManageControlView";
 
 export default function App() {
   return (
@@ -20,6 +23,9 @@ export default function App() {
         <Route path="/devices/add/configure" element={<AddDeviceConfigureView />} />
         <Route path="/devices/add/review" element={<AddDeviceReviewView />} />
         <Route path="/devices/add/integration" element={<AddDeviceIntegrationView />} />
+        <Route path="/controls" element={<ControlsView />} />
+        <Route path="/controls/add" element={<AddControlView />} />
+        <Route path="/controls/:controlId" element={<ManageControlView />} />
       </Routes>
     </AppShell>
   );
