@@ -24,7 +24,9 @@ public class WebConfig implements WebMvcConfigurer {
 
     private static final String[] DEFAULT_ALLOWED_ORIGINS = {
             "https://app.porssiohjain.fi",
+            "https://mobile.porssiohjain.fi",
             "https://app.energiaohjain.fi",
+            "https://mobile.energiaohjain.fi",
             "https://www.porssiohjain.fi"
     };
     private static final String[] MOBILE_API_PATHS = {
