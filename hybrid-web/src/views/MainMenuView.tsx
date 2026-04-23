@@ -43,8 +43,9 @@ export default function MainMenuView() {
     const tiles = [
         {title: "Devices", detail: deviceTileDetail, to: "/devices", icon: "D"},
         {title: "Controls", detail: controlsDetail, to: "/controls", icon: "C"},
-        {title: "Own Production", detail: ownProductionDetail, to: "/devices", icon: "P"},
-        {title: "Power Limits", detail: powerLimitsDetail, to: "/devices", icon: "L"}
+        {title: "Weather Controls", detail: "Weather threshold automation", to: "/weather-controls", icon: "W"},
+        {title: "Own Production", detail: ownProductionDetail, to: "/production-sources", icon: "P"},
+        {title: "Power Limits", detail: powerLimitsDetail, to: "/power-limits", icon: "L"}
     ];
     const productionRatio = totalProductionPeakKw > 0 ? Math.min(totalProductionKw / totalProductionPeakKw, 1) : 0;
     const productionBarWidth = `${Math.max(productionRatio * 100, 6)}%`;
@@ -137,7 +138,7 @@ export default function MainMenuView() {
                         <span className="h-1 w-8 rounded-full bg-primary"/>
                         Control Center
                     </h2>
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
                         {tiles.map((tile) => (
                             <Link
                                 key={tile.title}

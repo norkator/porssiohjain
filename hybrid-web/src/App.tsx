@@ -11,6 +11,12 @@ import DevicesView from "@/views/DevicesView";
 import MainMenuView from "@/views/MainMenuView";
 import ManageControlView from "@/views/ManageControlView";
 import ManageDeviceView from "@/views/ManageDeviceView";
+import ManagePowerLimitView from "@/views/ManagePowerLimitView";
+import ManageProductionSourceView from "@/views/ManageProductionSourceView";
+import ManageWeatherControlView from "@/views/ManageWeatherControlView";
+import PowerLimitsView from "@/views/PowerLimitsView";
+import ProductionSourcesView from "@/views/ProductionSourcesView";
+import WeatherControlsView from "@/views/WeatherControlsView";
 
 export default function App() {
   return (
@@ -28,6 +34,12 @@ export default function App() {
         <Route path="/controls" element={<ControlsView />} />
         <Route path="/controls/add" element={<AddControlView />} />
         <Route path="/controls/:controlId" element={<ManageControlView />} />
+        <Route path="/weather-controls" element={<WeatherControlsView />} />
+        <Route path="/weather-controls/:weatherControlId" element={<ManageWeatherControlView />} />
+        <Route path="/production-sources" element={<ProductionSourcesView />} />
+        <Route path="/production-sources/:sourceId" element={<ManageProductionSourceView />} />
+        <Route path="/power-limits" element={<PowerLimitsView />} />
+        <Route path="/power-limits/:powerLimitId" element={<ManagePowerLimitView />} />
       </Routes>
     </AppShell>
   );
