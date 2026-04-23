@@ -136,7 +136,7 @@ export default function ManagePowerLimitView() {
           <div className="grid gap-10 lg:grid-cols-12">
             <section className="space-y-8 lg:col-span-8">
               <div><p className="metric-label mb-3">Power Limit #{powerLimitId}</p><h1 className="mb-4 font-headline text-4xl font-extrabold text-primary">{limit.name}</h1></div>
-              <form className="app-card grid gap-4 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high md:grid-cols-2" onSubmit={handleSave}>
+              <form className="app-card grid gap-4 p-6 md:grid-cols-2" onSubmit={handleSave}>
                 <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} value={name} />
                 <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" min="0" onChange={(event) => setLimitKw(event.target.value)} step="0.1" type="number" value={limitKw} />
                 <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setLimitIntervalMinutes(event.target.value)} value={limitIntervalMinutes}><option value="15">15 min</option><option value="60">60 min</option></select>
@@ -148,11 +148,11 @@ export default function ManagePowerLimitView() {
                 {message ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary md:col-span-2">{message}</div> : null}
               </form>
 
-              <section className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
+              <section className="app-card p-6">
                 <div className="mb-5 flex items-center justify-between"><h2 className="font-headline text-xl font-bold">Linked Devices</h2><span className="chip bg-surface-container-highest text-primary-container">{links.length}</span></div>
                 <div className="space-y-3">
                   {links.map((link) => (
-                    <div className="rounded-xl bg-surface-container p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high" key={link.id}>
+                    <div className="rounded-xl bg-surface-container p-4" key={link.id}>
                       <div className="flex items-start justify-between gap-3"><div><p className="font-headline font-bold">{link.device.deviceName}</p><p className="font-mono text-xs text-outline">UUID: {link.device.uuid}</p></div><button className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container" onClick={async () => { await deletePowerLimitDeviceLink(link.id); setLinks((current) => current.filter((item) => item.id !== link.id)); }} type="button">Remove</button></div>
                       <div className="mt-3 text-sm"><span className="metric-label">Channel</span><p className="font-semibold">{link.deviceChannel}</p></div>
                     </div>
@@ -166,14 +166,14 @@ export default function ManagePowerLimitView() {
               </section>
             </section>
             <aside className="space-y-6 lg:col-span-4">
-              <div className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="metric-label mb-2">Current kW</p><p className="font-headline text-3xl font-bold">{formatKw(limit.currentKw)}</p></div>
-              <div className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="metric-label mb-2">Peak kW</p><p className="font-headline text-3xl font-bold">{formatKw(limit.peakKw)}</p></div>
-              <div className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="metric-label mb-2">Updated</p><p className="font-semibold">{formatDate(limit.updatedAt, limit.timezone)}</p></div>
+              <div className="app-card p-6"><p className="metric-label mb-2">Current kW</p><p className="font-headline text-3xl font-bold">{formatKw(limit.currentKw)}</p></div>
+              <div className="app-card p-6"><p className="metric-label mb-2">Peak kW</p><p className="font-headline text-3xl font-bold">{formatKw(limit.peakKw)}</p></div>
+              <div className="app-card p-6"><p className="metric-label mb-2">Updated</p><p className="font-semibold">{formatDate(limit.updatedAt, limit.timezone)}</p></div>
               <Link className="secondary-action justify-center" to="/power-limits">Back</Link>
               <div className="app-card border-error-container bg-error-container/40 p-6">
                 {!deleteConfirmOpen ? (
                   <button
-                    className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={isDeleting}
                     onClick={() => setDeleteConfirmOpen(true)}
                     type="button"
