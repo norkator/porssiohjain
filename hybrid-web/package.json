@@ -1,0 +1,30 @@
+{
+  "name": "energy-controller-hybrid-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "build:android": "npm run build && npm run sync:android",
+    "preview": "vite preview",
+    "sync:android": "node ./scripts/sync-to-android.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.1.0",
+    "@fontsource-variable/manrope": "5.1.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-router-dom": "7.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "@vitejs/plugin-react": "5.0.0",
+    "autoprefixer": "10.4.20",
+    "postcss": "8.4.49",
+    "tailwindcss": "3.4.16",
+    "typescript": "5.7.3",
+    "vite": "6.0.0"
+  }
+}

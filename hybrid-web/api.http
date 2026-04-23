@@ -1,0 +1,8 @@
+### Login into account
+POST http://localhost:8080/account/login
+Content-Type: application/json
+
+{
+  "uuid": "{{uuid}}",
+  "secret": "{{secret}}"
+}

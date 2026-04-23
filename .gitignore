@@ -56,3 +56,10 @@ vite.generated.ts
 .gemini
 .cursorrules
 .aichat
+
+### Hybrid web project ###
+/hybrid-web/node_modules/*
+/hybrid-web/dist/*
+/app/src/main/assets/hybrid/*
+hybrid-web/tsconfig.app.tsbuildinfo
+hybrid-web/http-client.private.env.json
