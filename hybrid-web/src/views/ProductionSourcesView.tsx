@@ -83,7 +83,7 @@ export default function ProductionSourcesView() {
           <p className="max-w-lg text-lg text-on-surface-variant">Track local generation and switch loads by production level.</p>
         </section>
 
-        <form className="app-card mb-8 grid gap-4 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high md:grid-cols-2 lg:grid-cols-4" onSubmit={handleCreate}>
+        <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-4" onSubmit={handleCreate}>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder="Source name" value={name} />
           <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setApiType(event.target.value as ProductionApiType)} value={apiType}>{PRODUCTION_API_TYPES.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setAppId(event.target.value)} placeholder="App ID" value={appId} />

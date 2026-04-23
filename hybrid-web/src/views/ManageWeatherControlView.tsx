@@ -138,7 +138,7 @@ export default function ManageWeatherControlView() {
                 <p className="text-lg text-on-surface-variant">Edit the site and weather threshold device rules.</p>
               </div>
 
-              <form className="app-card grid gap-6 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high md:grid-cols-2" onSubmit={handleSave}>
+              <form className="app-card grid gap-6 p-6 md:grid-cols-2" onSubmit={handleSave}>
                 <input className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 outline-none focus:border-primary" onChange={(event) => setName(event.target.value)} value={name} />
                 <select className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 outline-none focus:border-primary" onChange={(event) => setSiteId(event.target.value)} value={siteId}>
                   {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
@@ -147,14 +147,14 @@ export default function ManageWeatherControlView() {
                 {message ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary md:col-span-2">{message}</div> : null}
               </form>
 
-              <section className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
+              <section className="app-card p-6">
                 <div className="mb-5 flex items-center justify-between">
                   <h2 className="font-headline text-xl font-bold">Device Rules</h2>
                   <span className="chip bg-surface-container-highest text-primary-container">{links.length}</span>
                 </div>
                 <div className="space-y-3">
                   {links.map((link) => (
-                    <div className="rounded-xl bg-surface-container p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high" key={link.id}>
+                    <div className="rounded-xl bg-surface-container p-4" key={link.id}>
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="font-headline font-bold">{link.device.deviceName}</p>
@@ -187,9 +187,9 @@ export default function ManageWeatherControlView() {
               </section>
             </section>
             <aside className="space-y-6 lg:col-span-4">
-              <div className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="metric-label mb-2">Origin</p><p className="font-headline text-2xl font-bold">{control.shared ? "Shared" : "Mine"}</p></div>
-              <div className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="metric-label mb-2">Created</p><p className="font-semibold">{formatDate(control.createdAt, control.siteTimezone)}</p></div>
-              <div className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="metric-label mb-2">Updated</p><p className="font-semibold">{formatDate(control.updatedAt, control.siteTimezone)}</p></div>
+              <div className="app-card p-6"><p className="metric-label mb-2">Origin</p><p className="font-headline text-2xl font-bold">{control.shared ? "Shared" : "Mine"}</p></div>
+              <div className="app-card p-6"><p className="metric-label mb-2">Created</p><p className="font-semibold">{formatDate(control.createdAt, control.siteTimezone)}</p></div>
+              <div className="app-card p-6"><p className="metric-label mb-2">Updated</p><p className="font-semibold">{formatDate(control.updatedAt, control.siteTimezone)}</p></div>
               <Link className="secondary-action justify-center" to="/weather-controls">Back</Link>
             </aside>
           </div>

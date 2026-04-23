@@ -65,7 +65,7 @@ export default function WeatherControlsView() {
           <p className="max-w-lg text-lg text-on-surface-variant">Switch devices from site weather thresholds.</p>
         </section>
 
-        <form className="app-card mb-8 grid gap-4 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high md:grid-cols-3" onSubmit={handleCreate}>
+        <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-3" onSubmit={handleCreate}>
           <input className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 outline-none focus:border-primary" onChange={(event) => setName(event.target.value)} placeholder="Control name" value={name} />
           <select className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 outline-none focus:border-primary" onChange={(event) => setSiteId(event.target.value)} value={siteId}>
             <option value="">Select site</option>
