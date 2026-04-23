@@ -160,14 +160,18 @@ export function formatKw(value: number | null | undefined) {
 
 async function postJson<T>(path: string, payload: unknown, method = "POST") {
   const response = await apiFetch(path, {
-    body: JSON.stringify(payload),
+    body: payload === undefined ? undefined : JSON.stringify(payload),
     headers: { "Content-Type": "application/json" },
     method
   });
 
   if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+
+  const text = await response.text();
+  if (!text) return undefined as T;
+
+  return JSON.parse(text) as T;
 }
 
 export const WEATHER_METRICS: WeatherMetricType[] = ["TEMPERATURE", "HUMIDITY"];
