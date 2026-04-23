@@ -83,7 +83,7 @@ export default function ProductionSourcesView() {
           <p className="max-w-lg text-lg text-on-surface-variant">Track local generation and switch loads by production level.</p>
         </section>
 
-        <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-4" onSubmit={handleCreate}>
+        <form className="app-card mb-8 grid gap-4 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high md:grid-cols-2 lg:grid-cols-4" onSubmit={handleCreate}>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder="Source name" value={name} />
           <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setApiType(event.target.value as ProductionApiType)} value={apiType}>{PRODUCTION_API_TYPES.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setAppId(event.target.value)} placeholder="App ID" value={appId} />
@@ -100,9 +100,9 @@ export default function ProductionSourcesView() {
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {!isLoading && sources.map((source) => (
-            <article className={`app-card border-l-4 ${source.enabled ? "border-primary" : "border-outline"} p-6`} key={source.id}>
+            <article className={`group app-card border-l-4 ${source.enabled ? "border-primary" : "border-outline"} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`} key={source.id}>
               <div className="mb-5 flex justify-between gap-3">
-                <span className="chip bg-surface-container-highest text-primary-container">{label(source.apiType)}</span>
+                <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{label(source.apiType)}</span>
                 <span className={`rounded px-2 py-1 text-[10px] font-bold ${source.enabled ? "bg-primary-fixed text-primary" : "bg-error-container text-on-error-container"}`}>{source.enabled ? "Enabled" : "Disabled"}</span>
               </div>
               <h3 className="font-headline text-2xl font-bold">{source.name}</h3>
@@ -113,7 +113,7 @@ export default function ProductionSourcesView() {
               </div>
               <div className="flex items-center justify-between border-t border-surface-container-low pt-4">
                 <span className="text-sm text-on-surface-variant">{formatDate(source.updatedAt, source.timezone)}</span>
-                <Link className="secondary-action rounded-lg px-3 py-2 text-sm" to={`/production-sources/${source.id}`}>Manage</Link>
+                <Link className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" to={`/production-sources/${source.id}`}>Manage</Link>
               </div>
             </article>
           ))}

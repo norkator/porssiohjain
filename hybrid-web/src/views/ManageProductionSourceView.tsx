@@ -38,6 +38,8 @@ export default function ManageProductionSourceView() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [name, setName] = useState("");
   const [apiType, setApiType] = useState<ProductionApiType>("SHELLY");
   const [timezone, setTimezone] = useState("UTC");
@@ -132,12 +134,14 @@ export default function ManageProductionSourceView() {
   };
 
   const handleDelete = async () => {
+    setIsDeleting(true);
     setError(null);
     try {
       await deleteProductionSource(sourceId);
       navigate("/production-sources");
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "Failed to delete production source");
+      setIsDeleting(false);
     }
   };
 
@@ -151,7 +155,7 @@ export default function ManageProductionSourceView() {
           <div className="grid gap-10 lg:grid-cols-12">
             <section className="space-y-8 lg:col-span-8">
               <div><p className="metric-label mb-3">Production Source #{sourceId}</p><h1 className="mb-4 font-headline text-4xl font-extrabold text-primary">{source.name}</h1></div>
-              <form className="app-card grid gap-4 p-6 md:grid-cols-2" onSubmit={handleSave}>
+              <form className="app-card grid gap-4 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high md:grid-cols-2" onSubmit={handleSave}>
                 <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} value={name} />
                 <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setApiType(event.target.value as ProductionApiType)} value={apiType}>{PRODUCTION_API_TYPES.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
                 <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setTimezone(event.target.value)} value={timezone}>{timezones.map((item) => <option key={item} value={item}>{item}</option>)}</select>
@@ -166,11 +170,11 @@ export default function ManageProductionSourceView() {
                 {message ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary md:col-span-2">{message}</div> : null}
               </form>
 
-              <section className="app-card p-6">
+              <section className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
                 <div className="mb-5 flex items-center justify-between"><h2 className="font-headline text-xl font-bold">Device Rules</h2><span className="chip bg-surface-container-highest text-primary-container">{links.length}</span></div>
                 <div className="space-y-3">
                   {links.map((link) => (
-                    <div className="rounded-xl bg-surface-container p-4" key={link.id}>
+                    <div className="rounded-xl bg-surface-container p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high" key={link.id}>
                       <div className="flex items-start justify-between gap-3"><div><p className="font-headline font-bold">{link.device.deviceName}</p><p className="text-sm text-on-surface-variant">{label(link.comparisonType)} {link.triggerKw} kW</p></div><button className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container" onClick={async () => { await deleteProductionSourceDeviceLink(sourceId, link.id); setLinks((current) => current.filter((item) => item.id !== link.id)); }} type="button">Remove</button></div>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-sm"><div><span className="metric-label">Channel</span><p className="font-semibold">{link.deviceChannel}</p></div><div><span className="metric-label">Action</span><p className="font-semibold">{label(link.action)}</p></div></div>
                     </div>
@@ -187,11 +191,49 @@ export default function ManageProductionSourceView() {
               </section>
             </section>
             <aside className="space-y-6 lg:col-span-4">
-              <div className="app-card p-6"><p className="metric-label mb-2">Current kW</p><p className="font-headline text-3xl font-bold">{formatKw(source.currentKw)}</p></div>
-              <div className="app-card p-6"><p className="metric-label mb-2">Peak kW</p><p className="font-headline text-3xl font-bold">{formatKw(source.peakKw)}</p></div>
-              <div className="app-card p-6"><p className="metric-label mb-2">Updated</p><p className="font-semibold">{formatDate(source.updatedAt, source.timezone)}</p></div>
+              <div className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="metric-label mb-2">Current kW</p><p className="font-headline text-3xl font-bold">{formatKw(source.currentKw)}</p></div>
+              <div className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="metric-label mb-2">Peak kW</p><p className="font-headline text-3xl font-bold">{formatKw(source.peakKw)}</p></div>
+              <div className="app-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="metric-label mb-2">Updated</p><p className="font-semibold">{formatDate(source.updatedAt, source.timezone)}</p></div>
               <Link className="secondary-action justify-center" to="/production-sources">Back</Link>
-              {!source.shared ? <button className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container" onClick={handleDelete} type="button">Delete Production Source</button> : null}
+              {!source.shared ? (
+                <div className="app-card border-error-container bg-error-container/40 p-6">
+                  {!deleteConfirmOpen ? (
+                    <button
+                      className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isDeleting}
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      type="button"
+                    >
+                      Delete Production Source
+                    </button>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="font-headline text-lg font-bold text-on-error-container">Confirm deletion</p>
+                        <p className="text-sm text-on-error-container">This removes the production source and its linked device rules.</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={isDeleting}
+                          onClick={handleDelete}
+                          type="button"
+                        >
+                          {isDeleting ? "Deleting..." : "Confirm"}
+                        </button>
+                        <button
+                          className="secondary-action justify-center"
+                          disabled={isDeleting}
+                          onClick={() => setDeleteConfirmOpen(false)}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </aside>
           </div>
         ) : null}

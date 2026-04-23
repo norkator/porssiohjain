@@ -56,7 +56,7 @@ export default function PowerLimitsView() {
           <p className="max-w-lg text-lg text-on-surface-variant">Keep total consumption under configured kilowatt limits.</p>
         </section>
 
-        <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-4" onSubmit={handleCreate}>
+        <form className="app-card mb-8 grid gap-4 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high md:grid-cols-4" onSubmit={handleCreate}>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder="Limit name" value={name} />
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" min="0" onChange={(event) => setLimitKw(event.target.value)} step="0.1" type="number" value={limitKw} />
           <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">Enabled</span><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" /></label>
@@ -68,9 +68,9 @@ export default function PowerLimitsView() {
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {!isLoading && limits.map((limit) => (
-            <article className={`app-card border-l-4 ${limit.enabled ? "border-primary" : "border-outline"} p-6`} key={limit.id}>
+            <article className={`group app-card border-l-4 ${limit.enabled ? "border-primary" : "border-outline"} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`} key={limit.id}>
               <div className="mb-5 flex justify-between gap-3">
-                <span className="chip bg-surface-container-highest text-primary-container">{limit.limitIntervalMinutes ?? 15} min</span>
+                <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{limit.limitIntervalMinutes ?? 15} min</span>
                 <span className={`rounded px-2 py-1 text-[10px] font-bold ${limit.enabled ? "bg-primary-fixed text-primary" : "bg-error-container text-on-error-container"}`}>{limit.enabled ? "Enabled" : "Disabled"}</span>
               </div>
               <h3 className="font-headline text-2xl font-bold">{limit.name}</h3>
@@ -81,7 +81,7 @@ export default function PowerLimitsView() {
               </div>
               <div className="flex items-center justify-between border-t border-surface-container-low pt-4">
                 <span className="text-sm text-on-surface-variant">{formatDate(limit.updatedAt, limit.timezone)}</span>
-                <Link className="secondary-action rounded-lg px-3 py-2 text-sm" to={`/power-limits/${limit.id}`}>Manage</Link>
+                <Link className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" to={`/power-limits/${limit.id}`}>Manage</Link>
               </div>
             </article>
           ))}
