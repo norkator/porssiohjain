@@ -1,4 +1,5 @@
 import { apiFetch, apiGetJson } from "@/lib/api";
+import { type ApiDevice } from "@/lib/devices";
 
 export type ControlMode = "BELOW_MAX_PRICE" | "CHEAPEST_HOURS" | "MANUAL" | "SCHEDULED";
 
@@ -33,6 +34,21 @@ export type ControlPayload = {
   mode: ControlMode;
   manualOn: boolean;
   alwaysOnBelowMinPrice: boolean;
+};
+
+export type ControlDeviceLink = {
+  id: number;
+  controlId: number;
+  deviceId: number;
+  deviceChannel: number;
+  estimatedPowerKw: number | null;
+  device: Pick<ApiDevice, "createdAt" | "deviceName" | "deviceType" | "id" | "lastCommunication" | "updatedAt" | "uuid">;
+};
+
+export type ControlDeviceLinkPayload = {
+  deviceId: number;
+  deviceChannel: number;
+  estimatedPowerKw: number | null;
 };
 
 export const CONTROL_MODES: ControlMode[] = ["BELOW_MAX_PRICE", "CHEAPEST_HOURS", "MANUAL", "SCHEDULED"];
@@ -79,6 +95,36 @@ export async function updateControl(controlId: number, payload: ControlPayload) 
 
 export async function deleteControl(controlId: number) {
   const response = await apiFetch(`/api/controls/${controlId}`, {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+}
+
+export async function fetchControlDeviceLinks(controlId: number) {
+  return apiGetJson<ControlDeviceLink[]>(`/api/controls/${controlId}/links`);
+}
+
+export async function addControlDeviceLink(controlId: number, payload: ControlDeviceLinkPayload) {
+  const response = await apiFetch(`/api/controls/${controlId}/links/devices`, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<ControlDeviceLink>;
+}
+
+export async function deleteControlDeviceLink(linkId: number) {
+  const response = await apiFetch(`/control/delete/device/${linkId}`, {
     method: "DELETE"
   });
 

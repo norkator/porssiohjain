@@ -1,16 +1,21 @@
 import PageHeader from "@/components/PageHeader";
 import { getAvailableTimezones } from "@/lib/add-device-flow";
 import {
+  addControlDeviceLink,
   CONTROL_MODES,
   deleteControl,
+  deleteControlDeviceLink,
   fetchControl,
+  fetchControlDeviceLinks,
   formatControlDate,
   formatControlMode,
   type ApiControl,
+  type ControlDeviceLink,
   type ControlMode,
   type ControlPayload,
   updateControl
 } from "@/lib/controls";
+import { fetchDevices, type ApiDevice } from "@/lib/devices";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
@@ -43,10 +48,31 @@ export default function ManageControlView() {
   const [alwaysOnBelowMinPrice, setAlwaysOnBelowMinPrice] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [deviceLinks, setDeviceLinks] = useState<ControlDeviceLink[]>([]);
+  const [standardDevices, setStandardDevices] = useState<ApiDevice[]>([]);
+  const [isLoadingLinks, setIsLoadingLinks] = useState(false);
+  const [linksError, setLinksError] = useState<string | null>(null);
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
+  const [deviceChannel, setDeviceChannel] = useState("1");
+  const [estimatedPowerKw, setEstimatedPowerKw] = useState("");
+  const [isAddingLink, setIsAddingLink] = useState(false);
   const timezoneIsValid = availableTimezones.includes(timezone);
   const canSave = name.trim().length > 0 && timezoneIsValid && !control?.shared && !isSaving && !isDeleting;
+  const standardLinks = deviceLinks.filter((link) => link.device.deviceType === "STANDARD");
+  const linkedDeviceKeys = new Set(standardLinks.map((link) => `${link.deviceId}:${link.deviceChannel}`));
+  const selectableDevices = standardDevices.filter((device) => !device.shared);
+  const selectedDevice = selectableDevices.find((device) => device.id === Number(selectedDeviceId));
+  const channelNumber = Number(deviceChannel);
+  const canAddLink =
+    Boolean(selectedDevice) &&
+    Number.isInteger(channelNumber) &&
+    channelNumber >= 0 &&
+    !linkedDeviceKeys.has(`${selectedDevice?.id}:${channelNumber}`) &&
+    !isAddingLink &&
+    !control?.shared;
 
   useEffect(() => {
     let isActive = true;
@@ -83,6 +109,45 @@ export default function ManageControlView() {
 
     if (Number.isFinite(controlId)) {
       loadControl();
+    }
+
+    return () => {
+      isActive = false;
+    };
+  }, [controlId]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadLinksAndDevices() {
+      setIsLoadingLinks(true);
+      setLinksError(null);
+
+      try {
+        const [linksResponse, devicesResponse] = await Promise.all([
+          fetchControlDeviceLinks(controlId),
+          fetchDevices()
+        ]);
+
+        if (!isActive) {
+          return;
+        }
+
+        setDeviceLinks(linksResponse);
+        setStandardDevices(devicesResponse.filter((device) => device.deviceType === "STANDARD"));
+        setIsLoadingLinks(false);
+      } catch (error) {
+        if (!isActive) {
+          return;
+        }
+
+        setIsLoadingLinks(false);
+        setLinksError(error instanceof Error ? error.message : "Failed to load linked devices");
+      }
+    }
+
+    if (Number.isFinite(controlId)) {
+      loadLinksAndDevices();
     }
 
     return () => {
@@ -140,6 +205,46 @@ export default function ManageControlView() {
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Failed to delete control");
       setIsDeleting(false);
+    }
+  };
+
+  const handleAddDeviceLink = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!canAddLink || !selectedDevice) {
+      return;
+    }
+
+    setIsAddingLink(true);
+    setLinksError(null);
+
+    try {
+      await addControlDeviceLink(controlId, {
+        deviceChannel: channelNumber,
+        deviceId: selectedDevice.id,
+        estimatedPowerKw: estimatedPowerKw.trim().length > 0 ? Math.max(0, toNumber(estimatedPowerKw)) : null
+      });
+
+      const linksResponse = await fetchControlDeviceLinks(controlId);
+      setDeviceLinks(linksResponse);
+      setSelectedDeviceId("");
+      setDeviceChannel("1");
+      setEstimatedPowerKw("");
+    } catch (error) {
+      setLinksError(error instanceof Error ? error.message : "Failed to link device");
+    } finally {
+      setIsAddingLink(false);
+    }
+  };
+
+  const handleDeleteDeviceLink = async (linkId: number) => {
+    setLinksError(null);
+
+    try {
+      await deleteControlDeviceLink(linkId);
+      setDeviceLinks((current) => current.filter((link) => link.id !== linkId));
+    } catch (error) {
+      setLinksError(error instanceof Error ? error.message : "Failed to remove linked device");
     }
   };
 
@@ -338,19 +443,160 @@ export default function ManageControlView() {
                 <p className="metric-label mb-2">Updated</p>
                 <p className="font-semibold text-on-surface">{formatControlDate(control?.updatedAt, timezone)}</p>
               </div>
-              <div className="app-card p-6">
-                <p className="mb-4 font-headline text-lg font-bold text-on-surface">Linked Devices</p>
-                <p className="text-sm text-on-surface-variant">Device and heat pump linking can be added here using the `/api/controls/{controlId}/links` endpoints.</p>
-              </div>
+              <section className="app-card p-6">
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="metric-label mb-2">Standard Devices</p>
+                    <h2 className="font-headline text-xl font-bold text-on-surface">Linked Devices</h2>
+                  </div>
+                  <span className="chip bg-surface-container-highest text-primary-container">{standardLinks.length}</span>
+                </div>
+
+                {isLoadingLinks ? (
+                  <p className="text-sm text-on-surface-variant">Loading linked devices...</p>
+                ) : null}
+
+                {!isLoadingLinks && standardLinks.length === 0 ? (
+                  <p className="text-sm text-on-surface-variant">No standard devices linked to this control yet.</p>
+                ) : null}
+
+                <div className="space-y-3">
+                  {standardLinks.map((link) => (
+                    <div className="rounded-xl bg-surface-container p-4" key={link.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-headline font-bold text-on-surface">{link.device.deviceName}</p>
+                          <p className="font-mono text-xs text-outline">UUID: {link.device.uuid}</p>
+                        </div>
+                        {!control?.shared ? (
+                          <button
+                            className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
+                            onClick={() => handleDeleteDeviceLink(link.id)}
+                            type="button"
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="metric-label">Channel</span>
+                          <p className="font-semibold text-on-surface">{link.deviceChannel}</p>
+                        </div>
+                        <div>
+                          <span className="metric-label">Estimated kW</span>
+                          <p className="font-semibold text-on-surface">{link.estimatedPowerKw ?? "-"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {!control?.shared ? (
+                  <form className="mt-6 space-y-4 border-t border-outline-variant/50 pt-6" onSubmit={handleAddDeviceLink}>
+                    <div>
+                      <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="standard-device">
+                        Device
+                      </label>
+                      <select
+                        className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                        id="standard-device"
+                        onChange={(event) => setSelectedDeviceId(event.target.value)}
+                        value={selectedDeviceId}
+                      >
+                        <option value="">Select standard device</option>
+                        {selectableDevices.map((device) => (
+                          <option key={device.id} value={device.id}>{device.deviceName}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="device-channel">
+                          Channel
+                        </label>
+                        <input
+                          className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                          id="device-channel"
+                          min="0"
+                          onChange={(event) => setDeviceChannel(event.target.value)}
+                          step="1"
+                          type="number"
+                          value={deviceChannel}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="estimated-power">
+                          Est. kW
+                        </label>
+                        <input
+                          className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                          id="estimated-power"
+                          min="0"
+                          onChange={(event) => setEstimatedPowerKw(event.target.value)}
+                          placeholder="Optional"
+                          step="0.1"
+                          type="number"
+                          value={estimatedPowerKw}
+                        />
+                      </div>
+                    </div>
+
+                    {selectedDevice && linkedDeviceKeys.has(`${selectedDevice.id}:${channelNumber}`) ? (
+                      <p className="text-sm text-on-error-container">This device channel is already linked to the control.</p>
+                    ) : null}
+
+                    <button className="secondary-action w-full justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canAddLink} type="submit">
+                      {isAddingLink ? "Linking..." : "Link Standard Device"}
+                    </button>
+                  </form>
+                ) : null}
+
+                {linksError ? (
+                  <div className="mt-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">
+                    {linksError}
+                  </div>
+                ) : null}
+              </section>
               {!control?.shared ? (
-                <button
-                  className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isDeleting || isSaving}
-                  onClick={handleDelete}
-                  type="button"
-                >
-                  {isDeleting ? "Deleting..." : "Delete Control"}
-                </button>
+                <div className="app-card border-error-container bg-error-container/40 p-6">
+                  {!deleteConfirmOpen ? (
+                    <button
+                      className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isDeleting || isSaving}
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      type="button"
+                    >
+                      Delete Control
+                    </button>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="font-headline text-lg font-bold text-on-error-container">Confirm deletion</p>
+                        <p className="text-sm text-on-error-container">This removes the control and its linked device rules.</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={isDeleting || isSaving}
+                          onClick={handleDelete}
+                          type="button"
+                        >
+                          {isDeleting ? "Deleting..." : "Confirm"}
+                        </button>
+                        <button
+                          className="secondary-action justify-center"
+                          disabled={isDeleting}
+                          onClick={() => setDeleteConfirmOpen(false)}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : null}
             </aside>
           </div>
