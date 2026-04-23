@@ -95,10 +95,18 @@ export function setDevSessionOverride(nextOverride: DevSessionOverride) {
   window.localStorage.setItem(DEV_SESSION_STORAGE_KEY, JSON.stringify(mergedOverride));
 }
 
+export function setBrowserSessionToken(token: string) {
+  setDevSessionOverride({ token });
+}
+
 export function clearDevSessionOverride() {
   if (typeof window === "undefined") {
     return;
   }
 
   window.localStorage.removeItem(DEV_SESSION_STORAGE_KEY);
+}
+
+export function clearBrowserSession() {
+  clearDevSessionOverride();
 }

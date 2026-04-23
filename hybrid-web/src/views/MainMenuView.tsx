@@ -5,8 +5,10 @@ import {useAccountStats} from "@/hooks/useAccountStats";
 import {useControls} from "@/hooks/useControls";
 import {useDevices} from "@/hooks/useDevices";
 import {logoutNative} from "@/lib/android-bridge";
+import {clearBrowserSession, getSessionData} from "@/lib/session";
 
 export default function MainMenuView() {
+    const session = getSessionData();
     const {error, isLoading, onlineCount, totalCount} = useDevices();
     const {
         error: controlsError,
@@ -64,7 +66,13 @@ export default function MainMenuView() {
                         ? `${onlineCount} of ${totalCount} devices are online. Solar production is ahead by ${formatKw(netPowerKw)} kW against ${formatKw(totalConsumptionKw)} kW of current consumption.`
                         : `${onlineCount} of ${totalCount} devices are online. Current consumption is ${formatKw(totalConsumptionKw)} kW, which is ${formatKw(Math.abs(netPowerKw))} kW above solar production.`;
     const handleLogout = () => {
-        logoutNative();
+        if (session.source === "android") {
+            logoutNative();
+            return;
+        }
+
+        clearBrowserSession();
+        window.location.hash = "#/login";
     };
 
     return (
