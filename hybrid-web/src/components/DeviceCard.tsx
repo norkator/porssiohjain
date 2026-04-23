@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 type DeviceCardProps = {
   type: string;
   status: string;
@@ -7,6 +9,7 @@ type DeviceCardProps = {
   detailLabel: string;
   detailValue: string;
   accent: string;
+  manageTo?: string;
 };
 
 export default function DeviceCard({
@@ -17,7 +20,8 @@ export default function DeviceCard({
   subtitle,
   detailLabel,
   detailValue,
-  accent
+  accent,
+  manageTo
 }: DeviceCardProps) {
   return (
     <article className={`group app-card border-l-4 ${accent} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`}>
@@ -47,9 +51,15 @@ export default function DeviceCard({
           <span className="metric-label">{detailLabel}</span>
           <span className="text-sm font-semibold text-on-surface">{detailValue}</span>
         </div>
-        <button className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" type="button">
-          Manage
-        </button>
+        {manageTo ? (
+          <Link className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" to={manageTo}>
+            Manage
+          </Link>
+        ) : (
+          <button className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" type="button">
+            Manage
+          </button>
+        )}
       </div>
     </article>
   );

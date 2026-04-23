@@ -1,4 +1,4 @@
-import { apiGetJson } from "@/lib/api";
+import { apiFetch, apiGetJson } from "@/lib/api";
 
 export type ApiDevice = {
   id: number;
@@ -25,8 +25,54 @@ export type ApiDevice = {
   acDeviceUniqueId: string | null;
 };
 
+export type DeviceType = "STANDARD" | "HEAT_PUMP";
+export type AcType = "NONE" | "TOSHIBA" | "MITSUBISHI";
+
+export type DevicePayload = {
+  deviceName: string;
+  timezone: string;
+  deviceType: DeviceType;
+  enabled: boolean;
+  hpName?: string;
+  acType?: AcType;
+  acUsername?: string;
+  acPassword?: string;
+  acDeviceId?: string;
+  buildingId?: string;
+};
+
 export async function fetchDevices() {
   return apiGetJson<ApiDevice[]>("/devices");
+}
+
+export async function fetchDevice(deviceId: number) {
+  return apiGetJson<ApiDevice>(`/devices/${deviceId}`);
+}
+
+export async function updateDevice(deviceId: number, payload: DevicePayload) {
+  const response = await apiFetch(`/devices/${deviceId}`, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "PUT"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<ApiDevice>;
+}
+
+export async function deleteDevice(deviceId: number) {
+  const response = await apiFetch(`/devices/${deviceId}`, {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
 }
 
 export function getDeviceConnectionState(device: ApiDevice) {
@@ -83,6 +129,18 @@ export function formatDeviceType(deviceType: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+export function formatAcType(acType: string | null | undefined) {
+  switch (acType) {
+    case "TOSHIBA":
+      return "Toshiba";
+    case "MITSUBISHI":
+      return "Mitsubishi";
+    case "NONE":
+    default:
+      return "None";
+  }
 }
 
 export function formatDeviceLastCommunication(lastCommunication: string | null) {

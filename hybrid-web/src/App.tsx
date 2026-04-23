@@ -10,6 +10,7 @@ import ControlsView from "@/views/ControlsView";
 import DevicesView from "@/views/DevicesView";
 import MainMenuView from "@/views/MainMenuView";
 import ManageControlView from "@/views/ManageControlView";
+import ManageDeviceView from "@/views/ManageDeviceView";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/menu" replace />} />
         <Route path="/menu" element={<MainMenuView />} />
         <Route path="/devices" element={<DevicesView />} />
+        <Route path="/devices/:deviceId" element={<ManageDeviceView />} />
         <Route path="/devices/add/type" element={<AddDeviceTypeView />} />
         <Route path="/devices/add/configure" element={<AddDeviceConfigureView />} />
         <Route path="/devices/add/review" element={<AddDeviceReviewView />} />

@@ -56,6 +56,7 @@ export default function DevicesView() {
                     accent={getDeviceAccent(device)}
                     detailLabel="Last Seen"
                     detailValue={formatDeviceLastCommunication(device.lastCommunication)}
+                    manageTo={`/devices/${device.id}`}
                     status={connection.label}
                     statusTone={connection.tone}
                     subtitle={`UUID: ${device.uuid}`}
