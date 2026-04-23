@@ -13,7 +13,14 @@ export default function ControlsView() {
 
   return (
     <>
-      <PageHeader translucent />
+      <PageHeader
+        rightSlot={(
+          <Link className="secondary-action px-4 py-2 text-sm" to="/menu">
+            Menu
+          </Link>
+        )}
+        translucent
+      />
 
       <main className="app-page pt-12">
         <section className="mb-12 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
