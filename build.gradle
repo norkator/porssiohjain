@@ -37,7 +37,7 @@ dependencies {
     implementation 'org.springframework.security:spring-security-crypto'
     implementation 'org.springframework.integration:spring-integration-mqtt'
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
-    implementation 'com.microsoft.azure.sdk.iot:iot-device-client:2.5.0'
+    implementation 'com.microsoft.azure.sdk.iot:iot-device-client:2.5.1'
     implementation 'org.springframework.boot:spring-boot-webmvc-test'
     implementation 'com.vaadin:vaadin-spring-boot-starter'
     implementation "com.vaadin:vaadin-dev:${vaadinVersion}"
