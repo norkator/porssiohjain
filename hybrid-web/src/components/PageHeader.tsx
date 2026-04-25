@@ -38,10 +38,10 @@ export default function PageHeader({
 
   return (
     <header className={`sticky top-0 z-40 w-full ${translucent ? "bg-background/85 backdrop-blur-md" : "bg-surface-container-low"}`}>
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-        <div className="flex items-center gap-4">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           <HeaderLogo />
-          <div className={compact ? "font-headline text-xl font-bold tracking-tight text-primary-container" : "font-headline text-xl font-black tracking-tight text-primary-container"}>
+          <div className={compact ? "font-headline text-lg font-bold tracking-tight text-primary-container sm:text-xl" : "font-headline text-lg font-black tracking-tight text-primary-container sm:text-xl"}>
             {title ?? brand}
           </div>
         </div>
@@ -75,7 +75,7 @@ export default function PageHeader({
           <div className="w-10" />
         ) : null}
 
-        {hasRightSlot ? <div className="flex items-center gap-3">{rightSlot}</div> : null}
+        {hasRightSlot ? <div className="flex items-center gap-2 sm:gap-3">{rightSlot}</div> : null}
       </div>
     </header>
   );

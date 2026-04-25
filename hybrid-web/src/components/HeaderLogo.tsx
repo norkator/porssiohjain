@@ -11,8 +11,8 @@
 
 export default function HeaderLogo() {
   return (
-    <div className="signature-gradient flex h-11 w-11 items-center justify-center rounded-xl shadow-lg shadow-primary/15">
-      <span className="font-headline text-base font-extrabold uppercase tracking-[-0.08em] text-on-primary">EC</span>
+    <div className="signature-gradient flex h-9 w-9 items-center justify-center rounded-lg shadow-lg shadow-primary/15 sm:h-11 sm:w-11 sm:rounded-xl">
+      <span className="font-headline text-sm font-extrabold uppercase tracking-[-0.08em] text-on-primary sm:text-base">EC</span>
     </div>
   );
 }
