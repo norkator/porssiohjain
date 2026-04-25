@@ -14,7 +14,7 @@ import { formatNordpoolPrice, formatNordpoolTime } from "@/lib/nordpool";
 
 const CHART_HEIGHT = 240;
 const CHART_WIDTH = 960;
-const CHART_PADDING_X = 18;
+const CHART_PADDING_X = 44;
 const CHART_PADDING_Y = 18;
 const Y_AXIS_STEPS = 4;
 

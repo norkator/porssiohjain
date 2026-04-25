@@ -45,6 +45,22 @@ export type ControlPayload = {
   mode: ControlMode;
   manualOn: boolean;
   alwaysOnBelowMinPrice: boolean;
+  energyContractId?: number | null;
+  transferContractId?: number | null;
+  siteId?: number | null;
+};
+
+export type ControlChartPoint = {
+  timestamp: string;
+  nordpoolPrice: number;
+  transferPrice: number | null;
+  finalControlPrice: number | null;
+};
+
+export type ControlChart = {
+  timezone: string;
+  transferContractName: string | null;
+  points: ControlChartPoint[];
 };
 
 export type ControlDeviceLink = {
@@ -70,6 +86,10 @@ export async function fetchControls() {
 
 export async function fetchControl(controlId: number) {
   return apiGetJson<ApiControl>(`/api/controls/${controlId}`);
+}
+
+export async function fetchControlChart(controlId: number) {
+  return apiGetJson<ControlChart>(`/api/controls/${controlId}/chart`);
 }
 
 export async function createControl(payload: ControlPayload) {
