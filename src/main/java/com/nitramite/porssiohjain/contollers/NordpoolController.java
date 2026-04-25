@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.services.NordpoolService;
+import com.nitramite.porssiohjain.services.models.TodayPriceChartResponse;
 import com.nitramite.porssiohjain.services.models.TodayPriceStatsResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -28,5 +29,12 @@ public class NordpoolController {
             @RequestParam(required = false) String timezone
     ) {
         return nordpoolService.getTodayStats(null, timezone);
+    }
+
+    @GetMapping("/today-chart")
+    public TodayPriceChartResponse getTodayChart(
+            @RequestParam(required = false) String timezone
+    ) {
+        return nordpoolService.getTodayChart(null, timezone);
     }
 }

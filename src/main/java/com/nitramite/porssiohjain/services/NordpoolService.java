@@ -15,6 +15,8 @@ import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.NordpoolEntity;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.NordpoolPriceResponse;
+import com.nitramite.porssiohjain.services.models.TodayPriceChartPointResponse;
+import com.nitramite.porssiohjain.services.models.TodayPriceChartResponse;
 import com.nitramite.porssiohjain.services.models.TodayPriceStatsResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -32,6 +34,7 @@ import java.util.*;
 @Transactional
 public class NordpoolService {
 
+    private static final int TODAY_CHART_RESOLUTION_MINUTES = 15;
     private final NordpoolRepository nordpoolRepository;
     private final ControlRepository controlRepository;
 
@@ -60,6 +63,111 @@ public class NordpoolService {
     }
 
     public TodayPriceStatsResponse getTodayStats(Long accountId, String timezone) {
+        PricingContext pricingContext = resolvePricingContext(accountId, timezone);
+        ZoneId zone = pricingContext.zone();
+        LocalDate today = LocalDate.now(zone);
+        ZonedDateTime startOfDay = today.atStartOfDay(zone);
+        ZonedDateTime endOfDay = today.plusDays(1).atStartOfDay(zone);
+
+        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(
+                startOfDay.toInstant(), endOfDay.toInstant()
+        );
+
+        if (prices.isEmpty()) {
+            return TodayPriceStatsResponse.builder()
+                    .min(BigDecimal.ZERO)
+                    .avg(BigDecimal.ZERO)
+                    .max(BigDecimal.ZERO)
+                    .build();
+        }
+
+        List<BigDecimal> values = prices.stream()
+                .map(p -> toPriceWithTax(p.getPriceFi(), pricingContext.taxMultiplier()))
+                .toList();
+
+        BigDecimal min = values.stream().min(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+        BigDecimal max = values.stream().max(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+        BigDecimal avg = values.stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(values.size()), RoundingMode.HALF_UP);
+
+        return TodayPriceStatsResponse.builder()
+                .min(min)
+                .avg(avg)
+                .max(max)
+                .build();
+    }
+
+    public TodayPriceChartResponse getTodayChart(Long accountId, String timezone) {
+        PricingContext pricingContext = resolvePricingContext(accountId, timezone);
+        ZoneId zone = pricingContext.zone();
+        LocalDate today = LocalDate.now(zone);
+        ZonedDateTime startOfDay = today.atStartOfDay(zone);
+        ZonedDateTime endOfDay = today.plusDays(1).atStartOfDay(zone);
+        Instant start = startOfDay.toInstant();
+        Instant end = endOfDay.toInstant();
+
+        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(start, end);
+        Map<Instant, BigDecimal> pointsByTimestamp = new LinkedHashMap<>();
+
+        for (NordpoolEntity priceEntry : prices) {
+            Instant slot = priceEntry.getDeliveryStart().isBefore(start)
+                    ? start
+                    : priceEntry.getDeliveryStart();
+            Instant slotEnd = priceEntry.getDeliveryEnd().isAfter(end)
+                    ? end
+                    : priceEntry.getDeliveryEnd();
+
+            if (!slot.isBefore(slotEnd)) {
+                continue;
+            }
+
+            BigDecimal price = toPriceWithTax(priceEntry.getPriceFi(), pricingContext.taxMultiplier());
+            while (slot.isBefore(slotEnd)) {
+                pointsByTimestamp.putIfAbsent(slot, price);
+                slot = slot.plus(TODAY_CHART_RESOLUTION_MINUTES, ChronoUnit.MINUTES);
+            }
+        }
+
+        List<TodayPriceChartPointResponse> points = pointsByTimestamp.entrySet().stream()
+                .map(entry -> TodayPriceChartPointResponse.builder()
+                        .timestamp(entry.getKey())
+                        .price(entry.getValue())
+                        .build())
+                .toList();
+
+        List<BigDecimal> values = points.stream()
+                .map(TodayPriceChartPointResponse::getPrice)
+                .toList();
+
+        BigDecimal min = values.stream().min(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+        BigDecimal max = values.stream().max(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+        BigDecimal avg = values.isEmpty()
+                ? BigDecimal.ZERO
+                : values.stream()
+                        .reduce(BigDecimal.ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(values.size()), 4, RoundingMode.HALF_UP);
+
+        Instant now = Instant.now();
+        BigDecimal current = prices.stream()
+                .filter(priceEntry -> !priceEntry.getDeliveryStart().isAfter(now) && priceEntry.getDeliveryEnd().isAfter(now))
+                .findFirst()
+                .map(priceEntry -> toPriceWithTax(priceEntry.getPriceFi(), pricingContext.taxMultiplier()))
+                .orElseGet(() -> points.isEmpty() ? BigDecimal.ZERO : points.get(points.size() - 1).getPrice());
+
+        return TodayPriceChartResponse.builder()
+                .date(today)
+                .timezone(zone.getId())
+                .resolutionMinutes(TODAY_CHART_RESOLUTION_MINUTES)
+                .min(min)
+                .avg(avg)
+                .max(max)
+                .current(current)
+                .points(points)
+                .build();
+    }
+
+    private PricingContext resolvePricingContext(Long accountId, String timezone) {
         ZoneId zone = ZoneId.systemDefault();
         BigDecimal taxMultiplier;
 
@@ -94,38 +202,14 @@ public class NordpoolService {
             }
         }
 
-        LocalDate today = LocalDate.now(zone);
-        ZonedDateTime startOfDay = today.atStartOfDay(zone);
-        ZonedDateTime endOfDay = today.plusDays(1).atStartOfDay(zone);
-
-        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(
-                startOfDay.toInstant(), endOfDay.toInstant()
-        );
-
-        if (prices.isEmpty()) {
-            return TodayPriceStatsResponse.builder()
-                    .min(BigDecimal.ZERO)
-                    .avg(BigDecimal.ZERO)
-                    .max(BigDecimal.ZERO)
-                    .build();
-        }
-
-        List<BigDecimal> values = prices.stream()
-                .map(p -> p.getPriceFi().multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier))
-                .toList();
-
-        BigDecimal min = values.stream().min(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
-        BigDecimal max = values.stream().max(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
-        BigDecimal avg = values.stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(values.size()), RoundingMode.HALF_UP);
-
-        return TodayPriceStatsResponse.builder()
-                .min(min)
-                .avg(avg)
-                .max(max)
-                .build();
+        return new PricingContext(zone, taxMultiplier);
     }
 
+    private BigDecimal toPriceWithTax(BigDecimal priceFi, BigDecimal taxMultiplier) {
+        return priceFi.multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
+    }
+
+    private record PricingContext(ZoneId zone, BigDecimal taxMultiplier) {
+    }
 
 }
