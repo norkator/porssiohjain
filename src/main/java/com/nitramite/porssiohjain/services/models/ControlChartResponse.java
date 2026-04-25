@@ -11,22 +11,19 @@
 
 package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.enums.ControlMode;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
+import java.util.List;
 
 @Data
-public class UpdateControlRequest {
-    private String name;
-    private BigDecimal maxPriceSnt;
-    private BigDecimal minPriceSnt;
-    private Integer dailyOnMinutes;
-    private BigDecimal taxPercent;
-    private ControlMode mode;
-    private Boolean manualOn;
-    private Boolean alwaysOnBelowMinPrice;
-    private Long energyContractId;
-    private Long transferContractId;
-    private Long siteId;
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ControlChartResponse {
+    private String timezone;
+    private String transferContractName;
+    private List<ControlChartPointResponse> points;
 }

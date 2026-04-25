@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.contollers;
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.entity.ControlEntity;
+import com.nitramite.porssiohjain.services.ControlChartService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.models.*;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ public class ControlsController {
 
     private final AuthContext authContext;
     private final ControlService controlService;
+    private final ControlChartService controlChartService;
 
     @GetMapping
     public List<ControlResponse> listControls() {
@@ -78,11 +80,18 @@ public class ControlsController {
                 request.getMode(),
                 request.getManualOn(),
                 request.getAlwaysOnBelowMinPrice(),
-                null,
-                null,
-                null
+                request.getEnergyContractId(),
+                request.getTransferContractId(),
+                request.getSiteId()
         );
         return controlService.getControl(accountId, controlId);
+    }
+
+    @GetMapping("/{controlId}/chart")
+    public ControlChartResponse getControlChart(
+            @PathVariable Long controlId
+    ) {
+        return controlChartService.getControlChart(authContext.getAccountId(), controlId);
     }
 
     @DeleteMapping("/{controlId}")
