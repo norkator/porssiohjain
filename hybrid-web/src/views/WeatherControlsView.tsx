@@ -70,7 +70,7 @@ export default function WeatherControlsView() {
   return (
     <>
       <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">Menu</Link>} translucent />
-      <main className="app-page pt-12">
+      <main className="app-page pt-4 sm:pt-12">
         <section className="mb-10">
           <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">Weather Controls</h1>
           <p className="max-w-lg text-lg text-on-surface-variant">Switch devices from site weather thresholds.</p>

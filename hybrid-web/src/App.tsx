@@ -36,7 +36,7 @@ function AndroidSessionUnavailable() {
   const session = getSessionData();
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-10">
+    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
       <section className="app-card max-w-md p-8">
         <p className="metric-label mb-3">Android Session</p>
         <h1 className="mb-4 font-headline text-3xl font-extrabold text-primary-container">Session unavailable</h1>

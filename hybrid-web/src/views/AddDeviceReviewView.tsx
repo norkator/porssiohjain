@@ -69,7 +69,7 @@ export default function AddDeviceReviewView() {
     <>
       <PageHeader title="Add Device" compact />
 
-      <main className="app-page py-8">
+      <main className="app-page pb-8 pt-4 sm:py-8">
         <section className="mb-10">
           <ProgressHeader label="Provision Device" step={3} total={4} />
         </section>

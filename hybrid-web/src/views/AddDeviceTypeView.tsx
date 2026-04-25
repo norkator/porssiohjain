@@ -45,7 +45,7 @@ export default function AddDeviceTypeView() {
     <>
       <PageHeader title="Add Device" compact />
 
-      <main className="app-page py-8">
+      <main className="app-page pb-8 pt-4 sm:py-8">
         <ProgressHeader label="Select Device Type" step={1} total={4} />
 
         <section className="grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

@@ -38,7 +38,7 @@ export default function PageHeader({
 
   return (
     <header className={`sticky top-0 z-40 w-full ${translucent ? "bg-background/85 backdrop-blur-md" : "bg-surface-container-low"}`}>
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
         <div className="flex items-center gap-4">
           <HeaderLogo />
           <div className={compact ? "font-headline text-xl font-bold tracking-tight text-primary-container" : "font-headline text-xl font-black tracking-tight text-primary-container"}>

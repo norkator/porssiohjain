@@ -39,7 +39,7 @@ export default function CreateAccountView() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-10">
+    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
       <section className="app-card w-full max-w-2xl p-8">
         <div className="mb-8 flex items-center gap-4">
           <HeaderLogo />

@@ -103,7 +103,7 @@ export default function MainMenuView() {
         )}
       />
 
-      <main className="mx-auto max-w-7xl px-6 pb-32 pt-16">
+      <main className="mx-auto max-w-7xl px-4 pb-36 pt-4 sm:px-6">
         <section className="mb-12">
           <div className="grid grid-cols-1 items-end gap-8 lg:grid-cols-12">
             <div className="lg:col-span-7">

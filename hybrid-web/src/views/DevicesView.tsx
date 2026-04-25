@@ -29,7 +29,7 @@ export default function DevicesView() {
         translucent
       />
 
-      <main className="app-page pt-12">
+      <main className="app-page pt-4 sm:pt-12">
         <section className="mb-12 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">

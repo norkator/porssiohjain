@@ -176,7 +176,7 @@ export default function ManageProductionSourceView() {
   return (
     <>
       <PageHeader title="Manage Production" compact />
-      <main className="app-page py-8">
+      <main className="app-page pb-8 pt-4 sm:py-8">
         {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">Loading production source...</div> : null}
         {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
         {!isLoading && source ? (
