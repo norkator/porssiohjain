@@ -43,6 +43,7 @@ public class ControlChartService {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found: " + controlId));
 
+        ZoneId controlZone = ZoneId.of(control.getTimezone());
         List<NordpoolPriceResponse> nordpoolPrices = nordpoolService.getNordpoolPricesForControl(controlId, null, null);
         Map<Instant, ControlTableResponse> finalRowsByTimestamp = controlSchedulerService.findByControlId(controlId).stream()
                 .filter(entry -> entry.getStatus() == Status.FINAL)
@@ -50,7 +51,7 @@ public class ControlChartService {
         Map<Instant, BigDecimal> transferPriceByTimestamp = computeTransferPrices(
                 control.getTransferContract(),
                 nordpoolPrices,
-                ZoneId.of(control.getTimezone())
+                controlZone
         );
 
         List<ControlChartPointResponse> points = nordpoolPrices.stream()

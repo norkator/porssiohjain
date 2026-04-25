@@ -13,10 +13,12 @@ import { useEffect, useState } from "react";
 import { fetchControlChart, type ControlChart } from "@/lib/controls";
 import { formatNordpoolPrice, formatNordpoolTime } from "@/lib/nordpool";
 
-const CHART_HEIGHT = 260;
+const CHART_HEIGHT = 300;
 const CHART_WIDTH = 960;
-const CHART_PADDING_X = 22;
-const CHART_PADDING_Y = 20;
+const CHART_PADDING_LEFT = 58;
+const CHART_PADDING_RIGHT = 22;
+const CHART_PADDING_TOP = 20;
+const CHART_PADDING_BOTTOM = 42;
 const Y_AXIS_STEPS = 4;
 
 type ControlPriceChartCardProps = {
@@ -39,13 +41,33 @@ function buildLinePath(values: Array<number | null>, innerWidth: number, innerHe
       return;
     }
 
-    const x = CHART_PADDING_X + (innerWidth * index) / Math.max(values.length - 1, 1);
-    const y = CHART_PADDING_Y + innerHeight - ((value - minValue) / range) * innerHeight;
+    const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(values.length - 1, 1);
+    const y = CHART_PADDING_TOP + innerHeight - ((value - minValue) / range) * innerHeight;
     path = `${path}${segmentOpen ? " L" : " M"} ${x.toFixed(2)} ${y.toFixed(2)}`;
     segmentOpen = true;
   });
 
   return path.trim();
+}
+
+function formatChartPriceLabel(value: number) {
+  return `${formatNordpoolPrice(value)} snt`;
+}
+
+function getTimeLabelPoints(chart: ControlChart) {
+  const targetLabels = 5;
+  const lastIndex = chart.points.length - 1;
+  if (lastIndex <= 0) {
+    return chart.points;
+  }
+
+  const indexes = Array.from({ length: Math.min(targetLabels, chart.points.length) }, (_, index) =>
+    Math.round((lastIndex * index) / Math.max(Math.min(targetLabels, chart.points.length) - 1, 1))
+  );
+
+  return indexes
+    .map((index) => chart.points[index])
+    .filter((point, index, points) => points.findIndex((candidate) => candidate.timestamp === point.timestamp) === index);
 }
 
 function useControlChart(controlId: number): ChartState {
@@ -119,8 +141,8 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
     );
   }
 
-  const innerWidth = CHART_WIDTH - CHART_PADDING_X * 2;
-  const innerHeight = CHART_HEIGHT - CHART_PADDING_Y * 2;
+  const innerWidth = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
+  const innerHeight = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
   const nordpoolValues = chart.points.map((point) => point.nordpoolPrice);
   const transferValues = chart.points.map((point) => point.transferPrice);
   const finalValues = chart.points.map((point) => point.finalControlPrice);
@@ -129,9 +151,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
   const maxValue = Math.max(...allValues);
   const range = maxValue - minValue || 1;
   const yAxisValues = Array.from({ length: Y_AXIS_STEPS + 1 }, (_, index) => maxValue - (range * index) / Y_AXIS_STEPS);
-  const timeLabels = [0, 6, 12, 18, 23]
-    .map((index) => chart.points[Math.min(index, chart.points.length - 1)])
-    .filter((point, index, points) => points.findIndex((candidate) => candidate.timestamp === point.timestamp) === index);
+  const timeLabels = getTimeLabelPoints(chart);
 
   let currentPointIndex = -1;
   for (let index = chart.points.length - 1; index >= 0; index -= 1) {
@@ -142,9 +162,9 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
   }
   const currentIndex = Math.max(currentPointIndex, 0);
   const currentPoint = chart.points[currentIndex];
-  const currentX = CHART_PADDING_X + (innerWidth * currentIndex) / Math.max(chart.points.length - 1, 1);
+  const currentX = CHART_PADDING_LEFT + (innerWidth * currentIndex) / Math.max(chart.points.length - 1, 1);
   const currentMarkerValue = currentPoint.finalControlPrice ?? currentPoint.nordpoolPrice;
-  const currentY = CHART_PADDING_Y + innerHeight - ((currentMarkerValue - minValue) / range) * innerHeight;
+  const currentY = CHART_PADDING_TOP + innerHeight - ((currentMarkerValue - minValue) / range) * innerHeight;
 
   return (
     <article className="app-card overflow-hidden">
@@ -172,8 +192,17 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
               role="img"
               viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
             >
+              <rect
+                fill="rgb(247 250 249 / 0.7)"
+                height={innerHeight}
+                rx="18"
+                width={innerWidth}
+                x={CHART_PADDING_LEFT}
+                y={CHART_PADDING_TOP}
+              />
+
               {yAxisValues.map((value, index) => {
-                const y = CHART_PADDING_Y + (innerHeight * index) / Y_AXIS_STEPS;
+                const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
 
                 return (
                   <g key={value}>
@@ -181,13 +210,13 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                       stroke="rgb(191 200 199 / 0.6)"
                       strokeDasharray="6 8"
                       strokeWidth="1"
-                      x1={CHART_PADDING_X}
-                      x2={CHART_PADDING_X + innerWidth}
+                      x1={CHART_PADDING_LEFT}
+                      x2={CHART_PADDING_LEFT + innerWidth}
                       y1={y}
                       y2={y}
                     />
-                    <text fill="rgb(63 72 72)" fontSize="12" textAnchor="end" x={CHART_PADDING_X - 8} y={y + 4}>
-                      {formatNordpoolPrice(value)}
+                    <text fill="rgb(63 72 72)" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
+                      {formatChartPriceLabel(value)}
                     </text>
                   </g>
                 );
@@ -195,7 +224,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
 
               {timeLabels.map((point) => {
                 const index = chart.points.findIndex((candidate) => candidate.timestamp === point.timestamp);
-                const x = CHART_PADDING_X + (innerWidth * index) / Math.max(chart.points.length - 1, 1);
+                const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(chart.points.length - 1, 1);
 
                 return (
                   <g key={point.timestamp}>
@@ -204,15 +233,15 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                       strokeWidth="1"
                       x1={x}
                       x2={x}
-                      y1={CHART_PADDING_Y}
-                      y2={CHART_PADDING_Y + innerHeight}
+                      y1={CHART_PADDING_TOP}
+                      y2={CHART_PADDING_TOP + innerHeight}
                     />
                     <text
                       fill="rgb(63 72 72)"
                       fontSize="12"
                       textAnchor={index === chart.points.length - 1 ? "end" : index === 0 ? "start" : "middle"}
                       x={x}
-                      y={CHART_PADDING_Y + innerHeight + 20}
+                      y={CHART_PADDING_TOP + innerHeight + 24}
                     >
                       {formatNordpoolTime(point.timestamp, chart.timezone)}
                     </text>
@@ -251,10 +280,14 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                 strokeWidth="2"
                 x1={currentX}
                 x2={currentX}
-                y1={CHART_PADDING_Y}
-                y2={CHART_PADDING_Y + innerHeight}
+                y1={CHART_PADDING_TOP}
+                y2={CHART_PADDING_TOP + innerHeight}
               />
               <circle cx={currentX} cy={currentY} fill="rgb(108 221 254)" r="7" stroke="rgb(0 67 66)" strokeWidth="3" />
+
+              <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
+                Time in {chart.timezone}
+              </text>
             </svg>
           </div>
 
@@ -266,7 +299,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
               Range {formatNordpoolPrice(minValue)} - {formatNordpoolPrice(maxValue)} snt/kWh
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              24 hourly points
+              {chart.points.length} hourly points
             </span>
           </div>
 

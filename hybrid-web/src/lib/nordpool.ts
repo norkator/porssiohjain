@@ -49,6 +49,8 @@ export function formatNordpoolPrice(value: number) {
 export function formatNordpoolTime(value: string, timezone?: string) {
   return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
     minute: "2-digit",
     timeZone: timezone || undefined
   }).format(new Date(value));
