@@ -92,6 +92,7 @@ public class ControlNotificationService {
 
     public ControlNotificationResponse updateControlNotification(
             Long accountId,
+            Long controlId,
             Long notificationId,
             String name,
             String description,
@@ -102,8 +103,7 @@ public class ControlNotificationService {
             Integer sendEarlierMinutes
     ) {
         validate(name, activeFrom, activeTo, cheapestHours, sendEarlierMinutes);
-        ControlNotificationEntity entity = controlNotificationRepository.findByIdAndAccountId(notificationId, accountId)
-                .orElseThrow(() -> new EntityNotFoundException("Control notification not found: " + notificationId));
+        ControlNotificationEntity entity = ensureOwnedNotification(accountId, controlId, notificationId);
 
         entity.setName(name.trim());
         entity.setDescription(description);
@@ -116,9 +116,8 @@ public class ControlNotificationService {
         return mapToResponse(controlNotificationRepository.save(entity));
     }
 
-    public void deleteControlNotification(Long accountId, Long notificationId) {
-        ControlNotificationEntity entity = controlNotificationRepository.findByIdAndAccountId(notificationId, accountId)
-                .orElseThrow(() -> new EntityNotFoundException("Control notification not found: " + notificationId));
+    public void deleteControlNotification(Long accountId, Long controlId, Long notificationId) {
+        ControlNotificationEntity entity = ensureOwnedNotification(accountId, controlId, notificationId);
         controlNotificationRepository.delete(entity);
     }
 
@@ -239,6 +238,15 @@ public class ControlNotificationService {
     private boolean wasSentForNotificationDate(Instant lastSentAt, LocalDate notificationDate, ZoneId zone, int sendEarlierMinutes) {
         return lastSentAt != null
                 && lastSentAt.plus(Duration.ofMinutes(sendEarlierMinutes)).atZone(zone).toLocalDate().equals(notificationDate);
+    }
+
+    private ControlNotificationEntity ensureOwnedNotification(Long accountId, Long controlId, Long notificationId) {
+        ControlNotificationEntity entity = controlNotificationRepository.findByIdAndAccountId(notificationId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Control notification not found: " + notificationId));
+        if (!entity.getControl().getId().equals(controlId)) {
+            throw new EntityNotFoundException("Control notification not found: " + notificationId);
+        }
+        return entity;
     }
 
     private boolean isInsideCheapestHoursWindow(ControlNotificationEntity notification, ZonedDateTime matchLocal) {

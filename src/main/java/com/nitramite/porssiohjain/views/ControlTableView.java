@@ -466,7 +466,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         notificationGrid.addComponentColumn(n -> {
             Button edit = new Button(t("controlTable.button.edit"), e -> openEditNotificationDialog(n));
             Button delete = new Button(t("controlTable.button.delete"), e -> {
-                controlNotificationService.deleteControlNotification(getAccountId(), n.getId());
+                controlNotificationService.deleteControlNotification(getAccountId(), controlId, n.getId());
                 loadControlNotifications();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -484,7 +484,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         deviceGrid.setItems(
                 controlService.getControlDevices(getAccountId(), controlId).stream()
                         .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.STANDARD)
-                .toList()
+                        .toList()
         );
     }
 
@@ -746,6 +746,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             try {
                 controlNotificationService.updateControlNotification(
                         getAccountId(),
+                        controlId,
                         notificationResponse.getId(),
                         nameField.getValue(),
                         descriptionField.getValue(),

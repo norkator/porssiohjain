@@ -10,6 +10,7 @@
  */
 
 import ControlPriceChartCard from "@/components/ControlPriceChartCard";
+import ControlNotificationsCard from "@/components/ControlNotificationsCard";
 import PageHeader from "@/components/PageHeader";
 import { fetchElectricityContracts, type ElectricityContract } from "@/lib/electricity-contracts";
 import { getAvailableTimezones } from "@/lib/add-device-flow";
@@ -700,6 +701,10 @@ export default function ManageControlView() {
 
             <section>
               <ControlPriceChartCard controlId={controlId} />
+            </section>
+
+            <section>
+              <ControlNotificationsCard controlId={controlId} isReadOnly={Boolean(control?.shared)} timezone={timezone} />
             </section>
           </div>
         ) : null}

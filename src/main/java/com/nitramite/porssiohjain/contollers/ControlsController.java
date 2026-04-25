@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.services.ControlChartService;
+import com.nitramite.porssiohjain.services.ControlNotificationService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.models.*;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class ControlsController {
     private final AuthContext authContext;
     private final ControlService controlService;
     private final ControlChartService controlChartService;
+    private final ControlNotificationService controlNotificationService;
 
     @GetMapping
     public List<ControlResponse> listControls() {
@@ -120,5 +122,59 @@ public class ControlsController {
                 request.getDeviceChannel(),
                 request.getEstimatedPowerKw()
         );
+    }
+
+    @GetMapping("/{controlId}/notifications")
+    public List<ControlNotificationResponse> getControlNotifications(
+            @PathVariable Long controlId
+    ) {
+        return controlNotificationService.getControlNotifications(authContext.getAccountId(), controlId);
+    }
+
+    @PostMapping("/{controlId}/notifications")
+    public ControlNotificationResponse createControlNotification(
+            @PathVariable Long controlId,
+            @RequestBody ControlNotificationRequest request
+    ) {
+        return controlNotificationService.createControlNotification(
+                authContext.getAccountId(),
+                controlId,
+                request.getName(),
+                request.getDescription(),
+                request.getActiveFrom(),
+                request.getActiveTo(),
+                request.isEnabled(),
+                request.getCheapestHours(),
+                request.getSendEarlierMinutes()
+        );
+    }
+
+    @PutMapping("/{controlId}/notifications/{notificationId}")
+    public ControlNotificationResponse updateControlNotification(
+            @PathVariable Long controlId,
+            @PathVariable Long notificationId,
+            @RequestBody ControlNotificationRequest request
+    ) {
+        controlService.getControl(authContext.getAccountId(), controlId);
+        return controlNotificationService.updateControlNotification(
+                authContext.getAccountId(),
+                controlId,
+                notificationId,
+                request.getName(),
+                request.getDescription(),
+                request.getActiveFrom(),
+                request.getActiveTo(),
+                request.isEnabled(),
+                request.getCheapestHours(),
+                request.getSendEarlierMinutes()
+        );
+    }
+
+    @DeleteMapping("/{controlId}/notifications/{notificationId}")
+    public void deleteControlNotification(
+            @PathVariable Long controlId,
+            @PathVariable Long notificationId
+    ) {
+        controlNotificationService.deleteControlNotification(authContext.getAccountId(), controlId, notificationId);
     }
 }

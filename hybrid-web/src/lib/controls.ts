@@ -78,6 +78,32 @@ export type ControlDeviceLinkPayload = {
   estimatedPowerKw: number | null;
 };
 
+export type ControlNotification = {
+  id: number;
+  controlId: number;
+  name: string;
+  description: string | null;
+  activeFrom: string;
+  activeTo: string;
+  enabled: boolean;
+  cheapestHours: number | null;
+  sendEarlierMinutes: number | null;
+  lastSentAt: string | null;
+  nextSendAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ControlNotificationPayload = {
+  name: string;
+  description: string;
+  activeFrom: string;
+  activeTo: string;
+  enabled: boolean;
+  cheapestHours: number;
+  sendEarlierMinutes: number;
+};
+
 export const CONTROL_MODES: ControlMode[] = ["BELOW_MAX_PRICE", "CHEAPEST_HOURS", "MANUAL", "SCHEDULED"];
 
 export async function fetchControls() {
@@ -152,6 +178,52 @@ export async function addControlDeviceLink(controlId: number, payload: ControlDe
   }
 
   return response.json() as Promise<ControlDeviceLink>;
+}
+
+export async function fetchControlNotifications(controlId: number) {
+  return apiGetJson<ControlNotification[]>(`/api/controls/${controlId}/notifications`);
+}
+
+export async function createControlNotification(controlId: number, payload: ControlNotificationPayload) {
+  const response = await apiFetch(`/api/controls/${controlId}/notifications`, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<ControlNotification>;
+}
+
+export async function updateControlNotification(controlId: number, notificationId: number, payload: ControlNotificationPayload) {
+  const response = await apiFetch(`/api/controls/${controlId}/notifications/${notificationId}`, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "PUT"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<ControlNotification>;
+}
+
+export async function deleteControlNotification(controlId: number, notificationId: number) {
+  const response = await apiFetch(`/api/controls/${controlId}/notifications/${notificationId}`, {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
 }
 
 export async function deleteControlDeviceLink(linkId: number) {
