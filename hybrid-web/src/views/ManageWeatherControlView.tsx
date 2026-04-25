@@ -12,11 +12,13 @@
 import PageHeader from "@/components/PageHeader";
 import {
   addWeatherControlDeviceLink,
+  type ApiSiteWeatherForecast,
   COMPARISONS,
   CONTROL_ACTIONS,
   deleteWeatherControlDeviceLink,
   fetchSites,
   fetchWeatherControl,
+  fetchWeatherControlWeather,
   fetchWeatherControlDeviceLinks,
   formatDate,
   updateWeatherControl,
@@ -41,6 +43,7 @@ export default function ManageWeatherControlView() {
   const [sites, setSites] = useState<ApiSite[]>([]);
   const [devices, setDevices] = useState<ApiDevice[]>([]);
   const [links, setLinks] = useState<WeatherControlDeviceLink[]>([]);
+  const [weather, setWeather] = useState<ApiSiteWeatherForecast | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -72,6 +75,11 @@ export default function ManageWeatherControlView() {
       setSites(siteResponse);
       setLinks(linkResponse);
       setDevices(deviceResponse.filter((device) => device.deviceType === "STANDARD" && !device.shared));
+      try {
+        setWeather(await fetchWeatherControlWeather(weatherControlId));
+      } catch {
+        setWeather(null);
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load weather control");
     } finally {
@@ -94,6 +102,11 @@ export default function ManageWeatherControlView() {
     try {
       const response = await updateWeatherControl(weatherControlId, { name: name.trim(), siteId: parsedSiteId });
       setControl(response);
+      try {
+        setWeather(await fetchWeatherControlWeather(weatherControlId));
+      } catch {
+        setWeather(null);
+      }
       setMessage("Weather control saved.");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Failed to save weather control");
@@ -139,6 +152,19 @@ export default function ManageWeatherControlView() {
       setIsDeletingLinkId((current) => (current === linkId ? null : current));
     }
   };
+
+  const currentWeatherPoint = weather?.points?.length
+    ? weather.points.reduce((closest, point) => {
+        const currentDistance = Math.abs(new Date(point.time).getTime() - Date.now());
+        const closestDistance = Math.abs(new Date(closest.time).getTime() - Date.now());
+
+        return currentDistance < closestDistance ? point : closest;
+      })
+    : null;
+
+  const weatherTimezone = weather?.timezone || control?.siteTimezone || undefined;
+  const formatMetric = (value: number | null | undefined, unit: string) =>
+    typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(1)} ${unit}` : "-";
 
   return (
     <>
@@ -238,6 +264,42 @@ export default function ManageWeatherControlView() {
             </section>
             <aside className="space-y-6 lg:col-span-4">
               <div className="app-card p-6"><p className="metric-label mb-2">Origin</p><p className="font-headline text-2xl font-bold">{control.shared ? "Shared" : "Mine"}</p></div>
+              <div className="app-card p-6">
+                <div className="mb-4 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="metric-label mb-2">Current Weather</p>
+                    <p className="font-headline text-2xl font-bold">{weather?.weatherPlace || control.siteName || "Weather"}</p>
+                  </div>
+                  <span className="chip bg-surface-container-highest text-primary-container">Live</span>
+                </div>
+
+                {currentWeatherPoint ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl bg-surface-container p-4">
+                      <span className="metric-label">Observation Time</span>
+                      <p className="mt-1 font-semibold text-on-surface">{formatDate(currentWeatherPoint.time, weatherTimezone)}</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                      <div className="rounded-2xl bg-surface-container-low p-4">
+                        <span className="metric-label">Temperature</span>
+                        <p className="mt-1 font-headline text-xl font-black text-on-surface">{formatMetric(currentWeatherPoint.temperature, "°C")}</p>
+                      </div>
+                      <div className="rounded-2xl bg-surface-container-low p-4">
+                        <span className="metric-label">Wind Speed</span>
+                        <p className="mt-1 font-headline text-xl font-black text-on-surface">{formatMetric(currentWeatherPoint.windSpeedMs, "m/s")}</p>
+                      </div>
+                      <div className="rounded-2xl bg-surface-container-low p-4">
+                        <span className="metric-label">Humidity</span>
+                        <p className="mt-1 font-headline text-xl font-black text-on-surface">{formatMetric(currentWeatherPoint.humidity, "%")}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-surface-container p-4 text-sm text-on-surface-variant">
+                    Weather data is not available for this site yet.
+                  </div>
+                )}
+              </div>
               <div className="app-card p-6"><p className="metric-label mb-2">Created</p><p className="font-semibold">{formatDate(control.createdAt, control.siteTimezone)}</p></div>
               <div className="app-card p-6"><p className="metric-label mb-2">Updated</p><p className="font-semibold">{formatDate(control.updatedAt, control.siteTimezone)}</p></div>
               <Link className="secondary-action justify-center" to="/weather-controls">Back</Link>

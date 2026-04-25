@@ -80,7 +80,13 @@ export default function NordpoolTodayChartCard() {
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const range = maxValue - minValue || 1;
-  const currentPointIndex = chart.points.findLastIndex((point) => new Date(point.timestamp).getTime() <= Date.now());
+  let currentPointIndex = -1;
+  for (let index = chart.points.length - 1; index >= 0; index -= 1) {
+    if (new Date(chart.points[index].timestamp).getTime() <= Date.now()) {
+      currentPointIndex = index;
+      break;
+    }
+  }
   const currentPoint = currentPointIndex >= 0 ? chart.points[currentPointIndex] : chart.points[0];
   const currentX = CHART_PADDING_X + (innerWidth * Math.max(currentPointIndex, 0)) / Math.max(chart.points.length - 1, 1);
   const currentY = CHART_PADDING_Y + innerHeight - ((currentPoint.price - minValue) / range) * innerHeight;

@@ -24,6 +24,28 @@ export type ComparisonType = "GREATER_THAN" | "LESS_THAN";
 export type ControlAction = "TURN_ON" | "TURN_OFF" | "SET_TEMPERATURE" | "SET_MODE";
 export type WeatherMetricType = "TEMPERATURE" | "HUMIDITY";
 
+export type ApiSiteWeatherForecastPoint = {
+  time: string;
+  temperature: number | null;
+  windSpeedMs: number | null;
+  windGust: number | null;
+  humidity: number | null;
+  totalCloudCover: number | null;
+  precipitationAmount: number | null;
+};
+
+export type ApiSiteWeatherForecast = {
+  siteId: number | null;
+  siteName: string | null;
+  weatherPlace: string | null;
+  timezone: string | null;
+  fetchedAt: string | null;
+  forecastStartTime: string | null;
+  forecastEndTime: string | null;
+  timestepMinutes: number | null;
+  points: ApiSiteWeatherForecastPoint[];
+};
+
 export type ApiWeatherControl = {
   id: number;
   name: string;
@@ -194,6 +216,7 @@ export const fetchSites = () => apiGetJson<ApiSite[]>("/api/sites");
 
 export const fetchWeatherControls = () => apiGetJson<ApiWeatherControl[]>("/api/weather-controls");
 export const fetchWeatherControl = (id: number) => apiGetJson<ApiWeatherControl>(`/api/weather-controls/${id}`);
+export const fetchWeatherControlWeather = (id: number) => apiGetJson<ApiSiteWeatherForecast>(`/api/weather-controls/${id}/weather`);
 export const createWeatherControl = (payload: WeatherControlPayload) => postJson<ApiWeatherControl>("/api/weather-controls", payload);
 export const updateWeatherControl = (id: number, payload: WeatherControlPayload) => postJson<ApiWeatherControl>(`/api/weather-controls/${id}`, payload, "PUT");
 export const fetchWeatherControlDeviceLinks = (id: number) => apiGetJson<WeatherControlDeviceLink[]>(`/api/weather-controls/${id}/devices`);

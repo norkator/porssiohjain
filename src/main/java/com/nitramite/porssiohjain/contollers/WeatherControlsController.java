@@ -17,12 +17,14 @@ import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import com.nitramite.porssiohjain.services.WeatherControlService;
+import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -49,6 +51,15 @@ public class WeatherControlsController {
     @GetMapping("/{weatherControlId}")
     public WeatherControlResponse getWeatherControl(@PathVariable Long weatherControlId) {
         return weatherControlService.getWeatherControl(authContext.getAccountId(), weatherControlId);
+    }
+
+    @GetMapping("/{weatherControlId}/weather")
+    public SiteWeatherForecastResponse getWeatherForecast(
+            @PathVariable Long weatherControlId,
+            @RequestParam(required = false) Instant start,
+            @RequestParam(required = false) Instant end
+    ) {
+        return weatherControlService.getStoredWeatherForecast(authContext.getAccountId(), weatherControlId, start, end);
     }
 
     @PutMapping("/{weatherControlId}")
