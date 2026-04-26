@@ -84,16 +84,16 @@ public class SitemapController {
 
     @GetMapping(value = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
     public ResponseEntity<String> sitemap(HttpServletRequest request) {
-        String host = request.getHeader("host");
+        String hostHeader = request.getHeader("host");
 
-        if (!DOMAIN_PAGES.containsKey(host)) {
+        String canonicalHost = DOMAIN_PAGES.keySet().stream()
+                .filter(domainKey -> domainKey.equalsIgnoreCase(hostHeader))
+                .findFirst()
+                .orElse(null);
+        if (canonicalHost == null) {
             return ResponseEntity.badRequest().body("Unknown domain");
         }
 
-        String canonicalHost = DOMAIN_PAGES.keySet().stream()
-                .filter(host::equals)
-                .findFirst()
-                .orElse(host);
         List<String> pages = DOMAIN_PAGES.get(canonicalHost);
         String scheme = request.getScheme();
         String domain = scheme + "://" + canonicalHost;
