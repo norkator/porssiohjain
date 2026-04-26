@@ -23,9 +23,12 @@ import {
   type HeatPumpAcDevice,
   listSelectableHeatPumpAcDevices
 } from "@/lib/heat-pump-devices";
+import { useI18n } from "@/lib/i18n";
 
 export default function AddDeviceConfigureView() {
   const navigate = useNavigate();
+  const { t } = useI18n("addDeviceConfigure");
+  const common = useI18n("common").t;
   const draft = readAddDeviceDraft();
   const deviceType = getDeviceTypeOption(draft.deviceTypeId);
   const isHeatPump = deviceType?.id === "toshiba-heat-pump" || deviceType?.id === "mitsubishi-heat-pump";
@@ -125,7 +128,7 @@ export default function AddDeviceConfigureView() {
       setSelectableAcDevices(devices);
       setIsAcDialogOpen(true);
     } catch (error) {
-      setAcSelectionError(error instanceof Error ? error.message : "Failed to load AC devices");
+      setAcSelectionError(error instanceof Error ? error.message : t("failedLoadAcDevices"));
       setSelectableAcDevices([]);
     } finally {
       setIsLoadingAcDevices(false);
@@ -142,17 +145,17 @@ export default function AddDeviceConfigureView() {
 
   return (
     <>
-      <PageHeader title="Add Device" compact />
+      <PageHeader title={t("title")} compact />
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         <section className="mb-10">
-          <ProgressHeader label="Device Configuration" step={2} total={4} />
+          <ProgressHeader label={t("stepLabel")} step={2} total={4} />
         </section>
 
         <section className="space-y-8">
           <div className="relative overflow-hidden rounded-xl bg-surface-container-low p-8">
             <div className="relative z-10 max-w-2xl">
-              <p className="metric-label mb-4">Selected Device Type</p>
+              <p className="metric-label mb-4">{t("selectedDeviceType")}</p>
               <h1 className="mb-4 font-headline text-3xl font-extrabold leading-tight text-primary md:text-4xl">
                 {deviceType.title}
               </h1>
@@ -168,27 +171,27 @@ export default function AddDeviceConfigureView() {
           <form className="app-card max-w-4xl space-y-8 p-8" onSubmit={handleSubmit}>
               <div>
                 <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="device-name">
-                  Device Name
+                  {t("deviceName")}
                 </label>
                 <div className="relative">
                   <input
                     className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
                     id="device-name"
                     onChange={(event) => setDeviceName(event.target.value)}
-                    placeholder={`e.g., ${deviceType.title} in Utility Room`}
+                    placeholder={t("deviceNamePlaceholder", { deviceType: deviceType.title })}
                     type="text"
                     value={deviceName}
                   />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/30">✎</div>
                 </div>
                 <p className="mt-2 ml-1 text-[11px] uppercase tracking-wider text-on-surface-variant">
-                  Choose a name that identifies the location or function
+                  {t("deviceNameHelp")}
                 </p>
               </div>
 
               <div>
                 <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="timezone">
-                  Timezone Selection
+                  {t("timezoneSelection")}
                 </label>
                 <div className="relative">
                   <input
@@ -196,7 +199,7 @@ export default function AddDeviceConfigureView() {
                     id="timezone"
                     list="timezone-options"
                     onChange={(event) => setTimezone(event.target.value)}
-                    placeholder="Start typing to search timezones"
+                    placeholder={t("timezonePlaceholder")}
                     type="text"
                     value={timezone}
                   />
@@ -208,11 +211,11 @@ export default function AddDeviceConfigureView() {
                   ))}
                 </datalist>
                 <p className="mt-2 ml-1 text-[11px] uppercase tracking-wider text-on-surface-variant">
-                  Defaults to your current timezone and supports quick search
+                  {t("timezoneHelp")}
                 </p>
                 {!timezoneIsValid ? (
                   <p className="mt-2 ml-1 text-sm text-on-error-container">
-                    Select a valid timezone from the available list.
+                    {t("invalidTimezone")}
                   </p>
                 ) : null}
               </div>
@@ -221,14 +224,14 @@ export default function AddDeviceConfigureView() {
                 <>
                   <div>
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="hp-name">
-                      Heat Pump Device Name
+                      {t("heatPumpDeviceName")}
                     </label>
                     <div className="relative">
                       <input
                         className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
                         id="hp-name"
                         onChange={(event) => setHpName(event.target.value)}
-                        placeholder="e.g., Living Room Heat Pump"
+                        placeholder={t("heatPumpDevicePlaceholder")}
                         type="text"
                         value={hpName}
                       />
@@ -237,7 +240,7 @@ export default function AddDeviceConfigureView() {
 
                   <div>
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="ac-username">
-                      Heat Pump App Username
+                      {t("heatPumpUsername")}
                     </label>
                     <div className="relative">
                       <input
@@ -245,7 +248,7 @@ export default function AddDeviceConfigureView() {
                         className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
                         id="ac-username"
                         onChange={(event) => setAcUsername(event.target.value)}
-                        placeholder={deviceType.id === "toshiba-heat-pump" ? "Toshiba app email or username" : "MELCloud email or username"}
+                        placeholder={deviceType.id === "toshiba-heat-pump" ? t("toshibaUsernamePlaceholder") : t("mitsubishiUsernamePlaceholder")}
                         type="text"
                         value={acUsername}
                       />
@@ -254,7 +257,7 @@ export default function AddDeviceConfigureView() {
 
                   <div>
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="ac-password">
-                      Heat Pump App Password
+                      {t("heatPumpPassword")}
                     </label>
                     <div className="relative">
                       <input
@@ -262,7 +265,7 @@ export default function AddDeviceConfigureView() {
                         className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
                         id="ac-password"
                         onChange={(event) => setAcPassword(event.target.value)}
-                        placeholder="Enter app password"
+                        placeholder={t("heatPumpPasswordPlaceholder")}
                         type="password"
                         value={acPassword}
                       />
@@ -272,9 +275,9 @@ export default function AddDeviceConfigureView() {
                   <div className="rounded-xl bg-surface-container-low p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="font-headline text-lg font-bold text-on-surface">Choose AC Device</p>
+                        <p className="font-headline text-lg font-bold text-on-surface">{t("chooseAcDevice")}</p>
                         <p className="text-sm text-on-surface-variant">
-                          Load devices from your vendor account and choose the indoor unit to connect.
+                          {t("chooseAcDescription")}
                         </p>
                       </div>
                       <button
@@ -283,12 +286,12 @@ export default function AddDeviceConfigureView() {
                         onClick={handleOpenAcSelection}
                         type="button"
                       >
-                        {isLoadingAcDevices ? "Loading..." : "Choose AC Device"}
+                        {isLoadingAcDevices ? common("loading") : t("chooseAcDevice")}
                       </button>
                     </div>
                     {!hasAcCredentials ? (
                       <p className="mt-4 text-sm text-on-surface-variant">
-                        Enter your heat pump app username and password before selecting an AC device.
+                        {t("credentialsRequired")}
                       </p>
                     ) : null}
                     {acSelectionError ? (
@@ -297,13 +300,13 @@ export default function AddDeviceConfigureView() {
                       </div>
                     ) : null}
                     <div className="mt-4 rounded-xl bg-surface-container-highest p-4">
-                      <p className="metric-label mb-2">Selected AC Device</p>
+                      <p className="metric-label mb-2">{t("selectedAcDevice")}</p>
                       <p className="text-sm text-on-surface">
-                        {acDeviceLabel || "No AC device selected yet."}
+                        {acDeviceLabel || t("noAcDeviceSelected")}
                       </p>
                       {acDeviceId ? (
                         <p className="mt-2 text-xs text-on-surface-variant">
-                          Device ID: {acDeviceId}
+                          {t("deviceId", { id: acDeviceId })}
                         </p>
                       ) : null}
                     </div>
@@ -317,10 +320,10 @@ export default function AddDeviceConfigureView() {
                   disabled={!canContinue}
                   type="submit"
                 >
-                  Next Step
+                  {t("nextStep")}
                 </button>
                 <Link className="mt-4 block w-full py-3 text-center text-sm font-bold text-primary/60 transition-colors hover:text-primary" to="/devices/add/type">
-                  Back
+                  {common("back")}
                 </Link>
               </div>
             </form>
@@ -332,12 +335,12 @@ export default function AddDeviceConfigureView() {
           <div className="app-card w-full max-w-2xl p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="metric-label mb-2">Heat Pump Account</p>
+                <p className="metric-label mb-2">{t("heatPumpAccount")}</p>
                 <h2 className="font-headline text-2xl font-bold text-on-surface">
-                  Select an AC device
+                  {t("selectAcDevice")}
                 </h2>
                 <p className="mt-2 text-sm text-on-surface-variant">
-                  Choose the device returned by your {deviceType.title} account.
+                  {t("chooseReturnedDevice", { deviceType: deviceType.title })}
                 </p>
               </div>
               <button
@@ -345,7 +348,7 @@ export default function AddDeviceConfigureView() {
                 onClick={() => setIsAcDialogOpen(false)}
                 type="button"
               >
-                Close
+                {common("close")}
               </button>
             </div>
 
@@ -358,17 +361,17 @@ export default function AddDeviceConfigureView() {
                   type="button"
                 >
                   <p className="font-headline text-lg font-bold text-on-surface">{device.name}</p>
-                  <p className="mt-2 text-sm text-on-surface-variant">Device ID: {device.id}</p>
+                  <p className="mt-2 text-sm text-on-surface-variant">{t("deviceId", { id: device.id })}</p>
                   {device.buildingId ? (
-                    <p className="mt-1 text-sm text-on-surface-variant">Building ID: {device.buildingId}</p>
+                    <p className="mt-1 text-sm text-on-surface-variant">{t("buildingId", { id: device.buildingId })}</p>
                   ) : null}
                   {device.deviceUniqueId ? (
-                    <p className="mt-1 text-sm text-on-surface-variant">Unique ID: {device.deviceUniqueId}</p>
+                    <p className="mt-1 text-sm text-on-surface-variant">{t("uniqueId", { id: device.deviceUniqueId })}</p>
                   ) : null}
                 </button>
               )) : (
                 <div className="rounded-xl bg-surface-container-low p-5 text-sm text-on-surface-variant">
-                  No selectable AC devices were returned for these credentials.
+                  {t("noSelectableDevices")}
                 </div>
               )}
             </div>

@@ -11,10 +11,13 @@
 
 import PageHeader from "@/components/PageHeader";
 import { createPowerLimit, fetchPowerLimits, formatDate, formatKw, type ApiPowerLimit } from "@/lib/automation-resources";
+import { useI18n } from "@/lib/i18n";
 import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 export default function PowerLimitsView() {
+  const { t } = useI18n("powerLimits");
+  const common = useI18n("common").t;
   const [limits, setLimits] = useState<ApiPowerLimit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +32,7 @@ export default function PowerLimitsView() {
     try {
       setLimits(await fetchPowerLimits());
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load power limits");
+      setError(loadError instanceof Error ? loadError.message : t("failedLoad"));
     } finally {
       setIsLoading(false);
     }
@@ -52,7 +55,7 @@ export default function PowerLimitsView() {
       setEnabled(true);
       await loadLimits();
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Failed to create power limit");
+      setError(createError instanceof Error ? createError.message : t("failedCreate"));
     } finally {
       setIsCreating(false);
     }
@@ -60,21 +63,21 @@ export default function PowerLimitsView() {
 
   return (
     <>
-      <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">Menu</Link>} translucent />
+      <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} translucent />
       <main className="app-page pt-4 sm:pt-12">
         <section className="mb-10">
-          <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">Power Limits</h1>
-          <p className="max-w-lg text-lg text-on-surface-variant">Keep total consumption under configured kilowatt limits.</p>
+          <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">{t("title")}</h1>
+          <p className="max-w-lg text-lg text-on-surface-variant">{t("description")}</p>
         </section>
 
         <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-4" onSubmit={handleCreate}>
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder="Limit name" value={name} />
+          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder={t("limitName")} value={name} />
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" min="0" onChange={(event) => setLimitKw(event.target.value)} step="0.1" type="number" value={limitKw} />
-          <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">Enabled</span><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" /></label>
-          <button className="primary-action justify-center disabled:opacity-60" disabled={isCreating || !name.trim()} type="submit">{isCreating ? "Creating..." : "Add Power Limit"}</button>
+          <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">{common("enabled")}</span><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" /></label>
+          <button className="primary-action justify-center disabled:opacity-60" disabled={isCreating || !name.trim()} type="submit">{isCreating ? common("creating") : t("add")}</button>
         </form>
 
-        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">Loading power limits...</div> : null}
+        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div> : null}
         {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -82,17 +85,17 @@ export default function PowerLimitsView() {
             <article className={`group app-card border-l-4 ${limit.enabled ? "border-primary" : "border-outline"} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`} key={limit.id}>
               <div className="mb-5 flex justify-between gap-3">
                 <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{limit.limitIntervalMinutes ?? 15} min</span>
-                <span className={`rounded px-2 py-1 text-[10px] font-bold ${limit.enabled ? "bg-primary-fixed text-primary" : "bg-error-container text-on-error-container"}`}>{limit.enabled ? "Enabled" : "Disabled"}</span>
+                <span className={`rounded px-2 py-1 text-[10px] font-bold ${limit.enabled ? "bg-primary-fixed text-primary" : "bg-error-container text-on-error-container"}`}>{limit.enabled ? common("enabled") : common("disabled")}</span>
               </div>
               <h3 className="font-headline text-2xl font-bold">{limit.name}</h3>
-              <p className="mb-6 mt-1 font-mono text-xs text-outline">ID: {limit.id}</p>
+              <p className="mb-6 mt-1 font-mono text-xs text-outline">{common("id", { id: limit.id })}</p>
               <div className="mb-6 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg bg-surface-container-low p-3"><span className="metric-label">Limit kW</span><p className="font-semibold">{formatKw(limit.limitKw)}</p></div>
-                <div className="rounded-lg bg-surface-container-low p-3"><span className="metric-label">Current kW</span><p className="font-semibold">{formatKw(limit.currentKw)}</p></div>
+                <div className="rounded-lg bg-surface-container-low p-3"><span className="metric-label">{t("limitKw")}</span><p className="font-semibold">{formatKw(limit.limitKw)}</p></div>
+                <div className="rounded-lg bg-surface-container-low p-3"><span className="metric-label">{common("currentKw")}</span><p className="font-semibold">{formatKw(limit.currentKw)}</p></div>
               </div>
               <div className="flex items-center justify-between border-t border-surface-container-low pt-4">
                 <span className="text-sm text-on-surface-variant">{formatDate(limit.updatedAt, limit.timezone)}</span>
-                <Link className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" to={`/power-limits/${limit.id}`}>Manage</Link>
+                <Link className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" to={`/power-limits/${limit.id}`}>{common("manage")}</Link>
               </div>
             </article>
           ))}

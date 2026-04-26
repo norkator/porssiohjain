@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchControlChart, type ControlChart } from "@/lib/controls";
+import { useI18n } from "@/lib/i18n";
 import { formatNordpoolPrice, formatNordpoolTime } from "@/lib/nordpool";
 
 const CHART_HEIGHT = 300;
@@ -71,6 +72,7 @@ function getTimeLabelPoints(chart: ControlChart) {
 }
 
 function useControlChart(controlId: number): ChartState {
+  const { t } = useI18n("charts");
   const [state, setState] = useState<ChartState>({
     chart: null,
     error: null,
@@ -105,7 +107,7 @@ function useControlChart(controlId: number): ChartState {
 
         setState({
           chart: null,
-          error: error instanceof Error ? error.message : "Failed to load chart",
+          error: error instanceof Error ? error.message : t("failedLoadChart"),
           isLoading: false
         });
       });
@@ -119,16 +121,17 @@ function useControlChart(controlId: number): ChartState {
 }
 
 export default function ControlPriceChartCard({ controlId }: ControlPriceChartCardProps) {
+  const { t } = useI18n("charts");
   const { chart, error, isLoading } = useControlChart(controlId);
 
   if (isLoading) {
-    return <div className="app-card p-6 text-sm text-on-surface-variant">Loading control chart...</div>;
+    return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingControlChart")}</div>;
   }
 
   if (error) {
     return (
       <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
-        Failed to load control chart. {error}
+        {t("failedControlChart", { error })}
       </div>
     );
   }
@@ -136,7 +139,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
   if (!chart || chart.points.length === 0) {
     return (
       <div className="app-card p-6 text-sm text-on-surface-variant">
-        No control pricing data is available for today.
+        {t("noControlChart")}
       </div>
     );
   }
@@ -172,22 +175,22 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
         <div>
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">Control Pricing</p>
-              <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">Final control timeline</h3>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("controlPricing")}</p>
+              <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">{t("controlTimeline")}</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
-                Nord Pool, transfer, and final control price for today in {chart.timezone}.
+                {t("controlDescription", { timezone: chart.timezone })}
               </p>
             </div>
 
             <div className="rounded-2xl bg-surface-container p-4">
-              <p className="metric-label mb-1">Transfer Contract</p>
-              <p className="font-headline text-2xl font-black text-primary">{chart.transferContractName ?? "Not set"}</p>
+              <p className="metric-label mb-1">{t("transferContract")}</p>
+              <p className="font-headline text-2xl font-black text-primary">{chart.transferContractName ?? t("notSet")}</p>
             </div>
           </div>
 
           <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
             <svg
-              aria-label="Control pricing chart for today"
+              aria-label={t("controlAria")}
               className="h-72 w-full"
               role="img"
               viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -286,58 +289,58 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
               <circle cx={currentX} cy={currentY} fill="rgb(108 221 254)" r="7" stroke="rgb(0 67 66)" strokeWidth="3" />
 
               <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
-                Time in {chart.timezone}
+                {t("timeInTimezone", { timezone: chart.timezone })}
               </text>
             </svg>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
             <span className="rounded-full bg-surface-container px-3 py-2">
-              Now {formatNordpoolTime(currentPoint.timestamp, chart.timezone)}
+              {t("now", { time: formatNordpoolTime(currentPoint.timestamp, chart.timezone) })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              Range {formatNordpoolPrice(minValue)} - {formatNordpoolPrice(maxValue)} snt/kWh
+              {t("range", { min: formatNordpoolPrice(minValue), max: formatNordpoolPrice(maxValue) })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              {chart.points.length} hourly points
+              {t("hourlyPoints", { count: chart.points.length })}
             </span>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-4 rounded-2xl bg-surface-container-low px-4 py-3 text-sm text-on-surface">
             <div className="flex items-center gap-3">
               <span className="h-0.5 w-8 rounded-full bg-[rgb(255_179_67)]" />
-              <span>Transfer price</span>
+              <span>{t("transferPrice")}</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="h-0.5 w-8 rounded-full bg-[rgb(0_103_125)]" />
-              <span>Nord Pool price</span>
+              <span>{t("nordpoolPrice")}</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="h-1 w-8 rounded-full bg-[rgb(204_51_51)]" />
-              <span>Final control price</span>
+              <span>{t("finalControlPrice")}</span>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-1">
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">Current Nord Pool</p>
+            <p className="metric-label mb-2">{t("currentNordpool")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(currentPoint.nordpoolPrice)}</p>
-            <p className="text-xs text-on-surface-variant">snt/kWh incl. tax</p>
+            <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">Current Transfer</p>
+            <p className="metric-label mb-2">{t("currentTransfer")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">
               {currentPoint.transferPrice === null ? "-" : formatNordpoolPrice(currentPoint.transferPrice)}
             </p>
-            <p className="text-xs text-on-surface-variant">snt/kWh</p>
+            <p className="text-xs text-on-surface-variant">{t("priceUnit")}</p>
           </div>
           <div className="rounded-3xl bg-primary-container p-5 text-on-primary">
-            <p className="metric-label mb-2 text-primary-fixed">Current Final</p>
+            <p className="metric-label mb-2 text-primary-fixed">{t("currentFinal")}</p>
             <p className="font-headline text-2xl font-black">
               {currentPoint.finalControlPrice === null ? "-" : formatNordpoolPrice(currentPoint.finalControlPrice)}
             </p>
-            <p className="text-xs text-primary-fixed">FINAL control price</p>
+            <p className="text-xs text-primary-fixed">{t("finalPriceUnit")}</p>
           </div>
         </div>
       </div>

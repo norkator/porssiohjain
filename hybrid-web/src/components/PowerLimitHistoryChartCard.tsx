@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchPowerLimitHistory, type PowerLimitHistoryPoint } from "@/lib/automation-resources";
+import { useI18n } from "@/lib/i18n";
 import { formatNordpoolTime } from "@/lib/nordpool";
 
 const CHART_HEIGHT = 300;
@@ -80,6 +81,7 @@ function getTimeLabelPoints(history: PowerLimitHistoryPoint[]) {
 }
 
 function usePowerLimitHistory(powerLimitId: number): ChartState {
+  const { t } = useI18n("charts");
   const [state, setState] = useState<ChartState>({
     error: null,
     history: [],
@@ -107,7 +109,7 @@ function usePowerLimitHistory(powerLimitId: number): ChartState {
       .catch((error: unknown) => {
         if (!isActive) return;
         setState({
-          error: error instanceof Error ? error.message : "Failed to load chart",
+          error: error instanceof Error ? error.message : t("failedLoadChart"),
           history: [],
           isLoading: false
         });
@@ -122,16 +124,17 @@ function usePowerLimitHistory(powerLimitId: number): ChartState {
 }
 
 export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, limitKw }: PowerLimitHistoryChartCardProps) {
+  const { t } = useI18n("charts");
   const { history, error, isLoading } = usePowerLimitHistory(powerLimitId);
 
   if (isLoading) {
-    return <div className="app-card p-6 text-sm text-on-surface-variant">Loading power limit chart...</div>;
+    return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingPowerLimitHistory")}</div>;
   }
 
   if (error) {
     return (
       <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
-        Failed to load power limit chart. {error}
+        {t("failedPowerLimitHistory", { error })}
       </div>
     );
   }
@@ -139,7 +142,7 @@ export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, lim
   if (history.length === 0) {
     return (
       <div className="app-card p-6 text-sm text-on-surface-variant">
-        No power limit history is available for the last 24 hours.
+        {t("noPowerLimitHistory")}
       </div>
     );
   }
@@ -174,22 +177,22 @@ export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, lim
         <div>
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">Power Limit History</p>
-              <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">Power usage timeline</h3>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("powerLimitHistory")}</p>
+              <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">{t("powerUsageTimeline")}</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
-                Last 24 hours of summed interval usage in {timezone}.
+                {t("powerLimitDescription", { timezone })}
               </p>
             </div>
 
             <div className="rounded-2xl bg-surface-container p-4">
-              <p className="metric-label mb-1">Configured Limit</p>
+              <p className="metric-label mb-1">{t("configuredLimit")}</p>
               <p className="font-headline text-2xl font-black text-primary">{limitKw === null ? "-" : `${formatKwValue(limitKw)} kW`}</p>
             </div>
           </div>
 
           <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
             <svg
-              aria-label="Power limit history chart"
+              aria-label={t("powerLimitAria")}
               className="h-72 w-full"
               role="img"
               viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -270,7 +273,7 @@ export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, lim
                     y2={limitLineY}
                   />
                   <text fill="rgb(204 51 51)" fontSize="12" fontWeight="700" textAnchor="end" x={CHART_PADDING_LEFT + innerWidth - 8} y={limitLineY - 8}>
-                    Limit {formatKwValue(limitKw ?? 0)} kW
+                    {t("limitLine", { kw: formatKwValue(limitKw ?? 0) })}
                   </text>
                 </>
               ) : null}
@@ -297,52 +300,52 @@ export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, lim
               <circle cx={currentX} cy={currentY} fill="rgb(108 221 254)" r="7" stroke="rgb(0 67 66)" strokeWidth="3" />
 
               <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
-                Time in {timezone}
+                {t("timeInTimezone", { timezone })}
               </text>
             </svg>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
             <span className="rounded-full bg-surface-container px-3 py-2">
-              Now {formatNordpoolTime(currentPoint.createdAt, timezone)}
+              {t("now", { time: formatNordpoolTime(currentPoint.createdAt, timezone) })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              Range {formatKwValue(Math.min(...values))} - {formatKwValue(Math.max(...values))} kW
+              {t("kwRange", { min: formatKwValue(Math.min(...values)), max: formatKwValue(Math.max(...values)) })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              {history.length} interval points
+              {t("intervalPoints", { count: history.length })}
             </span>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-4 rounded-2xl bg-surface-container-low px-4 py-3 text-sm text-on-surface">
             <div className="flex items-center gap-3">
               <span className="h-1 w-8 rounded-full bg-[rgb(0_103_125)]" />
-              <span>Interval power sum</span>
+              <span>{t("intervalPowerSum")}</span>
             </div>
             <div className="flex items-center gap-3">
               <span className="h-0.5 w-8 rounded-full bg-[rgb(204_51_51)]" />
-              <span>Configured limit</span>
+              <span>{t("configuredLimit")}</span>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-1">
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">Current Interval</p>
+            <p className="metric-label mb-2">{t("currentInterval")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatKwValue(currentPoint.kilowatts)}</p>
-            <p className="text-xs text-on-surface-variant">kW at current bucket</p>
+            <p className="text-xs text-on-surface-variant">{t("kwCurrentBucket")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">24h Peak</p>
+            <p className="metric-label mb-2">{t("peak24h")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatKwValue(Math.max(...values))}</p>
-            <p className="text-xs text-on-surface-variant">highest interval sum</p>
+            <p className="text-xs text-on-surface-variant">{t("highestIntervalSum")}</p>
           </div>
           <div className="rounded-3xl bg-primary-container p-5 text-on-primary">
-            <p className="metric-label mb-2 text-primary-fixed">Status</p>
+            <p className="metric-label mb-2 text-primary-fixed">{t("status")}</p>
             <p className="font-headline text-2xl font-black">
-              {limitKw !== null && currentPoint.kilowatts > limitKw ? "Above Limit" : "Within Limit"}
+              {limitKw !== null && currentPoint.kilowatts > limitKw ? t("aboveLimit") : t("withinLimit")}
             </p>
-            <p className="text-xs text-primary-fixed">based on latest interval point</p>
+            <p className="text-xs text-primary-fixed">{t("latestIntervalStatus")}</p>
           </div>
         </div>
       </div>

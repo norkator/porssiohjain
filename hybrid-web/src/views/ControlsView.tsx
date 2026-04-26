@@ -17,9 +17,12 @@ import {
   getControlAccent,
   getControlStatus
 } from "@/lib/controls";
+import { useI18n } from "@/lib/i18n";
 import { Link } from "react-router-dom";
 
 export default function ControlsView() {
+  const { t } = useI18n("controls");
+  const common = useI18n("common").t;
   const { controls, error, isLoading, latestUpdate, manualCount, sharedCount, totalCount } = useControls();
 
   return (
@@ -27,7 +30,7 @@ export default function ControlsView() {
       <PageHeader
         rightSlot={(
           <Link className="secondary-action px-4 py-2 text-sm" to="/menu">
-            Menu
+            {common("menu")}
           </Link>
         )}
         translucent
@@ -37,27 +40,27 @@ export default function ControlsView() {
         <section className="mb-12 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">
-              Your Controls
+              {t("title")}
             </h1>
             <p className="max-w-lg text-lg text-on-surface-variant">
-              Manage price limits, cheapest-hour schedules, manual overrides, and shared control resources.
+              {t("description")}
             </p>
           </div>
 
           <Link className="primary-action transition-all duration-300 hover:-translate-y-0.5 hover:shadow-soft" to="/controls/add">
             <span>+</span>
-            Add New Control
+            {t("addNewControl")}
           </Link>
         </section>
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
-            <div className="app-card p-6 text-sm text-on-surface-variant">Loading controls...</div>
+            <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingControls")}</div>
           ) : null}
 
           {!isLoading && error ? (
             <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
-              Failed to load controls. {error}
+              {t("failedToLoad", { error })}
             </div>
           ) : null}
 
@@ -87,26 +90,26 @@ export default function ControlsView() {
                     </div>
 
                     <h3 className="font-headline text-2xl font-bold text-on-surface">{control.name}</h3>
-                    <p className="mb-6 mt-1 font-mono text-xs tracking-tight text-outline">ID: {control.id}</p>
+                    <p className="mb-6 mt-1 font-mono text-xs tracking-tight text-outline">{common("id", { id: control.id })}</p>
 
                     <div className="mb-6 grid grid-cols-2 gap-3 text-sm">
                       <div className="rounded-lg bg-surface-container-low p-3">
-                        <span className="metric-label">Max Price</span>
+                        <span className="metric-label">{t("maxPrice")}</span>
                         <p className="font-semibold text-on-surface">{control.maxPriceSnt ?? "-"} snt</p>
                       </div>
                       <div className="rounded-lg bg-surface-container-low p-3">
-                        <span className="metric-label">Daily On</span>
+                        <span className="metric-label">{t("dailyOn")}</span>
                         <p className="font-semibold text-on-surface">{control.dailyOnMinutes ?? 0} min</p>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between border-t border-surface-container-low pt-4">
                       <div className="flex flex-col">
-                        <span className="metric-label">Updated</span>
+                        <span className="metric-label">{common("updated")}</span>
                         <span className="text-sm font-semibold text-on-surface">{formatControlDate(control.updatedAt, control.timezone)}</span>
                       </div>
                       <Link className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" to={`/controls/${control.id}`}>
-                        Manage
+                        {common("manage")}
                       </Link>
                     </div>
                   </article>
@@ -122,8 +125,8 @@ export default function ControlsView() {
               +
             </div>
             <div>
-              <h3 className="font-headline text-lg font-bold text-on-surface">Create Control</h3>
-              <p className="px-8 text-xs text-on-surface-variant">Add price and schedule logic for connected loads</p>
+              <h3 className="font-headline text-lg font-bold text-on-surface">{t("createControl")}</h3>
+              <p className="px-8 text-xs text-on-surface-variant">{t("createControlDescription")}</p>
             </div>
           </Link>
         </section>
@@ -132,26 +135,26 @@ export default function ControlsView() {
           <div className="group relative overflow-hidden rounded-3xl bg-primary-container p-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.22)] md:col-span-4">
             <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
             <div className="relative text-white">
-              <p className="text-xs font-semibold uppercase tracking-widest opacity-80">Controls Configured</p>
+              <p className="text-xs font-semibold uppercase tracking-widest opacity-80">{t("controlsConfigured")}</p>
               <p className="font-headline text-4xl font-black">{totalCount}</p>
             </div>
           </div>
 
           <div className="flex flex-col gap-6 md:col-span-8">
-            <h3 className="font-headline text-3xl font-bold text-primary">Price-Aware Automation.</h3>
+            <h3 className="font-headline text-3xl font-bold text-primary">{t("summaryTitle")}</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
-                <p className="font-bold">Manual Controls</p>
-                <p className="text-sm text-on-surface-variant">{isLoading ? "Syncing..." : `${manualCount} manual overrides configured.`}</p>
+                <p className="font-bold">{t("manualControls")}</p>
+                <p className="text-sm text-on-surface-variant">{isLoading ? common("syncing") : t("manualConfigured", { count: manualCount })}</p>
               </div>
               <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
-                <p className="font-bold">Shared Resources</p>
-                <p className="text-sm text-on-surface-variant">{isLoading ? "Syncing..." : `${sharedCount} controls shared to this account.`}</p>
+                <p className="font-bold">{t("sharedResources")}</p>
+                <p className="text-sm text-on-surface-variant">{isLoading ? common("syncing") : t("sharedConfigured", { count: sharedCount })}</p>
               </div>
               <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
-                <p className="font-bold">Last Update</p>
+                <p className="font-bold">{t("lastUpdate")}</p>
                 <p className="text-sm text-on-surface-variant">
-                  {latestUpdate ? formatControlDate(latestUpdate) : "No control changes reported yet."}
+                  {latestUpdate ? formatControlDate(latestUpdate) : t("noChanges")}
                 </p>
               </div>
             </div>

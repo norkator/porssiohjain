@@ -13,10 +13,13 @@ import DeviceCard from "@/components/DeviceCard";
 import PageHeader from "@/components/PageHeader";
 import { useDevices } from "@/hooks/useDevices";
 import { formatDeviceLastCommunication, formatDeviceType, getDeviceAccent, getDeviceConnectionState, sendMqttRelayDebugCommand, type ApiDevice } from "@/lib/devices";
+import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
 export default function DevicesView() {
+  const { t } = useI18n("devices");
+  const common = useI18n("common").t;
   const { devices, error, isLoading, latestCommunication, onlineCount, totalCount } = useDevices();
   const [relayDialogDevice, setRelayDialogDevice] = useState<ApiDevice | null>(null);
   const [relayStates, setRelayStates] = useState<boolean[]>([false, false, false, false]);
@@ -36,7 +39,7 @@ export default function DevicesView() {
       await sendMqttRelayDebugCommand(relayDialogDevice.id, channel, nextState);
       setRelayStates((current) => current.map((state, index) => (index === channel ? nextState : state)));
     } catch (error) {
-      setRelayError(error instanceof Error ? error.message : "Failed to send relay command");
+      setRelayError(error instanceof Error ? error.message : t("failedRelayCommand"));
     } finally {
       setIsSendingRelayChannel((current) => (current === channel ? null : current));
     }
@@ -47,7 +50,7 @@ export default function DevicesView() {
       <PageHeader
         rightSlot={(
           <Link className="secondary-action px-4 py-2 text-sm" to="/menu">
-            Menu
+            {common("menu")}
           </Link>
         )}
         translucent
@@ -57,27 +60,27 @@ export default function DevicesView() {
         <section className="mb-12 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">
-              Your Infrastructure
+              {t("title")}
             </h1>
             <p className="max-w-lg text-lg text-on-surface-variant">
-              Manage and monitor your precision energy grid components. Real-time status for every connected unit across your network.
+              {t("description")}
             </p>
           </div>
 
           <Link className="primary-action transition-all duration-300 hover:-translate-y-0.5 hover:shadow-soft" to="/devices/add/type">
             <span>+</span>
-            Add New Device
+            {t("addNewDevice")}
           </Link>
         </section>
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
-            <div className="app-card p-6 text-sm text-on-surface-variant">Loading devices...</div>
+            <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingDevices")}</div>
           ) : null}
 
           {!isLoading && error ? (
             <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
-              Failed to load devices. {error}
+              {t("failedToLoad", { error })}
             </div>
           ) : null}
 
@@ -89,9 +92,9 @@ export default function DevicesView() {
                   <DeviceCard
                   key={device.id}
                     accent={getDeviceAccent(device)}
-                    detailLabel="Last Seen"
+                    detailLabel={t("lastSeen")}
                     detailValue={formatDeviceLastCommunication(device.lastCommunication)}
-                    extraActionLabel={device.deviceType === "STANDARD" && device.mqttOnline ? "Relays" : undefined}
+                    extraActionLabel={device.deviceType === "STANDARD" && device.mqttOnline ? t("relays") : undefined}
                     manageTo={`/devices/${device.id}`}
                     onExtraAction={device.deviceType === "STANDARD" && device.mqttOnline ? () => {
                       setRelayDialogDevice(device);
@@ -100,7 +103,7 @@ export default function DevicesView() {
                     } : undefined}
                     status={connection.label}
                     statusTone={connection.tone}
-                    subtitle={`UUID: ${device.uuid}`}
+                    subtitle={t("uuid", { uuid: device.uuid })}
                     title={device.deviceName}
                     type={formatDeviceType(device.deviceType)}
                   />
@@ -116,8 +119,8 @@ export default function DevicesView() {
               +
             </div>
             <div>
-              <h3 className="font-headline text-lg font-bold text-on-surface">Provision Unit</h3>
-              <p className="px-8 text-xs text-on-surface-variant">Quickly add a new device to your energy ecosystem</p>
+              <h3 className="font-headline text-lg font-bold text-on-surface">{t("provisionUnit")}</h3>
+              <p className="px-8 text-xs text-on-surface-variant">{t("provisionDescription")}</p>
             </div>
           </Link>
         </section>
@@ -127,24 +130,24 @@ export default function DevicesView() {
             <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
             <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-secondary-container/20 blur-3xl transition-transform duration-500 group-hover:scale-125" />
             <div className="relative text-white">
-              <p className="text-xs font-semibold uppercase tracking-widest opacity-80">Devices Online</p>
+              <p className="text-xs font-semibold uppercase tracking-widest opacity-80">{t("devicesOnline")}</p>
               <p className="font-headline text-4xl font-black">{onlineCount} / {totalCount}</p>
             </div>
           </div>
 
           <div className="flex flex-col gap-6 md:col-span-8">
-            <h3 className="font-headline text-3xl font-bold text-primary">Precise Control, Modular Design.</h3>
+            <h3 className="font-headline text-3xl font-bold text-primary">{t("summaryTitle")}</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
-                <p className="font-bold">Registered Devices</p>
+                <p className="font-bold">{t("registeredDevices")}</p>
                 <p className="text-sm text-on-surface-variant">
-                  {isLoading ? "Syncing account inventory..." : `${totalCount} devices connected to this account.`}
+                  {isLoading ? t("syncingInventory") : t("connectedDevices", { count: totalCount })}
                 </p>
               </div>
               <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
-                <p className="font-bold">Last Sync</p>
+                <p className="font-bold">{t("lastSync")}</p>
                 <p className="text-sm text-on-surface-variant">
-                  {latestCommunication ? `Latest device contact at ${formatDeviceLastCommunication(latestCommunication)}.` : "No device communication reported yet."}
+                  {latestCommunication ? t("latestContact", { time: formatDeviceLastCommunication(latestCommunication) }) : t("noCommunication")}
                 </p>
               </div>
             </div>
@@ -164,14 +167,14 @@ export default function DevicesView() {
           <div className="w-full max-w-xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="metric-label mb-2">MQTT Relay Debug</p>
+                <p className="metric-label mb-2">{t("relayDebug")}</p>
                 <h2 className="font-headline text-2xl font-bold text-primary">{relayDialogDevice.deviceName}</h2>
                 <p className="mt-2 text-sm text-on-surface-variant">
-                  Toggle relay outputs in real time for this MQTT-connected standard device.
+                  {t("relayDescription")}
                 </p>
               </div>
               <button className="secondary-action px-3 py-2 text-sm" onClick={() => setRelayDialogDevice(null)} type="button">
-                Close
+                {common("close")}
               </button>
             </div>
 
@@ -179,8 +182,8 @@ export default function DevicesView() {
               {relayStates.map((isOn, channel) => (
                 <div className="flex items-center justify-between rounded-xl bg-surface-container p-4" key={channel}>
                   <div>
-                    <p className="font-headline font-bold text-on-surface">Relay {channel}</p>
-                    <p className="text-sm text-on-surface-variant">Send immediate MQTT switch command</p>
+                    <p className="font-headline font-bold text-on-surface">{t("relayTitle", { channel })}</p>
+                    <p className="text-sm text-on-surface-variant">{t("relayCommandDescription")}</p>
                   </div>
                   <button
                     className={isOn ? "rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary disabled:opacity-60" : "rounded-lg bg-error-container px-4 py-2 text-sm font-bold text-on-error-container disabled:opacity-60"}
@@ -188,7 +191,7 @@ export default function DevicesView() {
                     onClick={() => handleRelayToggle(channel)}
                     type="button"
                   >
-                    {isSendingRelayChannel === channel ? "Sending..." : isOn ? "On" : "Off"}
+                    {isSendingRelayChannel === channel ? t("sending") : isOn ? t("on") : t("off")}
                   </button>
                 </div>
               ))}

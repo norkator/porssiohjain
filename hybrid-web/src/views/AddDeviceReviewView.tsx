@@ -20,9 +20,12 @@ import {
   writeProvisionedDeviceDraft
 } from "@/lib/add-device-flow";
 import { createDevice } from "@/lib/device-create";
+import { useI18n } from "@/lib/i18n";
 
 export default function AddDeviceReviewView() {
   const navigate = useNavigate();
+  const { t } = useI18n("addDeviceReview");
+  const common = useI18n("common").t;
   const draft = readAddDeviceDraft();
   const deviceType = getDeviceTypeOption(draft.deviceTypeId);
   const isHeatPump = deviceType?.id === "toshiba-heat-pump" || deviceType?.id === "mitsubishi-heat-pump";
@@ -56,10 +59,10 @@ export default function AddDeviceReviewView() {
         mqttPassword: response.mqttPassword,
         mqttUsername: response.mqttUsername
       });
-      showNativeToast("Device provisioned successfully");
+      showNativeToast(t("successToast"));
       navigate("/devices/add/integration");
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Failed to provision device");
+      setSubmitError(error instanceof Error ? error.message : t("failed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -67,53 +70,53 @@ export default function AddDeviceReviewView() {
 
   return (
     <>
-      <PageHeader title="Add Device" compact />
+      <PageHeader title={t("title")} compact />
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         <section className="mb-10">
-          <ProgressHeader label="Provision Device" step={3} total={4} />
+          <ProgressHeader label={t("stepLabel")} step={3} total={4} />
         </section>
 
         <div className="grid gap-12 items-start lg:grid-cols-12">
           <div className="space-y-10 lg:col-span-7">
             <section>
               <h2 className="mb-4 font-headline text-3xl font-extrabold leading-tight text-primary md:text-5xl">
-                Provision device in Energy Controller
+                {t("headline")}
               </h2>
               <p className="max-w-xl text-lg text-on-surface-variant">
-                Confirm the selected device details and provision the device in your Energy Controller service.
+                {t("description")}
               </p>
             </section>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-surface-container-low p-6">
-                <p className="metric-label mb-2">Device Type</p>
+                <p className="metric-label mb-2">{t("deviceType")}</p>
                 <p className="font-headline text-xl font-bold text-on-surface">{deviceType.title}</p>
               </div>
               <div className="rounded-xl bg-surface-container-low p-6">
-                <p className="metric-label mb-2">Device Name</p>
+                <p className="metric-label mb-2">{t("deviceName")}</p>
                 <p className="font-headline text-xl font-bold text-on-surface">{draft.deviceName}</p>
               </div>
               <div className="rounded-xl bg-surface-container-low p-6 sm:col-span-2">
-                <p className="metric-label mb-2">Timezone</p>
+                <p className="metric-label mb-2">{common("timezone")}</p>
                 <p className="font-headline text-xl font-bold text-on-surface">{draft.timezone}</p>
               </div>
               {isHeatPump ? (
                 <>
                   <div className="rounded-xl bg-surface-container-low p-6">
-                    <p className="metric-label mb-2">Heat Pump Device Name</p>
+                    <p className="metric-label mb-2">{t("heatPumpDeviceName")}</p>
                     <p className="font-headline text-xl font-bold text-on-surface">{draft.hpName}</p>
                   </div>
                   <div className="rounded-xl bg-surface-container-low p-6">
-                    <p className="metric-label mb-2">Selected AC Device</p>
+                    <p className="metric-label mb-2">{t("selectedAcDevice")}</p>
                     <p className="font-headline text-lg font-bold text-on-surface">{draft.acDeviceLabel}</p>
                     <div className="mt-3 space-y-1 text-sm text-on-surface-variant">
-                      <p>Device ID: {draft.acDeviceId}</p>
+                      <p>{t("deviceId", { id: draft.acDeviceId })}</p>
                       {draft.acBuildingId ? (
-                        <p>Building ID: {draft.acBuildingId}</p>
+                        <p>{t("buildingId", { id: draft.acBuildingId })}</p>
                       ) : null}
                       {draft.acDeviceUniqueId ? (
-                        <p>Unique ID: {draft.acDeviceUniqueId}</p>
+                        <p>{t("uniqueId", { id: draft.acDeviceUniqueId })}</p>
                       ) : null}
                     </div>
                   </div>
@@ -128,10 +131,10 @@ export default function AddDeviceReviewView() {
                 onClick={handleCompleteSetup}
                 type="button"
               >
-                {isSubmitting ? "Provisioning..." : "Provision Device"}
+                {isSubmitting ? t("provisioning") : t("provision")}
               </button>
               <Link className="mt-4 block w-full py-3 text-center text-sm font-bold text-primary/60 transition-colors hover:text-primary" to="/devices/add/configure">
-                Back
+                {common("back")}
               </Link>
             </div>
 
