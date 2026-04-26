@@ -87,7 +87,7 @@ public class SitemapController {
         String host = request.getHeader("host");
 
         if (!DOMAIN_PAGES.containsKey(host)) {
-            return ResponseEntity.badRequest().body("Unknown domain: " + escapeXml(host));
+            return ResponseEntity.badRequest().body("Unknown domain");
         }
 
         String canonicalHost = DOMAIN_PAGES.keySet().stream()
