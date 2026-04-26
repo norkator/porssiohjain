@@ -59,7 +59,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             authContext.setAccountId(account.getId());
         } catch (IllegalArgumentException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write(e.getMessage());
+            response.getWriter().write("Unauthorized");
             return false;
         }
 
