@@ -5,6 +5,10 @@ on:
     branches:
       - production
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ghcr.io/norkator/porssiohjain:latest
