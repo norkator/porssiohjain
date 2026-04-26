@@ -98,6 +98,24 @@ public class WeatherControlsController {
         );
     }
 
+    @PutMapping("/devices/{linkId}")
+    public WeatherControlDeviceResponse updateDevice(
+            @PathVariable Long linkId,
+            @RequestBody WeatherControlDeviceRequest request
+    ) {
+        return weatherControlService.updateWeatherControlDevice(
+                authContext.getAccountId(),
+                linkId,
+                request.deviceId(),
+                request.deviceChannel(),
+                request.weatherMetric(),
+                request.comparisonType(),
+                request.thresholdValue(),
+                request.controlAction(),
+                request.priorityRule()
+        );
+    }
+
     @DeleteMapping("/devices/{linkId}")
     public void deleteDevice(@PathVariable Long linkId) {
         weatherControlService.deleteWeatherControlDevice(authContext.getAccountId(), linkId);

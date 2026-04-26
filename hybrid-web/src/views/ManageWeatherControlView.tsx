@@ -21,6 +21,7 @@ import {
   fetchWeatherControlWeather,
   fetchWeatherControlDeviceLinks,
   formatDate,
+  updateWeatherControlDeviceLink,
   updateWeatherControl,
   WEATHER_METRICS,
   type ApiSite,
@@ -56,8 +57,20 @@ export default function ManageWeatherControlView() {
   const [thresholdValue, setThresholdValue] = useState("0");
   const [controlAction, setControlAction] = useState<ControlAction>("TURN_ON");
   const [priorityRule, setPriorityRule] = useState(false);
+  const [editingLinkId, setEditingLinkId] = useState<number | null>(null);
   const [deleteLinkConfirmId, setDeleteLinkConfirmId] = useState<number | null>(null);
   const [isDeletingLinkId, setIsDeletingLinkId] = useState<number | null>(null);
+
+  const resetLinkForm = () => {
+    setEditingLinkId(null);
+    setSelectedDeviceId("");
+    setDeviceChannel("1");
+    setWeatherMetric("TEMPERATURE");
+    setComparisonType("GREATER_THAN");
+    setThresholdValue("0");
+    setControlAction("TURN_ON");
+    setPriorityRule(false);
+  };
 
   async function loadData() {
     setIsLoading(true);
@@ -121,7 +134,7 @@ export default function ManageWeatherControlView() {
     if (!Number.isFinite(deviceId) || !Number.isInteger(channel) || !Number.isFinite(threshold)) return;
     setError(null);
     try {
-      await addWeatherControlDeviceLink(weatherControlId, {
+      const payload = {
         comparisonType,
         controlAction,
         deviceChannel: channel,
@@ -129,14 +142,29 @@ export default function ManageWeatherControlView() {
         priorityRule,
         thresholdValue: threshold,
         weatherMetric
-      });
+      };
+      if (editingLinkId === null) {
+        await addWeatherControlDeviceLink(weatherControlId, payload);
+      } else {
+        await updateWeatherControlDeviceLink(editingLinkId, payload);
+      }
       setLinks(await fetchWeatherControlDeviceLinks(weatherControlId));
-      setSelectedDeviceId("");
-      setThresholdValue("0");
-      setPriorityRule(false);
+      resetLinkForm();
     } catch (linkError) {
-      setError(linkError instanceof Error ? linkError.message : "Failed to link device");
+      setError(linkError instanceof Error ? linkError.message : editingLinkId === null ? "Failed to link device" : "Failed to update device rule");
     }
+  };
+
+  const handleEditLink = (link: WeatherControlDeviceLink) => {
+    setDeleteLinkConfirmId((current) => (current === link.id ? null : current));
+    setEditingLinkId(link.id);
+    setSelectedDeviceId(String(link.deviceId));
+    setDeviceChannel(String(link.deviceChannel));
+    setWeatherMetric(link.weatherMetric);
+    setComparisonType(link.comparisonType);
+    setThresholdValue(String(link.thresholdValue));
+    setControlAction(link.controlAction);
+    setPriorityRule(link.priorityRule);
   };
 
   const handleDeleteLink = async (linkId: number) => {
@@ -229,13 +257,22 @@ export default function ManageWeatherControlView() {
                             </div>
                           </div>
                         ) : (
-                          <button
-                            className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
-                            onClick={() => setDeleteLinkConfirmId(link.id)}
-                            type="button"
-                          >
-                            Remove
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="secondary-action justify-center px-3 py-2 text-xs"
+                              onClick={() => handleEditLink(link)}
+                              type="button"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
+                              onClick={() => setDeleteLinkConfirmId(link.id)}
+                              type="button"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         )}
                       </div>
                       <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
@@ -258,7 +295,14 @@ export default function ManageWeatherControlView() {
                   <input className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setThresholdValue(event.target.value)} step="0.1" type="number" value={thresholdValue} />
                   <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setControlAction(event.target.value as ControlAction)} value={controlAction}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
                   <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">Priority Rule</span><input checked={priorityRule} onChange={(event) => setPriorityRule(event.target.checked)} type="checkbox" /></label>
-                  <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">Add Device Rule</button>
+                  {editingLinkId === null ? (
+                    <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">Add Device Rule</button>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">Save Device Rule</button>
+                      <button className="secondary-action justify-center" onClick={resetLinkForm} type="button">Cancel</button>
+                    </div>
+                  )}
                 </form>
               </section>
             </section>

@@ -161,6 +161,11 @@ public class WeatherControlService {
         ensureOwnership(accountId, entity.getWeatherControl().getAccount().getId());
 
         DeviceEntity device = getOwnedDevice(accountId, deviceId);
+        if (weatherControlDeviceRepository.existsByWeatherControlIdAndDeviceIdAndDeviceChannelAndIdNot(
+                entity.getWeatherControl().getId(), deviceId, deviceChannel, weatherControlDeviceId
+        )) {
+            throw new IllegalArgumentException("Device channel is already linked to this weather control");
+        }
         entity.setDevice(device);
         entity.setDeviceChannel(deviceChannel);
         entity.setWeatherMetric(weatherMetric);

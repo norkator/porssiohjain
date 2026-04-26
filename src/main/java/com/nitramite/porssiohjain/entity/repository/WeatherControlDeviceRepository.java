@@ -21,6 +21,8 @@ public interface WeatherControlDeviceRepository extends JpaRepository<WeatherCon
 
     boolean existsByWeatherControlIdAndDeviceIdAndDeviceChannel(Long weatherControlId, Long deviceId, Integer deviceChannel);
 
+    boolean existsByWeatherControlIdAndDeviceIdAndDeviceChannelAndIdNot(Long weatherControlId, Long deviceId, Integer deviceChannel, Long id);
+
     List<WeatherControlDeviceEntity> findByDevice(DeviceEntity device);
 
 }
