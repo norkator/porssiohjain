@@ -86,15 +86,17 @@ public class SitemapController {
     public ResponseEntity<String> sitemap(HttpServletRequest request) {
         String host = request.getHeader("host");
 
-        System.out.println(host);
-
         if (!DOMAIN_PAGES.containsKey(host)) {
-            return ResponseEntity.badRequest().body("Unknown domain: " + host);
+            return ResponseEntity.badRequest().body("Unknown domain: " + escapeXml(host));
         }
 
-        List<String> pages = DOMAIN_PAGES.get(host);
+        String canonicalHost = DOMAIN_PAGES.keySet().stream()
+                .filter(host::equals)
+                .findFirst()
+                .orElse(host);
+        List<String> pages = DOMAIN_PAGES.get(canonicalHost);
         String scheme = request.getScheme();
-        String domain = scheme + "://" + host;
+        String domain = scheme + "://" + canonicalHost;
 
         StringBuilder sb = new StringBuilder();
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -103,7 +105,7 @@ public class SitemapController {
         String today = LocalDate.now().toString();
         for (String path : pages) {
             sb.append("  <url>\n");
-            sb.append("    <loc>").append(domain).append(path).append("</loc>\n");
+            sb.append("    <loc>").append(escapeXml(domain)).append(escapeXml(path)).append("</loc>\n");
             sb.append("    <lastmod>").append(today).append("</lastmod>\n");
             sb.append("    <changefreq>weekly</changefreq>\n");
             sb.append("    <priority>0.5</priority>\n");
@@ -114,6 +116,18 @@ public class SitemapController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_XML);
         return ResponseEntity.ok().headers(headers).body(sb.toString());
+    }
+
+    private static String escapeXml(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
     }
 
 }
