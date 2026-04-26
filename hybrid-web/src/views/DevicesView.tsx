@@ -12,11 +12,35 @@
 import DeviceCard from "@/components/DeviceCard";
 import PageHeader from "@/components/PageHeader";
 import { useDevices } from "@/hooks/useDevices";
-import { formatDeviceLastCommunication, formatDeviceType, getDeviceAccent, getDeviceConnectionState } from "@/lib/devices";
+import { formatDeviceLastCommunication, formatDeviceType, getDeviceAccent, getDeviceConnectionState, sendMqttRelayDebugCommand, type ApiDevice } from "@/lib/devices";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 export default function DevicesView() {
   const { devices, error, isLoading, latestCommunication, onlineCount, totalCount } = useDevices();
+  const [relayDialogDevice, setRelayDialogDevice] = useState<ApiDevice | null>(null);
+  const [relayStates, setRelayStates] = useState<boolean[]>([false, false, false, false]);
+  const [isSendingRelayChannel, setIsSendingRelayChannel] = useState<number | null>(null);
+  const [relayError, setRelayError] = useState<string | null>(null);
+
+  const handleRelayToggle = async (channel: number) => {
+    if (!relayDialogDevice) {
+      return;
+    }
+
+    const nextState = !relayStates[channel];
+    setRelayError(null);
+    setIsSendingRelayChannel(channel);
+
+    try {
+      await sendMqttRelayDebugCommand(relayDialogDevice.id, channel, nextState);
+      setRelayStates((current) => current.map((state, index) => (index === channel ? nextState : state)));
+    } catch (error) {
+      setRelayError(error instanceof Error ? error.message : "Failed to send relay command");
+    } finally {
+      setIsSendingRelayChannel((current) => (current === channel ? null : current));
+    }
+  };
 
   return (
     <>
@@ -63,11 +87,17 @@ export default function DevicesView() {
 
                 return (
                   <DeviceCard
-                    key={device.id}
+                  key={device.id}
                     accent={getDeviceAccent(device)}
                     detailLabel="Last Seen"
                     detailValue={formatDeviceLastCommunication(device.lastCommunication)}
+                    extraActionLabel={device.deviceType === "STANDARD" && device.mqttOnline ? "Relays" : undefined}
                     manageTo={`/devices/${device.id}`}
+                    onExtraAction={device.deviceType === "STANDARD" && device.mqttOnline ? () => {
+                      setRelayDialogDevice(device);
+                      setRelayStates([false, false, false, false]);
+                      setRelayError(null);
+                    } : undefined}
                     status={connection.label}
                     statusTone={connection.tone}
                     subtitle={`UUID: ${device.uuid}`}
@@ -128,6 +158,50 @@ export default function DevicesView() {
       >
         +
       </Link>
+
+      {relayDialogDevice ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="metric-label mb-2">MQTT Relay Debug</p>
+                <h2 className="font-headline text-2xl font-bold text-primary">{relayDialogDevice.deviceName}</h2>
+                <p className="mt-2 text-sm text-on-surface-variant">
+                  Toggle relay outputs in real time for this MQTT-connected standard device.
+                </p>
+              </div>
+              <button className="secondary-action px-3 py-2 text-sm" onClick={() => setRelayDialogDevice(null)} type="button">
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {relayStates.map((isOn, channel) => (
+                <div className="flex items-center justify-between rounded-xl bg-surface-container p-4" key={channel}>
+                  <div>
+                    <p className="font-headline font-bold text-on-surface">Relay {channel}</p>
+                    <p className="text-sm text-on-surface-variant">Send immediate MQTT switch command</p>
+                  </div>
+                  <button
+                    className={isOn ? "rounded-lg bg-primary px-4 py-2 text-sm font-bold text-on-primary disabled:opacity-60" : "rounded-lg bg-error-container px-4 py-2 text-sm font-bold text-on-error-container disabled:opacity-60"}
+                    disabled={isSendingRelayChannel === channel}
+                    onClick={() => handleRelayToggle(channel)}
+                    type="button"
+                  >
+                    {isSendingRelayChannel === channel ? "Sending..." : isOn ? "On" : "Off"}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {relayError ? (
+              <div className="mt-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">
+                {relayError}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

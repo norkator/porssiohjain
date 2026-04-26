@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
+import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
@@ -39,6 +40,7 @@ public class DevicesController {
 
     private final AuthContext authContext;
     private final DeviceService deviceService;
+    private final ControlService controlService;
     private final HeatPumpAcDeviceSelectionService heatPumpAcDeviceSelectionService;
     private final ToshibaAcStateService toshibaAcStateService;
     private final MitsubishiAcStateService mitsubishiAcStateService;
@@ -132,6 +134,15 @@ public class DevicesController {
         return new HeatPumpStateResponse(acData.getAcType(), currentState, acData.getLastPolledStateHex());
     }
 
+    @PostMapping("/{deviceId}/mqtt-relays/{channel}")
+    public void sendMqttRelayDebugCommand(
+            @PathVariable Long deviceId,
+            @PathVariable int channel,
+            @RequestBody MqttRelayDebugRequest request
+    ) {
+        controlService.sendDebugMqttRelayCommand(authContext.getAccountId(), deviceId, channel, request.on());
+    }
+
     @PostMapping("/heat-pump/ac-devices")
     public List<HeatPumpAcDeviceResponse> listSelectableHeatPumpAcDevices(
             @RequestBody HeatPumpAcDevicesRequest request
@@ -144,6 +155,11 @@ public class DevicesController {
             AcType acType,
             String currentState,
             String lastPolledState
+    ) {
+    }
+
+    public record MqttRelayDebugRequest(
+            boolean on
     ) {
     }
 }
