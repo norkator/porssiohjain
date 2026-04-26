@@ -32,6 +32,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DeviceService {
 
+    private static final long STANDARD_API_OFFLINE_SECONDS = 300L;
+    private static final long HEAT_PUMP_API_OFFLINE_SECONDS = 4L * 60L * 60L;
+    private static final long MQTT_OFFLINE_SECONDS = 300L;
+
     private final DeviceRepository deviceRepository;
     private final AccountRepository accountRepository;
     private final ControlRepository controlRepository;
@@ -312,17 +316,31 @@ public class DeviceService {
     }
 
     public void checkOfflineDevices() {
-        Instant threshold = Instant.now().minusSeconds(300);
-        List<DeviceEntity> apiDevices = deviceRepository.findByApiOnlineTrueAndLastCommunicationBefore(threshold);
+        Instant now = Instant.now();
+        List<DeviceEntity> apiDevices = deviceRepository.findByApiOnlineTrue();
         for (DeviceEntity device : apiDevices) {
-            device.setApiOnline(false);
-            deviceRepository.save(device);
+            if (isApiDeviceOffline(device, now)) {
+                device.setApiOnline(false);
+                deviceRepository.save(device);
+            }
         }
-        List<DeviceEntity> mqttDevices = deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(threshold);
+        Instant mqttThreshold = now.minusSeconds(MQTT_OFFLINE_SECONDS);
+        List<DeviceEntity> mqttDevices = deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(mqttThreshold);
         for (DeviceEntity device : mqttDevices) {
             device.setMqttOnline(false);
             deviceRepository.save(device);
         }
+    }
+
+    private boolean isApiDeviceOffline(DeviceEntity device, Instant now) {
+        Instant lastCommunication = device.getLastCommunication();
+        if (lastCommunication == null) {
+            return true;
+        }
+        long offlineSeconds = device.getDeviceType() == DeviceType.HEAT_PUMP
+                ? HEAT_PUMP_API_OFFLINE_SECONDS
+                : STANDARD_API_OFFLINE_SECONDS;
+        return lastCommunication.isBefore(now.minusSeconds(offlineSeconds));
     }
 
 }

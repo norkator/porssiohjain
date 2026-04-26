@@ -11,12 +11,14 @@
 
 package com.nitramite.porssiohjain.services.toshiba;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.time.Instant;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ToshibaAcStateResponse {
 
     @JsonProperty("ResObj")
@@ -32,6 +34,7 @@ public class ToshibaAcStateResponse {
     private String statusCode;
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ResObj {
 
         @JsonProperty("Id")
@@ -57,6 +60,12 @@ public class ToshibaAcStateResponse {
 
         @JsonProperty("UpdatedDate")
         private Instant updatedDate;
+
+        @JsonProperty("FirstConnectionTime")
+        private Instant firstConnectionTime;
+
+        @JsonProperty("LastConnectionTime")
+        private Instant lastConnectionTime;
 
         private ToshibaAcStateDecodedResponse decodedAcState;
     }

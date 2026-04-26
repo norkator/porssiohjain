@@ -45,6 +45,7 @@ public class Scheduler {
     private final ControlService controlService;
     private final HeatPumpControlService heatPumpControlService;
     private final ControlNotificationService controlNotificationService;
+    private final HeatPumpOnlineCheckService heatPumpOnlineCheckService;
 
     private boolean firstRun = true;
 
@@ -63,7 +64,8 @@ public class Scheduler {
             DeviceService deviceService,
             ControlService controlService,
             HeatPumpControlService heatPumpControlService,
-            ControlNotificationService controlNotificationService
+            ControlNotificationService controlNotificationService,
+            HeatPumpOnlineCheckService heatPumpOnlineCheckService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -79,6 +81,7 @@ public class Scheduler {
         this.controlService = controlService;
         this.heatPumpControlService = heatPumpControlService;
         this.controlNotificationService = controlNotificationService;
+        this.heatPumpOnlineCheckService = heatPumpOnlineCheckService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -237,6 +240,11 @@ public class Scheduler {
     @Scheduled(fixedDelayString = "${heatpump.control-interval}")
     public void scheduledHeatPumpControls() {
         heatPumpControlService.runScheduledHeatPumpControls();
+    }
+
+    @Scheduled(cron = "0 0 * * * *", zone = "Europe/Helsinki")
+    public void refreshHeatPumpOnlineStates() {
+        heatPumpOnlineCheckService.refreshHeatPumpApiOnlineStates();
     }
 
 }

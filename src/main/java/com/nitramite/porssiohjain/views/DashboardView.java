@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.views.components.EnergyUsagePriceChart;
@@ -50,6 +51,9 @@ import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 @Route("dashboard")
 @PermitAll
 public class DashboardView extends VerticalLayout implements BeforeEnterObserver {
+
+    private static final Duration STANDARD_ONLINE_THRESHOLD = Duration.ofMinutes(10);
+    private static final Duration HEAT_PUMP_ONLINE_THRESHOLD = Duration.ofHours(4);
 
     private final AuthService authService;
     protected final I18nService i18n;
@@ -235,17 +239,20 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         statusCircle.getStyle().set("border-radius", "50%");
         statusCircle.getStyle().set("margin-top", "8px");
 
-        boolean online = isDeviceOnline(device.getLastCommunication());
+        boolean online = isDeviceOnline(device.getDeviceType(), device.getLastCommunication());
         statusCircle.getStyle().set("background-color", online ? "green" : "red");
 
         card.add(name, statusCircle);
         return card;
     }
 
-    private boolean isDeviceOnline(Instant lastCommunication) {
+    private boolean isDeviceOnline(DeviceType deviceType, Instant lastCommunication) {
         if (lastCommunication == null) return false;
         Duration diff = Duration.between(lastCommunication, Instant.now());
-        return diff.toMinutes() < 10;
+        Duration threshold = deviceType == DeviceType.HEAT_PUMP
+                ? HEAT_PUMP_ONLINE_THRESHOLD
+                : STANDARD_ONLINE_THRESHOLD;
+        return diff.compareTo(threshold) < 0;
     }
 
     private Component createSiteContent(

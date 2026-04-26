@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.time.Instant;
 
 @Slf4j
@@ -31,6 +32,7 @@ import java.time.Instant;
 public class ToshibaAcStateService {
 
     private static final long RETRY_DELAY_MS = 1000L;
+    private static final Duration ONLINE_THRESHOLD = Duration.ofHours(4);
     private final RestTemplate restTemplate = new RestTemplate();
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
@@ -69,7 +71,7 @@ public class ToshibaAcStateService {
                 acData.setAcDeviceUniqueId(body.getResObj().getAcDeviceUniqueId());
                 acData.setLastPolledStateHex(body.getResObj().getAcStateData());
                 deviceAcDataRepository.save(acData);
-                markDeviceReachable(acData);
+                updateDeviceConnectivity(acData, body);
                 body.getResObj().setDecodedAcState(
                         toshibaAcStateHexDecoderService.decode(body.getResObj().getAcStateData())
                 );
@@ -102,7 +104,7 @@ public class ToshibaAcStateService {
         }
     }
 
-    private void markDeviceReachable(DeviceAcDataEntity acData) {
+    private void updateDeviceConnectivity(DeviceAcDataEntity acData, ToshibaAcStateResponse response) {
         Long deviceId = getDeviceId(acData);
         if (deviceId == null) {
             return;
@@ -112,9 +114,20 @@ public class ToshibaAcStateService {
         if (device == null) {
             return;
         }
-        device.setLastCommunication(Instant.now());
-        device.setApiOnline(true);
+        Instant lastConnectionTime = response.getResObj().getLastConnectionTime();
+        if (lastConnectionTime == null) {
+            lastConnectionTime = response.getResObj().getUpdatedDate();
+        }
+        if (lastConnectionTime != null) {
+            device.setLastCommunication(lastConnectionTime);
+        }
+        device.setApiOnline(isWithinOnlineThreshold(lastConnectionTime));
         deviceRepository.save(device);
+    }
+
+    private boolean isWithinOnlineThreshold(Instant lastConnectionTime) {
+        return lastConnectionTime != null
+                && Duration.between(lastConnectionTime, Instant.now()).compareTo(ONLINE_THRESHOLD) < 0;
     }
 
     private Long getDeviceId(DeviceAcDataEntity acData) {
