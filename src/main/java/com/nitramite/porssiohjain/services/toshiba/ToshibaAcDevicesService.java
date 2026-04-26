@@ -23,6 +23,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -30,6 +31,7 @@ public class ToshibaAcDevicesService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String MAPPING_URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping";
+    private static final Pattern CONSUMER_ID_PATTERN = Pattern.compile("^[a-fA-F0-9\\-]{1,64}$");
 
     public List<ToshibaAcMappingResponse.AcDevice> getAcDevices(
             DeviceAcDataEntity acData
@@ -39,8 +41,14 @@ public class ToshibaAcDevicesService {
             headers.setBearerAuth(acData.getAcAccessToken());
             headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
 
+            String consumerId = acData.getAcConsumerId();
+            if (consumerId == null || !CONSUMER_ID_PATTERN.matcher(consumerId).matches()) {
+                log.error("Invalid Toshiba consumerId format");
+                return List.of();
+            }
+
             String urlWithParams = UriComponentsBuilder.fromUriString(MAPPING_URL)
-                    .queryParam("consumerId", acData.getAcConsumerId())
+                    .queryParam("consumerId", consumerId)
                     .build(true)
                     .toUriString();
 
