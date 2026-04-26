@@ -9,6 +9,10 @@ on:
       - ".github/workflows/hybrid-web-container.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ghcr.io/norkator/porssiohjain-hybrid-web:latest
