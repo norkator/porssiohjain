@@ -13,6 +13,7 @@ Official Pörssiohjain services are available at:
 * [https://app.porssiohjain.fi](https://app.porssiohjain.fi)
 * [https://app.energiaohjain.fi](https://app.energiaohjain.fi)
 * Marketing page: https://www.porssiohjain.fi
+* Hybrid web project for webview also available at https://mobile.porssiohjain.fi
 
 Only domains listed here should be treated as official service domains.
 

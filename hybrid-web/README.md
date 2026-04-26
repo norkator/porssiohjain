@@ -1,6 +1,8 @@
 # hybrid-web
 
-Bundled WebView UI project for the Android app.
+Bundled WebView UI project for the Energy Controller Android app.
+
+Available as web build at https://mobile.porssiohjain.fi
 
 Stack:
 
