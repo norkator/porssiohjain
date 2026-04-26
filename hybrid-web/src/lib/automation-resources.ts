@@ -193,6 +193,12 @@ export type PowerLimitDeviceLink = {
   device: Pick<ApiDevice, "deviceName" | "deviceType" | "id" | "uuid">;
 };
 
+export type PowerLimitHistoryPoint = {
+  accountId: number;
+  kilowatts: number;
+  createdAt: string;
+};
+
 export function formatDate(value: string | null | undefined, timezone?: string | null) {
   if (!value) return "Not available";
   const date = new Date(value);
@@ -262,5 +268,6 @@ export const createPowerLimit = (payload: PowerLimitPayload) => postJson<ApiPowe
 export const updatePowerLimit = (id: number, payload: PowerLimitPayload) => postJson<ApiPowerLimit>(`/api/power-limits/${id}`, payload, "PUT");
 export const deletePowerLimit = (id: number) => postJson<void>(`/api/power-limits/${id}`, undefined, "DELETE");
 export const fetchPowerLimitDeviceLinks = (id: number) => apiGetJson<PowerLimitDeviceLink[]>(`/api/power-limits/${id}/devices`);
+export const fetchPowerLimitHistory = (id: number, hours = 24) => apiGetJson<PowerLimitHistoryPoint[]>(`/api/power-limits/${id}/history?hours=${hours}`);
 export const addPowerLimitDeviceLink = (id: number, payload: { deviceId: number; deviceChannel: number }) => postJson<void>(`/api/power-limits/${id}/devices`, payload);
 export const deletePowerLimitDeviceLink = (id: number) => postJson<void>(`/api/power-limits/devices/${id}`, undefined, "DELETE");

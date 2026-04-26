@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
+import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -49,6 +50,14 @@ public class PowerLimitsController {
     @GetMapping("/{powerLimitId}")
     public PowerLimitResponse getLimit(@PathVariable Long powerLimitId) {
         return powerLimitService.getPowerLimit(authContext.getAccountId(), powerLimitId);
+    }
+
+    @GetMapping("/{powerLimitId}/history")
+    public List<PowerLimitHistoryResponse> getHistory(
+            @PathVariable Long powerLimitId,
+            @RequestParam(defaultValue = "24") int hours
+    ) {
+        return powerLimitService.getPowerLimitHistoryWithInterval(authContext.getAccountId(), powerLimitId, hours);
     }
 
     @PutMapping("/{powerLimitId}")
