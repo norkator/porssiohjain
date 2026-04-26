@@ -218,8 +218,8 @@ export default function ControlNotificationsCard({
 
   return (
     <>
-      <section className="app-card overflow-hidden">
-        <div className="border-b border-outline-variant/50 bg-[linear-gradient(135deg,rgba(0,103,125,0.08),rgba(255,179,67,0.12))] px-6 py-6 sm:px-8">
+      <section className="space-y-6">
+        <div className="rounded-3xl border border-outline-variant/40 bg-[linear-gradient(135deg,rgba(0,103,125,0.08),rgba(255,179,67,0.12))] px-6 py-6 sm:px-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="metric-label mb-2">Automation Alerts</p>
@@ -232,161 +232,160 @@ export default function ControlNotificationsCard({
           </div>
         </div>
 
-        <div className="space-y-6 p-6 sm:p-8">
-          {isLoading ? <p className="text-sm text-on-surface-variant">Loading notifications...</p> : null}
+        {isLoading ? <p className="text-sm text-on-surface-variant">Loading notifications...</p> : null}
 
-          {!isLoading && notifications.length === 0 ? (
-            <div className="rounded-2xl bg-surface-container p-5 text-sm text-on-surface-variant">
-              No control notifications configured yet.
-            </div>
-          ) : null}
+        {!isLoading && notifications.length === 0 ? (
+          <div className="rounded-2xl bg-surface-container p-5 text-sm text-on-surface-variant">
+            No control notifications configured yet.
+          </div>
+        ) : null}
 
-          <div className="space-y-4">
-            {notifications.map((notification) => (
-              <article className="rounded-2xl bg-surface-container p-5" key={notification.id}>
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-3">
+        <div className="space-y-4">
+          {notifications.map((notification) => (
+            <article className="rounded-2xl bg-surface-container p-5" key={notification.id}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="font-headline text-xl font-bold text-on-surface">{notification.name}</h4>
+                      <span className={`chip ${notification.enabled ? "bg-primary-fixed text-primary" : "bg-surface-container-highest text-on-surface-variant"}`}>
+                        {notification.enabled ? "Enabled" : "Disabled"}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-on-surface-variant">
+                      {notification.description?.trim() ? notification.description : "No description"}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
                     <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="font-headline text-xl font-bold text-on-surface">{notification.name}</h4>
-                        <span className={`chip ${notification.enabled ? "bg-primary-fixed text-primary" : "bg-surface-container-highest text-on-surface-variant"}`}>
-                          {notification.enabled ? "Enabled" : "Disabled"}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-on-surface-variant">
-                        {notification.description?.trim() ? notification.description : "No description"}
-                      </p>
+                      <p className="metric-label mb-1">Active Time</p>
+                      <p className="font-semibold text-on-surface">{formatTimeRange(notification)}</p>
                     </div>
-
-                    <div className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
-                      <div>
-                        <p className="metric-label mb-1">Active Time</p>
-                        <p className="font-semibold text-on-surface">{formatTimeRange(notification)}</p>
-                      </div>
-                      <div>
-                        <p className="metric-label mb-1">Cheapest Hours</p>
-                        <p className="font-semibold text-on-surface">{formatCheapestHours(notification.cheapestHours)}</p>
-                      </div>
-                      <div>
-                        <p className="metric-label mb-1">Send Earlier</p>
-                        <p className="font-semibold text-on-surface">{notification.sendEarlierMinutes ?? 0} min</p>
-                      </div>
-                      <div>
-                        <p className="metric-label mb-1">Next Send</p>
-                        <p className="font-semibold text-on-surface">{formatControlDate(notification.nextSendAt, timezone)}</p>
-                      </div>
+                    <div>
+                      <p className="metric-label mb-1">Cheapest Hours</p>
+                      <p className="font-semibold text-on-surface">{formatCheapestHours(notification.cheapestHours)}</p>
                     </div>
-
-                    <div className="grid gap-3 text-sm sm:grid-cols-2">
-                      <div>
-                        <p className="metric-label mb-1">Last Sent</p>
-                        <p className="font-semibold text-on-surface">{formatControlDate(notification.lastSentAt, timezone)}</p>
-                      </div>
-                      <div>
-                        <p className="metric-label mb-1">Created</p>
-                        <p className="font-semibold text-on-surface">{formatControlDate(notification.createdAt, timezone)}</p>
-                      </div>
+                    <div>
+                      <p className="metric-label mb-1">Send Earlier</p>
+                      <p className="font-semibold text-on-surface">{notification.sendEarlierMinutes ?? 0} min</p>
+                    </div>
+                    <div>
+                      <p className="metric-label mb-1">Next Send</p>
+                      <p className="font-semibold text-on-surface">{formatControlDate(notification.nextSendAt, timezone)}</p>
                     </div>
                   </div>
 
-                  {!isReadOnly ? (
-                    deleteConfirmId === notification.id ? (
-                      <div className="min-w-[13rem] space-y-3 rounded-xl bg-error-container/70 p-3">
-                        <div>
-                          <p className="font-headline text-sm font-bold text-on-error-container">Confirm removal</p>
-                          <p className="text-xs text-on-error-container">This deletes the notification rule.</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled={isDeletingId === notification.id}
-                            onClick={() => handleDelete(notification.id)}
-                            type="button"
-                          >
-                            {isDeletingId === notification.id ? "Removing..." : "Confirm"}
-                          </button>
-                          <button
-                            className="secondary-action justify-center px-3 py-2 text-xs"
-                            disabled={isDeletingId === notification.id}
-                            onClick={() => setDeleteConfirmId(null)}
-                            type="button"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          className="secondary-action justify-center px-4 py-2 text-sm"
-                          onClick={() => {
-                            setEditingNotification(notification);
-                            setEditForm(toEditForm(notification));
-                          }}
-                          type="button"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="rounded-lg bg-error-container px-4 py-2 text-sm font-bold text-on-error-container"
-                          onClick={() => setDeleteConfirmId(notification.id)}
-                          type="button"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )
-                  ) : null}
+                  <div className="grid gap-3 text-sm sm:grid-cols-2">
+                    <div>
+                      <p className="metric-label mb-1">Last Sent</p>
+                      <p className="font-semibold text-on-surface">{formatControlDate(notification.lastSentAt, timezone)}</p>
+                    </div>
+                    <div>
+                      <p className="metric-label mb-1">Created</p>
+                      <p className="font-semibold text-on-surface">{formatControlDate(notification.createdAt, timezone)}</p>
+                    </div>
+                  </div>
                 </div>
-              </article>
-            ))}
-          </div>
 
-          {!isReadOnly ? (
-            <form className="rounded-3xl bg-surface-container-low p-5 sm:p-6" onSubmit={handleCreate}>
-              <div className="mb-5">
-                <p className="metric-label mb-2">Create Notification</p>
-                <h4 className="font-headline text-2xl font-bold text-on-surface">Add rule</h4>
+                {!isReadOnly ? (
+                  deleteConfirmId === notification.id ? (
+                    <div className="min-w-[13rem] space-y-3 rounded-xl bg-error-container/70 p-3">
+                      <div>
+                        <p className="font-headline text-sm font-bold text-on-error-container">Confirm removal</p>
+                        <p className="text-xs text-on-error-container">This deletes the notification rule.</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={isDeletingId === notification.id}
+                          onClick={() => handleDelete(notification.id)}
+                          type="button"
+                        >
+                          {isDeletingId === notification.id ? "Removing..." : "Confirm"}
+                        </button>
+                        <button
+                          className="secondary-action justify-center px-3 py-2 text-xs"
+                          disabled={isDeletingId === notification.id}
+                          onClick={() => setDeleteConfirmId(null)}
+                          type="button"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        className="secondary-action justify-center px-4 py-2 text-sm"
+                        onClick={() => {
+                          setEditingNotification(notification);
+                          setEditForm(toEditForm(notification));
+                        }}
+                        type="button"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="rounded-lg bg-error-container px-4 py-2 text-sm font-bold text-on-error-container"
+                        onClick={() => setDeleteConfirmId(notification.id)}
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {!isReadOnly ? (
+          <form className="rounded-3xl bg-surface-container p-5 sm:p-6" onSubmit={handleCreate}>
+            <div className="mb-5">
+              <p className="metric-label mb-2">Create Notification</p>
+              <h4 className="font-headline text-2xl font-bold text-on-surface">Add rule</h4>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="md:col-span-2 xl:col-span-1">
+                <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="notification-name">
+                  Name
+                </label>
+                <input
+                  className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                  id="notification-name"
+                  onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
+                  type="text"
+                  value={createForm.name}
+                />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <div className="md:col-span-2 xl:col-span-1">
-                  <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="notification-name">
-                    Name
-                  </label>
-                  <input
-                    className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
-                    id="notification-name"
-                    onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
-                    type="text"
-                    value={createForm.name}
-                  />
-                </div>
+              <div className="md:col-span-2 xl:col-span-2">
+                <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="notification-description">
+                  Description
+                </label>
+                <textarea
+                  className="min-h-24 w-full rounded-2xl border-none bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:ring-2 focus:ring-primary/40"
+                  id="notification-description"
+                  onChange={(event) => setCreateForm((current) => ({ ...current, description: event.target.value }))}
+                  value={createForm.description}
+                />
+              </div>
 
-                <div className="md:col-span-2 xl:col-span-2">
-                  <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="notification-description">
-                    Description
-                  </label>
-                  <textarea
-                    className="min-h-24 w-full rounded-2xl border-none bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:ring-2 focus:ring-primary/40"
-                    id="notification-description"
-                    onChange={(event) => setCreateForm((current) => ({ ...current, description: event.target.value }))}
-                    value={createForm.description}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="notification-active-from">
-                    Active From
-                  </label>
-                  <input
-                    className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
-                    id="notification-active-from"
-                    onChange={(event) => setCreateForm((current) => ({ ...current, activeFrom: event.target.value }))}
-                    type="time"
-                    value={createForm.activeFrom}
-                  />
-                </div>
+              <div>
+                <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="notification-active-from">
+                  Active From
+                </label>
+                <input
+                  className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                  id="notification-active-from"
+                  onChange={(event) => setCreateForm((current) => ({ ...current, activeFrom: event.target.value }))}
+                  type="time"
+                  value={createForm.activeFrom}
+                />
+              </div>
 
                 <div>
                   <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="notification-active-to">
@@ -441,29 +440,28 @@ export default function ControlNotificationsCard({
                 </label>
               </div>
 
-              <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
-                <button
-                  className="secondary-action justify-center disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isCreating}
-                  type="submit"
-                >
-                  {isCreating ? "Adding..." : "Add Notification"}
-                </button>
-                <p className="text-sm text-on-surface-variant">Use `0` cheapest hours to match any active hour.</p>
-              </div>
-            </form>
-          ) : null}
-
-          {message ? (
-            <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary">{message}</div>
-          ) : null}
-
-          {error ? (
-            <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">
-              {error}
+            <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+              <button
+                className="secondary-action justify-center disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isCreating}
+                type="submit"
+              >
+                {isCreating ? "Adding..." : "Add Notification"}
+              </button>
+              <p className="text-sm text-on-surface-variant">Use `0` cheapest hours to match any active hour.</p>
             </div>
-          ) : null}
-        </div>
+          </form>
+        ) : null}
+
+        {message ? (
+          <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary">{message}</div>
+        ) : null}
+
+        {error ? (
+          <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">
+            {error}
+          </div>
+        ) : null}
       </section>
 
       {editingNotification ? (
