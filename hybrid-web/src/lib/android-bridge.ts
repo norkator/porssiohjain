@@ -14,6 +14,7 @@ export type BootstrapData = {
   baseUrl?: string;
   token?: string;
   accountId?: number;
+  locale?: string;
   hasToken?: boolean;
   environment?: "local" | "production" | string;
   error?: string;
@@ -45,6 +46,7 @@ export function getBootstrapData(): BootstrapData {
       baseUrl: "http://localhost",
       token: "",
       accountId: undefined,
+      locale: undefined,
       hasToken: false,
       environment: "local",
       error: "Android bridge unavailable"

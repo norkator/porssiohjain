@@ -9,11 +9,13 @@
  * See LICENSE for details.
  */
 
-import { getSessionData, setBrowserSessionToken } from "@/lib/session";
+import { getSessionData, setBrowserSession } from "@/lib/session";
 
 export type LoginResponse = {
   token: string;
   expiresAt: string;
+  accountId?: number;
+  locale?: string;
 };
 
 export type CreatedAccount = {
@@ -61,7 +63,11 @@ export async function loginWithCredentials(input: { uuid: string; secret: string
   }
 
   const loginResponse = await response.json() as LoginResponse;
-  setBrowserSessionToken(loginResponse.token);
+  setBrowserSession({
+    token: loginResponse.token,
+    accountId: loginResponse.accountId,
+    locale: loginResponse.locale
+  });
 
   return loginResponse;
 }
