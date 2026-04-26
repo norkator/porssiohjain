@@ -30,7 +30,11 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 
 @Slf4j
 @Service
@@ -38,6 +42,7 @@ import java.time.Instant;
 public class MitsubishiAcStateService {
 
     private static final long RETRY_DELAY_MS = 1000L;
+    private static final Duration ONLINE_THRESHOLD = Duration.ofHours(4);
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String GET_DEVICE_URL = "https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/Get";
     private final MitsubishiLoginService mitsubishiLoginService;
@@ -102,7 +107,7 @@ public class MitsubishiAcStateService {
                 }
                 acData.setLastPolledStateHex(formatStateJson(body));
                 deviceAcDataRepository.save(acData);
-                markDeviceReachable(acData);
+                updateDeviceConnectivity(acData, body);
             }
             return body;
         } catch (HttpClientErrorException.Unauthorized e) {
@@ -163,7 +168,7 @@ public class MitsubishiAcStateService {
         return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(state);
     }
 
-    private void markDeviceReachable(DeviceAcDataEntity acData) {
+    private void updateDeviceConnectivity(DeviceAcDataEntity acData, MitsubishiAcStateResponse response) {
         DeviceEntity device = acData.getDevice();
         if (device == null || device.getId() == null) {
             return;
@@ -172,9 +177,33 @@ public class MitsubishiAcStateService {
         if (managedDevice == null) {
             return;
         }
-        managedDevice.setLastCommunication(Instant.now());
-        managedDevice.setApiOnline(true);
+        Instant lastCommunication = parseLastCommunication(response.getLastCommunication());
+        if (lastCommunication != null) {
+            managedDevice.setLastCommunication(lastCommunication);
+        }
+        managedDevice.setApiOnline(!Boolean.TRUE.equals(response.getOffline()) && isWithinOnlineThreshold(lastCommunication));
         deviceRepository.save(managedDevice);
+    }
+
+    public static Instant parseLastCommunication(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return LocalDateTime.parse(value).atZone(ZoneId.systemDefault()).toInstant();
+        } catch (DateTimeParseException e) {
+            log.warn("Failed to parse Mitsubishi LastCommunication={}", value, e);
+            return null;
+        }
+    }
+
+    private boolean isWithinOnlineThreshold(Instant lastCommunication) {
+        return lastCommunication != null
+                && Duration.between(lastCommunication, Instant.now()).compareTo(ONLINE_THRESHOLD) < 0;
     }
 
 }

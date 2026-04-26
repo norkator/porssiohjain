@@ -16,15 +16,13 @@ import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
-import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateService;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -32,11 +30,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class HeatPumpOnlineCheckService {
 
-    private static final Duration ONLINE_THRESHOLD = Duration.ofHours(4);
-
     private final DeviceAcDataRepository deviceAcDataRepository;
-    private final DeviceRepository deviceRepository;
     private final ToshibaAcStateService toshibaAcStateService;
+    private final MitsubishiAcStateService mitsubishiAcStateService;
 
     @Transactional
     public void refreshHeatPumpApiOnlineStates() {
@@ -63,27 +59,9 @@ public class HeatPumpOnlineCheckService {
 
         switch (acType) {
             case TOSHIBA -> toshibaAcStateService.getAcState(acData);
-            case MITSUBISHI -> refreshMitsubishiOnlineStateMock(device);
+            case MITSUBISHI -> mitsubishiAcStateService.getAcState(acData);
             default -> {
             }
         }
-    }
-
-    private void refreshMitsubishiOnlineStateMock(DeviceEntity device) {
-        if (device.getId() == null) {
-            return;
-        }
-        DeviceEntity managedDevice = deviceRepository.findById(device.getId()).orElse(null);
-        if (managedDevice == null) {
-            return;
-        }
-        managedDevice.setApiOnline(isWithinOnlineThreshold(managedDevice.getLastCommunication()));
-        deviceRepository.save(managedDevice);
-        log.debug("Mitsubishi online check mock applied for deviceId={}", managedDevice.getId());
-    }
-
-    private boolean isWithinOnlineThreshold(Instant lastCommunication) {
-        return lastCommunication != null
-                && Duration.between(lastCommunication, Instant.now()).compareTo(ONLINE_THRESHOLD) < 0;
     }
 }
