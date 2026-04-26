@@ -36,6 +36,12 @@ export type ApiDevice = {
   acDeviceUniqueId: string | null;
 };
 
+export type HeatPumpStateResponse = {
+  acType: AcType;
+  currentState: string | null;
+  lastPolledState: string | null;
+};
+
 export type DeviceType = "STANDARD" | "HEAT_PUMP";
 export type AcType = "NONE" | "TOSHIBA" | "MITSUBISHI";
 
@@ -84,6 +90,10 @@ export async function deleteDevice(deviceId: number) {
   if (!response.ok) {
     throw new Error(`Request failed with status ${response.status}`);
   }
+}
+
+export async function fetchHeatPumpState(deviceId: number) {
+  return apiGetJson<HeatPumpStateResponse>(`/devices/${deviceId}/heat-pump/state`);
 }
 
 export function getDeviceConnectionState(device: ApiDevice) {

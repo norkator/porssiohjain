@@ -85,6 +85,25 @@ export type WeatherControlDevicePayload = {
   priorityRule: boolean;
 };
 
+export type WeatherControlHeatPumpLink = {
+  id: number;
+  weatherControlId: number;
+  deviceId: number;
+  stateHex: string;
+  weatherMetric: WeatherMetricType;
+  comparisonType: ComparisonType;
+  thresholdValue: number;
+  device: Pick<ApiDevice, "deviceName" | "deviceType" | "id" | "uuid">;
+};
+
+export type WeatherControlHeatPumpPayload = {
+  deviceId: number;
+  stateHex: string;
+  weatherMetric: WeatherMetricType;
+  comparisonType: ComparisonType;
+  thresholdValue: number;
+};
+
 export type ApiProductionSource = {
   id: number;
   uuid: string;
@@ -223,6 +242,10 @@ export const fetchWeatherControlDeviceLinks = (id: number) => apiGetJson<Weather
 export const addWeatherControlDeviceLink = (id: number, payload: WeatherControlDevicePayload) => postJson<WeatherControlDeviceLink>(`/api/weather-controls/${id}/devices`, payload);
 export const updateWeatherControlDeviceLink = (id: number, payload: WeatherControlDevicePayload) => postJson<WeatherControlDeviceLink>(`/api/weather-controls/devices/${id}`, payload, "PUT");
 export const deleteWeatherControlDeviceLink = (id: number) => postJson<void>(`/api/weather-controls/devices/${id}`, undefined, "DELETE");
+export const fetchWeatherControlHeatPumpLinks = (id: number) => apiGetJson<WeatherControlHeatPumpLink[]>(`/api/weather-controls/${id}/heat-pumps`);
+export const addWeatherControlHeatPumpLink = (id: number, payload: WeatherControlHeatPumpPayload) => postJson<WeatherControlHeatPumpLink>(`/api/weather-controls/${id}/heat-pumps`, payload);
+export const updateWeatherControlHeatPumpLink = (id: number, payload: WeatherControlHeatPumpPayload) => postJson<WeatherControlHeatPumpLink>(`/api/weather-controls/heat-pumps/${id}`, payload, "PUT");
+export const deleteWeatherControlHeatPumpLink = (id: number) => postJson<void>(`/api/weather-controls/heat-pumps/${id}`, undefined, "DELETE");
 
 export const fetchProductionSources = () => apiGetJson<ApiProductionSource[]>("/api/production-sources");
 export const fetchProductionSource = (id: number) => apiGetJson<ApiProductionSource>(`/api/production-sources/${id}`);

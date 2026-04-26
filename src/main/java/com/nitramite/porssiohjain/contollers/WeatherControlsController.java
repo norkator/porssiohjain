@@ -19,6 +19,7 @@ import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import com.nitramite.porssiohjain.services.WeatherControlService;
 import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlDeviceResponse;
+import com.nitramite.porssiohjain.services.models.WeatherControlHeatPumpResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -121,6 +122,48 @@ public class WeatherControlsController {
         weatherControlService.deleteWeatherControlDevice(authContext.getAccountId(), linkId);
     }
 
+    @GetMapping("/{weatherControlId}/heat-pumps")
+    public List<WeatherControlHeatPumpResponse> getHeatPumps(@PathVariable Long weatherControlId) {
+        return weatherControlService.getWeatherControlHeatPumps(authContext.getAccountId(), weatherControlId);
+    }
+
+    @PostMapping("/{weatherControlId}/heat-pumps")
+    public WeatherControlHeatPumpResponse addHeatPump(
+            @PathVariable Long weatherControlId,
+            @RequestBody WeatherControlHeatPumpRequest request
+    ) {
+        return weatherControlService.addHeatPumpToWeatherControl(
+                authContext.getAccountId(),
+                weatherControlId,
+                request.deviceId(),
+                request.stateHex(),
+                request.weatherMetric(),
+                request.comparisonType(),
+                request.thresholdValue()
+        );
+    }
+
+    @PutMapping("/heat-pumps/{linkId}")
+    public WeatherControlHeatPumpResponse updateHeatPump(
+            @PathVariable Long linkId,
+            @RequestBody WeatherControlHeatPumpRequest request
+    ) {
+        return weatherControlService.updateWeatherControlHeatPump(
+                authContext.getAccountId(),
+                linkId,
+                request.deviceId(),
+                request.stateHex(),
+                request.weatherMetric(),
+                request.comparisonType(),
+                request.thresholdValue()
+        );
+    }
+
+    @DeleteMapping("/heat-pumps/{linkId}")
+    public void deleteHeatPump(@PathVariable Long linkId) {
+        weatherControlService.deleteWeatherControlHeatPump(authContext.getAccountId(), linkId);
+    }
+
     public record WeatherControlRequest(String name, Long siteId) {
     }
 
@@ -132,6 +175,15 @@ public class WeatherControlsController {
             BigDecimal thresholdValue,
             ControlAction controlAction,
             boolean priorityRule
+    ) {
+    }
+
+    public record WeatherControlHeatPumpRequest(
+            Long deviceId,
+            String stateHex,
+            WeatherMetricType weatherMetric,
+            ComparisonType comparisonType,
+            BigDecimal thresholdValue
     ) {
     }
 }

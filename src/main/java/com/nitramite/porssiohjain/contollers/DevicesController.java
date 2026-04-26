@@ -13,12 +13,18 @@ package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
+import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateService;
 import com.nitramite.porssiohjain.services.models.CreateDeviceRequest;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.HeatPumpAcDeviceResponse;
 import com.nitramite.porssiohjain.services.models.HeatPumpAcDevicesRequest;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateResponse;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +40,8 @@ public class DevicesController {
     private final AuthContext authContext;
     private final DeviceService deviceService;
     private final HeatPumpAcDeviceSelectionService heatPumpAcDeviceSelectionService;
+    private final ToshibaAcStateService toshibaAcStateService;
+    private final MitsubishiAcStateService mitsubishiAcStateService;
 
     @GetMapping
     public List<DeviceResponse> listDevices() {
@@ -100,11 +108,42 @@ public class DevicesController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{deviceId}/heat-pump/state")
+    public HeatPumpStateResponse getHeatPumpState(
+            @PathVariable Long deviceId
+    ) {
+        DeviceAcDataEntity acData = deviceService.getDeviceAcData(authContext.getAccountId(), deviceId);
+        String currentState = null;
+
+        if (acData.getAcType() == AcType.TOSHIBA) {
+            ToshibaAcStateResponse response = toshibaAcStateService.getAcState(acData);
+            if (response != null && response.getResObj() != null) {
+                currentState = response.getResObj().getAcStateData();
+            }
+        } else if (acData.getAcType() == AcType.MITSUBISHI) {
+            MitsubishiAcStateResponse response = mitsubishiAcStateService.getAcState(acData);
+            if (response != null) {
+                currentState = acData.getLastPolledStateHex();
+            }
+        } else {
+            throw new IllegalArgumentException("Device is not a supported heat pump");
+        }
+
+        return new HeatPumpStateResponse(acData.getAcType(), currentState, acData.getLastPolledStateHex());
+    }
+
     @PostMapping("/heat-pump/ac-devices")
     public List<HeatPumpAcDeviceResponse> listSelectableHeatPumpAcDevices(
             @RequestBody HeatPumpAcDevicesRequest request
     ) {
         authContext.getAccountId();
         return heatPumpAcDeviceSelectionService.getSelectableDevices(request);
+    }
+
+    public record HeatPumpStateResponse(
+            AcType acType,
+            String currentState,
+            String lastPolledState
+    ) {
     }
 }
