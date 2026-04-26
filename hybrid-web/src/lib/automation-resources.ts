@@ -158,6 +158,11 @@ export type ProductionSourceDevicePayload = {
   action: ControlAction;
 };
 
+export type ProductionHistoryPoint = {
+  createdAt: string;
+  kilowatts: number;
+};
+
 export type ApiPowerLimit = {
   id: number;
   uuid: string;
@@ -258,6 +263,7 @@ export const fetchProductionSource = (id: number) => apiGetJson<ApiProductionSou
 export const createProductionSource = (payload: ProductionSourcePayload) => postJson<void>("/api/production-sources", payload);
 export const updateProductionSource = (id: number, payload: ProductionSourcePayload) => postJson<ApiProductionSource>(`/api/production-sources/${id}`, payload, "PUT");
 export const deleteProductionSource = (id: number) => postJson<void>(`/api/production-sources/${id}`, undefined, "DELETE");
+export const fetchProductionHistory = (id: number, hours = 24) => apiGetJson<ProductionHistoryPoint[]>(`/api/production-sources/${id}/history?hours=${hours}`);
 export const fetchProductionSourceDeviceLinks = (id: number) => apiGetJson<ProductionSourceDeviceLink[]>(`/api/production-sources/${id}/devices`);
 export const addProductionSourceDeviceLink = (id: number, payload: ProductionSourceDevicePayload) => postJson<void>(`/api/production-sources/${id}/devices`, payload);
 export const deleteProductionSourceDeviceLink = (sourceId: number, linkId: number) => postJson<void>(`/api/production-sources/${sourceId}/devices/${linkId}`, undefined, "DELETE");

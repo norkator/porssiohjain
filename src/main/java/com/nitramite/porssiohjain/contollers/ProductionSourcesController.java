@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.services.ProductionSourceService;
 import com.nitramite.porssiohjain.services.models.ProductionSourceDeviceResponse;
+import com.nitramite.porssiohjain.services.models.ProductionHistoryResponse;
 import com.nitramite.porssiohjain.services.models.ProductionSourceResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -57,6 +58,14 @@ public class ProductionSourcesController {
     @GetMapping("/{sourceId}")
     public ProductionSourceResponse getSource(@PathVariable Long sourceId) {
         return productionSourceService.getSource(authContext.getAccountId(), sourceId);
+    }
+
+    @GetMapping("/{sourceId}/history")
+    public List<ProductionHistoryResponse> getHistory(
+            @PathVariable Long sourceId,
+            @RequestParam(defaultValue = "24") int hours
+    ) {
+        return productionSourceService.getProductionHistory(authContext.getAccountId(), sourceId, hours);
     }
 
     @PutMapping("/{sourceId}")

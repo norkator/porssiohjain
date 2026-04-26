@@ -10,6 +10,7 @@
  */
 
 import PageHeader from "@/components/PageHeader";
+import ProductionHistoryChartCard from "@/components/ProductionHistoryChartCard";
 import {
   addProductionSourceDeviceLink,
   COMPARISONS,
@@ -180,128 +181,135 @@ export default function ManageProductionSourceView() {
         {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">Loading production source...</div> : null}
         {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
         {!isLoading && source ? (
-          <div className="grid gap-10 lg:grid-cols-12">
-            <section className="space-y-8 lg:col-span-8">
-              <div><p className="metric-label mb-3">Production Source #{sourceId}</p><h1 className="mb-4 font-headline text-4xl font-extrabold text-primary">{source.name}</h1></div>
-              <form className="app-card grid gap-4 p-6 md:grid-cols-2" onSubmit={handleSave}>
-                <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} value={name} />
-                <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setApiType(event.target.value as ProductionApiType)} value={apiType}>{PRODUCTION_API_TYPES.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
-                <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setTimezone(event.target.value)} value={timezone}>{timezones.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-                <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setSiteId(event.target.value)} value={siteId}><option value="">No site</option>{sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</select>
-                <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setAppId(event.target.value)} placeholder="App ID" value={appId} />
-                <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setAppSecret(event.target.value)} placeholder="New app secret" type="password" value={appSecret} />
-                <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setEmail(event.target.value)} placeholder="Email" value={email} />
-                <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setPassword(event.target.value)} placeholder="New password" type="password" value={password} />
-                <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setStationId(event.target.value)} placeholder="Station ID" value={stationId} />
-                <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">Enabled</span><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" /></label>
-                <button className="primary-action justify-center md:col-span-2" type="submit">Save Production Source</button>
-                {message ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary md:col-span-2">{message}</div> : null}
-              </form>
+          <div className="space-y-8">
+            <div className="grid gap-10 lg:grid-cols-12">
+              <section className="space-y-8 lg:col-span-8">
+                <div><p className="metric-label mb-3">Production Source #{sourceId}</p><h1 className="mb-4 font-headline text-4xl font-extrabold text-primary">{source.name}</h1></div>
+                <form className="app-card grid gap-4 p-6 md:grid-cols-2" onSubmit={handleSave}>
+                  <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} value={name} />
+                  <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setApiType(event.target.value as ProductionApiType)} value={apiType}>{PRODUCTION_API_TYPES.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+                  <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setTimezone(event.target.value)} value={timezone}>{timezones.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+                  <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setSiteId(event.target.value)} value={siteId}><option value="">No site</option>{sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</select>
+                  <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setAppId(event.target.value)} placeholder="App ID" value={appId} />
+                  <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setAppSecret(event.target.value)} placeholder="New app secret" type="password" value={appSecret} />
+                  <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setEmail(event.target.value)} placeholder="Email" value={email} />
+                  <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setPassword(event.target.value)} placeholder="New password" type="password" value={password} />
+                  <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setStationId(event.target.value)} placeholder="Station ID" value={stationId} />
+                  <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">Enabled</span><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" /></label>
+                  <button className="primary-action justify-center md:col-span-2" type="submit">Save Production Source</button>
+                  {message ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary md:col-span-2">{message}</div> : null}
+                </form>
 
-              <section className="app-card p-6">
-                <div className="mb-5 flex items-center justify-between"><h2 className="font-headline text-xl font-bold">Device Rules</h2><span className="chip bg-surface-container-highest text-primary-container">{links.length}</span></div>
-                <div className="space-y-3">
-                  {links.map((link) => (
-                    <div className="rounded-xl bg-surface-container p-4" key={link.id}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-headline font-bold">{link.device.deviceName}</p>
-                          <p className="text-sm text-on-surface-variant">{label(link.comparisonType)} {link.triggerKw} kW</p>
-                        </div>
-                        {deleteLinkConfirmId === link.id ? (
-                          <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
-                            <div>
-                              <p className="font-headline text-sm font-bold text-on-error-container">Confirm removal</p>
-                              <p className="text-xs text-on-error-container">This removes the device rule from this production source.</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                                disabled={isDeletingLinkId === link.id}
-                                onClick={() => handleDeleteLink(link.id)}
-                                type="button"
-                              >
-                                {isDeletingLinkId === link.id ? "Removing..." : "Confirm"}
-                              </button>
-                              <button
-                                className="secondary-action justify-center px-3 py-2 text-xs"
-                                disabled={isDeletingLinkId === link.id}
-                                onClick={() => setDeleteLinkConfirmId(null)}
-                                type="button"
-                              >
-                                Cancel
-                              </button>
-                            </div>
+                <section className="app-card p-6">
+                  <div className="mb-5 flex items-center justify-between"><h2 className="font-headline text-xl font-bold">Device Rules</h2><span className="chip bg-surface-container-highest text-primary-container">{links.length}</span></div>
+                  <div className="space-y-3">
+                    {links.map((link) => (
+                      <div className="rounded-xl bg-surface-container p-4" key={link.id}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-headline font-bold">{link.device.deviceName}</p>
+                            <p className="text-sm text-on-surface-variant">{label(link.comparisonType)} {link.triggerKw} kW</p>
                           </div>
-                        ) : (
+                          {deleteLinkConfirmId === link.id ? (
+                            <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
+                              <div>
+                                <p className="font-headline text-sm font-bold text-on-error-container">Confirm removal</p>
+                                <p className="text-xs text-on-error-container">This removes the device rule from this production source.</p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                                  disabled={isDeletingLinkId === link.id}
+                                  onClick={() => handleDeleteLink(link.id)}
+                                  type="button"
+                                >
+                                  {isDeletingLinkId === link.id ? "Removing..." : "Confirm"}
+                                </button>
+                                <button
+                                  className="secondary-action justify-center px-3 py-2 text-xs"
+                                  disabled={isDeletingLinkId === link.id}
+                                  onClick={() => setDeleteLinkConfirmId(null)}
+                                  type="button"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
+                              onClick={() => setDeleteLinkConfirmId(link.id)}
+                              type="button"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-sm"><div><span className="metric-label">Channel</span><p className="font-semibold">{link.deviceChannel}</p></div><div><span className="metric-label">Action</span><p className="font-semibold">{label(link.action)}</p></div></div>
+                      </div>
+                    ))}
+                  </div>
+                  <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleAddLink}>
+                    <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedDeviceId(event.target.value)} value={selectedDeviceId}><option value="">Select standard device</option>{devices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}</select>
+                    <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" min="0" onChange={(event) => setDeviceChannel(event.target.value)} type="number" value={deviceChannel} />
+                    <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setTriggerKw(event.target.value)} step="0.1" type="number" value={triggerKw} />
+                    <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setComparisonType(event.target.value as ComparisonType)} value={comparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+                    <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setAction(event.target.value as ControlAction)} value={action}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+                    <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">Add Device Rule</button>
+                  </form>
+                </section>
+              </section>
+              <aside className="space-y-6 lg:col-span-4">
+                <div className="app-card p-6"><p className="metric-label mb-2">Current kW</p><p className="font-headline text-3xl font-bold">{formatKw(source.currentKw)}</p></div>
+                <div className="app-card p-6"><p className="metric-label mb-2">Peak kW</p><p className="font-headline text-3xl font-bold">{formatKw(source.peakKw)}</p></div>
+                <div className="app-card p-6"><p className="metric-label mb-2">Updated</p><p className="font-semibold">{formatDate(source.updatedAt, source.timezone)}</p></div>
+                <Link className="secondary-action justify-center" to="/production-sources">Back</Link>
+                {!source.shared ? (
+                  <div className="app-card border-error-container bg-error-container/40 p-6">
+                    {!deleteConfirmOpen ? (
+                      <button
+                        className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDeleting}
+                        onClick={() => setDeleteConfirmOpen(true)}
+                        type="button"
+                      >
+                        Delete Production Source
+                      </button>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <p className="font-headline text-lg font-bold text-on-error-container">Confirm deletion</p>
+                          <p className="text-sm text-on-error-container">This removes the production source and its linked device rules.</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
                           <button
-                            className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
-                            onClick={() => setDeleteLinkConfirmId(link.id)}
+                            className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={isDeleting}
+                            onClick={handleDelete}
                             type="button"
                           >
-                            Remove
+                            {isDeleting ? "Deleting..." : "Confirm"}
                           </button>
-                        )}
+                          <button
+                            className="secondary-action justify-center"
+                            disabled={isDeleting}
+                            onClick={() => setDeleteConfirmOpen(false)}
+                            type="button"
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </div>
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-sm"><div><span className="metric-label">Channel</span><p className="font-semibold">{link.deviceChannel}</p></div><div><span className="metric-label">Action</span><p className="font-semibold">{label(link.action)}</p></div></div>
-                    </div>
-                  ))}
-                </div>
-                <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleAddLink}>
-                  <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedDeviceId(event.target.value)} value={selectedDeviceId}><option value="">Select standard device</option>{devices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}</select>
-                  <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" min="0" onChange={(event) => setDeviceChannel(event.target.value)} type="number" value={deviceChannel} />
-                  <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setTriggerKw(event.target.value)} step="0.1" type="number" value={triggerKw} />
-                  <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setComparisonType(event.target.value as ComparisonType)} value={comparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
-                  <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setAction(event.target.value as ControlAction)} value={action}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
-                  <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">Add Device Rule</button>
-                </form>
-              </section>
-            </section>
-            <aside className="space-y-6 lg:col-span-4">
-              <div className="app-card p-6"><p className="metric-label mb-2">Current kW</p><p className="font-headline text-3xl font-bold">{formatKw(source.currentKw)}</p></div>
-              <div className="app-card p-6"><p className="metric-label mb-2">Peak kW</p><p className="font-headline text-3xl font-bold">{formatKw(source.peakKw)}</p></div>
-              <div className="app-card p-6"><p className="metric-label mb-2">Updated</p><p className="font-semibold">{formatDate(source.updatedAt, source.timezone)}</p></div>
-              <Link className="secondary-action justify-center" to="/production-sources">Back</Link>
-              {!source.shared ? (
-                <div className="app-card border-error-container bg-error-container/40 p-6">
-                  {!deleteConfirmOpen ? (
-                    <button
-                      className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isDeleting}
-                      onClick={() => setDeleteConfirmOpen(true)}
-                      type="button"
-                    >
-                      Delete Production Source
-                    </button>
-                  ) : (
-                    <div className="space-y-4">
-                      <div>
-                        <p className="font-headline text-lg font-bold text-on-error-container">Confirm deletion</p>
-                        <p className="text-sm text-on-error-container">This removes the production source and its linked device rules.</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={isDeleting}
-                          onClick={handleDelete}
-                          type="button"
-                        >
-                          {isDeleting ? "Deleting..." : "Confirm"}
-                        </button>
-                        <button
-                          className="secondary-action justify-center"
-                          disabled={isDeleting}
-                          onClick={() => setDeleteConfirmOpen(false)}
-                          type="button"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </aside>
+                    )}
+                  </div>
+                ) : null}
+              </aside>
+            </div>
+
+            <ProductionHistoryChartCard
+              sourceId={sourceId}
+              timezone={source.timezone}
+            />
           </div>
         ) : null}
       </main>
