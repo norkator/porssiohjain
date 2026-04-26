@@ -23,6 +23,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -30,17 +31,26 @@ public class ToshibaAcDevicesService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String MAPPING_URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping";
+    private static final Pattern CONSUMER_ID_PATTERN = Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    );
 
     public List<ToshibaAcMappingResponse.AcDevice> getAcDevices(
             DeviceAcDataEntity acData
     ) {
         try {
+            String acConsumerId = acData.getAcConsumerId();
+            if (!isValidConsumerId(acConsumerId)) {
+                log.warn("Invalid Toshiba AC consumer id format. acDataId={}", acData.getId());
+                return List.of();
+            }
+
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(acData.getAcAccessToken());
             headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
 
             String urlWithParams = UriComponentsBuilder.fromUriString(MAPPING_URL)
-                    .queryParam("consumerId", acData.getAcConsumerId())
+                    .queryParam("consumerId", acConsumerId)
                     .build(true)
                     .toUriString();
 
@@ -69,6 +79,10 @@ public class ToshibaAcDevicesService {
             log.error("Error during Toshiba AC mapping fetch", e);
         }
         return List.of();
+    }
+
+    static boolean isValidConsumerId(String acConsumerId) {
+        return acConsumerId != null && CONSUMER_ID_PATTERN.matcher(acConsumerId).matches();
     }
 
 }
