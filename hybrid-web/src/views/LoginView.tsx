@@ -13,6 +13,7 @@ import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import HeaderLogo from "@/components/HeaderLogo";
 import { loginWithCredentials } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 import { getSessionData } from "@/lib/session";
 
 const DEMO_UUID = "78b7823f-d5cc-4376-8910-cd62e7b32400";
@@ -21,6 +22,7 @@ const DEMO_SECRET = "103058b63f9245099d0c30d81e1636bc";
 export default function LoginView() {
   const navigate = useNavigate();
   const session = getSessionData();
+  const { t } = useI18n("login");
   const [uuid, setUuid] = useState("");
   const [secret, setSecret] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export default function LoginView() {
       await loginWithCredentials({ uuid: uuid.trim(), secret: secret.trim() });
       navigate("/menu", { replace: true });
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : "Login failed.");
+      setError(loginError instanceof Error ? loginError.message : t("genericLoginFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -56,14 +58,14 @@ export default function LoginView() {
         <div className="mb-8 flex items-center gap-4">
           <HeaderLogo />
           <div>
-            <p className="metric-label">Energy Controller</p>
-            <h1 className="font-headline text-3xl font-extrabold text-primary-container">Login</h1>
+            <p className="metric-label">{t("brand")}</p>
+            <h1 className="font-headline text-3xl font-extrabold text-primary-container">{t("title")}</h1>
           </div>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <label className="block">
-            <span className="mb-2 block font-label text-sm font-bold text-on-surface-variant">UUID</span>
+            <span className="mb-2 block font-label text-sm font-bold text-on-surface-variant">{t("uuidLabel")}</span>
             <input
               autoComplete="username"
               className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 font-mono text-sm outline-none transition-colors focus:border-primary"
@@ -75,7 +77,7 @@ export default function LoginView() {
           </label>
 
           <label className="block">
-            <span className="mb-2 block font-label text-sm font-bold text-on-surface-variant">Secret</span>
+            <span className="mb-2 block font-label text-sm font-bold text-on-surface-variant">{t("secretLabel")}</span>
             <input
               autoComplete="current-password"
               className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 font-mono text-sm outline-none transition-colors focus:border-primary"
@@ -88,21 +90,21 @@ export default function LoginView() {
 
           {error ? (
             <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">
-              Login failed: {error}
+              {t("loginFailed", { error })}
             </div>
           ) : null}
 
           <button className="primary-action w-full justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmitting} type="submit">
-            {isSubmitting ? "Logging in..." : "Login"}
+            {isSubmitting ? t("loggingIn") : t("login")}
           </button>
         </form>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4 text-sm">
           <button className="font-label font-bold text-primary-container underline" onClick={fillDemoAccount} type="button">
-            Use demo account
+            {t("useDemoAccount")}
           </button>
           <Link className="font-label font-bold text-primary-container underline" to="/create-account">
-            Create account
+            {t("createAccount")}
           </Link>
         </div>
       </section>

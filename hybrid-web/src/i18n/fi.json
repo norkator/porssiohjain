@@ -1,0 +1,52 @@
+{
+  "login": {
+    "brand": "Energy Controller",
+    "title": "Kirjaudu",
+    "uuidLabel": "UUID",
+    "secretLabel": "Salainen avain",
+    "loginFailed": "Kirjautuminen epäonnistui: {error}",
+    "genericLoginFailed": "Kirjautuminen epäonnistui.",
+    "loggingIn": "Kirjaudutaan...",
+    "login": "Kirjaudu",
+    "useDemoAccount": "Käytä demotiliä",
+    "createAccount": "Luo tili"
+  },
+  "mainMenu": {
+    "brand": "Energy Controller",
+    "logout": "Kirjaudu ulos",
+    "liveDashboard": "Reaaliaikainen näkymä",
+    "headlineTop": "Järjestelmä",
+    "headlineHighlight": "optimoitu.",
+    "totalConsumption": "Kokonaiskulutus",
+    "solarProduction": "Aurinkotuotanto",
+    "statsSyncUnavailable": "Tilastojen synkronointi ei ole saatavilla.",
+    "controlCenter": "Ohjauskeskus",
+    "marketWatch": "Sähkömarkkina",
+    "loadingDevices": "Ladataan laitteita...",
+    "deviceSyncUnavailable": "Laitteiden synkronointi ei ole saatavilla",
+    "deviceCounts": "{totalCount} aktiivista • {onlineCount} verkossa",
+    "loadingProduction": "Ladataan tuotantoa...",
+    "productionSyncUnavailable": "Tuotannon synkronointi ei ole saatavilla",
+    "generatingPower": "Tuottaa {kw} kW",
+    "loadingPowerLimits": "Ladataan tehorajoja...",
+    "powerLimitSyncUnavailable": "Tehorajojen synkronointi ei ole saatavilla",
+    "activePower": "{kw} kW aktiivisena",
+    "loadingControls": "Ladataan ohjauksia...",
+    "controlSyncUnavailable": "Ohjausten synkronointi ei ole saatavilla",
+    "controlsConfigured": "{count} ohjausta määritetty",
+    "weatherThresholdAutomation": "Säähän perustuva automaatio",
+    "summaryLoading": "Ladataan laitteiden tilaa ja reaaliaikaista tehodataa.",
+    "summaryUnavailable": "Reaaliaikainen näkymä ei ole nyt saatavilla. Tarkista paikallinen API-yhteys ja token-asetukset.",
+    "summaryStatsUnavailable": "Laitelistassa {onlineCount}/{totalCount} laitetta on verkossa. Reaaliaikaiset tehotilastot eivät ole nyt saatavilla.",
+    "summaryDevicesUnavailable": "{consumptionKw} kW on tällä hetkellä hallinnassa tehorajoilla, ja tuotantoa on saatavilla {productionKw} kW.",
+    "summaryProductionAhead": "{onlineCount}/{totalCount} laitetta on verkossa. Aurinkotuotanto on {netKw} kW kulutusta edellä, nykyinen kulutus on {consumptionKw} kW.",
+    "summaryConsumptionAhead": "{onlineCount}/{totalCount} laitetta on verkossa. Nykyinen kulutus on {consumptionKw} kW, mikä on {netKw} kW aurinkotuotantoa enemmän.",
+    "tileTitles": {
+      "devices": "Laitteet",
+      "controls": "Ohjaukset",
+      "weatherControls": "Sääohjaukset",
+      "ownProduction": "Oma tuotanto",
+      "powerLimits": "Tehorajat"
+    }
+  }
+}

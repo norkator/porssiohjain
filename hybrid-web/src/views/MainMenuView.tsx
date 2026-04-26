@@ -17,10 +17,13 @@ import { useAccountStats } from "@/hooks/useAccountStats";
 import { useControls } from "@/hooks/useControls";
 import { useDevices } from "@/hooks/useDevices";
 import { logoutNative } from "@/lib/android-bridge";
+import { useI18n } from "@/lib/i18n";
 import { clearBrowserSession, getSessionData } from "@/lib/session";
 
 export default function MainMenuView() {
   const session = getSessionData();
+  const { group, t } = useI18n("mainMenu");
+  const tileTitles = group("tileTitles");
   const { error, isLoading, onlineCount, totalCount } = useDevices();
   const {
     error: controlsError,
@@ -35,31 +38,31 @@ export default function MainMenuView() {
     totalProductionPeakKw
   } = useAccountStats();
   const deviceTileDetail = isLoading
-    ? "Loading devices..."
+    ? t("loadingDevices")
     : error
-      ? "Device sync unavailable"
-      : `${totalCount} Active • ${onlineCount} Online`;
+      ? t("deviceSyncUnavailable")
+      : t("deviceCounts", { totalCount, onlineCount });
   const ownProductionDetail = isStatsLoading
-    ? "Loading production..."
+    ? t("loadingProduction")
     : statsError
-      ? "Production sync unavailable"
-      : `Generating ${formatKw(totalProductionKw)} kW`;
+      ? t("productionSyncUnavailable")
+      : t("generatingPower", { kw: formatKw(totalProductionKw) });
   const powerLimitsDetail = isStatsLoading
-    ? "Loading power limits..."
+    ? t("loadingPowerLimits")
     : statsError
-      ? "Power limit sync unavailable"
-      : `${formatKw(totalConsumptionKw)} kW active`;
+      ? t("powerLimitSyncUnavailable")
+      : t("activePower", { kw: formatKw(totalConsumptionKw) });
   const controlsDetail = isControlsLoading
-    ? "Loading controls..."
+    ? t("loadingControls")
     : controlsError
-      ? "Control sync unavailable"
-      : `${controlsCount} Controls configured`;
+      ? t("controlSyncUnavailable")
+      : t("controlsConfigured", { count: controlsCount });
   const tiles = [
-    { title: "Devices", detail: deviceTileDetail, to: "/devices", icon: "D" },
-    { title: "Controls", detail: controlsDetail, to: "/controls", icon: "C" },
-    { title: "Weather Controls", detail: "Weather threshold automation", to: "/weather-controls", icon: "W" },
-    { title: "Own Production", detail: ownProductionDetail, to: "/production-sources", icon: "P" },
-    { title: "Power Limits", detail: powerLimitsDetail, to: "/power-limits", icon: "L" }
+    { key: "devices", title: tileTitles.devices, detail: deviceTileDetail, to: "/devices", icon: "D", hasError: Boolean(error) },
+    { key: "controls", title: tileTitles.controls, detail: controlsDetail, to: "/controls", icon: "C", hasError: Boolean(controlsError) },
+    { key: "weatherControls", title: tileTitles.weatherControls, detail: t("weatherThresholdAutomation"), to: "/weather-controls", icon: "W", hasError: false },
+    { key: "ownProduction", title: tileTitles.ownProduction, detail: ownProductionDetail, to: "/production-sources", icon: "P", hasError: Boolean(statsError) },
+    { key: "powerLimits", title: tileTitles.powerLimits, detail: powerLimitsDetail, to: "/power-limits", icon: "L", hasError: Boolean(statsError) }
   ];
   const productionRatio = totalProductionPeakKw > 0 ? Math.min(totalProductionKw / totalProductionPeakKw, 1) : 0;
   const productionBarWidth = `${Math.max(productionRatio * 100, 6)}%`;
@@ -67,16 +70,16 @@ export default function MainMenuView() {
   const productionLabel = isStatsLoading ? "--" : formatKw(totalProductionKw, true);
   const netPowerKw = totalProductionKw - totalConsumptionKw;
   const summaryText = (isLoading && isStatsLoading)
-    ? "Loading your current device status and live power data."
+    ? t("summaryLoading")
     : (error && statsError)
-      ? "Live dashboard data is currently unavailable. Check the local API connection and token configuration."
+      ? t("summaryUnavailable")
       : statsError
-        ? `Device inventory shows ${onlineCount} of ${totalCount} devices online. Live power stats are currently unavailable.`
+        ? t("summaryStatsUnavailable", { onlineCount, totalCount })
         : error
-          ? `${formatKw(totalConsumptionKw)} kW is currently managed across your power limits, with ${formatKw(totalProductionKw)} kW of production available right now.`
+          ? t("summaryDevicesUnavailable", { consumptionKw: formatKw(totalConsumptionKw), productionKw: formatKw(totalProductionKw) })
           : netPowerKw >= 0
-            ? `${onlineCount} of ${totalCount} devices are online. Solar production is ahead by ${formatKw(netPowerKw)} kW against ${formatKw(totalConsumptionKw)} kW of current consumption.`
-            : `${onlineCount} of ${totalCount} devices are online. Current consumption is ${formatKw(totalConsumptionKw)} kW, which is ${formatKw(Math.abs(netPowerKw))} kW above solar production.`;
+            ? t("summaryProductionAhead", { onlineCount, totalCount, netKw: formatKw(netPowerKw), consumptionKw: formatKw(totalConsumptionKw) })
+            : t("summaryConsumptionAhead", { onlineCount, totalCount, consumptionKw: formatKw(totalConsumptionKw), netKw: formatKw(Math.abs(netPowerKw)) });
   const handleLogout = () => {
     if (session.source === "android") {
       logoutNative();
@@ -90,7 +93,7 @@ export default function MainMenuView() {
   return (
     <>
       <PageHeader
-        brand="Energy Controller"
+        brand={t("brand")}
         translucent
         rightSlot={(
           <button
@@ -98,7 +101,7 @@ export default function MainMenuView() {
             onClick={handleLogout}
             type="button"
           >
-            Log Out
+            {t("logout")}
           </button>
         )}
       />
@@ -107,10 +110,10 @@ export default function MainMenuView() {
         <section className="mb-12">
           <div className="grid grid-cols-1 items-end gap-8 lg:grid-cols-12">
             <div className="lg:col-span-7">
-              <span className="mb-3 block text-xs font-bold uppercase tracking-widest text-primary">Live Dashboard</span>
+              <span className="mb-3 block text-xs font-bold uppercase tracking-widest text-primary">{t("liveDashboard")}</span>
               <h1 className="mb-6 font-headline text-4xl font-extrabold leading-none tracking-tight text-on-surface sm:text-5xl md:text-7xl">
-                System <br />
-                <span className="text-primary-container">Optimized.</span>
+                {t("headlineTop")} <br />
+                <span className="text-primary-container">{t("headlineHighlight")}</span>
               </h1>
               <p className="max-w-md text-lg leading-relaxed text-on-surface-variant">
                 {summaryText}
@@ -122,7 +125,7 @@ export default function MainMenuView() {
                 <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-secondary-container opacity-10 blur-3xl transition-transform duration-500 group-hover:scale-125" />
                 <div className="mb-10 flex items-start justify-between">
                   <div>
-                    <p className="mb-1 text-sm font-semibold uppercase tracking-wider text-primary-fixed">Total Consumption</p>
+                    <p className="mb-1 text-sm font-semibold uppercase tracking-wider text-primary-fixed">{t("totalConsumption")}</p>
                     <div className="flex items-baseline gap-2">
                       <span className="font-headline text-5xl font-extrabold">{consumptionLabel}</span>
                       <span className="text-xl font-medium opacity-80">kW</span>
@@ -132,7 +135,7 @@ export default function MainMenuView() {
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="opacity-70">Solar Production</span>
+                    <span className="opacity-70">{t("solarProduction")}</span>
                     <span className="font-bold text-secondary-container">{productionLabel} kW</span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/30">
@@ -141,7 +144,7 @@ export default function MainMenuView() {
                       style={{ width: productionBarWidth }}
                     />
                   </div>
-                  {statsError ? <p className="text-xs text-primary-fixed">Stats sync unavailable.</p> : null}
+                  {statsError ? <p className="text-xs text-primary-fixed">{t("statsSyncUnavailable")}</p> : null}
                 </div>
               </div>
             </div>
@@ -151,12 +154,12 @@ export default function MainMenuView() {
         <section className="mb-12">
           <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold">
             <span className="h-1 w-8 rounded-full bg-primary" />
-            Control Center
+            {t("controlCenter")}
           </h2>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
             {tiles.map((tile) => (
               <Link
-                key={tile.title}
+                key={tile.key}
                 className="group relative overflow-hidden rounded-xl bg-surface-container-low p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98]"
                 to={tile.to}
               >
@@ -172,7 +175,7 @@ export default function MainMenuView() {
                     <h3 className="text-xl font-bold transition-colors duration-300 group-hover:text-primary">{tile.title}</h3>
                     <p
                       className={`text-sm ${
-                        (tile.title === "Devices" && error) || ((tile.title === "Own Production" || tile.title === "Power Limits") && statsError) || (tile.title === "Controls" && controlsError)
+                        tile.hasError
                           ? "text-on-error-container"
                           : "text-on-surface-variant"
                       }`}
@@ -189,7 +192,7 @@ export default function MainMenuView() {
         <section className="mb-12">
           <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold">
             <span className="h-1 w-8 rounded-full bg-primary" />
-            Market Watch
+            {t("marketWatch")}
           </h2>
           <NordpoolTodayChartCard />
         </section>

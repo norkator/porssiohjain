@@ -1,0 +1,52 @@
+{
+  "login": {
+    "brand": "Energy Controller",
+    "title": "Login",
+    "uuidLabel": "UUID",
+    "secretLabel": "Secret",
+    "loginFailed": "Login failed: {error}",
+    "genericLoginFailed": "Login failed.",
+    "loggingIn": "Logging in...",
+    "login": "Login",
+    "useDemoAccount": "Use demo account",
+    "createAccount": "Create account"
+  },
+  "mainMenu": {
+    "brand": "Energy Controller",
+    "logout": "Log Out",
+    "liveDashboard": "Live Dashboard",
+    "headlineTop": "System",
+    "headlineHighlight": "Optimized.",
+    "totalConsumption": "Total Consumption",
+    "solarProduction": "Solar Production",
+    "statsSyncUnavailable": "Stats sync unavailable.",
+    "controlCenter": "Control Center",
+    "marketWatch": "Market Watch",
+    "loadingDevices": "Loading devices...",
+    "deviceSyncUnavailable": "Device sync unavailable",
+    "deviceCounts": "{totalCount} Active • {onlineCount} Online",
+    "loadingProduction": "Loading production...",
+    "productionSyncUnavailable": "Production sync unavailable",
+    "generatingPower": "Generating {kw} kW",
+    "loadingPowerLimits": "Loading power limits...",
+    "powerLimitSyncUnavailable": "Power limit sync unavailable",
+    "activePower": "{kw} kW active",
+    "loadingControls": "Loading controls...",
+    "controlSyncUnavailable": "Control sync unavailable",
+    "controlsConfigured": "{count} Controls configured",
+    "weatherThresholdAutomation": "Weather threshold automation",
+    "summaryLoading": "Loading your current device status and live power data.",
+    "summaryUnavailable": "Live dashboard data is currently unavailable. Check the local API connection and token configuration.",
+    "summaryStatsUnavailable": "Device inventory shows {onlineCount} of {totalCount} devices online. Live power stats are currently unavailable.",
+    "summaryDevicesUnavailable": "{consumptionKw} kW is currently managed across your power limits, with {productionKw} kW of production available right now.",
+    "summaryProductionAhead": "{onlineCount} of {totalCount} devices are online. Solar production is ahead by {netKw} kW against {consumptionKw} kW of current consumption.",
+    "summaryConsumptionAhead": "{onlineCount} of {totalCount} devices are online. Current consumption is {consumptionKw} kW, which is {netKw} kW above solar production.",
+    "tileTitles": {
+      "devices": "Devices",
+      "controls": "Controls",
+      "weatherControls": "Weather Controls",
+      "ownProduction": "Own Production",
+      "powerLimits": "Power Limits"
+    }
+  }
+}
