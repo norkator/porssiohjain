@@ -78,6 +78,27 @@ export type ControlDeviceLinkPayload = {
   estimatedPowerKw: number | null;
 };
 
+export type ControlHeatPumpLink = {
+  id: number;
+  controlId: number;
+  deviceId: number;
+  stateHex: string;
+  controlAction: "TURN_ON" | "TURN_OFF" | "SET_TEMPERATURE" | "SET_MODE";
+  comparisonType: "GREATER_THAN" | "LESS_THAN" | null;
+  priceLimit: number | null;
+  estimatedPowerKw: number | null;
+  device: Pick<ApiDevice, "createdAt" | "deviceName" | "deviceType" | "id" | "lastCommunication" | "updatedAt" | "uuid">;
+};
+
+export type ControlHeatPumpLinkPayload = {
+  deviceId: number;
+  stateHex: string;
+  controlAction: "TURN_ON" | "TURN_OFF" | "SET_TEMPERATURE" | "SET_MODE";
+  comparisonType: "GREATER_THAN" | "LESS_THAN" | null;
+  priceLimit: number | null;
+  estimatedPowerKw: number | null;
+};
+
 export type ControlNotification = {
   id: number;
   controlId: number;
@@ -180,6 +201,26 @@ export async function addControlDeviceLink(controlId: number, payload: ControlDe
   return response.json() as Promise<ControlDeviceLink>;
 }
 
+export async function fetchControlHeatPumpLinks(controlId: number) {
+  return apiGetJson<ControlHeatPumpLink[]>(`/api/controls/${controlId}/links/heat-pumps`);
+}
+
+export async function addControlHeatPumpLink(controlId: number, payload: ControlHeatPumpLinkPayload) {
+  const response = await apiFetch(`/api/controls/${controlId}/links/heat-pumps`, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<ControlHeatPumpLink>;
+}
+
 export async function fetchControlNotifications(controlId: number) {
   return apiGetJson<ControlNotification[]>(`/api/controls/${controlId}/notifications`);
 }
@@ -228,6 +269,16 @@ export async function deleteControlNotification(controlId: number, notificationI
 
 export async function deleteControlDeviceLink(linkId: number) {
   const response = await apiFetch(`/control/delete/device/${linkId}`, {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+}
+
+export async function deleteControlHeatPumpLink(linkId: number) {
+  const response = await apiFetch(`/api/controls/links/heat-pumps/${linkId}`, {
     method: "DELETE"
   });
 

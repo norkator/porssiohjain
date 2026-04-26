@@ -16,22 +16,28 @@ import { fetchElectricityContracts, type ElectricityContract } from "@/lib/elect
 import { getAvailableTimezones } from "@/lib/add-device-flow";
 import {
   addControlDeviceLink,
+  addControlHeatPumpLink,
   CONTROL_MODES,
   deleteControl,
   deleteControlDeviceLink,
+  deleteControlHeatPumpLink,
   fetchControl,
   fetchControlDeviceLinks,
+  fetchControlHeatPumpLinks,
   formatControlDate,
   formatControlMode,
   type ApiControl,
+  type ControlHeatPumpLink,
   type ControlDeviceLink,
   type ControlMode,
   type ControlPayload,
   updateControl
 } from "@/lib/controls";
-import { fetchDevices, type ApiDevice } from "@/lib/devices";
+import { fetchDevices, fetchHeatPumpState, type ApiDevice, type AcType } from "@/lib/devices";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+
+type DeviceTab = "STANDARD" | "HEAT_PUMP" | "NOTIFICATIONS";
 
 function toInputNumber(value: number | null | undefined, fallback: string) {
   return value === null || value === undefined ? fallback : String(value);
@@ -68,8 +74,11 @@ export default function ManageControlView() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [activeDeviceTab, setActiveDeviceTab] = useState<DeviceTab>("STANDARD");
   const [deviceLinks, setDeviceLinks] = useState<ControlDeviceLink[]>([]);
   const [standardDevices, setStandardDevices] = useState<ApiDevice[]>([]);
+  const [heatPumpLinks, setHeatPumpLinks] = useState<ControlHeatPumpLink[]>([]);
+  const [heatPumpDevices, setHeatPumpDevices] = useState<ApiDevice[]>([]);
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const [linksError, setLinksError] = useState<string | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
@@ -78,12 +87,29 @@ export default function ManageControlView() {
   const [isAddingLink, setIsAddingLink] = useState(false);
   const [deleteLinkConfirmId, setDeleteLinkConfirmId] = useState<number | null>(null);
   const [isDeletingLinkId, setIsDeletingLinkId] = useState<number | null>(null);
+  const [selectedHeatPumpDeviceId, setSelectedHeatPumpDeviceId] = useState("");
+  const [heatPumpStateHex, setHeatPumpStateHex] = useState("");
+  const [heatPumpAction, setHeatPumpAction] = useState<ControlHeatPumpLink["controlAction"]>("TURN_ON");
+  const [heatPumpComparisonType, setHeatPumpComparisonType] = useState<ControlHeatPumpLink["comparisonType"]>(null);
+  const [heatPumpPriceLimit, setHeatPumpPriceLimit] = useState("");
+  const [heatPumpEstimatedPowerKw, setHeatPumpEstimatedPowerKw] = useState("");
+  const [isAddingHeatPumpLink, setIsAddingHeatPumpLink] = useState(false);
+  const [deleteHeatPumpConfirmId, setDeleteHeatPumpConfirmId] = useState<number | null>(null);
+  const [isDeletingHeatPumpId, setIsDeletingHeatPumpId] = useState<number | null>(null);
+  const [isHeatPumpStateDialogOpen, setIsHeatPumpStateDialogOpen] = useState(false);
+  const [isLoadingHeatPumpState, setIsLoadingHeatPumpState] = useState(false);
+  const [heatPumpStateDialogValue, setHeatPumpStateDialogValue] = useState("");
+  const [heatPumpCurrentState, setHeatPumpCurrentState] = useState<string | null>(null);
+  const [heatPumpLastPolledState, setHeatPumpLastPolledState] = useState<string | null>(null);
+  const [heatPumpDialogAcType, setHeatPumpDialogAcType] = useState<AcType>("NONE");
   const timezoneIsValid = availableTimezones.includes(timezone);
   const canSave = name.trim().length > 0 && timezoneIsValid && !control?.shared && !isSaving && !isDeleting;
   const standardLinks = deviceLinks.filter((link) => link.device.deviceType === "STANDARD");
   const linkedDeviceKeys = new Set(standardLinks.map((link) => `${link.deviceId}:${link.deviceChannel}`));
   const selectableDevices = standardDevices.filter((device) => !device.shared);
+  const selectableHeatPumpDevices = heatPumpDevices.filter((device) => !device.shared);
   const selectedDevice = selectableDevices.find((device) => device.id === Number(selectedDeviceId));
+  const selectedHeatPumpDevice = selectableHeatPumpDevices.find((device) => device.id === Number(selectedHeatPumpDeviceId));
   const channelNumber = Number(deviceChannel);
   const canAddLink =
     Boolean(selectedDevice) &&
@@ -91,6 +117,11 @@ export default function ManageControlView() {
     channelNumber >= 0 &&
     !linkedDeviceKeys.has(`${selectedDevice?.id}:${channelNumber}`) &&
     !isAddingLink &&
+    !control?.shared;
+  const canAddHeatPumpLink =
+    Boolean(selectedHeatPumpDevice) &&
+    heatPumpStateHex.trim().length > 0 &&
+    !isAddingHeatPumpLink &&
     !control?.shared;
 
   useEffect(() => {
@@ -169,8 +200,9 @@ export default function ManageControlView() {
       setLinksError(null);
 
       try {
-        const [linksResponse, devicesResponse] = await Promise.all([
+        const [linksResponse, heatPumpLinksResponse, devicesResponse] = await Promise.all([
           fetchControlDeviceLinks(controlId),
+          fetchControlHeatPumpLinks(controlId),
           fetchDevices()
         ]);
 
@@ -179,7 +211,9 @@ export default function ManageControlView() {
         }
 
         setDeviceLinks(linksResponse);
+        setHeatPumpLinks(heatPumpLinksResponse);
         setStandardDevices(devicesResponse.filter((device) => device.deviceType === "STANDARD"));
+        setHeatPumpDevices(devicesResponse.filter((device) => device.deviceType === "HEAT_PUMP"));
         setIsLoadingLinks(false);
       } catch (error) {
         if (!isActive) {
@@ -295,6 +329,88 @@ export default function ManageControlView() {
       setLinksError(error instanceof Error ? error.message : "Failed to remove linked device");
     } finally {
       setIsDeletingLinkId((current) => (current === linkId ? null : current));
+    }
+  };
+
+  const loadHeatPumpStateForDialog = async (deviceId: number) => {
+    setIsLoadingHeatPumpState(true);
+    setLinksError(null);
+
+    try {
+      const response = await fetchHeatPumpState(deviceId);
+      const bestState = response.currentState || response.lastPolledState || "";
+      setHeatPumpDialogAcType(response.acType);
+      setHeatPumpCurrentState(response.currentState);
+      setHeatPumpLastPolledState(response.lastPolledState);
+      setHeatPumpStateDialogValue(bestState || heatPumpStateHex);
+    } catch (error) {
+      setLinksError(error instanceof Error ? error.message : "Failed to load heat pump state");
+      setHeatPumpCurrentState(null);
+      setHeatPumpLastPolledState(null);
+      setHeatPumpDialogAcType("NONE");
+      setHeatPumpStateDialogValue(heatPumpStateHex);
+    } finally {
+      setIsLoadingHeatPumpState(false);
+    }
+  };
+
+  const handleOpenHeatPumpStateDialog = async () => {
+    const deviceId = Number(selectedHeatPumpDeviceId);
+    if (!Number.isFinite(deviceId)) {
+      return;
+    }
+
+    setIsHeatPumpStateDialogOpen(true);
+    setHeatPumpStateDialogValue(heatPumpStateHex);
+    await loadHeatPumpStateForDialog(deviceId);
+  };
+
+  const handleAddHeatPumpLink = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!selectedHeatPumpDevice || !canAddHeatPumpLink) {
+      return;
+    }
+
+    setIsAddingHeatPumpLink(true);
+    setLinksError(null);
+
+    try {
+      await addControlHeatPumpLink(controlId, {
+        comparisonType: heatPumpComparisonType,
+        controlAction: heatPumpAction,
+        deviceId: selectedHeatPumpDevice.id,
+        estimatedPowerKw: heatPumpEstimatedPowerKw === "" ? null : Math.max(0, toNumber(heatPumpEstimatedPowerKw)),
+        priceLimit: heatPumpPriceLimit === "" ? null : toNumber(heatPumpPriceLimit),
+        stateHex: heatPumpStateHex.trim()
+      });
+
+      setHeatPumpLinks(await fetchControlHeatPumpLinks(controlId));
+      setSelectedHeatPumpDeviceId("");
+      setHeatPumpStateHex("");
+      setHeatPumpAction("TURN_ON");
+      setHeatPumpComparisonType(null);
+      setHeatPumpPriceLimit("");
+      setHeatPumpEstimatedPowerKw("");
+    } catch (error) {
+      setLinksError(error instanceof Error ? error.message : "Failed to link heat pump");
+    } finally {
+      setIsAddingHeatPumpLink(false);
+    }
+  };
+
+  const handleDeleteHeatPumpLink = async (linkId: number) => {
+    setLinksError(null);
+    setIsDeletingHeatPumpId(linkId);
+
+    try {
+      await deleteControlHeatPumpLink(linkId);
+      setHeatPumpLinks((current) => current.filter((link) => link.id !== linkId));
+      setDeleteHeatPumpConfirmId((current) => (current === linkId ? null : current));
+    } catch (error) {
+      setLinksError(error instanceof Error ? error.message : "Failed to remove linked heat pump");
+    } finally {
+      setIsDeletingHeatPumpId((current) => (current === linkId ? null : current));
     }
   };
 
@@ -514,15 +630,41 @@ export default function ManageControlView() {
                   <p className="metric-label mb-2">Updated</p>
                   <p className="font-semibold text-on-surface">{formatControlDate(control?.updatedAt, timezone)}</p>
                 </div>
-                <section className="app-card p-6">
-                  <div className="mb-5 flex items-start justify-between gap-4">
-                    <div>
-                      <p className="metric-label mb-2">Standard Devices</p>
-                      <h2 className="font-headline text-xl font-bold text-on-surface">Linked Devices</h2>
-                    </div>
-                    <span className="chip bg-surface-container-highest text-primary-container">{standardLinks.length}</span>
-                  </div>
+              </aside>
+            </div>
 
+            <section className="app-card p-6">
+              <div className="mb-5 flex items-center justify-between">
+                <h2 className="font-headline text-xl font-bold text-on-surface">Control Links</h2>
+                <span className="chip bg-surface-container-highest text-primary-container">{standardLinks.length + heatPumpLinks.length}</span>
+              </div>
+
+              <div className="mb-6 flex flex-wrap gap-2 rounded-2xl bg-surface-container p-2">
+                <button
+                  className={activeDeviceTab === "STANDARD" ? "primary-action px-4 py-3 text-sm" : "secondary-action px-4 py-3 text-sm"}
+                  onClick={() => setActiveDeviceTab("STANDARD")}
+                  type="button"
+                >
+                  Standard
+                </button>
+                <button
+                  className={activeDeviceTab === "HEAT_PUMP" ? "primary-action px-4 py-3 text-sm" : "secondary-action px-4 py-3 text-sm"}
+                  onClick={() => setActiveDeviceTab("HEAT_PUMP")}
+                  type="button"
+                >
+                  Heat Pump
+                </button>
+                <button
+                  className={activeDeviceTab === "NOTIFICATIONS" ? "primary-action px-4 py-3 text-sm" : "secondary-action px-4 py-3 text-sm"}
+                  onClick={() => setActiveDeviceTab("NOTIFICATIONS")}
+                  type="button"
+                >
+                  Control Notifications
+                </button>
+              </div>
+
+              {activeDeviceTab === "STANDARD" ? (
+                <>
                   {isLoadingLinks ? (
                     <p className="text-sm text-on-surface-variant">Loading linked devices...</p>
                   ) : null}
@@ -650,22 +792,202 @@ export default function ManageControlView() {
                       </button>
                     </form>
                   ) : null}
+                </>
+              ) : null}
 
-                  {linksError ? (
-                    <div className="mt-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">
-                      {linksError}
-                    </div>
+              {activeDeviceTab === "HEAT_PUMP" ? (
+                <>
+                  {isLoadingLinks ? (
+                    <p className="text-sm text-on-surface-variant">Loading heat pump links...</p>
                   ) : null}
-                </section>
-              </aside>
-            </div>
 
-            <section>
-              <ControlPriceChartCard controlId={controlId} />
+                  {!isLoadingLinks && heatPumpLinks.length === 0 ? (
+                    <p className="text-sm text-on-surface-variant">No heat pump devices linked to this control yet.</p>
+                  ) : null}
+
+                  <div className="space-y-3">
+                    {heatPumpLinks.map((link) => (
+                      <div className="rounded-xl bg-surface-container p-4" key={link.id}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-headline font-bold text-on-surface">{link.device.deviceName}</p>
+                            <p className="text-sm text-on-surface-variant">
+                              {link.controlAction.replace(/_/g, " ")} {link.comparisonType ? `${link.comparisonType.replace(/_/g, " ")} ${link.priceLimit ?? "-"}` : ""}
+                            </p>
+                          </div>
+                          {!control?.shared ? (
+                            deleteHeatPumpConfirmId === link.id ? (
+                              <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
+                                <div>
+                                  <p className="font-headline text-sm font-bold text-on-error-container">Confirm removal</p>
+                                  <p className="text-xs text-on-error-container">This unlinks the heat pump from this control.</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <button
+                                    className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                                    disabled={isDeletingHeatPumpId === link.id}
+                                    onClick={() => handleDeleteHeatPumpLink(link.id)}
+                                    type="button"
+                                  >
+                                    {isDeletingHeatPumpId === link.id ? "Removing..." : "Confirm"}
+                                  </button>
+                                  <button
+                                    className="secondary-action justify-center px-3 py-2 text-xs"
+                                    disabled={isDeletingHeatPumpId === link.id}
+                                    onClick={() => setDeleteHeatPumpConfirmId(null)}
+                                    type="button"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
+                                onClick={() => setDeleteHeatPumpConfirmId(link.id)}
+                                type="button"
+                              >
+                                Remove
+                              </button>
+                            )
+                          ) : null}
+                        </div>
+                        <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
+                          <div>
+                            <span className="metric-label">Price Limit</span>
+                            <p className="font-semibold text-on-surface">{link.priceLimit ?? "-"}</p>
+                          </div>
+                          <div>
+                            <span className="metric-label">Estimated kW</span>
+                            <p className="font-semibold text-on-surface">{link.estimatedPowerKw ?? "-"}</p>
+                          </div>
+                          <div>
+                            <span className="metric-label">State</span>
+                            <p className="line-clamp-3 whitespace-pre-wrap break-all rounded-lg bg-surface-container-highest p-3 font-mono text-xs text-on-surface">{link.stateHex}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {!control?.shared ? (
+                    <form className="mt-6 space-y-4 border-t border-outline-variant/50 pt-6" onSubmit={handleAddHeatPumpLink}>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-device">
+                            Device
+                          </label>
+                          <select
+                            className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                            id="heat-pump-device"
+                            onChange={(event) => setSelectedHeatPumpDeviceId(event.target.value)}
+                            value={selectedHeatPumpDeviceId}
+                          >
+                            <option value="">Select heat pump device</option>
+                            {selectableHeatPumpDevices.map((device) => (
+                              <option key={device.id} value={device.id}>{device.deviceName}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <button className="secondary-action justify-center self-end disabled:cursor-not-allowed disabled:opacity-60" disabled={!selectedHeatPumpDeviceId} onClick={handleOpenHeatPumpStateDialog} type="button">
+                          Query / Edit State
+                        </button>
+                        <div>
+                          <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-action">
+                            Action
+                          </label>
+                          <select
+                            className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                            id="heat-pump-action"
+                            onChange={(event) => setHeatPumpAction(event.target.value as ControlHeatPumpLink["controlAction"])}
+                            value={heatPumpAction}
+                          >
+                            <option value="TURN_ON">Turn On</option>
+                            <option value="TURN_OFF">Turn Off</option>
+                            <option value="SET_TEMPERATURE">Set Temperature</option>
+                            <option value="SET_MODE">Set Mode</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-comparison">
+                            Comparison
+                          </label>
+                          <select
+                            className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                            id="heat-pump-comparison"
+                            onChange={(event) => setHeatPumpComparisonType(event.target.value === "" ? null : event.target.value as ControlHeatPumpLink["comparisonType"])}
+                            value={heatPumpComparisonType ?? ""}
+                          >
+                            <option value="">No comparison</option>
+                            <option value="GREATER_THAN">Greater Than</option>
+                            <option value="LESS_THAN">Less Than</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-price-limit">
+                            Price Limit
+                          </label>
+                          <input
+                            className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                            id="heat-pump-price-limit"
+                            onChange={(event) => setHeatPumpPriceLimit(event.target.value)}
+                            placeholder="Optional"
+                            step="0.1"
+                            type="number"
+                            value={heatPumpPriceLimit}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-estimated-power">
+                            Est. kW
+                          </label>
+                          <input
+                            className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                            id="heat-pump-estimated-power"
+                            min="0"
+                            onChange={(event) => setHeatPumpEstimatedPowerKw(event.target.value)}
+                            placeholder="Optional"
+                            step="0.1"
+                            type="number"
+                            value={heatPumpEstimatedPowerKw}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-state">
+                          State
+                        </label>
+                        <textarea
+                          className="min-h-40 w-full rounded-xl bg-surface-container-highest px-4 py-3 font-mono text-xs text-on-surface outline-none"
+                          id="heat-pump-state"
+                          onChange={(event) => setHeatPumpStateHex(event.target.value)}
+                          placeholder="State will be loaded here. You can also paste or edit it manually."
+                          value={heatPumpStateHex}
+                        />
+                      </div>
+
+                      <button className="secondary-action w-full justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canAddHeatPumpLink} type="submit">
+                        {isAddingHeatPumpLink ? "Linking..." : "Link Heat Pump Device"}
+                      </button>
+                    </form>
+                  ) : null}
+                </>
+              ) : null}
+
+              {activeDeviceTab === "NOTIFICATIONS" ? (
+                <ControlNotificationsCard controlId={controlId} isReadOnly={Boolean(control?.shared)} timezone={timezone} />
+              ) : null}
+
+              {linksError ? (
+                <div className="mt-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">
+                  {linksError}
+                </div>
+              ) : null}
             </section>
 
             <section>
-              <ControlNotificationsCard controlId={controlId} isReadOnly={Boolean(control?.shared)} timezone={timezone} />
+              <ControlPriceChartCard controlId={controlId} />
             </section>
 
             {!control?.shared ? (
@@ -710,6 +1032,77 @@ export default function ManageControlView() {
           </div>
         ) : null}
       </main>
+
+      {isHeatPumpStateDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-4xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="metric-label mb-2">Heat Pump State</p>
+                <h2 className="font-headline text-2xl font-bold text-primary">Select Command State</h2>
+              </div>
+              <button className="secondary-action px-3 py-2 text-sm" onClick={() => setIsHeatPumpStateDialogOpen(false)} type="button">Close</button>
+            </div>
+
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button
+                className="secondary-action px-4 py-3 text-sm disabled:opacity-60"
+                disabled={!selectedHeatPumpDeviceId || isLoadingHeatPumpState}
+                onClick={() => loadHeatPumpStateForDialog(Number(selectedHeatPumpDeviceId))}
+                type="button"
+              >
+                {isLoadingHeatPumpState ? "Loading..." : "Refresh Current State"}
+              </button>
+              <button
+                className="secondary-action px-4 py-3 text-sm disabled:opacity-60"
+                disabled={!heatPumpCurrentState}
+                onClick={() => setHeatPumpStateDialogValue(heatPumpCurrentState ?? "")}
+                type="button"
+              >
+                Use Current
+              </button>
+              <button
+                className="secondary-action px-4 py-3 text-sm disabled:opacity-60"
+                disabled={!heatPumpLastPolledState}
+                onClick={() => setHeatPumpStateDialogValue(heatPumpLastPolledState ?? "")}
+                type="button"
+              >
+                Use Last Polled
+              </button>
+            </div>
+
+            <div className="mb-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl bg-surface-container p-4">
+                <span className="metric-label">AC Type</span>
+                <p className="mt-2 font-semibold">{heatPumpDialogAcType.toLowerCase().replace(/_/g, " ").replace(/^\w/, (char) => char.toUpperCase())}</p>
+              </div>
+              <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">
+                Toshiba devices use hex state. Mitsubishi devices use JSON state. You can edit the fetched value before saving it to the link.
+              </div>
+            </div>
+
+            <textarea
+              className="min-h-72 w-full rounded-xl bg-surface-container px-4 py-3 font-mono text-xs outline-none"
+              onChange={(event) => setHeatPumpStateDialogValue(event.target.value)}
+              value={heatPumpStateDialogValue}
+            />
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                className="primary-action justify-center"
+                onClick={() => {
+                  setHeatPumpStateHex(heatPumpStateDialogValue.trim());
+                  setIsHeatPumpStateDialogOpen(false);
+                }}
+                type="button"
+              >
+                Save State
+              </button>
+              <button className="secondary-action justify-center" onClick={() => setIsHeatPumpStateDialogOpen(false)} type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

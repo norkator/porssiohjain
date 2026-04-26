@@ -14,6 +14,8 @@ package com.nitramite.porssiohjain.contollers;
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.entity.ControlEntity;
+import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.services.ControlChartService;
 import com.nitramite.porssiohjain.services.ControlNotificationService;
 import com.nitramite.porssiohjain.services.ControlService;
@@ -21,6 +23,7 @@ import com.nitramite.porssiohjain.services.models.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -124,6 +127,37 @@ public class ControlsController {
         );
     }
 
+    @GetMapping("/{controlId}/links/heat-pumps")
+    public List<ControlHeatPumpResponse> getControlHeatPumpLinks(
+            @PathVariable Long controlId
+    ) {
+        return controlService.getControlHeatPumps(authContext.getAccountId(), controlId);
+    }
+
+    @PostMapping("/{controlId}/links/heat-pumps")
+    public ControlHeatPumpResponse addHeatPumpLink(
+            @PathVariable Long controlId,
+            @RequestBody ControlHeatPumpLinkRequest request
+    ) {
+        return controlService.addHeatPumpToControl(
+                authContext.getAccountId(),
+                controlId,
+                request.deviceId(),
+                request.stateHex(),
+                request.controlAction(),
+                request.comparisonType(),
+                request.priceLimit(),
+                request.estimatedPowerKw()
+        );
+    }
+
+    @DeleteMapping("/links/heat-pumps/{linkId}")
+    public void deleteHeatPumpLink(
+            @PathVariable Long linkId
+    ) {
+        controlService.deleteControlHeatPump(authContext.getAccountId(), linkId);
+    }
+
     @GetMapping("/{controlId}/notifications")
     public List<ControlNotificationResponse> getControlNotifications(
             @PathVariable Long controlId
@@ -176,5 +210,15 @@ public class ControlsController {
             @PathVariable Long notificationId
     ) {
         controlNotificationService.deleteControlNotification(authContext.getAccountId(), controlId, notificationId);
+    }
+
+    public record ControlHeatPumpLinkRequest(
+            Long deviceId,
+            String stateHex,
+            ControlAction controlAction,
+            ComparisonType comparisonType,
+            BigDecimal priceLimit,
+            BigDecimal estimatedPowerKw
+    ) {
     }
 }
