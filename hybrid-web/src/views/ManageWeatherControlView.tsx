@@ -419,7 +419,7 @@ export default function ManageWeatherControlView() {
 
   return (
     <>
-      <PageHeader title="Manage Weather Control" compact />
+      <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">Menu</Link>} title="Manage Weather Control" compact />
       <main className="app-page pb-8 pt-4 sm:py-8">
         {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">Loading weather control...</div> : null}
         {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}

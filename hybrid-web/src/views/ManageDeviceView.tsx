@@ -245,7 +245,7 @@ export default function ManageDeviceView() {
 
   return (
     <>
-      <PageHeader title="Manage Device" compact />
+      <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">Menu</Link>} title="Manage Device" compact />
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         {isLoading ? (

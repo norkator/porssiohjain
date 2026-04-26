@@ -300,7 +300,7 @@ export default function ManageControlView() {
 
   return (
     <>
-      <PageHeader title="Manage Control" compact />
+      <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">Menu</Link>} title="Manage Control" compact />
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         {isLoading ? (
@@ -657,45 +657,6 @@ export default function ManageControlView() {
                     </div>
                   ) : null}
                 </section>
-                {!control?.shared ? (
-                  <div className="app-card border-error-container bg-error-container/40 p-6">
-                    {!deleteConfirmOpen ? (
-                      <button
-                        className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={isDeleting || isSaving}
-                        onClick={() => setDeleteConfirmOpen(true)}
-                        type="button"
-                      >
-                        Delete Control
-                      </button>
-                    ) : (
-                      <div className="space-y-4">
-                        <div>
-                          <p className="font-headline text-lg font-bold text-on-error-container">Confirm deletion</p>
-                          <p className="text-sm text-on-error-container">This removes the control and its linked device rules.</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <button
-                            className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled={isDeleting || isSaving}
-                            onClick={handleDelete}
-                            type="button"
-                          >
-                            {isDeleting ? "Deleting..." : "Confirm"}
-                          </button>
-                          <button
-                            className="secondary-action justify-center"
-                            disabled={isDeleting}
-                            onClick={() => setDeleteConfirmOpen(false)}
-                            type="button"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : null}
               </aside>
             </div>
 
@@ -706,6 +667,46 @@ export default function ManageControlView() {
             <section>
               <ControlNotificationsCard controlId={controlId} isReadOnly={Boolean(control?.shared)} timezone={timezone} />
             </section>
+
+            {!control?.shared ? (
+              <section className="app-card border-error-container bg-error-container/40 p-6">
+                {!deleteConfirmOpen ? (
+                  <button
+                    className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDeleting || isSaving}
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    type="button"
+                  >
+                    Delete Control
+                  </button>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="font-headline text-lg font-bold text-on-error-container">Confirm deletion</p>
+                      <p className="text-sm text-on-error-container">This removes the control and its linked device rules.</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDeleting || isSaving}
+                        onClick={handleDelete}
+                        type="button"
+                      >
+                        {isDeleting ? "Deleting..." : "Confirm"}
+                      </button>
+                      <button
+                        className="secondary-action justify-center"
+                        disabled={isDeleting}
+                        onClick={() => setDeleteConfirmOpen(false)}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            ) : null}
           </div>
         ) : null}
       </main>
