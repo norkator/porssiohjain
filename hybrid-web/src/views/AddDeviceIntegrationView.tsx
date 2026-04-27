@@ -13,10 +13,13 @@ import PageHeader from "@/components/PageHeader";
 import ProgressHeader from "@/components/ProgressHeader";
 import { clearAddDeviceDraft, clearProvisionedDeviceDraft, getDeviceTypeOption, readAddDeviceDraft, readProvisionedDeviceDraft } from "@/lib/add-device-flow";
 import { showNativeToast } from "@/lib/android-bridge";
+import { useI18n } from "@/lib/i18n";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
 export default function AddDeviceIntegrationView() {
   const navigate = useNavigate();
+  const { t } = useI18n("addDeviceIntegration");
+  const common = useI18n("common").t;
   const draft = readAddDeviceDraft();
   const provisionedDevice = readProvisionedDeviceDraft();
   const deviceType = getDeviceTypeOption(draft.deviceTypeId);
@@ -28,7 +31,7 @@ export default function AddDeviceIntegrationView() {
   const handleFinish = () => {
     clearAddDeviceDraft();
     clearProvisionedDeviceDraft();
-    showNativeToast("Device setup completed");
+    showNativeToast(t("successToast"));
     navigate("/devices");
   };
 
@@ -40,38 +43,38 @@ export default function AddDeviceIntegrationView() {
 
   return (
     <>
-      <PageHeader title="Add Device" compact />
+      <PageHeader title={t("title")} compact />
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         <section className="mb-10">
-          <ProgressHeader label="Device Integration" step={4} total={4} />
+          <ProgressHeader label={t("stepLabel")} step={4} total={4} />
         </section>
 
         <div className="grid gap-12 items-start lg:grid-cols-12">
           <div className="space-y-8 lg:col-span-7">
             <section>
               <h2 className="mb-4 font-headline text-3xl font-extrabold leading-tight text-primary md:text-5xl">
-                {deviceType.title} integration
+                {t("headline", { deviceType: deviceType.title })}
               </h2>
               <p className="max-w-2xl text-lg text-on-surface-variant">
-                Your device has been provisioned in Energy Controller. Use the returned identifier and the vendor-specific integration content below to complete the setup in the external app.
+                {t("description")}
               </p>
             </section>
 
             <div className="rounded-xl bg-surface-container-low p-6">
-              <p className="metric-label mb-2">Device Identifier</p>
+              <p className="metric-label mb-2">{t("deviceIdentifier")}</p>
               <p className="font-mono text-base font-bold tracking-wider text-primary">{provisionedDevice.uuid}</p>
             </div>
 
             <div className="rounded-xl bg-surface-container-low p-6">
-              <p className="metric-label mb-2">Setup Instructions</p>
+              <p className="metric-label mb-2">{t("setupInstructions")}</p>
               <p className="text-sm leading-relaxed text-on-surface-variant">
-                Open Shelly Smart Control, go to your configured Shelly device, add the required script, then paste the generated content below. This page is intentionally separate so other device types can later show their own post-provisioning instructions.
+                {t("instructions")}
               </p>
             </div>
 
             <div className="rounded-xl bg-surface-container-low p-6">
-              <p className="metric-label mb-2">Shelly JavaScript</p>
+              <p className="metric-label mb-2">{t("shellyJavascript")}</p>
               <div className="rounded-xl bg-surface-container-highest p-4">
                 <pre className="overflow-x-auto whitespace-pre-wrap text-xs leading-relaxed text-on-surface">{shellyScript}</pre>
               </div>
@@ -83,10 +86,10 @@ export default function AddDeviceIntegrationView() {
                 onClick={handleFinish}
                 type="button"
               >
-                Finish Setup
+                {t("finishSetup")}
               </button>
               <Link className="mt-4 block w-full py-3 text-center text-sm font-bold text-primary/60 transition-colors hover:text-primary" to="/devices/add/review">
-                Back
+                {common("back")}
               </Link>
             </div>
           </div>

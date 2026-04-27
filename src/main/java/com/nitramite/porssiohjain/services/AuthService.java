@@ -56,6 +56,8 @@ public class AuthService {
         return LoginResponse.builder()
                 .token(token.getToken())
                 .expiresAt(token.getExpiresAt())
+                .accountId(account.getId())
+                .locale(account.getLocale())
                 .build();
     }
 

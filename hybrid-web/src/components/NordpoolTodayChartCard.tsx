@@ -10,6 +10,7 @@
  */
 
 import { useNordpoolTodayChart } from "@/hooks/useNordpoolTodayChart";
+import { useI18n } from "@/lib/i18n";
 import { formatNordpoolPrice, formatNordpoolTime } from "@/lib/nordpool";
 
 const CHART_HEIGHT = 240;
@@ -50,16 +51,17 @@ function buildAreaPath(values: number[], innerWidth: number, innerHeight: number
 }
 
 export default function NordpoolTodayChartCard() {
+  const { t } = useI18n("charts");
   const { chart, error, isLoading } = useNordpoolTodayChart();
 
   if (isLoading) {
-    return <div className="app-card p-6 text-sm text-on-surface-variant">Loading today&apos;s Nord Pool pricing...</div>;
+    return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingNordpool")}</div>;
   }
 
   if (error) {
     return (
       <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
-        Failed to load today&apos;s Nord Pool pricing. {error}
+        {t("failedNordpool", { error })}
       </div>
     );
   }
@@ -67,7 +69,7 @@ export default function NordpoolTodayChartCard() {
   if (!chart || chart.points.length === 0) {
     return (
       <div className="app-card p-6 text-sm text-on-surface-variant">
-        Today&apos;s Nord Pool pricing is not available yet.
+        {t("noNordpool")}
       </div>
     );
   }
@@ -101,23 +103,23 @@ export default function NordpoolTodayChartCard() {
         <div>
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">Nord Pool Today</p>
-              <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">15-minute price view</h3>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("nordpoolTitle")}</p>
+              <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">{t("nordpoolHeadline")}</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
-                Today&apos;s market price expanded into 15-minute points for {chart.timezone}.
+                {t("nordpoolDescription", { timezone: chart.timezone })}
               </p>
             </div>
 
             <div className="rounded-2xl bg-surface-container p-4">
-              <p className="metric-label mb-1">Current</p>
+              <p className="metric-label mb-1">{t("current")}</p>
               <p className="font-headline text-3xl font-black text-primary">{formatNordpoolPrice(chart.current)}</p>
-              <p className="text-xs text-on-surface-variant">snt/kWh incl. tax</p>
+              <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
             </div>
           </div>
 
           <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
             <svg
-              aria-label="Nord Pool price chart for today"
+              aria-label={t("nordpoolAria")}
               className="h-64 w-full"
               role="img"
               viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -195,37 +197,37 @@ export default function NordpoolTodayChartCard() {
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
             <span className="rounded-full bg-surface-container px-3 py-2">
-              Now {formatNordpoolTime(currentPoint.timestamp, chart.timezone)}
+              {t("now", { time: formatNordpoolTime(currentPoint.timestamp, chart.timezone) })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              Resolution {chart.resolutionMinutes} min
+              {t("resolution", { minutes: chart.resolutionMinutes })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              Range {formatNordpoolPrice(chart.min)} - {formatNordpoolPrice(chart.max)} snt/kWh
+              {t("range", { min: formatNordpoolPrice(chart.min), max: formatNordpoolPrice(chart.max) })}
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-2">
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">Minimum</p>
+            <p className="metric-label mb-2">{t("minimum")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.min)}</p>
-            <p className="text-xs text-on-surface-variant">snt/kWh incl. tax</p>
+            <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">Average</p>
+            <p className="metric-label mb-2">{t("average")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.avg)}</p>
-            <p className="text-xs text-on-surface-variant">snt/kWh incl. tax</p>
+            <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">Maximum</p>
+            <p className="metric-label mb-2">{t("maximum")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.max)}</p>
-            <p className="text-xs text-on-surface-variant">snt/kWh incl. tax</p>
+            <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="rounded-3xl bg-primary-container p-5 text-on-primary">
-            <p className="metric-label mb-2 text-primary-fixed">Data Points</p>
+            <p className="metric-label mb-2 text-primary-fixed">{t("dataPoints")}</p>
             <p className="font-headline text-2xl font-black">{chart.points.length}</p>
-            <p className="text-xs text-primary-fixed">Today at 15-minute intervals</p>
+            <p className="text-xs text-primary-fixed">{t("todayIntervals")}</p>
           </div>
         </div>
       </div>

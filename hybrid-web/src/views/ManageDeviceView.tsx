@@ -28,6 +28,7 @@ import {
   type HeatPumpAcDevice,
   type HeatPumpAcType
 } from "@/lib/heat-pump-devices";
+import { useI18n } from "@/lib/i18n";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
@@ -35,6 +36,10 @@ const DEVICE_TYPES: DeviceType[] = ["STANDARD", "HEAT_PUMP"];
 const AC_TYPES: AcType[] = ["NONE", "TOSHIBA", "MITSUBISHI"];
 
 export default function ManageDeviceView() {
+  const { t, group } = useI18n("manageDevice");
+  const common = useI18n("common").t;
+  const deviceTypeLabels: Record<string, string> = group("deviceTypes");
+  const acTypeLabels: Record<string, string> = group("acTypes");
   const navigate = useNavigate();
   const params = useParams();
   const deviceId = Number(params.deviceId);
@@ -118,7 +123,7 @@ export default function ManageDeviceView() {
           return;
         }
 
-        setLoadError(error instanceof Error ? error.message : "Failed to load device");
+        setLoadError(error instanceof Error ? error.message : t("failedLoad"));
         setIsLoading(false);
       }
     }
@@ -192,7 +197,7 @@ export default function ManageDeviceView() {
       setSelectableAcDevices(devices);
       setIsAcDialogOpen(true);
     } catch (error) {
-      setAcSelectionError(error instanceof Error ? error.message : "Failed to load AC devices");
+      setAcSelectionError(error instanceof Error ? error.message : t("failedLoadAcDevices"));
       setSelectableAcDevices([]);
     } finally {
       setIsLoadingAcDevices(false);
@@ -222,9 +227,9 @@ export default function ManageDeviceView() {
       const response = await updateDevice(deviceId, buildPayload());
 
       setDevice(response);
-      setSaveMessage("Device saved.");
+      setSaveMessage(t("saved"));
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Failed to save device");
+      setSaveError(error instanceof Error ? error.message : t("failedSave"));
     } finally {
       setIsSaving(false);
     }
@@ -238,23 +243,23 @@ export default function ManageDeviceView() {
       await deleteDevice(deviceId);
       navigate("/devices");
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Failed to delete device");
+      setSaveError(error instanceof Error ? error.message : t("failedDelete"));
       setIsDeleting(false);
     }
   };
 
   return (
     <>
-      <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">Menu</Link>} title="Manage Device" compact />
+      <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} title={t("title")} compact />
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         {isLoading ? (
-          <div className="app-card p-6 text-sm text-on-surface-variant">Loading device...</div>
+          <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div>
         ) : null}
 
         {!isLoading && loadError ? (
           <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
-            Failed to load device. {loadError}
+            {t("failedLoad")}. {loadError}
           </div>
         ) : null}
 
@@ -262,12 +267,12 @@ export default function ManageDeviceView() {
           <div className="grid gap-12 items-start lg:grid-cols-12">
             <section className="space-y-8 lg:col-span-8">
               <div>
-                <p className="metric-label mb-3">Device #{deviceId}</p>
+                <p className="metric-label mb-3">{t("label", { id: deviceId })}</p>
                 <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">
-                  {device?.deviceName ?? "Device"}
+                  {device?.deviceName ?? t("fallbackName")}
                 </h1>
                 <p className="max-w-xl text-lg text-on-surface-variant">
-                  Edit device identity, timezone, enabled state, and heat pump integration settings.
+                  {t("description")}
                 </p>
               </div>
 
@@ -275,7 +280,7 @@ export default function ManageDeviceView() {
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="device-name">
-                      Device Name
+                      {t("deviceName")}
                     </label>
                     <input
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
@@ -289,7 +294,7 @@ export default function ManageDeviceView() {
 
                   <div>
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="timezone">
-                      Timezone
+                      {common("timezone")}
                     </label>
                     <input
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
@@ -306,13 +311,13 @@ export default function ManageDeviceView() {
                       ))}
                     </datalist>
                     {!timezoneIsValid ? (
-                      <p className="mt-2 ml-1 text-sm text-on-error-container">Select a valid timezone from the available list.</p>
+                      <p className="mt-2 ml-1 text-sm text-on-error-container">{t("invalidTimezone")}</p>
                     ) : null}
                   </div>
 
                   <div>
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="device-type">
-                      Device Type
+                      {t("deviceType")}
                     </label>
                     <select
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
@@ -322,14 +327,14 @@ export default function ManageDeviceView() {
                       value={deviceType}
                     >
                       {DEVICE_TYPES.map((option) => (
-                        <option key={option} value={option}>{formatDeviceType(option)}</option>
+                        <option key={option} value={option}>{deviceTypeLabels[option] ?? formatDeviceType(option)}</option>
                       ))}
                     </select>
                   </div>
                 </div>
 
                 <label className="flex items-center justify-between gap-4 rounded-xl bg-surface-container p-4">
-                  <span className="font-headline text-sm font-bold text-on-surface">Enabled</span>
+                  <span className="font-headline text-sm font-bold text-on-surface">{common("enabled")}</span>
                   <input
                     checked={enabled}
                     disabled={device?.shared}
@@ -341,14 +346,14 @@ export default function ManageDeviceView() {
                 {isHeatPump ? (
                   <section className="space-y-6 border-t border-outline-variant/50 pt-8">
                     <div>
-                      <p className="metric-label mb-2">Heat Pump</p>
-                      <h2 className="font-headline text-2xl font-bold text-primary">AC Integration</h2>
+                      <p className="metric-label mb-2">{t("heatPump")}</p>
+                      <h2 className="font-headline text-2xl font-bold text-primary">{t("acIntegration")}</h2>
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2">
                       <div>
                         <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="hp-name">
-                          Heat Pump Name
+                          {t("heatPumpName")}
                         </label>
                         <input
                           className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
@@ -362,7 +367,7 @@ export default function ManageDeviceView() {
 
                       <div>
                         <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="ac-type">
-                          AC Type
+                          {t("acType")}
                         </label>
                         <select
                           className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
@@ -372,14 +377,14 @@ export default function ManageDeviceView() {
                           value={acType}
                         >
                           {AC_TYPES.map((option) => (
-                            <option key={option} value={option}>{formatAcType(option)}</option>
+                            <option key={option} value={option}>{acTypeLabels[option] ?? formatAcType(option)}</option>
                           ))}
                         </select>
                       </div>
 
                       <div>
                         <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="ac-username">
-                          App Username
+                          {t("appUsername")}
                         </label>
                         <input
                           autoComplete="username"
@@ -394,7 +399,7 @@ export default function ManageDeviceView() {
 
                       <div>
                         <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="ac-password">
-                          App Password
+                          {t("appPassword")}
                         </label>
                         <input
                           autoComplete="current-password"
@@ -410,13 +415,13 @@ export default function ManageDeviceView() {
 
                     <div className="rounded-xl bg-surface-container p-5">
                       <div className="mb-4">
-                        <p className="metric-label mb-1">Selected AC Device</p>
-                        <p className="font-headline text-lg font-bold text-on-surface">{acDeviceLabel || "No AC device selected"}</p>
+                        <p className="metric-label mb-1">{t("selectedAcDevice")}</p>
+                        <p className="font-headline text-lg font-bold text-on-surface">{acDeviceLabel || t("noAcDeviceSelected")}</p>
                         {acDeviceId ? (
-                          <p className="mt-1 font-mono text-xs text-outline">ID: {acDeviceId}</p>
+                          <p className="mt-1 font-mono text-xs text-outline">{common("id", { id: acDeviceId })}</p>
                         ) : null}
                         {buildingId ? (
-                          <p className="mt-1 font-mono text-xs text-outline">Building: {buildingId}</p>
+                          <p className="mt-1 font-mono text-xs text-outline">{t("buildingId", { id: buildingId })}</p>
                         ) : null}
                       </div>
                       {!device?.shared ? (
@@ -426,7 +431,7 @@ export default function ManageDeviceView() {
                           onClick={handleOpenAcSelection}
                           type="button"
                         >
-                          {isLoadingAcDevices ? "Loading AC Devices..." : acDeviceId ? "Change AC Device" : "Select AC Device"}
+                          {isLoadingAcDevices ? t("loadingAcDevices") : acDeviceId ? t("changeAcDevice") : t("selectAcDevice")}
                         </button>
                       ) : null}
                       {acSelectionError ? (
@@ -441,11 +446,11 @@ export default function ManageDeviceView() {
                 <div className="flex flex-col gap-4 sm:flex-row">
                   {!device?.shared ? (
                     <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canSave} type="submit">
-                      {isSaving ? "Saving..." : "Save Device"}
+                      {isSaving ? t("saving") : t("save")}
                     </button>
                   ) : null}
                   <Link className="secondary-action justify-center" to="/devices">
-                    Back
+                    {common("back")}
                   </Link>
                 </div>
 
@@ -463,19 +468,19 @@ export default function ManageDeviceView() {
 
             <aside className="space-y-6 lg:col-span-4">
               <div className="app-card p-6">
-                <p className="metric-label mb-2">Origin</p>
-                <p className="font-headline text-2xl font-bold text-on-surface">{device?.shared ? "Shared" : "Mine"}</p>
+                <p className="metric-label mb-2">{common("origin")}</p>
+                <p className="font-headline text-2xl font-bold text-on-surface">{device?.shared ? common("shared") : common("mine")}</p>
               </div>
               <div className="app-card p-6">
-                <p className="metric-label mb-2">Connection</p>
+                <p className="metric-label mb-2">{t("connection")}</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="metric-label">API</span>
-                    <p className="font-semibold text-on-surface">{device?.apiOnline ? "Online" : "Offline"}</p>
+                    <p className="font-semibold text-on-surface">{device?.apiOnline ? t("online") : t("offline")}</p>
                   </div>
                   <div>
                     <span className="metric-label">MQTT</span>
-                    <p className="font-semibold text-on-surface">{device?.mqttOnline ? "Online" : "Offline"}</p>
+                    <p className="font-semibold text-on-surface">{device?.mqttOnline ? t("online") : t("offline")}</p>
                   </div>
                 </div>
               </div>
@@ -484,7 +489,7 @@ export default function ManageDeviceView() {
                 <p className="break-all font-mono text-sm text-on-surface">{device?.uuid}</p>
               </div>
               <div className="app-card p-6">
-                <p className="metric-label mb-2">Last Seen</p>
+                <p className="metric-label mb-2">{t("lastSeen")}</p>
                 <p className="font-semibold text-on-surface">{formatDeviceLastCommunication(device?.lastCommunication ?? null)}</p>
               </div>
 
@@ -497,13 +502,13 @@ export default function ManageDeviceView() {
                       onClick={() => setDeleteConfirmOpen(true)}
                       type="button"
                     >
-                      Delete Device
+                      {t("delete")}
                     </button>
                   ) : (
                     <div className="space-y-4">
                       <div>
-                        <p className="font-headline text-lg font-bold text-on-error-container">Confirm deletion</p>
-                        <p className="text-sm text-on-error-container">This removes the device and its linked control rules.</p>
+                        <p className="font-headline text-lg font-bold text-on-error-container">{common("confirmDeletion")}</p>
+                        <p className="text-sm text-on-error-container">{t("deleteDescription")}</p>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <button
@@ -512,7 +517,7 @@ export default function ManageDeviceView() {
                           onClick={handleDelete}
                           type="button"
                         >
-                          {isDeleting ? "Deleting..." : "Confirm"}
+                          {isDeleting ? common("deleting") : common("confirm")}
                         </button>
                         <button
                           className="secondary-action justify-center"
@@ -520,7 +525,7 @@ export default function ManageDeviceView() {
                           onClick={() => setDeleteConfirmOpen(false)}
                           type="button"
                         >
-                          Cancel
+                          {common("cancel")}
                         </button>
                       </div>
                     </div>
@@ -537,11 +542,11 @@ export default function ManageDeviceView() {
           <div className="w-full max-w-2xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <p className="metric-label mb-2">AC Devices</p>
-                <h2 className="font-headline text-2xl font-bold text-primary">Select Device</h2>
+                <p className="metric-label mb-2">{t("acDevices")}</p>
+                <h2 className="font-headline text-2xl font-bold text-primary">{t("selectDevice")}</h2>
               </div>
               <button className="secondary-action px-3 py-2 text-sm" onClick={() => setIsAcDialogOpen(false)} type="button">
-                Close
+                {common("close")}
               </button>
             </div>
             <div className="max-h-[60vh] space-y-3 overflow-auto">
@@ -553,14 +558,14 @@ export default function ManageDeviceView() {
                   type="button"
                 >
                   <p className="font-headline font-bold text-on-surface">{selection.name}</p>
-                  <p className="mt-1 font-mono text-xs text-outline">ID: {selection.id}</p>
+                  <p className="mt-1 font-mono text-xs text-outline">{common("id", { id: selection.id })}</p>
                   {selection.buildingId ? (
-                    <p className="mt-1 font-mono text-xs text-outline">Building: {selection.buildingId}</p>
+                    <p className="mt-1 font-mono text-xs text-outline">{t("buildingId", { id: selection.buildingId })}</p>
                   ) : null}
                 </button>
               ))}
               {selectableAcDevices.length === 0 ? (
-                <p className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">No AC devices returned.</p>
+                <p className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">{t("noAcDevices")}</p>
               ) : null}
             </div>
           </div>

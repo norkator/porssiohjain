@@ -13,10 +13,12 @@ import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import HeaderLogo from "@/components/HeaderLogo";
 import { createAccount, type CreatedAccount } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 import { getSessionData } from "@/lib/session";
 
 export default function CreateAccountView() {
   const session = getSessionData();
+  const { t } = useI18n("createAccount");
   const [account, setAccount] = useState<CreatedAccount | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,7 +34,7 @@ export default function CreateAccountView() {
     try {
       setAccount(await createAccount());
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : "Failed to create account.");
+      setError(createError instanceof Error ? createError.message : t("genericFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -44,47 +46,45 @@ export default function CreateAccountView() {
         <div className="mb-8 flex items-center gap-4">
           <HeaderLogo />
           <div>
-            <p className="metric-label">Energy Controller</p>
-            <h1 className="font-headline text-3xl font-extrabold text-primary-container">Create Porssiohjain Account</h1>
+            <p className="metric-label">{t("brand")}</p>
+            <h1 className="font-headline text-3xl font-extrabold text-primary-container">{t("title")}</h1>
           </div>
         </div>
 
         <p className="mb-8 whitespace-pre-line text-on-surface-variant">
-          This will create a new account for you automatically.
-          {"\n"}A unique UUID and Secret will be generated.
-          {"\n"}Save them carefully. They will only be shown once.
+          {t("description")}
         </p>
 
         {account ? (
           <div className="space-y-6">
             <div className="rounded-xl border border-primary-fixed bg-primary-fixed/30 p-5">
-              <h2 className="mb-4 font-headline text-xl font-bold text-primary-container">Account Created Successfully</h2>
+              <h2 className="mb-4 font-headline text-xl font-bold text-primary-container">{t("successTitle")}</h2>
               <div className="space-y-3 break-all rounded-lg bg-surface-container-lowest p-4 font-mono text-sm">
-                <p><span className="font-bold">UUID:</span> {account.uuid}</p>
-                <p><span className="font-bold">Secret:</span> {account.secret}</p>
+                <p><span className="font-bold">{t("uuid")}</span> {account.uuid}</p>
+                <p><span className="font-bold">{t("secret")}</span> {account.secret}</p>
               </div>
               <p className="mt-4 text-sm font-semibold text-on-error-container">
-                Copy your UUID and Secret now. They will not be shown again after you leave this page.
+                {t("saveWarning")}
               </p>
             </div>
             <Link className="primary-action justify-center" to="/login">
-              Continue to login
+              {t("continueToLogin")}
             </Link>
           </div>
         ) : (
           <div className="space-y-5">
             {error ? (
               <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">
-                Failed to create account: {error}
+                {t("failed", { error })}
               </div>
             ) : null}
 
             <button className="primary-action w-full justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isSubmitting} onClick={handleCreateAccount} type="button">
-              {isSubmitting ? "Creating account..." : "Create Account"}
+              {isSubmitting ? t("creating") : t("create")}
             </button>
 
             <Link className="secondary-action justify-center" to="/login">
-              Back to Login
+              {t("backToLogin")}
             </Link>
           </div>
         )}

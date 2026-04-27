@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchProductionHistory, type ProductionHistoryPoint } from "@/lib/automation-resources";
+import { useI18n } from "@/lib/i18n";
 import { formatNordpoolTime } from "@/lib/nordpool";
 
 const CHART_HEIGHT = 300;
@@ -79,6 +80,7 @@ function getTimeLabelPoints(history: ProductionHistoryPoint[]) {
 }
 
 function useProductionHistory(sourceId: number): ChartState {
+  const { t } = useI18n("charts");
   const [state, setState] = useState<ChartState>({
     error: null,
     history: [],
@@ -106,7 +108,7 @@ function useProductionHistory(sourceId: number): ChartState {
       .catch((error: unknown) => {
         if (!isActive) return;
         setState({
-          error: error instanceof Error ? error.message : "Failed to load chart",
+          error: error instanceof Error ? error.message : t("failedLoadChart"),
           history: [],
           isLoading: false
         });
@@ -121,16 +123,17 @@ function useProductionHistory(sourceId: number): ChartState {
 }
 
 export default function ProductionHistoryChartCard({ sourceId, timezone }: ProductionHistoryChartCardProps) {
+  const { t } = useI18n("charts");
   const { history, error, isLoading } = useProductionHistory(sourceId);
 
   if (isLoading) {
-    return <div className="app-card p-6 text-sm text-on-surface-variant">Loading production chart...</div>;
+    return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingProductionHistory")}</div>;
   }
 
   if (error) {
     return (
       <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
-        Failed to load production chart. {error}
+        {t("failedProductionHistory", { error })}
       </div>
     );
   }
@@ -138,7 +141,7 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
   if (history.length === 0) {
     return (
       <div className="app-card p-6 text-sm text-on-surface-variant">
-        No production history is available for the last 24 hours.
+        {t("noProductionHistory")}
       </div>
     );
   }
@@ -171,22 +174,22 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
         <div>
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">Production History</p>
-              <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">Production timeline</h3>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("productionHistory")}</p>
+              <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">{t("productionTimeline")}</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
-                Last 24 hours of averaged production in {timezone}.
+                {t("productionDescription", { timezone })}
               </p>
             </div>
 
             <div className="rounded-2xl bg-surface-container p-4">
-              <p className="metric-label mb-1">Latest Interval</p>
+              <p className="metric-label mb-1">{t("latestInterval")}</p>
               <p className="font-headline text-2xl font-black text-primary">{formatKwValue(currentPoint.kilowatts)} kW</p>
             </div>
           </div>
 
           <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
             <svg
-              aria-label="Production history chart"
+              aria-label={t("productionAria")}
               className="h-72 w-full"
               role="img"
               viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
@@ -277,48 +280,48 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
               <circle cx={currentX} cy={currentY} fill="rgb(255 232 179)" r="7" stroke="rgb(168 110 0)" strokeWidth="3" />
 
               <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
-                Time in {timezone}
+                {t("timeInTimezone", { timezone })}
               </text>
             </svg>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
             <span className="rounded-full bg-surface-container px-3 py-2">
-              Now {formatNordpoolTime(currentPoint.createdAt, timezone)}
+              {t("now", { time: formatNordpoolTime(currentPoint.createdAt, timezone) })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              Range {formatKwValue(Math.min(...values))} - {formatKwValue(Math.max(...values))} kW
+              {t("kwRange", { min: formatKwValue(Math.min(...values)), max: formatKwValue(Math.max(...values)) })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              {history.length} interval points
+              {t("intervalPoints", { count: history.length })}
             </span>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-4 rounded-2xl bg-surface-container-low px-4 py-3 text-sm text-on-surface">
             <div className="flex items-center gap-3">
               <span className="h-1 w-8 rounded-full bg-[rgb(255_179_67)]" />
-              <span>Average production</span>
+              <span>{t("averageProduction")}</span>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-1">
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">Current Interval</p>
+            <p className="metric-label mb-2">{t("currentInterval")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatKwValue(currentPoint.kilowatts)}</p>
-            <p className="text-xs text-on-surface-variant">kW average</p>
+            <p className="text-xs text-on-surface-variant">{t("kwAverage")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">24h Peak</p>
+            <p className="metric-label mb-2">{t("peak24h")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatKwValue(Math.max(...values))}</p>
-            <p className="text-xs text-on-surface-variant">highest interval value</p>
+            <p className="text-xs text-on-surface-variant">{t("highestIntervalValue")}</p>
           </div>
           <div className="rounded-3xl bg-primary-container p-5 text-on-primary">
-            <p className="metric-label mb-2 text-primary-fixed">24h Average</p>
+            <p className="metric-label mb-2 text-primary-fixed">{t("average24h")}</p>
             <p className="font-headline text-2xl font-black">
               {formatKwValue(values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1))}
             </p>
-            <p className="text-xs text-primary-fixed">kW across the visible range</p>
+            <p className="text-xs text-primary-fixed">{t("kwVisibleRange")}</p>
           </div>
         </div>
       </div>

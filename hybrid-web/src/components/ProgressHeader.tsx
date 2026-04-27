@@ -9,6 +9,8 @@
  * See LICENSE for details.
  */
 
+import { useI18n } from "@/lib/i18n";
+
 export default function ProgressHeader({
   step,
   total,
@@ -18,13 +20,14 @@ export default function ProgressHeader({
   total: number;
   label: string;
 }) {
+  const { t } = useI18n("common");
   const progress = `${(step / total) * 100}%`;
 
   return (
     <section className="mb-10">
       <div className="mb-4 flex items-end justify-between">
         <div>
-          <span className="metric-label">{`Step ${step} of ${total}`}</span>
+          <span className="metric-label">{t("stepOfTotal", { step, total })}</span>
           <h2 className="mt-1 font-headline text-2xl font-extrabold text-on-surface md:text-3xl">{label}</h2>
         </div>
         <div className="font-headline text-lg font-bold text-primary-container">{Math.round((step / total) * 100)}%</div>

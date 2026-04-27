@@ -11,6 +11,7 @@
 
 import { Link } from "react-router-dom";
 import HeaderLogo from "@/components/HeaderLogo";
+import { useI18n } from "@/lib/i18n";
 
 type HeaderItem = {
   label: string;
@@ -20,7 +21,7 @@ type HeaderItem = {
 
 export default function PageHeader({
   title,
-  brand = "Energy Controller",
+  brand,
   items = [],
   rightSlot,
   compact = false,
@@ -33,6 +34,7 @@ export default function PageHeader({
   compact?: boolean;
   translucent?: boolean;
 }) {
+  const { t } = useI18n("common");
   const hasItems = items.length > 0;
   const hasRightSlot = rightSlot !== undefined && rightSlot !== null;
 
@@ -42,7 +44,7 @@ export default function PageHeader({
         <div className="flex items-center gap-3 sm:gap-4">
           <HeaderLogo />
           <div className={compact ? "font-headline text-lg font-bold tracking-tight text-primary-container sm:text-xl" : "font-headline text-lg font-black tracking-tight text-primary-container sm:text-xl"}>
-            {title ?? brand}
+            {title ?? brand ?? t("brand")}
           </div>
         </div>
 

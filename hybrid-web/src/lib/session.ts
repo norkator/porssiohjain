@@ -16,6 +16,8 @@ const DEV_SESSION_STORAGE_KEY = "energy-controller.dev-session";
 type DevSessionOverride = {
   token?: string;
   baseUrl?: string;
+  accountId?: number;
+  locale?: string;
 };
 
 export type SessionData = BootstrapData & {
@@ -67,6 +69,7 @@ export function getSessionData(): SessionData {
       baseUrl: bootstrap.baseUrl ?? "",
       token: bootstrap.token ?? "",
       accountId: bootstrap.accountId,
+      locale: bootstrap.locale,
       hasToken: Boolean(bootstrap.token),
       environment: bootstrap.environment ?? "production",
       error: bootstrap.error,
@@ -78,13 +81,17 @@ export function getSessionData(): SessionData {
   const override = getDevSessionOverride();
   const baseUrl = override.baseUrl ?? envSession.baseUrl;
   const token = override.token ?? envSession.token;
-  const hasOverride = override.baseUrl !== undefined || override.token !== undefined;
+  const hasOverride = override.baseUrl !== undefined
+    || override.token !== undefined
+    || override.accountId !== undefined
+    || override.locale !== undefined;
 
   return {
     appName: "Energy Controller",
     baseUrl,
     token,
-    accountId: undefined,
+    accountId: override.accountId,
+    locale: override.locale,
     hasToken: Boolean(token),
     environment: "local",
     source: hasOverride ? "local-storage" : "env",
@@ -106,8 +113,8 @@ export function setDevSessionOverride(nextOverride: DevSessionOverride) {
   window.localStorage.setItem(DEV_SESSION_STORAGE_KEY, JSON.stringify(mergedOverride));
 }
 
-export function setBrowserSessionToken(token: string) {
-  setDevSessionOverride({ token });
+export function setBrowserSession(input: { token: string; accountId?: number; locale?: string }) {
+  setDevSessionOverride(input);
 }
 
 export function clearDevSessionOverride() {

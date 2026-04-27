@@ -10,6 +10,7 @@
  */
 
 import { Link } from "react-router-dom";
+import { useI18n } from "@/lib/i18n";
 
 type DeviceCardProps = {
   type: string;
@@ -38,6 +39,8 @@ export default function DeviceCard({
   extraActionLabel,
   onExtraAction
 }: DeviceCardProps) {
+  const { t } = useI18n("common");
+
   return (
     <article className={`group app-card border-l-4 ${accent} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`}>
       <div className="mb-6 flex items-start justify-between gap-4">
@@ -78,11 +81,11 @@ export default function DeviceCard({
           ) : null}
           {manageTo ? (
             <Link className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" to={manageTo}>
-              Manage
+              {t("manage")}
             </Link>
           ) : (
             <button className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" type="button">
-              Manage
+              {t("manage")}
             </button>
           )}
         </div>

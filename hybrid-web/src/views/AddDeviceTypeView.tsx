@@ -19,9 +19,12 @@ import {
   getCurrentTimezone,
   updateAddDeviceDraft
 } from "@/lib/add-device-flow";
+import { useI18n } from "@/lib/i18n";
 
 export default function AddDeviceTypeView() {
   const navigate = useNavigate();
+  const { group, t } = useI18n("addDeviceType");
+  const deviceTypeLabels: Record<string, string> = group("deviceTypes");
 
   const handleSelectDeviceType = (deviceTypeId: string) => {
     clearProvisionedDeviceDraft();
@@ -43,10 +46,10 @@ export default function AddDeviceTypeView() {
 
   return (
     <>
-      <PageHeader title="Add Device" compact />
+      <PageHeader title={t("title")} compact />
 
       <main className="app-page pb-8 pt-4 sm:py-8">
-        <ProgressHeader label="Select Device Type" step={1} total={4} />
+        <ProgressHeader label={t("stepLabel")} step={1} total={4} />
 
         <section className="grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {DEVICE_TYPE_OPTIONS.map((option) => (
@@ -56,21 +59,25 @@ export default function AddDeviceTypeView() {
                 handleSelectDeviceType(option.id);
               }
             }} role="link" tabIndex={0}>
-              <StepOptionCard {...option} />
+              <StepOptionCard
+                {...option}
+                description={deviceTypeLabels[`${option.id}.description`] ?? option.description}
+                title={deviceTypeLabels[`${option.id}.title`] ?? option.title}
+              />
             </div>
           ))}
 
           <div className="relative flex h-full w-full flex-col justify-between overflow-hidden rounded-xl border-2 border-dashed border-outline-variant/30 bg-surface-container p-8">
             <div className="z-10">
-              <h4 className="mb-2 font-headline text-lg font-bold">Don&apos;t see your device?</h4>
+              <h4 className="mb-2 font-headline text-lg font-bold">{t("missingDeviceTitle")}</h4>
               <p className="mb-4 text-sm text-on-surface-variant">
-                Our engineering team is constantly adding new hardware drivers.
+                {t("missingDeviceDescription")}
               </p>
               <a
                 className="flex items-center gap-2 text-sm font-bold text-primary transition-all hover:gap-4"
                 href="mailto:nitramite@outlook.com"
               >
-                Request Integration
+                {t("requestIntegration")}
               </a>
             </div>
             <div className="absolute -bottom-8 -right-8 h-32 w-32 rounded-full bg-primary/5 blur-3xl" />

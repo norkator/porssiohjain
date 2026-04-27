@@ -110,7 +110,9 @@ class AccountControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.token").isString())
-                .andExpect(jsonPath("$.expiresAt").isString());
+                .andExpect(jsonPath("$.expiresAt").isString())
+                .andExpect(jsonPath("$.accountId").value(account.getId()))
+                .andExpect(jsonPath("$.locale").value("en"));
     }
 
     @Test
