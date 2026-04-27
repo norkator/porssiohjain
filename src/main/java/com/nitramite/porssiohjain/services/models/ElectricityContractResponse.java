@@ -12,6 +12,8 @@
 package com.nitramite.porssiohjain.services.models;
 
 import com.nitramite.porssiohjain.entity.enums.ContractType;
+import java.math.BigDecimal;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,4 +27,12 @@ public class ElectricityContractResponse {
     private Long id;
     private String name;
     private ContractType type;
+    private BigDecimal basicFee;
+    private BigDecimal nightPrice;
+    private BigDecimal dayPrice;
+    private BigDecimal staticPrice;
+    private BigDecimal taxPercent;
+    private BigDecimal taxAmount;
+    private Instant createdAt;
+    private Instant updatedAt;
 }

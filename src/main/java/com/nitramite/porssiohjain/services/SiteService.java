@@ -56,6 +56,16 @@ public class SiteService {
     public SiteEntity updateSite(Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone) {
         SiteEntity site = siteRepository.findById(siteId)
                 .orElseThrow(() -> new IllegalArgumentException("Site not found"));
+        return updateSite(site, name, type, enabled, weatherPlace, timezone);
+    }
+
+    public SiteEntity updateSite(Long accountId, Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone) {
+        SiteEntity site = siteRepository.findByIdAndAccountId(siteId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Site not found"));
+        return updateSite(site, name, type, enabled, weatherPlace, timezone);
+    }
+
+    private SiteEntity updateSite(SiteEntity site, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone) {
         site.setName(name);
         site.setType(type);
         site.setEnabled(enabled);

@@ -15,8 +15,11 @@ import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.models.MeResponse;
+import com.nitramite.porssiohjain.services.models.UpdateMeRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,5 +44,17 @@ public class MeController {
                 .notifyPowerLimitExceeded(accountService.getNotifyPowerLimitExceeded(accountId))
                 .createdAt(accountService.getCreatedAt(accountId))
                 .build();
+    }
+
+    @PutMapping
+    public MeResponse updateMe(@RequestBody UpdateMeRequest request) {
+        Long accountId = authContext.getAccountId();
+        accountService.updateAccountSettings(
+                accountId,
+                request.getEmail(),
+                accountService.getNotifyPowerLimitExceeded(accountId),
+                request.getLocale()
+        );
+        return getMe();
     }
 }

@@ -10,6 +10,7 @@
  */
 
 import { Navigate, Route, Routes } from "react-router-dom";
+import AccountSettingsView from "@/views/AccountSettingsView";
 import AppShell from "@/layouts/AppShell";
 import ScrollToTop from "@/components/ScrollToTop";
 import AddDeviceConfigureView from "@/views/AddDeviceConfigureView";
@@ -20,6 +21,7 @@ import AddControlView from "@/views/AddControlView";
 import ControlsView from "@/views/ControlsView";
 import CreateAccountView from "@/views/CreateAccountView";
 import DevicesView from "@/views/DevicesView";
+import ElectricityContractsView from "@/views/ElectricityContractsView";
 import LoginView from "@/views/LoginView";
 import MainMenuView from "@/views/MainMenuView";
 import ManageControlView from "@/views/ManageControlView";
@@ -29,6 +31,7 @@ import ManageProductionSourceView from "@/views/ManageProductionSourceView";
 import ManageWeatherControlView from "@/views/ManageWeatherControlView";
 import PowerLimitsView from "@/views/PowerLimitsView";
 import ProductionSourcesView from "@/views/ProductionSourcesView";
+import SitesView from "@/views/SitesView";
 import WeatherControlsView from "@/views/WeatherControlsView";
 import { getSessionData } from "@/lib/session";
 
@@ -64,6 +67,7 @@ function ProtectedAppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to="/menu" replace />} />
       <Route path="/menu" element={<MainMenuView />} />
+      <Route path="/account/settings" element={<AccountSettingsView />} />
       <Route path="/devices" element={<DevicesView />} />
       <Route path="/devices/:deviceId" element={<ManageDeviceView />} />
       <Route path="/devices/add/type" element={<AddDeviceTypeView />} />
@@ -75,6 +79,8 @@ function ProtectedAppRoutes() {
       <Route path="/controls/:controlId" element={<ManageControlView />} />
       <Route path="/weather-controls" element={<WeatherControlsView />} />
       <Route path="/weather-controls/:weatherControlId" element={<ManageWeatherControlView />} />
+      <Route path="/sites" element={<SitesView />} />
+      <Route path="/electricity-contracts" element={<ElectricityContractsView />} />
       <Route path="/production-sources" element={<ProductionSourcesView />} />
       <Route path="/production-sources/:sourceId" element={<ManageProductionSourceView />} />
       <Route path="/power-limits" element={<PowerLimitsView />} />

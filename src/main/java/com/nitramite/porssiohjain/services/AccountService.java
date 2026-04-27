@@ -93,9 +93,9 @@ public class AccountService {
             String locale
     ) {
         accountRepository.findById(accountId).ifPresent(account -> {
-            account.setEmail(email);
+            account.setEmail(email != null && !email.isBlank() ? email.trim() : null);
             account.setNotifyPowerLimitExceeded(notify);
-            account.setLocale(locale);
+            account.setLocale(locale != null && !locale.isBlank() ? locale.trim() : "en");
             accountRepository.save(account);
         });
     }

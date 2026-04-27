@@ -61,6 +61,8 @@ function getEnvSessionFallback(): SessionData {
 }
 
 export function getSessionData(): SessionData {
+  const override = getDevSessionOverride();
+
   if (getAndroidBridge()?.getBootstrapData) {
     const bootstrap = getBootstrapData();
 
@@ -69,7 +71,7 @@ export function getSessionData(): SessionData {
       baseUrl: bootstrap.baseUrl ?? "",
       token: bootstrap.token ?? "",
       accountId: bootstrap.accountId,
-      locale: bootstrap.locale,
+      locale: override.locale ?? bootstrap.locale,
       hasToken: Boolean(bootstrap.token),
       environment: bootstrap.environment ?? "production",
       error: bootstrap.error,
@@ -78,7 +80,6 @@ export function getSessionData(): SessionData {
   }
 
   const envSession = getEnvSessionFallback();
-  const override = getDevSessionOverride();
   const baseUrl = override.baseUrl ?? envSession.baseUrl;
   const token = override.token ?? envSession.token;
   const hasOverride = override.baseUrl !== undefined
