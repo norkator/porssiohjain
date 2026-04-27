@@ -264,17 +264,18 @@ export default function ManageDeviceView() {
         ) : null}
 
         {!isLoading && !loadError ? (
-          <div className="grid gap-12 items-start lg:grid-cols-12">
-            <section className="space-y-8 lg:col-span-8">
-              <div>
-                <p className="metric-label mb-3">{t("label", { id: deviceId })}</p>
-                <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">
-                  {device?.deviceName ?? t("fallbackName")}
-                </h1>
-                <p className="max-w-xl text-lg text-on-surface-variant">
-                  {t("description")}
-                </p>
-              </div>
+          <div className="space-y-12">
+            <div className="grid gap-12 items-start lg:grid-cols-12">
+              <section className="space-y-8 lg:col-span-8">
+                <div>
+                  <p className="metric-label mb-3">{t("label", { id: deviceId })}</p>
+                  <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">
+                    {device?.deviceName ?? t("fallbackName")}
+                  </h1>
+                  <p className="max-w-xl text-lg text-on-surface-variant">
+                    {t("description")}
+                  </p>
+                </div>
 
               <form className="app-card space-y-8 p-8" onSubmit={handleSubmit}>
                 <div className="grid gap-6 md:grid-cols-2">
@@ -492,47 +493,48 @@ export default function ManageDeviceView() {
                 <p className="metric-label mb-2">{t("lastSeen")}</p>
                 <p className="font-semibold text-on-surface">{formatDeviceLastCommunication(device?.lastCommunication ?? null)}</p>
               </div>
+              </aside>
+            </div>
 
-              {!device?.shared ? (
-                <div className="app-card border-error-container bg-error-container/40 p-6">
-                  {!deleteConfirmOpen ? (
-                    <button
-                      className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isDeleting || isSaving}
-                      onClick={() => setDeleteConfirmOpen(true)}
-                      type="button"
-                    >
-                      {t("delete")}
-                    </button>
-                  ) : (
-                    <div className="space-y-4">
-                      <div>
-                        <p className="font-headline text-lg font-bold text-on-error-container">{common("confirmDeletion")}</p>
-                        <p className="text-sm text-on-error-container">{t("deleteDescription")}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={isDeleting || isSaving}
-                          onClick={handleDelete}
-                          type="button"
-                        >
-                          {isDeleting ? common("deleting") : common("confirm")}
-                        </button>
-                        <button
-                          className="secondary-action justify-center"
-                          disabled={isDeleting}
-                          onClick={() => setDeleteConfirmOpen(false)}
-                          type="button"
-                        >
-                          {common("cancel")}
-                        </button>
-                      </div>
+            {!device?.shared ? (
+              <section className="app-card border-error-container bg-error-container/40 p-6">
+                {!deleteConfirmOpen ? (
+                  <button
+                    className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDeleting || isSaving}
+                    onClick={() => setDeleteConfirmOpen(true)}
+                    type="button"
+                  >
+                    {t("delete")}
+                  </button>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="font-headline text-lg font-bold text-on-error-container">{common("confirmDeletion")}</p>
+                      <p className="text-sm text-on-error-container">{t("deleteDescription")}</p>
                     </div>
-                  )}
-                </div>
-              ) : null}
-            </aside>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDeleting || isSaving}
+                        onClick={handleDelete}
+                        type="button"
+                      >
+                        {isDeleting ? common("deleting") : common("confirm")}
+                      </button>
+                      <button
+                        className="secondary-action justify-center"
+                        disabled={isDeleting}
+                        onClick={() => setDeleteConfirmOpen(false)}
+                        type="button"
+                      >
+                        {common("cancel")}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            ) : null}
           </div>
         ) : null}
       </main>

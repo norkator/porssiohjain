@@ -242,43 +242,6 @@ export default function ManagePowerLimitView() {
                 <div className="app-card p-6"><p className="metric-label mb-2">{common("peakKw")}</p><p className="font-headline text-3xl font-bold">{formatKw(limit.peakKw)}</p></div>
                 <div className="app-card p-6"><p className="metric-label mb-2">{common("updated")}</p><p className="font-semibold">{formatDate(limit.updatedAt, limit.timezone)}</p></div>
                 <Link className="secondary-action justify-center" to="/power-limits">{common("back")}</Link>
-                <div className="app-card border-error-container bg-error-container/40 p-6">
-                  {!deleteConfirmOpen ? (
-                    <button
-                      className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isDeleting}
-                      onClick={() => setDeleteConfirmOpen(true)}
-                      type="button"
-                    >
-                      {t("delete")}
-                    </button>
-                  ) : (
-                    <div className="space-y-4">
-                      <div>
-                        <p className="font-headline text-lg font-bold text-on-error-container">{common("confirmDeletion")}</p>
-                        <p className="text-sm text-on-error-container">{t("deleteDescription")}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={isDeleting}
-                          onClick={handleDelete}
-                          type="button"
-                        >
-                          {isDeleting ? common("deleting") : common("confirm")}
-                        </button>
-                        <button
-                          className="secondary-action justify-center"
-                          disabled={isDeleting}
-                          onClick={() => setDeleteConfirmOpen(false)}
-                          type="button"
-                        >
-                          {common("cancel")}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </aside>
             </div>
 
@@ -287,6 +250,44 @@ export default function ManagePowerLimitView() {
               powerLimitId={powerLimitId}
               timezone={limit.timezone}
             />
+
+            <section className="app-card border-error-container bg-error-container/40 p-6">
+              {!deleteConfirmOpen ? (
+                <button
+                  className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isDeleting}
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  type="button"
+                >
+                  {t("delete")}
+                </button>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="font-headline text-lg font-bold text-on-error-container">{common("confirmDeletion")}</p>
+                    <p className="text-sm text-on-error-container">{t("deleteDescription")}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isDeleting}
+                      onClick={handleDelete}
+                      type="button"
+                    >
+                      {isDeleting ? common("deleting") : common("confirm")}
+                    </button>
+                    <button
+                      className="secondary-action justify-center"
+                      disabled={isDeleting}
+                      onClick={() => setDeleteConfirmOpen(false)}
+                      type="button"
+                    >
+                      {common("cancel")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
           </div>
         ) : null}
       </main>
