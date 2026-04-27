@@ -22,6 +22,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.time.temporal.TemporalAdjusters;
+
 @Service
 @RequiredArgsConstructor
 public class AccountLimitService {
@@ -30,6 +35,8 @@ public class AccountLimitService {
     private static final int FREE_DEVICE_LIMIT = 4;
     private static final int PRO_DEVICE_LIMIT = 50;
     private static final int BUSINESS_DEVICE_LIMIT = 99;
+    private static final int FREE_WEEKLY_NOTIFICATION_LIMIT = 3;
+    private static final int PAID_WEEKLY_NOTIFICATION_LIMIT = 100;
 
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
@@ -91,6 +98,11 @@ public class AccountLimitService {
     }
 
     @Transactional(readOnly = true)
+    public int getEffectiveWeeklyNotificationLimit(Long accountId) {
+        return getWeeklyNotificationLimit(getAccount(accountId).getTier());
+    }
+
+    @Transactional(readOnly = true)
     public void assertCanCreateDevice(Long accountId) {
         int limit = getEffectiveDeviceLimit(accountId);
         long currentCount = deviceRepository.countByAccountId(accountId);
@@ -121,6 +133,39 @@ public class AccountLimitService {
         if (limit != null && weatherControlRepository.countByAccountId(accountId) >= limit) {
             throw new IllegalStateException("Weather control limit reached for this account (" + limit + ").");
         }
+    }
+
+    @Transactional
+    public boolean tryConsumeWeeklyNotification(Long accountId, Instant now) {
+        AccountEntity account = accountRepository.findWithLockById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        LocalDate weekStart = resolveWeekStart(now);
+        if (!weekStart.equals(account.getWeeklyNotificationWeekStart())) {
+            account.setWeeklyNotificationWeekStart(weekStart);
+            account.setWeeklyNotificationCount(0);
+        }
+
+        int limit = getWeeklyNotificationLimit(account.getTier());
+        if (account.getWeeklyNotificationCount() >= limit) {
+            return false;
+        }
+
+        account.setWeeklyNotificationCount(account.getWeeklyNotificationCount() + 1);
+        accountRepository.save(account);
+        return true;
+    }
+
+    private int getWeeklyNotificationLimit(AccountTier tier) {
+        return switch (tier) {
+            case FREE -> FREE_WEEKLY_NOTIFICATION_LIMIT;
+            case PRO, BUSINESS -> PAID_WEEKLY_NOTIFICATION_LIMIT;
+        };
+    }
+
+    private LocalDate resolveWeekStart(Instant now) {
+        return now.atZone(ZoneOffset.UTC)
+                .toLocalDate()
+                .with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
     }
 
     private AccountEntity getAccount(Long accountId) {

@@ -342,7 +342,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         Span controlLimit = new Span(t("settings.account.controlLimit", formatLimit(accountLimitService.getEffectiveControlLimit(accountId))));
         Span productionLimit = new Span(t("settings.account.productionSourceLimit", formatLimit(accountLimitService.getEffectiveProductionSourceLimit(accountId))));
         Span weatherLimit = new Span(t("settings.account.weatherControlLimit", formatLimit(accountLimitService.getEffectiveWeatherControlLimit(accountId))));
-        card.add(title, deviceLimit, controlLimit, productionLimit, weatherLimit);
+        Span weeklyNotificationLimit = new Span(t("settings.account.weeklyNotificationLimit", accountLimitService.getEffectiveWeeklyNotificationLimit(accountId)));
+        card.add(title, deviceLimit, controlLimit, productionLimit, weatherLimit, weeklyNotificationLimit);
         return card;
     }
 

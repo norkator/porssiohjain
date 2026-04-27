@@ -44,6 +44,7 @@ public class PowerLimitService {
     private final SiteRepository siteRepository;
     private final ElectricityContractRepository electricityContractRepository;
     private final NordpoolRepository nordpoolRepository;
+    private final AccountLimitService accountLimitService;
     private final Map<Long, Instant> lastNotificationSent = new ConcurrentHashMap<>();
 
     @Transactional
@@ -289,6 +290,10 @@ public class PowerLimitService {
         Instant lastSent = lastNotificationSent.get(entity.getId());
         boolean canSend = lastSent == null || Duration.between(lastSent, now).toHours() >= 24;
         if (currentlyOver && canSend) {
+            if (!accountLimitService.tryConsumeWeeklyNotification(entity.getAccount().getId(), now)) {
+                log.info("Power limit notification {} not sent because account {} reached weekly notification limit", entity.getId(), entity.getAccount().getId());
+                return;
+            }
             emailService.sendPowerLimitExceededEmail(
                     entity.getAccount().getEmail(),
                     entity.getName(),

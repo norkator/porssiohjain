@@ -56,6 +56,9 @@ class ControlNotificationServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private AccountLimitService accountLimitService;
+
     private ControlNotificationService controlNotificationService;
 
     @BeforeEach
@@ -65,7 +68,8 @@ class ControlNotificationServiceTest {
                 controlRepository,
                 accountRepository,
                 controlTableRepository,
-                emailService
+                emailService,
+                accountLimitService
         );
     }
 
@@ -109,6 +113,7 @@ class ControlNotificationServiceTest {
                         activePeriod(4L, now.plusSeconds(45 * 60), now.plusSeconds(60 * 60))
                 ));
         when(controlTableRepository.existsActiveAt(1L, Status.FINAL, now)).thenReturn(true);
+        when(accountLimitService.tryConsumeWeeklyNotification(1L, now)).thenReturn(true);
 
         controlNotificationService.sendDueNotifications(now);
 
@@ -117,6 +122,34 @@ class ControlNotificationServiceTest {
                 eq("Control"),
                 eq("Notification"),
                 eq("Description"),
+                any(ZonedDateTime.class),
+                any()
+        );
+    }
+
+    @Test
+    void weeklyLimitBlocksControlNotificationSend() {
+        Instant now = Instant.parse("2026-01-01T10:00:15Z");
+        ControlNotificationEntity notification = notification(now);
+
+        when(controlNotificationRepository.findByEnabledTrueOrderByIdAsc()).thenReturn(List.of(notification));
+        when(controlTableRepository.findActivePeriodsOverlapping(eq(1L), eq(Status.FINAL), any(Instant.class), any(Instant.class)))
+                .thenReturn(List.of(
+                        activePeriod(1L, now, now.plusSeconds(15 * 60)),
+                        activePeriod(2L, now.plusSeconds(15 * 60), now.plusSeconds(30 * 60)),
+                        activePeriod(3L, now.plusSeconds(30 * 60), now.plusSeconds(45 * 60)),
+                        activePeriod(4L, now.plusSeconds(45 * 60), now.plusSeconds(60 * 60))
+                ));
+        when(controlTableRepository.existsActiveAt(1L, Status.FINAL, now)).thenReturn(true);
+        when(accountLimitService.tryConsumeWeeklyNotification(1L, now)).thenReturn(false);
+
+        controlNotificationService.sendDueNotifications(now);
+
+        verify(emailService, never()).sendControlNotificationEmail(
+                any(),
+                any(),
+                any(),
+                any(),
                 any(ZonedDateTime.class),
                 any()
         );

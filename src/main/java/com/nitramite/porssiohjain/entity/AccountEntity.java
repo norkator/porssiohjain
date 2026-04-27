@@ -16,6 +16,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -55,6 +56,13 @@ public class AccountEntity {
 
     @Column(name = "device_limit")
     private Integer deviceLimit;
+
+    @Column(name = "weekly_notification_count", nullable = false)
+    @Builder.Default
+    private int weeklyNotificationCount = 0;
+
+    @Column(name = "weekly_notification_week_start")
+    private LocalDate weeklyNotificationWeekStart;
 
     @Column(name = "agreed_terms", nullable = false)
     @Builder.Default

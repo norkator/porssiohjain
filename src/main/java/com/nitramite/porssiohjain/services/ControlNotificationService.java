@@ -50,6 +50,7 @@ public class ControlNotificationService {
     private final AccountRepository accountRepository;
     private final ControlTableRepository controlTableRepository;
     private final EmailService emailService;
+    private final AccountLimitService accountLimitService;
 
     public List<ControlNotificationResponse> getControlNotifications(Long accountId, Long controlId) {
         ensureOwnedControl(accountId, controlId);
@@ -149,6 +150,10 @@ public class ControlNotificationService {
         AccountEntity account = notification.getAccount();
         if (account.getEmail() == null || account.getEmail().isBlank()) {
             log.warn("Control notification {} not sent because account {} has no email", notification.getId(), account.getId());
+            return;
+        }
+        if (!accountLimitService.tryConsumeWeeklyNotification(account.getId(), now)) {
+            log.info("Control notification {} not sent because account {} reached weekly notification limit", notification.getId(), account.getId());
             return;
         }
 

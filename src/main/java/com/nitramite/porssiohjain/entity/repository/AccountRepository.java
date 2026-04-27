@@ -12,7 +12,9 @@
 package com.nitramite.porssiohjain.entity.repository;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -20,5 +22,8 @@ import java.util.UUID;
 public interface AccountRepository extends JpaRepository<AccountEntity, Long> {
 
     Optional<AccountEntity> findByUuid(UUID uuid);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<AccountEntity> findWithLockById(Long id);
 
 }
