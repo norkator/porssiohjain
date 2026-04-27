@@ -13,7 +13,7 @@ import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import HeaderLogo from "@/components/HeaderLogo";
 import { loginWithCredentials } from "@/lib/auth";
-import { useI18n } from "@/lib/i18n";
+import { getCurrentLocale, setCurrentLocale, supportedLocales, type SupportedLocale, useI18n } from "@/lib/i18n";
 import { getSessionData } from "@/lib/session";
 
 const DEMO_UUID = "78b7823f-d5cc-4376-8910-cd62e7b32400";
@@ -27,6 +27,7 @@ export default function LoginView() {
   const [secret, setSecret] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedLocale, setSelectedLocale] = useState<SupportedLocale>(getCurrentLocale());
 
   if (session.source === "android" || session.hasToken) {
     return <Navigate replace to="/menu" />;
@@ -52,8 +53,29 @@ export default function LoginView() {
     setSecret(DEMO_SECRET);
   };
 
+  const handleLocaleChange = (locale: SupportedLocale) => {
+    setCurrentLocale(locale);
+    setSelectedLocale(locale);
+  };
+
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+    <main className="relative flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+      <label className="absolute right-4 top-4 flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm shadow-soft sm:right-6 sm:top-6">
+        <span className="sr-only">{t("languageLabel")}</span>
+        <span aria-hidden="true" className="font-label font-bold text-on-surface-variant">{t("languageShortLabel")}</span>
+        <select
+          className="bg-transparent font-label font-bold text-primary-container outline-none"
+          onChange={(event) => handleLocaleChange(event.target.value as SupportedLocale)}
+          value={selectedLocale}
+        >
+          {supportedLocales.map((locale) => (
+            <option key={locale.code} value={locale.code}>
+              {locale.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <section className="app-card w-full max-w-md p-8">
         <div className="mb-8 flex items-center gap-4">
           <HeaderLogo />

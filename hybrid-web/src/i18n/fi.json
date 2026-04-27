@@ -8,6 +8,8 @@
     "genericLoginFailed": "Kirjautuminen epäonnistui.",
     "loggingIn": "Kirjaudutaan...",
     "login": "Kirjaudu",
+    "languageLabel": "Kieli",
+    "languageShortLabel": "Kieli",
     "useDemoAccount": "Käytä demotiliä",
     "createAccount": "Luo tili"
   },

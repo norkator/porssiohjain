@@ -11,7 +11,7 @@
 
 import enTranslations from "@/i18n/en.json";
 import fiTranslations from "@/i18n/fi.json";
-import { getSessionData } from "@/lib/session";
+import { getSessionData, setDevSessionOverride } from "@/lib/session";
 
 type TranslationValue = string | Record<string, string>;
 type TranslationScope = Record<string, TranslationValue>;
@@ -24,8 +24,21 @@ const translationsByLocale: Record<string, TranslationFile> = {
   fi: fiTranslations
 };
 
+export const supportedLocales = [
+  { code: "en", label: "English" },
+  { code: "fi", label: "Suomi" }
+] as const;
+
+export type SupportedLocale = typeof supportedLocales[number]["code"];
+
 function normalizeLocale(locale?: string) {
   return locale?.split("-")[0]?.toLowerCase();
+}
+
+function getSupportedLocale(locale?: string): SupportedLocale | undefined {
+  const normalizedLocale = normalizeLocale(locale);
+
+  return supportedLocales.find((supportedLocale) => supportedLocale.code === normalizedLocale)?.code;
 }
 
 function getBrowserLocale() {
@@ -37,7 +50,11 @@ function getBrowserLocale() {
 }
 
 export function getCurrentLocale() {
-  return normalizeLocale(getSessionData().locale) ?? getBrowserLocale() ?? "en";
+  return getSupportedLocale(getSessionData().locale) ?? getSupportedLocale(getBrowserLocale()) ?? "en";
+}
+
+export function setCurrentLocale(locale: SupportedLocale) {
+  setDevSessionOverride({ locale });
 }
 
 function interpolate(value: string, params?: TranslationParams) {

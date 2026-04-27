@@ -8,6 +8,8 @@
     "genericLoginFailed": "Login failed.",
     "loggingIn": "Logging in...",
     "login": "Login",
+    "languageLabel": "Language",
+    "languageShortLabel": "Language",
     "useDemoAccount": "Use demo account",
     "createAccount": "Create account"
   },
