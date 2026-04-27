@@ -158,6 +158,25 @@ export type ProductionSourceDevicePayload = {
   action: ControlAction;
 };
 
+export type ProductionSourceHeatPumpLink = {
+  id: number;
+  sourceId: number;
+  deviceId: number;
+  stateHex: string;
+  controlAction: ControlAction;
+  comparisonType: ComparisonType;
+  triggerKw: number;
+  device: Pick<ApiDevice, "deviceName" | "deviceType" | "id" | "uuid">;
+};
+
+export type ProductionSourceHeatPumpPayload = {
+  deviceId: number;
+  stateHex: string;
+  controlAction: ControlAction;
+  comparisonType: ComparisonType;
+  triggerKw: number;
+};
+
 export type ProductionHistoryPoint = {
   createdAt: string;
   kilowatts: number;
@@ -267,6 +286,10 @@ export const fetchProductionHistory = (id: number, hours = 24) => apiGetJson<Pro
 export const fetchProductionSourceDeviceLinks = (id: number) => apiGetJson<ProductionSourceDeviceLink[]>(`/api/production-sources/${id}/devices`);
 export const addProductionSourceDeviceLink = (id: number, payload: ProductionSourceDevicePayload) => postJson<void>(`/api/production-sources/${id}/devices`, payload);
 export const deleteProductionSourceDeviceLink = (sourceId: number, linkId: number) => postJson<void>(`/api/production-sources/${sourceId}/devices/${linkId}`, undefined, "DELETE");
+export const fetchProductionSourceHeatPumpLinks = (id: number) => apiGetJson<ProductionSourceHeatPumpLink[]>(`/api/production-sources/${id}/heat-pumps`);
+export const addProductionSourceHeatPumpLink = (id: number, payload: ProductionSourceHeatPumpPayload) => postJson<ProductionSourceHeatPumpLink>(`/api/production-sources/${id}/heat-pumps`, payload);
+export const updateProductionSourceHeatPumpLink = (id: number, payload: ProductionSourceHeatPumpPayload & { sourceId: number }) => postJson<ProductionSourceHeatPumpLink>(`/api/production-sources/heat-pumps/${id}`, payload, "PUT");
+export const deleteProductionSourceHeatPumpLink = (sourceId: number, linkId: number) => postJson<void>(`/api/production-sources/${sourceId}/heat-pumps/${linkId}`, undefined, "DELETE");
 
 export const fetchPowerLimits = () => apiGetJson<ApiPowerLimit[]>("/api/power-limits");
 export const fetchPowerLimit = (id: number) => apiGetJson<ApiPowerLimit>(`/api/power-limits/${id}`);

@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.services.ProductionSourceService;
 import com.nitramite.porssiohjain.services.models.ProductionSourceDeviceResponse;
+import com.nitramite.porssiohjain.services.models.ProductionSourceHeatPumpResponse;
 import com.nitramite.porssiohjain.services.models.ProductionHistoryResponse;
 import com.nitramite.porssiohjain.services.models.ProductionSourceResponse;
 import lombok.RequiredArgsConstructor;
@@ -121,6 +122,49 @@ public class ProductionSourcesController {
         productionSourceService.removeDevice(authContext.getAccountId(), sourceId, linkId);
     }
 
+    @GetMapping("/{sourceId}/heat-pumps")
+    public List<ProductionSourceHeatPumpResponse> getHeatPumps(@PathVariable Long sourceId) {
+        return productionSourceService.getSourceHeatPumps(authContext.getAccountId(), sourceId);
+    }
+
+    @PostMapping("/{sourceId}/heat-pumps")
+    public ProductionSourceHeatPumpResponse addHeatPump(
+            @PathVariable Long sourceId,
+            @RequestBody ProductionSourceHeatPumpRequest request
+    ) {
+        return productionSourceService.addHeatPump(
+                authContext.getAccountId(),
+                sourceId,
+                request.deviceId(),
+                request.stateHex(),
+                request.controlAction(),
+                request.comparisonType(),
+                request.triggerKw()
+        );
+    }
+
+    @PutMapping("/heat-pumps/{linkId}")
+    public ProductionSourceHeatPumpResponse updateHeatPump(
+            @PathVariable Long linkId,
+            @RequestBody ProductionSourceHeatPumpUpdateRequest request
+    ) {
+        return productionSourceService.updateHeatPump(
+                authContext.getAccountId(),
+                request.sourceId(),
+                linkId,
+                request.deviceId(),
+                request.stateHex(),
+                request.controlAction(),
+                request.comparisonType(),
+                request.triggerKw()
+        );
+    }
+
+    @DeleteMapping("/{sourceId}/heat-pumps/{linkId}")
+    public void deleteHeatPump(@PathVariable Long sourceId, @PathVariable Long linkId) {
+        productionSourceService.removeHeatPump(authContext.getAccountId(), sourceId, linkId);
+    }
+
     public record ProductionSourceRequest(
             String name,
             ProductionApiType apiType,
@@ -141,6 +185,25 @@ public class ProductionSourcesController {
             BigDecimal triggerKw,
             ComparisonType comparisonType,
             ControlAction action
+    ) {
+    }
+
+    public record ProductionSourceHeatPumpRequest(
+            Long deviceId,
+            String stateHex,
+            ControlAction controlAction,
+            ComparisonType comparisonType,
+            BigDecimal triggerKw
+    ) {
+    }
+
+    public record ProductionSourceHeatPumpUpdateRequest(
+            Long sourceId,
+            Long deviceId,
+            String stateHex,
+            ControlAction controlAction,
+            ComparisonType comparisonType,
+            BigDecimal triggerKw
     ) {
     }
 }

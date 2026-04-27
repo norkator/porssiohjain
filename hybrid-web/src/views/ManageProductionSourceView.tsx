@@ -13,31 +13,37 @@ import PageHeader from "@/components/PageHeader";
 import ProductionHistoryChartCard from "@/components/ProductionHistoryChartCard";
 import {
   addProductionSourceDeviceLink,
+  addProductionSourceHeatPumpLink,
   COMPARISONS,
   CONTROL_ACTIONS,
   deleteProductionSource,
   deleteProductionSourceDeviceLink,
+  deleteProductionSourceHeatPumpLink,
   fetchProductionSource,
   fetchProductionSourceDeviceLinks,
+  fetchProductionSourceHeatPumpLinks,
   fetchSites,
   formatDate,
   formatKw,
   PRODUCTION_API_TYPES,
   updateProductionSource,
+  updateProductionSourceHeatPumpLink,
   type ApiProductionSource,
   type ApiSite,
   type ComparisonType,
   type ControlAction,
   type ProductionApiType,
-  type ProductionSourceDeviceLink
+  type ProductionSourceDeviceLink,
+  type ProductionSourceHeatPumpLink
 } from "@/lib/automation-resources";
 import { getAvailableTimezones } from "@/lib/add-device-flow";
-import { fetchDevices, type ApiDevice } from "@/lib/devices";
+import { fetchDevices, fetchHeatPumpState, type AcType, type ApiDevice } from "@/lib/devices";
 import { useI18n } from "@/lib/i18n";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
 const label = (value: string) => value.toLowerCase().replace(/_/g, " ").replace(/^\w/, (char: string) => char.toUpperCase());
+type RuleTab = "STANDARD" | "HEAT_PUMP";
 
 export default function ManageProductionSourceView() {
   const navigate = useNavigate();
@@ -49,12 +55,14 @@ export default function ManageProductionSourceView() {
   const [source, setSource] = useState<ApiProductionSource | null>(null);
   const [sites, setSites] = useState<ApiSite[]>([]);
   const [devices, setDevices] = useState<ApiDevice[]>([]);
-  const [links, setLinks] = useState<ProductionSourceDeviceLink[]>([]);
+  const [standardLinks, setStandardLinks] = useState<ProductionSourceDeviceLink[]>([]);
+  const [heatPumpLinks, setHeatPumpLinks] = useState<ProductionSourceHeatPumpLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [activeRuleTab, setActiveRuleTab] = useState<RuleTab>("STANDARD");
   const [name, setName] = useState("");
   const [apiType, setApiType] = useState<ProductionApiType>("SHELLY");
   const [timezone, setTimezone] = useState("UTC");
@@ -72,15 +80,42 @@ export default function ManageProductionSourceView() {
   const [action, setAction] = useState<ControlAction>("TURN_ON");
   const [deleteLinkConfirmId, setDeleteLinkConfirmId] = useState<number | null>(null);
   const [isDeletingLinkId, setIsDeletingLinkId] = useState<number | null>(null);
+  const [selectedHeatPumpDeviceId, setSelectedHeatPumpDeviceId] = useState("");
+  const [heatPumpStateHex, setHeatPumpStateHex] = useState("");
+  const [heatPumpTriggerKw, setHeatPumpTriggerKw] = useState("0");
+  const [heatPumpComparisonType, setHeatPumpComparisonType] = useState<ComparisonType>("GREATER_THAN");
+  const [heatPumpAction, setHeatPumpAction] = useState<ControlAction>("TURN_ON");
+  const [editingHeatPumpLinkId, setEditingHeatPumpLinkId] = useState<number | null>(null);
+  const [deleteHeatPumpConfirmId, setDeleteHeatPumpConfirmId] = useState<number | null>(null);
+  const [isDeletingHeatPumpId, setIsDeletingHeatPumpId] = useState<number | null>(null);
+  const [isHeatPumpStateDialogOpen, setIsHeatPumpStateDialogOpen] = useState(false);
+  const [isLoadingHeatPumpState, setIsLoadingHeatPumpState] = useState(false);
+  const [heatPumpStateDialogValue, setHeatPumpStateDialogValue] = useState("");
+  const [heatPumpCurrentState, setHeatPumpCurrentState] = useState<string | null>(null);
+  const [heatPumpLastPolledState, setHeatPumpLastPolledState] = useState<string | null>(null);
+  const [heatPumpDialogAcType, setHeatPumpDialogAcType] = useState<AcType>("NONE");
+
+  const standardDevices = devices.filter((device) => device.deviceType === "STANDARD" && !device.shared);
+  const heatPumpDevices = devices.filter((device) => device.deviceType === "HEAT_PUMP" && !device.shared);
+
+  const resetHeatPumpForm = () => {
+    setEditingHeatPumpLinkId(null);
+    setSelectedHeatPumpDeviceId("");
+    setHeatPumpStateHex("");
+    setHeatPumpTriggerKw("0");
+    setHeatPumpComparisonType("GREATER_THAN");
+    setHeatPumpAction("TURN_ON");
+  };
 
   async function loadData() {
     setIsLoading(true);
     setError(null);
     try {
-      const [sourceResponse, siteResponse, linkResponse, deviceResponse] = await Promise.all([
+      const [sourceResponse, siteResponse, standardLinkResponse, heatPumpLinkResponse, deviceResponse] = await Promise.all([
         fetchProductionSource(sourceId),
         fetchSites(),
         fetchProductionSourceDeviceLinks(sourceId),
+        fetchProductionSourceHeatPumpLinks(sourceId),
         fetchDevices()
       ]);
       setSource(sourceResponse);
@@ -95,8 +130,9 @@ export default function ManageProductionSourceView() {
       setPassword("");
       setStationId(sourceResponse.stationId ?? "");
       setSites(siteResponse);
-      setLinks(linkResponse);
-      setDevices(deviceResponse.filter((device) => device.deviceType === "STANDARD" && !device.shared));
+      setStandardLinks(standardLinkResponse);
+      setHeatPumpLinks(heatPumpLinkResponse);
+      setDevices(deviceResponse);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : t("failedOne"));
     } finally {
@@ -143,10 +179,36 @@ export default function ManageProductionSourceView() {
     setError(null);
     try {
       await addProductionSourceDeviceLink(sourceId, { action, comparisonType, deviceChannel: channel, deviceId, triggerKw: trigger });
-      setLinks(await fetchProductionSourceDeviceLinks(sourceId));
+      setStandardLinks(await fetchProductionSourceDeviceLinks(sourceId));
       setSelectedDeviceId("");
     } catch (linkError) {
       setError(linkError instanceof Error ? linkError.message : t("failedLink"));
+    }
+  };
+
+  const handleAddHeatPumpLink = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const deviceId = Number(selectedHeatPumpDeviceId);
+    const trigger = Number(heatPumpTriggerKw);
+    if (!Number.isFinite(deviceId) || !Number.isFinite(trigger) || !heatPumpStateHex.trim()) return;
+    setError(null);
+    try {
+      const payload = {
+        comparisonType: heatPumpComparisonType,
+        controlAction: heatPumpAction,
+        deviceId,
+        stateHex: heatPumpStateHex.trim(),
+        triggerKw: trigger
+      };
+      if (editingHeatPumpLinkId === null) {
+        await addProductionSourceHeatPumpLink(sourceId, payload);
+      } else {
+        await updateProductionSourceHeatPumpLink(editingHeatPumpLinkId, { sourceId, ...payload });
+      }
+      setHeatPumpLinks(await fetchProductionSourceHeatPumpLinks(sourceId));
+      resetHeatPumpForm();
+    } catch (linkError) {
+      setError(linkError instanceof Error ? linkError.message : editingHeatPumpLinkId === null ? t("failedLinkHeatPump") : t("failedUpdateHeatPumpRule"));
     }
   };
 
@@ -168,7 +230,7 @@ export default function ManageProductionSourceView() {
 
     try {
       await deleteProductionSourceDeviceLink(sourceId, linkId);
-      setLinks((current) => current.filter((item) => item.id !== linkId));
+      setStandardLinks((current) => current.filter((item) => item.id !== linkId));
       setDeleteLinkConfirmId((current) => (current === linkId ? null : current));
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : t("failedRemoveRule"));
@@ -176,6 +238,168 @@ export default function ManageProductionSourceView() {
       setIsDeletingLinkId((current) => (current === linkId ? null : current));
     }
   };
+
+  const handleEditHeatPumpLink = (link: ProductionSourceHeatPumpLink) => {
+    setActiveRuleTab("HEAT_PUMP");
+    setDeleteHeatPumpConfirmId((current) => (current === link.id ? null : current));
+    setEditingHeatPumpLinkId(link.id);
+    setSelectedHeatPumpDeviceId(String(link.deviceId));
+    setHeatPumpStateHex(link.stateHex ?? "");
+    setHeatPumpTriggerKw(String(link.triggerKw));
+    setHeatPumpComparisonType(link.comparisonType);
+    setHeatPumpAction(link.controlAction);
+  };
+
+  const handleDeleteHeatPumpLink = async (linkId: number) => {
+    setError(null);
+    setIsDeletingHeatPumpId(linkId);
+    try {
+      await deleteProductionSourceHeatPumpLink(sourceId, linkId);
+      setHeatPumpLinks((current) => current.filter((link) => link.id !== linkId));
+      setDeleteHeatPumpConfirmId((current) => (current === linkId ? null : current));
+      if (editingHeatPumpLinkId === linkId) resetHeatPumpForm();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : t("failedRemoveHeatPumpRule"));
+    } finally {
+      setIsDeletingHeatPumpId((current) => (current === linkId ? null : current));
+    }
+  };
+
+  const loadHeatPumpStateForDialog = async (deviceId: number) => {
+    setIsLoadingHeatPumpState(true);
+    setError(null);
+    try {
+      const response = await fetchHeatPumpState(deviceId);
+      const bestState = response.currentState || response.lastPolledState || "";
+      setHeatPumpDialogAcType(response.acType);
+      setHeatPumpCurrentState(response.currentState);
+      setHeatPumpLastPolledState(response.lastPolledState);
+      setHeatPumpStateDialogValue(bestState || heatPumpStateHex);
+    } catch (stateError) {
+      setError(stateError instanceof Error ? stateError.message : t("failedLoadHeatPumpState"));
+      setHeatPumpCurrentState(null);
+      setHeatPumpLastPolledState(null);
+      setHeatPumpDialogAcType("NONE");
+      setHeatPumpStateDialogValue(heatPumpStateHex);
+    } finally {
+      setIsLoadingHeatPumpState(false);
+    }
+  };
+
+  const handleOpenHeatPumpStateDialog = async () => {
+    const deviceId = Number(selectedHeatPumpDeviceId);
+    if (!Number.isFinite(deviceId)) return;
+    setIsHeatPumpStateDialogOpen(true);
+    setHeatPumpStateDialogValue(heatPumpStateHex);
+    await loadHeatPumpStateForDialog(deviceId);
+  };
+
+  const renderStandardRuleList = () => (
+    <div className="space-y-3">
+      {standardLinks.map((link) => (
+        <div className="rounded-xl bg-surface-container p-4" key={link.id}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-headline font-bold">{link.device.deviceName}</p>
+              <p className="text-sm text-on-surface-variant">{label(link.comparisonType)} {link.triggerKw} kW</p>
+            </div>
+            {deleteLinkConfirmId === link.id ? (
+              <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
+                <div>
+                  <p className="font-headline text-sm font-bold text-on-error-container">{common("confirmRemoval")}</p>
+                  <p className="text-xs text-on-error-container">{t("removeRuleDescription")}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDeletingLinkId === link.id}
+                    onClick={() => handleDeleteLink(link.id)}
+                    type="button"
+                  >
+                    {isDeletingLinkId === link.id ? common("removing") : common("confirm")}
+                  </button>
+                  <button
+                    className="secondary-action justify-center px-3 py-2 text-xs"
+                    disabled={isDeletingLinkId === link.id}
+                    onClick={() => setDeleteLinkConfirmId(null)}
+                    type="button"
+                  >
+                    {common("cancel")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
+                onClick={() => setDeleteLinkConfirmId(link.id)}
+                type="button"
+              >
+                {common("remove")}
+              </button>
+            )}
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div><span className="metric-label">{common("channel")}</span><p className="font-semibold">{link.deviceChannel}</p></div>
+            <div><span className="metric-label">{common("action")}</span><p className="font-semibold">{label(link.action)}</p></div>
+          </div>
+        </div>
+      ))}
+      {standardLinks.length === 0 ? <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">{t("noStandardRules")}</div> : null}
+    </div>
+  );
+
+  const renderHeatPumpRuleList = () => (
+    <div className="space-y-3">
+      {heatPumpLinks.map((link) => (
+        <div className="rounded-xl bg-surface-container p-4" key={link.id}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-headline font-bold">{link.device.deviceName}</p>
+              <p className="text-sm text-on-surface-variant">{label(link.comparisonType)} {link.triggerKw} kW</p>
+            </div>
+            {deleteHeatPumpConfirmId === link.id ? (
+              <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
+                <div>
+                  <p className="font-headline text-sm font-bold text-on-error-container">{common("confirmRemoval")}</p>
+                  <p className="text-xs text-on-error-container">{t("removeHeatPumpRuleDescription")}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDeletingHeatPumpId === link.id}
+                    onClick={() => handleDeleteHeatPumpLink(link.id)}
+                    type="button"
+                  >
+                    {isDeletingHeatPumpId === link.id ? common("removing") : common("confirm")}
+                  </button>
+                  <button
+                    className="secondary-action justify-center px-3 py-2 text-xs"
+                    disabled={isDeletingHeatPumpId === link.id}
+                    onClick={() => setDeleteHeatPumpConfirmId(null)}
+                    type="button"
+                  >
+                    {common("cancel")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button className="secondary-action justify-center px-3 py-2 text-xs" onClick={() => handleEditHeatPumpLink(link)} type="button">{common("edit")}</button>
+                <button className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container" onClick={() => setDeleteHeatPumpConfirmId(link.id)} type="button">{common("remove")}</button>
+              </div>
+            )}
+          </div>
+          <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
+            <div><span className="metric-label">{common("action")}</span><p className="font-semibold">{label(link.controlAction)}</p></div>
+            <div><span className="metric-label">{t("deviceType")}</span><p className="font-semibold">{label(link.device.deviceType)}</p></div>
+            <div><span className="metric-label">{t("triggerKw")}</span><p className="font-semibold">{formatKw(link.triggerKw)} kW</p></div>
+            <div className="md:col-span-3"><span className="metric-label">{t("stateHex")}</span><p className="mt-1 whitespace-pre-wrap break-all rounded-lg bg-surface-container-highest p-3 font-mono text-xs">{link.stateHex}</p></div>
+          </div>
+        </div>
+      ))}
+      {heatPumpLinks.length === 0 ? <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">{t("noHeatPumpRules")}</div> : null}
+    </div>
+  );
 
   return (
     <>
@@ -204,62 +428,69 @@ export default function ManageProductionSourceView() {
                 </form>
 
                 <section className="app-card p-6">
-                  <div className="mb-5 flex items-center justify-between"><h2 className="font-headline text-xl font-bold">{common("deviceRules")}</h2><span className="chip bg-surface-container-highest text-primary-container">{links.length}</span></div>
-                  <div className="space-y-3">
-                    {links.map((link) => (
-                      <div className="rounded-xl bg-surface-container p-4" key={link.id}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-headline font-bold">{link.device.deviceName}</p>
-                            <p className="text-sm text-on-surface-variant">{label(link.comparisonType)} {link.triggerKw} kW</p>
-                          </div>
-                          {deleteLinkConfirmId === link.id ? (
-                            <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
-                              <div>
-                                <p className="font-headline text-sm font-bold text-on-error-container">{common("confirmRemoval")}</p>
-                                <p className="text-xs text-on-error-container">{t("removeRuleDescription")}</p>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <button
-                                  className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                                  disabled={isDeletingLinkId === link.id}
-                                  onClick={() => handleDeleteLink(link.id)}
-                                  type="button"
-                                >
-                                  {isDeletingLinkId === link.id ? common("removing") : common("confirm")}
-                                </button>
-                                <button
-                                  className="secondary-action justify-center px-3 py-2 text-xs"
-                                  disabled={isDeletingLinkId === link.id}
-                                  onClick={() => setDeleteLinkConfirmId(null)}
-                                  type="button"
-                                >
-                                  {common("cancel")}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
-                              onClick={() => setDeleteLinkConfirmId(link.id)}
-                              type="button"
-                            >
-                              {common("remove")}
-                            </button>
-                          )}
-                        </div>
-                        <div className="mt-3 grid grid-cols-2 gap-2 text-sm"><div><span className="metric-label">{common("channel")}</span><p className="font-semibold">{link.deviceChannel}</p></div><div><span className="metric-label">{common("action")}</span><p className="font-semibold">{label(link.action)}</p></div></div>
-                      </div>
-                    ))}
+                  <div className="mb-5 flex items-center justify-between"><h2 className="font-headline text-xl font-bold">{common("deviceRules")}</h2><span className="chip bg-surface-container-highest text-primary-container">{standardLinks.length + heatPumpLinks.length}</span></div>
+                  <div className="mb-6 flex flex-wrap gap-2 rounded-2xl bg-surface-container p-2">
+                    <button
+                      className={activeRuleTab === "STANDARD" ? "primary-action px-4 py-3 text-sm" : "secondary-action px-4 py-3 text-sm"}
+                      onClick={() => setActiveRuleTab("STANDARD")}
+                      type="button"
+                    >
+                      {t("standard")}
+                    </button>
+                    <button
+                      className={activeRuleTab === "HEAT_PUMP" ? "primary-action px-4 py-3 text-sm" : "secondary-action px-4 py-3 text-sm"}
+                      onClick={() => setActiveRuleTab("HEAT_PUMP")}
+                      type="button"
+                    >
+                      {t("heatPump")}
+                    </button>
                   </div>
-                  <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleAddLink}>
-                    <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedDeviceId(event.target.value)} value={selectedDeviceId}><option value="">{common("selectStandardDevice")}</option>{devices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}</select>
-                    <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" min="0" onChange={(event) => setDeviceChannel(event.target.value)} type="number" value={deviceChannel} />
-                    <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setTriggerKw(event.target.value)} step="0.1" type="number" value={triggerKw} />
-                    <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setComparisonType(event.target.value as ComparisonType)} value={comparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
-                    <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setAction(event.target.value as ControlAction)} value={action}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
-                    <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">{common("addDeviceRule")}</button>
-                  </form>
+
+                  {activeRuleTab === "STANDARD" ? (
+                    <>
+                      {renderStandardRuleList()}
+                      <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleAddLink}>
+                        <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedDeviceId(event.target.value)} value={selectedDeviceId}>
+                          <option value="">{common("selectStandardDevice")}</option>
+                          {standardDevices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}
+                        </select>
+                        <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" min="0" onChange={(event) => setDeviceChannel(event.target.value)} type="number" value={deviceChannel} />
+                        <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setTriggerKw(event.target.value)} step="0.1" type="number" value={triggerKw} />
+                        <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setComparisonType(event.target.value as ComparisonType)} value={comparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+                        <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setAction(event.target.value as ControlAction)} value={action}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+                        <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">{common("addDeviceRule")}</button>
+                      </form>
+                    </>
+                  ) : (
+                    <>
+                      {renderHeatPumpRuleList()}
+                      <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleAddHeatPumpLink}>
+                        <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedHeatPumpDeviceId(event.target.value)} value={selectedHeatPumpDeviceId}>
+                          <option value="">{t("selectHeatPumpDevice")}</option>
+                          {heatPumpDevices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}
+                        </select>
+                        <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId} onClick={handleOpenHeatPumpStateDialog} type="button">{t("queryEditState")}</button>
+                        <textarea
+                          className="min-h-40 rounded-xl bg-surface-container-highest px-4 py-3 font-mono text-xs outline-none md:col-span-2"
+                          onChange={(event) => setHeatPumpStateHex(event.target.value)}
+                          placeholder={t("statePlaceholder")}
+                          value={heatPumpStateHex}
+                        />
+                        <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpComparisonType(event.target.value as ComparisonType)} value={heatPumpComparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+                        <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpAction(event.target.value as ControlAction)} value={heatPumpAction}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+                        <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpTriggerKw(event.target.value)} step="0.1" type="number" value={heatPumpTriggerKw} />
+                        <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">{t("heatPumpRuleHelp")}</div>
+                        {editingHeatPumpLinkId === null ? (
+                          <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId || !heatPumpStateHex.trim()} type="submit">{t("addHeatPumpRule")}</button>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-3">
+                            <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId || !heatPumpStateHex.trim()} type="submit">{t("saveHeatPumpRule")}</button>
+                            <button className="secondary-action justify-center" onClick={resetHeatPumpForm} type="button">{common("cancel")}</button>
+                          </div>
+                        )}
+                      </form>
+                    </>
+                  )}
                 </section>
               </section>
               <aside className="space-y-6 lg:col-span-4">
@@ -316,6 +547,77 @@ export default function ManageProductionSourceView() {
           </div>
         ) : null}
       </main>
+
+      {isHeatPumpStateDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-4xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="metric-label mb-2">{t("heatPumpState")}</p>
+                <h2 className="font-headline text-2xl font-bold text-primary">{t("selectCommandState")}</h2>
+              </div>
+              <button className="secondary-action px-3 py-2 text-sm" onClick={() => setIsHeatPumpStateDialogOpen(false)} type="button">{common("close")}</button>
+            </div>
+
+            <div className="mb-4 flex flex-wrap gap-2">
+              <button
+                className="secondary-action px-4 py-3 text-sm disabled:opacity-60"
+                disabled={!selectedHeatPumpDeviceId || isLoadingHeatPumpState}
+                onClick={() => loadHeatPumpStateForDialog(Number(selectedHeatPumpDeviceId))}
+                type="button"
+              >
+                {isLoadingHeatPumpState ? common("loading") : t("refreshCurrentState")}
+              </button>
+              <button
+                className="secondary-action px-4 py-3 text-sm disabled:opacity-60"
+                disabled={!heatPumpCurrentState}
+                onClick={() => setHeatPumpStateDialogValue(heatPumpCurrentState ?? "")}
+                type="button"
+              >
+                {t("useCurrent")}
+              </button>
+              <button
+                className="secondary-action px-4 py-3 text-sm disabled:opacity-60"
+                disabled={!heatPumpLastPolledState}
+                onClick={() => setHeatPumpStateDialogValue(heatPumpLastPolledState ?? "")}
+                type="button"
+              >
+                {t("useLastPolled")}
+              </button>
+            </div>
+
+            <div className="mb-4 grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl bg-surface-container p-4">
+                <span className="metric-label">{t("acType")}</span>
+                <p className="mt-2 font-semibold">{label(heatPumpDialogAcType)}</p>
+              </div>
+              <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">
+                {t("heatPumpStateHelp")}
+              </div>
+            </div>
+
+            <textarea
+              className="min-h-72 w-full rounded-xl bg-surface-container px-4 py-3 font-mono text-xs outline-none"
+              onChange={(event) => setHeatPumpStateDialogValue(event.target.value)}
+              value={heatPumpStateDialogValue}
+            />
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                className="primary-action justify-center"
+                onClick={() => {
+                  setHeatPumpStateHex(heatPumpStateDialogValue.trim());
+                  setIsHeatPumpStateDialogOpen(false);
+                }}
+                type="button"
+              >
+                {t("saveState")}
+              </button>
+              <button className="secondary-action justify-center" onClick={() => setIsHeatPumpStateDialogOpen(false)} type="button">{common("cancel")}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
