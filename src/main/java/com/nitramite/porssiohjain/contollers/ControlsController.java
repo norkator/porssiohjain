@@ -151,6 +151,23 @@ public class ControlsController {
         );
     }
 
+    @PutMapping("/links/heat-pumps/{linkId}")
+    public ControlHeatPumpResponse updateHeatPumpLink(
+            @PathVariable Long linkId,
+            @RequestBody ControlHeatPumpLinkRequest request
+    ) {
+        return controlService.updateControlHeatPump(
+                authContext.getAccountId(),
+                linkId,
+                request.deviceId(),
+                request.stateHex(),
+                request.controlAction(),
+                request.comparisonType(),
+                request.priceLimit(),
+                request.estimatedPowerKw()
+        );
+    }
+
     @DeleteMapping("/links/heat-pumps/{linkId}")
     public void deleteHeatPumpLink(
             @PathVariable Long linkId

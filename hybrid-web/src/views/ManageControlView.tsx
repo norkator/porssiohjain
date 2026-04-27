@@ -32,6 +32,7 @@ import {
   type ControlDeviceLink,
   type ControlMode,
   type ControlPayload,
+  updateControlHeatPumpLink,
   updateControl
 } from "@/lib/controls";
 import { fetchDevices, fetchHeatPumpState, type ApiDevice, type AcType } from "@/lib/devices";
@@ -102,6 +103,7 @@ export default function ManageControlView() {
   const [heatPumpPriceLimit, setHeatPumpPriceLimit] = useState("");
   const [heatPumpEstimatedPowerKw, setHeatPumpEstimatedPowerKw] = useState("");
   const [isAddingHeatPumpLink, setIsAddingHeatPumpLink] = useState(false);
+  const [editingHeatPumpLinkId, setEditingHeatPumpLinkId] = useState<number | null>(null);
   const [deleteHeatPumpConfirmId, setDeleteHeatPumpConfirmId] = useState<number | null>(null);
   const [isDeletingHeatPumpId, setIsDeletingHeatPumpId] = useState<number | null>(null);
   const [isHeatPumpStateDialogOpen, setIsHeatPumpStateDialogOpen] = useState(false);
@@ -131,6 +133,16 @@ export default function ManageControlView() {
     heatPumpStateHex.trim().length > 0 &&
     !isAddingHeatPumpLink &&
     !control?.shared;
+
+  const resetHeatPumpForm = () => {
+    setEditingHeatPumpLinkId(null);
+    setSelectedHeatPumpDeviceId("");
+    setHeatPumpStateHex("");
+    setHeatPumpAction("TURN_ON");
+    setHeatPumpComparisonType(null);
+    setHeatPumpPriceLimit("");
+    setHeatPumpEstimatedPowerKw("");
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -384,27 +396,39 @@ export default function ManageControlView() {
     setLinksError(null);
 
     try {
-      await addControlHeatPumpLink(controlId, {
+      const payload = {
         comparisonType: heatPumpComparisonType,
         controlAction: heatPumpAction,
         deviceId: selectedHeatPumpDevice.id,
         estimatedPowerKw: heatPumpEstimatedPowerKw === "" ? null : Math.max(0, toNumber(heatPumpEstimatedPowerKw)),
         priceLimit: heatPumpPriceLimit === "" ? null : toNumber(heatPumpPriceLimit),
         stateHex: heatPumpStateHex.trim()
-      });
+      };
+      if (editingHeatPumpLinkId === null) {
+        await addControlHeatPumpLink(controlId, payload);
+      } else {
+        await updateControlHeatPumpLink(editingHeatPumpLinkId, payload);
+      }
 
       setHeatPumpLinks(await fetchControlHeatPumpLinks(controlId));
-      setSelectedHeatPumpDeviceId("");
-      setHeatPumpStateHex("");
-      setHeatPumpAction("TURN_ON");
-      setHeatPumpComparisonType(null);
-      setHeatPumpPriceLimit("");
-      setHeatPumpEstimatedPowerKw("");
+      resetHeatPumpForm();
     } catch (error) {
-      setLinksError(error instanceof Error ? error.message : t("failedLinkHeatPump"));
+      setLinksError(error instanceof Error ? error.message : editingHeatPumpLinkId === null ? t("failedLinkHeatPump") : t("failedUpdateHeatPumpRule"));
     } finally {
       setIsAddingHeatPumpLink(false);
     }
+  };
+
+  const handleEditHeatPumpLink = (link: ControlHeatPumpLink) => {
+    setActiveDeviceTab("HEAT_PUMP");
+    setEditingHeatPumpLinkId(link.id);
+    setDeleteHeatPumpConfirmId((current) => (current === link.id ? null : current));
+    setSelectedHeatPumpDeviceId(String(link.deviceId));
+    setHeatPumpStateHex(link.stateHex ?? "");
+    setHeatPumpAction(link.controlAction);
+    setHeatPumpComparisonType(link.comparisonType);
+    setHeatPumpPriceLimit(link.priceLimit === null ? "" : String(link.priceLimit));
+    setHeatPumpEstimatedPowerKw(link.estimatedPowerKw === null ? "" : String(link.estimatedPowerKw));
   };
 
   const handleDeleteHeatPumpLink = async (linkId: number) => {
@@ -415,6 +439,9 @@ export default function ManageControlView() {
       await deleteControlHeatPumpLink(linkId);
       setHeatPumpLinks((current) => current.filter((link) => link.id !== linkId));
       setDeleteHeatPumpConfirmId((current) => (current === linkId ? null : current));
+      if (editingHeatPumpLinkId === linkId) {
+        resetHeatPumpForm();
+      }
     } catch (error) {
       setLinksError(error instanceof Error ? error.message : t("failedRemoveHeatPump"));
     } finally {
@@ -850,13 +877,22 @@ export default function ManageControlView() {
                                 </div>
                               </div>
                             ) : (
-                              <button
-                                className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
-                                onClick={() => setDeleteHeatPumpConfirmId(link.id)}
-                                type="button"
-                              >
-                                {common("remove")}
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  className="secondary-action justify-center px-3 py-2 text-xs"
+                                  onClick={() => handleEditHeatPumpLink(link)}
+                                  type="button"
+                                >
+                                  {common("edit")}
+                                </button>
+                                <button
+                                  className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
+                                  onClick={() => setDeleteHeatPumpConfirmId(link.id)}
+                                  type="button"
+                                >
+                                  {common("remove")}
+                                </button>
+                              </div>
                             )
                           ) : null}
                         </div>
@@ -975,9 +1011,20 @@ export default function ManageControlView() {
                         />
                       </div>
 
-                      <button className="secondary-action w-full justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canAddHeatPumpLink} type="submit">
-                        {isAddingHeatPumpLink ? t("linking") : t("linkHeatPumpDevice")}
-                      </button>
+                      {editingHeatPumpLinkId === null ? (
+                        <button className="secondary-action w-full justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canAddHeatPumpLink} type="submit">
+                          {isAddingHeatPumpLink ? t("linking") : t("linkHeatPumpDevice")}
+                        </button>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                          <button className="secondary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canAddHeatPumpLink} type="submit">
+                            {isAddingHeatPumpLink ? t("savingHeatPumpRule") : t("saveHeatPumpRule")}
+                          </button>
+                          <button className="secondary-action justify-center" onClick={resetHeatPumpForm} type="button">
+                            {common("cancel")}
+                          </button>
+                        </div>
+                      )}
                     </form>
                   ) : null}
                 </>

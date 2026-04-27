@@ -405,17 +405,30 @@ public class ControlService {
                     .build();
 
             ControlHeatPumpEntity saved = controlHeatPumpRepository.save(entity);
+            return toControlHeatPumpResponse(saved);
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
+    }
 
-            return ControlHeatPumpResponse.builder()
-                    .id(saved.getId())
-                    .controlId(saved.getControl().getId())
-                    .deviceId(saved.getDevice().getId())
-                    .stateHex(saved.getStateHex())
-                    .controlAction(saved.getControlAction())
-                    .comparisonType(saved.getComparisonType())
-                    .priceLimit(saved.getPriceLimit())
-                    .estimatedPowerKw(saved.getEstimatedPowerKw())
-                    .build();
+    public ControlHeatPumpResponse updateControlHeatPump(
+            Long accountId, Long controlHeatPumpId, Long deviceId, String stateHex, ControlAction controlAction,
+            ComparisonType comparisonType, BigDecimal priceLimit, BigDecimal estimatedPowerKw
+    ) {
+        ControlHeatPumpEntity entity = controlHeatPumpRepository.findById(controlHeatPumpId)
+                .orElseThrow(() -> new EntityNotFoundException("ControlHeatPump not found with id: " + controlHeatPumpId));
+
+        if (entity.getControl().getAccount().getId().equals(accountId)) {
+            DeviceEntity device = getOwnedDevice(accountId, deviceId);
+            entity.setDevice(device);
+            entity.setStateHex(stateHex);
+            entity.setControlAction(controlAction);
+            entity.setComparisonType(comparisonType);
+            entity.setPriceLimit(priceLimit);
+            entity.setEstimatedPowerKw(estimatedPowerKw);
+
+            ControlHeatPumpEntity updated = controlHeatPumpRepository.save(entity);
+            return toControlHeatPumpResponse(updated);
         } else {
             throw new IllegalStateException("Forbidden!");
         }
@@ -439,29 +452,33 @@ public class ControlService {
         ControlEntity control = getOwnedControl(accountId, controlId);
         Set<ControlHeatPumpEntity> entities = control.getControlHeatPumps();
         return entities.stream()
-                .map(entity -> ControlHeatPumpResponse.builder()
-                        .id(entity.getId())
-                        .controlId(control.getId())
-                        .deviceId(entity.getDevice().getId())
-                        .stateHex(entity.getStateHex())
-                        .controlAction(entity.getControlAction())
-                        .comparisonType(entity.getComparisonType())
-                        .priceLimit(entity.getPriceLimit())
-                        .estimatedPowerKw(entity.getEstimatedPowerKw())
-                        .device(
-                                DeviceResponse.builder()
-                                        .id(entity.getDevice().getId())
-                                        .uuid(entity.getDevice().getUuid())
-                                        .deviceType(entity.getDevice().getDeviceType())
-                                        .deviceName(entity.getDevice().getDeviceName())
-                                        .lastCommunication(entity.getDevice().getLastCommunication())
-                                        .createdAt(entity.getDevice().getCreatedAt())
-                                        .updatedAt(entity.getDevice().getUpdatedAt())
-                                        .build()
-                        )
-                        .build())
+                .map(this::toControlHeatPumpResponse)
                 .sorted(Comparator.comparing(ControlHeatPumpResponse::getId))
                 .toList();
+    }
+
+    private ControlHeatPumpResponse toControlHeatPumpResponse(ControlHeatPumpEntity entity) {
+        return ControlHeatPumpResponse.builder()
+                .id(entity.getId())
+                .controlId(entity.getControl().getId())
+                .deviceId(entity.getDevice().getId())
+                .stateHex(entity.getStateHex())
+                .controlAction(entity.getControlAction())
+                .comparisonType(entity.getComparisonType())
+                .priceLimit(entity.getPriceLimit())
+                .estimatedPowerKw(entity.getEstimatedPowerKw())
+                .device(
+                        DeviceResponse.builder()
+                                .id(entity.getDevice().getId())
+                                .uuid(entity.getDevice().getUuid())
+                                .deviceType(entity.getDevice().getDeviceType())
+                                .deviceName(entity.getDevice().getDeviceName())
+                                .lastCommunication(entity.getDevice().getLastCommunication())
+                                .createdAt(entity.getDevice().getCreatedAt())
+                                .updatedAt(entity.getDevice().getUpdatedAt())
+                                .build()
+                )
+                .build();
     }
 
     private ControlEntity getOwnedControl(Long accountId, Long controlId) {

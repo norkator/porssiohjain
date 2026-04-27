@@ -90,6 +90,15 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private Div chartTodayDiv, chartTomorrowDiv;
+    private ComboBox<DeviceResponse> heatPumpDeviceSelect;
+    private TextField heatPumpStateHexField;
+    private ComboBox<ControlAction> heatPumpActionCombo;
+    private ComboBox<ComparisonType> heatPumpComparisonCombo;
+    private NumberField heatPumpPriceLimitField;
+    private NumberField heatPumpEstimatedPowerKwField;
+    private Button heatPumpSaveButton;
+    private Button heatPumpCancelButton;
+    private ControlHeatPumpResponse selectedHeatPumpLink;
 
     private final Instant dateNow = Instant.now();
     private final Instant startOfDay = dateNow.truncatedTo(ChronoUnit.DAYS);
@@ -129,6 +138,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         setSpacing(true);
         setPadding(true);
+        heatPumpGrid.addItemClickListener(event -> editHeatPumpLink(event.getItem()));
     }
 
     @Override
@@ -441,6 +451,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             Button decode = new Button(t("controlTable.button.decodeState"), e -> openHeatPumpStateHexDialog(cd.getStateHex()));
             Button delete = new Button(t("controlTable.button.delete"), e -> {
                 controlService.deleteControlHeatPump(getAccountId(), cd.getId());
+                if (selectedHeatPumpLink != null && selectedHeatPumpLink.getId().equals(cd.getId())) {
+                    clearHeatPumpForm();
+                }
                 loadControlHeatPumps();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -549,66 +562,95 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private Component createAddHeatPumpLayout() {
-        ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
-        deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
-        deviceSelect.setItems(
+        heatPumpDeviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
+        heatPumpDeviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
+        heatPumpDeviceSelect.setItems(
                 deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
                         .filter(d -> d.getDeviceType() == DeviceType.HEAT_PUMP)
                         .toList()
         );
-        deviceSelect.setWidthFull();
+        heatPumpDeviceSelect.setWidthFull();
 
-        TextField stateHexField = new TextField(t("controlTable.field.stateHex"));
-        stateHexField.setReadOnly(true);
-        stateHexField.setWidthFull();
+        heatPumpStateHexField = new TextField(t("controlTable.field.stateHex"));
+        heatPumpStateHexField.setReadOnly(true);
+        heatPumpStateHexField.setWidthFull();
 
         Button queryStateButton = new Button(t("controlTable.button.queryState"), e -> {
-            if (deviceSelect.getValue() != null) {
-                openHeatPumpStateDialog(deviceSelect.getValue(), stateHexField);
+            if (heatPumpDeviceSelect.getValue() != null) {
+                openHeatPumpStateDialog(heatPumpDeviceSelect.getValue(), heatPumpStateHexField);
             } else {
                 Notification.show(t("controlTable.notification.selectDeviceFirst"), 3000, Notification.Position.MIDDLE);
             }
         });
         queryStateButton.setWidthFull();
 
-        ComboBox<ControlAction> actionCombo = new ComboBox<>(t("controlTable.field.action"));
-        actionCombo.setItems(ControlAction.values());
-        actionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
-        actionCombo.setWidthFull();
+        heatPumpActionCombo = new ComboBox<>(t("controlTable.field.action"));
+        heatPumpActionCombo.setItems(ControlAction.values());
+        heatPumpActionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
+        heatPumpActionCombo.setWidthFull();
 
-        ComboBox<ComparisonType> comparisonCombo = new ComboBox<>(t("controlTable.field.comparisonType"));
-        comparisonCombo.setItems(ComparisonType.values());
-        comparisonCombo.setItemLabelGenerator(type -> t("comparisonType." + type.name()));
-        comparisonCombo.setWidthFull();
+        heatPumpComparisonCombo = new ComboBox<>(t("controlTable.field.comparisonType"));
+        heatPumpComparisonCombo.setItems(ComparisonType.values());
+        heatPumpComparisonCombo.setItemLabelGenerator(type -> t("comparisonType." + type.name()));
+        heatPumpComparisonCombo.setWidthFull();
 
-        NumberField priceLimitField = new NumberField(t("controlTable.field.priceLimit"));
-        priceLimitField.setStep(0.1);
-        priceLimitField.setWidthFull();
+        heatPumpPriceLimitField = new NumberField(t("controlTable.field.priceLimit"));
+        heatPumpPriceLimitField.setStep(0.1);
+        heatPumpPriceLimitField.setWidthFull();
 
-        NumberField estimatedPowerKwField = new NumberField(t("controlTable.field.estimatedPowerKw"));
-        estimatedPowerKwField.setStep(0.1);
-        estimatedPowerKwField.setMin(0);
-        estimatedPowerKwField.setWidthFull();
+        heatPumpEstimatedPowerKwField = new NumberField(t("controlTable.field.estimatedPowerKw"));
+        heatPumpEstimatedPowerKwField.setStep(0.1);
+        heatPumpEstimatedPowerKwField.setMin(0);
+        heatPumpEstimatedPowerKwField.setWidthFull();
 
-        Button addButton = new Button(t("controlTable.button.addDevice"), e -> {
-            if (deviceSelect.getValue() != null && !stateHexField.getValue().isEmpty() && actionCombo.getValue() != null) {
-                controlService.addHeatPumpToControl(
-                        getAccountId(),
-                        controlId,
-                        deviceSelect.getValue().getId(),
-                        stateHexField.getValue(),
-                        actionCombo.getValue(),
-                        comparisonCombo.getValue(),
-                        priceLimitField.getValue() != null ? BigDecimal.valueOf(priceLimitField.getValue()) : null,
-                        estimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(estimatedPowerKwField.getValue()) : null
-                );
+        heatPumpSaveButton = new Button(t("controlTable.button.addDevice"), e -> {
+            if (heatPumpDeviceSelect.getValue() != null && !heatPumpStateHexField.getValue().isEmpty() && heatPumpActionCombo.getValue() != null) {
+                if (selectedHeatPumpLink != null) {
+                    controlService.updateControlHeatPump(
+                            getAccountId(),
+                            selectedHeatPumpLink.getId(),
+                            heatPumpDeviceSelect.getValue().getId(),
+                            heatPumpStateHexField.getValue(),
+                            heatPumpActionCombo.getValue(),
+                            heatPumpComparisonCombo.getValue(),
+                            heatPumpPriceLimitField.getValue() != null ? BigDecimal.valueOf(heatPumpPriceLimitField.getValue()) : null,
+                            heatPumpEstimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(heatPumpEstimatedPowerKwField.getValue()) : null
+                    );
+                } else {
+                    controlService.addHeatPumpToControl(
+                            getAccountId(),
+                            controlId,
+                            heatPumpDeviceSelect.getValue().getId(),
+                            heatPumpStateHexField.getValue(),
+                            heatPumpActionCombo.getValue(),
+                            heatPumpComparisonCombo.getValue(),
+                            heatPumpPriceLimitField.getValue() != null ? BigDecimal.valueOf(heatPumpPriceLimitField.getValue()) : null,
+                            heatPumpEstimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(heatPumpEstimatedPowerKwField.getValue()) : null
+                    );
+                }
                 loadControlHeatPumps();
-                stateHexField.clear();
+                clearHeatPumpForm();
             }
         });
-        addButton.setWidthFull();
+        heatPumpSaveButton.setWidthFull();
+        heatPumpSaveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        FormLayout formLayout = new FormLayout(deviceSelect, queryStateButton, stateHexField, actionCombo, comparisonCombo, priceLimitField, estimatedPowerKwField, addButton);
+        heatPumpCancelButton = new Button(t("common.cancel"), e -> clearHeatPumpForm());
+        heatPumpCancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        heatPumpCancelButton.setWidthFull();
+        heatPumpCancelButton.setVisible(false);
+
+        FormLayout formLayout = new FormLayout(
+                heatPumpDeviceSelect,
+                queryStateButton,
+                heatPumpStateHexField,
+                heatPumpActionCombo,
+                heatPumpComparisonCombo,
+                heatPumpPriceLimitField,
+                heatPumpEstimatedPowerKwField,
+                heatPumpSaveButton,
+                heatPumpCancelButton
+        );
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 4)
@@ -620,7 +662,47 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
                 .set("background-color", "var(--lumo-contrast-5pct)");
 
+        clearHeatPumpForm();
         return formLayout;
+    }
+
+    private void editHeatPumpLink(ControlHeatPumpResponse link) {
+        selectedHeatPumpLink = link;
+        if (heatPumpDeviceSelect == null) {
+            return;
+        }
+
+        DeviceResponse matchingDevice = deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
+                .filter(device -> device.getDeviceType() == DeviceType.HEAT_PUMP)
+                .filter(device -> device.getId().equals(link.getDeviceId()))
+                .findFirst()
+                .orElse(null);
+
+        heatPumpDeviceSelect.setValue(matchingDevice);
+        heatPumpStateHexField.setValue(link.getStateHex() != null ? link.getStateHex() : "");
+        heatPumpActionCombo.setValue(link.getControlAction());
+        heatPumpComparisonCombo.setValue(link.getComparisonType());
+        heatPumpPriceLimitField.setValue(link.getPriceLimit() != null ? link.getPriceLimit().doubleValue() : null);
+        heatPumpEstimatedPowerKwField.setValue(link.getEstimatedPowerKw() != null ? link.getEstimatedPowerKw().doubleValue() : null);
+        heatPumpSaveButton.setText(t("controlTable.button.save"));
+        heatPumpCancelButton.setVisible(true);
+    }
+
+    private void clearHeatPumpForm() {
+        selectedHeatPumpLink = null;
+        if (heatPumpDeviceSelect == null) {
+            return;
+        }
+
+        heatPumpGrid.deselectAll();
+        heatPumpDeviceSelect.clear();
+        heatPumpStateHexField.clear();
+        heatPumpActionCombo.clear();
+        heatPumpComparisonCombo.clear();
+        heatPumpPriceLimitField.clear();
+        heatPumpEstimatedPowerKwField.clear();
+        heatPumpSaveButton.setText(t("controlTable.button.addDevice"));
+        heatPumpCancelButton.setVisible(false);
     }
 
     private Component createAddNotificationLayout() {

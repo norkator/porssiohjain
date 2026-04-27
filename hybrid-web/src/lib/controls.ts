@@ -221,6 +221,22 @@ export async function addControlHeatPumpLink(controlId: number, payload: Control
   return response.json() as Promise<ControlHeatPumpLink>;
 }
 
+export async function updateControlHeatPumpLink(linkId: number, payload: ControlHeatPumpLinkPayload) {
+  const response = await apiFetch(`/api/controls/links/heat-pumps/${linkId}`, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "PUT"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<ControlHeatPumpLink>;
+}
+
 export async function fetchControlNotifications(controlId: number) {
   return apiGetJson<ControlNotification[]>(`/api/controls/${controlId}/notifications`);
 }
