@@ -22,8 +22,11 @@ type DeviceCardProps = {
   detailValue: string;
   accent: string;
   manageTo?: string;
-  extraActionLabel?: string;
-  onExtraAction?: () => void;
+  actions?: Array<{
+    label: string;
+    onClick?: () => void;
+    to?: string;
+  }>;
 };
 
 export default function DeviceCard({
@@ -36,10 +39,15 @@ export default function DeviceCard({
   detailValue,
   accent,
   manageTo,
-  extraActionLabel,
-  onExtraAction
+  actions = []
 }: DeviceCardProps) {
   const { t } = useI18n("common");
+  const cardActions = [
+    ...actions,
+    manageTo
+      ? { label: t("manage"), to: manageTo }
+      : { label: t("manage") }
+  ];
 
   return (
     <article className={`group app-card border-l-4 ${accent} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`}>
@@ -70,24 +78,24 @@ export default function DeviceCard({
           <span className="text-sm font-semibold text-on-surface">{detailValue}</span>
         </div>
         <div className="flex items-center gap-2">
-          {extraActionLabel && onExtraAction ? (
-            <button
+          {cardActions.map((action) => action.to ? (
+            <Link
               className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5"
-              onClick={onExtraAction}
-              type="button"
+              key={action.label}
+              to={action.to}
             >
-              {extraActionLabel}
-            </button>
-          ) : null}
-          {manageTo ? (
-            <Link className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" to={manageTo}>
-              {t("manage")}
+              {action.label}
             </Link>
           ) : (
-            <button className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5" type="button">
-              {t("manage")}
+            <button
+              className="secondary-action rounded-lg px-3 py-2 text-sm transition-all duration-300 group-hover:-translate-y-0.5"
+              key={action.label}
+              onClick={action.onClick}
+              type="button"
+            >
+              {action.label}
             </button>
-          )}
+          ))}
         </div>
       </div>
     </article>

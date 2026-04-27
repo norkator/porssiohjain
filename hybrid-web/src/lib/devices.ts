@@ -96,6 +96,20 @@ export async function fetchHeatPumpState(deviceId: number) {
   return apiGetJson<HeatPumpStateResponse>(`/devices/${deviceId}/heat-pump/state`);
 }
 
+export async function sendHeatPumpCommand(deviceId: number, state: string) {
+  const response = await apiFetch(`/devices/${deviceId}/heat-pump/commands`, {
+    body: JSON.stringify({ state }),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+}
+
 export async function sendMqttRelayDebugCommand(deviceId: number, channel: number, on: boolean) {
   const response = await apiFetch(`/devices/${deviceId}/mqtt-relays/${channel}`, {
     body: JSON.stringify({ on }),

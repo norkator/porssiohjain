@@ -56,11 +56,14 @@ type HeatPumpStateDialogLabels = {
   cool: string;
   fanOnly: string;
   invalidState: string;
+  sendState?: string;
+  sendingState?: string;
 };
 
 type Props = {
   acType: AcType;
   currentState: string | null;
+  errorMessage?: string | null;
   isLoading: boolean;
   isOpen: boolean;
   labels: HeatPumpStateDialogLabels;
@@ -68,9 +71,11 @@ type Props = {
   onClose: () => void;
   onRefresh: () => void;
   onSave: (value: string) => void;
+  onSend?: (value: string) => void;
   onStateChange: (value: string) => void;
   stateValue: string;
   formatAcType: (value: AcType) => string;
+  isSending?: boolean;
 };
 
 const MITSUBISHI_MODES: Array<{ code: MitsubishiModeCode; key: keyof Pick<HeatPumpStateDialogLabels, "auto" | "cool" | "dry" | "fanOnly" | "heat"> }> = [
@@ -97,6 +102,7 @@ function stringifyMitsubishiState(value: MitsubishiState) {
 export default function HeatPumpStateDialog({
   acType,
   currentState,
+  errorMessage,
   formatAcType,
   isLoading,
   isOpen,
@@ -105,8 +111,10 @@ export default function HeatPumpStateDialog({
   onClose,
   onRefresh,
   onSave,
+  onSend,
   onStateChange,
-  stateValue
+  stateValue,
+  isSending = false
 }: Props) {
   const [effectiveFlags, setEffectiveFlags] = useState(0);
   const editorUpdatingRef = useRef(false);
@@ -311,6 +319,12 @@ export default function HeatPumpStateDialog({
           </div>
         ) : null}
 
+        {errorMessage ? (
+          <div className="mb-4 rounded-xl bg-error-container/70 p-4 text-sm text-on-error-container">
+            {errorMessage}
+          </div>
+        ) : null}
+
         <label className="block">
           <span className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface">{labels.rawState}</span>
           <textarea
@@ -323,14 +337,30 @@ export default function HeatPumpStateDialog({
         <div className="mt-5 grid grid-cols-2 gap-3">
           <button
             className="primary-action justify-center disabled:opacity-60"
-            disabled={Boolean(mitsubishiParseError)}
+            disabled={Boolean(mitsubishiParseError) || isSending}
             onClick={() => onSave(stateValue.trim())}
             type="button"
           >
             {labels.saveState}
           </button>
-          <button className="secondary-action justify-center" onClick={onClose} type="button">{labels.cancel}</button>
+          {onSend ? (
+            <button
+              className="primary-action justify-center disabled:opacity-60"
+              disabled={Boolean(mitsubishiParseError) || !stateValue.trim() || isSending}
+              onClick={() => onSend(stateValue.trim())}
+              type="button"
+            >
+              {isSending ? labels.sendingState ?? labels.loading : labels.sendState ?? labels.saveState}
+            </button>
+          ) : (
+            <button className="secondary-action justify-center" onClick={onClose} type="button">{labels.cancel}</button>
+          )}
         </div>
+        {onSend ? (
+          <div className="mt-3">
+            <button className="secondary-action w-full justify-center" disabled={isSending} onClick={onClose} type="button">{labels.cancel}</button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

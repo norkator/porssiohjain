@@ -10,9 +10,10 @@
  */
 
 import DeviceCard from "@/components/DeviceCard";
+import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
 import PageHeader from "@/components/PageHeader";
 import { useDevices } from "@/hooks/useDevices";
-import { formatDeviceLastCommunication, formatDeviceType, getDeviceAccent, getDeviceConnectionState, sendMqttRelayDebugCommand, type ApiDevice } from "@/lib/devices";
+import { fetchHeatPumpState, formatAcType, formatDeviceLastCommunication, formatDeviceType, getDeviceAccent, getDeviceConnectionState, sendHeatPumpCommand, sendMqttRelayDebugCommand, type AcType, type ApiDevice } from "@/lib/devices";
 import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -25,6 +26,14 @@ export default function DevicesView() {
   const [relayStates, setRelayStates] = useState<boolean[]>([false, false, false, false]);
   const [isSendingRelayChannel, setIsSendingRelayChannel] = useState<number | null>(null);
   const [relayError, setRelayError] = useState<string | null>(null);
+  const [heatPumpDialogDevice, setHeatPumpDialogDevice] = useState<ApiDevice | null>(null);
+  const [heatPumpDialogValue, setHeatPumpDialogValue] = useState("");
+  const [heatPumpCurrentState, setHeatPumpCurrentState] = useState<string | null>(null);
+  const [heatPumpLastPolledState, setHeatPumpLastPolledState] = useState<string | null>(null);
+  const [heatPumpDialogAcType, setHeatPumpDialogAcType] = useState<AcType>("NONE");
+  const [isLoadingHeatPumpState, setIsLoadingHeatPumpState] = useState(false);
+  const [isSendingHeatPumpCommand, setIsSendingHeatPumpCommand] = useState(false);
+  const [heatPumpError, setHeatPumpError] = useState<string | null>(null);
 
   const handleRelayToggle = async (channel: number) => {
     if (!relayDialogDevice) {
@@ -42,6 +51,54 @@ export default function DevicesView() {
       setRelayError(error instanceof Error ? error.message : t("failedRelayCommand"));
     } finally {
       setIsSendingRelayChannel((current) => (current === channel ? null : current));
+    }
+  };
+
+  const loadHeatPumpStateForDialog = async (device: ApiDevice) => {
+    setIsLoadingHeatPumpState(true);
+    setHeatPumpError(null);
+    try {
+      const response = await fetchHeatPumpState(device.id);
+      const bestState = response.currentState || response.lastPolledState || "";
+      setHeatPumpDialogAcType(response.acType);
+      setHeatPumpCurrentState(response.currentState);
+      setHeatPumpLastPolledState(response.lastPolledState);
+      setHeatPumpDialogValue(bestState);
+    } catch (error) {
+      setHeatPumpError(error instanceof Error ? error.message : t("failedLoadHeatPumpState"));
+      setHeatPumpCurrentState(null);
+      setHeatPumpLastPolledState(null);
+      setHeatPumpDialogAcType((device.acType as AcType | null) ?? "NONE");
+      setHeatPumpDialogValue("");
+    } finally {
+      setIsLoadingHeatPumpState(false);
+    }
+  };
+
+  const handleOpenHeatPumpDialog = async (device: ApiDevice) => {
+    setHeatPumpDialogDevice(device);
+    setHeatPumpDialogAcType((device.acType as AcType | null) ?? "NONE");
+    setHeatPumpDialogValue("");
+    setHeatPumpCurrentState(null);
+    setHeatPumpLastPolledState(null);
+    setHeatPumpError(null);
+    await loadHeatPumpStateForDialog(device);
+  };
+
+  const handleSendHeatPumpCommand = async (value: string) => {
+    if (!heatPumpDialogDevice) {
+      return;
+    }
+
+    setIsSendingHeatPumpCommand(true);
+    setHeatPumpError(null);
+    try {
+      await sendHeatPumpCommand(heatPumpDialogDevice.id, value);
+      await loadHeatPumpStateForDialog(heatPumpDialogDevice);
+    } catch (error) {
+      setHeatPumpError(error instanceof Error ? error.message : t("failedSendHeatPumpCommand"));
+    } finally {
+      setIsSendingHeatPumpCommand(false);
     }
   };
 
@@ -90,17 +147,27 @@ export default function DevicesView() {
 
                 return (
                   <DeviceCard
-                  key={device.id}
+                    key={device.id}
                     accent={getDeviceAccent(device)}
+                    actions={[
+                      ...(device.deviceType === "HEAT_PUMP" ? [{
+                        label: t("test"),
+                        onClick: () => {
+                          void handleOpenHeatPumpDialog(device);
+                        }
+                      }] : []),
+                      ...(device.deviceType === "STANDARD" && device.mqttOnline ? [{
+                        label: t("relays"),
+                        onClick: () => {
+                          setRelayDialogDevice(device);
+                          setRelayStates([false, false, false, false]);
+                          setRelayError(null);
+                        }
+                      }] : [])
+                    ]}
                     detailLabel={t("lastSeen")}
                     detailValue={formatDeviceLastCommunication(device.lastCommunication)}
-                    extraActionLabel={device.deviceType === "STANDARD" && device.mqttOnline ? t("relays") : undefined}
                     manageTo={`/devices/${device.id}`}
-                    onExtraAction={device.deviceType === "STANDARD" && device.mqttOnline ? () => {
-                      setRelayDialogDevice(device);
-                      setRelayStates([false, false, false, false]);
-                      setRelayError(null);
-                    } : undefined}
                     status={connection.label}
                     statusTone={connection.tone}
                     subtitle={t("uuid", { uuid: device.uuid })}
@@ -205,6 +272,60 @@ export default function DevicesView() {
           </div>
         </div>
       ) : null}
+
+      <HeatPumpStateDialog
+        acType={heatPumpDialogAcType}
+        currentState={heatPumpCurrentState}
+        errorMessage={heatPumpError}
+        formatAcType={formatAcType}
+        isLoading={isLoadingHeatPumpState}
+        isOpen={Boolean(heatPumpDialogDevice)}
+        isSending={isSendingHeatPumpCommand}
+        labels={{
+          acType: t("acType"),
+          auto: t("auto"),
+          cancel: common("cancel"),
+          close: common("close"),
+          cool: t("cool"),
+          dry: t("dry"),
+          fanOnly: t("fanOnly"),
+          fanSpeed: t("fanSpeed"),
+          heat: t("heat"),
+          heatPumpState: t("heatPumpState"),
+          heatPumpStateHelp: t("heatPumpStateHelp"),
+          invalidState: t("invalidMitsubishiState"),
+          loading: common("loading"),
+          mitsubishiEditorHelp: t("mitsubishiEditorHelp"),
+          mode: t("workingMode"),
+          off: t("off"),
+          on: t("on"),
+          power: t("powerMode"),
+          rawState: t("rawState"),
+          refreshCurrentState: t("refreshCurrentState"),
+          saveState: t("saveState"),
+          selectCommandState: heatPumpDialogDevice?.deviceName ?? t("selectCommandState"),
+          sendState: t("sendState"),
+          sendingState: t("sending"),
+          targetTemperature: t("targetTemperature"),
+          useCurrent: t("useCurrent"),
+          useLastPolled: t("useLastPolled")
+        }}
+        lastPolledState={heatPumpLastPolledState}
+        onClose={() => {
+          if (isSendingHeatPumpCommand) {
+            return;
+          }
+          setHeatPumpDialogDevice(null);
+          setHeatPumpError(null);
+        }}
+        onRefresh={() => heatPumpDialogDevice ? loadHeatPumpStateForDialog(heatPumpDialogDevice) : Promise.resolve()}
+        onSave={(value) => setHeatPumpDialogValue(value)}
+        onSend={(value) => {
+          void handleSendHeatPumpCommand(value);
+        }}
+        onStateChange={setHeatPumpDialogValue}
+        stateValue={heatPumpDialogValue}
+      />
     </>
   );
 }

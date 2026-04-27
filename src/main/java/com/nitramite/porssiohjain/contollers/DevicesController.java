@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
+import com.nitramite.porssiohjain.services.AcCommandDispatchService;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateService;
 import com.nitramite.porssiohjain.services.models.CreateDeviceRequest;
@@ -44,6 +45,7 @@ public class DevicesController {
     private final HeatPumpAcDeviceSelectionService heatPumpAcDeviceSelectionService;
     private final ToshibaAcStateService toshibaAcStateService;
     private final MitsubishiAcStateService mitsubishiAcStateService;
+    private final AcCommandDispatchService acCommandDispatchService;
 
     @GetMapping
     public List<DeviceResponse> listDevices() {
@@ -143,6 +145,15 @@ public class DevicesController {
         controlService.sendDebugMqttRelayCommand(authContext.getAccountId(), deviceId, channel, request.on());
     }
 
+    @PostMapping("/{deviceId}/heat-pump/commands")
+    public void sendHeatPumpCommand(
+            @PathVariable Long deviceId,
+            @RequestBody HeatPumpCommandRequest request
+    ) {
+        DeviceAcDataEntity acData = deviceService.getDeviceAcData(authContext.getAccountId(), deviceId);
+        acCommandDispatchService.dispatchHexState(acData, request.state());
+    }
+
     @PostMapping("/heat-pump/ac-devices")
     public List<HeatPumpAcDeviceResponse> listSelectableHeatPumpAcDevices(
             @RequestBody HeatPumpAcDevicesRequest request
@@ -160,6 +171,11 @@ public class DevicesController {
 
     public record MqttRelayDebugRequest(
             boolean on
+    ) {
+    }
+
+    public record HeatPumpCommandRequest(
+            String state
     ) {
     }
 }
