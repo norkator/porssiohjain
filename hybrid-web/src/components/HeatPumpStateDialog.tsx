@@ -16,8 +16,13 @@ const MITSUBISHI_EFFECTIVE_FLAG_POWER = 0x01;
 const MITSUBISHI_EFFECTIVE_FLAG_MODE = 0x02;
 const MITSUBISHI_EFFECTIVE_FLAG_TEMPERATURE = 0x04;
 const MITSUBISHI_EFFECTIVE_FLAG_FAN_SPEED = 0x08;
+const TOSHIBA_EXPECTED_BYTE_LENGTH = 19;
+const TOSHIBA_EXPECTED_HEX_LENGTH = TOSHIBA_EXPECTED_BYTE_LENGTH * 2;
+const TOSHIBA_MIN_TARGET_TEMPERATURE = 16;
+const TOSHIBA_MAX_TARGET_TEMPERATURE = 30;
 
 type MitsubishiModeCode = 1 | 2 | 3 | 7 | 8;
+type ToshibaModeCode = "AUTO" | "COOL" | "HEAT" | "DRY" | "FAN";
 
 type MitsubishiState = {
   EffectiveFlags?: number | null;
@@ -86,6 +91,86 @@ const MITSUBISHI_MODES: Array<{ code: MitsubishiModeCode; key: keyof Pick<HeatPu
   { code: 8, key: "auto" }
 ];
 
+const TOSHIBA_MODES: Array<{ code: ToshibaModeCode; key: keyof Pick<HeatPumpStateDialogLabels, "auto" | "cool" | "dry" | "fanOnly" | "heat">; rawHex: string }> = [
+  { code: "AUTO", key: "auto", rawHex: "41" },
+  { code: "COOL", key: "cool", rawHex: "42" },
+  { code: "HEAT", key: "heat", rawHex: "43" },
+  { code: "DRY", key: "dry", rawHex: "44" },
+  { code: "FAN", key: "fanOnly", rawHex: "45" }
+];
+
+function normalizeToshibaState(value: string) {
+  if (!value.trim()) {
+    throw new Error("AC state hex is empty.");
+  }
+
+  let normalized = value.trim().replace(/ /g, "").toUpperCase();
+  if ((normalized.length % 2) !== 0) {
+    throw new Error("AC state hex length must be even.");
+  }
+  if (!/^[0-9A-F]+$/.test(normalized)) {
+    throw new Error("AC state hex contains non-hex characters.");
+  }
+  if (normalized.length < TOSHIBA_EXPECTED_HEX_LENGTH) {
+    throw new Error("AC state hex must contain at least 19 bytes.");
+  }
+  if (normalized.length > TOSHIBA_EXPECTED_HEX_LENGTH) {
+    normalized = normalized.slice(0, TOSHIBA_EXPECTED_HEX_LENGTH);
+  }
+  return normalized;
+}
+
+function parseToshibaMode(rawHex: string): ToshibaModeCode | "" {
+  switch (rawHex) {
+    case "41":
+      return "AUTO";
+    case "42":
+      return "COOL";
+    case "43":
+      return "HEAT";
+    case "44":
+      return "DRY";
+    case "45":
+      return "FAN";
+    default:
+      return "";
+  }
+}
+
+function updateToshibaState(
+  value: string,
+  updates: {
+    mode?: ToshibaModeCode;
+    power?: boolean;
+    targetTemperature?: number;
+  }
+) {
+  const normalized = normalizeToshibaState(value);
+  const bytes = normalized.match(/.{2}/g);
+
+  if (!bytes) {
+    throw new Error("AC state hex is empty.");
+  }
+
+  if (updates.power !== undefined) {
+    bytes[0] = updates.power ? "30" : "31";
+  }
+  if (updates.mode) {
+    const mode = TOSHIBA_MODES.find((item) => item.code === updates.mode);
+    if (mode) {
+      bytes[1] = mode.rawHex;
+    }
+  }
+  if (updates.targetTemperature !== undefined) {
+    if (updates.targetTemperature < TOSHIBA_MIN_TARGET_TEMPERATURE || updates.targetTemperature > TOSHIBA_MAX_TARGET_TEMPERATURE) {
+      throw new Error("Target temperature out of range.");
+    }
+    bytes[2] = updates.targetTemperature.toString(16).padStart(2, "0").toUpperCase();
+  }
+
+  return bytes.join("");
+}
+
 function parseMitsubishiState(value: string) {
   if (!value.trim()) {
     return null;
@@ -119,6 +204,7 @@ export default function HeatPumpStateDialog({
   const [effectiveFlags, setEffectiveFlags] = useState(0);
   const editorUpdatingRef = useRef(false);
   const isMitsubishi = acType === "MITSUBISHI";
+  const isToshiba = acType === "TOSHIBA";
 
   const parsedMitsubishiState = useMemo(() => {
     if (!isMitsubishi) {
@@ -135,6 +221,21 @@ export default function HeatPumpStateDialog({
   const maxFanSpeed = parsedMitsubishiState?.NumberOfFanSpeeds && parsedMitsubishiState.NumberOfFanSpeeds > 0
     ? parsedMitsubishiState.NumberOfFanSpeeds
     : undefined;
+  const normalizedToshibaState = useMemo(() => {
+    if (!isToshiba || !stateValue.trim()) {
+      return null;
+    }
+    try {
+      return normalizeToshibaState(stateValue);
+    } catch {
+      return null;
+    }
+  }, [isToshiba, stateValue]);
+  const toshibaParseError = isToshiba && stateValue.trim() && !normalizedToshibaState ? labels.invalidState : null;
+  const toshibaBytes = normalizedToshibaState?.match(/.{2}/g) ?? null;
+  const toshibaPowerValue = toshibaBytes?.[0] === "30" ? "ON" : toshibaBytes?.[0] === "31" ? "OFF" : "";
+  const toshibaModeValue = toshibaBytes?.[1] ? parseToshibaMode(toshibaBytes[1]) : "";
+  const toshibaTargetTemperatureValue = toshibaBytes?.[2] ? Number.parseInt(toshibaBytes[2], 16) : "";
 
   useEffect(() => {
     if (!isOpen || !isMitsubishi) {
@@ -313,9 +414,77 @@ export default function HeatPumpStateDialog({
           </>
         ) : null}
 
-        {mitsubishiParseError ? (
+        {isToshiba ? (
+          <div className="mb-4 grid gap-4 md:grid-cols-3">
+            <label className="block">
+              <span className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface">{labels.power}</span>
+              <select
+                className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container px-4 py-3 text-on-surface outline-none transition-all focus:border-primary disabled:opacity-60"
+                disabled={!normalizedToshibaState}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (!value) {
+                    return;
+                  }
+                  onStateChange(updateToshibaState(stateValue, { power: value === "ON" }));
+                }}
+                value={toshibaPowerValue}
+              >
+                <option value=""></option>
+                <option value="ON">{labels.on}</option>
+                <option value="OFF">{labels.off}</option>
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface">{labels.mode}</span>
+              <select
+                className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container px-4 py-3 text-on-surface outline-none transition-all focus:border-primary disabled:opacity-60"
+                disabled={!normalizedToshibaState}
+                onChange={(event) => {
+                  const value = event.target.value as ToshibaModeCode | "";
+                  if (!value) {
+                    return;
+                  }
+                  onStateChange(updateToshibaState(stateValue, { mode: value }));
+                }}
+                value={toshibaModeValue}
+              >
+                <option value=""></option>
+                {TOSHIBA_MODES.map((mode) => (
+                  <option key={mode.code} value={mode.code}>{labels[mode.key]}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface">{labels.targetTemperature}</span>
+              <input
+                className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container px-4 py-3 text-on-surface outline-none transition-all focus:border-primary disabled:opacity-60"
+                disabled={!normalizedToshibaState}
+                max={TOSHIBA_MAX_TARGET_TEMPERATURE}
+                min={TOSHIBA_MIN_TARGET_TEMPERATURE}
+                onChange={(event) => {
+                  const nextTemperature = Number(event.target.value);
+                  if (!Number.isInteger(nextTemperature)) {
+                    return;
+                  }
+                  onStateChange(updateToshibaState(stateValue, { targetTemperature: nextTemperature }));
+                }}
+                step="1"
+                type="number"
+                value={toshibaTargetTemperatureValue}
+              />
+              <span className="mt-2 ml-1 block text-xs text-on-surface-variant">
+                {TOSHIBA_MIN_TARGET_TEMPERATURE}..{TOSHIBA_MAX_TARGET_TEMPERATURE} C
+              </span>
+            </label>
+          </div>
+        ) : null}
+
+        {mitsubishiParseError || toshibaParseError ? (
           <div className="mb-4 rounded-xl bg-error-container/70 p-4 text-sm text-on-error-container">
-            {mitsubishiParseError}
+            {mitsubishiParseError ?? toshibaParseError}
           </div>
         ) : null}
 
@@ -337,7 +506,7 @@ export default function HeatPumpStateDialog({
         <div className="mt-5 grid grid-cols-2 gap-3">
           <button
             className="primary-action justify-center disabled:opacity-60"
-            disabled={Boolean(mitsubishiParseError) || isSending}
+            disabled={Boolean(mitsubishiParseError || toshibaParseError) || isSending}
             onClick={() => onSave(stateValue.trim())}
             type="button"
           >
@@ -346,7 +515,7 @@ export default function HeatPumpStateDialog({
           {onSend ? (
             <button
               className="primary-action justify-center disabled:opacity-60"
-              disabled={Boolean(mitsubishiParseError) || !stateValue.trim() || isSending}
+              disabled={Boolean(mitsubishiParseError || toshibaParseError) || !stateValue.trim() || isSending}
               onClick={() => onSend(stateValue.trim())}
               type="button"
             >
