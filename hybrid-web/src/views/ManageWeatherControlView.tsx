@@ -10,6 +10,7 @@
  */
 
 import PageHeader from "@/components/PageHeader";
+import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
 import {
   addWeatherControlDeviceLink,
   addWeatherControlHeatPumpLink,
@@ -576,76 +577,49 @@ export default function ManageWeatherControlView() {
         ) : null}
       </main>
 
-      {isHeatPumpStateDialogOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
-          <div className="w-full max-w-4xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
-            <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <p className="metric-label mb-2">{t("heatPumpState")}</p>
-                <h2 className="font-headline text-2xl font-bold text-primary">{t("selectCommandState")}</h2>
-              </div>
-              <button className="secondary-action px-3 py-2 text-sm" onClick={() => setIsHeatPumpStateDialogOpen(false)} type="button">{common("close")}</button>
-            </div>
-
-            <div className="mb-4 flex flex-wrap gap-2">
-              <button
-                className="secondary-action px-4 py-3 text-sm disabled:opacity-60"
-                disabled={!selectedHeatPumpDeviceId || isLoadingHeatPumpState}
-                onClick={() => loadHeatPumpStateForDialog(Number(selectedHeatPumpDeviceId))}
-                type="button"
-              >
-                {isLoadingHeatPumpState ? common("loading") : t("refreshCurrentState")}
-              </button>
-              <button
-                className="secondary-action px-4 py-3 text-sm disabled:opacity-60"
-                disabled={!heatPumpCurrentState}
-                onClick={() => setHeatPumpStateDialogValue(heatPumpCurrentState ?? "")}
-                type="button"
-              >
-                {t("useCurrent")}
-              </button>
-              <button
-                className="secondary-action px-4 py-3 text-sm disabled:opacity-60"
-                disabled={!heatPumpLastPolledState}
-                onClick={() => setHeatPumpStateDialogValue(heatPumpLastPolledState ?? "")}
-                type="button"
-              >
-                {t("useLastPolled")}
-              </button>
-            </div>
-
-            <div className="mb-4 grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl bg-surface-container p-4">
-                <span className="metric-label">{t("acType")}</span>
-                <p className="mt-2 font-semibold">{translatedLabel(heatPumpDialogAcType)}</p>
-              </div>
-              <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">
-                {t("heatPumpStateHelp")}
-              </div>
-            </div>
-
-            <textarea
-              className="min-h-72 w-full rounded-xl bg-surface-container px-4 py-3 font-mono text-xs outline-none"
-              onChange={(event) => setHeatPumpStateDialogValue(event.target.value)}
-              value={heatPumpStateDialogValue}
-            />
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button
-                className="primary-action justify-center"
-                onClick={() => {
-                  setHeatPumpStateHex(heatPumpStateDialogValue.trim());
-                  setIsHeatPumpStateDialogOpen(false);
-                }}
-                type="button"
-              >
-                {t("saveState")}
-              </button>
-              <button className="secondary-action justify-center" onClick={() => setIsHeatPumpStateDialogOpen(false)} type="button">{common("cancel")}</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <HeatPumpStateDialog
+        acType={heatPumpDialogAcType}
+        currentState={heatPumpCurrentState}
+        formatAcType={translatedLabel}
+        isLoading={isLoadingHeatPumpState}
+        isOpen={isHeatPumpStateDialogOpen}
+        labels={{
+          acType: t("acType"),
+          auto: translatedLabel("AUTO"),
+          cancel: common("cancel"),
+          close: common("close"),
+          cool: translatedLabel("COOL"),
+          dry: translatedLabel("DRY"),
+          fanOnly: translatedLabel("FAN_ONLY"),
+          fanSpeed: t("fanSpeed"),
+          heat: translatedLabel("HEAT"),
+          heatPumpState: t("heatPumpState"),
+          heatPumpStateHelp: t("heatPumpStateHelp"),
+          invalidState: t("invalidMitsubishiState"),
+          loading: common("loading"),
+          mitsubishiEditorHelp: t("mitsubishiEditorHelp"),
+          mode: t("workingMode"),
+          off: t("off"),
+          on: t("on"),
+          power: t("powerMode"),
+          rawState: t("rawState"),
+          refreshCurrentState: t("refreshCurrentState"),
+          saveState: t("saveState"),
+          selectCommandState: t("selectCommandState"),
+          targetTemperature: t("targetTemperature"),
+          useCurrent: t("useCurrent"),
+          useLastPolled: t("useLastPolled")
+        }}
+        lastPolledState={heatPumpLastPolledState}
+        onClose={() => setIsHeatPumpStateDialogOpen(false)}
+        onRefresh={() => loadHeatPumpStateForDialog(Number(selectedHeatPumpDeviceId))}
+        onSave={(value) => {
+          setHeatPumpStateHex(value);
+          setIsHeatPumpStateDialogOpen(false);
+        }}
+        onStateChange={setHeatPumpStateDialogValue}
+        stateValue={heatPumpStateDialogValue}
+      />
     </>
   );
 }
