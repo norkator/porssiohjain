@@ -143,7 +143,7 @@
   "accountSettings": {
     "title": "Account Settings",
     "eyebrow": "Account",
-    "headline": "Personal settings, kept simple.",
+    "headline": "Personal settings",
     "description": "Manage the essentials available in the hybrid app. Password changes stay on the Vaadin side for now.",
     "tierCardEyebrow": "Current Plan",
     "tierDescription": "Your plan controls account limits and available automation capacity.",

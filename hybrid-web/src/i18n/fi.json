@@ -143,7 +143,7 @@
   "accountSettings": {
     "title": "Tilin asetukset",
     "eyebrow": "Tili",
-    "headline": "Omat asetukset ilman ylimääräistä.",
+    "headline": "Omat asetukset",
     "description": "Hallinnoi tilin perusasetuksia.",
     "tierCardEyebrow": "Nykyinen tilaus",
     "tierDescription": "Tilitasosi määrittää tilin rajat ja käytettävissä olevan automaatiokapasiteetin.",
