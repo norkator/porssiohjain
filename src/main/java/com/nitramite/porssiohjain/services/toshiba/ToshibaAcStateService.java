@@ -48,7 +48,7 @@ public class ToshibaAcStateService {
 
     private ToshibaAcStateResponse getAcStateInternal(
             DeviceAcDataEntity acData,
-            boolean retryOn403
+            boolean retryOnAuthorizationFailure
     ) {
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -77,22 +77,40 @@ public class ToshibaAcStateService {
                 );
             }
             return body;
-        } catch (HttpClientErrorException.Forbidden e) {
-            if (retryOn403) {
-                log.info("Toshiba AC state query returned 403, attempting re-login");
-                AcLoginResponse acLoginResponse = toshibaLoginService.login(acData);
-                if (acLoginResponse.isSuccess()) {
-                    acData.setAcAccessToken(acLoginResponse.getAccessToken());
-                    waitBeforeRetry();
-                    return getAcStateInternal(acData, false);
-                }
+        } catch (HttpClientErrorException.Unauthorized e) {
+            ToshibaAcStateResponse response = retryAfterAuthorizationFailure(acData, retryOnAuthorizationFailure, 401);
+            if (response != null) {
+                return response;
             }
-            log.error("Toshiba AC state query failed with 403 even after re-login attempt");
+            throw e;
+        } catch (HttpClientErrorException.Forbidden e) {
+            ToshibaAcStateResponse response = retryAfterAuthorizationFailure(acData, retryOnAuthorizationFailure, 403);
+            if (response != null) {
+                return response;
+            }
             throw e;
         } catch (Exception e) {
             log.error("Error fetching Toshiba AC state", e);
             throw e;
         }
+    }
+
+    private ToshibaAcStateResponse retryAfterAuthorizationFailure(
+            DeviceAcDataEntity acData,
+            boolean retryOnAuthorizationFailure,
+            int statusCode
+    ) {
+        if (retryOnAuthorizationFailure) {
+            log.info("Toshiba AC state query returned {}, attempting re-login", statusCode);
+            AcLoginResponse acLoginResponse = toshibaLoginService.login(acData);
+            if (acLoginResponse.isSuccess()) {
+                acData.setAcAccessToken(acLoginResponse.getAccessToken());
+                waitBeforeRetry();
+                return getAcStateInternal(acData, false);
+            }
+        }
+        log.error("Toshiba AC state query failed with {} even after re-login attempt", statusCode);
+        return null;
     }
 
     private void waitBeforeRetry() {
