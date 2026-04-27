@@ -35,16 +35,14 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(String ip, UUID uuid, String secret) {
-        if (!rateLimitService.allowLogin(ip)) {
-            throw new IllegalStateException("Rate limit exceeded. Try again later.");
-        }
-
         AccountEntity account = accountRepository.findByUuid(uuid)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+                .orElseThrow(() -> invalidCredentials(ip));
 
         if (!passwordEncoder.matches(secret, account.getSecret())) {
-            throw new IllegalArgumentException("Invalid credentials");
+            throw invalidCredentials(ip);
         }
+
+        rateLimitService.resetLoginFailures(ip);
 
         TokenEntity token = TokenEntity.builder()
                 .token(UUID.randomUUID().toString().replace("-", ""))
@@ -59,6 +57,11 @@ public class AuthService {
                 .accountId(account.getId())
                 .locale(account.getLocale())
                 .build();
+    }
+
+    private IllegalArgumentException invalidCredentials(String ip) {
+        rateLimitService.recordFailedLogin(ip);
+        return new IllegalArgumentException("Invalid credentials");
     }
 
     @Transactional(readOnly = true)

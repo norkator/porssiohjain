@@ -48,7 +48,7 @@ public class AccountController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest requestBody) {
         String ip = getClientIp();
-        if (!rateLimitService.allowLogin(ip)) {
+        if (!rateLimitService.isLoginAllowed(ip)) {
             return ResponseEntity.status(429).body("Too many login attempts. Try again later.");
         }
 

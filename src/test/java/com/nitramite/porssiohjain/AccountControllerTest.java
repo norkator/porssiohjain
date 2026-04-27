@@ -116,8 +116,8 @@ class AccountControllerTest {
     }
 
     @Test
-    @DisplayName("Should hit login rate limit after some attempts")
-    void shouldReturnTooManyRequestsAfterLoginLimit() throws Exception {
+    @DisplayName("Should not rate limit repeated successful logins")
+    void shouldNotRateLimitSuccessfulLogins() throws Exception {
         String password = "supersecret";
         AccountEntity account = new AccountEntity();
         account.setUuid(UUID.randomUUID());
@@ -133,16 +133,43 @@ class AccountControllerTest {
                 }
                 """.formatted(account.getUuid(), password);
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 11; i++) {
             mockMvc.perform(post("/account/login")
                             .header("X-Forwarded-For", "40.40.40.40")
                             .contentType("application/json")
                             .content(requestBody))
                     .andExpect(status().isOk());
         }
+    }
+
+    @Test
+    @DisplayName("Should hit login rate limit after failed attempts")
+    void shouldReturnTooManyRequestsAfterFailedLoginLimit() throws Exception {
+        String password = "supersecret";
+        AccountEntity account = new AccountEntity();
+        account.setUuid(UUID.randomUUID());
+        account.setSecret(passwordEncoder.encode(password));
+        account.setCreatedAt(Instant.now());
+        account.setUpdatedAt(Instant.now());
+        accountRepository.save(account);
+
+        String requestBody = """
+                {
+                    "uuid": "%s",
+                    "secret": "%s"
+                }
+                """.formatted(account.getUuid(), "wrongsecret");
+
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(post("/account/login")
+                            .header("X-Forwarded-For", "50.50.50.50")
+                            .contentType("application/json")
+                            .content(requestBody))
+                    .andExpect(status().isInternalServerError());
+        }
 
         mockMvc.perform(post("/account/login")
-                        .header("X-Forwarded-For", "40.40.40.40")
+                        .header("X-Forwarded-For", "50.50.50.50")
                         .contentType("application/json")
                         .content(requestBody))
                 .andExpect(status().isTooManyRequests())

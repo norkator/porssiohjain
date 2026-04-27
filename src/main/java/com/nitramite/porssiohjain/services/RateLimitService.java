@@ -32,20 +32,27 @@ public class RateLimitService {
     private static final int CREATE_LIMIT = 2;
     private static final long WINDOW_MS = 60 * 60 * 1000L; // 1 hour
 
-    private boolean isAllowed(Map<String, Attempt> map, String key, int limit) {
-        Attempt attempt = map.computeIfAbsent(key, k -> {
+    private Attempt getAttempt(Map<String, Attempt> map, String key) {
+        return map.computeIfAbsent(key, k -> {
             Attempt a = new Attempt();
             a.firstAttempt = Instant.now();
             a.count = 0;
             return a;
         });
+    }
+
+    private void resetIfWindowExpired(Attempt attempt) {
+        if (Instant.now().isAfter(attempt.firstAttempt.plusMillis(WINDOW_MS))) {
+            attempt.firstAttempt = Instant.now();
+            attempt.count = 0;
+        }
+    }
+
+    private boolean isAllowed(Map<String, Attempt> map, String key, int limit) {
+        Attempt attempt = getAttempt(map, key);
 
         synchronized (attempt) {
-            if (Instant.now().isAfter(attempt.firstAttempt.plusMillis(WINDOW_MS))) {
-                // reset after window expires
-                attempt.firstAttempt = Instant.now();
-                attempt.count = 0;
-            }
+            resetIfWindowExpired(attempt);
 
             if (attempt.count >= limit) {
                 return false;
@@ -56,8 +63,36 @@ public class RateLimitService {
         }
     }
 
-    public boolean allowLogin(String ip) {
-        return isAllowed(loginAttempts, ip, LOGIN_LIMIT);
+    public boolean isLoginAllowed(String ip) {
+        Attempt attempt = loginAttempts.get(ip);
+        if (attempt == null) {
+            return true;
+        }
+
+        synchronized (attempt) {
+            resetIfWindowExpired(attempt);
+            return attempt.count < LOGIN_LIMIT;
+        }
+    }
+
+    public void recordFailedLogin(String ip) {
+        Attempt attempt = getAttempt(loginAttempts, ip);
+        synchronized (attempt) {
+            resetIfWindowExpired(attempt);
+            attempt.count++;
+        }
+    }
+
+    public void resetLoginFailures(String ip) {
+        Attempt attempt = loginAttempts.get(ip);
+        if (attempt == null) {
+            return;
+        }
+
+        synchronized (attempt) {
+            attempt.firstAttempt = Instant.now();
+            attempt.count = 0;
+        }
     }
 
     public boolean allowAccountCreation(String ip) {
