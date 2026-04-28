@@ -61,24 +61,15 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
 
         MitsubishiAcStateResponse setAtaState = buildSetAtaState(acData, state);
         String formattedState = formatState(setAtaState);
-        log.info(
-                "Dry-run Mitsubishi heat pump JSON state dispatch. deviceId={}, acDataId={}, acDeviceId={}, effectiveFlags={}",
-                acData.getDevice().getId(),
-                acData.getId(),
-                acData.getAcDeviceId(),
-                setAtaState.getEffectiveFlags()
-        );
+
         systemLogService.log(String.format(
-                "Dry-run Mitsubishi SetAta skipped. deviceId=%s, acDataId=%s, acDeviceId=%s, buildingId=%s, payload=%s",
+                "Mitsubishi SetAta. deviceId=%s, acDataId=%s, acDeviceId=%s, buildingId=%s, payload=%s",
                 acData.getDevice().getId(),
                 acData.getId(),
                 acData.getAcDeviceId(),
                 acData.getBuildingId(),
                 formatLogState(setAtaState)
         ));
-
-        // Uncomment this block to enable real Mitsubishi MELCloud SetAta dispatch.
-        /*
         MitsubishiSetAcStateResponse response = mitsubishiSetAcStateService.setAcState(acData, setAtaState);
         if (response == null || !response.isSuccess()) {
             throw new IllegalStateException(getErrorMessage(response));
@@ -86,7 +77,6 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
 
         acData.setLastPolledStateHex(formattedState);
         deviceAcDataRepository.save(acData);
-        */
     }
 
     private MitsubishiAcStateResponse buildSetAtaState(DeviceAcDataEntity acData, MitsubishiAcStateResponse commandState) {
