@@ -26,6 +26,16 @@ with broader functionality and different service tiers.
 
 If Pörssiohjain has helped you financially, consider [donating coffee money](https://buymeacoffee.com/norkator).
 
+## UML Diagrams
+
+Editable PlantUML sources live in [doc/README-diagrams.md](./doc/README-diagrams.md).
+
+### Standard Device Output Flow
+
+![Standard device output flow](./doc/control-output-high-level.svg)
+
+Editable source: [doc/control-output-high-level.puml](./doc/control-output-high-level.puml)
+
 ## Features
 
 * Nord Pool spot price fetching and scheduled price-based control.
@@ -288,4 +298,3 @@ Private individuals may self-host it for their own household use. Commercial use
 installations, or offering it as a service to third parties requires a separate written commercial license.
 
 See the LICENSE file for details.
-

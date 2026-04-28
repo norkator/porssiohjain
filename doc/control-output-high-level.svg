@@ -1,0 +1,313 @@
+<?plantuml 1.2026.2?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css"
+     data-diagram-type="ACTIVITY" height="1443px" preserveAspectRatio="none"
+     style="width:518px;height:1443px;background:#FFFFFF;" version="1.1" viewBox="0 0 518 1443" width="518px"
+     zoomAndPan="magnify">
+    <title>High-Level Control Output Flow</title>
+    <defs/>
+    <g>
+        <g class="title" data-source-line="1">
+            <text fill="#000000" font-family="Monospace" font-size="14" font-weight="bold" lengthAdjust="spacing"
+                  textLength="220.4712" x="147.4691" y="34.9659">High-Level&#160;Control&#160;Output&#160;Flow
+            </text>
+        </g>
+        <ellipse cx="122.0107" cy="60.0679" fill="#2E8B57" rx="10" ry="10" style="stroke:#222222;stroke-width:1;"/>
+        <rect fill="#F8F9FB" height="52.6882" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="146.1209" x="48.9503" y="90.0679"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="126.1209"
+              x="58.9503" y="112.896">Request&#160;device&#160;output
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="120.6609"
+              x="58.9503" y="129.2401">/control/{deviceUuid}
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="137.9848" x="53.0183" y="212.2471"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="117.9848"
+              x="63.0183" y="235.0752">Return&#160;empty&#160;map&#160;{}
+        </text>
+        <ellipse cx="122.0107" cy="286.9191" fill="none" rx="11" ry="11" style="stroke:#222222;stroke-width:1;"/>
+        <ellipse cx="122.0107" cy="286.9191" fill="#222222" rx="6" ry="6" style="stroke:#222222;stroke-width:1;"/>
+        <polygon fill="#FFF7E6"
+                 points="47.3543,162.7561,196.6672,162.7561,208.6672,174.7561,196.6672,186.7561,47.3543,186.7561,35.3543,174.7561,47.3543,162.7561"
+                 style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="11" lengthAdjust="spacing" textLength="13.4529"
+              x="126.0107" y="198.5151">no
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="11" lengthAdjust="spacing" textLength="149.3129"
+              x="47.3543" y="179.0241">Device&#160;exists&#160;and&#160;is&#160;enabled?
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="11" lengthAdjust="spacing" textLength="17.0829"
+              x="208.6672" y="171.5332">yes
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="182.4571" x="30.7822" y="339.9191"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="162.4571"
+              x="40.7822" y="362.7472">Initialize&#160;empty&#160;channel&#160;map
+        </text>
+        <rect fill="none" height="406.9884" style="stroke:#000000;stroke-width:1.5;" width="403.3831" x="34.4562"
+              y="386.2633"/>
+        <path d="M181.8937,386.2633 L181.8937,398.3312 L171.8937,408.3312 L34.4562,408.3312" fill="none"
+              style="stroke:#000000;stroke-width:1.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="14" lengthAdjust="spacing" textLength="137.4375"
+              x="37.4562" y="402.2292">Base&#160;Decision&#160;Layers
+        </text>
+        <path d="M201.4451,423.7972 L201.4451,442.5032 L181.4451,446.5032 L201.4451,450.5032 L201.4451,469.2093 A0,0 0 0 0 201.4451,469.2093 L373.9472,469.2093 A0,0 0 0 0 373.9472,469.2093 L373.9472,433.7972 L363.9472,423.7972 L201.4451,423.7972 A0,0 0 0 0 201.4451,423.7972"
+              fill="#FFFDEB" style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <path d="M363.9472,423.7972 L363.9472,433.7972 L373.9472,433.7972 L363.9472,423.7972" fill="#FFFDEB"
+              style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="134.7191"
+              x="207.4451" y="442.6942">If&#160;active&#160;for&#160;a&#160;channel,
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="151.5021"
+              x="207.4451" y="460.4002">base&#160;state&#160;becomes&#160;OFF.
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="118.8687" x="62.5764" y="428.3312"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="98.8687"
+              x="72.5764" y="451.1593">Power&#160;limit&#160;check
+        </text>
+        <path d="M218.9112,479.2093 L218.9112,506.7683 L198.9112,510.7683 L218.9112,514.7683 L218.9112,542.3273 A0,0 0 0 0 218.9112,542.3273 L427.8394,542.3273 A0,0 0 0 0 427.8394,542.3273 L427.8394,489.2093 L417.8394,479.2093 L218.9112,479.2093 A0,0 0 0 0 218.9112,479.2093"
+              fill="#FFFDEB" style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <path d="M417.8394,479.2093 L417.8394,489.2093 L427.8394,489.2093 L417.8394,479.2093" fill="#FFFDEB"
+              style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="155.8962"
+              x="224.9112" y="498.1063">Fills&#160;empty&#160;channels&#160;only.
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="187.9281"
+              x="224.9112" y="515.8123">Used&#160;to&#160;override&#160;lower-priority
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="108.1211"
+              x="224.9112" y="533.5183">automation&#160;early.
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="153.801" x="45.1102" y="492.5962"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="133.801"
+              x="55.1102" y="515.4243">Priority&#160;weather&#160;control
+        </text>
+        <path d="M219.1452,566.6463 L219.1452,576.4994 L199.1452,580.4994 L219.1452,584.4994 L219.1452,594.3524 A0,0 0 0 0 219.1452,594.3524 L396.0414,594.3524 A0,0 0 0 0 396.0414,594.3524 L396.0414,576.6463 L386.0414,566.6463 L219.1452,566.6463 A0,0 0 0 0 219.1452,566.6463"
+              fill="#FFFDEB" style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <path d="M386.0414,566.6463 L386.0414,576.6463 L396.0414,576.6463 L386.0414,566.6463" fill="#FFFDEB"
+              style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="155.8962"
+              x="225.1452" y="585.5434">Fills&#160;empty&#160;channels&#160;only.
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="154.269" x="44.8762" y="562.3273"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="134.269"
+              x="54.8762" y="585.1554">Production&#160;source&#160;rules
+        </text>
+        <path d="M219.5652,622.9905 L219.5652,632.8435 L199.5652,636.8435 L219.5652,640.8435 L219.5652,650.6965 A0,0 0 0 0 219.5652,650.6965 L396.4614,650.6965 A0,0 0 0 0 396.4614,650.6965 L396.4614,632.9905 L386.4614,622.9905 L219.5652,622.9905 A0,0 0 0 0 219.5652,622.9905"
+              fill="#FFFDEB" style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <path d="M386.4614,622.9905 L386.4614,632.9905 L396.4614,632.9905 L386.4614,622.9905" fill="#FFFDEB"
+              style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="155.8962"
+              x="225.5652" y="641.8875">Fills&#160;empty&#160;channels&#160;only.
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="155.109" x="44.4562" y="618.6714"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="135.109"
+              x="54.4562" y="641.4995">Normal&#160;weather&#160;control
+        </text>
+        <path d="M210.3552,665.0155 L210.3552,719.1336 L190.3552,723.1336 L210.3552,727.1336 L210.3552,781.2516 A0,0 0 0 0 210.3552,781.2516 L391.4893,781.2516 A0,0 0 0 0 391.4893,781.2516 L391.4893,675.0155 L381.4893,665.0155 L210.3552,665.0155 A0,0 0 0 0 210.3552,665.0155"
+              fill="#FFFDEB" style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <path d="M381.4893,665.0155 L381.4893,675.0155 L391.4893,675.0155 L381.4893,665.0155" fill="#FFFDEB"
+              style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="84.5261"
+              x="216.3552" y="683.9125">Manual&#160;mode
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="154.7651"
+              x="216.3552" y="701.6186">Cheapest-hours&#160;schedule
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="160.1341"
+              x="216.3552" y="719.3246">Below-max-price&#160;schedule
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="3.38"
+              x="216.3552" y="737.0306">&#160;
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="146.6661"
+              x="216.3552" y="754.7366">Used&#160;only&#160;if&#160;the&#160;channel
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="108.9531"
+              x="216.3552" y="772.4426">is&#160;still&#160;unresolved.
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="136.6889" x="53.6663" y="704.9615"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="116.6889"
+              x="63.6663" y="727.7896">Normal&#160;control&#160;rules
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="158.3009" x="42.8603" y="813.2516"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="138.3009"
+              x="52.8603" y="836.0797">Base&#160;channel&#160;map&#160;ready
+        </text>
+        <path d="M243.2174,916.8547 L243.2174,944.4137 L223.2174,948.4137 L243.2174,952.4137 L243.2174,979.9727 A0,0 0 0 0 243.2174,979.9727 L447.5695,979.9727 A0,0 0 0 0 447.5695,979.9727 L447.5695,926.8547 L437.5695,916.8547 L243.2174,916.8547 A0,0 0 0 0 243.2174,916.8547"
+              fill="#FFFDEB" style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <path d="M437.5695,916.8547 L437.5695,926.8547 L447.5695,926.8547 L437.5695,916.8547" fill="#FFFDEB"
+              style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="157.1311"
+              x="249.2174" y="935.7517">Can&#160;overwrite&#160;base&#160;states
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="183.3522"
+              x="249.2174" y="953.4577">using&#160;node/link&#160;dependencies
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="156.5851"
+              x="249.2174" y="971.1637">between&#160;device&#160;channels.
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="202.4133" x="20.8041" y="930.2416"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="182.4133"
+              x="30.8041" y="953.0697">Load&#160;shedding&#160;graph&#160;evaluation
+        </text>
+        <polygon fill="#FFF7E6"
+                 points="54.1962,869.5957,189.8252,869.5957,201.8252,881.5957,189.8252,893.5957,54.1962,893.5957,42.1962,881.5957,54.1962,869.5957"
+                 style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="11" lengthAdjust="spacing" textLength="17.0829"
+              x="126.0107" y="905.3547">yes
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="11" lengthAdjust="spacing" textLength="135.629"
+              x="54.1962" y="885.8637">Device&#160;type&#160;is&#160;STANDARD?
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="11" lengthAdjust="spacing" textLength="13.4529"
+              x="201.8252" y="878.3728">no
+        </text>
+        <polygon fill="#FFF7E6"
+                 points="122.0107,999.9727,134.0107,1011.9727,122.0107,1023.9727,110.0107,1011.9727,122.0107,999.9727"
+                 style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <path d="M253.0215,1033.9727 L253.0215,1070.3847 L233.0215,1074.3847 L253.0215,1078.3847 L253.0215,1114.7968 A0,0 0 0 0 253.0215,1114.7968 L449.8986,1114.7968 A0,0 0 0 0 449.8986,1114.7968 L449.8986,1043.9727 L439.8986,1033.9727 L253.0215,1033.9727 A0,0 0 0 0 253.0215,1033.9727"
+              fill="#FFFDEB" style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <path d="M439.8986,1033.9727 L439.8986,1043.9727 L449.8986,1043.9727 L439.8986,1033.9727" fill="#FFFDEB"
+              style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="126.8931"
+              x="259.0215" y="1052.8697">Final&#160;safety&#160;override:
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="175.8772"
+              x="259.0215" y="1070.5757">active&#160;power&#160;limit&#160;forces&#160;OFF
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="168.6881"
+              x="259.0215" y="1088.2818">even&#160;after&#160;load&#160;shedding&#160;or
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="162.5911"
+              x="259.0215" y="1105.9878">earlier&#160;automation&#160;set&#160;ON.
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="222.0215" x="11" y="1056.2127"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="202.0215" x="21"
+              y="1079.0408">Apply&#160;final&#160;power&#160;limit&#160;enforcement
+        </text>
+        <path d="M223.0692,1124.7968 L223.0692,1178.9148 L203.0692,1182.9148 L223.0692,1186.9148 L223.0692,1241.0329 A0,0 0 0 0 223.0692,1241.0329 L506.4095,1241.0329 A0,0 0 0 0 506.4095,1241.0329 L506.4095,1134.7968 L496.4095,1124.7968 L223.0692,1124.7968 A0,0 0 0 0 223.0692,1124.7968"
+              fill="#FFFDEB" style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <path d="M496.4095,1124.7968 L496.4095,1134.7968 L506.4095,1134.7968 L496.4095,1124.7968" fill="#FFFDEB"
+              style="stroke:#8A5A00;stroke-width:0.5;"/>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="129.7921"
+              x="229.0692" y="1143.6938">Effective&#160;precedence:
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="214.5912"
+              x="229.0692" y="1161.3998">1.&#160;Base&#160;layers&#160;fill&#160;channels&#160;in&#160;order:
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="200.7332"
+              x="239.2092" y="1179.1058">power&#160;limit&#160;-&gt;&#160;priority&#160;weather&#160;-&gt;
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="197.8992"
+              x="239.2092" y="1196.8118">production&#160;-&gt;&#160;weather&#160;-&gt;&#160;control
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="261.6902"
+              x="229.0692" y="1214.5179">2.&#160;Load&#160;shedding&#160;can&#160;overwrite&#160;base&#160;result
+        </text>
+        <text fill="#000000" font-family="Monospace" font-size="13" lengthAdjust="spacing" textLength="262.3402"
+              x="229.0692" y="1232.2239">3.&#160;Final&#160;power&#160;limit&#160;can&#160;overwrite&#160;all&#160;to&#160;OFF
+        </text>
+        <rect fill="#F8F9FB" height="36.3441" rx="12.5" ry="12.5" style="stroke:#2F3A4A;stroke-width:0.5;"
+              width="162.117" x="40.9522" y="1164.7428"/>
+        <text fill="#000000" font-family="Monospace" font-size="12" lengthAdjust="spacing" textLength="142.117"
+              x="50.9522" y="1187.5709">Return&#160;final&#160;channel&#160;map
+        </text>
+        <ellipse cx="122.0107" cy="1272.0329" fill="none" rx="11" ry="11" style="stroke:#222222;stroke-width:1;"/>
+        <ellipse cx="122.0107" cy="1272.0329" fill="#222222" rx="6" ry="6" style="stroke:#222222;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="70.0679" y2="90.0679"/>
+        <polygon fill="#181818" points="118.0107,80.0679,122.0107,90.0679,126.0107,80.0679,122.0107,84.0679"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="248.5912" y2="275.9191"/>
+        <polygon fill="#181818" points="118.0107,265.9191,122.0107,275.9191,126.0107,265.9191,122.0107,269.9191"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="186.7561" y2="212.2471"/>
+        <polygon fill="#181818" points="118.0107,202.2471,122.0107,212.2471,126.0107,202.2471,122.0107,206.2471"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="208.6672" x2="220.6672" y1="174.7561" y2="174.7561"/>
+        <polygon fill="#181818" points="216.6672,245.9191,220.6672,255.9191,224.6672,245.9191,220.6672,249.9191"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="220.6672" x2="220.6672" y1="174.7561" y2="319.9191"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="220.6672" x2="122.0107" y1="319.9191" y2="319.9191"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="319.9191" y2="339.9191"/>
+        <polygon fill="#181818" points="118.0107,329.9191,122.0107,339.9191,126.0107,329.9191,122.0107,333.9191"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="142.7561" y2="162.7561"/>
+        <polygon fill="#181818" points="118.0107,152.7561,122.0107,162.7561,126.0107,152.7561,122.0107,156.7561"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="464.6753" y2="492.5962"/>
+        <polygon fill="#181818" points="118.0107,482.5962,122.0107,492.5962,126.0107,482.5962,122.0107,486.5962"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="528.9403" y2="562.3273"/>
+        <polygon fill="#181818" points="118.0107,552.3273,122.0107,562.3273,126.0107,552.3273,122.0107,556.3273"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="598.6714" y2="618.6714"/>
+        <polygon fill="#181818" points="118.0107,608.6714,122.0107,618.6714,126.0107,608.6714,122.0107,612.6714"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="655.0155" y2="704.9615"/>
+        <polygon fill="#181818" points="118.0107,694.9615,122.0107,704.9615,126.0107,694.9615,122.0107,698.9615"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="376.2633" y2="428.3312"/>
+        <polygon fill="#181818" points="118.0107,418.3312,122.0107,428.3312,126.0107,418.3312,122.0107,422.3312"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="741.3056" y2="813.2516"/>
+        <polygon fill="#181818" points="118.0107,803.2516,122.0107,813.2516,126.0107,803.2516,122.0107,807.2516"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="893.5957" y2="930.2416"/>
+        <polygon fill="#181818" points="118.0107,920.2416,122.0107,930.2416,126.0107,920.2416,122.0107,924.2416"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="201.8252" x2="457.5695" y1="881.5957" y2="881.5957"/>
+        <polygon fill="#181818" points="453.5695,938.4137,457.5695,948.4137,461.5695,938.4137,457.5695,942.4137"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="457.5695" x2="457.5695" y1="881.5957" y2="1011.9727"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="457.5695" x2="134.0107" y1="1011.9727" y2="1011.9727"/>
+        <polygon fill="#181818" points="144.0107,1007.9727,134.0107,1011.9727,144.0107,1015.9727,140.0107,1011.9727"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="966.5857" y2="999.9727"/>
+        <polygon fill="#181818" points="118.0107,989.9727,122.0107,999.9727,126.0107,989.9727,122.0107,993.9727"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="849.5957" y2="869.5957"/>
+        <polygon fill="#181818" points="118.0107,859.5957,122.0107,869.5957,126.0107,859.5957,122.0107,863.5957"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="1023.9727" y2="1056.2127"/>
+        <polygon fill="#181818" points="118.0107,1046.2127,122.0107,1056.2127,126.0107,1046.2127,122.0107,1050.2127"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="1092.5568" y2="1164.7428"/>
+        <polygon fill="#181818" points="118.0107,1154.7428,122.0107,1164.7428,126.0107,1154.7428,122.0107,1158.7428"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <line style="stroke:#181818;stroke-width:1;" x1="122.0107" x2="122.0107" y1="1201.0869" y2="1261.0329"/>
+        <polygon fill="#181818" points="118.0107,1251.0329,122.0107,1261.0329,126.0107,1251.0329,122.0107,1255.0329"
+                 style="stroke:#181818;stroke-width:1;"/>
+        <g class="legend" data-source-line="20">
+            <rect fill="none" height="124.4075" rx="7.5" ry="7.5" style="stroke:#000000;stroke-width:1;"
+                  width="365.1086" x="128.3008" y="1294.0329"/>
+            <text fill="#000000" font-family="Monospace" font-size="14" lengthAdjust="spacing" textLength="355.1086"
+                  x="133.3008" y="1313.9988">High-level&#160;view&#160;of&#160;how&#160;standard&#160;device&#160;output&#160;is&#160;built.
+            </text>
+            <text fill="#000000" font-family="Monospace" font-size="14" lengthAdjust="spacing" textLength="3.64"
+                  x="133.3008" y="1333.0667">&#160;
+            </text>
+            <text fill="#000000" font-family="Monospace" font-size="14" lengthAdjust="spacing" textLength="50.7078"
+                  x="133.3008" y="1352.1346">Output:
+            </text>
+            <text fill="#000000" font-family="Monospace" font-size="14" lengthAdjust="spacing" textLength="149.8414"
+                  x="133.3008" y="1371.2026">Map&lt;Integer,&#160;Integer&gt;
+            </text>
+            <text fill="#000000" font-family="Monospace" font-size="14" lengthAdjust="spacing" textLength="116.7035"
+                  x="133.3008" y="1390.2705">channel&#160;-&gt;&#160;1&#160;=&#160;ON
+            </text>
+            <text fill="#000000" font-family="Monospace" font-size="14" lengthAdjust="spacing" textLength="120.5955"
+                  x="133.3008" y="1409.3384">channel&#160;-&gt;&#160;0&#160;=&#160;OFF
+            </text>
+        </g>
+        <?plantuml-src fLLDRziu4BthLmpQImBKJffkjrcdcuKTMsY092tQxQsNiJYoY52abgIik47--mufgPQIz53K9vlpzMRUcx6NNX5ya9jYSaLRKd1XjBT6mSVQLxM7L9acITojr1LQB66DsUt6cbgB2wECXQQGdWPsLw0mZTGRo56veKLGZhNoAUU_mPBWscZZAio6FfXvkPL-1_S9mE9HgPVfQVfNkWWMOmNPxlKaVJF_OywlIucbqU9fM9g-M_qvS1X6dyxVpe-FsVZ5e_LzojNfukqxVbpzIB8u2P-8wb7XXm5-RJpz17kQBbTFi7VL7v94qOQq0Cj4UFQAXAX8o5PI0oQ7mZJWF6g1Ll0mjp8ZC2r9qi6wbifF4mvjYPlnjskitbzgpvdjA-Y-dFDxLg3Md7bo3g_XR_XuCtux3czfcZ2U5XNp7uQJ9BFFz5zDpe_BVzD7MIkQe_lMyBMMuk4iaJaSB5jFkfFEEs3q0InfN2iI_no2BqZ3mOxSOK8i5pZGvf3HS25VMmrKLYo64Ykuvtp0_Pigu98vWxdKqajKyZjrVdqFx7-M9Co8PmUZuSK2EVMICkd2polSaNKl8a-pJwOX2qgMqdCyPRUXJAInfmBWCc-5IP0pQTZNUHMDwv2RvyCHQyfCIIuCRygsm6V8bCGwLXeRbDqGSjCMkf4zKowLIhbnImwCLhjfD7zr9C0RC5koLWe25LgOL5s1w8ErDoN6vWbj6_a8ZX5r5XsSgIqpP6j5xbVHZ7BU65kY-jq6dqlPfVefnclKDRkLHb3yVL4GLgpJIS6zEN1ChE3GQ5iGpsjIubsO6FVzmxWVRe02B5vkeySNZQnSvnaxrDgICsfBOeIOrtWMfJOG8bX2iMCv3fR1xoeAoRxyExzPpZylntl0RLyP57n9IOXmI3SMgm9eYwgEb3upW0lKKGyDAu06adJHMhkGHlDqZfJKjxoz5MCcdSdEOKs-8GRGhNNFoQYv_Nhs-pUlAfvJBZMFlXgi4MbUaunAqlui6G5Dew_3d9ZvNh_XKdNhDSmISyHT2YYsZ0vp7woZsHWRh2nnoQQ1wXrvlclJPA-c_gIqU4UdOeHnbUVKeR6KKHXJXFXw2f5R5Qy7fr5gBrx9umzdVHR7EUg33shrUFSdvvtVVWlPRM_j1SzU9rCOgo5xIZMBaVzOsVdDj1ln4C0u01as7u_klhUpYLVrVm00?>
+    </g>
+</svg>
