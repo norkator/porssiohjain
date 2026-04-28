@@ -267,8 +267,9 @@ export default function HeatPumpStateDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
-      <div className="w-full max-w-4xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-on-surface/40 p-4 sm:items-center">
+      <div className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col rounded-xl bg-surface-container-lowest shadow-2xl">
+        <div className="min-h-0 overflow-y-auto p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="metric-label mb-2">{labels.heatPumpState}</p>
@@ -530,6 +531,7 @@ export default function HeatPumpStateDialog({
             <button className="secondary-action w-full justify-center" disabled={isSending} onClick={onClose} type="button">{labels.cancel}</button>
           </div>
         ) : null}
+        </div>
       </div>
     </div>
   );
