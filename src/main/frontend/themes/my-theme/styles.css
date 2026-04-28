@@ -1,137 +1,380 @@
 html {
-    background: #008080;
-    --lumo-font-family: "MS Sans Serif", Tahoma, sans-serif;
-    --lumo-base-color: #f8f8f8;
-    --lumo-body-text-color: black;
-    --lumo-border-radius: 0px;
-}
-
-* {
-    border-radius: 0 !important;
+    color-scheme: light;
+    --app-primary-rgb: 0, 128, 128;
+    --app-primary-container-rgb: 0, 62, 77;
+    --app-secondary-rgb: 0, 103, 125;
+    --app-surface-rgb: 225, 233, 234;
+    --app-surface-low-rgb: 239, 243, 244;
+    --app-surface-high-rgb: 214, 224, 226;
+    --app-surface-highest-rgb: 201, 214, 216;
+    --app-outline-rgb: 127, 156, 160;
+    --app-outline-strong-rgb: 83, 111, 115;
+    --app-text-rgb: 18, 31, 34;
+    --app-text-muted-rgb: 63, 84, 88;
+    --app-error-rgb: 186, 26, 26;
+    --lumo-font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --lumo-base-color: rgb(var(--app-surface-rgb));
+    --lumo-primary-color: rgb(var(--app-primary-rgb));
+    --lumo-primary-color-50pct: rgba(var(--app-primary-rgb), 0.5);
+    --lumo-primary-color-10pct: rgba(var(--app-primary-rgb), 0.1);
+    --lumo-primary-text-color: rgb(var(--app-primary-container-rgb));
+    --lumo-primary-contrast-color: #fff;
+    --lumo-contrast: rgb(var(--app-text-rgb));
+    --lumo-body-text-color: rgb(var(--app-text-rgb));
+    --lumo-secondary-text-color: rgba(var(--app-text-muted-rgb), 0.9);
+    --lumo-tertiary-text-color: rgba(var(--app-text-muted-rgb), 0.72);
+    --lumo-disabled-text-color: rgba(var(--app-text-muted-rgb), 0.42);
+    --lumo-border-radius-s: 12px;
+    --lumo-border-radius-m: 18px;
+    --lumo-border-radius-l: 24px;
+    --lumo-border-radius: 18px;
+    --lumo-box-shadow-xs: 0 1px 2px rgba(17, 24, 39, 0.06);
+    --lumo-box-shadow-s: 0 10px 24px rgba(17, 24, 39, 0.08);
+    --lumo-box-shadow-m: 0 18px 40px rgba(17, 24, 39, 0.12);
+    --lumo-box-shadow-l: 0 22px 54px rgba(17, 24, 39, 0.14);
+    background-color: rgb(var(--app-surface-rgb));
 }
 
 body {
-    background: #008080;
+    position: relative;
+    background: transparent;
+    color: rgb(var(--app-text-rgb));
 }
 
-.responsive-card {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    background-color: var(--lumo-base-color);
-    padding: 32px;
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at top right, rgba(var(--app-primary-rgb), 0.18), transparent 24%),
+        radial-gradient(circle at left bottom, rgba(var(--app-secondary-rgb), 0.12), transparent 28%),
+        linear-gradient(180deg, rgb(0, 128, 128) 0%, rgb(167, 196, 198) 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
 }
 
-@media (max-width: 767px) {
-    .responsive-card {
-        padding: 16px !important;
-    }
+a {
+    color: rgb(var(--app-secondary-rgb));
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: rgb(var(--app-primary-container-rgb));
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+vaadin-button,
+vaadin-text-field,
+vaadin-password-field,
+vaadin-number-field,
+vaadin-integer-field,
+vaadin-combo-box,
+vaadin-text-area,
+vaadin-date-picker,
+vaadin-select {
+    font-family: var(--lumo-font-family);
 }
 
 vaadin-button {
-    font-family: 'Tahoma', sans-serif;
-    border-radius: 0;
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px #808080, inset 2px 2px #fff;
-    padding: 4px 8px;
-    text-transform: none;
-    transition: none;
+    --vaadin-button-background: rgba(255, 255, 255, 0.68);
+    --vaadin-button-text-color: rgb(var(--app-text-rgb));
+    min-height: 44px;
+    padding: 0 1.1rem;
+    border-radius: 14px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    border: 1px solid rgba(var(--app-outline-rgb), 0.55);
+    box-shadow: 0 10px 20px rgba(0, 62, 77, 0.14);
+    transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease;
 }
 
 vaadin-button:hover {
-    filter: brightness(1.1);
-}
-
-vaadin-button:active {
-    box-shadow: inset 2px 2px #808080, inset -2px -2px #fff;
-    filter: brightness(0.9);
-}
-
-vaadin-button[disabled] {
-    background: #e0e0e0;
-    color: #a0a0a0;
-    border-color: #c0c0c0;
-    box-shadow: none;
-    cursor: default;
+    transform: translateY(-1px);
+    border-color: rgba(var(--app-primary-rgb), 0.5);
+    box-shadow: 0 16px 30px rgba(0, 62, 77, 0.18);
 }
 
 vaadin-button[theme~="primary"] {
-    background: var(--lumo-primary-color, #0080ff);
-    color: var(--lumo-primary-contrast-color, white);
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px #404040, inset 2px 2px #c0c0c0;
-}
-
-vaadin-button[theme~="primary"]:hover {
-    filter: brightness(1.1);
-}
-
-vaadin-button[theme~="primary"]:active {
-    box-shadow: inset 2px 2px #404040, inset -2px -2px #c0c0c0;
-    filter: brightness(0.9);
+    --vaadin-button-background: linear-gradient(135deg, rgb(0, 128, 128) 0%, rgb(0, 103, 125) 100%);
+    --vaadin-button-text-color: rgb(245, 255, 255);
+    border-color: rgba(var(--app-primary-rgb), 0.5);
 }
 
 vaadin-button[theme~="success"] {
-    background: var(--lumo-success-color, #4caf50);
-    color: var(--lumo-success-contrast-color, white);
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px #357a38, inset 2px 2px #c0c0c0;
-}
-
-vaadin-button[theme~="error"] {
-    background: var(--lumo-error-color, #f44336);
-    color: var(--lumo-error-contrast-color, white);
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px #a71d1d, inset 2px 2px #c0c0c0;
+    --vaadin-button-background: linear-gradient(135deg, rgb(0, 107, 101) 0%, rgb(0, 128, 128) 100%);
+    --vaadin-button-text-color: rgb(240, 255, 252);
 }
 
 vaadin-button[theme~="contrast"] {
-    background: var(--lumo-contrast-color, #333333);
-    color: var(--lumo-base-color, white);
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px #111111, inset 2px 2px #c0c0c0;
+    --vaadin-button-background: rgba(255, 255, 255, 0.58);
+    --vaadin-button-text-color: rgb(var(--app-primary-container-rgb));
 }
 
-vaadin-button[theme~="warning"] {
-    background: var(--lumo-error-color-50pct, #ff9800);
-    color: black;
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px #b26a00, inset 2px 2px #c0c0c0;
+vaadin-button[theme~="error"] {
+    --vaadin-button-background: rgb(255, 218, 214);
+    --vaadin-button-text-color: rgb(147, 0, 10);
+    border-color: rgba(186, 26, 26, 0.24);
 }
 
-vaadin-button[theme~="small"] {
-    padding: 2px 6px;
+vaadin-button[theme~="tertiary"] {
+    --vaadin-button-background: rgba(255, 255, 255, 0.42);
+    --vaadin-button-text-color: rgb(var(--app-text-rgb));
+    box-shadow: none;
 }
 
-vaadin-button[theme~="large"] {
-    padding: 6px 12px;
+vaadin-button[disabled] {
+    opacity: 0.58;
+    box-shadow: none;
+}
+
+vaadin-text-field::part(input-field),
+vaadin-password-field::part(input-field),
+vaadin-number-field::part(input-field),
+vaadin-integer-field::part(input-field),
+vaadin-combo-box::part(input-field),
+vaadin-text-area::part(input-field),
+vaadin-date-picker::part(input-field),
+vaadin-select::part(input-field) {
+    background: rgba(255, 255, 255, 0.76);
+    border: 1px solid rgba(var(--app-outline-rgb), 0.8);
+    border-radius: 14px;
+    box-shadow: none;
+    transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+vaadin-text-field:hover::part(input-field),
+vaadin-password-field:hover::part(input-field),
+vaadin-number-field:hover::part(input-field),
+vaadin-integer-field:hover::part(input-field),
+vaadin-combo-box:hover::part(input-field),
+vaadin-text-area:hover::part(input-field),
+vaadin-date-picker:hover::part(input-field),
+vaadin-select:hover::part(input-field) {
+    background: rgba(255, 255, 255, 0.94);
+    border-color: rgba(var(--app-outline-strong-rgb), 0.58);
+}
+
+vaadin-text-field[focused]::part(input-field),
+vaadin-password-field[focused]::part(input-field),
+vaadin-number-field[focused]::part(input-field),
+vaadin-integer-field[focused]::part(input-field),
+vaadin-combo-box[focused]::part(input-field),
+vaadin-text-area[focused]::part(input-field),
+vaadin-date-picker[focused]::part(input-field),
+vaadin-select[focused]::part(input-field) {
+    border-color: rgb(var(--app-primary-container-rgb));
+    box-shadow: 0 0 0 4px rgba(var(--app-primary-rgb), 0.12);
+}
+
+vaadin-checkbox {
+    color: rgb(var(--app-text-rgb));
+}
+
+vaadin-grid {
+    --vaadin-grid-cell-background: rgba(255, 255, 255, 0.58);
+    --vaadin-grid-cell-padding: 0.9rem 1rem;
+    border: 1px solid rgba(var(--app-outline-rgb), 0.55);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+vaadin-grid::part(header-cell) {
+    background: rgba(255, 255, 255, 0.78);
+    color: rgb(var(--app-primary-container-rgb));
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+vaadin-grid::part(body-cell) {
+    border-top: 1px solid rgba(var(--app-outline-rgb), 0.34);
+}
+
+vaadin-notification-card {
+    border-radius: 18px;
+    box-shadow: var(--lumo-box-shadow-m);
+}
+
+vaadin-dialog-overlay::part(content) {
+    border-radius: 24px;
+    background:
+        linear-gradient(180deg, rgba(239, 243, 244, 0.98), rgba(225, 233, 234, 0.98));
+    box-shadow: var(--lumo-box-shadow-l);
+}
+
+.responsive-card,
+.auth-card,
+.subtle-panel,
+.load-shedding-section {
+    background: linear-gradient(180deg, rgba(246, 250, 250, 0.88), rgba(232, 239, 240, 0.84));
+    border: 1px solid rgba(var(--app-outline-rgb), 0.6);
+    border-radius: 24px;
+    box-shadow: 0 24px 56px rgba(0, 62, 77, 0.14);
+    backdrop-filter: blur(12px);
+}
+
+.responsive-card {
+    padding: 32px;
+}
+
+.auth-shell {
+    padding: 32px 16px;
+}
+
+.auth-card {
+    padding: 32px;
+    gap: 14px;
+}
+
+.subtle-panel {
+    padding: 18px;
+}
+
+.info-box {
+    width: 100%;
+    padding: 18px;
+    border: 1px solid rgba(var(--app-outline-rgb), 0.58);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.72);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    word-break: break-all;
+}
+
+.accent-panel {
+    width: 100%;
+    padding: 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(var(--app-primary-rgb), 0.22);
+    background: linear-gradient(135deg, rgba(0, 128, 128, 0.18), rgba(0, 103, 125, 0.12));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.section-divider {
+    width: 100%;
+    height: 1px;
+    margin: 1.2rem 0;
+    background: linear-gradient(90deg, transparent, rgba(var(--app-outline-rgb), 0.85), transparent);
 }
 
 .landing-view {
-    padding: var(--lumo-space-m) var(--lumo-space-l);
-}
-
-@media (max-width: 600px) {
-    .landing-view {
-        padding: var(--lumo-space-s);
-    }
+    padding: var(--lumo-space-l);
 }
 
 .landing-navbar {
-    padding: 0.5rem 2rem;
+    padding: 0.75rem 1.5rem;
+    background: rgba(255, 255, 255, 0.54);
+    border: 1px solid rgba(var(--app-outline-rgb), 0.4);
+    border-radius: 18px;
+    backdrop-filter: blur(10px);
 }
 
 .terms-markdown > :first-child {
     margin-top: 0;
 }
 
-.load-shedding-editor {
-    min-width: 320px;
+.terms-markdown {
+    color: rgb(var(--app-text-rgb));
+    line-height: 1.6;
 }
 
-.load-shedding-section {
-    padding: 16px;
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px #808080, inset 2px 2px #fff;
+.auth-card h1,
+.auth-card h2 {
+    margin-bottom: 0;
+}
+
+.auth-card vaadin-button {
+    width: 100%;
+}
+
+.auth-button-row {
+    width: 100%;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.auth-button-row vaadin-button {
+    flex: 1 1 160px;
+}
+
+.dashboard-device-grid {
+    width: 100%;
+    gap: 16px;
+}
+
+.dashboard-device-card {
+    min-width: 220px;
+    padding: 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(var(--app-outline-rgb), 0.6);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(238, 244, 245, 0.72));
+    box-shadow: 0 14px 30px rgba(0, 62, 77, 0.14);
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.dashboard-device-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--app-primary-rgb), 0.42);
+    box-shadow: 0 18px 36px rgba(0, 62, 77, 0.18);
+}
+
+.dashboard-device-status {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    margin-top: 10px;
+    box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.04);
+}
+
+.dashboard-device-status.online {
+    background: rgb(92, 214, 159);
+}
+
+.dashboard-device-status.offline {
+    background: rgb(255, 122, 122);
+}
+
+.dashboard-stat-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(var(--app-outline-rgb), 0.58);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(240, 245, 246, 0.64));
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.dashboard-stat-card h2 {
+    margin: 0 0 8px 0;
+}
+
+.dashboard-stat-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: rgb(var(--app-primary-container-rgb));
+    letter-spacing: -0.03em;
+}
+
+.dashboard-card-shell {
+    width: 100%;
+    padding: 18px;
+    border-radius: 20px;
+    border: 1px solid rgba(var(--app-outline-rgb), 0.5);
+    background: rgba(255, 255, 255, 0.56);
+}
+
+.load-shedding-editor {
+    min-width: 320px;
 }
 
 .load-shedding-canvas-panel {
@@ -141,13 +384,14 @@ vaadin-button[theme~="large"] {
 .load-shedding-board {
     position: relative;
     overflow: hidden;
-    background-color: #f2efe5;
+    background-color: rgba(255, 255, 255, 0.52);
     background-image:
-            linear-gradient(rgba(0, 62, 77, 0.08) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 62, 77, 0.08) 1px, transparent 1px);
+        linear-gradient(rgba(var(--app-primary-rgb), 0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(var(--app-primary-rgb), 0.08) 1px, transparent 1px);
     background-size: 32px 32px;
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px #808080, inset 2px 2px #fff;
+    border: 1px solid rgba(var(--app-outline-rgb), 0.58);
+    border-radius: 24px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 .load-shedding-svg {
@@ -159,14 +403,15 @@ vaadin-button[theme~="large"] {
 }
 
 .load-shedding-line {
-    stroke: #003e4d;
+    stroke: rgb(var(--app-primary-container-rgb));
     stroke-width: 3;
 }
 
 .load-shedding-line-label {
-    fill: #003e4d;
-    font-size: 13px;
-    font-family: Tahoma, sans-serif;
+    fill: rgb(var(--app-primary-container-rgb));
+    font-size: 12px;
+    font-family: var(--lumo-font-family);
+    font-weight: 700;
     text-anchor: middle;
 }
 
@@ -174,29 +419,30 @@ vaadin-button[theme~="large"] {
     position: absolute;
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 10px;
+    gap: 6px;
+    padding: 12px;
     cursor: grab;
     user-select: none;
-    background: #fffff4;
-    border: 2px solid #fff;
-    box-shadow: inset -2px -2px #808080, inset 2px 2px #fff;
+    background: rgba(248, 252, 252, 0.92);
+    border: 1px solid rgba(var(--app-outline-rgb), 0.75);
+    border-radius: 18px;
+    box-shadow: var(--lumo-box-shadow-s);
 }
 
 .load-shedding-node.selected {
-    outline: 3px solid #003e4d;
-    outline-offset: 2px;
+    outline: 3px solid rgba(var(--app-primary-rgb), 0.22);
+    border-color: rgb(var(--app-primary-container-rgb));
 }
 
 .load-shedding-node-title {
-    font-weight: bold;
-    color: #111;
+    font-weight: 800;
+    color: rgb(var(--app-text-rgb));
 }
 
 .load-shedding-node-meta,
 .load-shedding-node-uuid {
     font-size: 0.8rem;
-    color: #333;
+    color: rgba(var(--app-text-muted-rgb), 0.9);
     word-break: break-all;
 }
 
@@ -205,23 +451,15 @@ vaadin-button[theme~="large"] {
     align-self: flex-start;
 }
 
-@media (max-width: 768px) {
-
-    .landing-navbar {
-        flex-direction: column;
-        align-items: flex-end;
-        padding: 0.5rem 1rem;
-        gap: 0.5rem;
+@media (max-width: 767px) {
+    .responsive-card,
+    .auth-card {
+        padding: 18px;
     }
 
-    .landing-navbar-buttons {
-        width: 100%;
-        justify-content: flex-end;
-    }
-
-    .landing-navbar-buttons vaadin-button {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
+    .auth-shell,
+    .landing-view {
+        padding: 12px;
     }
 
     .load-shedding-editor {

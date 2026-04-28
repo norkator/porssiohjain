@@ -183,14 +183,12 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
 
     private Component createFormLayout() {
         VerticalLayout formContainer = new VerticalLayout();
+        formContainer.addClassName("subtle-panel");
         formContainer.setPadding(false);
         formContainer.setSpacing(false);
         formContainer.getStyle()
                 .set("margin-top", "20px")
-                .set("padding", "16px")
-                .set("border-radius", "12px")
-                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
-                .set("background-color", "var(--lumo-contrast-5pct)");
+                .set("background-color", "transparent");
 
         FormLayout formLayout = new FormLayout();
         formLayout.add(

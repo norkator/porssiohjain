@@ -60,6 +60,7 @@ public class LoginView extends VerticalLayout {
             VaadinSession.getCurrent().setAttribute(Locale.class, defaultLocale);
         }
 
+        addClassName("auth-shell");
         getStyle().set("display", "flex");
         getStyle().set("flex-direction", "column");
         getStyle().set("align-items", "center");
@@ -68,20 +69,19 @@ public class LoginView extends VerticalLayout {
         getStyle().set("overflow", "auto");
 
         VerticalLayout formLayout = new VerticalLayout();
+        formLayout.addClassName("auth-card");
         formLayout.setMaxWidth("400px");
         formLayout.setPadding(true);
         formLayout.setSpacing(true);
         formLayout.setAlignItems(Alignment.STRETCH);
-        formLayout.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        formLayout.getStyle().set("border-radius", "12px");
-        formLayout.getStyle().set("padding", "24px");
-        formLayout.getStyle().set("background-color", "var(--lumo-base-color)");
 
         H2 title = new H2(t("login.title"));
         title.getStyle().set("margin-bottom", "0");
 
         TextField uuidField = new TextField(t("login.field.uuid"));
         PasswordField secretField = new PasswordField(t("login.field.secret"));
+        uuidField.setWidthFull();
+        secretField.setWidthFull();
 
         Button loginButton = new Button(t("login.button.login"), event -> {
             try {
@@ -103,6 +103,7 @@ public class LoginView extends VerticalLayout {
             }
         });
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        loginButton.setWidthFull();
 
         Span demoLink = new Span(t("login.demoAccount"));
         demoLink.getStyle()

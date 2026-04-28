@@ -69,6 +69,7 @@ public class CreateAccountView extends VerticalLayout {
 
         createButton = new Button(t("createAccount.button.create"));
 
+        addClassName("auth-shell");
         getStyle().set("display", "flex");
         getStyle().set("flex-direction", "column");
         getStyle().set("align-items", "center");
@@ -77,14 +78,11 @@ public class CreateAccountView extends VerticalLayout {
         getStyle().set("overflow", "auto");
 
         VerticalLayout contentBox = new VerticalLayout();
+        contentBox.addClassName("auth-card");
         contentBox.setMaxWidth("600px");
         contentBox.setPadding(true);
         contentBox.setSpacing(true);
         contentBox.setAlignItems(Alignment.CENTER);
-        contentBox.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        contentBox.getStyle().set("border-radius", "12px");
-        contentBox.getStyle().set("padding", "32px");
-        contentBox.getStyle().set("background-color", "var(--lumo-base-color)");
 
         H1 title = new H1(t("createAccount.title"));
         title.getStyle().set("margin-top", "0");
@@ -95,6 +93,7 @@ public class CreateAccountView extends VerticalLayout {
         description.getStyle().set("text-align", "center");
 
         createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        createButton.setWidthFull();
         createButton.addClickListener(e -> openTermsDialog());
 
         resultLayout.setSpacing(false);
@@ -105,6 +104,7 @@ public class CreateAccountView extends VerticalLayout {
                 UI.getCurrent().getPage().setLocation("https://www.porssiohjain.fi")
         );
         backButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        backButton.setWidthFull();
 
         contentBox.add(title, description, createButton, resultLayout, backButton);
         add(contentBox);
@@ -195,12 +195,7 @@ public class CreateAccountView extends VerticalLayout {
         successTitle.getStyle().set("margin-bottom", "0.5em");
 
         Div infoBox = new Div();
-        infoBox.getStyle()
-                .set("padding", "16px")
-                .set("border-radius", "8px")
-                .set("background-color", "var(--lumo-contrast-10pct)")
-                .set("font-family", "monospace")
-                .set("word-break", "break-all");
+        infoBox.addClassName("info-box");
 
         infoBox.add(
                 new Paragraph(t("createAccount.info.uuid", account.getUuid())),

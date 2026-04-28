@@ -61,6 +61,7 @@ public class HomeView extends VerticalLayout {
     }
 
     private void buildContent() {
+        addClassName("auth-shell");
         getStyle().set("display", "flex");
         getStyle().set("flex-direction", "column");
         getStyle().set("align-items", "center");
@@ -69,14 +70,11 @@ public class HomeView extends VerticalLayout {
         getStyle().set("overflow", "auto");
 
         VerticalLayout contentBox = new VerticalLayout();
+        contentBox.addClassName("auth-card");
         contentBox.setMaxWidth("500px");
         contentBox.setPadding(true);
         contentBox.setSpacing(true);
         contentBox.setAlignItems(Alignment.CENTER);
-        contentBox.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        contentBox.getStyle().set("border-radius", "12px");
-        contentBox.getStyle().set("padding", "32px");
-        contentBox.getStyle().set("background-color", "var(--lumo-base-color)");
 
         H1 title = new H1(t("home.title"));
         title.getStyle().set("margin-top", "0");
@@ -89,6 +87,7 @@ public class HomeView extends VerticalLayout {
         Button fiButton = new Button(t("lang.finnish"), e -> switchLocale("fi"));
         Button enButton = new Button(t("lang.english"), e -> switchLocale("en"));
         HorizontalLayout langButtons = new HorizontalLayout(enButton, fiButton);
+        langButtons.addClassName("auth-button-row");
         langButtons.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 
         Button loginButton = new Button(t("home.login"), e -> UI.getCurrent().navigate(LoginView.class));
@@ -145,6 +144,7 @@ public class HomeView extends VerticalLayout {
                 loginButton, createAccountButton, documentationButton, devicesButton, controlsButton, weatherControlsButton, loadSheddingButton, myProductionButton, powerLimitsButton, temperatureControlsButton,
                 dashboardButton, settingsButton, adminButton, logoutButton
         ).forEach(btn -> {
+            btn.setWidthFull();
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
             btn.getElement().addEventListener("mouseover", e -> btn.getStyle().set("transform", "scale(1.03)"));
             btn.getElement().addEventListener("mouseout", e -> btn.getStyle().remove("transform"));

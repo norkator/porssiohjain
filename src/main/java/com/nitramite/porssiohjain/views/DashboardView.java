@@ -106,6 +106,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         deviceTitle.getStyle().set("margin-top", "0");
 
         FlexLayout deviceLayout = new FlexLayout();
+        deviceLayout.addClassName("dashboard-device-grid");
         deviceLayout.setFlexWrap(FlexLayout.FlexWrap.WRAP);
         deviceLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
         deviceLayout.getStyle().set("gap", "16px");
@@ -217,32 +218,31 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
     private Component createDeviceCard(DeviceResponse device) {
         VerticalLayout card = new VerticalLayout();
-        card.setWidth("200px");
-        card.setPadding(true);
+        card.addClassName("dashboard-device-card");
+        card.setWidth("240px");
+        card.setPadding(false);
         card.setSpacing(false);
         card.setAlignItems(Alignment.CENTER);
-        card.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
-        card.getStyle().set("border-radius", "12px");
-        card.getStyle().set("background-color", "var(--lumo-base-color)");
-        card.getStyle().set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)");
-        card.getStyle().set("transition", "transform 0.1s ease-in-out");
-        card.getElement().addEventListener("mouseover", e -> card.getStyle().set("transform", "scale(1.03)"));
-        card.getElement().addEventListener("mouseout", e -> card.getStyle().remove("transform"));
 
         H3 name = new H3(device.getDeviceName());
         name.getStyle().set("margin", "0");
         name.getStyle().set("font-size", "1.2em");
 
         Div statusCircle = new Div();
-        statusCircle.getStyle().set("width", "14px");
-        statusCircle.getStyle().set("height", "14px");
-        statusCircle.getStyle().set("border-radius", "50%");
-        statusCircle.getStyle().set("margin-top", "8px");
+        statusCircle.addClassName("dashboard-device-status");
 
         boolean online = isDeviceOnline(device.getDeviceType(), device.getLastCommunication());
-        statusCircle.getStyle().set("background-color", online ? "green" : "red");
+        statusCircle.addClassName(online ? "online" : "offline");
 
-        card.add(name, statusCircle);
+        Paragraph typeLabel = new Paragraph(device.getDeviceType().name().replace('_', ' '));
+        typeLabel.getStyle()
+                .set("margin", "0.35rem 0 0 0")
+                .set("font-size", "0.78rem")
+                .set("letter-spacing", "0.08em")
+                .set("text-transform", "uppercase")
+                .set("color", "var(--lumo-secondary-text-color)");
+
+        card.add(name, typeLabel, statusCircle);
         return card;
     }
 
@@ -323,24 +323,13 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
     private Component createControlSavingsSection(Long accountId) {
         ControlSavingsSummaryResponse savings = controlSavingsService.getCurrentMonthSavings(accountId, null);
         Div wrapper = new Div();
-        wrapper.getStyle()
-                .set("width", "100%")
-                .set("max-width", "100%")
-                .set("box-sizing", "border-box")
-                .set("padding", "14px")
-                .set("border-radius", "12px")
-                .set("background-color", "var(--lumo-contrast-10pct)")
-                .set("text-align", "center")
-                .set("overflow-wrap", "anywhere");
+        wrapper.addClassName("dashboard-stat-card");
 
         H2 title = new H2(t("dashboard.controlSavingsTitle"));
-        title.getStyle().set("margin", "0 0 8px 0");
 
         Div savingsValue = new Div();
         savingsValue.setText(savings.getEstimatedSavingsEur() + "€");
-        savingsValue.getStyle()
-                .set("font-size", "2rem")
-                .set("font-weight", "bold");
+        savingsValue.addClassName("dashboard-stat-value");
 
         Paragraph details = new Paragraph(t(
                 "dashboard.controlSavingsDetails",
@@ -417,18 +406,11 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
 
     private Component createTotalCostSection(BigDecimal totalCost) {
         Div wrapper = new Div();
-        wrapper.getStyle()
-                .set("padding", "14px")
-                .set("border-radius", "12px")
-                .set("background-color", "var(--lumo-contrast-10pct)")
-                .set("text-align", "center");
+        wrapper.addClassName("dashboard-stat-card");
         H2 title = new H2(t("dashboard.totalCost"));
-        title.getStyle().set("margin", "0");
         Div totalCostDiv = new Div();
         totalCostDiv.setText(totalCost + "€");
-        totalCostDiv.getStyle()
-                .set("font-size", "2rem")
-                .set("font-weight", "bold");
+        totalCostDiv.addClassName("dashboard-stat-value");
         wrapper.add(title, totalCostDiv);
         return wrapper;
     }

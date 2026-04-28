@@ -9,13 +9,9 @@ public class InfoBox extends VerticalLayout {
     public InfoBox(
             String title, String description
     ) {
+        addClassName("accent-panel");
         setPadding(true);
         setSpacing(false);
-
-        getStyle()
-                .set("background", "#e6f4ea")
-                .set("border", "1px solid #b7e1cd")
-                .set("border-radius", "var(--lumo-border-radius-m)");
 
         H4 header = new H4(title);
         Paragraph text = new Paragraph(description);
