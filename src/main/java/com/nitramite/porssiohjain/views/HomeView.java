@@ -94,7 +94,7 @@ public class HomeView extends VerticalLayout {
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button createAccountButton = new Button(t("home.createAccount"), e -> UI.getCurrent().navigate(CreateAccountView.class));
-        createAccountButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        createAccountButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button documentationButton = new Button(t("home.documentation"), e -> UI.getCurrent().navigate(DocumentationView.class));
         documentationButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
