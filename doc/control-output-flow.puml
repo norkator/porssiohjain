@@ -1,0 +1,183 @@
+@startuml
+title Standard Device Control Output Flow\nControlController -> ControlService#getControlsForDevice
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Monospace
+skinparam activity {
+  BackgroundColor #F8F9FB
+  BorderColor #2F3A4A
+  DiamondBackgroundColor #FFF7E6
+  DiamondBorderColor #8A5A00
+  StartColor #2E8B57
+  EndColor #B22222
+  BarColor #2F3A4A
+}
+skinparam note {
+  BackgroundColor #FFFDEB
+  BorderColor #8A5A00
+}
+
+legend right
+  Returned value is Map<Integer, Integer>
+  channel -> 1 means ON
+  channel -> 0 means OFF
+
+  Precedence model:
+  1. Build base state per channel
+  2. Apply load shedding rewrite for STANDARD devices
+  3. Enforce power limit OFF again as final override
+
+  "putIfAbsent" means the first matching feature wins
+  inside the base-state pipeline for that channel.
+endlegend
+
+start
+
+:GET /control/{deviceUuid};
+:ControlController.controlsForDevice(deviceUuid);
+:ControlService.getControlsForDevice(deviceUuid);
+
+:deviceRepository.findByUuid(UUID.fromString(deviceUuid));
+if (Device found?) then (yes)
+  :nowUtc = Instant.now();
+  :device.lastCommunication = nowUtc;
+  :device.apiOnline = true;
+  :deviceRepository.save(device);
+else (no)
+  stop
+endif
+
+if (device.enabled?) then (yes)
+else (no)
+  :return empty map {};
+  stop
+endif
+
+:channelMap = {};
+
+partition "Base Controls: getBaseControlsForDevice(device, nowUtc)" {
+  :Read PowerLimitDeviceEntity links\nfor this device;
+  if (Power limit active for channel?) then (yes)
+    :set channel -> 0;
+    note right
+      isPowerLimitActiveForDeviceChannel():
+      - load mappings for device+channel
+      - skip disabled limits
+      - powerLimitService.getCurrentIntervalSum()
+      - active when intervalSum > limitKw
+    end note
+  else (no)
+  endif
+
+  :Read priority weather rules\ngetWeatherOverrides(device, nowUtc, true);
+  if (Matching priority weather rule\nfor empty channel?) then (yes)
+    :set channel -> weather action\nTURN_ON=1, TURN_OFF=0;
+    note right
+      Match requires:
+      - weatherControl.site exists
+      - current weather metric exists
+      - comparisonType / threshold matches
+
+      Weather source selection:
+      - latest forecast <= now
+      - otherwise earliest forecast >= now
+    end note
+  else (no)
+  endif
+
+  :Read ProductionSourceDeviceEntity rules;
+  if (Channel still empty and\nproduction rule matches?) then (yes)
+    :set channel -> production action;
+    note right
+      Match logic:
+      - compare productionSource.currentKw
+      - against triggerKw
+      - using GREATER_THAN / LESS_THAN
+    end note
+  else (no)
+  endif
+
+  :Read non-priority weather rules\ngetWeatherOverrides(device, nowUtc, false);
+  if (Channel still empty and\nweather rule matches?) then (yes)
+    :set channel -> weather action;
+  else (no)
+  endif
+
+  :Read ControlDeviceEntity links;
+  if (Channel still empty?) then (yes)
+    if (Control mode == MANUAL?) then (yes)
+      :set channel -> manualOn ? 1 : 0;
+    else (no)
+      if (Control mode == CHEAPEST_HOURS\nor BELOW_MAX_PRICE?) then (yes)
+        :Find FINAL ControlTableEntity rows\nstarting after nowUtc - 30 min;
+        :Convert row start/end to control.timezone;
+        if (now in any control table window?) then (yes)
+          :set channel -> 1;
+        else (no)
+          :set channel -> 0;
+        endif
+      else (other mode)
+        :set channel -> 0;
+      endif
+    endif
+  else (no)
+  endif
+}
+
+partition "Load Shedding Override: applyLoadSheddingOverrides(...)" {
+  if (device.deviceType == STANDARD?) then (yes)
+    :Load account nodes ordered by id;
+    :Load account links ordered by id;
+    if (Nodes and links exist?) then (yes)
+      :For every node, compute base state of\nnode.device/channel using getBaseControlsForDevice();
+      :stateByNodeId[node] = base channel state;
+      :Iterate links until stable\n(max(links * 4, 8) passes);
+      note right
+        Link behavior:
+        - trigger on source TURNED_ON / TURNED_OFF
+        - target action TURN_ON / TURN_OFF
+        - reverseOnClear can flip target when trigger no longer matches
+
+        Important:
+        Load shedding recomputes only base controls
+        for node devices. It does not recurse into
+        load shedding or final enforcement there.
+      end note
+      :Overwrite target device channels in channelMap\nwith resolved node states;
+    else (no)
+    endif
+  else (no)
+    note right
+      Non-STANDARD devices skip load shedding entirely.
+    end note
+  endif
+}
+
+partition "Final Safety Override: enforcePowerLimitPriority(...)" {
+  :Read PowerLimitDeviceEntity links again;
+  if (Power limit active for channel?) then (yes)
+    :force channel -> 0;
+    note right
+      Final winner:
+      active power limit always turns channel OFF,
+      even if base logic or load shedding set it ON.
+    end note
+  else (no)
+  endif
+}
+
+:return channelMap;
+note right
+  Effective per-channel precedence:
+  1. Base stage first-match order:
+     power limit OFF -> priority weather -> production ->
+     non-priority weather -> control mode / control tables
+
+  2. Load shedding may overwrite the base result for STANDARD devices.
+
+  3. Final power-limit enforcement can overwrite everything to OFF.
+end note
+stop
+
+@enduml

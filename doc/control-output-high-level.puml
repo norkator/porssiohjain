@@ -1,0 +1,107 @@
+@startuml
+title High-Level Control Output Flow
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Monospace
+skinparam activity {
+  BackgroundColor #F8F9FB
+  BorderColor #2F3A4A
+  DiamondBackgroundColor #FFF7E6
+  DiamondBorderColor #8A5A00
+  StartColor #2E8B57
+  EndColor #B22222
+  BarColor #2F3A4A
+}
+skinparam note {
+  BackgroundColor #FFFDEB
+  BorderColor #8A5A00
+}
+
+legend right
+  High-level view of how standard device output is built.
+
+  Output:
+  Map<Integer, Integer>
+  channel -> 1 = ON
+  channel -> 0 = OFF
+endlegend
+
+start
+
+:Request device output\n/control/{deviceUuid};
+if (Device exists and is enabled?) then (yes)
+else (no)
+  :Return empty map {};
+  stop
+endif
+
+:Initialize empty channel map;
+
+partition "Base Decision Layers" {
+  :Power limit check;
+  note right
+    If active for a channel,
+    base state becomes OFF.
+  end note
+
+  :Priority weather control;
+  note right
+    Fills empty channels only.
+    Used to override lower-priority
+    automation early.
+  end note
+
+  :Production source rules;
+  note right
+    Fills empty channels only.
+  end note
+
+  :Normal weather control;
+  note right
+    Fills empty channels only.
+  end note
+
+  :Normal control rules;
+  note right
+    Manual mode
+    Cheapest-hours schedule
+    Below-max-price schedule
+
+    Used only if the channel
+    is still unresolved.
+  end note
+}
+
+:Base channel map ready;
+
+if (Device type is STANDARD?) then (yes)
+  :Load shedding graph evaluation;
+  note right
+    Can overwrite base states
+    using node/link dependencies
+    between device channels.
+  end note
+else (no)
+endif
+
+:Apply final power limit enforcement;
+note right
+  Final safety override:
+  active power limit forces OFF
+  even after load shedding or
+  earlier automation set ON.
+end note
+
+:Return final channel map;
+note right
+  Effective precedence:
+  1. Base layers fill channels in order:
+     power limit -> priority weather ->
+     production -> weather -> control
+  2. Load shedding can overwrite base result
+  3. Final power limit can overwrite all to OFF
+end note
+stop
+
+@enduml
