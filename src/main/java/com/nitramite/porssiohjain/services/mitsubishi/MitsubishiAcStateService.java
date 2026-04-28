@@ -181,7 +181,7 @@ public class MitsubishiAcStateService {
         if (lastCommunication != null) {
             managedDevice.setLastCommunication(lastCommunication);
         }
-        managedDevice.setApiOnline(!Boolean.TRUE.equals(response.getOffline()) && isWithinOnlineThreshold(lastCommunication));
+        managedDevice.setApiOnline(isApiOnlineFromLastCommunication(lastCommunication));
         deviceRepository.save(managedDevice);
     }
 
@@ -201,7 +201,7 @@ public class MitsubishiAcStateService {
         }
     }
 
-    private boolean isWithinOnlineThreshold(Instant lastCommunication) {
+    public static boolean isApiOnlineFromLastCommunication(Instant lastCommunication) {
         return lastCommunication != null
                 && Duration.between(lastCommunication, Instant.now()).compareTo(ONLINE_THRESHOLD) < 0;
     }

@@ -19,6 +19,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MitsubishiAcStateServiceTest {
 
@@ -37,5 +39,20 @@ class MitsubishiAcStateServiceTest {
         Instant parsed = MitsubishiAcStateService.parseLastCommunication("2026-01-18T09:08:38.266Z");
 
         assertEquals(Instant.parse("2026-01-18T09:08:38.266Z"), parsed);
+    }
+
+    @Test
+    void recentLastCommunicationMarksDeviceOnline() {
+        assertTrue(MitsubishiAcStateService.isApiOnlineFromLastCommunication(Instant.now().minusSeconds(60)));
+    }
+
+    @Test
+    void staleLastCommunicationMarksDeviceOffline() {
+        assertFalse(MitsubishiAcStateService.isApiOnlineFromLastCommunication(Instant.now().minusSeconds(4L * 60L * 60L + 1L)));
+    }
+
+    @Test
+    void missingLastCommunicationMarksDeviceOffline() {
+        assertFalse(MitsubishiAcStateService.isApiOnlineFromLastCommunication(null));
     }
 }
