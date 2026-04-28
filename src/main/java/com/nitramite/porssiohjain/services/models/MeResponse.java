@@ -28,4 +28,9 @@ public class MeResponse {
     private String locale;
     private boolean notifyPowerLimitExceeded;
     private Instant createdAt;
+    private Integer deviceLimit;
+    private Integer controlLimit;
+    private Integer productionSourceLimit;
+    private Integer weatherControlLimit;
+    private Integer weeklyNotificationLimit;
 }

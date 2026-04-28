@@ -21,6 +21,11 @@ export type MeResponse = {
   locale: string;
   notifyPowerLimitExceeded: boolean;
   createdAt: string | null;
+  deviceLimit: number;
+  controlLimit: number | null;
+  productionSourceLimit: number | null;
+  weatherControlLimit: number | null;
+  weeklyNotificationLimit: number;
 };
 
 async function readError(response: Response) {

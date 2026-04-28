@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
+import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.models.MeResponse;
 import com.nitramite.porssiohjain.services.models.UpdateMeRequest;
@@ -31,6 +32,7 @@ public class MeController {
 
     private final AuthContext authContext;
     private final AccountService accountService;
+    private final AccountLimitService accountLimitService;
 
     @GetMapping
     public MeResponse getMe() {
@@ -43,6 +45,11 @@ public class MeController {
                 .locale(accountService.getLocale(accountId))
                 .notifyPowerLimitExceeded(accountService.getNotifyPowerLimitExceeded(accountId))
                 .createdAt(accountService.getCreatedAt(accountId))
+                .deviceLimit(accountLimitService.getEffectiveDeviceLimit(accountId))
+                .controlLimit(accountLimitService.getEffectiveControlLimit(accountId))
+                .productionSourceLimit(accountLimitService.getEffectiveProductionSourceLimit(accountId))
+                .weatherControlLimit(accountLimitService.getEffectiveWeatherControlLimit(accountId))
+                .weeklyNotificationLimit(accountLimitService.getEffectiveWeeklyNotificationLimit(accountId))
                 .build();
     }
 

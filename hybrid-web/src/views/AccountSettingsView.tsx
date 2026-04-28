@@ -40,6 +40,13 @@ export default function AccountSettingsView() {
   const [email, setEmail] = useState("");
   const [locale, setLocaleValue] = useState("en");
   const [accountId, setAccountId] = useState<number | null>(null);
+  const [deviceLimit, setDeviceLimit] = useState<number>(0);
+  const [controlLimit, setControlLimit] = useState<number | null>(null);
+  const [productionSourceLimit, setProductionSourceLimit] = useState<number | null>(null);
+  const [weatherControlLimit, setWeatherControlLimit] = useState<number | null>(null);
+  const [weeklyNotificationLimit, setWeeklyNotificationLimit] = useState<number>(0);
+
+  const formatLimit = (limit: number | null) => (limit === null ? t("unlimited") : String(limit));
 
   useEffect(() => {
     let isActive = true;
@@ -59,6 +66,11 @@ export default function AccountSettingsView() {
         setTier(response.tier);
         setEmail(response.email ?? "");
         setLocaleValue(response.locale || "en");
+        setDeviceLimit(response.deviceLimit);
+        setControlLimit(response.controlLimit);
+        setProductionSourceLimit(response.productionSourceLimit);
+        setWeatherControlLimit(response.weatherControlLimit);
+        setWeeklyNotificationLimit(response.weeklyNotificationLimit);
       } catch (error) {
         if (!isActive) {
           return;
@@ -94,6 +106,11 @@ export default function AccountSettingsView() {
       setTier(response.tier);
       setEmail(response.email ?? "");
       setLocaleValue(response.locale || "en");
+      setDeviceLimit(response.deviceLimit);
+      setControlLimit(response.controlLimit);
+      setProductionSourceLimit(response.productionSourceLimit);
+      setWeatherControlLimit(response.weatherControlLimit);
+      setWeeklyNotificationLimit(response.weeklyNotificationLimit);
       setCurrentLocale((response.locale || "en") as "en" | "fi");
       setDevSessionOverride({
         accountId: response.accountId,
@@ -136,6 +153,33 @@ export default function AccountSettingsView() {
                     </span>
                   </div>
                   {accountId !== null ? <p className="mt-6 text-xs text-primary-fixed">{t("accountId", { id: accountId })}</p> : null}
+                </div>
+              </article>
+
+              <article className="app-card p-6">
+                <p className="metric-label mb-3">{t("limitsEyebrow")}</p>
+                <h2 className="font-headline text-2xl font-extrabold text-primary">{t("limitsTitle")}</h2>
+                <div className="mt-5 space-y-3 text-sm text-on-surface">
+                  <div className="flex items-center justify-between gap-4 border-b border-outline-variant/50 pb-3">
+                    <span className="text-on-surface-variant">{t("deviceLimit")}</span>
+                    <span className="font-bold">{deviceLimit}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 border-b border-outline-variant/50 pb-3">
+                    <span className="text-on-surface-variant">{t("controlLimit")}</span>
+                    <span className="font-bold">{formatLimit(controlLimit)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 border-b border-outline-variant/50 pb-3">
+                    <span className="text-on-surface-variant">{t("productionSourceLimit")}</span>
+                    <span className="font-bold">{formatLimit(productionSourceLimit)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 border-b border-outline-variant/50 pb-3">
+                    <span className="text-on-surface-variant">{t("weatherControlLimit")}</span>
+                    <span className="font-bold">{formatLimit(weatherControlLimit)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-on-surface-variant">{t("weeklyNotificationLimit")}</span>
+                    <span className="font-bold">{weeklyNotificationLimit}</span>
+                  </div>
                 </div>
               </article>
             </section>
