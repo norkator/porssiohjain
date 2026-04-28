@@ -9,7 +9,7 @@
  * See LICENSE for details.
  */
 
-import { getSessionData } from "@/lib/session";
+import { getSessionData, handleUnauthorizedSession } from "@/lib/session";
 
 export function getApiUrl(path: string) {
   const { baseUrl } = getSessionData();
@@ -29,10 +29,16 @@ export function getAuthHeaders(headers?: HeadersInit) {
 }
 
 export async function apiFetch(path: string, init?: RequestInit) {
-  return fetch(getApiUrl(path), {
+  const response = await fetch(getApiUrl(path), {
     ...init,
     headers: getAuthHeaders(init?.headers)
   });
+
+  if (response.status === 401) {
+    handleUnauthorizedSession();
+  }
+
+  return response;
 }
 
 export async function apiGetJson<T>(path: string, init?: RequestInit) {

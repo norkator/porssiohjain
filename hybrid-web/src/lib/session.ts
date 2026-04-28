@@ -12,6 +12,7 @@
 import { getAndroidBridge, getBootstrapData, type BootstrapData } from "@/lib/android-bridge";
 
 const DEV_SESSION_STORAGE_KEY = "energy-controller.dev-session";
+let sessionExpiredHandled = false;
 
 type DevSessionOverride = {
   token?: string;
@@ -105,6 +106,10 @@ export function setDevSessionOverride(nextOverride: DevSessionOverride) {
     return;
   }
 
+  if (nextOverride.token) {
+    sessionExpiredHandled = false;
+  }
+
   const currentOverride = getDevSessionOverride();
   const mergedOverride = {
     ...currentOverride,
@@ -128,4 +133,35 @@ export function clearDevSessionOverride() {
 
 export function clearBrowserSession() {
   clearDevSessionOverride();
+}
+
+export function handleUnauthorizedSession() {
+  if (sessionExpiredHandled || typeof window === "undefined") {
+    return;
+  }
+
+  sessionExpiredHandled = true;
+
+  const session = getSessionData();
+
+  if (session.source === "android") {
+    const bridge = getAndroidBridge();
+
+    if (bridge?.logout) {
+      bridge.logout();
+      return;
+    }
+
+    bridge?.openNativeScreen?.("login");
+    return;
+  }
+
+  const override = getDevSessionOverride();
+
+  window.localStorage.setItem(DEV_SESSION_STORAGE_KEY, JSON.stringify({
+    baseUrl: override.baseUrl,
+    locale: override.locale,
+    token: ""
+  }));
+  window.location.hash = "#/login";
 }
