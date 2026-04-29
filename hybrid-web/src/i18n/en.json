@@ -450,7 +450,7 @@
     "title": "Add Device",
     "stepLabel": "Device Integration",
     "headline": "{deviceType} integration",
-    "description": "Your device has been provisioned in Energy Controller. Use the returned identifier and the vendor-specific integration content below to complete the setup in the external app.",
+    "description": "Your device has been provisioned. If your device is a Shelly device, add the script below to the device's executable {} scripts in the Shelly application.",
     "deviceIdentifier": "Device Identifier",
     "setupInstructions": "Setup Instructions",
     "instructions": "Open Shelly Smart Control, go to your configured Shelly device, add the required script, then paste the generated content below. This page is intentionally separate so other device types can later show their own post-provisioning instructions.",

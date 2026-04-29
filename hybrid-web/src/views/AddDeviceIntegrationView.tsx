@@ -43,7 +43,11 @@ export default function AddDeviceIntegrationView() {
 
   return (
     <>
-      <PageHeader title={t("title")} compact />
+      <PageHeader
+        rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>}
+        title={t("title")}
+        compact
+      />
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         <section className="mb-10">

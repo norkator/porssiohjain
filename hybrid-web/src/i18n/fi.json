@@ -450,7 +450,7 @@
     "title": "Lisää laite",
     "stepLabel": "Laitteen integraatio",
     "headline": "{deviceType}-integraatio",
-    "description": "Laite on luotu Energy Controlleriin. Käytä palautettua tunnistetta ja alla olevaa laitekohtaista integraatiosisältöä viimeistelläksesi asetukset ulkoisessa sovelluksessa.",
+    "description": "Laite on nyt luotu. Mikäli laitteesi on Shelly merkin laite, niin lisää alla oleva script laitteen ajettaviin {} scripteihin Shelly sovelluksessa.",
     "deviceIdentifier": "Laitteen tunniste",
     "setupInstructions": "Asennusohjeet",
     "instructions": "Avaa Shelly Smart Control, siirry määritettyyn Shelly-laitteeseen, lisää tarvittava skripti ja liitä alla luotu sisältö. Tämä sivu on erillinen, jotta muut laitetyypit voivat myöhemmin näyttää omat käyttöönotto-ohjeensa.",

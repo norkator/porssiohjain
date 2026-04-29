@@ -24,6 +24,7 @@ import { useI18n } from "@/lib/i18n";
 export default function AddDeviceTypeView() {
   const navigate = useNavigate();
   const { group, t } = useI18n("addDeviceType");
+  const common = useI18n("common").t;
   const deviceTypeLabels: Record<string, string> = group("deviceTypes");
 
   const handleSelectDeviceType = (deviceTypeId: string) => {
@@ -46,7 +47,11 @@ export default function AddDeviceTypeView() {
 
   return (
     <>
-      <PageHeader title={t("title")} compact />
+      <PageHeader
+        rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>}
+        title={t("title")}
+        compact
+      />
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         <ProgressHeader label={t("stepLabel")} step={1} total={4} />
