@@ -502,13 +502,28 @@ public class ControlService {
     public Map<Integer, Integer> getControlsForDevice(
             String deviceUuid
     ) {
+        return getControlsForDevice(deviceUuid, true);
+    }
+
+    public Map<Integer, Integer> getControlsSnapshotForDevice(
+            String deviceUuid
+    ) {
+        return getControlsForDevice(deviceUuid, false);
+    }
+
+    private Map<Integer, Integer> getControlsForDevice(
+            String deviceUuid,
+            boolean updateHeartbeat
+    ) {
         DeviceEntity device = deviceRepository.findByUuid(UUID.fromString(deviceUuid))
                 .orElseThrow(() -> new EntityNotFoundException("Device not found: " + deviceUuid));
 
         Instant nowUtc = Instant.now(); // current UTC time
-        device.setLastCommunication(nowUtc);
-        device.setApiOnline(true);
-        deviceRepository.save(device);
+        if (updateHeartbeat) {
+            device.setLastCommunication(nowUtc);
+            device.setApiOnline(true);
+            deviceRepository.save(device);
+        }
 
         Map<Integer, Integer> channelMap = new HashMap<>();
         if (!device.isEnabled()) {

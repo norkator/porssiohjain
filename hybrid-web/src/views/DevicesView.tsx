@@ -168,6 +168,12 @@ export default function DevicesView() {
                     detailLabel={t("lastSeen")}
                     detailValue={formatDeviceLastCommunication(device.lastCommunication)}
                     manageTo={`/devices/${device.id}`}
+                    channelStatus={device.deviceType === "STANDARD"
+                      ? {
+                          label: device.hasActiveChannels ? t("on") : t("off"),
+                          tone: device.hasActiveChannels ? "active" : "inactive"
+                        }
+                      : undefined}
                     status={connection.label}
                     statusTone={connection.tone}
                     subtitle={t("uuid", { uuid: device.uuid })}

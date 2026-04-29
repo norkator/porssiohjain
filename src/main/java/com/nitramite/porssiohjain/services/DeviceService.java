@@ -52,6 +52,7 @@ public class DeviceService {
     private final ProductionSourceHeatPumpRepository productionSourceHeatPumpRepository;
     private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
     private final AccountLimitService accountLimitService;
+    private final ControlService controlService;
 
     @Transactional
     public DeviceResponse createDevice(
@@ -175,6 +176,12 @@ public class DeviceService {
                 .mqttUsername(entity.getMqttUsername())
                 .mqttPassword(entity.getMqttPassword())
                 .build();
+
+        if (entity.getDeviceType() == DeviceType.STANDARD) {
+            boolean hasActiveChannels = controlService.getControlsSnapshotForDevice(entity.getUuid().toString()).values().stream()
+                    .anyMatch(value -> value != null && value == 1);
+            response.setHasActiveChannels(hasActiveChannels);
+        }
 
         if (entity.getDeviceType() == DeviceType.HEAT_PUMP) {
             deviceAcDataRepository.findByDevice(entity).ifPresent(acData -> {

@@ -16,6 +16,10 @@ type DeviceCardProps = {
   type: string;
   status: string;
   statusTone?: "online" | "offline";
+  channelStatus?: {
+    label: string;
+    tone: "active" | "inactive";
+  };
   title: string;
   subtitle: string;
   detailLabel: string;
@@ -33,6 +37,7 @@ export default function DeviceCard({
   type,
   status,
   statusTone = "offline",
+  channelStatus,
   title,
   subtitle,
   detailLabel,
@@ -53,20 +58,34 @@ export default function DeviceCard({
     <article className={`group app-card border-l-4 ${accent} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`}>
       <div className="mb-6 flex items-start justify-between gap-4">
         <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{type}</span>
-        <span
-          className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold ${
-            statusTone === "online"
-              ? "bg-primary-fixed text-primary"
-              : "bg-error-container text-on-error-container"
-          }`}
-        >
+        <div className="flex items-center gap-2">
+          {channelStatus ? (
+            <span
+              className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold ${
+                channelStatus.tone === "active"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-slate-200 text-slate-700"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${channelStatus.tone === "active" ? "bg-emerald-600" : "bg-slate-500"}`} />
+              {channelStatus.label}
+            </span>
+          ) : null}
           <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              statusTone === "online" ? "bg-primary" : "bg-red-500"
+            className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold ${
+              statusTone === "online"
+                ? "bg-primary-fixed text-primary"
+                : "bg-error-container text-on-error-container"
             }`}
-          />
-          {status}
-        </span>
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                statusTone === "online" ? "bg-primary" : "bg-red-500"
+              }`}
+            />
+            {status}
+          </span>
+        </div>
       </div>
 
       <h3 className="font-headline text-2xl font-bold text-on-surface">{title}</h3>

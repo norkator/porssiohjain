@@ -41,6 +41,7 @@ public class DeviceResponse {
     private Boolean mqttOnline;
     private String mqttUsername;
     private String mqttPassword;
+    private Boolean hasActiveChannels;
 
     // Heat pump related
     private String hpName;
