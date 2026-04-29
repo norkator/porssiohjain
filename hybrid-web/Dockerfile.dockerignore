@@ -1,0 +1,11 @@
+**
+!hybrid-web/
+!hybrid-web/**
+hybrid-web/node_modules
+hybrid-web/dist
+hybrid-web/.env
+hybrid-web/.env.*
+hybrid-web/npm-debug.log*
+!devices/
+!devices/shelly/
+!devices/shelly/script.js

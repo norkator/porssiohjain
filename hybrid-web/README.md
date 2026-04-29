@@ -44,6 +44,7 @@ Browser dev auth:
 Nginx container:
 
 - `.github/workflows/hybrid-web-container.yml` builds `ghcr.io/norkator/porssiohjain-hybrid-web:latest`
+- local image builds should be run from the repository root with `docker build -f hybrid-web/Dockerfile .`
 - the container serves the Vite build with nginx on port `80`
 - the workflow passes `VITE_API_BASE_URL=https://app.porssiohjain.fi/` as a Docker build argument
 - the intended hosted UI origin is `https://mobile.porssiohjain.fi/`
