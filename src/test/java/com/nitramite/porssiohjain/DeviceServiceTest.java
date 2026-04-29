@@ -29,6 +29,7 @@ import com.nitramite.porssiohjain.entity.repository.ResourceSharingRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpRepository;
 import com.nitramite.porssiohjain.services.AccountLimitService;
+import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -78,6 +79,8 @@ class DeviceServiceTest {
     private WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
     @Mock
     private AccountLimitService accountLimitService;
+    @Mock
+    private ControlService controlService;
 
     private DeviceService deviceService;
 
@@ -99,7 +102,8 @@ class DeviceServiceTest {
                 controlHeatPumpRepository,
                 productionSourceHeatPumpRepository,
                 weatherControlHeatPumpRepository,
-                accountLimitService
+                accountLimitService,
+                controlService
         );
     }
 
