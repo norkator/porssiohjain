@@ -6,6 +6,7 @@ on:
       - production
     paths:
       - "hybrid-web/**"
+      - "devices/shelly/script.js"
       - ".github/workflows/hybrid-web-container.yml"
   workflow_dispatch:
 
@@ -44,7 +45,7 @@ jobs:
       - name: Build and push multi-arch Docker image
         uses: docker/build-push-action@v7
         with:
-          context: ./hybrid-web
+          context: .
           file: ./hybrid-web/Dockerfile
           build-args: |
             VITE_API_BASE_URL=${{ env.VITE_API_BASE_URL }}
