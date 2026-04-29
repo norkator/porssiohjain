@@ -14,6 +14,8 @@ import ProgressHeader from "@/components/ProgressHeader";
 import { clearAddDeviceDraft, clearProvisionedDeviceDraft, getDeviceTypeOption, readAddDeviceDraft, readProvisionedDeviceDraft } from "@/lib/add-device-flow";
 import { showNativeToast } from "@/lib/android-bridge";
 import { useI18n } from "@/lib/i18n";
+import shellyTemplate from "../../../devices/shelly/script.js?raw";
+import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
 export default function AddDeviceIntegrationView() {
@@ -23,6 +25,7 @@ export default function AddDeviceIntegrationView() {
   const draft = readAddDeviceDraft();
   const provisionedDevice = readProvisionedDeviceDraft();
   const deviceType = getDeviceTypeOption(draft.deviceTypeId);
+  const [isCopying, setIsCopying] = useState(false);
 
   if (!deviceType || !provisionedDevice) {
     return <Navigate replace to="/devices/add/type" />;
@@ -35,11 +38,23 @@ export default function AddDeviceIntegrationView() {
     navigate("/devices");
   };
 
-  const shellyScript = `// Shelly script placeholder
-// deviceUuid: ${provisionedDevice.uuid}
-// mqttUsername: ${provisionedDevice.mqttUsername ?? "pending"}
-// mqttPassword: ${provisionedDevice.mqttPassword ?? "pending"}
-// Full Shelly script will be added here later.`;
+  const shellyScript = shellyTemplate.replace(
+    /^const DEVICE_UUID = '.*';$/m,
+    `const DEVICE_UUID = '${provisionedDevice.uuid}';`
+  );
+
+  const handleCopyScript = async () => {
+    setIsCopying(true);
+
+    try {
+      await navigator.clipboard.writeText(shellyScript);
+      showNativeToast(t("copySuccess"));
+    } catch {
+      showNativeToast(t("copyFailed"));
+    } finally {
+      setIsCopying(false);
+    }
+  };
 
   return (
     <>
@@ -54,8 +69,8 @@ export default function AddDeviceIntegrationView() {
           <ProgressHeader label={t("stepLabel")} step={4} total={4} />
         </section>
 
-        <div className="grid gap-12 items-start lg:grid-cols-12">
-          <div className="space-y-8 lg:col-span-7">
+        <div className="mx-auto w-full max-w-5xl">
+          <div className="space-y-8">
             <section>
               <h2 className="mb-4 font-headline text-3xl font-extrabold leading-tight text-primary md:text-5xl">
                 {t("headline", { deviceType: deviceType.title })}
@@ -65,22 +80,58 @@ export default function AddDeviceIntegrationView() {
               </p>
             </section>
 
-            <div className="rounded-xl bg-surface-container-low p-6">
+            <div className="overflow-hidden rounded-xl bg-surface-container-low p-6">
               <p className="metric-label mb-2">{t("deviceIdentifier")}</p>
-              <p className="font-mono text-base font-bold tracking-wider text-primary">{provisionedDevice.uuid}</p>
+              <div className="overflow-x-auto">
+                <p className="w-max min-w-full font-mono text-base font-bold tracking-wider text-primary">{provisionedDevice.uuid}</p>
+              </div>
             </div>
 
-            <div className="rounded-xl bg-surface-container-low p-6">
+            <div className="overflow-hidden rounded-xl bg-surface-container-low p-6">
               <p className="metric-label mb-2">{t("setupInstructions")}</p>
               <p className="text-sm leading-relaxed text-on-surface-variant">
                 {t("instructions")}
               </p>
             </div>
 
-            <div className="rounded-xl bg-surface-container-low p-6">
-              <p className="metric-label mb-2">{t("shellyJavascript")}</p>
-              <div className="rounded-xl bg-surface-container-highest p-4">
-                <pre className="overflow-x-auto whitespace-pre-wrap text-xs leading-relaxed text-on-surface">{shellyScript}</pre>
+            <div className="overflow-hidden rounded-xl bg-surface-container-low p-6">
+              <p className="metric-label mb-2">{t("mqttCredentials")}</p>
+              <div className="space-y-4 rounded-xl bg-surface-container-highest p-4">
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttDeviceUuid")}</p>
+                  <div className="overflow-x-auto">
+                    <p className="w-max min-w-full font-mono text-sm font-bold text-on-surface">{provisionedDevice.uuid}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttUsername")}</p>
+                  <div className="overflow-x-auto">
+                    <p className="w-max min-w-full font-mono text-sm font-bold text-on-surface">{provisionedDevice.mqttUsername ?? t("pendingValue")}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttPassword")}</p>
+                  <div className="overflow-x-auto">
+                    <p className="w-max min-w-full font-mono text-sm font-bold text-on-surface">{provisionedDevice.mqttPassword ?? t("pendingValue")}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-xl bg-surface-container-low p-6">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="metric-label">{t("shellyJavascript")}</p>
+                <button
+                  className="secondary-action w-full justify-center px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                  disabled={isCopying}
+                  onClick={() => void handleCopyScript()}
+                  type="button"
+                >
+                  {isCopying ? t("copying") : t("copyScript")}
+                </button>
+              </div>
+              <div className="max-h-72 max-w-full overflow-x-auto overflow-y-auto rounded-xl bg-surface-container-highest p-4 sm:max-h-[22rem]">
+                <pre className="inline-block min-w-full whitespace-pre text-xs leading-relaxed text-on-surface">{shellyScript}</pre>
               </div>
             </div>
 
