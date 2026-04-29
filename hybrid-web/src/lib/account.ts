@@ -62,3 +62,17 @@ export async function updateMe(input: { email: string; locale: string }) {
 
   return response.json() as Promise<MeResponse>;
 }
+
+export async function changePassword(input: { currentPassword: string; newPassword: string }) {
+  const response = await apiFetch("/me/password", {
+    body: JSON.stringify(input),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+}

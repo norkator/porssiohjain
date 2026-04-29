@@ -15,10 +15,13 @@ import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AccountService;
+import com.nitramite.porssiohjain.services.models.ChangePasswordRequest;
 import com.nitramite.porssiohjain.services.models.MeResponse;
 import com.nitramite.porssiohjain.services.models.UpdateMeRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -63,5 +66,26 @@ public class MeController {
                 request.getLocale()
         );
         return getMe();
+    }
+
+    @PostMapping("/password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+        Long accountId = authContext.getAccountId();
+
+        try {
+            boolean changed = accountService.changeSecret(
+                    accountId,
+                    request.getCurrentPassword(),
+                    request.getNewPassword()
+            );
+
+            if (!changed) {
+                return ResponseEntity.badRequest().body("Current password is incorrect");
+            }
+
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
     }
 }

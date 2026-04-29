@@ -10,7 +10,7 @@
  */
 
 import PageHeader from "@/components/PageHeader";
-import { fetchMe, updateMe, type AccountTier } from "@/lib/account";
+import { changePassword, fetchMe, updateMe, type AccountTier } from "@/lib/account";
 import { setCurrentLocale, supportedLocales, useI18n } from "@/lib/i18n";
 import { setDevSessionOverride } from "@/lib/session";
 import { FormEvent, useEffect, useState } from "react";
@@ -33,12 +33,18 @@ export default function AccountSettingsView() {
   const tierLabels = group("tierLabels");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [tier, setTier] = useState<AccountTier>("FREE");
   const [email, setEmail] = useState("");
   const [locale, setLocaleValue] = useState("en");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [accountId, setAccountId] = useState<number | null>(null);
   const [deviceLimit, setDeviceLimit] = useState<number>(0);
   const [controlLimit, setControlLimit] = useState<number | null>(null);
@@ -47,6 +53,7 @@ export default function AccountSettingsView() {
   const [weeklyNotificationLimit, setWeeklyNotificationLimit] = useState<number>(0);
 
   const formatLimit = (limit: number | null) => (limit === null ? t("unlimited") : String(limit));
+  const isValidPassword = (value: string) => value.length >= 8 && /[A-Z]/.test(value) && /[A-Za-z]/.test(value) && /\d/.test(value);
 
   useEffect(() => {
     let isActive = true;
@@ -121,6 +128,46 @@ export default function AccountSettingsView() {
       setSaveError(error instanceof Error ? error.message : t("failedSave"));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsChangingPassword(true);
+    setPasswordError(null);
+    setPasswordMessage(null);
+
+    if (!currentPassword.trim()) {
+      setPasswordError(t("passwordCurrentRequired"));
+      setIsChangingPassword(false);
+      return;
+    }
+
+    if (!isValidPassword(newPassword)) {
+      setPasswordError(t("passwordInvalid"));
+      setIsChangingPassword(false);
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError(t("passwordMismatch"));
+      setIsChangingPassword(false);
+      return;
+    }
+
+    try {
+      await changePassword({
+        currentPassword,
+        newPassword
+      });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setPasswordMessage(t("passwordChanged"));
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : t("passwordFailed"));
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -229,6 +276,68 @@ export default function AccountSettingsView() {
 
                 {message ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary">{message}</div> : null}
                 {saveError ? <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{saveError}</div> : null}
+              </form>
+
+              <form className="app-card space-y-8 p-6 sm:p-8" onSubmit={handlePasswordChange}>
+                <div>
+                  <p className="metric-label mb-3">{t("passwordEyebrow")}</p>
+                  <h2 className="font-headline text-2xl font-extrabold text-primary">{t("passwordTitle")}</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-on-surface-variant">{t("passwordDescription")}</p>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="account-current-password">
+                      {t("passwordCurrent")}
+                    </label>
+                    <input
+                      autoComplete="current-password"
+                      className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
+                      id="account-current-password"
+                      onChange={(event) => setCurrentPassword(event.target.value)}
+                      type="password"
+                      value={currentPassword}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="account-new-password">
+                      {t("passwordNew")}
+                    </label>
+                    <input
+                      autoComplete="new-password"
+                      className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
+                      id="account-new-password"
+                      onChange={(event) => setNewPassword(event.target.value)}
+                      type="password"
+                      value={newPassword}
+                    />
+                    <p className="mt-3 ml-1 text-xs text-on-surface-variant">{t("passwordRequirements")}</p>
+                  </div>
+
+                  <div>
+                    <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="account-confirm-password">
+                      {t("passwordConfirm")}
+                    </label>
+                    <input
+                      autoComplete="new-password"
+                      className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
+                      id="account-confirm-password"
+                      onChange={(event) => setConfirmNewPassword(event.target.value)}
+                      type="password"
+                      value={confirmNewPassword}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isChangingPassword} type="submit">
+                    {isChangingPassword ? t("passwordChanging") : t("passwordChange")}
+                  </button>
+                </div>
+
+                {passwordMessage ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary">{passwordMessage}</div> : null}
+                {passwordError ? <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{passwordError}</div> : null}
               </form>
             </section>
           </div>
