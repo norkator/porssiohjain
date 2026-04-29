@@ -29,6 +29,7 @@ import {
   type HeatPumpAcType
 } from "@/lib/heat-pump-devices";
 import { useI18n } from "@/lib/i18n";
+import shellyTemplate from "../../../devices/shelly/script.js?raw";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
@@ -68,6 +69,7 @@ export default function ManageDeviceView() {
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCopyingScript, setIsCopyingScript] = useState(false);
   const lastAcCredentialsRef = useRef({
     acPassword: "",
     acType: "NONE" as AcType,
@@ -85,6 +87,7 @@ export default function ManageDeviceView() {
       acDeviceId.trim().length > 0
     );
   const canSave = deviceName.trim().length > 0 && timezoneIsValid && heatPumpReady && !device?.shared && !isSaving && !isDeleting;
+  const isStandard = deviceType === "STANDARD";
 
   useEffect(() => {
     let isActive = true;
@@ -248,6 +251,32 @@ export default function ManageDeviceView() {
     }
   };
 
+  const shellyScript = device?.uuid
+    ? shellyTemplate.replace(
+        /^const DEVICE_UUID = '.*';$/m,
+        `const DEVICE_UUID = '${device.uuid}';`
+      )
+    : "";
+
+  const handleCopyScript = async () => {
+    if (!shellyScript) {
+      return;
+    }
+
+    setIsCopyingScript(true);
+
+    try {
+      await navigator.clipboard.writeText(shellyScript);
+      setSaveMessage(t("scriptCopied"));
+      setSaveError(null);
+    } catch {
+      setSaveError(t("failedCopyScript"));
+      setSaveMessage(null);
+    } finally {
+      setIsCopyingScript(false);
+    }
+  };
+
   return (
     <>
       <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} title={t("title")} compact />
@@ -266,7 +295,7 @@ export default function ManageDeviceView() {
         {!isLoading && !loadError ? (
           <div className="space-y-12">
             <div className="grid gap-12 items-start lg:grid-cols-12">
-              <section className="space-y-8 lg:col-span-8">
+              <section className="min-w-0 space-y-8 lg:col-span-8">
                 <div>
                   <p className="metric-label mb-3">{t("label", { id: deviceId })}</p>
                   <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">
@@ -277,7 +306,7 @@ export default function ManageDeviceView() {
                   </p>
                 </div>
 
-              <form className="app-card space-y-8 p-8" onSubmit={handleSubmit}>
+              <form className="app-card min-w-0 space-y-8 overflow-hidden p-8" onSubmit={handleSubmit}>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="device-name">
@@ -465,9 +494,55 @@ export default function ManageDeviceView() {
                   </div>
                 ) : null}
               </form>
+
+              {isStandard ? (
+                <section className="app-card min-w-0 space-y-6 overflow-hidden p-6">
+                  <div>
+                    <p className="metric-label mb-2">{t("deviceIntegration")}</p>
+                    <h2 className="font-headline text-2xl font-bold text-primary">{t("shellyJavascript")}</h2>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="rounded-xl bg-surface-container p-4">
+                      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttDeviceUuid")}</p>
+                      <div className="max-w-full overflow-x-auto">
+                        <p className="inline-block whitespace-nowrap font-mono text-sm font-bold text-on-surface">{device?.uuid}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-surface-container p-4">
+                      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttUsername")}</p>
+                      <div className="max-w-full overflow-x-auto">
+                        <p className="inline-block whitespace-nowrap font-mono text-sm font-bold text-on-surface">{device?.mqttUsername ?? t("pendingValue")}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-surface-container p-4">
+                      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttPassword")}</p>
+                      <div className="max-w-full overflow-x-auto">
+                        <p className="inline-block whitespace-nowrap font-mono text-sm font-bold text-on-surface">{device?.mqttPassword ?? t("pendingValue")}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-surface-container p-4">
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("shellyJavascript")}</p>
+                        <button
+                          className="secondary-action w-full justify-center px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                          disabled={isCopyingScript}
+                          onClick={() => void handleCopyScript()}
+                          type="button"
+                        >
+                          {isCopyingScript ? t("copying") : t("copyScript")}
+                        </button>
+                      </div>
+                      <div className="max-h-72 min-w-0 max-w-full overflow-x-auto overflow-y-auto rounded-xl bg-surface-container-highest p-4">
+                        <pre className="w-max min-w-full whitespace-pre text-xs leading-relaxed text-on-surface">{shellyScript}</pre>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
             </section>
 
-            <aside className="space-y-6 lg:col-span-4">
+            <aside className="min-w-0 space-y-6 lg:col-span-4">
               <div className="app-card p-6">
                 <p className="metric-label mb-2">{common("origin")}</p>
                 <p className="font-headline text-2xl font-bold text-on-surface">{device?.shared ? common("shared") : common("mine")}</p>
@@ -493,7 +568,7 @@ export default function ManageDeviceView() {
                 <p className="metric-label mb-2">{t("lastSeen")}</p>
                 <p className="font-semibold text-on-surface">{formatDeviceLastCommunication(device?.lastCommunication ?? null)}</p>
               </div>
-              </aside>
+            </aside>
             </div>
 
             {!device?.shared ? (
