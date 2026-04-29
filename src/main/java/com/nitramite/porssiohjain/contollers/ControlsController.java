@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.services.ControlChartService;
 import com.nitramite.porssiohjain.services.ControlNotificationService;
+import com.nitramite.porssiohjain.services.ControlSchedulerService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.models.*;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class ControlsController {
     private final AuthContext authContext;
     private final ControlService controlService;
     private final ControlChartService controlChartService;
+    private final ControlSchedulerService controlSchedulerService;
     private final ControlNotificationService controlNotificationService;
 
     @GetMapping
@@ -89,6 +91,7 @@ public class ControlsController {
                 request.getTransferContractId(),
                 request.getSiteId()
         );
+        controlSchedulerService.generateForControl(controlId);
         return controlService.getControl(accountId, controlId);
     }
 

@@ -83,6 +83,7 @@ export default function ManageControlView() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [chartRefreshKey, setChartRefreshKey] = useState(0);
   const [activeDeviceTab, setActiveDeviceTab] = useState<DeviceTab>("STANDARD");
   const [deviceLinks, setDeviceLinks] = useState<ControlDeviceLink[]>([]);
   const [standardDevices, setStandardDevices] = useState<ApiDevice[]>([]);
@@ -286,6 +287,7 @@ export default function ManageControlView() {
       const response = await updateControl(controlId, buildPayload());
 
       setControl(response);
+      setChartRefreshKey((current) => current + 1);
       setSaveMessage(t("saved"));
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : t("failedSave"));
@@ -1042,7 +1044,7 @@ export default function ManageControlView() {
             </section>
 
             <section>
-              <ControlPriceChartCard controlId={controlId} />
+              <ControlPriceChartCard controlId={controlId} key={chartRefreshKey} />
             </section>
 
             {!control?.shared ? (
