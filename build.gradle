@@ -46,7 +46,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-devtools'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'com.resend:resend-java:4.13.0'
-    compileOnly 'com.vaadin:vaadin-push:8.31.0'
+    compileOnly 'com.vaadin:vaadin-push:8.31.1'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
