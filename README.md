@@ -288,6 +288,8 @@ export APP_CRYPTO_KEY=(run node app_crypto_key.js)
 export MQTT_BROKER_ADDRESS=localhost
 export MQTT_BROKER_PASSWORD=xxxxxx
 export MQTT_CLIENT_ID=xxxxxx
+export APP_PUSH_FCM_ENABLED=false
+export APP_PUSH_FCM_SERVICE_ACCOUNT_FILE=/path/to/file.xyz
 ``` 
 
 ## License

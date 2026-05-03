@@ -21,6 +21,8 @@ import com.nitramite.porssiohjain.entity.repository.PowerLimitHistoryRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerLimitRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
+import com.nitramite.porssiohjain.services.PushNotificationService;
+import com.nitramite.porssiohjain.services.PushNotificationTokenService;
 import com.nitramite.porssiohjain.services.models.DailyUsageCostResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import org.junit.jupiter.api.Test;
@@ -63,6 +65,12 @@ public class PowerLimitServiceTest {
 
     @MockitoBean
     private NordpoolRepository nordpoolRepository;
+
+    @MockitoBean
+    private PushNotificationService pushNotificationService;
+
+    @MockitoBean
+    private PushNotificationTokenService pushNotificationTokenService;
 
     @Test
     void createUser_WithSpringContext() {

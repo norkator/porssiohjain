@@ -73,8 +73,8 @@ class AccountLimitServiceTest {
         assertTrue(accountLimitService.tryConsumeWeeklyEmailNotification(1L, first.plusSeconds(60)));
         assertTrue(accountLimitService.tryConsumeWeeklyEmailNotification(1L, first.plusSeconds(120)));
         assertFalse(accountLimitService.tryConsumeWeeklyEmailNotification(1L, first.plusSeconds(180)));
-        assertEquals(3, account.getWeeklyNotificationCount());
-        assertEquals(LocalDate.parse("2026-04-27"), account.getWeeklyNotificationWeekStart());
+        assertEquals(3, account.getWeeklyEmailNotificationCount());
+        assertEquals(LocalDate.parse("2026-04-27"), account.getWeeklyEmailNotificationWeekStart());
     }
 
     @Test
@@ -83,8 +83,8 @@ class AccountLimitServiceTest {
         when(accountRepository.findWithLockById(1L)).thenReturn(Optional.of(account));
 
         assertTrue(accountLimitService.tryConsumeWeeklyEmailNotification(1L, Instant.parse("2026-04-27T00:00:00Z")));
-        assertEquals(1, account.getWeeklyNotificationCount());
-        assertEquals(LocalDate.parse("2026-04-27"), account.getWeeklyNotificationWeekStart());
+        assertEquals(1, account.getWeeklyEmailNotificationCount());
+        assertEquals(LocalDate.parse("2026-04-27"), account.getWeeklyEmailNotificationWeekStart());
     }
 
     @Test
@@ -98,12 +98,29 @@ class AccountLimitServiceTest {
         assertEquals(100, accountLimitService.getEffectiveWeeklyEmailNotificationLimit(1L));
     }
 
+    @Test
+    void pushNotificationCounterIsTrackedSeparately() {
+        AccountEntity account = account(AccountTier.FREE, null, 0);
+        when(accountRepository.findWithLockById(1L)).thenReturn(Optional.of(account));
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+
+        Instant first = Instant.parse("2026-04-27T08:00:00Z");
+
+        assertTrue(accountLimitService.tryConsumeWeeklyPushNotification(1L, first));
+        assertTrue(accountLimitService.tryConsumeWeeklyPushNotification(1L, first.plusSeconds(60)));
+        assertTrue(accountLimitService.tryConsumeWeeklyPushNotification(1L, first.plusSeconds(120)));
+        assertFalse(accountLimitService.tryConsumeWeeklyPushNotification(1L, first.plusSeconds(180)));
+        assertEquals(3, account.getWeeklyPushNotificationCount());
+        assertEquals(LocalDate.parse("2026-04-27"), account.getWeeklyPushNotificationWeekStart());
+        assertEquals(3, accountLimitService.getEffectiveWeeklyPushNotificationLimit(1L));
+    }
+
     private AccountEntity account(AccountTier tier, LocalDate weekStart, int count) {
         AccountEntity account = new AccountEntity();
         account.setId(1L);
         account.setTier(tier);
-        account.setWeeklyNotificationWeekStart(weekStart);
-        account.setWeeklyNotificationCount(count);
+        account.setWeeklyEmailNotificationWeekStart(weekStart);
+        account.setWeeklyEmailNotificationCount(count);
         return account;
     }
 }

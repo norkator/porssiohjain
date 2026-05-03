@@ -67,10 +67,17 @@ public class AccountEntity {
 
     @Column(name = "weekly_notification_count", nullable = false)
     @Builder.Default
-    private int weeklyNotificationCount = 0;
+    private int weeklyEmailNotificationCount = 0;
 
     @Column(name = "weekly_notification_week_start")
-    private LocalDate weeklyNotificationWeekStart;
+    private LocalDate weeklyEmailNotificationWeekStart;
+
+    @Column(name = "weekly_push_notification_count", nullable = false)
+    @Builder.Default
+    private int weeklyPushNotificationCount = 0;
+
+    @Column(name = "weekly_push_notification_week_start")
+    private LocalDate weeklyPushNotificationWeekStart;
 
     @Column(name = "agreed_terms", nullable = false)
     @Builder.Default

@@ -57,6 +57,12 @@ class ControlNotificationServiceTest {
     private EmailService emailService;
 
     @Mock
+    private PushNotificationService pushNotificationService;
+
+    @Mock
+    private PushNotificationTokenService pushNotificationTokenService;
+
+    @Mock
     private AccountLimitService accountLimitService;
 
     private ControlNotificationService controlNotificationService;
@@ -69,6 +75,8 @@ class ControlNotificationServiceTest {
                 accountRepository,
                 controlTableRepository,
                 emailService,
+                pushNotificationService,
+                pushNotificationTokenService,
                 accountLimitService
         );
     }
@@ -155,12 +163,40 @@ class ControlNotificationServiceTest {
         );
     }
 
+    @Test
+    void pushNotificationSendsWithoutEmailChannel() {
+        Instant now = Instant.parse("2026-01-01T10:00:15Z");
+        ControlNotificationEntity notification = notification(now);
+        notification.getAccount().setEmailNotificationsEnabled(false);
+        notification.getAccount().setEmail(null);
+        notification.getAccount().setPushNotificationsEnabled(true);
+
+        when(controlNotificationRepository.findByEnabledTrueOrderByIdAsc()).thenReturn(List.of(notification));
+        when(controlTableRepository.findActivePeriodsOverlapping(eq(1L), eq(Status.FINAL), any(Instant.class), any(Instant.class)))
+                .thenReturn(List.of(
+                        activePeriod(1L, now, now.plusSeconds(15 * 60)),
+                        activePeriod(2L, now.plusSeconds(15 * 60), now.plusSeconds(30 * 60)),
+                        activePeriod(3L, now.plusSeconds(30 * 60), now.plusSeconds(45 * 60)),
+                        activePeriod(4L, now.plusSeconds(45 * 60), now.plusSeconds(60 * 60))
+                ));
+        when(controlTableRepository.existsActiveAt(1L, Status.FINAL, now)).thenReturn(true);
+        when(pushNotificationTokenService.hasActivePushToken(1L)).thenReturn(true);
+        when(accountLimitService.tryConsumeWeeklyPushNotification(1L, now)).thenReturn(true);
+        when(pushNotificationService.sendControlNotification(any(), any(), any(), any(), any())).thenReturn(true);
+
+        controlNotificationService.sendDueNotifications(now);
+
+        verify(emailService, never()).sendControlNotificationEmail(any(), any(), any(), any(), any(), any());
+        verify(pushNotificationService).sendControlNotification(any(), any(), any(), any(), any());
+    }
+
     private ControlNotificationEntity notification(Instant now) {
         AccountEntity account = new AccountEntity();
         account.setId(1L);
         account.setEmail("user@example.com");
         account.setLocale("en");
         account.setEmailNotificationsEnabled(true);
+        account.setPushNotificationsEnabled(false);
 
         ControlEntity control = new ControlEntity();
         control.setId(1L);

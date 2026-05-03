@@ -39,6 +39,8 @@ public class AccountLimitService {
     private static final int BUSINESS_DEVICE_LIMIT = 99;
     private static final int FREE_WEEKLY_EMAIL_NOTIFICATION_LIMIT = 3;
     private static final int PAID_WEEKLY_EMAIL_NOTIFICATION_LIMIT = 100;
+    private static final int FREE_WEEKLY_PUSH_NOTIFICATION_LIMIT = 10;
+    private static final int PAID_WEEKLY_PUSH_NOTIFICATION_LIMIT = 200;
 
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
@@ -106,7 +108,7 @@ public class AccountLimitService {
 
     @Transactional(readOnly = true)
     public Integer getEffectiveWeeklyPushNotificationLimit(Long accountId) {
-        return null;
+        return getWeeklyPushNotificationLimit(getAccount(accountId).getTier());
     }
 
     @Transactional(readOnly = true)
@@ -146,20 +148,30 @@ public class AccountLimitService {
     public boolean tryConsumeWeeklyEmailNotification(Long accountId, Instant now) {
         AccountEntity account = accountRepository.findWithLockById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
-        LocalDate weekStart = resolveWeekStart(now);
-        if (!weekStart.equals(account.getWeeklyNotificationWeekStart())) {
-            account.setWeeklyNotificationWeekStart(weekStart);
-            account.setWeeklyNotificationCount(0);
-        }
+        return tryConsumeWeeklyNotification(
+                account,
+                now,
+                getWeeklyEmailNotificationLimit(account.getTier()),
+                account.getWeeklyEmailNotificationWeekStart(),
+                account.getWeeklyEmailNotificationCount(),
+                account::setWeeklyEmailNotificationWeekStart,
+                account::setWeeklyEmailNotificationCount
+        );
+    }
 
-        int limit = getWeeklyEmailNotificationLimit(account.getTier());
-        if (account.getWeeklyNotificationCount() >= limit) {
-            return false;
-        }
-
-        account.setWeeklyNotificationCount(account.getWeeklyNotificationCount() + 1);
-        accountRepository.save(account);
-        return true;
+    @Transactional
+    public boolean tryConsumeWeeklyPushNotification(Long accountId, Instant now) {
+        AccountEntity account = accountRepository.findWithLockById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        return tryConsumeWeeklyNotification(
+                account,
+                now,
+                getWeeklyPushNotificationLimit(account.getTier()),
+                account.getWeeklyPushNotificationWeekStart(),
+                account.getWeeklyPushNotificationCount(),
+                account::setWeeklyPushNotificationWeekStart,
+                account::setWeeklyPushNotificationCount
+        );
     }
 
     private int getWeeklyEmailNotificationLimit(AccountTier tier) {
@@ -167,6 +179,38 @@ public class AccountLimitService {
             case FREE -> FREE_WEEKLY_EMAIL_NOTIFICATION_LIMIT;
             case PRO, BUSINESS -> PAID_WEEKLY_EMAIL_NOTIFICATION_LIMIT;
         };
+    }
+
+    private int getWeeklyPushNotificationLimit(AccountTier tier) {
+        return switch (tier) {
+            case FREE -> FREE_WEEKLY_PUSH_NOTIFICATION_LIMIT;
+            case PRO, BUSINESS -> PAID_WEEKLY_PUSH_NOTIFICATION_LIMIT;
+        };
+    }
+
+    private boolean tryConsumeWeeklyNotification(
+            AccountEntity account,
+            Instant now,
+            int limit,
+            LocalDate currentWeekStart,
+            int currentCount,
+            java.util.function.Consumer<LocalDate> weekStartSetter,
+            java.util.function.IntConsumer countSetter
+    ) {
+        LocalDate weekStart = resolveWeekStart(now);
+        int count = currentCount;
+        if (!weekStart.equals(currentWeekStart)) {
+            weekStartSetter.accept(weekStart);
+            count = 0;
+        }
+
+        if (count >= limit) {
+            return false;
+        }
+
+        countSetter.accept(count + 1);
+        accountRepository.save(account);
+        return true;
     }
 
     private LocalDate resolveWeekStart(Instant now) {

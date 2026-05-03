@@ -41,6 +41,8 @@ public class PowerLimitService {
     private final AccountRepository accountRepository;
     private final PowerLimitHistoryRepository powerLimitHistoryRepository;
     private final EmailService emailService;
+    private final PushNotificationService pushNotificationService;
+    private final PushNotificationTokenService pushNotificationTokenService;
     private final SiteRepository siteRepository;
     private final ElectricityContractRepository electricityContractRepository;
     private final NordpoolRepository nordpoolRepository;
@@ -290,30 +292,88 @@ public class PowerLimitService {
         Instant lastSent = lastNotificationSent.get(entity.getId());
         boolean canSend = lastSent == null || Duration.between(lastSent, now).toHours() >= 24;
         if (currentlyOver && canSend) {
-            if (!entity.getAccount().isNotifyPowerLimitExceeded()) {
-                log.info("Power limit notification {} not sent because account {} disabled power limit notifications", entity.getId(), entity.getAccount().getId());
+            AccountEntity account = entity.getAccount();
+            if (!account.isNotifyPowerLimitExceeded()) {
+                log.info("Power limit notification {} not sent because account {} disabled power limit notifications", entity.getId(), account.getId());
                 return;
             }
-            if (!entity.getAccount().isEmailNotificationsEnabled()) {
-                log.info("Power limit notification {} not sent because account {} disabled email notifications", entity.getId(), entity.getAccount().getId());
-                return;
+            Locale locale = Locale.of(account.getLocale());
+            boolean sent = false;
+
+            sent |= trySendPowerLimitExceededEmail(entity, sum, now, account, locale);
+            sent |= trySendPowerLimitExceededPush(entity, sum, now, account, locale);
+
+            if (sent) {
+                lastNotificationSent.put(entity.getId(), now);
             }
-            if (entity.getAccount().getEmail() == null || entity.getAccount().getEmail().isBlank()) {
-                log.info("Power limit notification {} not sent because account {} has no email", entity.getId(), entity.getAccount().getId());
-                return;
-            }
-            if (!accountLimitService.tryConsumeWeeklyEmailNotification(entity.getAccount().getId(), now)) {
-                log.info("Power limit notification {} not sent because account {} reached weekly notification limit", entity.getId(), entity.getAccount().getId());
-                return;
-            }
+        }
+    }
+
+    private boolean trySendPowerLimitExceededEmail(
+            PowerLimitEntity entity,
+            BigDecimal currentAverageKw,
+            Instant now,
+            AccountEntity account,
+            Locale locale
+    ) {
+        if (!account.isEmailNotificationsEnabled()) {
+            return false;
+        }
+        if (account.getEmail() == null || account.getEmail().isBlank()) {
+            log.info("Power limit notification {} email not sent because account {} has no email", entity.getId(), account.getId());
+            return false;
+        }
+        if (!accountLimitService.tryConsumeWeeklyEmailNotification(account.getId(), now)) {
+            log.info("Power limit notification {} email not sent because account {} reached weekly email notification limit", entity.getId(), account.getId());
+            return false;
+        }
+
+        try {
             emailService.sendPowerLimitExceededEmail(
-                    entity.getAccount().getEmail(),
+                    account.getEmail(),
                     entity.getName(),
                     entity.getLimitKw(),
-                    sum,
-                    Locale.of(entity.getAccount().getLocale())
+                    currentAverageKw,
+                    locale
             );
-            lastNotificationSent.put(entity.getId(), now);
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to send power limit notification {} email", entity.getId(), e);
+            return false;
+        }
+    }
+
+    private boolean trySendPowerLimitExceededPush(
+            PowerLimitEntity entity,
+            BigDecimal currentAverageKw,
+            Instant now,
+            AccountEntity account,
+            Locale locale
+    ) {
+        if (!account.isPushNotificationsEnabled()) {
+            return false;
+        }
+        if (!pushNotificationTokenService.hasActivePushToken(account.getId())) {
+            log.info("Power limit notification {} push not sent because account {} has no active push tokens", entity.getId(), account.getId());
+            return false;
+        }
+        if (!accountLimitService.tryConsumeWeeklyPushNotification(account.getId(), now)) {
+            log.info("Power limit notification {} push not sent because account {} reached weekly push notification limit", entity.getId(), account.getId());
+            return false;
+        }
+
+        try {
+            return pushNotificationService.sendPowerLimitExceededNotification(
+                    account,
+                    entity.getName(),
+                    String.valueOf(entity.getId()),
+                    entity.getLimitKw().stripTrailingZeros().toPlainString(),
+                    currentAverageKw.stripTrailingZeros().toPlainString(),
+                    locale
+            );
+        } catch (Exception e) {
+            log.error("Failed to send power limit notification {} push", entity.getId(), e);
+            return false;
         }
     }
 

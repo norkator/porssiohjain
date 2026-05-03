@@ -15,12 +15,17 @@ import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AccountService;
+import com.nitramite.porssiohjain.services.PushNotificationTokenService;
 import com.nitramite.porssiohjain.services.models.ChangePasswordRequest;
 import com.nitramite.porssiohjain.services.models.MeResponse;
+import com.nitramite.porssiohjain.services.models.PushNotificationTokenRequest;
+import com.nitramite.porssiohjain.services.models.PushNotificationTokenResponse;
 import com.nitramite.porssiohjain.services.models.UpdateMeRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,6 +41,7 @@ public class MeController {
     private final AuthContext authContext;
     private final AccountService accountService;
     private final AccountLimitService accountLimitService;
+    private final PushNotificationTokenService pushNotificationTokenService;
 
     @GetMapping
     public MeResponse getMe() {
@@ -98,5 +104,26 @@ public class MeController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
         }
+    }
+
+    @GetMapping("/push-tokens")
+    public java.util.List<PushNotificationTokenResponse> getPushTokens() {
+        return pushNotificationTokenService.getPushNotificationTokens(authContext.getAccountId());
+    }
+
+    @PostMapping("/push-tokens")
+    public PushNotificationTokenResponse registerPushToken(@RequestBody PushNotificationTokenRequest request) {
+        return pushNotificationTokenService.registerPushNotificationToken(
+                authContext.getAccountId(),
+                request.getToken(),
+                request.getPlatform(),
+                request.getDeviceName()
+        );
+    }
+
+    @DeleteMapping("/push-tokens/{tokenId}")
+    public ResponseEntity<Void> deletePushToken(@PathVariable Long tokenId) {
+        pushNotificationTokenService.deletePushNotificationToken(authContext.getAccountId(), tokenId);
+        return ResponseEntity.noContent().build();
     }
 }

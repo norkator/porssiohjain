@@ -50,6 +50,8 @@ public class ControlNotificationService {
     private final AccountRepository accountRepository;
     private final ControlTableRepository controlTableRepository;
     private final EmailService emailService;
+    private final PushNotificationService pushNotificationService;
+    private final PushNotificationTokenService pushNotificationTokenService;
     private final AccountLimitService accountLimitService;
 
     public List<ControlNotificationResponse> getControlNotifications(Long accountId, Long controlId) {
@@ -148,29 +150,16 @@ public class ControlNotificationService {
         }
 
         AccountEntity account = notification.getAccount();
-        if (!account.isEmailNotificationsEnabled()) {
-            log.info("Control notification {} not sent because account {} disabled email notifications", notification.getId(), account.getId());
-            return;
-        }
-        if (account.getEmail() == null || account.getEmail().isBlank()) {
-            log.warn("Control notification {} not sent because account {} has no email", notification.getId(), account.getId());
-            return;
-        }
-        if (!accountLimitService.tryConsumeWeeklyEmailNotification(account.getId(), now)) {
-            log.info("Control notification {} not sent because account {} reached weekly notification limit", notification.getId(), account.getId());
-            return;
-        }
+        Locale locale = Locale.of(account.getLocale());
+        boolean sent = false;
 
-        emailService.sendControlNotificationEmail(
-                account.getEmail(),
-                control.getName(),
-                notification.getName(),
-                notification.getDescription(),
-                nowLocal,
-                Locale.of(account.getLocale())
-        );
-        notification.setLastSentAt(now);
-        controlNotificationRepository.save(notification);
+        sent |= trySendEmailNotification(notification, nowLocal, now, control, account, locale);
+        sent |= trySendPushNotification(notification, nowLocal, now, control, account, locale);
+
+        if (sent) {
+            notification.setLastSentAt(now);
+            controlNotificationRepository.save(notification);
+        }
     }
 
     private Instant resolveNextSendAt(ControlNotificationEntity notification, Instant now) {
@@ -179,10 +168,7 @@ public class ControlNotificationService {
         }
         ControlEntity control = notification.getControl();
         AccountEntity account = notification.getAccount();
-        if (!account.isEmailNotificationsEnabled()) {
-            return null;
-        }
-        if (account.getEmail() == null || account.getEmail().isBlank()) {
+        if (!hasNotificationDeliveryChannel(account)) {
             return null;
         }
 
@@ -250,6 +236,85 @@ public class ControlNotificationService {
     private boolean wasSentForNotificationDate(Instant lastSentAt, LocalDate notificationDate, ZoneId zone, int sendEarlierMinutes) {
         return lastSentAt != null
                 && lastSentAt.plus(Duration.ofMinutes(sendEarlierMinutes)).atZone(zone).toLocalDate().equals(notificationDate);
+    }
+
+    private boolean trySendEmailNotification(
+            ControlNotificationEntity notification,
+            ZonedDateTime nowLocal,
+            Instant now,
+            ControlEntity control,
+            AccountEntity account,
+            Locale locale
+    ) {
+        if (!account.isEmailNotificationsEnabled()) {
+            return false;
+        }
+        if (account.getEmail() == null || account.getEmail().isBlank()) {
+            log.warn("Control notification {} not sent because account {} has no email", notification.getId(), account.getId());
+            return false;
+        }
+        if (!accountLimitService.tryConsumeWeeklyEmailNotification(account.getId(), now)) {
+            log.info("Control notification {} email not sent because account {} reached weekly email notification limit", notification.getId(), account.getId());
+            return false;
+        }
+
+        try {
+            emailService.sendControlNotificationEmail(
+                    account.getEmail(),
+                    control.getName(),
+                    notification.getName(),
+                    notification.getDescription(),
+                    nowLocal,
+                    locale
+            );
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to send control notification {} email", notification.getId(), e);
+            return false;
+        }
+    }
+
+    private boolean trySendPushNotification(
+            ControlNotificationEntity notification,
+            ZonedDateTime nowLocal,
+            Instant now,
+            ControlEntity control,
+            AccountEntity account,
+            Locale locale
+    ) {
+        if (!account.isPushNotificationsEnabled()) {
+            return false;
+        }
+        if (!pushNotificationTokenService.hasActivePushToken(account.getId())) {
+            log.info("Control notification {} push not sent because account {} has no active push tokens", notification.getId(), account.getId());
+            return false;
+        }
+        if (!accountLimitService.tryConsumeWeeklyPushNotification(account.getId(), now)) {
+            log.info("Control notification {} push not sent because account {} reached weekly push notification limit", notification.getId(), account.getId());
+            return false;
+        }
+
+        try {
+            return pushNotificationService.sendControlNotification(account, control, notification, nowLocal, locale);
+        } catch (Exception e) {
+            log.error("Failed to send control notification {} push", notification.getId(), e);
+            return false;
+        }
+    }
+
+    private boolean hasNotificationDeliveryChannel(AccountEntity account) {
+        return hasEmailDeliveryChannel(account) || hasPushDeliveryChannel(account);
+    }
+
+    private boolean hasEmailDeliveryChannel(AccountEntity account) {
+        return account.isEmailNotificationsEnabled()
+                && account.getEmail() != null
+                && !account.getEmail().isBlank();
+    }
+
+    private boolean hasPushDeliveryChannel(AccountEntity account) {
+        return account.isPushNotificationsEnabled()
+                && pushNotificationTokenService.hasActivePushToken(account.getId());
     }
 
     private ControlNotificationEntity ensureOwnedNotification(Long accountId, Long controlId, Long notificationId) {
