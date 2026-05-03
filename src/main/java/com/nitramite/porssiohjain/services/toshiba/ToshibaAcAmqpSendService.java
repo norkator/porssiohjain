@@ -80,11 +80,11 @@ public class ToshibaAcAmqpSendService {
         } catch (Exception e) {
             log.error("Failed to persist Toshiba AC command log. deviceId={}, acDataId={}", deviceId, acData.getId(), e);
         }
-        acData.setLastPolledStateHex(hexState);
+        acData.setLastSentStateHex(hexState);
         deviceAcDataRepository.save(acData);
         markDeviceReachable(acData);
         log.info(
-                "Persisted lastPolledStateHex after successful Toshiba send. deviceId={}, acDataId={}",
+                "Persisted lastSentStateHex after successful Toshiba send. deviceId={}, acDataId={}",
                 deviceId,
                 acData.getId()
         );

@@ -207,9 +207,9 @@ public class HeatPumpControlService {
             return;
         }
 
-        if (candidate.stateHex().equalsIgnoreCase(nullSafe(acData.getLastPolledStateHex()))) {
+        if (candidate.stateHex().equalsIgnoreCase(nullSafe(acData.getLastSentStateHex()))) {
             log.info(
-                    "Skipping heat pump command for deviceId={} because desired state already matches lastPolledStateHex. ruleType={}, ruleId={}",
+                    "Skipping heat pump command for deviceId={} because desired state already matches lastSentStateHex. ruleType={}, ruleId={}",
                     device.getId(),
                     candidate.ruleType(),
                     candidate.ruleId()

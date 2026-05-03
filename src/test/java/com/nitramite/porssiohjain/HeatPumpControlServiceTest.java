@@ -142,7 +142,7 @@ class HeatPumpControlServiceTest {
     }
 
     @Test
-    void skipsDispatchWhenDesiredStateMatchesLastPolledHex() {
+    void skipsDispatchWhenDesiredStateMatchesLastSentHex() {
         DeviceEntity device = enabledHeatPumpDevice(1L);
         DeviceAcDataEntity acData = acData(device, "AAAA");
         SiteEntity site = new SiteEntity();
@@ -185,12 +185,12 @@ class HeatPumpControlServiceTest {
         return device;
     }
 
-    private DeviceAcDataEntity acData(DeviceEntity device, String lastPolledStateHex) {
+    private DeviceAcDataEntity acData(DeviceEntity device, String lastSentStateHex) {
         DeviceAcDataEntity acData = new DeviceAcDataEntity();
         acData.setId(100L);
         acData.setDevice(device);
         acData.setAcType(AcType.TOSHIBA);
-        acData.setLastPolledStateHex(lastPolledStateHex);
+        acData.setLastSentStateHex(lastSentStateHex);
         return acData;
     }
 
