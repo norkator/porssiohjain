@@ -50,7 +50,11 @@ export default function AccountSettingsView() {
   const [controlLimit, setControlLimit] = useState<number | null>(null);
   const [productionSourceLimit, setProductionSourceLimit] = useState<number | null>(null);
   const [weatherControlLimit, setWeatherControlLimit] = useState<number | null>(null);
-  const [weeklyNotificationLimit, setWeeklyNotificationLimit] = useState<number>(0);
+  const [weeklyEmailNotificationLimit, setWeeklyEmailNotificationLimit] = useState<number>(0);
+  const [weeklyPushNotificationLimit, setWeeklyPushNotificationLimit] = useState<number | null>(null);
+  const [notifyPowerLimitExceeded, setNotifyPowerLimitExceeded] = useState(false);
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(false);
+  const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
 
   const formatLimit = (limit: number | null) => (limit === null ? t("unlimited") : String(limit));
   const isValidPassword = (value: string) => value.length >= 8 && /[A-Z]/.test(value) && /[A-Za-z]/.test(value) && /\d/.test(value);
@@ -77,7 +81,11 @@ export default function AccountSettingsView() {
         setControlLimit(response.controlLimit);
         setProductionSourceLimit(response.productionSourceLimit);
         setWeatherControlLimit(response.weatherControlLimit);
-        setWeeklyNotificationLimit(response.weeklyNotificationLimit);
+        setWeeklyEmailNotificationLimit(response.weeklyEmailNotificationLimit);
+        setWeeklyPushNotificationLimit(response.weeklyPushNotificationLimit);
+        setNotifyPowerLimitExceeded(response.notifyPowerLimitExceeded);
+        setEmailNotificationsEnabled(response.emailNotificationsEnabled);
+        setPushNotificationsEnabled(response.pushNotificationsEnabled);
       } catch (error) {
         if (!isActive) {
           return;
@@ -107,7 +115,10 @@ export default function AccountSettingsView() {
     try {
       const response = await updateMe({
         email: email.trim(),
-        locale
+        locale,
+        notifyPowerLimitExceeded,
+        emailNotificationsEnabled,
+        pushNotificationsEnabled
       });
 
       setTier(response.tier);
@@ -117,7 +128,11 @@ export default function AccountSettingsView() {
       setControlLimit(response.controlLimit);
       setProductionSourceLimit(response.productionSourceLimit);
       setWeatherControlLimit(response.weatherControlLimit);
-      setWeeklyNotificationLimit(response.weeklyNotificationLimit);
+      setWeeklyEmailNotificationLimit(response.weeklyEmailNotificationLimit);
+      setWeeklyPushNotificationLimit(response.weeklyPushNotificationLimit);
+      setNotifyPowerLimitExceeded(response.notifyPowerLimitExceeded);
+      setEmailNotificationsEnabled(response.emailNotificationsEnabled);
+      setPushNotificationsEnabled(response.pushNotificationsEnabled);
       setCurrentLocale((response.locale || "en") as "en" | "fi");
       setDevSessionOverride({
         accountId: response.accountId,
@@ -224,8 +239,12 @@ export default function AccountSettingsView() {
                     <span className="font-bold">{formatLimit(weatherControlLimit)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-on-surface-variant">{t("weeklyNotificationLimit")}</span>
-                    <span className="font-bold">{weeklyNotificationLimit}</span>
+                    <span className="text-on-surface-variant">{t("weeklyEmailNotificationLimit")}</span>
+                    <span className="font-bold">{weeklyEmailNotificationLimit}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-on-surface-variant">{t("weeklyPushNotificationLimit")}</span>
+                    <span className="font-bold">{formatLimit(weeklyPushNotificationLimit)}</span>
                   </div>
                 </div>
               </article>
@@ -262,6 +281,38 @@ export default function AccountSettingsView() {
                         <option key={option.code} value={option.code}>{option.label}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="md:col-span-2 space-y-3">
+                    <p className="mb-1 ml-1 font-headline text-sm font-bold text-on-surface">{t("notificationPreferences")}</p>
+                    <label className="flex items-center justify-between gap-4 rounded-2xl bg-surface-container-highest px-4 py-4 text-sm text-on-surface">
+                      <span>{t("notifyPowerLimitExceeded")}</span>
+                      <input
+                        checked={notifyPowerLimitExceeded}
+                        onChange={(event) => setNotifyPowerLimitExceeded(event.target.checked)}
+                        type="checkbox"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="md:col-span-2 space-y-3">
+                    <p className="mb-1 ml-1 font-headline text-sm font-bold text-on-surface">{t("notificationChannels")}</p>
+                    <label className="flex items-center justify-between gap-4 rounded-2xl bg-surface-container-highest px-4 py-4 text-sm text-on-surface">
+                      <span>{t("emailNotificationsEnabled")}</span>
+                      <input
+                        checked={emailNotificationsEnabled}
+                        onChange={(event) => setEmailNotificationsEnabled(event.target.checked)}
+                        type="checkbox"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-4 rounded-2xl bg-surface-container-highest px-4 py-4 text-sm text-on-surface">
+                      <span>{t("pushNotificationsEnabled")}</span>
+                      <input
+                        checked={pushNotificationsEnabled}
+                        onChange={(event) => setPushNotificationsEnabled(event.target.checked)}
+                        type="checkbox"
+                      />
+                    </label>
                   </div>
                 </div>
 

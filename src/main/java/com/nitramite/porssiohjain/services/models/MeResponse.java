@@ -27,10 +27,13 @@ public class MeResponse {
     private String email;
     private String locale;
     private boolean notifyPowerLimitExceeded;
+    private boolean emailNotificationsEnabled;
+    private boolean pushNotificationsEnabled;
     private Instant createdAt;
     private Integer deviceLimit;
     private Integer controlLimit;
     private Integer productionSourceLimit;
     private Integer weatherControlLimit;
-    private Integer weeklyNotificationLimit;
+    private Integer weeklyEmailNotificationLimit;
+    private Integer weeklyPushNotificationLimit;
 }

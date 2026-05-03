@@ -49,6 +49,14 @@ public class AccountEntity {
     @Builder.Default
     private boolean notifyPowerLimitExceeded = false;
 
+    @Column(name = "email_notifications_enabled", nullable = false)
+    @Builder.Default
+    private boolean emailNotificationsEnabled = false;
+
+    @Column(name = "push_notifications_enabled", nullable = false)
+    @Builder.Default
+    private boolean pushNotificationsEnabled = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "tier", nullable = false, length = 20)
     @Builder.Default

@@ -17,4 +17,7 @@ import lombok.Data;
 public class UpdateMeRequest {
     private String email;
     private String locale;
+    private Boolean notifyPowerLimitExceeded;
+    private Boolean emailNotificationsEnabled;
+    private Boolean pushNotificationsEnabled;
 }

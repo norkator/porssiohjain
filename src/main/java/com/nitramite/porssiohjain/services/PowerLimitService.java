@@ -290,7 +290,19 @@ public class PowerLimitService {
         Instant lastSent = lastNotificationSent.get(entity.getId());
         boolean canSend = lastSent == null || Duration.between(lastSent, now).toHours() >= 24;
         if (currentlyOver && canSend) {
-            if (!accountLimitService.tryConsumeWeeklyNotification(entity.getAccount().getId(), now)) {
+            if (!entity.getAccount().isNotifyPowerLimitExceeded()) {
+                log.info("Power limit notification {} not sent because account {} disabled power limit notifications", entity.getId(), entity.getAccount().getId());
+                return;
+            }
+            if (!entity.getAccount().isEmailNotificationsEnabled()) {
+                log.info("Power limit notification {} not sent because account {} disabled email notifications", entity.getId(), entity.getAccount().getId());
+                return;
+            }
+            if (entity.getAccount().getEmail() == null || entity.getAccount().getEmail().isBlank()) {
+                log.info("Power limit notification {} not sent because account {} has no email", entity.getId(), entity.getAccount().getId());
+                return;
+            }
+            if (!accountLimitService.tryConsumeWeeklyEmailNotification(entity.getAccount().getId(), now)) {
                 log.info("Power limit notification {} not sent because account {} reached weekly notification limit", entity.getId(), entity.getAccount().getId());
                 return;
             }

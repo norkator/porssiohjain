@@ -148,11 +148,15 @@ public class ControlNotificationService {
         }
 
         AccountEntity account = notification.getAccount();
+        if (!account.isEmailNotificationsEnabled()) {
+            log.info("Control notification {} not sent because account {} disabled email notifications", notification.getId(), account.getId());
+            return;
+        }
         if (account.getEmail() == null || account.getEmail().isBlank()) {
             log.warn("Control notification {} not sent because account {} has no email", notification.getId(), account.getId());
             return;
         }
-        if (!accountLimitService.tryConsumeWeeklyNotification(account.getId(), now)) {
+        if (!accountLimitService.tryConsumeWeeklyEmailNotification(account.getId(), now)) {
             log.info("Control notification {} not sent because account {} reached weekly notification limit", notification.getId(), account.getId());
             return;
         }
@@ -175,6 +179,9 @@ public class ControlNotificationService {
         }
         ControlEntity control = notification.getControl();
         AccountEntity account = notification.getAccount();
+        if (!account.isEmailNotificationsEnabled()) {
+            return null;
+        }
         if (account.getEmail() == null || account.getEmail().isBlank()) {
             return null;
         }

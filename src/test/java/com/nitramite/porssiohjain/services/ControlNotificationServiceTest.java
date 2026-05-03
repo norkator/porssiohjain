@@ -113,7 +113,7 @@ class ControlNotificationServiceTest {
                         activePeriod(4L, now.plusSeconds(45 * 60), now.plusSeconds(60 * 60))
                 ));
         when(controlTableRepository.existsActiveAt(1L, Status.FINAL, now)).thenReturn(true);
-        when(accountLimitService.tryConsumeWeeklyNotification(1L, now)).thenReturn(true);
+        when(accountLimitService.tryConsumeWeeklyEmailNotification(1L, now)).thenReturn(true);
 
         controlNotificationService.sendDueNotifications(now);
 
@@ -141,7 +141,7 @@ class ControlNotificationServiceTest {
                         activePeriod(4L, now.plusSeconds(45 * 60), now.plusSeconds(60 * 60))
                 ));
         when(controlTableRepository.existsActiveAt(1L, Status.FINAL, now)).thenReturn(true);
-        when(accountLimitService.tryConsumeWeeklyNotification(1L, now)).thenReturn(false);
+        when(accountLimitService.tryConsumeWeeklyEmailNotification(1L, now)).thenReturn(false);
 
         controlNotificationService.sendDueNotifications(now);
 
@@ -160,6 +160,7 @@ class ControlNotificationServiceTest {
         account.setId(1L);
         account.setEmail("user@example.com");
         account.setLocale("en");
+        account.setEmailNotificationsEnabled(true);
 
         ControlEntity control = new ControlEntity();
         control.setId(1L);

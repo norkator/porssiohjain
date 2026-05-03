@@ -57,6 +57,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
     private final EmailField emailField;
     private final Checkbox notifyPowerLimitExceeded;
+    private final Checkbox emailNotificationsEnabled;
+    private final Checkbox pushNotificationsEnabled;
     private final Select<String> localeSelect;
     private final PasswordField currentPasswordField;
     private final PasswordField newPasswordField;
@@ -107,6 +109,10 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         notifyPowerLimitExceeded =
                 new Checkbox(t("settings.notifications.powerLimitExceeded"));
+        emailNotificationsEnabled =
+                new Checkbox(t("settings.notifications.emailEnabled"));
+        pushNotificationsEnabled =
+                new Checkbox(t("settings.notifications.pushEnabled"));
 
         Button saveButton = new Button(t("settings.button.save"));
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -187,6 +193,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         emailField.setValue(Optional.ofNullable(accountService.getEmail(accountId)).orElse(""));
         notifyPowerLimitExceeded.setValue(accountService.getNotifyPowerLimitExceeded(accountId));
+        emailNotificationsEnabled.setValue(accountService.getEmailNotificationsEnabled(accountId));
+        pushNotificationsEnabled.setValue(accountService.getPushNotificationsEnabled(accountId));
         localeSelect.setValue(accountService.getLocale(accountId));
 
         saveButton.addClickListener(e -> {
@@ -194,6 +202,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                     accountId,
                     emailField.getValue(),
                     notifyPowerLimitExceeded.getValue(),
+                    emailNotificationsEnabled.getValue(),
+                    pushNotificationsEnabled.getValue(),
                     localeSelect.getValue()
             );
 
@@ -342,8 +352,9 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         Span controlLimit = new Span(t("settings.account.controlLimit", formatLimit(accountLimitService.getEffectiveControlLimit(accountId))));
         Span productionLimit = new Span(t("settings.account.productionSourceLimit", formatLimit(accountLimitService.getEffectiveProductionSourceLimit(accountId))));
         Span weatherLimit = new Span(t("settings.account.weatherControlLimit", formatLimit(accountLimitService.getEffectiveWeatherControlLimit(accountId))));
-        Span weeklyNotificationLimit = new Span(t("settings.account.weeklyNotificationLimit", accountLimitService.getEffectiveWeeklyNotificationLimit(accountId)));
-        card.add(title, deviceLimit, controlLimit, productionLimit, weatherLimit, weeklyNotificationLimit);
+        Span weeklyEmailNotificationLimit = new Span(t("settings.account.weeklyEmailNotificationLimit", accountLimitService.getEffectiveWeeklyEmailNotificationLimit(accountId)));
+        Span weeklyPushNotificationLimit = new Span(t("settings.account.weeklyPushNotificationLimit", formatLimit(accountLimitService.getEffectiveWeeklyPushNotificationLimit(accountId))));
+        card.add(title, deviceLimit, controlLimit, productionLimit, weatherLimit, weeklyEmailNotificationLimit, weeklyPushNotificationLimit);
         return card;
     }
 
@@ -373,7 +384,11 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         section.setSpacing(true);
         H2 title = new H2(t("settings.notifications.title"));
         title.getStyle().set("margin-top", "16px");
-        section.add(title, notifyPowerLimitExceeded);
+        H3 powerLimitTitle = new H3(t("settings.notifications.powerLimitTitle"));
+        powerLimitTitle.getStyle().set("margin", "8px 0 0 0");
+        H3 channelTitle = new H3(t("settings.notifications.channelTitle"));
+        channelTitle.getStyle().set("margin", "8px 0 0 0");
+        section.add(title, powerLimitTitle, notifyPowerLimitExceeded, channelTitle, emailNotificationsEnabled, pushNotificationsEnabled);
         return section;
     }
 

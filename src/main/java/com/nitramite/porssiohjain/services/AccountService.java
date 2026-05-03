@@ -72,9 +72,23 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
+    public boolean getEmailNotificationsEnabled(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::isEmailNotificationsEnabled)
+                .orElse(false);
+    }
+
+    @Transactional(readOnly = true)
     public boolean getNotifyPowerLimitExceeded(Long accountId) {
         return accountRepository.findById(accountId)
                 .map(AccountEntity::isNotifyPowerLimitExceeded)
+                .orElse(false);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean getPushNotificationsEnabled(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::isPushNotificationsEnabled)
                 .orElse(false);
     }
 
@@ -89,12 +103,16 @@ public class AccountService {
     public void updateAccountSettings(
             Long accountId,
             String email,
-            boolean notify,
+            boolean notifyPowerLimitExceeded,
+            boolean emailNotificationsEnabled,
+            boolean pushNotificationsEnabled,
             String locale
     ) {
         accountRepository.findById(accountId).ifPresent(account -> {
             account.setEmail(email != null && !email.isBlank() ? email.trim() : null);
-            account.setNotifyPowerLimitExceeded(notify);
+            account.setNotifyPowerLimitExceeded(notifyPowerLimitExceeded);
+            account.setEmailNotificationsEnabled(emailNotificationsEnabled);
+            account.setPushNotificationsEnabled(pushNotificationsEnabled);
             account.setLocale(locale != null && !locale.isBlank() ? locale.trim() : "en");
             accountRepository.save(account);
         });

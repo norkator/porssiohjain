@@ -31,12 +31,14 @@ import java.time.temporal.TemporalAdjusters;
 @RequiredArgsConstructor
 public class AccountLimitService {
 
-    private static final int FREE_RESOURCE_LIMIT = 4;
+    private static final int FREE_CONTROL_LIMIT = 4;
+    private static final int FREE_PRODUCTION_SOURCE_LIMIT = 1;
+    private static final int FREE_WEATHER_CONTROL_LIMIT = 2;
     private static final int FREE_DEVICE_LIMIT = 4;
     private static final int PRO_DEVICE_LIMIT = 50;
     private static final int BUSINESS_DEVICE_LIMIT = 99;
-    private static final int FREE_WEEKLY_NOTIFICATION_LIMIT = 3;
-    private static final int PAID_WEEKLY_NOTIFICATION_LIMIT = 100;
+    private static final int FREE_WEEKLY_EMAIL_NOTIFICATION_LIMIT = 3;
+    private static final int PAID_WEEKLY_EMAIL_NOTIFICATION_LIMIT = 100;
 
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
@@ -84,22 +86,27 @@ public class AccountLimitService {
 
     @Transactional(readOnly = true)
     public Integer getEffectiveControlLimit(Long accountId) {
-        return getAccount(accountId).getTier() == AccountTier.FREE ? FREE_RESOURCE_LIMIT : null;
+        return getAccount(accountId).getTier() == AccountTier.FREE ? FREE_CONTROL_LIMIT : null;
     }
 
     @Transactional(readOnly = true)
     public Integer getEffectiveProductionSourceLimit(Long accountId) {
-        return getAccount(accountId).getTier() == AccountTier.FREE ? FREE_RESOURCE_LIMIT : null;
+        return getAccount(accountId).getTier() == AccountTier.FREE ? FREE_PRODUCTION_SOURCE_LIMIT : null;
     }
 
     @Transactional(readOnly = true)
     public Integer getEffectiveWeatherControlLimit(Long accountId) {
-        return getAccount(accountId).getTier() == AccountTier.FREE ? FREE_RESOURCE_LIMIT : null;
+        return getAccount(accountId).getTier() == AccountTier.FREE ? FREE_WEATHER_CONTROL_LIMIT : null;
     }
 
     @Transactional(readOnly = true)
-    public int getEffectiveWeeklyNotificationLimit(Long accountId) {
-        return getWeeklyNotificationLimit(getAccount(accountId).getTier());
+    public int getEffectiveWeeklyEmailNotificationLimit(Long accountId) {
+        return getWeeklyEmailNotificationLimit(getAccount(accountId).getTier());
+    }
+
+    @Transactional(readOnly = true)
+    public Integer getEffectiveWeeklyPushNotificationLimit(Long accountId) {
+        return null;
     }
 
     @Transactional(readOnly = true)
@@ -136,7 +143,7 @@ public class AccountLimitService {
     }
 
     @Transactional
-    public boolean tryConsumeWeeklyNotification(Long accountId, Instant now) {
+    public boolean tryConsumeWeeklyEmailNotification(Long accountId, Instant now) {
         AccountEntity account = accountRepository.findWithLockById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         LocalDate weekStart = resolveWeekStart(now);
@@ -145,7 +152,7 @@ public class AccountLimitService {
             account.setWeeklyNotificationCount(0);
         }
 
-        int limit = getWeeklyNotificationLimit(account.getTier());
+        int limit = getWeeklyEmailNotificationLimit(account.getTier());
         if (account.getWeeklyNotificationCount() >= limit) {
             return false;
         }
@@ -155,10 +162,10 @@ public class AccountLimitService {
         return true;
     }
 
-    private int getWeeklyNotificationLimit(AccountTier tier) {
+    private int getWeeklyEmailNotificationLimit(AccountTier tier) {
         return switch (tier) {
-            case FREE -> FREE_WEEKLY_NOTIFICATION_LIMIT;
-            case PRO, BUSINESS -> PAID_WEEKLY_NOTIFICATION_LIMIT;
+            case FREE -> FREE_WEEKLY_EMAIL_NOTIFICATION_LIMIT;
+            case PRO, BUSINESS -> PAID_WEEKLY_EMAIL_NOTIFICATION_LIMIT;
         };
     }
 

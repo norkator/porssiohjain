@@ -20,12 +20,15 @@ export type MeResponse = {
   email: string | null;
   locale: string;
   notifyPowerLimitExceeded: boolean;
+  emailNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
   createdAt: string | null;
   deviceLimit: number;
   controlLimit: number | null;
   productionSourceLimit: number | null;
   weatherControlLimit: number | null;
-  weeklyNotificationLimit: number;
+  weeklyEmailNotificationLimit: number;
+  weeklyPushNotificationLimit: number | null;
 };
 
 async function readError(response: Response) {
@@ -47,7 +50,13 @@ export async function fetchMe() {
   return apiGetJson<MeResponse>("/me");
 }
 
-export async function updateMe(input: { email: string; locale: string }) {
+export async function updateMe(input: {
+  email: string;
+  locale: string;
+  notifyPowerLimitExceeded: boolean;
+  emailNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+}) {
   const response = await apiFetch("/me", {
     body: JSON.stringify(input),
     headers: {

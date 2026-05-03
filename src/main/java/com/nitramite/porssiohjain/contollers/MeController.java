@@ -47,12 +47,15 @@ public class MeController {
                 .email(accountService.getEmail(accountId))
                 .locale(accountService.getLocale(accountId))
                 .notifyPowerLimitExceeded(accountService.getNotifyPowerLimitExceeded(accountId))
+                .emailNotificationsEnabled(accountService.getEmailNotificationsEnabled(accountId))
+                .pushNotificationsEnabled(accountService.getPushNotificationsEnabled(accountId))
                 .createdAt(accountService.getCreatedAt(accountId))
                 .deviceLimit(accountLimitService.getEffectiveDeviceLimit(accountId))
                 .controlLimit(accountLimitService.getEffectiveControlLimit(accountId))
                 .productionSourceLimit(accountLimitService.getEffectiveProductionSourceLimit(accountId))
                 .weatherControlLimit(accountLimitService.getEffectiveWeatherControlLimit(accountId))
-                .weeklyNotificationLimit(accountLimitService.getEffectiveWeeklyNotificationLimit(accountId))
+                .weeklyEmailNotificationLimit(accountLimitService.getEffectiveWeeklyEmailNotificationLimit(accountId))
+                .weeklyPushNotificationLimit(accountLimitService.getEffectiveWeeklyPushNotificationLimit(accountId))
                 .build();
     }
 
@@ -62,7 +65,15 @@ public class MeController {
         accountService.updateAccountSettings(
                 accountId,
                 request.getEmail(),
-                accountService.getNotifyPowerLimitExceeded(accountId),
+                request.getNotifyPowerLimitExceeded() != null
+                        ? request.getNotifyPowerLimitExceeded()
+                        : accountService.getNotifyPowerLimitExceeded(accountId),
+                request.getEmailNotificationsEnabled() != null
+                        ? request.getEmailNotificationsEnabled()
+                        : accountService.getEmailNotificationsEnabled(accountId),
+                request.getPushNotificationsEnabled() != null
+                        ? request.getPushNotificationsEnabled()
+                        : accountService.getPushNotificationsEnabled(accountId),
                 request.getLocale()
         );
         return getMe();
