@@ -57,6 +57,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
     private final EmailField emailField;
     private final Checkbox notifyPowerLimitExceeded;
+    private final Checkbox notifyControlActivated;
     private final Checkbox emailNotificationsEnabled;
     private final Checkbox pushNotificationsEnabled;
     private final Select<String> localeSelect;
@@ -109,6 +110,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         notifyPowerLimitExceeded =
                 new Checkbox(t("settings.notifications.powerLimitExceeded"));
+        notifyControlActivated =
+                new Checkbox(t("settings.notifications.controlActivated"));
         emailNotificationsEnabled =
                 new Checkbox(t("settings.notifications.emailEnabled"));
         pushNotificationsEnabled =
@@ -193,6 +196,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         emailField.setValue(Optional.ofNullable(accountService.getEmail(accountId)).orElse(""));
         notifyPowerLimitExceeded.setValue(accountService.getNotifyPowerLimitExceeded(accountId));
+        notifyControlActivated.setValue(accountService.getNotifyControlActivated(accountId));
         emailNotificationsEnabled.setValue(accountService.getEmailNotificationsEnabled(accountId));
         pushNotificationsEnabled.setValue(accountService.getPushNotificationsEnabled(accountId));
         localeSelect.setValue(accountService.getLocale(accountId));
@@ -202,6 +206,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                     accountId,
                     emailField.getValue(),
                     notifyPowerLimitExceeded.getValue(),
+                    notifyControlActivated.getValue(),
                     emailNotificationsEnabled.getValue(),
                     pushNotificationsEnabled.getValue(),
                     localeSelect.getValue()
@@ -386,9 +391,25 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         title.getStyle().set("margin-top", "16px");
         H3 powerLimitTitle = new H3(t("settings.notifications.powerLimitTitle"));
         powerLimitTitle.getStyle().set("margin", "8px 0 0 0");
+        H3 controlTitle = new H3(t("settings.notifications.controlTitle"));
+        controlTitle.getStyle().set("margin", "8px 0 0 0");
+        Span controlHelp = new Span(t("settings.notifications.controlHelp"));
+        controlHelp.getStyle()
+                .set("font-size", "var(--lumo-font-size-s)")
+                .set("color", "var(--lumo-secondary-text-color)");
         H3 channelTitle = new H3(t("settings.notifications.channelTitle"));
         channelTitle.getStyle().set("margin", "8px 0 0 0");
-        section.add(title, powerLimitTitle, notifyPowerLimitExceeded, channelTitle, emailNotificationsEnabled, pushNotificationsEnabled);
+        section.add(
+                title,
+                powerLimitTitle,
+                notifyPowerLimitExceeded,
+                controlTitle,
+                controlHelp,
+                notifyControlActivated,
+                channelTitle,
+                emailNotificationsEnabled,
+                pushNotificationsEnabled
+        );
         return section;
     }
 

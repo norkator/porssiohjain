@@ -20,6 +20,7 @@ export type MeResponse = {
   email: string | null;
   locale: string;
   notifyPowerLimitExceeded: boolean;
+  notifyControlActivated: boolean;
   emailNotificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
   createdAt: string | null;
@@ -54,6 +55,7 @@ export async function updateMe(input: {
   email: string;
   locale: string;
   notifyPowerLimitExceeded: boolean;
+  notifyControlActivated: boolean;
   emailNotificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
 }) {

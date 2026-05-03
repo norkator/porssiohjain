@@ -51,6 +51,9 @@ public class ControlTableEntity {
     @Column(name = "status", nullable = false)
     private Status status;
 
+    @Column(name = "activation_push_sent_at")
+    private Instant activationPushSentAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

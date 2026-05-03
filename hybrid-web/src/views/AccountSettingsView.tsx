@@ -53,6 +53,7 @@ export default function AccountSettingsView() {
   const [weeklyEmailNotificationLimit, setWeeklyEmailNotificationLimit] = useState<number>(0);
   const [weeklyPushNotificationLimit, setWeeklyPushNotificationLimit] = useState<number | null>(null);
   const [notifyPowerLimitExceeded, setNotifyPowerLimitExceeded] = useState(false);
+  const [notifyControlActivated, setNotifyControlActivated] = useState(false);
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(false);
   const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
 
@@ -84,6 +85,7 @@ export default function AccountSettingsView() {
         setWeeklyEmailNotificationLimit(response.weeklyEmailNotificationLimit);
         setWeeklyPushNotificationLimit(response.weeklyPushNotificationLimit);
         setNotifyPowerLimitExceeded(response.notifyPowerLimitExceeded);
+        setNotifyControlActivated(response.notifyControlActivated);
         setEmailNotificationsEnabled(response.emailNotificationsEnabled);
         setPushNotificationsEnabled(response.pushNotificationsEnabled);
       } catch (error) {
@@ -117,6 +119,7 @@ export default function AccountSettingsView() {
         email: email.trim(),
         locale,
         notifyPowerLimitExceeded,
+        notifyControlActivated,
         emailNotificationsEnabled,
         pushNotificationsEnabled
       });
@@ -131,6 +134,7 @@ export default function AccountSettingsView() {
       setWeeklyEmailNotificationLimit(response.weeklyEmailNotificationLimit);
       setWeeklyPushNotificationLimit(response.weeklyPushNotificationLimit);
       setNotifyPowerLimitExceeded(response.notifyPowerLimitExceeded);
+      setNotifyControlActivated(response.notifyControlActivated);
       setEmailNotificationsEnabled(response.emailNotificationsEnabled);
       setPushNotificationsEnabled(response.pushNotificationsEnabled);
       setCurrentLocale((response.locale || "en") as "en" | "fi");
@@ -293,6 +297,17 @@ export default function AccountSettingsView() {
                         type="checkbox"
                       />
                     </label>
+                    <div className="rounded-2xl bg-surface-container-highest px-4 py-4 text-sm text-on-surface">
+                      <label className="flex items-center justify-between gap-4">
+                        <span>{t("notifyControlActivated")}</span>
+                        <input
+                          checked={notifyControlActivated}
+                          onChange={(event) => setNotifyControlActivated(event.target.checked)}
+                          type="checkbox"
+                        />
+                      </label>
+                      <p className="mt-2 text-xs leading-5 text-on-surface-variant">{t("notifyControlActivatedHelp")}</p>
+                    </div>
                   </div>
 
                   <div className="md:col-span-2 space-y-3">

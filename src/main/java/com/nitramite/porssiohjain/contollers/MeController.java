@@ -53,6 +53,7 @@ public class MeController {
                 .email(accountService.getEmail(accountId))
                 .locale(accountService.getLocale(accountId))
                 .notifyPowerLimitExceeded(accountService.getNotifyPowerLimitExceeded(accountId))
+                .notifyControlActivated(accountService.getNotifyControlActivated(accountId))
                 .emailNotificationsEnabled(accountService.getEmailNotificationsEnabled(accountId))
                 .pushNotificationsEnabled(accountService.getPushNotificationsEnabled(accountId))
                 .createdAt(accountService.getCreatedAt(accountId))
@@ -74,6 +75,9 @@ public class MeController {
                 request.getNotifyPowerLimitExceeded() != null
                         ? request.getNotifyPowerLimitExceeded()
                         : accountService.getNotifyPowerLimitExceeded(accountId),
+                request.getNotifyControlActivated() != null
+                        ? request.getNotifyControlActivated()
+                        : accountService.getNotifyControlActivated(accountId),
                 request.getEmailNotificationsEnabled() != null
                         ? request.getEmailNotificationsEnabled()
                         : accountService.getEmailNotificationsEnabled(accountId),

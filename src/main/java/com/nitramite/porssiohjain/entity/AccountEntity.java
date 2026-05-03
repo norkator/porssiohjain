@@ -49,6 +49,10 @@ public class AccountEntity {
     @Builder.Default
     private boolean notifyPowerLimitExceeded = false;
 
+    @Column(name = "notify_control_activated", nullable = false)
+    @Builder.Default
+    private boolean notifyControlActivated = false;
+
     @Column(name = "email_notifications_enabled", nullable = false)
     @Builder.Default
     private boolean emailNotificationsEnabled = false;

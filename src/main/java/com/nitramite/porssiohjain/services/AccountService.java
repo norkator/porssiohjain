@@ -86,6 +86,13 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
+    public boolean getNotifyControlActivated(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::isNotifyControlActivated)
+                .orElse(false);
+    }
+
+    @Transactional(readOnly = true)
     public boolean getPushNotificationsEnabled(Long accountId) {
         return accountRepository.findById(accountId)
                 .map(AccountEntity::isPushNotificationsEnabled)
@@ -104,6 +111,7 @@ public class AccountService {
             Long accountId,
             String email,
             boolean notifyPowerLimitExceeded,
+            boolean notifyControlActivated,
             boolean emailNotificationsEnabled,
             boolean pushNotificationsEnabled,
             String locale
@@ -111,6 +119,7 @@ public class AccountService {
         accountRepository.findById(accountId).ifPresent(account -> {
             account.setEmail(email != null && !email.isBlank() ? email.trim() : null);
             account.setNotifyPowerLimitExceeded(notifyPowerLimitExceeded);
+            account.setNotifyControlActivated(notifyControlActivated);
             account.setEmailNotificationsEnabled(emailNotificationsEnabled);
             account.setPushNotificationsEnabled(pushNotificationsEnabled);
             account.setLocale(locale != null && !locale.isBlank() ? locale.trim() : "en");

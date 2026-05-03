@@ -19,6 +19,7 @@ import com.nitramite.porssiohjain.services.models.*;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -28,6 +29,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -53,6 +55,8 @@ public class ControlService {
     private final ControlHeatPumpRepository controlHeatPumpRepository;
     private final MqttService mqttService;
     private final AccountLimitService accountLimitService;
+    private final PushNotificationService pushNotificationService;
+    private final PushNotificationTokenService pushNotificationTokenService;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -585,14 +589,19 @@ public class ControlService {
             } else if (mode.equals(ControlMode.CHEAPEST_HOURS) || mode.equals(ControlMode.BELOW_MAX_PRICE)) {
                 ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
 
-                boolean active = controlTableRepository.findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
+                Optional<ControlTableEntity> activeControlTable = controlTableRepository
+                        .findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
                                 control.getId(), Status.FINAL, nowUtc.minusSeconds(CONTROL_LOOKBACK_SECONDS))
                         .stream()
-                        .anyMatch(ct -> {
+                        .filter(ct -> {
                             ZonedDateTime start = ct.getStartTime().atZone(controlZone);
                             ZonedDateTime end = ct.getEndTime().atZone(controlZone);
                             return !nowInControlZone.isBefore(start) && !nowInControlZone.isAfter(end);
-                        });
+                        })
+                        .findFirst();
+
+                boolean active = activeControlTable.isPresent();
+                activeControlTable.ifPresent(controlTable -> notifyControlActivationIfNeeded(control, controlTable, nowUtc));
 
                 channelMap.put(cd.getDeviceChannel(), active ? 1 : 0);
             } else {
@@ -601,6 +610,48 @@ public class ControlService {
         }
 
         return channelMap;
+    }
+
+    private void notifyControlActivationIfNeeded(
+            ControlEntity control,
+            ControlTableEntity controlTable,
+            Instant nowUtc
+    ) {
+        AccountEntity account = control.getAccount();
+        if (!account.isNotifyControlActivated()) {
+            return;
+        }
+        if (!account.isPushNotificationsEnabled()) {
+            return;
+        }
+        if (controlTable.getActivationPushSentAt() != null) {
+            return;
+        }
+
+        ControlTableEntity lockedControlTable = controlTableRepository
+                .findFirstActiveAtForUpdate(control.getId(), Status.FINAL, nowUtc)
+                .orElse(null);
+        if (lockedControlTable == null || lockedControlTable.getActivationPushSentAt() != null) {
+            return;
+        }
+        if (!pushNotificationTokenService.hasActivePushToken(account.getId())) {
+            return;
+        }
+        if (!accountLimitService.tryConsumeWeeklyPushNotification(account.getId(), nowUtc)) {
+            log.info("Control activation push not sent because account {} reached weekly push notification limit", account.getId());
+            return;
+        }
+
+        Locale locale = Locale.of(account.getLocale());
+        ZonedDateTime activeSince = lockedControlTable.getStartTime().atZone(ZoneId.of(control.getTimezone()));
+        try {
+            if (pushNotificationService.sendControlActivatedNotification(account, control, activeSince, locale)) {
+                lockedControlTable.setActivationPushSentAt(nowUtc);
+                controlTableRepository.save(lockedControlTable);
+            }
+        } catch (Exception e) {
+            log.error("Failed to send control activation push for control {}", control.getId(), e);
+        }
     }
 
     private void applyLoadSheddingOverrides(

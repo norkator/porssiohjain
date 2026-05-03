@@ -163,6 +163,8 @@
     "language": "Language",
     "notificationPreferences": "Notification preferences",
     "notifyPowerLimitExceeded": "Notify when power limit is exceeded",
+    "notifyControlActivated": "Notify when control activates",
+    "notifyControlActivatedHelp": "Uses Firebase push notifications only and is sent when a control actually turns on.",
     "notificationChannels": "Notification channels",
     "emailNotificationsEnabled": "Send notifications by email",
     "pushNotificationsEnabled": "Send notifications in app",

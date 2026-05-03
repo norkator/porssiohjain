@@ -163,6 +163,8 @@
     "language": "Kieli",
     "notificationPreferences": "Ilmoitusasetukset",
     "notifyPowerLimitExceeded": "Ilmoita kun tehoraja ylittyy",
+    "notifyControlActivated": "Ilmoita kun ohjaus aktivoituu",
+    "notifyControlActivatedHelp": "Käyttää vain Firebase push -ilmoituksia ja lähetetään, kun ohjaus kytkeytyy päälle.",
     "notificationChannels": "Ilmoituskanavat",
     "emailNotificationsEnabled": "Lähetä ilmoitukset sähköpostilla",
     "pushNotificationsEnabled": "Lähetä ilmoitukset sovelluksessa",

@@ -27,6 +27,7 @@ public class MeResponse {
     private String email;
     private String locale;
     private boolean notifyPowerLimitExceeded;
+    private boolean notifyControlActivated;
     private boolean emailNotificationsEnabled;
     private boolean pushNotificationsEnabled;
     private Instant createdAt;

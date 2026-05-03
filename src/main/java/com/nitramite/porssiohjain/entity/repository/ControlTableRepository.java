@@ -14,6 +14,8 @@ package com.nitramite.porssiohjain.entity.repository;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlTableEntity;
 import com.nitramite.porssiohjain.entity.enums.Status;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -75,6 +77,22 @@ public interface ControlTableRepository extends JpaRepository<ControlTableEntity
               and ct.endTime > :time
             """)
     boolean existsActiveAt(
+            @Param("controlId") Long controlId,
+            @Param("status") Status status,
+            @Param("time") Instant time
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select ct
+            from ControlTableEntity ct
+            where ct.control.id = :controlId
+              and ct.status = :status
+              and ct.startTime <= :time
+              and ct.endTime > :time
+            order by ct.startTime asc
+            """)
+    Optional<ControlTableEntity> findFirstActiveAtForUpdate(
             @Param("controlId") Long controlId,
             @Param("status") Status status,
             @Param("time") Instant time

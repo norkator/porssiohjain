@@ -101,6 +101,26 @@ public class PushNotificationService {
         return sendToAccount(account.getId(), title, body, data);
     }
 
+    public boolean sendControlActivatedNotification(
+            AccountEntity account,
+            ControlEntity control,
+            ZonedDateTime activeSince,
+            Locale locale
+    ) {
+        String title = messageSource.getMessage("mail.controlActivated.title", null, locale);
+        String body = messageSource.getMessage(
+                "mail.controlActivated.intro",
+                new Object[]{control.getName()},
+                locale
+        );
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "CONTROL_ACTIVATED");
+        data.put("controlId", String.valueOf(control.getId()));
+        data.put("controlName", control.getName());
+        data.put("activeSince", activeSince.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
     @Transactional
     public boolean sendToAccount(Long accountId, String title, String body, Map<String, String> data) {
         List<PushNotificationTokenEntity> tokens = pushNotificationTokenRepository
