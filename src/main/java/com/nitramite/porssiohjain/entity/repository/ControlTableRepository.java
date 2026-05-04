@@ -48,6 +48,10 @@ public interface ControlTableRepository extends JpaRepository<ControlTableEntity
             Long controlId, Status status, Instant startTime
     );
 
+    List<ControlTableEntity> findByControlIdAndStatusAndStartTimeGreaterThanEqualOrderByStartTimeAsc(
+            Long controlId, Status status, Instant startTime
+    );
+
     List<ControlTableEntity> findByControlIdAndStatusAndStartTimeBetweenOrderByStartTimeAsc(
             Long controlId, Status status, Instant from, Instant to
     );

@@ -650,12 +650,49 @@ public class ControlService {
         ZonedDateTime activeSince = lockedControlTable.getStartTime().atZone(ZoneId.of(control.getTimezone()));
         try {
             if (pushNotificationService.sendControlActivatedNotification(account, control, activeSince, locale)) {
-                lockedControlTable.setActivationPushSentAt(nowUtc);
-                controlTableRepository.save(lockedControlTable);
+                markContiguousActivationRowsAsSent(control, lockedControlTable, nowUtc);
             }
         } catch (Exception e) {
             log.error("Failed to send control activation push for control {}", control.getId(), e);
         }
+    }
+
+    private void markContiguousActivationRowsAsSent(
+            ControlEntity control,
+            ControlTableEntity activeRow,
+            Instant sentAt
+    ) {
+        List<ControlTableEntity> upcomingRows = controlTableRepository
+                .findByControlIdAndStatusAndStartTimeGreaterThanEqualOrderByStartTimeAsc(
+                        control.getId(),
+                        Status.FINAL,
+                        activeRow.getStartTime()
+                );
+        if (upcomingRows.isEmpty()) {
+            activeRow.setActivationPushSentAt(sentAt);
+            controlTableRepository.save(activeRow);
+            return;
+        }
+
+        Instant contiguousEnd = activeRow.getEndTime();
+        List<ControlTableEntity> rowsToMark = new ArrayList<>();
+        for (ControlTableEntity row : upcomingRows) {
+            if (row.getStartTime().isAfter(contiguousEnd)) {
+                break;
+            }
+            row.setActivationPushSentAt(sentAt);
+            rowsToMark.add(row);
+            if (row.getEndTime().isAfter(contiguousEnd)) {
+                contiguousEnd = row.getEndTime();
+            }
+        }
+
+        if (rowsToMark.isEmpty()) {
+            activeRow.setActivationPushSentAt(sentAt);
+            controlTableRepository.save(activeRow);
+            return;
+        }
+        controlTableRepository.saveAll(rowsToMark);
     }
 
     private void applyLoadSheddingOverrides(

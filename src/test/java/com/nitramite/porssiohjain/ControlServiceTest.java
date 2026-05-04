@@ -340,7 +340,7 @@ class ControlServiceTest {
     }
 
     @Test
-    void controlActivationPushIsSentOnlyOncePerActiveWindow() {
+    void controlActivationPushMarksContiguousRowsAsSent() {
         UUID deviceUuid = UUID.randomUUID();
         AccountEntity account = new AccountEntity();
         account.setId(99L);
@@ -369,11 +369,19 @@ class ControlServiceTest {
         controlDevice.setControl(control);
 
         Instant now = Instant.now();
-        ControlTableEntity controlTable = ControlTableEntity.builder()
+        ControlTableEntity firstRow = ControlTableEntity.builder()
                 .id(400L)
                 .control(control)
                 .startTime(now.minusSeconds(60))
                 .endTime(now.plusSeconds(60))
+                .priceSnt(BigDecimal.ONE)
+                .status(Status.FINAL)
+                .build();
+        ControlTableEntity secondRow = ControlTableEntity.builder()
+                .id(401L)
+                .control(control)
+                .startTime(firstRow.getEndTime())
+                .endTime(firstRow.getEndTime().plusSeconds(60))
                 .priceSnt(BigDecimal.ONE)
                 .status(Status.FINAL)
                 .build();
@@ -387,24 +395,29 @@ class ControlServiceTest {
                 eq(control.getId()),
                 eq(Status.FINAL),
                 any(Instant.class)
-        )).thenReturn(List.of(controlTable));
+        )).thenReturn(List.of(firstRow));
         when(controlTableRepository.findFirstActiveAtForUpdate(
                 eq(control.getId()),
                 eq(Status.FINAL),
                 any(Instant.class)
-        )).thenReturn(Optional.of(controlTable));
+        )).thenReturn(Optional.of(firstRow));
+        when(controlTableRepository.findByControlIdAndStatusAndStartTimeGreaterThanEqualOrderByStartTimeAsc(
+                eq(control.getId()),
+                eq(Status.FINAL),
+                eq(firstRow.getStartTime())
+        )).thenReturn(List.of(firstRow, secondRow));
         when(pushNotificationTokenService.hasActivePushToken(account.getId())).thenReturn(true);
         when(accountLimitService.tryConsumeWeeklyPushNotification(eq(account.getId()), any(Instant.class))).thenReturn(true);
         when(pushNotificationService.sendControlActivatedNotification(any(), any(), any(), any())).thenReturn(true);
 
         Map<Integer, Integer> first = controlService.getControlsForDevice(deviceUuid.toString());
-        controlTable.setActivationPushSentAt(Instant.now());
         Map<Integer, Integer> second = controlService.getControlsForDevice(deviceUuid.toString());
 
         assertEquals(Map.of(1, 1), first);
         assertEquals(Map.of(1, 1), second);
         verify(pushNotificationService).sendControlActivatedNotification(any(), any(), any(), any());
         verify(accountLimitService).tryConsumeWeeklyPushNotification(eq(account.getId()), any(Instant.class));
+        assertEquals(firstRow.getActivationPushSentAt(), secondRow.getActivationPushSentAt());
     }
 
     @Test
