@@ -397,13 +397,72 @@ class ControlServiceTest {
         when(accountLimitService.tryConsumeWeeklyPushNotification(eq(account.getId()), any(Instant.class))).thenReturn(true);
         when(pushNotificationService.sendControlActivatedNotification(any(), any(), any(), any())).thenReturn(true);
 
-        Map<Integer, Integer> first = controlService.getControlsSnapshotForDevice(deviceUuid.toString());
-        Map<Integer, Integer> second = controlService.getControlsSnapshotForDevice(deviceUuid.toString());
+        Map<Integer, Integer> first = controlService.getControlsForDevice(deviceUuid.toString());
+        controlTable.setActivationPushSentAt(Instant.now());
+        Map<Integer, Integer> second = controlService.getControlsForDevice(deviceUuid.toString());
 
         assertEquals(Map.of(1, 1), first);
         assertEquals(Map.of(1, 1), second);
         verify(pushNotificationService).sendControlActivatedNotification(any(), any(), any(), any());
         verify(accountLimitService).tryConsumeWeeklyPushNotification(eq(account.getId()), any(Instant.class));
+    }
+
+    @Test
+    void controlSnapshotDoesNotSendActivationPush() {
+        UUID deviceUuid = UUID.randomUUID();
+        AccountEntity account = new AccountEntity();
+        account.setId(99L);
+        account.setLocale("en");
+        account.setPushNotificationsEnabled(true);
+        account.setNotifyControlActivated(true);
+
+        DeviceEntity device = new DeviceEntity();
+        device.setId(1L);
+        device.setUuid(deviceUuid);
+        device.setEnabled(true);
+        device.setDeviceType(DeviceType.STANDARD);
+        device.setAccount(account);
+
+        ControlEntity control = new ControlEntity();
+        control.setId(200L);
+        control.setAccount(account);
+        control.setName("Boiler");
+        control.setMode(ControlMode.BELOW_MAX_PRICE);
+        control.setTimezone("UTC");
+
+        ControlDeviceEntity controlDevice = new ControlDeviceEntity();
+        controlDevice.setId(300L);
+        controlDevice.setDevice(device);
+        controlDevice.setDeviceChannel(1);
+        controlDevice.setControl(control);
+
+        Instant now = Instant.now();
+        ControlTableEntity controlTable = ControlTableEntity.builder()
+                .id(400L)
+                .control(control)
+                .startTime(now.minusSeconds(60))
+                .endTime(now.plusSeconds(60))
+                .priceSnt(BigDecimal.ONE)
+                .status(Status.FINAL)
+                .build();
+
+        when(deviceRepository.findByUuid(deviceUuid)).thenReturn(Optional.of(device));
+        when(powerLimitDeviceRepository.findByDevice(device)).thenReturn(List.of());
+        when(productionSourceDeviceRepository.findByDevice(device)).thenReturn(List.of());
+        when(weatherControlDeviceRepository.findByDevice(device)).thenReturn(List.of());
+        when(controlDeviceRepository.findByDevice(device)).thenReturn(List.of(controlDevice));
+        when(controlTableRepository.findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
+                eq(control.getId()),
+                eq(Status.FINAL),
+                any(Instant.class)
+        )).thenReturn(List.of(controlTable));
+
+        Map<Integer, Integer> result = controlService.getControlsSnapshotForDevice(deviceUuid.toString());
+
+        assertEquals(Map.of(1, 1), result);
+        verify(pushNotificationService, never()).sendControlActivatedNotification(any(), any(), any(), any());
+        verify(accountLimitService, never()).tryConsumeWeeklyPushNotification(eq(account.getId()), any(Instant.class));
+        verify(controlTableRepository, never()).findFirstActiveAtForUpdate(eq(control.getId()), eq(Status.FINAL), any(Instant.class));
     }
 
     @Test

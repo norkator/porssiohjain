@@ -506,18 +506,19 @@ public class ControlService {
     public Map<Integer, Integer> getControlsForDevice(
             String deviceUuid
     ) {
-        return getControlsForDevice(deviceUuid, true);
+        return getControlsForDevice(deviceUuid, true, true);
     }
 
     public Map<Integer, Integer> getControlsSnapshotForDevice(
             String deviceUuid
     ) {
-        return getControlsForDevice(deviceUuid, false);
+        return getControlsForDevice(deviceUuid, false, false);
     }
 
     private Map<Integer, Integer> getControlsForDevice(
             String deviceUuid,
-            boolean updateHeartbeat
+            boolean updateHeartbeat,
+            boolean sendActivationNotifications
     ) {
         DeviceEntity device = deviceRepository.findByUuid(UUID.fromString(deviceUuid))
                 .orElseThrow(() -> new EntityNotFoundException("Device not found: " + deviceUuid));
@@ -534,8 +535,8 @@ public class ControlService {
             return channelMap;
         }
 
-        channelMap.putAll(getBaseControlsForDevice(device, nowUtc));
-        applyLoadSheddingOverrides(device, nowUtc, channelMap);
+        channelMap.putAll(getBaseControlsForDevice(device, nowUtc, sendActivationNotifications));
+        applyLoadSheddingOverrides(device, nowUtc, channelMap, sendActivationNotifications);
         enforcePowerLimitPriority(device, channelMap);
 
         return channelMap;
@@ -543,7 +544,8 @@ public class ControlService {
 
     private Map<Integer, Integer> getBaseControlsForDevice(
             DeviceEntity device,
-            Instant nowUtc
+            Instant nowUtc,
+            boolean sendActivationNotifications
     ) {
         Map<Integer, Integer> channelMap = new HashMap<>();
 
@@ -601,7 +603,9 @@ public class ControlService {
                         .findFirst();
 
                 boolean active = activeControlTable.isPresent();
-                activeControlTable.ifPresent(controlTable -> notifyControlActivationIfNeeded(control, controlTable, nowUtc));
+                if (sendActivationNotifications) {
+                    activeControlTable.ifPresent(controlTable -> notifyControlActivationIfNeeded(control, controlTable, nowUtc));
+                }
 
                 channelMap.put(cd.getDeviceChannel(), active ? 1 : 0);
             } else {
@@ -657,7 +661,8 @@ public class ControlService {
     private void applyLoadSheddingOverrides(
             DeviceEntity targetDevice,
             Instant nowUtc,
-            Map<Integer, Integer> channelMap
+            Map<Integer, Integer> channelMap,
+            boolean sendActivationNotifications
     ) {
         if (targetDevice.getDeviceType() != DeviceType.STANDARD) {
             return;
@@ -680,7 +685,7 @@ public class ControlService {
         for (LoadSheddingNodeEntity node : nodes) {
             Map<Integer, Integer> deviceBaseStates = baseStatesByDeviceId.computeIfAbsent(
                     node.getDevice().getId(),
-                    ignored -> getBaseControlsForDevice(node.getDevice(), nowUtc)
+                    ignored -> getBaseControlsForDevice(node.getDevice(), nowUtc, sendActivationNotifications)
             );
             stateByNodeId.put(node.getId(), deviceBaseStates.getOrDefault(node.getDeviceChannel(), 0));
         }
