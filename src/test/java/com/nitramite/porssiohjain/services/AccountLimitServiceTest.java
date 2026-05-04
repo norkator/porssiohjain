@@ -106,13 +106,13 @@ class AccountLimitServiceTest {
 
         Instant first = Instant.parse("2026-04-27T08:00:00Z");
 
-        assertTrue(accountLimitService.tryConsumeWeeklyPushNotification(1L, first));
-        assertTrue(accountLimitService.tryConsumeWeeklyPushNotification(1L, first.plusSeconds(60)));
-        assertTrue(accountLimitService.tryConsumeWeeklyPushNotification(1L, first.plusSeconds(120)));
-        assertFalse(accountLimitService.tryConsumeWeeklyPushNotification(1L, first.plusSeconds(180)));
-        assertEquals(3, account.getWeeklyPushNotificationCount());
+        for (int i = 0; i < 10; i++) {
+            assertTrue(accountLimitService.tryConsumeWeeklyPushNotification(1L, first.plusSeconds(i * 60L)));
+        }
+        assertFalse(accountLimitService.tryConsumeWeeklyPushNotification(1L, first.plusSeconds(600)));
+        assertEquals(10, account.getWeeklyPushNotificationCount());
         assertEquals(LocalDate.parse("2026-04-27"), account.getWeeklyPushNotificationWeekStart());
-        assertEquals(3, accountLimitService.getEffectiveWeeklyPushNotificationLimit(1L));
+        assertEquals(10, accountLimitService.getEffectiveWeeklyPushNotificationLimit(1L));
     }
 
     private AccountEntity account(AccountTier tier, LocalDate weekStart, int count) {
