@@ -89,6 +89,9 @@ public class ControlEntity {
     private Set<ControlHeatPumpEntity> controlHeatPumps;
 
     @OneToMany(mappedBy = "control", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<ControlThermostatEntity> controlThermostats;
+
+    @OneToMany(mappedBy = "control", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<ControlNotificationEntity> controlNotifications;
 
     @PrePersist
