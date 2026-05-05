@@ -53,10 +53,12 @@ public class ControlService {
     private final SiteRepository siteRepository;
     private final ResourceSharingRepository resourceSharingRepository;
     private final ControlHeatPumpRepository controlHeatPumpRepository;
+    private final ControlThermostatRepository controlThermostatRepository;
     private final MqttService mqttService;
     private final AccountLimitService accountLimitService;
     private final PushNotificationService pushNotificationService;
     private final PushNotificationTokenService pushNotificationTokenService;
+    private final ThermostatCurveService thermostatCurveService;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -485,6 +487,124 @@ public class ControlService {
                 .build();
     }
 
+    public ControlThermostatResponse addThermostatToControl(
+            Long accountId, Long controlId, Long deviceId, Integer thermostatChannel, String curveJson,
+            BigDecimal minTemperature, BigDecimal maxTemperature, BigDecimal fallbackTemperature,
+            BigDecimal estimatedPowerKw, boolean enabled
+    ) {
+        ControlEntity control = controlRepository.findById(controlId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
+        if (!control.getAccount().getId().equals(accountId)) {
+            throw new IllegalStateException("Forbidden!");
+        }
+
+        DeviceEntity device = getOwnedDevice(accountId, deviceId);
+        if (device.getDeviceType() != DeviceType.THERMOSTAT) {
+            throw new IllegalArgumentException("Selected device is not a thermostat device");
+        }
+        if (controlThermostatRepository.existsByControlIdAndDeviceIdAndThermostatChannel(controlId, deviceId, thermostatChannel)) {
+            throw new DuplicateEntityException(
+                    String.format("Thermostat device %d with channel %d is already linked to control %d",
+                            deviceId, thermostatChannel, controlId)
+            );
+        }
+
+        ControlThermostatEntity entity = ControlThermostatEntity.builder()
+                .control(control)
+                .device(device)
+                .thermostatChannel(thermostatChannel)
+                .curveJson(thermostatCurveService.normalizeCurveJson(curveJson))
+                .minTemperature(minTemperature)
+                .maxTemperature(maxTemperature)
+                .fallbackTemperature(fallbackTemperature)
+                .estimatedPowerKw(estimatedPowerKw)
+                .enabled(enabled)
+                .build();
+
+        return toControlThermostatResponse(controlThermostatRepository.save(entity));
+    }
+
+    public ControlThermostatResponse updateControlThermostat(
+            Long accountId, Long controlThermostatId, Long deviceId, Integer thermostatChannel, String curveJson,
+            BigDecimal minTemperature, BigDecimal maxTemperature, BigDecimal fallbackTemperature,
+            BigDecimal estimatedPowerKw, boolean enabled
+    ) {
+        ControlThermostatEntity entity = controlThermostatRepository.findById(controlThermostatId)
+                .orElseThrow(() -> new EntityNotFoundException("ControlThermostat not found with id: " + controlThermostatId));
+        if (!entity.getControl().getAccount().getId().equals(accountId)) {
+            throw new IllegalStateException("Forbidden!");
+        }
+
+        DeviceEntity device = getOwnedDevice(accountId, deviceId);
+        if (device.getDeviceType() != DeviceType.THERMOSTAT) {
+            throw new IllegalArgumentException("Selected device is not a thermostat device");
+        }
+
+        boolean changingUniqueKey = !entity.getDevice().getId().equals(deviceId)
+                || !entity.getThermostatChannel().equals(thermostatChannel);
+        if (changingUniqueKey && controlThermostatRepository.existsByControlIdAndDeviceIdAndThermostatChannel(
+                entity.getControl().getId(), deviceId, thermostatChannel)) {
+            throw new DuplicateEntityException(
+                    String.format("Thermostat device %d with channel %d is already linked to control %d",
+                            deviceId, thermostatChannel, entity.getControl().getId())
+            );
+        }
+
+        entity.setDevice(device);
+        entity.setThermostatChannel(thermostatChannel);
+        entity.setCurveJson(thermostatCurveService.normalizeCurveJson(curveJson));
+        entity.setMinTemperature(minTemperature);
+        entity.setMaxTemperature(maxTemperature);
+        entity.setFallbackTemperature(fallbackTemperature);
+        entity.setEstimatedPowerKw(estimatedPowerKw);
+        entity.setEnabled(enabled);
+        return toControlThermostatResponse(controlThermostatRepository.save(entity));
+    }
+
+    public void deleteControlThermostat(
+            Long accountId, Long controlThermostatId
+    ) {
+        ControlThermostatEntity entity = controlThermostatRepository.findById(controlThermostatId)
+                .orElseThrow(() -> new EntityNotFoundException("ControlThermostat not found with id: " + controlThermostatId));
+        if (entity.getControl().getAccount().getId().equals(accountId)) {
+            controlThermostatRepository.deleteById(controlThermostatId);
+        } else {
+            throw new IllegalStateException("Forbidden!");
+        }
+    }
+
+    public List<ControlThermostatResponse> getControlThermostats(
+            Long accountId, Long controlId
+    ) {
+        ControlEntity control = getOwnedControl(accountId, controlId);
+        Set<ControlThermostatEntity> entities = control.getControlThermostats();
+        if (entities == null) {
+            return List.of();
+        }
+        return entities.stream()
+                .map(this::toControlThermostatResponse)
+                .sorted(Comparator.comparing(ControlThermostatResponse::getId))
+                .toList();
+    }
+
+    private ControlThermostatResponse toControlThermostatResponse(ControlThermostatEntity entity) {
+        return ControlThermostatResponse.builder()
+                .id(entity.getId())
+                .controlId(entity.getControl().getId())
+                .deviceId(entity.getDevice().getId())
+                .thermostatChannel(entity.getThermostatChannel())
+                .curveJson(entity.getCurveJson())
+                .minTemperature(entity.getMinTemperature())
+                .maxTemperature(entity.getMaxTemperature())
+                .fallbackTemperature(entity.getFallbackTemperature())
+                .estimatedPowerKw(entity.getEstimatedPowerKw())
+                .enabled(entity.isEnabled())
+                .lastAppliedTemperature(entity.getLastAppliedTemperature())
+                .lastAppliedAt(entity.getLastAppliedAt())
+                .device(toDeviceResponse(entity.getDevice()))
+                .build();
+    }
+
     private ControlEntity getOwnedControl(Long accountId, Long controlId) {
         return controlRepository.findByIdAndAccountId(controlId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found for account with id: " + controlId));
@@ -495,6 +615,18 @@ public class ControlService {
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
         return deviceRepository.findByIdAndAccount(deviceId, account)
                 .orElseThrow(() -> new EntityNotFoundException("Device not found for account with id: " + deviceId));
+    }
+
+    private DeviceResponse toDeviceResponse(DeviceEntity device) {
+        return DeviceResponse.builder()
+                .id(device.getId())
+                .uuid(device.getUuid())
+                .deviceType(device.getDeviceType())
+                .deviceName(device.getDeviceName())
+                .lastCommunication(device.getLastCommunication())
+                .createdAt(device.getCreatedAt())
+                .updatedAt(device.getUpdatedAt())
+                .build();
     }
 
     /**

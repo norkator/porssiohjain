@@ -13,5 +13,6 @@ package com.nitramite.porssiohjain.entity.enums;
 
 public enum DeviceType {
     STANDARD,
-    HEAT_PUMP
+    HEAT_PUMP,
+    THERMOSTAT
 }

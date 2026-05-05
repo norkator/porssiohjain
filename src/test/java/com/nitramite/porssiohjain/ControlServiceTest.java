@@ -33,6 +33,7 @@ import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlHeatPumpRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlRepository;
+import com.nitramite.porssiohjain.entity.repository.ControlThermostatRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
@@ -50,6 +51,7 @@ import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import com.nitramite.porssiohjain.services.PushNotificationService;
 import com.nitramite.porssiohjain.services.PushNotificationTokenService;
+import com.nitramite.porssiohjain.services.ThermostatCurveService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -127,6 +129,9 @@ class ControlServiceTest {
     private ControlHeatPumpRepository controlHeatPumpRepository;
 
     @Mock
+    private ControlThermostatRepository controlThermostatRepository;
+
+    @Mock
     private MqttService mqttService;
 
     @Mock
@@ -137,6 +142,9 @@ class ControlServiceTest {
 
     @Mock
     private PushNotificationTokenService pushNotificationTokenService;
+
+    @Mock
+    private ThermostatCurveService thermostatCurveService;
 
     private ControlService controlService;
 
@@ -159,10 +167,12 @@ class ControlServiceTest {
                 siteRepository,
                 resourceSharingRepository,
                 controlHeatPumpRepository,
+                controlThermostatRepository,
                 mqttService,
                 accountLimitService,
                 pushNotificationService,
-                pushNotificationTokenService
+                pushNotificationTokenService,
+                thermostatCurveService
         );
         lenient().when(loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
         lenient().when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
