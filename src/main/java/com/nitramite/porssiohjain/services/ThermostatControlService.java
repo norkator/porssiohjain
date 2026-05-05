@@ -19,6 +19,7 @@ import com.nitramite.porssiohjain.mqtt.MqttService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -30,6 +31,7 @@ import java.util.Optional;
 
 @Slf4j
 @Service
+@ConditionalOnProperty(name = "mqtt.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Transactional
 public class ThermostatControlService {
