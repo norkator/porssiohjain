@@ -63,6 +63,8 @@ import java.util.*;
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @JsModule("./js/apexcharts.min.js")
+@JsModule("./js/chart.js")
+@JsModule("./js/chartjs-plugin-dragdata.js")
 @PageTitle("Pörssiohjain - Control table")
 @Route("controls/:controlId")
 @PermitAll
@@ -78,6 +80,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final SiteService siteService;
     private final HeatPumpStateDialogService heatPumpStateDialogService;
     private final ControlNotificationService controlNotificationService;
+    private final ThermostatCurveService thermostatCurveService;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlHeatPumpResponse> heatPumpGrid = new Grid<>(ControlHeatPumpResponse.class, false);
@@ -130,7 +133,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             ElectricityContractRepository contractRepository,
             SiteService siteService,
             HeatPumpStateDialogService heatPumpStateDialogService,
-            ControlNotificationService controlNotificationService
+            ControlNotificationService controlNotificationService,
+            ThermostatCurveService thermostatCurveService
     ) {
         this.authService = authService;
         this.controlService = controlService;
@@ -142,6 +146,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.siteService = siteService;
         this.heatPumpStateDialogService = heatPumpStateDialogService;
         this.controlNotificationService = controlNotificationService;
+        this.thermostatCurveService = thermostatCurveService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -760,6 +765,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         thermostatCurveField.setWidthFull();
         thermostatCurveField.setMinHeight("180px");
         thermostatCurveField.setHelperText(t("controlTable.thermostat.field.curveHelp"));
+        thermostatCurveField.setValue(defaultThermostatCurveJson());
+
+        Button editCurveButton = new Button(t("controlTable.thermostat.button.editCurve"), e ->
+                openThermostatCurveDialog(thermostatCurveField)
+        );
+        editCurveButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        editCurveButton.setWidthFull();
 
         thermostatSaveButton = new Button(t("controlTable.button.addDevice"), e -> {
             if (thermostatDeviceSelect.getValue() == null
@@ -814,6 +826,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 thermostatFallbackTemperatureField,
                 thermostatEstimatedPowerKwField,
                 thermostatEnabledField,
+                editCurveButton,
                 thermostatCurveField,
                 thermostatSaveButton,
                 thermostatCancelButton
@@ -905,13 +918,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         thermostatGrid.deselectAll();
         thermostatDeviceSelect.clear();
         thermostatChannelField.clear();
-        thermostatCurveField.setValue("""
-                [
-                  {"price":0,"temperature":22.0},
-                  {"price":10,"temperature":21.0},
-                  {"price":20,"temperature":19.0}
-                ]
-                """);
+        thermostatCurveField.setValue(defaultThermostatCurveJson());
         thermostatMinTemperatureField.clear();
         thermostatMaxTemperatureField.clear();
         thermostatFallbackTemperatureField.clear();
@@ -919,6 +926,223 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         thermostatEnabledField.setValue(true);
         thermostatSaveButton.setText(t("controlTable.button.addDevice"));
         thermostatCancelButton.setVisible(false);
+    }
+
+    private void openThermostatCurveDialog(TextArea targetField) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.thermostat.dialog.title"));
+        dialog.setWidth("960px");
+        dialog.setMaxWidth("96vw");
+
+        String normalizedCurveJson;
+        try {
+            normalizedCurveJson = thermostatCurveService.normalizeCurveJson(
+                    targetField.getValue() == null || targetField.getValue().isBlank()
+                            ? defaultThermostatCurveJson()
+                            : targetField.getValue()
+            );
+        } catch (Exception e) {
+            normalizedCurveJson = defaultThermostatCurveJson();
+        }
+
+        Div chartContainer = new Div();
+        String containerId = "thermostat-curve-" + UUID.randomUUID();
+        String chartStateKey = "thermostatCurveState_" + UUID.randomUUID().toString().replace("-", "");
+        chartContainer.setId(containerId);
+        chartContainer.setHeight("420px");
+        chartContainer.setWidthFull();
+
+        TextArea curvePreviewField = new TextArea(t("controlTable.thermostat.field.curveJson"));
+        curvePreviewField.setWidthFull();
+        curvePreviewField.setMinHeight("220px");
+        curvePreviewField.setValue(normalizedCurveJson);
+        curvePreviewField.setHelperText(t("controlTable.thermostat.field.dialogHelp"));
+
+        Button addPointButton = new Button(t("controlTable.thermostat.button.addPoint"), e ->
+                chartContainer.getElement().executeJs("""
+                        const state = window[$0];
+                        if (!state || !state.chart) return;
+                        const points = state.chart.data.datasets[0].data;
+                        const last = points.length > 0 ? points[points.length - 1] : { x: 0, y: 21 };
+                        const nextX = points.length > 0 ? Math.min(Number(last.x) + 5, 200) : 0;
+                        points.push({ x: nextX, y: Number(last.y) });
+                        state.selectedIndex = points.length - 1;
+                        state.sync();
+                        state.chart.update();
+                        """, chartStateKey)
+        );
+
+        Button removeSelectedButton = new Button(t("controlTable.thermostat.button.removeSelectedPoint"), e ->
+                chartContainer.getElement().executeJs("""
+                        const state = window[$0];
+                        if (!state || !state.chart || state.selectedIndex === null || state.selectedIndex === undefined) return;
+                        const points = state.chart.data.datasets[0].data;
+                        if (points.length <= 1) return;
+                        points.splice(state.selectedIndex, 1);
+                        state.selectedIndex = null;
+                        state.sync();
+                        state.chart.update();
+                        """, chartStateKey)
+        );
+
+        Button resetButton = new Button(t("controlTable.thermostat.button.resetCurve"), e -> {
+            curvePreviewField.setValue(defaultThermostatCurveJson());
+            renderThermostatCurveEditor(chartContainer, curvePreviewField, chartStateKey, curvePreviewField.getValue());
+        });
+
+        Button saveButton = new Button(t("common.save"), e -> {
+            try {
+                targetField.setValue(thermostatCurveService.normalizeCurveJson(curvePreviewField.getValue()));
+                dialog.close();
+            } catch (Exception ex) {
+                Notification notification = Notification.show(t("controlTable.notification.failedSave", ex.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Button cancelButton = new Button(t("common.cancel"), e -> dialog.close());
+
+        HorizontalLayout toolbar = new HorizontalLayout(addPointButton, removeSelectedButton, resetButton);
+        toolbar.setPadding(false);
+        toolbar.setSpacing(true);
+
+        HorizontalLayout footer = new HorizontalLayout(saveButton, cancelButton);
+        footer.setJustifyContentMode(JustifyContentMode.END);
+        footer.setWidthFull();
+
+        VerticalLayout content = new VerticalLayout(
+                new Paragraph(t("controlTable.thermostat.dialog.instructions")),
+                toolbar,
+                chartContainer,
+                curvePreviewField,
+                footer
+        );
+        content.setPadding(false);
+        content.setSpacing(true);
+        content.setWidthFull();
+
+        dialog.add(content);
+        dialog.open();
+
+        renderThermostatCurveEditor(chartContainer, curvePreviewField, chartStateKey, normalizedCurveJson);
+    }
+
+    private void renderThermostatCurveEditor(
+            Div chartContainer,
+            TextArea curvePreviewField,
+            String chartStateKey,
+            String curveJson
+    ) {
+        chartContainer.getElement().executeJs("""
+                const container = document.getElementById($0);
+                const field = $1.inputElement ?? $1;
+                const stateKey = $2;
+                const initialPoints = JSON.parse($3).map((point) => ({
+                  x: Number(point.price),
+                  y: Number(point.temperature)
+                })).sort((a, b) => a.x - b.x);
+
+                container.innerHTML = "";
+                const canvas = document.createElement("canvas");
+                canvas.style.width = "100%";
+                canvas.style.height = "420px";
+                container.appendChild(canvas);
+
+                if (window[stateKey]?.chart) {
+                  window[stateKey].chart.destroy();
+                }
+
+                const sync = () => {
+                  const chartPoints = [...window[stateKey].chart.data.datasets[0].data]
+                    .map((point) => ({
+                      x: Number(point.x),
+                      y: Number(point.y)
+                    }))
+                    .sort((a, b) => a.x - b.x);
+                  window[stateKey].chart.data.datasets[0].data = chartPoints;
+                  const normalized = chartPoints.map((point) => ({
+                    price: Number(point.x.toFixed(2)),
+                    temperature: Number(point.y.toFixed(2))
+                  }));
+                  field.value = JSON.stringify(normalized, null, 2);
+                  field.dispatchEvent(new Event("input", { bubbles: true }));
+                };
+
+                window[stateKey] = {
+                  chart: null,
+                  selectedIndex: null,
+                  sync
+                };
+
+                const chart = new Chart(canvas.getContext("2d"), {
+                  type: "line",
+                  data: {
+                    datasets: [{
+                      label: "Thermostat curve",
+                      data: initialPoints,
+                      borderColor: "#1f6feb",
+                      backgroundColor: "rgba(31, 111, 235, 0.15)",
+                      tension: 0.2,
+                      pointRadius: 6,
+                      pointHoverRadius: 8,
+                      fill: false
+                    }]
+                  },
+                  options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    parsing: false,
+                    scales: {
+                      x: {
+                        type: "linear",
+                        min: 0,
+                        title: {
+                          display: true,
+                          text: "Price (snt/kWh)"
+                        }
+                      },
+                      y: {
+                        min: 5,
+                        max: 35,
+                        title: {
+                          display: true,
+                          text: "Target temperature (°C)"
+                        }
+                      }
+                    },
+                    onClick: (_, elements) => {
+                      window[stateKey].selectedIndex = elements.length > 0 ? elements[0].index : null;
+                    },
+                    plugins: {
+                      legend: {
+                        display: false
+                      },
+                      dragData: {
+                        round: 1,
+                        showTooltip: true,
+                        onDragEnd: () => {
+                          sync();
+                        }
+                      }
+                    }
+                  }
+                });
+
+                window[stateKey].chart = chart;
+                sync();
+                """, chartContainer.getId().orElseThrow(), curvePreviewField.getElement(), chartStateKey, curveJson);
+    }
+
+    private String defaultThermostatCurveJson() {
+        return """
+                [
+                  {"price": 0, "temperature": 22.0},
+                  {"price": 10, "temperature": 21.0},
+                  {"price": 20, "temperature": 19.0}
+                ]
+                """;
     }
 
     private Component createAddNotificationLayout() {

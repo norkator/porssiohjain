@@ -11,7 +11,6 @@
 
 package com.nitramite.porssiohjain;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.services.ThermostatCurveService;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ThermostatCurveServiceTest {
 
-    private final ThermostatCurveService thermostatCurveService = new ThermostatCurveService(new ObjectMapper());
+    private final ThermostatCurveService thermostatCurveService = new ThermostatCurveService();
 
     @Test
     void interpolatesTemperatureBetweenCurvePoints() {
