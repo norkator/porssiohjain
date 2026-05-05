@@ -55,7 +55,9 @@
     "addDeviceRule": "Lisää laitesääntö",
     "save": "Tallenna",
     "edit": "Muokkaa",
-    "origin": "Alkuperä"
+    "origin": "Alkuperä",
+    "licenseText": "Tämä palvelu käyttää ohjelmistoa, joka on lisensoitu Pörssiohjain Personal Use License v1.0 -lisenssillä.",
+    "docLink": "Dokumentaatio ja lähdekoodi"
   },
   "mainMenu": {
     "brand": "Energy Controller",

@@ -23,6 +23,7 @@ export default function LoginView() {
   const navigate = useNavigate();
   const session = getSessionData();
   const { t } = useI18n("login");
+  const common = useI18n("common").t;
   const [uuid, setUuid] = useState("");
   const [secret, setSecret] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +130,20 @@ export default function LoginView() {
             {t("createAccount")}
           </Link>
         </div>
+
+        <hr className="mt-6 border-outline-variant" />
+
+        <p className="mt-4 text-sm leading-relaxed text-on-surface-variant">
+          {common("licenseText")}{" "}
+          <a
+            className="font-label font-bold text-primary-container underline"
+            href="https://github.com/norkator/porssiohjain"
+            rel="noreferrer"
+            target="_blank"
+          >
+            {common("docLink")}
+          </a>
+        </p>
       </section>
     </main>
   );

@@ -55,7 +55,9 @@
     "addDeviceRule": "Add Device Rule",
     "save": "Save",
     "edit": "Edit",
-    "origin": "Origin"
+    "origin": "Origin",
+    "licenseText": "This service uses software licensed under the Pörssiohjain Personal Use License v1.0.",
+    "docLink": "Documentation and source code"
   },
   "mainMenu": {
     "brand": "Energy Controller",
