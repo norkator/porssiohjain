@@ -59,6 +59,7 @@ public class ControlService {
     private final PushNotificationService pushNotificationService;
     private final PushNotificationTokenService pushNotificationTokenService;
     private final ThermostatCurveService thermostatCurveService;
+    private final ControlPriceService controlPriceService;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -641,6 +642,27 @@ public class ControlService {
         return getControlsForDevice(deviceUuid, true, true);
     }
 
+    public DeviceThermostatDebugSnapshotResponse getThermostatDebugSnapshotForDevice(
+            String deviceUuid
+    ) {
+        DeviceEntity device = deviceRepository.findByUuid(UUID.fromString(deviceUuid))
+                .orElseThrow(() -> new EntityNotFoundException("Device not found: " + deviceUuid));
+
+        Instant now = Instant.now();
+        List<DeviceThermostatDebugResponse> commands = new ArrayList<>();
+        Set<String> claimedTargets = new HashSet<>();
+
+        controlThermostatRepository.findByDevice(device).stream()
+                .sorted(Comparator.comparing(ControlThermostatEntity::getId))
+                .forEach(rule -> commands.add(buildThermostatDebugResponse(rule, now, claimedTargets)));
+
+        return DeviceThermostatDebugSnapshotResponse.builder()
+                .deviceUuid(device.getUuid().toString())
+                .deviceName(device.getDeviceName())
+                .commands(commands)
+                .build();
+    }
+
     public Map<Integer, Integer> getControlsSnapshotForDevice(
             String deviceUuid
     ) {
@@ -672,6 +694,81 @@ public class ControlService {
         enforcePowerLimitPriority(device, channelMap);
 
         return channelMap;
+    }
+
+    private DeviceThermostatDebugResponse buildThermostatDebugResponse(
+            ControlThermostatEntity rule,
+            Instant now,
+            Set<String> claimedTargets
+    ) {
+        DeviceEntity device = rule.getDevice();
+        BigDecimal currentCombinedPrice = null;
+        BigDecimal targetTemperature = null;
+        String skipReason = null;
+
+        if (device == null || device.getDeviceType() != DeviceType.THERMOSTAT) {
+            skipReason = "Device is not a thermostat device";
+        } else if (!device.isEnabled()) {
+            skipReason = "Device is disabled";
+        } else if (!device.isMqttOnline()) {
+            skipReason = "Device MQTT is offline";
+        } else if (!rule.isEnabled()) {
+            skipReason = "Thermostat rule is disabled";
+        } else {
+            Optional<BigDecimal> price = controlPriceService.getCurrentCombinedPrice(rule.getControl(), now);
+            if (price.isPresent()) {
+                currentCombinedPrice = price.get();
+                targetTemperature = thermostatCurveService.evaluate(rule.getCurveJson(), currentCombinedPrice);
+            } else {
+                targetTemperature = rule.getFallbackTemperature();
+            }
+
+            if (targetTemperature == null) {
+                skipReason = "Current price unavailable and fallback temperature is not configured";
+            } else {
+                if (rule.getMinTemperature() != null && targetTemperature.compareTo(rule.getMinTemperature()) < 0) {
+                    targetTemperature = rule.getMinTemperature();
+                }
+                if (rule.getMaxTemperature() != null && targetTemperature.compareTo(rule.getMaxTemperature()) > 0) {
+                    targetTemperature = rule.getMaxTemperature();
+                }
+
+                String targetKey = device.getUuid() + ":" + rule.getThermostatChannel();
+                if (!claimedTargets.add(targetKey)) {
+                    skipReason = "Another thermostat rule with the same channel takes precedence";
+                } else if (rule.getLastAppliedTemperature() != null
+                        && targetTemperature.subtract(rule.getLastAppliedTemperature()).abs().compareTo(new BigDecimal("0.50")) < 0
+                        && rule.getLastAppliedAt() != null
+                        && rule.getLastAppliedAt().plusSeconds(15 * 60L).isAfter(now)) {
+                    skipReason = "Target temperature was already applied recently";
+                }
+            }
+        }
+
+        String mqttTopic = null;
+        String mqttPayload = null;
+        if (targetTemperature != null && device != null) {
+            mqttTopic = device.getUuid() + "/command/thermostat:" + rule.getThermostatChannel();
+            mqttPayload = "{\"targetTemperature\":" + targetTemperature.toPlainString() + "}";
+        }
+
+        return DeviceThermostatDebugResponse.builder()
+                .controlThermostatId(rule.getId())
+                .controlId(rule.getControl() != null ? rule.getControl().getId() : null)
+                .controlName(rule.getControl() != null ? rule.getControl().getName() : null)
+                .thermostatChannel(rule.getThermostatChannel())
+                .currentCombinedPrice(currentCombinedPrice)
+                .targetTemperature(targetTemperature)
+                .minTemperature(rule.getMinTemperature())
+                .maxTemperature(rule.getMaxTemperature())
+                .fallbackTemperature(rule.getFallbackTemperature())
+                .lastAppliedTemperature(rule.getLastAppliedTemperature())
+                .lastAppliedAt(rule.getLastAppliedAt())
+                .wouldSend(skipReason == null)
+                .skipReason(skipReason)
+                .mqttTopic(mqttTopic)
+                .mqttPayload(mqttPayload)
+                .build();
     }
 
     private Map<Integer, Integer> getBaseControlsForDevice(
