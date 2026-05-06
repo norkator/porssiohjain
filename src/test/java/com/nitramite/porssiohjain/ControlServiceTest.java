@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain;
 import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlTableEntity;
+import com.nitramite.porssiohjain.entity.ControlThermostatEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.LoadSheddingLinkEntity;
@@ -33,6 +34,7 @@ import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlHeatPumpRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlRepository;
+import com.nitramite.porssiohjain.entity.repository.ControlThermostatRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
@@ -50,6 +52,9 @@ import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import com.nitramite.porssiohjain.services.PushNotificationService;
 import com.nitramite.porssiohjain.services.PushNotificationTokenService;
+import com.nitramite.porssiohjain.services.ControlPriceService;
+import com.nitramite.porssiohjain.services.ThermostatCurveService;
+import com.nitramite.porssiohjain.services.models.DeviceThermostatDebugSnapshotResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -127,6 +132,9 @@ class ControlServiceTest {
     private ControlHeatPumpRepository controlHeatPumpRepository;
 
     @Mock
+    private ControlThermostatRepository controlThermostatRepository;
+
+    @Mock
     private MqttService mqttService;
 
     @Mock
@@ -137,6 +145,12 @@ class ControlServiceTest {
 
     @Mock
     private PushNotificationTokenService pushNotificationTokenService;
+
+    @Mock
+    private ThermostatCurveService thermostatCurveService;
+
+    @Mock
+    private ControlPriceService controlPriceService;
 
     private ControlService controlService;
 
@@ -159,10 +173,13 @@ class ControlServiceTest {
                 siteRepository,
                 resourceSharingRepository,
                 controlHeatPumpRepository,
+                controlThermostatRepository,
                 mqttService,
                 accountLimitService,
                 pushNotificationService,
-                pushNotificationTokenService
+                pushNotificationTokenService,
+                thermostatCurveService,
+                controlPriceService
         );
         lenient().when(loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
         lenient().when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
@@ -476,6 +493,54 @@ class ControlServiceTest {
         verify(pushNotificationService, never()).sendControlActivatedNotification(any(), any(), any(), any());
         verify(accountLimitService, never()).tryConsumeWeeklyPushNotification(eq(account.getId()), any(Instant.class));
         verify(controlTableRepository, never()).findFirstActiveAtForUpdate(eq(control.getId()), eq(Status.FINAL), any(Instant.class));
+    }
+
+    @Test
+    void thermostatDebugSnapshotShowsCurrentPayloadAndThrottleReason() {
+        UUID deviceUuid = UUID.randomUUID();
+        AccountEntity account = new AccountEntity();
+        account.setId(99L);
+
+        DeviceEntity device = new DeviceEntity();
+        device.setId(1L);
+        device.setUuid(deviceUuid);
+        device.setDeviceName("Living room thermostat");
+        device.setEnabled(true);
+        device.setMqttOnline(true);
+        device.setDeviceType(DeviceType.THERMOSTAT);
+        device.setAccount(account);
+
+        ControlEntity control = new ControlEntity();
+        control.setId(200L);
+        control.setName("Main control");
+
+        ControlThermostatEntity rule = ControlThermostatEntity.builder()
+                .id(300L)
+                .control(control)
+                .device(device)
+                .thermostatChannel(2)
+                .curveJson("[]")
+                .minTemperature(new BigDecimal("19.00"))
+                .maxTemperature(new BigDecimal("23.00"))
+                .fallbackTemperature(new BigDecimal("20.00"))
+                .enabled(true)
+                .lastAppliedTemperature(new BigDecimal("21.40"))
+                .lastAppliedAt(Instant.now())
+                .build();
+
+        when(deviceRepository.findByUuid(deviceUuid)).thenReturn(Optional.of(device));
+        when(controlThermostatRepository.findByDevice(device)).thenReturn(List.of(rule));
+        when(controlPriceService.getCurrentCombinedPrice(eq(control), any(Instant.class))).thenReturn(Optional.of(new BigDecimal("5.00")));
+        when(thermostatCurveService.evaluate("[]", new BigDecimal("5.00"))).thenReturn(new BigDecimal("21.45"));
+
+        DeviceThermostatDebugSnapshotResponse snapshot =
+                controlService.getThermostatDebugSnapshotForDevice(deviceUuid.toString());
+
+        assertEquals("Living room thermostat", snapshot.getDeviceName());
+        assertEquals(1, snapshot.getCommands().size());
+        assertEquals(false, snapshot.getCommands().getFirst().isWouldSend());
+        assertEquals("{\"targetTemperature\":21.45}", snapshot.getCommands().getFirst().getMqttPayload());
+        assertEquals("Target temperature was already applied recently", snapshot.getCommands().getFirst().getSkipReason());
     }
 
     @Test

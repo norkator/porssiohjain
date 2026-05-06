@@ -32,6 +32,7 @@ import com.nitramite.porssiohjain.entity.repository.ProductionSourceHeatPumpRepo
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpRepository;
 import com.nitramite.porssiohjain.services.AcCommandDispatchService;
+import com.nitramite.porssiohjain.services.ControlPriceService;
 import com.nitramite.porssiohjain.services.HeatPumpControlService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,13 +68,13 @@ class HeatPumpControlServiceTest {
     private SiteWeatherRepository siteWeatherRepository;
 
     @Mock
-    private NordpoolRepository nordpoolRepository;
-
-    @Mock
     private ControlTableRepository controlTableRepository;
 
     @Mock
     private AcCommandDispatchService acCommandDispatchService;
+
+    @Mock
+    private ControlPriceService controlPriceService;
 
     private HeatPumpControlService heatPumpControlService;
 
@@ -85,9 +86,9 @@ class HeatPumpControlServiceTest {
                 controlHeatPumpRepository,
                 deviceAcDataRepository,
                 siteWeatherRepository,
-                nordpoolRepository,
                 controlTableRepository,
-                acCommandDispatchService
+                acCommandDispatchService,
+                controlPriceService
         );
     }
 

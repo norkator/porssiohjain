@@ -18,6 +18,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 @Slf4j
@@ -34,6 +35,13 @@ public class MqttService {
     public void switchControl(String deviceId, int channel, boolean on) {
         String topic = deviceId + "/command/switch:" + channel;
         String payload = on ? "on" : "off";
+        mqttOutboundChannel.send(new GenericMessage<>(payload,
+                Map.of("mqtt_topic", topic)));
+    }
+
+    public void setThermostatTemperature(String deviceId, int channel, BigDecimal targetTemperature) {
+        String topic = deviceId + "/command/thermostat:" + channel;
+        String payload = "{\"targetTemperature\":" + targetTemperature.toPlainString() + "}";
         mqttOutboundChannel.send(new GenericMessage<>(payload,
                 Map.of("mqtt_topic", topic)));
     }

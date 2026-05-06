@@ -158,6 +158,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceTypeCombo.setItemLabelGenerator(type -> switch (type) {
             case STANDARD -> t("device.type.standard");
             case HEAT_PUMP -> t("device.type.heatPump");
+            case THERMOSTAT -> t("device.type.thermostat");
         });
         deviceTypeCombo.setValue(DeviceType.STANDARD);
         deviceTypeCombo.setHelperText(t("device.type.helper"));
@@ -236,6 +237,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             return switch (device.getDeviceType()) {
                 case STANDARD -> t("device.type.standard");
                 case HEAT_PUMP -> t("device.type.heatPump");
+                case THERMOSTAT -> t("device.type.thermostat");
             };
         }).setHeader(t("device.grid.type")).setAutoWidth(true);
         deviceGrid.addComponentColumn(device -> {
@@ -696,7 +698,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void updateControlsJsonButton() {
-        boolean visible = selectedDevice != null && selectedDevice.getDeviceType() == DeviceType.STANDARD;
+        boolean visible = selectedDevice != null
+                && (selectedDevice.getDeviceType() == DeviceType.STANDARD
+                || selectedDevice.getDeviceType() == DeviceType.THERMOSTAT);
         showControlsJsonButton.setVisible(visible);
     }
 
@@ -866,13 +870,22 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void openControlsJsonDialog() {
-        if (selectedDevice == null || selectedDevice.getDeviceType() != DeviceType.STANDARD) {
+        if (selectedDevice == null) {
             return;
         }
 
         try {
-            Map<Integer, Integer> controls = controlService.getControlsForDevice(selectedDevice.getUuid().toString());
-            String formattedJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(controls);
+            String formattedJson;
+            if (selectedDevice.getDeviceType() == DeviceType.STANDARD) {
+                Map<Integer, Integer> controls = controlService.getControlsForDevice(selectedDevice.getUuid().toString());
+                formattedJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(controls);
+            } else if (selectedDevice.getDeviceType() == DeviceType.THERMOSTAT) {
+                formattedJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(
+                        controlService.getThermostatDebugSnapshotForDevice(selectedDevice.getUuid().toString())
+                );
+            } else {
+                return;
+            }
 
             Dialog dialog = new Dialog();
             dialog.setHeaderTitle(t("device.controls.dialog.title", selectedDevice.getDeviceName()));

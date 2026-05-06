@@ -118,9 +118,6 @@ public class HomeView extends VerticalLayout {
         Button loadSheddingButton = new Button(t("home.loadShedding"), e -> UI.getCurrent().navigate(LoadSheddingView.class));
         loadSheddingButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
-        Button temperatureControlsButton = new Button(t("home.thermostats"), e -> UI.getCurrent().navigate(TemperatureCurveView.class));
-        temperatureControlsButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-
         Button dashboardButton = new Button(t("home.dashboard"), e -> UI.getCurrent().navigate(DashboardView.class));
         dashboardButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
@@ -142,7 +139,7 @@ public class HomeView extends VerticalLayout {
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
 
         Stream.of(
-                loginButton, createAccountButton, documentationButton, devicesButton, controlsButton, weatherControlsButton, loadSheddingButton, myProductionButton, powerLimitsButton, temperatureControlsButton,
+                loginButton, createAccountButton, documentationButton, devicesButton, controlsButton, weatherControlsButton, loadSheddingButton, myProductionButton, powerLimitsButton,
                 dashboardButton, settingsButton, adminButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
