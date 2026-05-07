@@ -63,6 +63,8 @@ import java.util.*;
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @JsModule("./js/apexcharts.min.js")
+@JsModule("./js/chart.js")
+@JsModule("./js/chartjs-plugin-dragdata.js")
 @PageTitle("Pörssiohjain - Control table")
 @Route("controls/:controlId")
 @PermitAll
@@ -78,9 +80,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final SiteService siteService;
     private final HeatPumpStateDialogService heatPumpStateDialogService;
     private final ControlNotificationService controlNotificationService;
+    private final ThermostatCurveService thermostatCurveService;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlHeatPumpResponse> heatPumpGrid = new Grid<>(ControlHeatPumpResponse.class, false);
+    private final Grid<ControlThermostatResponse> thermostatGrid = new Grid<>(ControlThermostatResponse.class, false);
     private final Grid<ControlNotificationResponse> notificationGrid = new Grid<>(ControlNotificationResponse.class, false);
     private final Grid<ControlTableResponse> controlTableGrid = new Grid<>(ControlTableResponse.class, false);
 
@@ -99,6 +103,17 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private Button heatPumpSaveButton;
     private Button heatPumpCancelButton;
     private ControlHeatPumpResponse selectedHeatPumpLink;
+    private ComboBox<DeviceResponse> thermostatDeviceSelect;
+    private NumberField thermostatChannelField;
+    private TextArea thermostatCurveField;
+    private NumberField thermostatMinTemperatureField;
+    private NumberField thermostatMaxTemperatureField;
+    private NumberField thermostatFallbackTemperatureField;
+    private NumberField thermostatEstimatedPowerKwField;
+    private Checkbox thermostatEnabledField;
+    private Button thermostatSaveButton;
+    private Button thermostatCancelButton;
+    private ControlThermostatResponse selectedThermostatLink;
 
     private final Instant dateNow = Instant.now();
     private final Instant startOfDay = dateNow.truncatedTo(ChronoUnit.DAYS);
@@ -118,7 +133,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             ElectricityContractRepository contractRepository,
             SiteService siteService,
             HeatPumpStateDialogService heatPumpStateDialogService,
-            ControlNotificationService controlNotificationService
+            ControlNotificationService controlNotificationService,
+            ThermostatCurveService thermostatCurveService
     ) {
         this.authService = authService;
         this.controlService = controlService;
@@ -130,6 +146,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.siteService = siteService;
         this.heatPumpStateDialogService = heatPumpStateDialogService;
         this.controlNotificationService = controlNotificationService;
+        this.thermostatCurveService = thermostatCurveService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -139,6 +156,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         setSpacing(true);
         setPadding(true);
         heatPumpGrid.addItemClickListener(event -> editHeatPumpLink(event.getItem()));
+        thermostatGrid.addItemClickListener(event -> editThermostatLink(event.getItem()));
     }
 
     @Override
@@ -368,12 +386,14 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         card.add(new H3(t("controlTable.section.devices")));
         configureDeviceGrid();
         configureHeatPumpGrid();
+        configureThermostatGrid();
         configureNotificationGrid();
 
         Tab standardTab = new Tab(t("device.type.standard"));
         Tab heatPumpTab = new Tab(t("device.type.heatPump"));
+        Tab thermostatTab = new Tab(t("device.type.thermostat"));
         Tab notificationsTab = new Tab(t("controlTable.notifications.tab"));
-        Tabs deviceTabs = new Tabs(standardTab, heatPumpTab, notificationsTab);
+        Tabs deviceTabs = new Tabs(standardTab, heatPumpTab, thermostatTab, notificationsTab);
 
         VerticalLayout standardLayout = new VerticalLayout(deviceGrid, createAddDeviceLayout());
         standardLayout.setPadding(false);
@@ -384,6 +404,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         heatPumpLayout.setSpacing(true);
         heatPumpLayout.setVisible(false);
 
+        VerticalLayout thermostatLayout = new VerticalLayout(thermostatGrid, createAddThermostatLayout());
+        thermostatLayout.setPadding(false);
+        thermostatLayout.setSpacing(true);
+        thermostatLayout.setVisible(false);
+
         VerticalLayout notificationsLayout = new VerticalLayout(notificationGrid, createAddNotificationLayout());
         notificationsLayout.setPadding(false);
         notificationsLayout.setSpacing(true);
@@ -392,9 +417,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         Map<Tab, Component> tabsToPages = new HashMap<>();
         tabsToPages.put(standardTab, standardLayout);
         tabsToPages.put(heatPumpTab, heatPumpLayout);
+        tabsToPages.put(thermostatTab, thermostatLayout);
         tabsToPages.put(notificationsTab, notificationsLayout);
 
-        Div pages = new Div(standardLayout, heatPumpLayout, notificationsLayout);
+        Div pages = new Div(standardLayout, heatPumpLayout, thermostatLayout, notificationsLayout);
         pages.setWidthFull();
 
         deviceTabs.addSelectedChangeListener(event -> {
@@ -407,6 +433,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         loadControlDevices();
         loadControlHeatPumps();
+        loadControlThermostats();
         loadControlNotifications();
         card.add(Divider.createDivider());
         card.add(getControlTableSection());
@@ -466,6 +493,31 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         heatPumpGrid.setMaxHeight("200px");
     }
 
+    private void configureThermostatGrid() {
+        thermostatGrid.removeAllColumns();
+        thermostatGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader(t("controlTable.grid.deviceName"));
+        thermostatGrid.addColumn(ControlThermostatResponse::getThermostatChannel).setHeader(t("controlTable.grid.channel"));
+        thermostatGrid.addColumn(ControlThermostatResponse::getMinTemperature).setHeader(t("controlTable.thermostat.grid.minTemperature"));
+        thermostatGrid.addColumn(ControlThermostatResponse::getMaxTemperature).setHeader(t("controlTable.thermostat.grid.maxTemperature"));
+        thermostatGrid.addColumn(ControlThermostatResponse::getFallbackTemperature).setHeader(t("controlTable.thermostat.grid.fallbackTemperature"));
+        thermostatGrid.addColumn(ControlThermostatResponse::getLastAppliedTemperature).setHeader(t("controlTable.thermostat.grid.lastAppliedTemperature"));
+        thermostatGrid.addColumn(cd -> cd.isEnabled() ? t("common.yes") : t("common.no")).setHeader(t("controlTable.notifications.grid.enabled"));
+        thermostatGrid.addColumn(ControlThermostatResponse::getEstimatedPowerKw).setHeader(t("controlTable.grid.estimatedPowerKw"));
+        thermostatGrid.addColumn(ControlThermostatResponse::getCurveJson).setHeader(t("controlTable.thermostat.grid.curve"));
+        thermostatGrid.addComponentColumn(cd -> {
+            Button delete = new Button(t("controlTable.button.delete"), e -> {
+                controlService.deleteControlThermostat(getAccountId(), cd.getId());
+                if (selectedThermostatLink != null && selectedThermostatLink.getId().equals(cd.getId())) {
+                    clearThermostatForm();
+                }
+                loadControlThermostats();
+            });
+            delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            return delete;
+        }).setHeader(t("controlTable.grid.actions"));
+        thermostatGrid.setMaxHeight("240px");
+    }
+
     private void configureNotificationGrid() {
         notificationGrid.removeAllColumns();
         notificationGrid.addColumn(ControlNotificationResponse::getName).setHeader(t("controlTable.notifications.grid.name")).setAutoWidth(true);
@@ -509,6 +561,14 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         heatPumpGrid.setItems(
                 controlService.getControlHeatPumps(getAccountId(), controlId).stream()
                         .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.HEAT_PUMP)
+                        .toList()
+        );
+    }
+
+    private void loadControlThermostats() {
+        thermostatGrid.setItems(
+                controlService.getControlThermostats(getAccountId(), controlId).stream()
+                        .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.THERMOSTAT)
                         .toList()
         );
     }
@@ -666,6 +726,126 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         return formLayout;
     }
 
+    private Component createAddThermostatLayout() {
+        thermostatDeviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
+        thermostatDeviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
+        thermostatDeviceSelect.setItems(
+                deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
+                        .filter(d -> d.getDeviceType() == DeviceType.THERMOSTAT)
+                        .toList()
+        );
+        thermostatDeviceSelect.setWidthFull();
+
+        thermostatChannelField = new NumberField(t("controlTable.field.channel"));
+        thermostatChannelField.setStep(1);
+        thermostatChannelField.setMin(0);
+        thermostatChannelField.setWidthFull();
+
+        thermostatMinTemperatureField = new NumberField(t("controlTable.thermostat.field.minTemperature"));
+        thermostatMinTemperatureField.setStep(0.5);
+        thermostatMinTemperatureField.setWidthFull();
+
+        thermostatMaxTemperatureField = new NumberField(t("controlTable.thermostat.field.maxTemperature"));
+        thermostatMaxTemperatureField.setStep(0.5);
+        thermostatMaxTemperatureField.setWidthFull();
+
+        thermostatFallbackTemperatureField = new NumberField(t("controlTable.thermostat.field.fallbackTemperature"));
+        thermostatFallbackTemperatureField.setStep(0.5);
+        thermostatFallbackTemperatureField.setWidthFull();
+
+        thermostatEstimatedPowerKwField = new NumberField(t("controlTable.field.estimatedPowerKw"));
+        thermostatEstimatedPowerKwField.setStep(0.1);
+        thermostatEstimatedPowerKwField.setMin(0);
+        thermostatEstimatedPowerKwField.setWidthFull();
+
+        thermostatEnabledField = new Checkbox(t("controlTable.notifications.field.enabled"));
+        thermostatEnabledField.setValue(true);
+
+        thermostatCurveField = new TextArea(t("controlTable.thermostat.field.curveJson"));
+        thermostatCurveField.setWidthFull();
+        thermostatCurveField.setMinHeight("180px");
+        thermostatCurveField.setHelperText(t("controlTable.thermostat.field.curveHelp"));
+        thermostatCurveField.setValue(defaultThermostatCurveJson());
+
+        Button editCurveButton = new Button(t("controlTable.thermostat.button.editCurve"), e ->
+                openThermostatCurveDialog(thermostatCurveField)
+        );
+        editCurveButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        editCurveButton.setWidthFull();
+
+        thermostatSaveButton = new Button(t("controlTable.button.addDevice"), e -> {
+            if (thermostatDeviceSelect.getValue() == null
+                    || thermostatChannelField.getValue() == null
+                    || thermostatCurveField.getValue().isBlank()) {
+                return;
+            }
+
+            if (selectedThermostatLink != null) {
+                controlService.updateControlThermostat(
+                        getAccountId(),
+                        selectedThermostatLink.getId(),
+                        thermostatDeviceSelect.getValue().getId(),
+                        thermostatChannelField.getValue().intValue(),
+                        thermostatCurveField.getValue(),
+                        thermostatMinTemperatureField.getValue() != null ? BigDecimal.valueOf(thermostatMinTemperatureField.getValue()) : null,
+                        thermostatMaxTemperatureField.getValue() != null ? BigDecimal.valueOf(thermostatMaxTemperatureField.getValue()) : null,
+                        thermostatFallbackTemperatureField.getValue() != null ? BigDecimal.valueOf(thermostatFallbackTemperatureField.getValue()) : null,
+                        thermostatEstimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(thermostatEstimatedPowerKwField.getValue()) : null,
+                        thermostatEnabledField.getValue()
+                );
+            } else {
+                controlService.addThermostatToControl(
+                        getAccountId(),
+                        controlId,
+                        thermostatDeviceSelect.getValue().getId(),
+                        thermostatChannelField.getValue().intValue(),
+                        thermostatCurveField.getValue(),
+                        thermostatMinTemperatureField.getValue() != null ? BigDecimal.valueOf(thermostatMinTemperatureField.getValue()) : null,
+                        thermostatMaxTemperatureField.getValue() != null ? BigDecimal.valueOf(thermostatMaxTemperatureField.getValue()) : null,
+                        thermostatFallbackTemperatureField.getValue() != null ? BigDecimal.valueOf(thermostatFallbackTemperatureField.getValue()) : null,
+                        thermostatEstimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(thermostatEstimatedPowerKwField.getValue()) : null,
+                        thermostatEnabledField.getValue()
+                );
+            }
+            loadControlThermostats();
+            clearThermostatForm();
+        });
+        thermostatSaveButton.setWidthFull();
+        thermostatSaveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        thermostatCancelButton = new Button(t("common.cancel"), e -> clearThermostatForm());
+        thermostatCancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        thermostatCancelButton.setWidthFull();
+        thermostatCancelButton.setVisible(false);
+
+        FormLayout formLayout = new FormLayout(
+                thermostatDeviceSelect,
+                thermostatChannelField,
+                thermostatMinTemperatureField,
+                thermostatMaxTemperatureField,
+                thermostatFallbackTemperatureField,
+                thermostatEstimatedPowerKwField,
+                thermostatEnabledField,
+                editCurveButton,
+                thermostatCurveField,
+                thermostatSaveButton,
+                thermostatCancelButton
+        );
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("700px", 4)
+        );
+
+        formLayout.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                .set("background-color", "var(--lumo-contrast-5pct)");
+
+        clearThermostatForm();
+        return formLayout;
+    }
+
     private void editHeatPumpLink(ControlHeatPumpResponse link) {
         selectedHeatPumpLink = link;
         if (heatPumpDeviceSelect == null) {
@@ -703,6 +883,266 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         heatPumpEstimatedPowerKwField.clear();
         heatPumpSaveButton.setText(t("controlTable.button.addDevice"));
         heatPumpCancelButton.setVisible(false);
+    }
+
+    private void editThermostatLink(ControlThermostatResponse link) {
+        selectedThermostatLink = link;
+        if (thermostatDeviceSelect == null) {
+            return;
+        }
+
+        DeviceResponse matchingDevice = deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
+                .filter(device -> device.getDeviceType() == DeviceType.THERMOSTAT)
+                .filter(device -> device.getId().equals(link.getDeviceId()))
+                .findFirst()
+                .orElse(null);
+
+        thermostatDeviceSelect.setValue(matchingDevice);
+        thermostatChannelField.setValue(link.getThermostatChannel() != null ? link.getThermostatChannel().doubleValue() : null);
+        thermostatCurveField.setValue(link.getCurveJson() != null ? link.getCurveJson() : "");
+        thermostatMinTemperatureField.setValue(link.getMinTemperature() != null ? link.getMinTemperature().doubleValue() : null);
+        thermostatMaxTemperatureField.setValue(link.getMaxTemperature() != null ? link.getMaxTemperature().doubleValue() : null);
+        thermostatFallbackTemperatureField.setValue(link.getFallbackTemperature() != null ? link.getFallbackTemperature().doubleValue() : null);
+        thermostatEstimatedPowerKwField.setValue(link.getEstimatedPowerKw() != null ? link.getEstimatedPowerKw().doubleValue() : null);
+        thermostatEnabledField.setValue(link.isEnabled());
+        thermostatSaveButton.setText(t("controlTable.button.save"));
+        thermostatCancelButton.setVisible(true);
+    }
+
+    private void clearThermostatForm() {
+        selectedThermostatLink = null;
+        if (thermostatDeviceSelect == null) {
+            return;
+        }
+
+        thermostatGrid.deselectAll();
+        thermostatDeviceSelect.clear();
+        thermostatChannelField.clear();
+        thermostatCurveField.setValue(defaultThermostatCurveJson());
+        thermostatMinTemperatureField.clear();
+        thermostatMaxTemperatureField.clear();
+        thermostatFallbackTemperatureField.clear();
+        thermostatEstimatedPowerKwField.clear();
+        thermostatEnabledField.setValue(true);
+        thermostatSaveButton.setText(t("controlTable.button.addDevice"));
+        thermostatCancelButton.setVisible(false);
+    }
+
+    private void openThermostatCurveDialog(TextArea targetField) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.thermostat.dialog.title"));
+        dialog.setWidth("960px");
+        dialog.setMaxWidth("96vw");
+
+        String normalizedCurveJson;
+        try {
+            normalizedCurveJson = thermostatCurveService.normalizeCurveJson(
+                    targetField.getValue() == null || targetField.getValue().isBlank()
+                            ? defaultThermostatCurveJson()
+                            : targetField.getValue()
+            );
+        } catch (Exception e) {
+            normalizedCurveJson = defaultThermostatCurveJson();
+        }
+
+        Div chartContainer = new Div();
+        String containerId = "thermostat-curve-" + UUID.randomUUID();
+        String chartStateKey = "thermostatCurveState_" + UUID.randomUUID().toString().replace("-", "");
+        chartContainer.setId(containerId);
+        chartContainer.setHeight("420px");
+        chartContainer.setWidthFull();
+
+        TextArea curvePreviewField = new TextArea(t("controlTable.thermostat.field.curveJson"));
+        curvePreviewField.setWidthFull();
+        curvePreviewField.setMinHeight("220px");
+        curvePreviewField.setValue(normalizedCurveJson);
+        curvePreviewField.setHelperText(t("controlTable.thermostat.field.dialogHelp"));
+
+        Button addPointButton = new Button(t("controlTable.thermostat.button.addPoint"), e ->
+                chartContainer.getElement().executeJs("""
+                        const state = window[$0];
+                        if (!state || !state.chart) return;
+                        const points = state.chart.data.datasets[0].data;
+                        const last = points.length > 0 ? points[points.length - 1] : { x: 0, y: 21 };
+                        const nextX = points.length > 0 ? Math.min(Number(last.x) + 5, 200) : 0;
+                        points.push({ x: nextX, y: Number(last.y) });
+                        state.selectedIndex = points.length - 1;
+                        state.sync();
+                        state.chart.update();
+                        """, chartStateKey)
+        );
+
+        Button removeSelectedButton = new Button(t("controlTable.thermostat.button.removeSelectedPoint"), e ->
+                chartContainer.getElement().executeJs("""
+                        const state = window[$0];
+                        if (!state || !state.chart || state.selectedIndex === null || state.selectedIndex === undefined) return;
+                        const points = state.chart.data.datasets[0].data;
+                        if (points.length <= 1) return;
+                        points.splice(state.selectedIndex, 1);
+                        state.selectedIndex = null;
+                        state.sync();
+                        state.chart.update();
+                        """, chartStateKey)
+        );
+
+        Button resetButton = new Button(t("controlTable.thermostat.button.resetCurve"), e -> {
+            curvePreviewField.setValue(defaultThermostatCurveJson());
+            renderThermostatCurveEditor(chartContainer, curvePreviewField, chartStateKey, curvePreviewField.getValue());
+        });
+
+        Button saveButton = new Button(t("common.save"), e -> {
+            try {
+                targetField.setValue(thermostatCurveService.normalizeCurveJson(curvePreviewField.getValue()));
+                dialog.close();
+            } catch (Exception ex) {
+                Notification notification = Notification.show(t("controlTable.notification.failedSave", ex.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Button cancelButton = new Button(t("common.cancel"), e -> dialog.close());
+
+        HorizontalLayout toolbar = new HorizontalLayout(addPointButton, removeSelectedButton, resetButton);
+        toolbar.setPadding(false);
+        toolbar.setSpacing(true);
+
+        HorizontalLayout footer = new HorizontalLayout(saveButton, cancelButton);
+        footer.setJustifyContentMode(JustifyContentMode.END);
+        footer.setWidthFull();
+
+        VerticalLayout content = new VerticalLayout(
+                new Paragraph(t("controlTable.thermostat.dialog.instructions")),
+                toolbar,
+                chartContainer,
+                curvePreviewField,
+                footer
+        );
+        content.setPadding(false);
+        content.setSpacing(true);
+        content.setWidthFull();
+
+        dialog.add(content);
+        dialog.open();
+
+        renderThermostatCurveEditor(chartContainer, curvePreviewField, chartStateKey, normalizedCurveJson);
+    }
+
+    private void renderThermostatCurveEditor(
+            Div chartContainer,
+            TextArea curvePreviewField,
+            String chartStateKey,
+            String curveJson
+    ) {
+        chartContainer.getElement().executeJs("""
+                const container = document.getElementById($0);
+                const field = $1.inputElement ?? $1;
+                const stateKey = $2;
+                const initialPoints = JSON.parse($3).map((point) => ({
+                  x: Number(point.price),
+                  y: Number(point.temperature)
+                })).sort((a, b) => a.x - b.x);
+
+                container.innerHTML = "";
+                const canvas = document.createElement("canvas");
+                canvas.style.width = "100%";
+                canvas.style.height = "420px";
+                container.appendChild(canvas);
+
+                if (window[stateKey]?.chart) {
+                  window[stateKey].chart.destroy();
+                }
+
+                const sync = () => {
+                  const chartPoints = [...window[stateKey].chart.data.datasets[0].data]
+                    .map((point) => ({
+                      x: Number(point.x),
+                      y: Number(point.y)
+                    }))
+                    .sort((a, b) => a.x - b.x);
+                  window[stateKey].chart.data.datasets[0].data = chartPoints;
+                  const normalized = chartPoints.map((point) => ({
+                    price: Number(point.x.toFixed(2)),
+                    temperature: Number(point.y.toFixed(2))
+                  }));
+                  field.value = JSON.stringify(normalized, null, 2);
+                  field.dispatchEvent(new Event("input", { bubbles: true }));
+                };
+
+                window[stateKey] = {
+                  chart: null,
+                  selectedIndex: null,
+                  sync
+                };
+
+                const chart = new Chart(canvas.getContext("2d"), {
+                  type: "line",
+                  data: {
+                    datasets: [{
+                      label: "Thermostat curve",
+                      data: initialPoints,
+                      borderColor: "#1f6feb",
+                      backgroundColor: "rgba(31, 111, 235, 0.15)",
+                      tension: 0.2,
+                      pointRadius: 6,
+                      pointHoverRadius: 8,
+                      fill: false
+                    }]
+                  },
+                  options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    parsing: false,
+                    scales: {
+                      x: {
+                        type: "linear",
+                        min: 0,
+                        title: {
+                          display: true,
+                          text: "Price (snt/kWh)"
+                        }
+                      },
+                      y: {
+                        min: 5,
+                        max: 35,
+                        title: {
+                          display: true,
+                          text: "Target temperature (°C)"
+                        }
+                      }
+                    },
+                    onClick: (_, elements) => {
+                      window[stateKey].selectedIndex = elements.length > 0 ? elements[0].index : null;
+                    },
+                    plugins: {
+                      legend: {
+                        display: false
+                      },
+                      dragData: {
+                        round: 1,
+                        showTooltip: true,
+                        onDragEnd: () => {
+                          sync();
+                        }
+                      }
+                    }
+                  }
+                });
+
+                window[stateKey].chart = chart;
+                sync();
+                """, chartContainer.getId().orElseThrow(), curvePreviewField.getElement(), chartStateKey, curveJson);
+    }
+
+    private String defaultThermostatCurveJson() {
+        return """
+                [
+                  {"price": 0, "temperature": 22.0},
+                  {"price": 10, "temperature": 21.0},
+                  {"price": 20, "temperature": 19.0}
+                ]
+                """;
     }
 
     private Component createAddNotificationLayout() {

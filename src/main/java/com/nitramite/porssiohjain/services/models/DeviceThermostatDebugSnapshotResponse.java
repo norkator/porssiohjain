@@ -9,10 +9,21 @@
  * See LICENSE for details.
  */
 
-package com.nitramite.porssiohjain.entity.enums;
+package com.nitramite.porssiohjain.services.models;
 
-public enum DeviceType {
-    STANDARD,
-    HEAT_PUMP,
-    THERMOSTAT
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class DeviceThermostatDebugSnapshotResponse {
+    private String deviceUuid;
+    private String deviceName;
+    private List<DeviceThermostatDebugResponse> commands;
 }

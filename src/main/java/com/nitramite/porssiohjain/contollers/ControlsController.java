@@ -178,6 +178,58 @@ public class ControlsController {
         controlService.deleteControlHeatPump(authContext.getAccountId(), linkId);
     }
 
+    @GetMapping("/{controlId}/links/thermostats")
+    public List<ControlThermostatResponse> getControlThermostatLinks(
+            @PathVariable Long controlId
+    ) {
+        return controlService.getControlThermostats(authContext.getAccountId(), controlId);
+    }
+
+    @PostMapping("/{controlId}/links/thermostats")
+    public ControlThermostatResponse addThermostatLink(
+            @PathVariable Long controlId,
+            @RequestBody ControlThermostatLinkRequest request
+    ) {
+        return controlService.addThermostatToControl(
+                authContext.getAccountId(),
+                controlId,
+                request.deviceId(),
+                request.thermostatChannel(),
+                request.curveJson(),
+                request.minTemperature(),
+                request.maxTemperature(),
+                request.fallbackTemperature(),
+                request.estimatedPowerKw(),
+                request.enabled()
+        );
+    }
+
+    @PutMapping("/links/thermostats/{linkId}")
+    public ControlThermostatResponse updateThermostatLink(
+            @PathVariable Long linkId,
+            @RequestBody ControlThermostatLinkRequest request
+    ) {
+        return controlService.updateControlThermostat(
+                authContext.getAccountId(),
+                linkId,
+                request.deviceId(),
+                request.thermostatChannel(),
+                request.curveJson(),
+                request.minTemperature(),
+                request.maxTemperature(),
+                request.fallbackTemperature(),
+                request.estimatedPowerKw(),
+                request.enabled()
+        );
+    }
+
+    @DeleteMapping("/links/thermostats/{linkId}")
+    public void deleteThermostatLink(
+            @PathVariable Long linkId
+    ) {
+        controlService.deleteControlThermostat(authContext.getAccountId(), linkId);
+    }
+
     @GetMapping("/{controlId}/notifications")
     public List<ControlNotificationResponse> getControlNotifications(
             @PathVariable Long controlId
@@ -239,6 +291,18 @@ public class ControlsController {
             ComparisonType comparisonType,
             BigDecimal priceLimit,
             BigDecimal estimatedPowerKw
+    ) {
+    }
+
+    public record ControlThermostatLinkRequest(
+            Long deviceId,
+            Integer thermostatChannel,
+            String curveJson,
+            BigDecimal minTemperature,
+            BigDecimal maxTemperature,
+            BigDecimal fallbackTemperature,
+            BigDecimal estimatedPowerKw,
+            boolean enabled
     ) {
     }
 }

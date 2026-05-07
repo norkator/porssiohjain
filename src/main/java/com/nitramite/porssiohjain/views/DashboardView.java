@@ -249,9 +249,10 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
     private boolean isDeviceOnline(DeviceType deviceType, Instant lastCommunication) {
         if (lastCommunication == null) return false;
         Duration diff = Duration.between(lastCommunication, Instant.now());
-        Duration threshold = deviceType == DeviceType.HEAT_PUMP
-                ? HEAT_PUMP_ONLINE_THRESHOLD
-                : STANDARD_ONLINE_THRESHOLD;
+        Duration threshold = switch (deviceType) {
+            case HEAT_PUMP -> HEAT_PUMP_ONLINE_THRESHOLD;
+            case STANDARD, THERMOSTAT -> STANDARD_ONLINE_THRESHOLD;
+        };
         return diff.compareTo(threshold) < 0;
     }
 

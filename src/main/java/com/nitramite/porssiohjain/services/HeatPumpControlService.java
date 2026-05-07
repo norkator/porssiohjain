@@ -15,7 +15,6 @@ import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlHeatPumpEntity;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
-import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceHeatPumpEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
@@ -24,7 +23,6 @@ import com.nitramite.porssiohjain.entity.enums.*;
 import com.nitramite.porssiohjain.entity.repository.ControlHeatPumpRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
-import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.entity.repository.ProductionSourceHeatPumpRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpRepository;
@@ -55,9 +53,9 @@ public class HeatPumpControlService {
     private final ControlHeatPumpRepository controlHeatPumpRepository;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final SiteWeatherRepository siteWeatherRepository;
-    private final NordpoolRepository nordpoolRepository;
     private final ControlTableRepository controlTableRepository;
     private final AcCommandDispatchService acCommandDispatchService;
+    private final ControlPriceService controlPriceService;
 
     public void runScheduledHeatPumpControls() {
         Instant now = Instant.now();
@@ -244,45 +242,7 @@ public class HeatPumpControlService {
     }
 
     private Optional<BigDecimal> getCurrentControlPrice(ControlEntity control, Instant now) {
-        return nordpoolRepository.findFirstByDeliveryStartLessThanEqualAndDeliveryEndGreaterThan(now, now)
-                .map(currentPrice -> {
-                    BigDecimal taxPercent = control.getTaxPercent() != null ? control.getTaxPercent() : BigDecimal.ZERO;
-                    BigDecimal taxMultiplier = BigDecimal.ONE.add(taxPercent.divide(BigDecimal.valueOf(100)));
-                    BigDecimal nordpoolPrice = currentPrice.getPriceFi()
-                            .multiply(BigDecimal.valueOf(0.1))
-                            .multiply(taxMultiplier);
-                    return nordpoolPrice.add(resolveTransferPrice(control.getTransferContract(), currentPrice.getDeliveryStart(), ZoneId.of(control.getTimezone())));
-                });
-    }
-
-    private BigDecimal resolveTransferPrice(
-            ElectricityContractEntity transferContract,
-            Instant deliveryStart,
-            ZoneId zone
-    ) {
-        if (transferContract == null) {
-            return BigDecimal.ZERO;
-        }
-
-        BigDecimal staticPrice = transferContract.getStaticPrice();
-        BigDecimal nightPrice = transferContract.getNightPrice();
-        BigDecimal dayPrice = transferContract.getDayPrice();
-        BigDecimal taxAmount = transferContract.getTaxAmount() != null ? transferContract.getTaxAmount() : BigDecimal.ZERO;
-
-        if (staticPrice != null && dayPrice == null && nightPrice == null) {
-            return staticPrice.add(taxAmount);
-        }
-
-        if (dayPrice != null || nightPrice != null) {
-            int hour = deliveryStart.atZone(zone).getHour();
-            boolean isNight = hour >= 22 || hour < 7;
-            BigDecimal selected = isNight ? nightPrice : dayPrice;
-            if (selected != null) {
-                return selected.add(taxAmount);
-            }
-        }
-
-        return BigDecimal.ZERO;
+        return controlPriceService.getCurrentCombinedPrice(control, now);
     }
 
     private boolean isControlActive(ControlEntity control, Instant now) {

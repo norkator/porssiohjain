@@ -44,6 +44,7 @@ public class Scheduler {
     private final DeviceService deviceService;
     private final ControlService controlService;
     private final HeatPumpControlService heatPumpControlService;
+    private final ThermostatControlService thermostatControlService;
     private final ControlNotificationService controlNotificationService;
     private final HeatPumpOnlineCheckService heatPumpOnlineCheckService;
 
@@ -64,6 +65,7 @@ public class Scheduler {
             DeviceService deviceService,
             ControlService controlService,
             HeatPumpControlService heatPumpControlService,
+            ThermostatControlService thermostatControlService,
             ControlNotificationService controlNotificationService,
             HeatPumpOnlineCheckService heatPumpOnlineCheckService
     ) {
@@ -80,6 +82,7 @@ public class Scheduler {
         this.deviceService = deviceService;
         this.controlService = controlService;
         this.heatPumpControlService = heatPumpControlService;
+        this.thermostatControlService = thermostatControlService;
         this.controlNotificationService = controlNotificationService;
         this.heatPumpOnlineCheckService = heatPumpOnlineCheckService;
 
@@ -240,6 +243,11 @@ public class Scheduler {
     @Scheduled(fixedDelayString = "${heatpump.control-interval}")
     public void scheduledHeatPumpControls() {
         heatPumpControlService.runScheduledHeatPumpControls();
+    }
+
+    @Scheduled(fixedDelayString = "${thermostat.control-interval:5m}")
+    public void scheduledThermostatControls() {
+        thermostatControlService.runScheduledThermostatControls();
     }
 
     @Scheduled(cron = "0 0 * * * *", zone = "Europe/Helsinki")

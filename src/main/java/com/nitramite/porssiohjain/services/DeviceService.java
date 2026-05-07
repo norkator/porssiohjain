@@ -51,6 +51,7 @@ public class DeviceService {
     private final ControlHeatPumpRepository controlHeatPumpRepository;
     private final ProductionSourceHeatPumpRepository productionSourceHeatPumpRepository;
     private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
+    private final ControlThermostatRepository controlThermostatRepository;
     private final AccountLimitService accountLimitService;
     private final ControlService controlService;
 
@@ -275,6 +276,7 @@ public class DeviceService {
         });
         loadSheddingNodeRepository.deleteAll(loadSheddingNodeRepository.findByDevice(device));
         controlHeatPumpRepository.deleteAll(controlHeatPumpRepository.findByDevice(device));
+        controlThermostatRepository.deleteAll(controlThermostatRepository.findByDevice(device));
         productionSourceHeatPumpRepository.deleteAll(productionSourceHeatPumpRepository.findByDevice(device));
         weatherControlHeatPumpRepository.deleteAll(weatherControlHeatPumpRepository.findByDevice(device));
         resourceSharingRepository.deleteAll(resourceSharingRepository.findByResourceTypeAndDeviceId(ResourceType.DEVICE, deviceId));
@@ -344,9 +346,10 @@ public class DeviceService {
         if (lastCommunication == null) {
             return true;
         }
-        long offlineSeconds = device.getDeviceType() == DeviceType.HEAT_PUMP
-                ? HEAT_PUMP_API_OFFLINE_SECONDS
-                : STANDARD_API_OFFLINE_SECONDS;
+        long offlineSeconds = switch (device.getDeviceType()) {
+            case HEAT_PUMP -> HEAT_PUMP_API_OFFLINE_SECONDS;
+            case STANDARD, THERMOSTAT -> STANDARD_API_OFFLINE_SECONDS;
+        };
         return lastCommunication.isBefore(now.minusSeconds(offlineSeconds));
     }
 

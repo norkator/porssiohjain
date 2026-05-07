@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlHeatPumpRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlRepository;
+import com.nitramite.porssiohjain.entity.repository.ControlThermostatRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.LoadSheddingLinkRepository;
@@ -78,6 +79,8 @@ class DeviceServiceTest {
     @Mock
     private WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
     @Mock
+    private ControlThermostatRepository controlThermostatRepository;
+    @Mock
     private AccountLimitService accountLimitService;
     @Mock
     private ControlService controlService;
@@ -102,6 +105,7 @@ class DeviceServiceTest {
                 controlHeatPumpRepository,
                 productionSourceHeatPumpRepository,
                 weatherControlHeatPumpRepository,
+                controlThermostatRepository,
                 accountLimitService,
                 controlService
         );
