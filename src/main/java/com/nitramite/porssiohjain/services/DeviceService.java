@@ -96,6 +96,33 @@ public class DeviceService {
         }
     }
 
+    @Transactional
+    public DeviceResponse createProvisionedDevice(
+            Long accountId,
+            String deviceName,
+            String timezone,
+            DeviceType deviceType,
+            String mqttUsername,
+            String mqttPassword
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
+        accountLimitService.assertCanCreateDevice(accountId);
+
+        DeviceEntity device = DeviceEntity.builder()
+                .deviceName(deviceName)
+                .timezone(timezone)
+                .deviceType(deviceType)
+                .enabled(true)
+                .lastCommunication(null)
+                .mqttUsername(mqttUsername)
+                .mqttPassword(mqttPassword)
+                .account(account)
+                .build();
+        return mapToResponse(deviceRepository.save(device), false);
+    }
+
     @Transactional(readOnly = true)
     public List<DeviceResponse> listDevices(Long authAccountId, Long accountId) {
         if (accountId.equals(authAccountId)) {

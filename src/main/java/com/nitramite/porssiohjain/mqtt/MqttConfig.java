@@ -76,8 +76,9 @@ public class MqttConfig {
                 new MqttPahoMessageDrivenChannelAdapter(
                         clientId,
                         factory,
-                        "+/online"
-                        // "+/events/rpc" # too much messaging
+                        "+/online",
+                        "factory/bootstrap/+/state",
+                        "factory/bootstrap/+/telemetry"
                 );
         adapter.setOutputChannel(mqttInputChannel());
         return adapter;
