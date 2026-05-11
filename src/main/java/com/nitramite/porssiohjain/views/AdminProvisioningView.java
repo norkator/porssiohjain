@@ -12,12 +12,17 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
+import com.nitramite.porssiohjain.entity.enums.FactoryTestStatus;
 import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
+import com.nitramite.porssiohjain.services.models.CreateFactoryTestRunRequest;
+import com.nitramite.porssiohjain.services.models.CreateFactoryTestStepRequest;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.FactoryProvisioningService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.CreateFactoryDeviceRequest;
 import com.nitramite.porssiohjain.services.models.FactoryDeviceResponse;
+import com.nitramite.porssiohjain.services.models.FactoryTestRunResponse;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -41,6 +46,7 @@ import jakarta.annotation.security.PermitAll;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
@@ -52,6 +58,7 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
     private final AuthService authService;
     private final I18nService i18n;
     private final FactoryProvisioningService factoryProvisioningService;
+    private Long adminAccountId;
 
     private final Grid<FactoryDeviceResponse> grid = new Grid<>(FactoryDeviceResponse.class, false);
     private final TextField serialNumberField = new TextField();
@@ -83,13 +90,15 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
             return;
         }
 
+        this.adminAccountId = account.getId();
+
         setWidthFull();
         setPadding(true);
         setSpacing(true);
+        setAlignItems(Alignment.STRETCH);
 
         VerticalLayout card = new VerticalLayout();
         card.setWidthFull();
-        card.setMaxWidth("1200px");
         card.addClassName("responsive-card");
 
         Button backButton = new Button("← " + t("admin.back"), e -> UI.getCurrent().navigate(AdminView.class));
@@ -190,6 +199,12 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("Europe/Helsinki"));
         grid.addColumn(item -> item.getLastSeenAt() != null ? formatter.format(item.getLastSeenAt()) : "")
                 .setHeader(t("admin.provisioning.lastSeen")).setAutoWidth(true);
+        grid.addColumn(item -> latestRunLabel(item, formatter))
+                .setHeader(t("admin.provisioning.latestTest")).setAutoWidth(true);
+        grid.addComponentColumn(this::createActionButtons)
+                .setHeader(t("admin.provisioning.actions"))
+                .setAutoWidth(true)
+                .setFlexGrow(0);
     }
 
     private void refreshGrid() {
@@ -224,6 +239,75 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         } catch (Exception e) {
             Notification notification = Notification.show(e.getMessage());
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    private HorizontalLayout createActionButtons(FactoryDeviceResponse device) {
+        Button startTestButton = new Button(t("admin.provisioning.mockStart"), e -> startMockTestRun(device));
+        Button passButton = new Button(t("admin.provisioning.mockPass"), e -> finishMockTestRun(device, FactoryTestStatus.PASSED));
+        Button failButton = new Button(t("admin.provisioning.mockFail"), e -> finishMockTestRun(device, FactoryTestStatus.FAILED));
+
+        startTestButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        passButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_PRIMARY);
+        failButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+
+        startTestButton.setEnabled(device.getStatus() == FactoryDeviceStatus.REGISTERED
+                || device.getStatus() == FactoryDeviceStatus.FAILED);
+        passButton.setEnabled(device.getStatus() == FactoryDeviceStatus.TESTING
+                || device.getStatus() == FactoryDeviceStatus.REGISTERED);
+        failButton.setEnabled(device.getStatus() == FactoryDeviceStatus.TESTING
+                || device.getStatus() == FactoryDeviceStatus.REGISTERED);
+
+        HorizontalLayout layout = new HorizontalLayout(startTestButton, passButton, failButton);
+        layout.setPadding(false);
+        layout.setSpacing(true);
+        return layout;
+    }
+
+    private void startMockTestRun(FactoryDeviceResponse device) {
+        try {
+            CreateFactoryTestRunRequest request = new CreateFactoryTestRunRequest();
+            request.setStationName("vaadin-admin");
+            request.setNotes("Mock test run started from admin provisioning UI");
+            factoryProvisioningService.startTestRun(adminAccountId, device.getId(), request);
+            refreshGrid();
+            showSuccess(t("admin.provisioning.mockStarted", device.getSerialNumber()));
+        } catch (Exception e) {
+            showError(e.getMessage());
+        }
+    }
+
+    private void finishMockTestRun(FactoryDeviceResponse device, FactoryTestStatus finalStatus) {
+        try {
+            FactoryDeviceResponse refreshed = factoryProvisioningService.getFactoryDevice(device.getId());
+            FactoryTestRunResponse latestRun = latestRun(refreshed);
+            if (latestRun == null || latestRun.getStatus() != FactoryTestStatus.RUNNING) {
+                CreateFactoryTestRunRequest runRequest = new CreateFactoryTestRunRequest();
+                runRequest.setStationName("vaadin-admin");
+                runRequest.setNotes("Auto-created mock test run from admin provisioning UI");
+                latestRun = factoryProvisioningService.startTestRun(adminAccountId, device.getId(), runRequest);
+            }
+
+            CreateFactoryTestStepRequest stepRequest = new CreateFactoryTestStepRequest();
+            stepRequest.setStepKey("mock_final_result");
+            stepRequest.setStatus(finalStatus);
+            stepRequest.setExpectedValue(finalStatus.name());
+            stepRequest.setActualValue(finalStatus.name());
+            stepRequest.setDetails(finalStatus == FactoryTestStatus.PASSED
+                    ? "Mock pass from admin provisioning UI"
+                    : "Mock fail from admin provisioning UI");
+            stepRequest.setFinalizeRun(true);
+            factoryProvisioningService.addTestStep(latestRun.getId(), stepRequest);
+
+            refreshGrid();
+            showSuccess(t(
+                    finalStatus == FactoryTestStatus.PASSED
+                            ? "admin.provisioning.mockPassed"
+                            : "admin.provisioning.mockFailed",
+                    device.getSerialNumber()
+            ));
+        } catch (Exception e) {
+            showError(e.getMessage());
         }
     }
 
@@ -276,6 +360,32 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         }
         String normalized = serialNumber.toLowerCase().replaceAll("[^a-z0-9]", "");
         return normalized.isBlank() ? "" : "factory-" + normalized;
+    }
+
+    private FactoryTestRunResponse latestRun(FactoryDeviceResponse device) {
+        if (device.getTestRuns() == null || device.getTestRuns().isEmpty()) {
+            return null;
+        }
+        return device.getTestRuns().getFirst();
+    }
+
+    private String latestRunLabel(FactoryDeviceResponse device, DateTimeFormatter formatter) {
+        FactoryTestRunResponse latestRun = latestRun(device);
+        if (latestRun == null) {
+            return "";
+        }
+        String finished = latestRun.getFinishedAt() != null ? formatter.format(latestRun.getFinishedAt()) : t("admin.provisioning.running");
+        return latestRun.getStatus() + " / " + finished;
+    }
+
+    private void showSuccess(String message) {
+        Notification notification = Notification.show(message);
+        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+    }
+
+    private void showError(String message) {
+        Notification notification = Notification.show(Objects.requireNonNullElse(message, t("admin.provisioning.genericError")));
+        notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 
     private String t(String key, Object... args) {
