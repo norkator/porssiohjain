@@ -6,6 +6,9 @@ import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.PowerLimitRepository;
+import com.nitramite.porssiohjain.entity.repository.ProductionSourceRepository;
+import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.TokenRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +53,15 @@ class AdminFactoryControllerTest {
     private DeviceRepository deviceRepository;
 
     @Autowired
+    private ProductionSourceRepository productionSourceRepository;
+
+    @Autowired
+    private PowerLimitRepository powerLimitRepository;
+
+    @Autowired
+    private SiteRepository siteRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @MockitoBean
@@ -62,6 +74,9 @@ class AdminFactoryControllerTest {
     void setUp() throws Exception {
         factoryDeviceRepository.deleteAll();
         deviceRepository.deleteAll();
+        productionSourceRepository.deleteAll();
+        powerLimitRepository.deleteAll();
+        siteRepository.deleteAll();
         tokenRepository.deleteAll();
         accountRepository.deleteAll();
 
