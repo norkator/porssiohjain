@@ -1,493 +1,129 @@
 # Provisioning Guide
 
-This document describes the current device provisioning, factory testing, claim-code onboarding, MQTT profile, and OTA
-flow in this repository.
+This document contains only the basic usage flow for provisioning devices.
 
-It is intended for:
+## Purpose
 
-- production or factory operators
-- backend developers
-- anyone integrating MQTT relay devices such as OpenBeken, Tasmota, or ESPHome
+Provisioning is used when:
 
-## Goals
+- production adds hardware into the system before any end user owns it
+- the device is tested in production
+- the end user later claims that tested device into their own account with a claim code
 
-The provisioning system exists to solve three separate problems without mixing them together:
+## Basic Idea
 
-- manufacturing needs a way to register and test hardware before it belongs to an end user
-- users need a simple way to claim a pre-provisioned device into their own account
-- MQTT firmware families need a generic backend model instead of one-off logic per platform
+There are two phases:
 
-The backend therefore has:
+1. Production creates and tests a provisioned device.
+2. The user later turns that provisioned device into their own actual device.
 
-- a factory-side domain for pre-user devices
-- a normal `device` domain for user-owned devices
-- an MQTT device profile layer for capability and OTA behavior
+Production does not create the final user-owned device directly.
 
-## High-Level Flow
+## Short Production Flow
 
-1. A device is flashed with supported firmware such as OpenBeken, Tasmota, or ESPHome.
-2. Production registers the hardware into the backend as a `factory_device`.
-3. The device connects to MQTT using bootstrap credentials and a bootstrap topic root.
-4. Production runs factory tests and records step results.
-5. When testing passes, the device becomes claimable.
-6. The device has a printed QR code or visible claim code.
-7. A logged-in user looks up the device with the claim code.
-8. The user claims it into their own account.
-9. The backend creates a normal `device` entry and links the original `factory_device` to it.
-10. OTA can be triggered either before claim or later, using an HTTP binary URL and MQTT command delivery.
-
-## Short Production Steps
-
-If you have device X physically on the production line, the short operational flow is:
+If you have device X on the production line:
 
 1. Flash device X with the target firmware.
-2. Open the admin provisioning UI or call the admin factory API.
-3. Create a `factory_device` entry for device X with:
+2. Open the admin provisioning UI at `/admin/provisioning`.
+3. Create a new provisioned device with at least:
     - serial number
     - platform
     - product model
     - MQTT profile
-4. Let the backend generate or store:
-    - MQTT bootstrap username/password
-    - MQTT topic root
-    - claim code
-5. Print the claim code as QR code on the device or package.
-6. Power the device and verify it connects to MQTT with bootstrap credentials.
-7. Run the factory test cycle.
-8. Mark the test result as passed.
+4. Let the backend generate defaults when possible.
+    - `mqttTopicRoot` is prefilled from serial number
+    - `mqttUsername` is prefilled from serial number
+    - `mqttPassword` can be left empty and will be auto-generated
+    - `claimCode` can be left empty and will be auto-generated
+5. Print the claim code as QR code or label on the device or package.
+6. Power the device and verify it connects.
+7. Run the test flow.
+8. Mark the device as passed.
 9. Ship the device.
-10. The user later scans or types the claim code and claims device X into their own account.
 
-That means production does not create a normal user-owned `device` directly. Production creates a `factory_device`
-first, and the user claim flow creates the final `device` later.
+After that, the device is ready for the user claim flow.
 
-## Data Model
-
-### Factory-Side Tables
-
-Created
-in [V59__create_factory_provisioning_and_ota_tables.sql](/home/norkator/Documents/GitHub/porssiohjain/src/main/resources/db/migration/V59__create_factory_provisioning_and_ota_tables.sql:1):
-
-- `factory_device`
-- `factory_test_run`
-- `factory_test_step_result`
-- `ota_release`
-- `ota_deployment`
-
-Extended
-in [V60__add_mqtt_profiles_and_claim_codes.sql](/home/norkator/Documents/GitHub/porssiohjain/src/main/resources/db/migration/V60__add_mqtt_profiles_and_claim_codes.sql:1):
-
-- `factory_device.mqtt_device_profile`
-- `factory_device.claim_code`
-- `factory_device.claimed_at`
-- `device.mqtt_device_profile`
-
-### Main Device Ownership Split
-
-`factory_device`:
-
-- exists before a user owns the hardware
-- stores factory bootstrap MQTT identity
-- stores claim code used by QR or printed label
-- stores platform and MQTT profile
-- stores testing and OTA history
-
-`device`:
-
-- exists only after claim
-- belongs to an account
-- is used by normal controls, dashboards, and automation
-- inherits MQTT credentials and profile from the provisioned factory device
-
-## Status Model
-
-Factory device statuses:
-
-- `REGISTERED`
-- `TESTING`
-- `PASSED`
-- `FAILED`
-- `CLAIMED`
-
-Only `PASSED` devices are claimable.
-
-### Claimability Rule
-
-A device is claimable when:
-
-- `factory_device.status == PASSED`
-- `factory_device.claimed_device_id == null`
-
-## MQTT Device Profiles
-
-Profiles are defined
-in [MqttDeviceProfile.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/entity/enums/MqttDeviceProfile.java:1).
-
-Current profiles:
-
-- `GENERIC_RELAY`
-- `OPENBEKEN_RELAY`
-- `TASMOTA_RELAY`
-- `ESPHOME_RELAY`
-- `GENERIC_THERMOSTAT`
-
-Capabilities are resolved
-by [MqttProfileService.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/services/MqttProfileService.java:1).
-
-Current capability model:
-
-- `RELAY_SWITCH`
-- `OTA_HTTP`
-- `TELEMETRY`
-- `THERMOSTAT_SETPOINT`
-
-This is the intended expansion seam for future profile-aware behavior:
-
-- command topic conventions
-- relay payload format
-- telemetry parsing
-- thermostat payloads
-- OTA command payload shape
-
-## Claim Codes and QR Codes
-
-Every `factory_device` has a `claim_code`.
-
-Purpose:
-
-- production can print it as QR code text
-- users can type it manually if scanning is unavailable
-- it avoids exposing internal database ids
-
-Recommended QR content:
-
-- simplest option: raw claim code such as `QR-AB12CD34`
-- richer option: app-specific claim URL like `https://app.example/devices/claim/QR-AB12CD34`
-
-The backend only requires the claim code string.
-
-## Admin / Production API
-
-Admin endpoints are
-in [AdminFactoryController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/AdminFactoryController.java:1).
-
-All endpoints below require an authenticated admin account.
-
-## Admin / Production UI
-
-There is now a Vaadin admin UI for provisioning
-in [AdminProvisioningView.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/views/AdminProvisioningView.java:1).
+## Admin Provisioning UI
 
 Route:
 
 - `/admin/provisioning`
 
-Access rule:
+Access:
 
-- available only when the authenticated `AccountEntity.admin == true`
-
-Entry point:
-
-- open the normal admin page at `/admin`
-- use the `Provisioning` button
+- only available when `AccountEntity.admin == true`
 
 Current UI supports:
 
-- creating a new `factory_device`
-- choosing platform
-- choosing MQTT profile
-- optionally entering firmware version, MAC, chip id, claim code, MQTT credentials, topic root, and metadata
-- listing existing provisioned devices in a grid
-- seeing claim code, status, profile, topic root, and last seen time
+- creating provisioned devices
+- viewing provisioned devices
+- mock testing from the UI
+    - `Start test`
+    - `Mark passed`
+    - `Mark failed`
 
-Current UI does not yet support:
+The mock buttons are useful when you want to simulate the production end of the process without separate tooling.
 
-- running factory tests directly from Vaadin
-- editing existing factory devices
-- triggering OTA from Vaadin
-- generating QR images directly in UI
+## User Claim Flow
 
-So at the moment the Vaadin UI is mainly for creating and viewing provisioned devices, while the full test and OTA
-workflow is still API-driven.
+When a device has passed production testing:
 
-### Factory Devices
-
-- `GET /admin/factory/devices`
-- `POST /admin/factory/devices`
-- `GET /admin/factory/devices/{id}`
-- `PUT /admin/factory/devices/{id}`
-
-Example create request:
-
-```json
-{
-  "serialNumber": "SER-001",
-  "platform": "OPENBEKEN",
-  "productModel": "Relay-2CH",
-  "mqttDeviceProfile": "OPENBEKEN_RELAY"
-}
-```
-
-Optional fields:
-
-- `hardwareMac`
-- `chipId`
-- `firmwareVersion`
-- `mqttTopicRoot`
-- `mqttUsername`
-- `mqttPassword`
-- `claimCode`
-- `metadataJson`
-
-### Factory Testing
-
-- `POST /admin/factory/devices/{id}/test-runs`
-- `POST /admin/factory/test-runs/{runId}/steps`
-
-Typical flow:
-
-1. Start a test run with station name.
-2. Add step results such as relay, LED, button, or telemetry checks.
-3. Finalize the run with pass/fail.
-
-Example start:
-
-```json
-{
-  "stationName": "line-a-station-3",
-  "notes": "first article inspection"
-}
-```
-
-Example step:
-
-```json
-{
-  "stepKey": "relay_1_on",
-  "status": "PASSED",
-  "expectedValue": "on",
-  "actualValue": "on",
-  "details": "fixture current draw OK",
-  "finalizeRun": false
-}
-```
-
-Final pass:
-
-```json
-{
-  "stepKey": "final_result",
-  "status": "PASSED",
-  "details": "all checks passed",
-  "finalizeRun": true
-}
-```
-
-### Admin Claim Shortcut
-
-- `POST /admin/factory/devices/{id}/claim`
-
-This exists for backend/admin workflows, but the normal intended flow is user self-claim by claim code.
-
-### OTA Release Management
-
-- `GET /admin/factory/ota-releases`
-- `POST /admin/factory/ota-releases`
-- `POST /admin/factory/devices/{id}/ota-deployments`
-
-Example OTA release:
-
-```json
-{
-  "platform": "OPENBEKEN",
-  "productModel": "Relay-2CH",
-  "version": "1.2.3",
-  "binaryUrl": "https://ota.example.com/openbeken/relay-2ch-1.2.3.bin",
-  "checksumSha256": "abc123",
-  "active": true
-}
-```
-
-Example OTA deployment:
-
-```json
-{
-  "otaReleaseId": 5
-}
-```
-
-Optional `commandTemplate` allows overriding the profile default payload. Supported placeholders:
-
-- `{url}`
-- `{checksum}`
-- `{version}`
-- `{platform}`
-- `{profile}`
-
-## User Claim API
-
-User-facing provisioning endpoints are
-in [DevicesController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/DevicesController.java:1).
-
-These require a normal authenticated user account.
-
-### Lookup Provisioned Device
-
-- `GET /devices/provisioned/{claimCode}`
-
-Purpose:
-
-- confirm that the QR/claim code exists
-- show basic model/profile information
-- tell the UI whether the device is currently claimable
-
-Example response fields:
-
-- `factoryDeviceId`
-- `claimCode`
-- `serialNumber`
-- `productModel`
-- `platform`
-- `mqttDeviceProfile`
-- `mqttCapabilities`
-- `firmwareVersion`
-- `lastSeenAt`
-- `claimable`
-
-### Claim Provisioned Device
-
-- `POST /devices/provisioned/claim`
-
-Example request:
-
-```json
-{
-  "claimCode": "QR-TEST-001",
-  "deviceName": "Boiler Relay",
-  "timezone": "Europe/Helsinki"
-}
-```
+1. The user logs in.
+2. The user opens the Vaadin device view.
+3. In `DeviceView`, the user uses the claim-code section.
+4. The user enters the claim code.
+5. The user looks up the provisioned device.
+6. If the device is claimable, the user gives it a final device name and timezone.
+7. The user clicks `Claim device`.
 
 Result:
 
-- creates a normal `device`
-- assigns it to the authenticated account
-- preserves MQTT username/password from the factory device
-- preserves MQTT profile
-- marks the factory device as `CLAIMED`
+- a normal user-owned device is created
+- it is attached to the user account
+- the provisioned device is marked as claimed
 
-## MQTT Topic and Identity Model
+## DeviceView Claim Section
 
-There are two identity phases.
+The manual claim UI is now in the Vaadin `DeviceView`.
 
-### Factory Bootstrap Identity
+It supports:
 
-Factory devices use:
+- entering a claim code
+- looking up a provisioned device
+- creating the final user device from that claim code
 
-- `factory_device.mqtt_username`
-- `factory_device.mqtt_password`
-- `factory_device.mqtt_topic_root`
+QR scanning is not part of this UI yet. For now, the user enters the claim code manually.
 
-Default topic root:
+## Basic API Endpoints
 
-- `factory/bootstrap/{serialNumber}`
+Admin side:
 
-Observed inbound bootstrap topics currently include:
+- `GET /admin/factory/devices`
+- `POST /admin/factory/devices`
+- `POST /admin/factory/devices/{id}/test-runs`
+- `POST /admin/factory/test-runs/{runId}/steps`
 
-- `factory/bootstrap/{serial}/state`
-- `factory/bootstrap/{serial}/telemetry/...`
+User side:
 
-Commands are sent to:
+- `GET /devices/provisioned/{claimCode}`
+- `POST /devices/provisioned/claim`
 
-- `{mqttTopicRoot}/command`
+## OTA
 
-### Final User Device Identity
+OTA uses:
 
-Claimed user devices use:
+- MQTT for sending the update command
+- HTTP for serving the firmware binary
 
-- `device.uuid` as their logical root
-- inherited MQTT username/password
-- `device.mqtt_device_profile`
+In practice:
 
-Examples:
+1. Store the firmware binary on your OTA HTTP server.
+2. Create an OTA release in the backend.
+3. Trigger OTA for the provisioned device or later for the claimed device.
 
-- `{deviceUuid}/command/...`
-- `{deviceUuid}/online`
-- `{deviceUuid}/state/...`
-- `{deviceUuid}/telemetry/...`
+## Notes
 
-## RabbitMQ Authorization Rules
-
-Broker HTTP auth is handled
-by [RabbitMqAuthController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/RabbitMqAuthController.java:1).
-
-Current design:
-
-- clients authenticate with username/password stored in either `device` or `factory_device`
-- clients are restricted to the default vhost `/`
-- clients cannot write to command topics
-- clients can only read their own command topics
-- clients can only write their own state/telemetry/online or factory state/status topics
-- unknown users are denied
-
-This is important for OTA and provisioning safety. Do not widen those permissions casually.
-
-## OTA Model
-
-OTA transport is intentionally split:
-
-- MQTT is used as the control plane
-- HTTP is used as the binary delivery plane
-
-The backend stores OTA release metadata in `ota_release`, then creates `ota_deployment` records when dispatching an
-update.
-
-The current default command payload comes from `MqttProfileService`:
-
-- OpenBeken profile: `ota_http`
-- Tasmota profile: `upgrade`
-- ESPHome profile: `ota_update`
-- generic fallback: `ota_install`
-
-This is only the backend command envelope. The actual firmware implementation and topic subscription behavior must match
-the selected profile.
-
-## Current Backend Classes
-
-Core provisioning classes:
-
-- [FactoryProvisioningService.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/services/FactoryProvisioningService.java:1)
-- [AdminFactoryController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/AdminFactoryController.java:1)
-- [DevicesController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/DevicesController.java:1)
-- [MqttProfileService.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/services/MqttProfileService.java:1)
-- [RabbitMqAuthController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/RabbitMqAuthController.java:1)
-- [MqttListener.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/mqtt/MqttListener.java:1)
-
-Core model classes:
-
-- [FactoryDeviceEntity.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/entity/FactoryDeviceEntity.java:1)
-- [DeviceEntity.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/entity/DeviceEntity.java:1)
-- [FactoryDeviceResponse.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/services/models/FactoryDeviceResponse.java:1)
-- [ProvisionedDeviceLookupResponse.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/services/models/ProvisionedDeviceLookupResponse.java:1)
-- [ClaimProvisionedDeviceRequest.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/services/models/ClaimProvisionedDeviceRequest.java:1)
-
-## Recommended Production Workflow
-
-1. Flash firmware and initial configuration.
-2. Create `factory_device` in admin API or `/admin/provisioning` Vaadin UI.
-3. Print QR label from `claimCode`.
-4. Connect device to MQTT bootstrap broker/user.
-5. Verify device seen in backend.
-6. Run factory tests and mark pass/fail.
-7. Optionally push a known-good OTA release.
-8. Ship the device.
-9. User logs in, scans QR code, sees device details, and claims it.
-
-## Recommended Next Development Steps
-
-- Make relay command publishing profile-aware instead of assuming one generic MQTT command pattern.
-- Add profile-aware telemetry parsers so device health and runtime state can be normalized.
-- Add explicit mobile/web UI for scan-and-claim flow.
-- Add QR code generation endpoint or admin UI helper.
-- Add reservation or claim-expiry rules if production inventory needs stricter handling.
-- Add user-facing error states for `FAILED`, offline, or already-claimed devices.
+- A device must pass testing before it can be claimed.
+- Claim code is the key thing production gives to the user.
+- MQTT profile should match the firmware family, for example OpenBeken, Tasmota, or ESPHome.
+- If you leave generated fields empty in the admin UI, the backend will fill them for you.
