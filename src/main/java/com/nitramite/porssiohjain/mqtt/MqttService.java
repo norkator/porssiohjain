@@ -35,13 +35,16 @@ public class MqttService {
     public void switchControl(String deviceId, int channel, boolean on) {
         String topic = deviceId + "/command/switch:" + channel;
         String payload = on ? "on" : "off";
-        mqttOutboundChannel.send(new GenericMessage<>(payload,
-                Map.of("mqtt_topic", topic)));
+        publish(topic, payload);
     }
 
     public void setThermostatTemperature(String deviceId, int channel, BigDecimal targetTemperature) {
         String topic = deviceId + "/command/thermostat:" + channel;
         String payload = "{\"targetTemperature\":" + targetTemperature.toPlainString() + "}";
+        publish(topic, payload);
+    }
+
+    public void publish(String topic, String payload) {
         mqttOutboundChannel.send(new GenericMessage<>(payload,
                 Map.of("mqtt_topic", topic)));
     }

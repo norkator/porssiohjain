@@ -14,9 +14,14 @@ package com.nitramite.porssiohjain;
 import com.jayway.jsonpath.JsonPath;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.FactoryDeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.TokenRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
@@ -37,6 +42,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -61,6 +67,9 @@ class DeviceControllerTest {
     private DeviceRepository deviceRepository;
 
     @Autowired
+    private FactoryDeviceRepository factoryDeviceRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @MockitoBean
@@ -74,6 +83,7 @@ class DeviceControllerTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        factoryDeviceRepository.deleteAll();
         deviceRepository.deleteAll();
         tokenRepository.deleteAll();
         accountRepository.deleteAll();
@@ -195,6 +205,51 @@ class DeviceControllerTest {
                 .andExpect(jsonPath("$[0].id").value("ac-123"))
                 .andExpect(jsonPath("$[0].name").value("Living room"))
                 .andExpect(jsonPath("$[0].deviceUniqueId").value("unique-123"));
+    }
+
+    @Test
+    @DisplayName("Lookup and claim a passed provisioned device by claim code")
+    void lookupAndClaimProvisionedDevice() throws Exception {
+        FactoryDeviceEntity factoryDevice = factoryDeviceRepository.save(FactoryDeviceEntity.builder()
+                .serialNumber("SER-QR-001")
+                .platform(DevicePlatform.OPENBEKEN)
+                .productModel("Relay-2CH")
+                .firmwareVersion("1.0.0")
+                .mqttTopicRoot("factory/bootstrap/SER-QR-001")
+                .mqttUsername("factory-user")
+                .mqttPassword("factory-secret")
+                .mqttDeviceProfile(MqttDeviceProfile.OPENBEKEN_RELAY)
+                .claimCode("QR-TEST-001")
+                .status(FactoryDeviceStatus.PASSED)
+                .build());
+
+        mockMvc.perform(get("/devices/provisioned/QR-TEST-001")
+                        .header("Authorization", authToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.factoryDeviceId").value(factoryDevice.getId()))
+                .andExpect(jsonPath("$.claimCode").value("QR-TEST-001"))
+                .andExpect(jsonPath("$.mqttDeviceProfile").value("OPENBEKEN_RELAY"))
+                .andExpect(jsonPath("$.claimable").value(true));
+
+        String claimJson = """
+                {
+                    "claimCode": "QR-TEST-001",
+                    "deviceName": "Boiler Relay",
+                    "timezone": "Europe/Helsinki"
+                }
+                """;
+
+        mockMvc.perform(post("/devices/provisioned/claim")
+                        .header("Authorization", authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(claimJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deviceName").value("Boiler Relay"))
+                .andExpect(jsonPath("$.mqttUsername").value("factory-user"))
+                .andExpect(jsonPath("$.mqttDeviceProfile").value("OPENBEKEN_RELAY"));
+
+        FactoryDeviceEntity updated = factoryDeviceRepository.findById(factoryDevice.getId()).orElseThrow();
+        assertNotNull(updated.getClaimedDevice());
     }
 
 }

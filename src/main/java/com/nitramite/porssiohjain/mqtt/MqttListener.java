@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.mqtt;
 
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.FactoryProvisioningService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -29,6 +30,7 @@ import java.util.UUID;
 public class MqttListener {
 
     private final DeviceRepository deviceRepository;
+    private final FactoryProvisioningService factoryProvisioningService;
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMessage(Message<?> message) {
@@ -47,6 +49,10 @@ public class MqttListener {
                         device.setLastCommunication(Instant.now());
                         deviceRepository.save(device);
                     });
+            return;
+        }
+        if (topic.startsWith("factory/bootstrap/")) {
+            factoryProvisioningService.registerBootstrapMessage(topic, payload);
         }
     }
 

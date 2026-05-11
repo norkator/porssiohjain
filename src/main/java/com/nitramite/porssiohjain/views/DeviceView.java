@@ -22,12 +22,15 @@ import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.FileService;
+import com.nitramite.porssiohjain.services.FactoryProvisioningService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.DeviceAcCommandLogResponse;
+import com.nitramite.porssiohjain.services.models.ClaimProvisionedDeviceRequest;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesResponse;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesService;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiLoginService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.models.ProvisionedDeviceLookupResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcDevicesService;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcMappingResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaLoginService;
@@ -81,6 +84,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final DeviceAcCommandLogService deviceAcCommandLogService;
     private final AuthService authService;
     private final FileService fileService;
+    private final FactoryProvisioningService factoryProvisioningService;
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcDevicesService toshibaAcDevicesService;
     private final MitsubishiLoginService mitsubishiLoginService;
@@ -107,6 +111,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private final Button saveButton;
     private final Span limitInfo;
+    private final TextField claimCodeLookupField;
+    private final TextField claimDeviceNameField;
+    private final ComboBox<String> claimTimezoneCombo;
+    private final Button lookupProvisionedDeviceButton;
+    private final Button claimProvisionedDeviceButton;
+    private final Span provisionedLookupInfo;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -123,6 +133,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             DeviceAcCommandLogService deviceAcCommandLogService,
             AuthService authService,
             FileService fileService,
+            FactoryProvisioningService factoryProvisioningService,
             I18nService i18n,
             ToshibaLoginService toshibaLoginService,
             ToshibaAcDevicesService toshibaAcDevicesService,
@@ -135,6 +146,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         this.deviceAcCommandLogService = deviceAcCommandLogService;
         this.authService = authService;
         this.fileService = fileService;
+        this.factoryProvisioningService = factoryProvisioningService;
         this.i18n = i18n;
         this.toshibaLoginService = toshibaLoginService;
         this.toshibaAcDevicesService = toshibaAcDevicesService;
@@ -167,6 +179,16 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         saveButton = new Button(t("device.button.save"));
         limitInfo = new Span();
         limitInfo.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.9rem");
+
+        claimCodeLookupField = new TextField(t("device.claim.claimCode"));
+        claimDeviceNameField = new TextField(t("device.claim.deviceName"));
+        claimTimezoneCombo = new ComboBox<>(t("device.claim.timezone"));
+        lookupProvisionedDeviceButton = new Button(t("device.claim.lookupButton"));
+        claimProvisionedDeviceButton = new Button(t("device.claim.claimButton"));
+        provisionedLookupInfo = new Span();
+        provisionedLookupInfo.getStyle()
                 .set("color", "var(--lumo-secondary-text-color)")
                 .set("font-size", "0.9rem");
 
@@ -351,6 +373,18 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         saveButton.addClickListener(e -> handleSave());
         saveButton.getStyle().set("align-self", "start");
 
+        claimTimezoneCombo.setItems(ZoneId.getAvailableZoneIds());
+        claimTimezoneCombo.setWidth("250px");
+        claimTimezoneCombo.setValue(ZoneId.systemDefault().getId());
+        claimDeviceNameField.setValue("");
+
+        lookupProvisionedDeviceButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        lookupProvisionedDeviceButton.addClickListener(e -> lookupProvisionedDevice());
+
+        claimProvisionedDeviceButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        claimProvisionedDeviceButton.addClickListener(e -> claimProvisionedDevice());
+        claimProvisionedDeviceButton.setEnabled(false);
+
         FormLayout formLayout = new FormLayout();
         formLayout.setWidthFull();
         formLayout.getStyle().set("margin-top", "20px");
@@ -375,8 +409,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         actions.setAlignItems(Alignment.START);
 
         VerticalLayout certificateSection = createCertificateSection();
+        VerticalLayout claimProvisionedSection = createClaimProvisionedDeviceSection();
 
-        card.add(title, deviceGrid, formLayout, heatPumpForm, actions, Divider.createDivider(), certificateSection);
+        card.add(title, deviceGrid, formLayout, heatPumpForm, actions, Divider.createDivider(), claimProvisionedSection,
+                Divider.createDivider(), certificateSection);
         add(card);
 
         deviceTypeCombo.addValueChangeListener(event -> {
@@ -411,6 +447,35 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         section.add(title, description, userCaDownloadLink, userCaStatus);
         updateUserCaDownloadState();
+        return section;
+    }
+
+    private VerticalLayout createClaimProvisionedDeviceSection() {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(true);
+        section.setAlignItems(Alignment.START);
+        section.setWidthFull();
+
+        H2 title = new H2(t("device.claim.title"));
+        title.getStyle().set("margin", "0");
+
+        Span description = new Span(t("device.claim.description"));
+        description.getStyle().set("color", "var(--lumo-secondary-text-color)");
+
+        FormLayout formLayout = new FormLayout();
+        formLayout.setWidthFull();
+        formLayout.add(claimCodeLookupField, claimDeviceNameField, claimTimezoneCombo);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("720px", 3)
+        );
+
+        HorizontalLayout actions = new HorizontalLayout(lookupProvisionedDeviceButton, claimProvisionedDeviceButton);
+        actions.setPadding(false);
+        actions.setSpacing(true);
+
+        section.add(title, description, formLayout, actions, provisionedLookupInfo);
         return section;
     }
 
@@ -623,6 +688,78 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         } catch (Exception e) {
             Notification notification = Notification.show(t("device.notification.failed", e.getMessage()));
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    private void lookupProvisionedDevice() {
+        try {
+            String claimCode = claimCodeLookupField.getValue();
+            if (claimCode == null || claimCode.isBlank()) {
+                Notification.show(t("device.claim.claimCodeEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                claimProvisionedDeviceButton.setEnabled(false);
+                return;
+            }
+
+            ProvisionedDeviceLookupResponse response = factoryProvisioningService.lookupProvisionedDevice(claimCode);
+            provisionedLookupInfo.setText(t(
+                    "device.claim.lookupResult",
+                    response.getSerialNumber(),
+                    response.getProductModel(),
+                    response.getPlatform(),
+                    response.getMqttDeviceProfile(),
+                    response.isClaimable() ? t("common.yes") : t("common.no")
+            ));
+            claimProvisionedDeviceButton.setEnabled(response.isClaimable());
+            if (claimDeviceNameField.getValue() == null || claimDeviceNameField.getValue().isBlank()) {
+                claimDeviceNameField.setValue(response.getProductModel() != null ? response.getProductModel() : "");
+            }
+        } catch (Exception e) {
+            provisionedLookupInfo.setText(t("device.claim.lookupFailed", e.getMessage()));
+            claimProvisionedDeviceButton.setEnabled(false);
+            Notification.show(t("device.notification.failed", e.getMessage())).addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    private void claimProvisionedDevice() {
+        try {
+            String claimCode = claimCodeLookupField.getValue();
+            String deviceName = claimDeviceNameField.getValue();
+            String timezone = claimTimezoneCombo.getValue();
+
+            if (claimCode == null || claimCode.isBlank()) {
+                Notification.show(t("device.claim.claimCodeEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                return;
+            }
+            if (deviceName == null || deviceName.isBlank()) {
+                Notification.show(t("device.notification.nameEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                return;
+            }
+            if (timezone == null || timezone.isBlank()) {
+                Notification.show(t("device.notification.timezoneEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                return;
+            }
+
+            AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+            if (currentAccount == null) {
+                return;
+            }
+
+            ClaimProvisionedDeviceRequest request = new ClaimProvisionedDeviceRequest();
+            request.setClaimCode(claimCode);
+            request.setDeviceName(deviceName);
+            request.setTimezone(timezone);
+            factoryProvisioningService.claimProvisionedDevice(currentAccount.getId(), request);
+
+            Notification.show(t("device.claim.claimed")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            claimCodeLookupField.clear();
+            claimDeviceNameField.clear();
+            claimTimezoneCombo.setValue(ZoneId.systemDefault().getId());
+            provisionedLookupInfo.setText("");
+            claimProvisionedDeviceButton.setEnabled(false);
+            loadDevices();
+            updateLimitInfo();
+        } catch (Exception e) {
+            Notification.show(t("device.notification.failed", e.getMessage())).addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
 

@@ -13,12 +13,15 @@ package com.nitramite.porssiohjain.services.models;
 
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.MqttCapability;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -41,6 +44,8 @@ public class DeviceResponse {
     private Boolean mqttOnline;
     private String mqttUsername;
     private String mqttPassword;
+    private MqttDeviceProfile mqttDeviceProfile;
+    private List<MqttCapability> mqttCapabilities;
     private Boolean hasActiveChannels;
 
     // Heat pump related

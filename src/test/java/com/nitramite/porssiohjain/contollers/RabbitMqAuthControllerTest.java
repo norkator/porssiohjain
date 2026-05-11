@@ -12,7 +12,10 @@
 package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.FactoryDeviceEntity;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,16 +34,28 @@ class RabbitMqAuthControllerTest {
     @Mock
     private DeviceRepository deviceRepository;
 
+    @Mock
+    private FactoryDeviceRepository factoryDeviceRepository;
+
     private RabbitMqAuthController controller;
     private DeviceEntity device;
+    private FactoryDeviceEntity factoryDevice;
 
     @BeforeEach
     void setUp() {
-        controller = new RabbitMqAuthController(deviceRepository);
+        controller = new RabbitMqAuthController(deviceRepository, factoryDeviceRepository);
         device = DeviceEntity.builder()
                 .uuid(UUID.randomUUID())
                 .mqttUsername("device-user")
                 .mqttPassword("secret")
+                .build();
+        factoryDevice = FactoryDeviceEntity.builder()
+                .serialNumber("SER-001")
+                .platform(DevicePlatform.OPENBEKEN)
+                .productModel("Relay-2CH")
+                .mqttTopicRoot("factory/bootstrap/SER-001")
+                .mqttUsername("factory-user")
+                .mqttPassword("factory-secret")
                 .build();
     }
 
@@ -49,6 +64,14 @@ class RabbitMqAuthControllerTest {
         when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
 
         assertEquals("allow", controller.authenticateUser("device-user", "secret", "client-1", "/").getBody());
+    }
+
+    @Test
+    void authenticatesFactoryUserWithMatchingPassword() {
+        when(deviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.empty());
+        when(factoryDeviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.of(factoryDevice));
+
+        assertEquals("allow", controller.authenticateUser("factory-user", "factory-secret", "client-1", "/").getBody());
     }
 
     @Test
@@ -96,11 +119,23 @@ class RabbitMqAuthControllerTest {
     }
 
     @Test
-    void leavesNonDeviceUsersOnExistingAllowBehavior() {
-        when(deviceRepository.findByMqttUsername("spring-publisher")).thenReturn(Optional.empty());
+    void allowsFactoryDeviceToReadOwnCommandTopicOnly() {
+        when(deviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.empty());
+        when(factoryDeviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.of(factoryDevice));
 
-        assertEquals("allow", controller.authorizeResource("spring-publisher", "/", "exchange", "amq.topic", "write").getBody());
-        assertEquals("allow", controller.authorizeTopic("spring-publisher", "/", "topic", "amq.topic",
+        assertEquals("allow", controller.authorizeTopic("factory-user", "/", "topic", "amq.topic",
+                "read", "factory/bootstrap/SER-001/command/#").getBody());
+        assertEquals("deny", controller.authorizeTopic("factory-user", "/", "topic", "amq.topic",
+                "write", "factory/bootstrap/SER-001/command/reboot").getBody());
+    }
+
+    @Test
+    void deniesUnknownUsers() {
+        when(deviceRepository.findByMqttUsername("spring-publisher")).thenReturn(Optional.empty());
+        when(factoryDeviceRepository.findByMqttUsername("spring-publisher")).thenReturn(Optional.empty());
+
+        assertEquals("deny", controller.authorizeResource("spring-publisher", "/", "exchange", "amq.topic", "write").getBody());
+        assertEquals("deny", controller.authorizeTopic("spring-publisher", "/", "topic", "amq.topic",
                 "write", device.getUuid() + ".command.switch:1").getBody());
     }
 }

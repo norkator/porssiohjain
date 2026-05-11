@@ -30,6 +30,11 @@ If Pörssiohjain has helped you financially, consider [donating coffee money](ht
 
 Editable PlantUML sources live in [doc/README-diagrams.md](./doc/README-diagrams.md).
 
+## Provisioning
+
+Factory provisioning, claim-code onboarding, MQTT profiles, and OTA flow are documented
+in [PROVISIONING.md](./PROVISIONING.md).
+
 ### Standard Device Output Flow
 
 ![Standard device output flow](./doc/control-output-high-level.svg)

@@ -165,7 +165,7 @@ class AccountControllerTest {
                             .header("X-Forwarded-For", "50.50.50.50")
                             .contentType("application/json")
                             .content(requestBody))
-                    .andExpect(status().isInternalServerError());
+                    .andExpect(status().isBadRequest());
         }
 
         mockMvc.perform(post("/account/login")
