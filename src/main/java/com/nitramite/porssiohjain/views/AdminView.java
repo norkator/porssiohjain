@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.SystemLogResponse;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -67,6 +68,9 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         card.addClassName("responsive-card");
 
         Button backButton = new Button("← " + t("admin.back"), e -> UI.getCurrent().navigate(HomeView.class));
+        Button provisioningButton = new Button(t("admin.provisioning.button"),
+                e -> UI.getCurrent().navigate(AdminProvisioningView.class));
+        provisioningButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         H1 title = new H1(t("admin.title"));
         title.getStyle().set("margin-bottom", "1em");
@@ -99,7 +103,7 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
             }
         }
 
-        card.add(backButton, title, createDivider(), logList);
+        card.add(backButton, title, provisioningButton, createDivider(), logList);
         add(card);
     }
 

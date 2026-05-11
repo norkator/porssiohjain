@@ -1,6 +1,7 @@
 # Provisioning Guide
 
-This document describes the current device provisioning, factory testing, claim-code onboarding, MQTT profile, and OTA flow in this repository.
+This document describes the current device provisioning, factory testing, claim-code onboarding, MQTT profile, and OTA
+flow in this repository.
 
 It is intended for:
 
@@ -35,11 +36,37 @@ The backend therefore has:
 9. The backend creates a normal `device` entry and links the original `factory_device` to it.
 10. OTA can be triggered either before claim or later, using an HTTP binary URL and MQTT command delivery.
 
+## Short Production Steps
+
+If you have device X physically on the production line, the short operational flow is:
+
+1. Flash device X with the target firmware.
+2. Open the admin provisioning UI or call the admin factory API.
+3. Create a `factory_device` entry for device X with:
+    - serial number
+    - platform
+    - product model
+    - MQTT profile
+4. Let the backend generate or store:
+    - MQTT bootstrap username/password
+    - MQTT topic root
+    - claim code
+5. Print the claim code as QR code on the device or package.
+6. Power the device and verify it connects to MQTT with bootstrap credentials.
+7. Run the factory test cycle.
+8. Mark the test result as passed.
+9. Ship the device.
+10. The user later scans or types the claim code and claims device X into their own account.
+
+That means production does not create a normal user-owned `device` directly. Production creates a `factory_device`
+first, and the user claim flow creates the final `device` later.
+
 ## Data Model
 
 ### Factory-Side Tables
 
-Created in [V59__create_factory_provisioning_and_ota_tables.sql](/home/norkator/Documents/GitHub/porssiohjain/src/main/resources/db/migration/V59__create_factory_provisioning_and_ota_tables.sql:1):
+Created
+in [V59__create_factory_provisioning_and_ota_tables.sql](/home/norkator/Documents/GitHub/porssiohjain/src/main/resources/db/migration/V59__create_factory_provisioning_and_ota_tables.sql:1):
 
 - `factory_device`
 - `factory_test_run`
@@ -47,7 +74,8 @@ Created in [V59__create_factory_provisioning_and_ota_tables.sql](/home/norkator/
 - `ota_release`
 - `ota_deployment`
 
-Extended in [V60__add_mqtt_profiles_and_claim_codes.sql](/home/norkator/Documents/GitHub/porssiohjain/src/main/resources/db/migration/V60__add_mqtt_profiles_and_claim_codes.sql:1):
+Extended
+in [V60__add_mqtt_profiles_and_claim_codes.sql](/home/norkator/Documents/GitHub/porssiohjain/src/main/resources/db/migration/V60__add_mqtt_profiles_and_claim_codes.sql:1):
 
 - `factory_device.mqtt_device_profile`
 - `factory_device.claim_code`
@@ -92,7 +120,8 @@ A device is claimable when:
 
 ## MQTT Device Profiles
 
-Profiles are defined in [MqttDeviceProfile.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/entity/enums/MqttDeviceProfile.java:1).
+Profiles are defined
+in [MqttDeviceProfile.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/entity/enums/MqttDeviceProfile.java:1).
 
 Current profiles:
 
@@ -102,7 +131,8 @@ Current profiles:
 - `ESPHOME_RELAY`
 - `GENERIC_THERMOSTAT`
 
-Capabilities are resolved by [MqttProfileService.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/services/MqttProfileService.java:1).
+Capabilities are resolved
+by [MqttProfileService.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/services/MqttProfileService.java:1).
 
 Current capability model:
 
@@ -138,9 +168,47 @@ The backend only requires the claim code string.
 
 ## Admin / Production API
 
-Admin endpoints are in [AdminFactoryController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/AdminFactoryController.java:1).
+Admin endpoints are
+in [AdminFactoryController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/AdminFactoryController.java:1).
 
 All endpoints below require an authenticated admin account.
+
+## Admin / Production UI
+
+There is now a Vaadin admin UI for provisioning
+in [AdminProvisioningView.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/views/AdminProvisioningView.java:1).
+
+Route:
+
+- `/admin/provisioning`
+
+Access rule:
+
+- available only when the authenticated `AccountEntity.admin == true`
+
+Entry point:
+
+- open the normal admin page at `/admin`
+- use the `Provisioning` button
+
+Current UI supports:
+
+- creating a new `factory_device`
+- choosing platform
+- choosing MQTT profile
+- optionally entering firmware version, MAC, chip id, claim code, MQTT credentials, topic root, and metadata
+- listing existing provisioned devices in a grid
+- seeing claim code, status, profile, topic root, and last seen time
+
+Current UI does not yet support:
+
+- running factory tests directly from Vaadin
+- editing existing factory devices
+- triggering OTA from Vaadin
+- generating QR images directly in UI
+
+So at the moment the Vaadin UI is mainly for creating and viewing provisioned devices, while the full test and OTA
+workflow is still API-driven.
 
 ### Factory Devices
 
@@ -258,7 +326,8 @@ Optional `commandTemplate` allows overriding the profile default payload. Suppor
 
 ## User Claim API
 
-User-facing provisioning endpoints are in [DevicesController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/DevicesController.java:1).
+User-facing provisioning endpoints are
+in [DevicesController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/DevicesController.java:1).
 
 These require a normal authenticated user account.
 
@@ -349,7 +418,8 @@ Examples:
 
 ## RabbitMQ Authorization Rules
 
-Broker HTTP auth is handled by [RabbitMqAuthController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/RabbitMqAuthController.java:1).
+Broker HTTP auth is handled
+by [RabbitMqAuthController.java](/home/norkator/Documents/GitHub/porssiohjain/src/main/java/com/nitramite/porssiohjain/contollers/RabbitMqAuthController.java:1).
 
 Current design:
 
@@ -369,7 +439,8 @@ OTA transport is intentionally split:
 - MQTT is used as the control plane
 - HTTP is used as the binary delivery plane
 
-The backend stores OTA release metadata in `ota_release`, then creates `ota_deployment` records when dispatching an update.
+The backend stores OTA release metadata in `ota_release`, then creates `ota_deployment` records when dispatching an
+update.
 
 The current default command payload comes from `MqttProfileService`:
 
@@ -378,7 +449,8 @@ The current default command payload comes from `MqttProfileService`:
 - ESPHome profile: `ota_update`
 - generic fallback: `ota_install`
 
-This is only the backend command envelope. The actual firmware implementation and topic subscription behavior must match the selected profile.
+This is only the backend command envelope. The actual firmware implementation and topic subscription behavior must match
+the selected profile.
 
 ## Current Backend Classes
 
@@ -402,7 +474,7 @@ Core model classes:
 ## Recommended Production Workflow
 
 1. Flash firmware and initial configuration.
-2. Create `factory_device` in admin API.
+2. Create `factory_device` in admin API or `/admin/provisioning` Vaadin UI.
 3. Print QR label from `claimCode`.
 4. Connect device to MQTT bootstrap broker/user.
 5. Verify device seen in backend.
