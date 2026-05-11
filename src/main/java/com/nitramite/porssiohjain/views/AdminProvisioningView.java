@@ -21,6 +21,7 @@ import com.nitramite.porssiohjain.services.models.FactoryDeviceResponse;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
@@ -31,7 +32,6 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -66,6 +66,8 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
     private final ComboBox<DevicePlatform> platformField = new ComboBox<>();
     private final ComboBox<MqttDeviceProfile> profileField = new ComboBox<>();
     private final TextArea metadataField = new TextArea();
+    private String lastSuggestedTopicRoot;
+    private String lastSuggestedMqttUsername;
 
     public AdminProvisioningView(
             AuthService authService,
@@ -152,6 +154,7 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         mqttUsernameField.setLabel(t("admin.provisioning.mqttUsername"));
         mqttPasswordField.setLabel(t("admin.provisioning.mqttPassword"));
         claimCodeField.setLabel(t("admin.provisioning.claimCode"));
+        claimCodeField.setHelperText(t("admin.provisioning.claimCodeHelper"));
 
         platformField.setLabel(t("admin.provisioning.platform"));
         platformField.setItems(DevicePlatform.values());
@@ -163,6 +166,12 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
 
         metadataField.setLabel(t("admin.provisioning.metadata"));
         metadataField.setMinHeight("120px");
+
+        mqttTopicRootField.setHelperText(t("admin.provisioning.topicRootHelper"));
+        mqttUsernameField.setHelperText(t("admin.provisioning.mqttUsernameHelper"));
+        mqttPasswordField.setHelperText(t("admin.provisioning.mqttPasswordHelper"));
+
+        serialNumberField.addValueChangeListener(event -> applySerialBasedDefaults(event.getValue()));
     }
 
     private void configureGrid() {
@@ -231,6 +240,42 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         metadataField.clear();
         platformField.clear();
         profileField.setValue(MqttDeviceProfile.GENERIC_RELAY);
+        lastSuggestedTopicRoot = null;
+        lastSuggestedMqttUsername = null;
+    }
+
+    private void applySerialBasedDefaults(String serialNumber) {
+        String suggestedTopicRoot = buildSuggestedTopicRoot(serialNumber);
+        String suggestedMqttUsername = buildSuggestedMqttUsername(serialNumber);
+
+        if (shouldApplySuggestion(mqttTopicRootField.getValue(), lastSuggestedTopicRoot)) {
+            mqttTopicRootField.setValue(suggestedTopicRoot);
+        }
+        if (shouldApplySuggestion(mqttUsernameField.getValue(), lastSuggestedMqttUsername)) {
+            mqttUsernameField.setValue(suggestedMqttUsername);
+        }
+
+        lastSuggestedTopicRoot = suggestedTopicRoot;
+        lastSuggestedMqttUsername = suggestedMqttUsername;
+    }
+
+    private boolean shouldApplySuggestion(String currentValue, String previousSuggestion) {
+        return currentValue == null || currentValue.isBlank() || currentValue.equals(previousSuggestion);
+    }
+
+    private String buildSuggestedTopicRoot(String serialNumber) {
+        if (serialNumber == null || serialNumber.isBlank()) {
+            return "";
+        }
+        return "factory/bootstrap/" + serialNumber.trim();
+    }
+
+    private String buildSuggestedMqttUsername(String serialNumber) {
+        if (serialNumber == null || serialNumber.isBlank()) {
+            return "";
+        }
+        String normalized = serialNumber.toLowerCase().replaceAll("[^a-z0-9]", "");
+        return normalized.isBlank() ? "" : "factory-" + normalized;
     }
 
     private String t(String key, Object... args) {
