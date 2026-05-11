@@ -1,6 +1,7 @@
 package com.nitramite.porssiohjain.services.models;
 
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import lombok.Data;
 
 @Data
@@ -14,5 +15,7 @@ public class CreateFactoryDeviceRequest {
     private String mqttTopicRoot;
     private String mqttUsername;
     private String mqttPassword;
+    private MqttDeviceProfile mqttDeviceProfile;
+    private String claimCode;
     private String metadataJson;
 }

@@ -2,6 +2,8 @@ package com.nitramite.porssiohjain.services.models;
 
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
+import com.nitramite.porssiohjain.entity.enums.MqttCapability;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,11 +27,15 @@ public class FactoryDeviceResponse {
     private String mqttTopicRoot;
     private String mqttUsername;
     private String mqttPassword;
+    private MqttDeviceProfile mqttDeviceProfile;
+    private List<MqttCapability> mqttCapabilities;
+    private String claimCode;
     private FactoryDeviceStatus status;
     private Instant lastSeenAt;
     private String lastBootstrapPayload;
     private String metadataJson;
     private Long claimedDeviceId;
+    private Instant claimedAt;
     private Instant createdAt;
     private Instant updatedAt;
     private List<FactoryTestRunResponse> testRuns;

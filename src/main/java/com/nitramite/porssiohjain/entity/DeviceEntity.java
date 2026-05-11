@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.entity;
 
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
@@ -71,6 +72,11 @@ public class DeviceEntity {
     @Column(name = "mqtt_password")
     private String mqttPassword;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "mqtt_device_profile", nullable = false, length = 64)
+    @Builder.Default
+    private MqttDeviceProfile mqttDeviceProfile = MqttDeviceProfile.GENERIC_RELAY;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -97,6 +103,9 @@ public class DeviceEntity {
         if (mqttPassword == null) {
             byte[] randomBytes = new SecureRandom().generateSeed(12);
             mqttPassword = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        }
+        if (mqttDeviceProfile == null) {
+            mqttDeviceProfile = MqttDeviceProfile.GENERIC_RELAY;
         }
     }
 

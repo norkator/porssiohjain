@@ -2,6 +2,7 @@ package com.nitramite.porssiohjain.entity;
 
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,6 +10,7 @@ import lombok.*;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.UUID;
 
 @Entity
 @Table(name = "factory_device")
@@ -53,6 +55,11 @@ public class FactoryDeviceEntity {
     private String mqttPassword;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "mqtt_device_profile", nullable = false, length = 64)
+    @Builder.Default
+    private MqttDeviceProfile mqttDeviceProfile = MqttDeviceProfile.GENERIC_RELAY;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 32)
     @Builder.Default
     private FactoryDeviceStatus status = FactoryDeviceStatus.REGISTERED;
@@ -69,6 +76,12 @@ public class FactoryDeviceEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "claimed_device_id")
     private DeviceEntity claimedDevice;
+
+    @Column(name = "claim_code", nullable = false, unique = true, length = 64)
+    private String claimCode;
+
+    @Column(name = "claimed_at")
+    private Instant claimedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -90,6 +103,12 @@ public class FactoryDeviceEntity {
         if (mqttPassword == null || mqttPassword.isBlank()) {
             byte[] randomBytes = new SecureRandom().generateSeed(18);
             mqttPassword = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        }
+        if (mqttDeviceProfile == null) {
+            mqttDeviceProfile = MqttDeviceProfile.GENERIC_RELAY;
+        }
+        if (claimCode == null || claimCode.isBlank()) {
+            claimCode = "QR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         }
     }
 

@@ -2,6 +2,7 @@ package com.nitramite.porssiohjain;
 
 import com.jayway.jsonpath.JsonPath;
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
@@ -91,7 +92,8 @@ class AdminFactoryControllerTest {
                 {
                     "serialNumber": "SER-001",
                     "platform": "OPENBEKEN",
-                    "productModel": "Relay-2CH"
+                    "productModel": "Relay-2CH",
+                    "mqttDeviceProfile": "OPENBEKEN_RELAY"
                 }
                 """;
 
@@ -104,12 +106,15 @@ class AdminFactoryControllerTest {
                 .andExpect(jsonPath("$.serialNumber").value("SER-001"))
                 .andExpect(jsonPath("$.mqttTopicRoot").value("factory/bootstrap/SER-001"))
                 .andExpect(jsonPath("$.mqttUsername").isString())
-                .andExpect(jsonPath("$.mqttPassword").isString());
+                .andExpect(jsonPath("$.mqttPassword").isString())
+                .andExpect(jsonPath("$.mqttDeviceProfile").value(MqttDeviceProfile.OPENBEKEN_RELAY.name()))
+                .andExpect(jsonPath("$.claimCode").isString());
 
         mockMvc.perform(get("/admin/factory/devices")
                         .header("Authorization", adminAuthToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].serialNumber").value("SER-001"));
+                .andExpect(jsonPath("$[0].serialNumber").value("SER-001"))
+                .andExpect(jsonPath("$[0].claimCode").isString());
     }
 
     @Test

@@ -15,4 +15,6 @@ public interface FactoryDeviceRepository extends JpaRepository<FactoryDeviceEnti
     Optional<FactoryDeviceEntity> findByMqttUsername(String mqttUsername);
 
     Optional<FactoryDeviceEntity> findByMqttTopicRoot(String mqttTopicRoot);
+
+    Optional<FactoryDeviceEntity> findByClaimCode(String claimCode);
 }

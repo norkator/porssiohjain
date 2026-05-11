@@ -32,6 +32,7 @@ import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpReposi
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
+import com.nitramite.porssiohjain.services.MqttProfileService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -84,11 +85,13 @@ class DeviceServiceTest {
     private AccountLimitService accountLimitService;
     @Mock
     private ControlService controlService;
+    private MqttProfileService mqttProfileService;
 
     private DeviceService deviceService;
 
     @BeforeEach
     void setUp() {
+        mqttProfileService = new MqttProfileService();
         deviceService = new DeviceService(
                 deviceRepository,
                 accountRepository,
@@ -107,7 +110,8 @@ class DeviceServiceTest {
                 weatherControlHeatPumpRepository,
                 controlThermostatRepository,
                 accountLimitService,
-                controlService
+                controlService,
+                mqttProfileService
         );
     }
 

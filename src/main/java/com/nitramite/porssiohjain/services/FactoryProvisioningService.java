@@ -4,6 +4,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
 import com.nitramite.porssiohjain.entity.enums.FactoryTestStatus;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.enums.OtaDeploymentStatus;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.mqtt.MqttService;
@@ -29,6 +30,7 @@ public class FactoryProvisioningService {
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
     private final DeviceService deviceService;
+    private final MqttProfileService mqttProfileService;
     private final ObjectProvider<MqttService> mqttServiceProvider;
 
     @Transactional(readOnly = true)
@@ -60,6 +62,8 @@ public class FactoryProvisioningService {
                 .mqttTopicRoot(defaultTopicRoot(serialNumber, request.getMqttTopicRoot()))
                 .mqttUsername(blankToNull(request.getMqttUsername()))
                 .mqttPassword(blankToNull(request.getMqttPassword()))
+                .mqttDeviceProfile(defaultProfile(request.getMqttDeviceProfile()))
+                .claimCode(blankToNull(request.getClaimCode()))
                 .metadataJson(blankToNull(request.getMetadataJson()))
                 .status(FactoryDeviceStatus.REGISTERED)
                 .build();
@@ -77,6 +81,12 @@ public class FactoryProvisioningService {
         }
         if (request.getFirmwareVersion() != null) {
             entity.setFirmwareVersion(blankToNull(request.getFirmwareVersion()));
+        }
+        if (request.getMqttDeviceProfile() != null) {
+            entity.setMqttDeviceProfile(request.getMqttDeviceProfile());
+        }
+        if (request.getClaimCode() != null) {
+            entity.setClaimCode(requireText(request.getClaimCode(), "claimCode"));
         }
         if (request.getMetadataJson() != null) {
             entity.setMetadataJson(blankToNull(request.getMetadataJson()));
@@ -130,6 +140,29 @@ public class FactoryProvisioningService {
     @Transactional
     public DeviceResponse claimFactoryDevice(Long factoryDeviceId, ClaimFactoryDeviceRequest request) {
         FactoryDeviceEntity factoryDevice = getFactoryDeviceEntity(factoryDeviceId);
+        return claimFactoryDeviceInternal(factoryDevice, request.getAccountId(), request.getDeviceName(), request.getTimezone());
+    }
+
+    @Transactional(readOnly = true)
+    public ProvisionedDeviceLookupResponse lookupProvisionedDevice(String claimCode) {
+        FactoryDeviceEntity factoryDevice = factoryDeviceRepository.findByClaimCode(requireText(claimCode, "claimCode"))
+                .orElseThrow(() -> new EntityNotFoundException("Provisioned device not found"));
+        return mapProvisionedLookup(factoryDevice);
+    }
+
+    @Transactional
+    public DeviceResponse claimProvisionedDevice(Long accountId, ClaimProvisionedDeviceRequest request) {
+        FactoryDeviceEntity factoryDevice = factoryDeviceRepository.findByClaimCode(requireText(request.getClaimCode(), "claimCode"))
+                .orElseThrow(() -> new EntityNotFoundException("Provisioned device not found"));
+        return claimFactoryDeviceInternal(factoryDevice, accountId, request.getDeviceName(), request.getTimezone());
+    }
+
+    private DeviceResponse claimFactoryDeviceInternal(
+            FactoryDeviceEntity factoryDevice,
+            Long accountId,
+            String deviceName,
+            String timezone
+    ) {
         if (factoryDevice.getClaimedDevice() != null) {
             throw new DuplicateEntityException("Factory device already claimed");
         }
@@ -138,17 +171,19 @@ public class FactoryProvisioningService {
         }
 
         DeviceResponse created = deviceService.createProvisionedDevice(
-                request.getAccountId(),
-                requireText(request.getDeviceName(), "deviceName"),
-                requireText(request.getTimezone(), "timezone"),
+                accountId,
+                requireText(deviceName, "deviceName"),
+                requireText(timezone, "timezone"),
                 DeviceType.STANDARD,
                 factoryDevice.getMqttUsername(),
-                factoryDevice.getMqttPassword()
+                factoryDevice.getMqttPassword(),
+                factoryDevice.getMqttDeviceProfile()
         );
         DeviceEntity device = deviceRepository.findById(created.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Claimed device not found after creation"));
         factoryDevice.setClaimedDevice(device);
         factoryDevice.setStatus(FactoryDeviceStatus.CLAIMED);
+        factoryDevice.setClaimedAt(Instant.now());
         factoryDeviceRepository.save(factoryDevice);
         return created;
     }
@@ -259,11 +294,15 @@ public class FactoryProvisioningService {
                 .mqttTopicRoot(entity.getMqttTopicRoot())
                 .mqttUsername(entity.getMqttUsername())
                 .mqttPassword(entity.getMqttPassword())
+                .mqttDeviceProfile(entity.getMqttDeviceProfile())
+                .mqttCapabilities(mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
+                .claimCode(entity.getClaimCode())
                 .status(entity.getStatus())
                 .lastSeenAt(entity.getLastSeenAt())
                 .lastBootstrapPayload(entity.getLastBootstrapPayload())
                 .metadataJson(entity.getMetadataJson())
                 .claimedDeviceId(entity.getClaimedDevice() != null ? entity.getClaimedDevice().getId() : null)
+                .claimedAt(entity.getClaimedAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .testRuns(testRuns)
@@ -335,14 +374,14 @@ public class FactoryProvisioningService {
                     .replace("{url}", release.getBinaryUrl())
                     .replace("{checksum}", release.getChecksumSha256() == null ? "" : release.getChecksumSha256())
                     .replace("{version}", release.getVersion())
-                    .replace("{platform}", factoryDevice.getPlatform().name());
+                    .replace("{platform}", factoryDevice.getPlatform().name())
+                    .replace("{profile}", factoryDevice.getMqttDeviceProfile().name());
         }
-        return """
-                {"command":"ota_install","url":"%s","version":"%s","checksumSha256":"%s"}
-                """.formatted(
+        return mqttProfileService.buildDefaultOtaPayload(
+                factoryDevice.getMqttDeviceProfile(),
                 release.getBinaryUrl(),
                 release.getVersion(),
-                release.getChecksumSha256() == null ? "" : release.getChecksumSha256()
+                release.getChecksumSha256()
         );
     }
 
@@ -367,5 +406,24 @@ public class FactoryProvisioningService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private MqttDeviceProfile defaultProfile(MqttDeviceProfile mqttDeviceProfile) {
+        return mqttDeviceProfile == null ? MqttDeviceProfile.GENERIC_RELAY : mqttDeviceProfile;
+    }
+
+    private ProvisionedDeviceLookupResponse mapProvisionedLookup(FactoryDeviceEntity entity) {
+        return ProvisionedDeviceLookupResponse.builder()
+                .factoryDeviceId(entity.getId())
+                .claimCode(entity.getClaimCode())
+                .serialNumber(entity.getSerialNumber())
+                .productModel(entity.getProductModel())
+                .platform(entity.getPlatform())
+                .mqttDeviceProfile(entity.getMqttDeviceProfile())
+                .mqttCapabilities(mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
+                .firmwareVersion(entity.getFirmwareVersion())
+                .lastSeenAt(entity.getLastSeenAt())
+                .claimable(entity.getClaimedDevice() == null && entity.getStatus() == FactoryDeviceStatus.PASSED)
+                .build();
     }
 }

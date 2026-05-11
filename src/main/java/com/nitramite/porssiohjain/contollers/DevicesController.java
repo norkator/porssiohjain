@@ -17,14 +17,17 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DeviceService;
+import com.nitramite.porssiohjain.services.FactoryProvisioningService;
 import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
 import com.nitramite.porssiohjain.services.AcCommandDispatchService;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateService;
 import com.nitramite.porssiohjain.services.models.CreateDeviceRequest;
+import com.nitramite.porssiohjain.services.models.ClaimProvisionedDeviceRequest;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.HeatPumpAcDeviceResponse;
 import com.nitramite.porssiohjain.services.models.HeatPumpAcDevicesRequest;
+import com.nitramite.porssiohjain.services.models.ProvisionedDeviceLookupResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +49,7 @@ public class DevicesController {
     private final ToshibaAcStateService toshibaAcStateService;
     private final MitsubishiAcStateService mitsubishiAcStateService;
     private final AcCommandDispatchService acCommandDispatchService;
+    private final FactoryProvisioningService factoryProvisioningService;
 
     @GetMapping
     public List<DeviceResponse> listDevices() {
@@ -79,6 +83,21 @@ public class DevicesController {
             @PathVariable Long deviceId
     ) {
         return deviceService.getDevice(authContext.getAccountId(), deviceId);
+    }
+
+    @GetMapping("/provisioned/{claimCode}")
+    public ProvisionedDeviceLookupResponse lookupProvisionedDevice(
+            @PathVariable String claimCode
+    ) {
+        authContext.getAccountId();
+        return factoryProvisioningService.lookupProvisionedDevice(claimCode);
+    }
+
+    @PostMapping("/provisioned/claim")
+    public DeviceResponse claimProvisionedDevice(
+            @RequestBody ClaimProvisionedDeviceRequest request
+    ) {
+        return factoryProvisioningService.claimProvisionedDevice(authContext.getAccountId(), request);
     }
 
     @PutMapping("/{deviceId}")
