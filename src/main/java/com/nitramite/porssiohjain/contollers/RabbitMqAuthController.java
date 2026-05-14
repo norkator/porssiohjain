@@ -6,6 +6,7 @@ import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +28,12 @@ public class RabbitMqAuthController {
     private final DeviceRepository deviceRepository;
     private final FactoryDeviceRepository factoryDeviceRepository;
 
+    private ResponseEntity<String> plainTextResponse(String body) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(body);
+    }
+
     @PostMapping("/user")
     ResponseEntity<String> authenticateUser(
             @RequestParam String username,
@@ -42,10 +49,10 @@ public class RabbitMqAuthController {
             DeviceEntity device = deviceOpt.get();
             if (!Objects.equals(device.getMqttPassword(), password)) {
                 log.warn("MQTT auth denied for username '{}' - invalid password", username);
-                return ResponseEntity.ok(DENY);
+                return plainTextResponse(DENY);
             }
             log.info("MQTT auth allowed for username '{}' (device uuid: {})", username, device.getUuid());
-            return ResponseEntity.ok(ALLOW);
+            return plainTextResponse(ALLOW);
         }
 
         Optional<FactoryDeviceEntity> factoryDeviceOpt = factoryDeviceRepository.findByMqttUsername(username);
@@ -53,14 +60,14 @@ public class RabbitMqAuthController {
             FactoryDeviceEntity factoryDevice = factoryDeviceOpt.get();
             if (!Objects.equals(factoryDevice.getMqttPassword(), password)) {
                 log.warn("Factory MQTT auth denied for username '{}' - invalid password", username);
-                return ResponseEntity.ok(DENY);
+                return plainTextResponse(DENY);
             }
             log.info("Factory MQTT auth allowed for username '{}' (serial: {})", username, factoryDevice.getSerialNumber());
-            return ResponseEntity.ok(ALLOW);
+            return plainTextResponse(ALLOW);
         }
 
         log.warn("MQTT auth denied for username '{}' - device not found", username);
-        return ResponseEntity.ok(DENY);
+        return plainTextResponse(DENY);
     }
 
     @PostMapping("/vhost")
@@ -72,9 +79,9 @@ public class RabbitMqAuthController {
         log.info("VHOST auth: username='{}', vhost='{}', ip='{}'", username, vhost, ip);
         if (deviceRepository.findByMqttUsername(username).isPresent()
                 || factoryDeviceRepository.findByMqttUsername(username).isPresent()) {
-            return ResponseEntity.ok(DEFAULT_VHOST.equals(vhost) ? ALLOW : DENY);
+            return plainTextResponse(DEFAULT_VHOST.equals(vhost) ? ALLOW : DENY);
         }
-        return ResponseEntity.ok(DENY);
+        return plainTextResponse(DENY);
     }
 
     @PostMapping("/resource")
@@ -90,9 +97,9 @@ public class RabbitMqAuthController {
 
         if (deviceRepository.findByMqttUsername(username).isPresent()
                 || factoryDeviceRepository.findByMqttUsername(username).isPresent()) {
-            return ResponseEntity.ok(authorizeClientResource(vhost, resource, name, permission));
+            return plainTextResponse(authorizeClientResource(vhost, resource, name, permission));
         }
-        return ResponseEntity.ok(DENY);
+        return plainTextResponse(DENY);
     }
 
     @PostMapping("/topic")
@@ -109,7 +116,7 @@ public class RabbitMqAuthController {
 
         Optional<DeviceEntity> deviceOpt = deviceRepository.findByMqttUsername(username);
         if (deviceOpt.isPresent()) {
-            return ResponseEntity.ok(authorizeClientTopic(
+            return plainTextResponse(authorizeClientTopic(
                     deviceOpt.get().getUuid().toString(),
                     vhost,
                     resource,
@@ -122,7 +129,7 @@ public class RabbitMqAuthController {
 
         Optional<FactoryDeviceEntity> factoryDeviceOpt = factoryDeviceRepository.findByMqttUsername(username);
         if (factoryDeviceOpt.isPresent()) {
-            return ResponseEntity.ok(authorizeClientTopic(
+            return plainTextResponse(authorizeClientTopic(
                     factoryDeviceOpt.get().getMqttTopicRoot(),
                     vhost,
                     resource,
@@ -133,7 +140,7 @@ public class RabbitMqAuthController {
             ));
         }
 
-        return ResponseEntity.ok(DENY);
+        return plainTextResponse(DENY);
     }
 
     private String authorizeClientResource(
@@ -146,7 +153,7 @@ public class RabbitMqAuthController {
             return DENY;
         }
         if ("exchange".equals(resource) && MQTT_EXCHANGE.equals(name)) {
-            return "read".equals(permission) ? ALLOW : DENY;
+            return isExchangePermission(permission) ? ALLOW : DENY;
         }
         if ("queue".equals(resource) && name.startsWith(MQTT_SUBSCRIPTION_QUEUE_PREFIX)) {
             return isQueueSubscriptionPermission(permission) ? ALLOW : DENY;
@@ -182,6 +189,10 @@ public class RabbitMqAuthController {
 
     private boolean isQueueSubscriptionPermission(String permission) {
         return "configure".equals(permission) || "write".equals(permission) || "read".equals(permission);
+    }
+
+    private boolean isExchangePermission(String permission) {
+        return "read".equals(permission) || "write".equals(permission);
     }
 
     private boolean isReadableCommandRoutingKey(String topicRoot, String routingKey) {

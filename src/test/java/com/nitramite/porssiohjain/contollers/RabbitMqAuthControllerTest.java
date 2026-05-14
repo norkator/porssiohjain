@@ -19,6 +19,7 @@ import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.http.MediaType;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -82,10 +83,18 @@ class RabbitMqAuthControllerTest {
     }
 
     @Test
-    void deniesDeviceExchangeWritePermission() {
+    void allowsDeviceExchangeWritePermissionNeededForMqttPublish() {
         when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
 
-        assertEquals("deny", controller.authorizeResource("device-user", "/", "exchange", "amq.topic", "write").getBody());
+        assertEquals("allow", controller.authorizeResource("device-user", "/", "exchange", "amq.topic", "write").getBody());
+    }
+
+    @Test
+    void returnsPlainTextResponsesForRabbitMqHttpBackend() {
+        when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
+
+        assertEquals(MediaType.TEXT_PLAIN, controller.authenticateUser("device-user", "secret", "client-1", "/")
+                .getHeaders().getContentType());
     }
 
     @Test
@@ -106,6 +115,16 @@ class RabbitMqAuthControllerTest {
 
         assertEquals("deny", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "write", device.getUuid() + ".command.switch:1").getBody());
+    }
+
+    @Test
+    void allowsDeviceToWriteOwnStatusTopics() {
+        when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
+
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + "/online").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + "/telemetry/power").getBody());
     }
 
     @Test
