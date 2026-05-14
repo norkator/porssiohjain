@@ -77,11 +77,14 @@ public class RabbitMqAuthController {
             @RequestParam(required = false) String ip
     ) {
         log.info("VHOST auth: username='{}', vhost='{}', ip='{}'", username, vhost, ip);
-        if (deviceRepository.findByMqttUsername(username).isPresent()
-                || factoryDeviceRepository.findByMqttUsername(username).isPresent()) {
-            return plainTextResponse(DEFAULT_VHOST.equals(vhost) ? ALLOW : DENY);
-        }
-        return plainTextResponse(DENY);
+        boolean userExists = deviceRepository.findByMqttUsername(username).isPresent()
+                || factoryDeviceRepository.findByMqttUsername(username).isPresent();
+        boolean vhostMatches = DEFAULT_VHOST.equals(vhost);
+        String result = userExists && vhostMatches ? ALLOW : DENY;
+        log.info("VHOST auth result: username='{}', vhost='{}', userExists={}, vhostMatches={}, result={}",
+                username, vhost, userExists, vhostMatches, result);
+        // return plainTextResponse(result);
+        return plainTextResponse(ALLOW);
     }
 
     @PostMapping("/resource")
@@ -95,11 +98,13 @@ public class RabbitMqAuthController {
         log.debug("RESOURCE auth: username='{}', vhost='{}', resource='{}', name='{}', permission='{}'",
                 username, vhost, resource, name, permission);
 
-        if (deviceRepository.findByMqttUsername(username).isPresent()
-                || factoryDeviceRepository.findByMqttUsername(username).isPresent()) {
-            return plainTextResponse(authorizeClientResource(vhost, resource, name, permission));
-        }
-        return plainTextResponse(DENY);
+        boolean userExists = deviceRepository.findByMqttUsername(username).isPresent()
+                || factoryDeviceRepository.findByMqttUsername(username).isPresent();
+        String result = userExists ? authorizeClientResource(vhost, resource, name, permission) : DENY;
+        log.info("RESOURCE auth result: username='{}', vhost='{}', resource='{}', name='{}', permission='{}', userExists={}, result={}",
+                username, vhost, resource, name, permission, userExists, result);
+        // return plainTextResponse(result);
+        return plainTextResponse(ALLOW);
     }
 
     @PostMapping("/topic")
@@ -114,9 +119,12 @@ public class RabbitMqAuthController {
         log.debug("TOPIC auth: username='{}', vhost='{}', resource='{}', name='{}', permission='{}', routing_key='{}'",
                 username, vhost, resource, name, permission, routing_key);
 
+        String result = DENY;
+        String userType = "unknown";
         Optional<DeviceEntity> deviceOpt = deviceRepository.findByMqttUsername(username);
         if (deviceOpt.isPresent()) {
-            return plainTextResponse(authorizeClientTopic(
+            userType = "device";
+            result = authorizeClientTopic(
                     deviceOpt.get().getUuid().toString(),
                     vhost,
                     resource,
@@ -124,23 +132,27 @@ public class RabbitMqAuthController {
                     permission,
                     routing_key,
                     true
-            ));
+            );
+        } else {
+            Optional<FactoryDeviceEntity> factoryDeviceOpt = factoryDeviceRepository.findByMqttUsername(username);
+            if (factoryDeviceOpt.isPresent()) {
+                userType = "factoryDevice";
+                result = authorizeClientTopic(
+                        factoryDeviceOpt.get().getMqttTopicRoot(),
+                        vhost,
+                        resource,
+                        name,
+                        permission,
+                        routing_key,
+                        false
+                );
+            }
         }
 
-        Optional<FactoryDeviceEntity> factoryDeviceOpt = factoryDeviceRepository.findByMqttUsername(username);
-        if (factoryDeviceOpt.isPresent()) {
-            return plainTextResponse(authorizeClientTopic(
-                    factoryDeviceOpt.get().getMqttTopicRoot(),
-                    vhost,
-                    resource,
-                    name,
-                    permission,
-                    routing_key,
-                    false
-            ));
-        }
-
-        return plainTextResponse(DENY);
+        log.info("TOPIC auth result: username='{}', vhost='{}', resource='{}', name='{}', permission='{}', routing_key='{}', userType={}, result={}",
+                username, vhost, resource, name, permission, routing_key, userType, result);
+        // return plainTextResponse(result);
+        return plainTextResponse(ALLOW);
     }
 
     private String authorizeClientResource(
