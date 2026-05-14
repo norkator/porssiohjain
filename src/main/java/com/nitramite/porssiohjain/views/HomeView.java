@@ -100,6 +100,11 @@ public class HomeView extends VerticalLayout {
         Button documentationButton = new Button(t("home.documentation"), e -> UI.getCurrent().navigate(DocumentationView.class));
         documentationButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
+        Button mobileAppButton = new Button(t("home.mobileApp"), e ->
+                UI.getCurrent().getPage().open("https://mobile.porssiohjain.fi/", "_blank")
+        );
+        mobileAppButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
         Button devicesButton = new Button(t("home.myDevices"), e -> UI.getCurrent().navigate(DeviceView.class));
         devicesButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -161,16 +166,16 @@ public class HomeView extends VerticalLayout {
             if (admin) {
                 contentBox.add(adminButton);
             }
-            contentBox.add(logoutButton, Divider.createDivider());
+            contentBox.add(logoutButton);
         } else {
-            contentBox.add(loginButton, createAccountButton, documentationButton);
+            contentBox.add(loginButton, createAccountButton, mobileAppButton, documentationButton);
         }
 
         Paragraph docLink = new Paragraph(t("home.licenseText") + " ");
         Anchor link = new Anchor("https://github.com/norkator/porssiohjain", t("home.docLink"));
         link.setTarget("_blank");
         docLink.add(link);
-        contentBox.add(docLink);
+        contentBox.add(Divider.createDivider(), docLink);
 
         add(contentBox);
     }
