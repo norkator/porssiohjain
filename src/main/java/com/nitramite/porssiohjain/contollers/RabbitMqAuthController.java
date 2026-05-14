@@ -41,6 +41,10 @@ public class RabbitMqAuthController {
             @RequestParam(required = false) String client_id,
             @RequestParam(required = false) String vhost
     ) {
+        if ("admin".equals(username)) {
+            return plainTextResponse(DENY);
+        }
+
         log.info("RabbitMQ HTTP auth request: username='{}', client_id='{}', vhost='{}'",
                 username, client_id, vhost);
 
