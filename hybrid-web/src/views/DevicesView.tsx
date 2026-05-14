@@ -301,7 +301,6 @@ export default function DevicesView() {
           heatPumpStateHelp: t("heatPumpStateHelp"),
           invalidState: t("invalidMitsubishiState"),
           loading: common("loading"),
-          mitsubishiEditorHelp: t("mitsubishiEditorHelp"),
           mode: t("workingMode"),
           off: t("off"),
           on: t("on"),

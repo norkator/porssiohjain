@@ -52,7 +52,6 @@ type HeatPumpStateDialogLabels = {
   targetTemperature: string;
   fanSpeed: string;
   rawState: string;
-  mitsubishiEditorHelp: string;
   on: string;
   off: string;
   auto: string;
@@ -407,10 +406,6 @@ export default function HeatPumpStateDialog({
                   {maxFanSpeed ? `${labels.auto} = 0, 1..${maxFanSpeed}` : `${labels.auto} = 0`}
                 </span>
               </label>
-            </div>
-
-            <div className="mb-4 rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">
-              {labels.mitsubishiEditorHelp}
             </div>
           </>
         ) : null}
