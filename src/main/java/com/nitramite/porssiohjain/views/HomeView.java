@@ -18,10 +18,13 @@ import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
@@ -69,7 +72,8 @@ public class HomeView extends VerticalLayout {
         getStyle().set("overflow", "auto");
 
         VerticalLayout contentBox = new VerticalLayout();
-        contentBox.setMaxWidth("500px");
+        contentBox.setMaxWidth("760px");
+        contentBox.setWidthFull();
         contentBox.setPadding(true);
         contentBox.setSpacing(true);
         contentBox.setAlignItems(Alignment.CENTER);
@@ -159,14 +163,34 @@ public class HomeView extends VerticalLayout {
         contentBox.add(langButtons, title, subtitle);
 
         if (loggedIn) {
-            contentBox.add(
+            configureActionButton(devicesButton, VaadinIcon.DESKTOP);
+            configureActionButton(controlsButton, VaadinIcon.SLIDERS);
+            configureActionButton(weatherControlsButton, VaadinIcon.CLOUD);
+            configureActionButton(myProductionButton, VaadinIcon.LIGHTBULB);
+            configureActionButton(powerLimitsButton, VaadinIcon.FLASH);
+            configureActionButton(loadSheddingButton, VaadinIcon.WARNING);
+            configureActionButton(dashboardButton, VaadinIcon.DASHBOARD);
+            configureActionButton(settingsButton, VaadinIcon.COG);
+            configureActionButton(documentationButton, VaadinIcon.BOOK);
+            configureActionButton(logoutButton, VaadinIcon.SIGN_OUT);
+            configureActionButton(adminButton, VaadinIcon.SHIELD);
+
+            FlexLayout actionGrid = new FlexLayout();
+            actionGrid.setWidthFull();
+            actionGrid.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+            actionGrid.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+            actionGrid.setAlignItems(FlexComponent.Alignment.STRETCH);
+            actionGrid.getStyle().set("gap", "0.75rem");
+
+            Stream.of(
                     devicesButton, controlsButton, weatherControlsButton, myProductionButton, powerLimitsButton, loadSheddingButton,
                     dashboardButton, settingsButton, documentationButton
-            );
+            ).forEach(actionGrid::add);
             if (admin) {
-                contentBox.add(adminButton);
+                actionGrid.add(adminButton);
             }
-            contentBox.add(logoutButton);
+
+            contentBox.add(actionGrid, logoutButton);
         } else {
             contentBox.add(loginButton, createAccountButton, mobileAppButton, documentationButton);
         }
@@ -188,6 +212,36 @@ public class HomeView extends VerticalLayout {
 
     protected String t(String key, Object... args) {
         return i18n.t(key, args);
+    }
+
+    private void configureActionButton(Button button, VaadinIcon icon) {
+        String labelText = button.getText();
+        Icon buttonIcon = icon.create();
+        buttonIcon.getStyle()
+                .set("width", "1.2rem")
+                .set("height", "1.2rem");
+        Span label = new Span(labelText);
+        label.getStyle().set("white-space", "normal");
+
+        VerticalLayout content = new VerticalLayout(buttonIcon, label);
+        content.setPadding(false);
+        content.setSpacing(false);
+        content.setAlignItems(Alignment.CENTER);
+        content.setJustifyContentMode(JustifyContentMode.CENTER);
+        content.getStyle()
+                .set("gap", "0.2rem")
+                .set("width", "100%");
+
+        button.setText("");
+        button.getElement().removeAllChildren();
+        button.getElement().appendChild(content.getElement());
+        button.setWidth("calc(33.333% - 0.5rem)");
+        button.getStyle()
+                .set("text-align", "center")
+                .set("padding", "0.45rem 0.9rem 0.65rem 0.9rem")
+                .set("min-width", "150px")
+                .set("min-height", "88px")
+                .set("line-height", "1.2");
     }
 
 }
