@@ -22,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -55,11 +57,18 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
         if (state.getDeviceId() == null) {
             state.setDeviceId(parseAcDeviceId(acData.getAcDeviceId()));
         }
-        if (state.getEffectiveFlags() == null || state.getEffectiveFlags() == 0L) {
-            throw new IllegalArgumentException("EffectiveFlags must include at least one Mitsubishi state field");
-        }
 
         MitsubishiAcStateResponse setAtaState = buildSetAtaState(acData, state);
+        if (setAtaState == null) {
+            systemLogService.log(String.format(
+                    "Mitsubishi SetAta skipped. deviceId=%s, acDataId=%s, acDeviceId=%s, buildingId=%s, reason=no writable field changes detected",
+                    acData.getDevice().getId(),
+                    acData.getId(),
+                    acData.getAcDeviceId(),
+                    acData.getBuildingId()
+            ));
+            return;
+        }
         String formattedState = formatState(setAtaState);
 
         systemLogService.log(String.format(
@@ -91,7 +100,10 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
                     : parseAcDeviceId(acData.getAcDeviceId()));
         }
 
-        Long effectiveFlags = commandState.getEffectiveFlags();
+        Long effectiveFlags = resolveEffectiveFlags(commandState, currentState);
+        if (effectiveFlags == null || effectiveFlags == 0L) {
+            return null;
+        }
         if (hasFlag(effectiveFlags, EFFECTIVE_FLAG_POWER)) {
             currentState.setPower(requireValue(commandState.getPower(), "Power"));
         }
@@ -114,6 +126,34 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
         currentState.setEffectiveFlags(effectiveFlags);
         currentState.setHasPendingCommand(true);
         return currentState;
+    }
+
+    private Long resolveEffectiveFlags(MitsubishiAcStateResponse commandState, MitsubishiAcStateResponse currentState) {
+        Long providedFlags = commandState.getEffectiveFlags();
+        if (providedFlags != null && providedFlags != 0L) {
+            return providedFlags;
+        }
+
+        long derivedFlags = 0L;
+        if (commandState.getPower() != null && !Objects.equals(commandState.getPower(), currentState.getPower())) {
+            derivedFlags |= EFFECTIVE_FLAG_POWER;
+        }
+        if (commandState.getOperationMode() != null && !Objects.equals(commandState.getOperationMode(), currentState.getOperationMode())) {
+            derivedFlags |= EFFECTIVE_FLAG_MODE;
+        }
+        if (commandState.getSetTemperature() != null && !Objects.equals(commandState.getSetTemperature(), currentState.getSetTemperature())) {
+            derivedFlags |= EFFECTIVE_FLAG_TEMPERATURE;
+        }
+        if (commandState.getSetFanSpeed() != null && !Objects.equals(commandState.getSetFanSpeed(), currentState.getSetFanSpeed())) {
+            derivedFlags |= EFFECTIVE_FLAG_FAN_SPEED;
+        }
+        if (commandState.getVaneVertical() != null && !Objects.equals(commandState.getVaneVertical(), currentState.getVaneVertical())) {
+            derivedFlags |= EFFECTIVE_FLAG_VANE_VERTICAL;
+        }
+        if (commandState.getVaneHorizontal() != null && !Objects.equals(commandState.getVaneHorizontal(), currentState.getVaneHorizontal())) {
+            derivedFlags |= EFFECTIVE_FLAG_VANE_HORIZONTAL;
+        }
+        return derivedFlags;
     }
 
     private boolean hasFlag(Long effectiveFlags, long flag) {
