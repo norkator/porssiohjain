@@ -1137,7 +1137,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         description.getStyle().set("color", "var(--lumo-secondary-text-color)");
         content.add(description);
 
+        Map<Integer, Integer> channelSnapshot = controlService.getControlsSnapshotForDevice(selectedDevice.getUuid().toString());
         boolean[] channelStates = new boolean[4];
+        for (int channel = 0; channel < channelStates.length; channel++) {
+            channelStates[channel] = Integer.valueOf(1).equals(channelSnapshot.get(channel));
+        }
+
         for (int channel = 0; channel < 4; channel++) {
             content.add(createMqttRelayChannelRow(channel, channelStates));
         }
