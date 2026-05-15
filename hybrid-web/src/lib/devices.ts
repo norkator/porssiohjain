@@ -28,6 +28,7 @@ export type ApiDevice = {
   mqttUsername: string | null;
   mqttPassword: string | null;
   hasActiveChannels: boolean | null;
+  relayChannelStates: boolean[] | null;
   hpName: string | null;
   acType: string | null;
   acUsername: string | null;

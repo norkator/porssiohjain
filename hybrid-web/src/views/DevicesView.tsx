@@ -18,6 +18,10 @@ import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+function getInitialRelayStates(device: ApiDevice) {
+  return Array.from({ length: 4 }, (_, channel) => device.relayChannelStates?.[channel] ?? false);
+}
+
 export default function DevicesView() {
   const { t } = useI18n("devices");
   const common = useI18n("common").t;
@@ -160,7 +164,7 @@ export default function DevicesView() {
                         label: t("relays"),
                         onClick: () => {
                           setRelayDialogDevice(device);
-                          setRelayStates([false, false, false, false]);
+                          setRelayStates(getInitialRelayStates(device));
                           setRelayError(null);
                         }
                       }] : [])

@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -214,9 +215,15 @@ public class DeviceService {
                 .build();
 
         if (entity.getDeviceType() == DeviceType.STANDARD) {
-            boolean hasActiveChannels = controlService.getControlsSnapshotForDevice(entity.getUuid().toString()).values().stream()
+            Map<Integer, Integer> channelSnapshot = controlService.getControlsSnapshotForDevice(entity.getUuid().toString());
+            boolean hasActiveChannels = channelSnapshot.values().stream()
                     .anyMatch(value -> value != null && value == 1);
+            List<Boolean> relayChannelStates = new ArrayList<>();
+            for (int channel = 0; channel < 4; channel++) {
+                relayChannelStates.add(Objects.equals(channelSnapshot.get(channel), 1));
+            }
             response.setHasActiveChannels(hasActiveChannels);
+            response.setRelayChannelStates(relayChannelStates);
         }
 
         if (entity.getDeviceType() == DeviceType.HEAT_PUMP) {

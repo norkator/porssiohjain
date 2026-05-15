@@ -47,6 +47,7 @@ public class DeviceResponse {
     private MqttDeviceProfile mqttDeviceProfile;
     private List<MqttCapability> mqttCapabilities;
     private Boolean hasActiveChannels;
+    private List<Boolean> relayChannelStates;
 
     // Heat pump related
     private String hpName;
