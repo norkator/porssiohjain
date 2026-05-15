@@ -41,7 +41,7 @@ public class RabbitMqAuthController {
             @RequestParam(required = false) String client_id,
             @RequestParam(required = false) String vhost
     ) {
-        if ("admin".equals(username)) {
+        if ("admin".equals(username) || "spring-api".equals(username)) {
             return plainTextResponse(DENY);
         }
 
@@ -155,8 +155,8 @@ public class RabbitMqAuthController {
 
         log.info("TOPIC auth result: username='{}', vhost='{}', resource='{}', name='{}', permission='{}', routing_key='{}', userType={}, result={}",
                 username, vhost, resource, name, permission, routing_key, userType, result);
-        // return plainTextResponse(result);
-        return plainTextResponse(ALLOW);
+        return plainTextResponse(result);
+        // return plainTextResponse(ALLOW);
     }
 
     private String authorizeClientResource(

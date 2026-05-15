@@ -20,9 +20,9 @@ services:
       - "8883:8883"
       - "15673:15672"
     volumes:
-      - ./compose/rabbitmq.config:/etc/rabbitmq/rabbitmq.config:ro
+      - ./compose/rabbitmq.local-dev.config:/etc/rabbitmq/rabbitmq.config:ro
       - ./compose/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
-      - /opt/rabbitmq-certs:/etc/rabbitmq/certs:ro
+      # - /opt/rabbitmq-certs:/etc/rabbitmq/certs:ro
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin
