@@ -209,7 +209,7 @@ export default function SitesView() {
           {!isLoading && sites.map((site) => (
             <article className={`group app-card border-l-4 ${site.enabled ? "border-primary" : "border-outline"} p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6`} key={site.id}>
               <div className="mb-5 flex justify-between gap-3">
-                <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{siteTypeLabel(site.type)}</span>
+                <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-surface-container-lowest">{siteTypeLabel(site.type)}</span>
                 <span className={`rounded px-2 py-1 text-[10px] font-bold ${site.enabled ? "bg-primary-fixed text-primary" : "bg-error-container text-on-error-container"}`}>{site.enabled ? common("enabled") : common("disabled")}</span>
               </div>
               <h3 className="font-headline text-2xl font-bold">{site.name}</h3>

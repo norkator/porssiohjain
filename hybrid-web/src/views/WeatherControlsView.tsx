@@ -95,7 +95,7 @@ export default function WeatherControlsView() {
           {!isLoading && controls.map((control) => (
             <article className="group app-card border-l-4 border-secondary p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6" key={control.id}>
               <div className="mb-5 flex items-start justify-between gap-3">
-                <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{control.siteName ?? t("noSite")}</span>
+                <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-surface-container-lowest">{control.siteName ?? t("noSite")}</span>
                 <span className="rounded bg-primary-fixed px-2 py-1 text-[10px] font-bold text-primary">{control.shared ? common("shared") : common("active")}</span>
               </div>
               <h3 className="font-headline text-2xl font-bold text-on-surface">{control.name}</h3>

@@ -57,7 +57,7 @@ export default function DeviceCard({
   return (
     <article className={`group app-card border-l-4 ${accent} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`}>
       <div className="mb-6 flex items-start justify-between gap-4">
-        <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{type}</span>
+        <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-surface-container-lowest">{type}</span>
         <div className="flex items-center gap-2">
           {channelStatus ? (
             <span

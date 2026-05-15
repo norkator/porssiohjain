@@ -74,7 +74,7 @@ export default function ControlsView() {
                     key={control.id}
                   >
                     <div className="mb-6 flex items-start justify-between gap-4">
-                      <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">
+                      <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-surface-container-lowest">
                         {formatControlMode(control.mode)}
                       </span>
                       <span
@@ -121,7 +121,7 @@ export default function ControlsView() {
             className="group flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:bg-surface-container-high hover:shadow-soft sm:p-6"
             to="/controls/add"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest font-headline text-xl font-black text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest font-headline text-xl font-black text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-surface-container-lowest">
               +
             </div>
             <div>
@@ -134,7 +134,7 @@ export default function ControlsView() {
         <section className="mt-20 grid grid-cols-1 gap-8 items-center md:grid-cols-12">
           <div className="group relative overflow-hidden rounded-3xl bg-primary-container p-4 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.22)] sm:p-6 md:col-span-4">
             <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
-            <div className="relative text-white">
+            <div className="relative text-on-primary">
               <p className="text-xs font-semibold uppercase tracking-widest opacity-80">{t("controlsConfigured")}</p>
               <p className="font-headline text-4xl font-black">{totalCount}</p>
             </div>

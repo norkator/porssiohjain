@@ -44,7 +44,7 @@ const config: Config = {
         label: ["InterLocal", "sans-serif"]
       },
       boxShadow: {
-        soft: "0 10px 30px rgba(25, 28, 33, 0.07)"
+        soft: "var(--shadow-soft)"
       },
       borderRadius: {
         xl2: "1.25rem"
