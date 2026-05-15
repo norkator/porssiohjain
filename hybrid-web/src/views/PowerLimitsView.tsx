@@ -70,19 +70,19 @@ export default function PowerLimitsView() {
           <p className="max-w-lg text-lg text-on-surface-variant">{t("description")}</p>
         </section>
 
-        <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-4" onSubmit={handleCreate}>
+        <form className="app-card mb-8 grid gap-4 p-4 sm:p-6 md:grid-cols-4" onSubmit={handleCreate}>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder={t("limitName")} value={name} />
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" min="0" onChange={(event) => setLimitKw(event.target.value)} step="0.1" type="number" value={limitKw} />
           <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">{common("enabled")}</span><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" /></label>
           <button className="primary-action justify-center disabled:opacity-60" disabled={isCreating || !name.trim()} type="submit">{isCreating ? common("creating") : t("add")}</button>
         </form>
 
-        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div> : null}
-        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
+        {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div> : null}
+        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{error}</div> : null}
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {!isLoading && limits.map((limit) => (
-            <article className={`group app-card border-l-4 ${limit.enabled ? "border-primary" : "border-outline"} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`} key={limit.id}>
+            <article className={`group app-card border-l-4 ${limit.enabled ? "border-primary" : "border-outline"} p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6`} key={limit.id}>
               <div className="mb-5 flex justify-between gap-3">
                 <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{limit.limitIntervalMinutes ?? 15} min</span>
                 <span className={`rounded px-2 py-1 text-[10px] font-bold ${limit.enabled ? "bg-primary-fixed text-primary" : "bg-error-container text-on-error-container"}`}>{limit.enabled ? common("enabled") : common("disabled")}</span>

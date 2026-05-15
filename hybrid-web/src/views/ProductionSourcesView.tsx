@@ -97,7 +97,7 @@ export default function ProductionSourcesView() {
           <p className="max-w-lg text-lg text-on-surface-variant">{t("description")}</p>
         </section>
 
-        <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-4" onSubmit={handleCreate}>
+        <form className="app-card mb-8 grid gap-4 p-4 sm:p-6 md:grid-cols-2 lg:grid-cols-4" onSubmit={handleCreate}>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder={t("sourceName")} value={name} />
           <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setApiType(event.target.value as ProductionApiType)} value={apiType}>{PRODUCTION_API_TYPES.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setAppId(event.target.value)} placeholder={t("appId")} value={appId} />
@@ -109,12 +109,12 @@ export default function ProductionSourcesView() {
           <button className="primary-action justify-center disabled:opacity-60 lg:col-span-4" disabled={isCreating || !name.trim()} type="submit">{isCreating ? common("creating") : t("add")}</button>
         </form>
 
-        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div> : null}
-        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
+        {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div> : null}
+        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{error}</div> : null}
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {!isLoading && sources.map((source) => (
-            <article className={`group app-card border-l-4 ${source.enabled ? "border-primary" : "border-outline"} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`} key={source.id}>
+            <article className={`group app-card border-l-4 ${source.enabled ? "border-primary" : "border-outline"} p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6`} key={source.id}>
               <div className="mb-5 flex justify-between gap-3">
                 <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{label(source.apiType)}</span>
                 <span className={`rounded px-2 py-1 text-[10px] font-bold ${source.enabled ? "bg-primary-fixed text-primary" : "bg-error-container text-on-error-container"}`}>{source.enabled ? common("enabled") : common("disabled")}</span>

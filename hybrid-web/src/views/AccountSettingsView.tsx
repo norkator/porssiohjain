@@ -194,8 +194,8 @@ export default function AccountSettingsView() {
     <>
       <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} title={t("title")} compact />
       <main className="app-page pb-8 pt-4 sm:py-8">
-        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div> : null}
-        {loadError ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{loadError}</div> : null}
+        {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div> : null}
+        {loadError ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{loadError}</div> : null}
         {!isLoading && !loadError ? (
           <div className="grid gap-8 lg:grid-cols-12">
             <section className="space-y-6 lg:col-span-4">
@@ -206,7 +206,7 @@ export default function AccountSettingsView() {
               </div>
 
               <article className="app-card overflow-hidden">
-                <div className="signature-gradient relative p-6 text-on-primary">
+                <div className="signature-gradient relative p-4 text-on-primary sm:p-6">
                   <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-secondary-container/20 blur-2xl" />
                   <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-primary-fixed">{t("tierCardEyebrow")}</p>
                   <div className="flex items-center justify-between gap-4">
@@ -222,7 +222,7 @@ export default function AccountSettingsView() {
                 </div>
               </article>
 
-              <article className="app-card p-6">
+              <article className="app-card p-4 sm:p-6">
                 <p className="metric-label mb-3">{t("limitsEyebrow")}</p>
                 <h2 className="font-headline text-2xl font-extrabold text-primary">{t("limitsTitle")}</h2>
                 <div className="mt-5 space-y-3 text-sm text-on-surface">
@@ -255,7 +255,7 @@ export default function AccountSettingsView() {
             </section>
 
             <section className="space-y-6 lg:col-span-8">
-              <form className="app-card space-y-8 p-6 sm:p-8" onSubmit={handleSave}>
+              <form className="app-card space-y-8 p-4 sm:p-6 lg:p-8" onSubmit={handleSave}>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="account-email">
@@ -344,7 +344,7 @@ export default function AccountSettingsView() {
                 {saveError ? <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{saveError}</div> : null}
               </form>
 
-              <form className="app-card space-y-8 p-6 sm:p-8" onSubmit={handlePasswordChange}>
+              <form className="app-card space-y-8 p-4 sm:p-6 lg:p-8" onSubmit={handlePasswordChange}>
                 <div>
                   <p className="metric-label mb-3">{t("passwordEyebrow")}</p>
                   <h2 className="font-headline text-2xl font-extrabold text-primary">{t("passwordTitle")}</h2>

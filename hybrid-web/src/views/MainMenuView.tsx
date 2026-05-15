@@ -195,7 +195,7 @@ export default function MainMenuView() {
             </div>
 
             <div className="lg:col-span-5">
-              <div className="signature-gradient group relative overflow-hidden rounded-xl p-8 text-on-primary shadow-2xl transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.24)]">
+              <div className="signature-gradient group relative overflow-hidden rounded-xl p-4 text-on-primary shadow-2xl transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.24)] sm:p-6 lg:p-8">
                 <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-secondary-container opacity-10 blur-3xl transition-transform duration-500 group-hover:scale-125" />
                 <div className="mb-10 flex items-start justify-between">
                   <div>
@@ -234,7 +234,7 @@ export default function MainMenuView() {
             {tiles.map((tile) => (
               <Link
                 key={tile.key}
-                className="group relative overflow-hidden rounded-xl bg-surface-container-low p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98]"
+                className="group relative overflow-hidden rounded-xl bg-surface-container-low p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98] sm:p-6"
                 to={tile.to}
               >
                 <div className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-primary transition-transform duration-300 group-hover:scale-x-100" />
@@ -280,7 +280,7 @@ export default function MainMenuView() {
             {siteOwnTiles.map((tile) => (
               <Link
                 key={tile.key}
-                className="group relative overflow-hidden rounded-xl bg-surface-container-low p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98]"
+                className="group relative overflow-hidden rounded-xl bg-surface-container-low p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98] sm:p-6"
                 to={tile.to}
               >
                 <div className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-primary transition-transform duration-300 group-hover:scale-x-100" />

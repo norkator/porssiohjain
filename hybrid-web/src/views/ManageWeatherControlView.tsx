@@ -430,8 +430,8 @@ export default function ManageWeatherControlView() {
     <>
       <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} title={t("title")} compact />
       <main className="app-page pb-8 pt-4 sm:py-8">
-        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div> : null}
-        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
+        {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div> : null}
+        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{error}</div> : null}
         {!isLoading && control ? (
           <div className="grid gap-10 lg:grid-cols-12">
             <section className="space-y-8 lg:col-span-8">
@@ -441,7 +441,7 @@ export default function ManageWeatherControlView() {
                 <p className="text-lg text-on-surface-variant">{t("description")}</p>
               </div>
 
-              <form className="app-card grid gap-6 p-6 md:grid-cols-2" onSubmit={handleSave}>
+              <form className="app-card grid gap-6 p-4 sm:p-6 md:grid-cols-2" onSubmit={handleSave}>
                 <input className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 outline-none focus:border-primary" onChange={(event) => setName(event.target.value)} value={name} />
                 <select className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 outline-none focus:border-primary" onChange={(event) => setSiteId(event.target.value)} value={siteId}>
                   {sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}
@@ -450,7 +450,7 @@ export default function ManageWeatherControlView() {
                 {message ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary md:col-span-2">{message}</div> : null}
               </form>
 
-              <section className="app-card p-6">
+              <section className="app-card p-4 sm:p-6">
                 <div className="mb-5 flex items-center justify-between">
                   <h2 className="font-headline text-xl font-bold">{common("deviceRules")}</h2>
                   <span className="chip bg-surface-container-highest text-primary-container">{standardLinks.length + heatPumpLinks.length}</span>
@@ -532,8 +532,8 @@ export default function ManageWeatherControlView() {
               </section>
             </section>
             <aside className="space-y-6 lg:col-span-4">
-              <div className="app-card p-6"><p className="metric-label mb-2">{common("origin")}</p><p className="font-headline text-2xl font-bold">{control.shared ? common("shared") : common("mine")}</p></div>
-              <div className="app-card p-6">
+              <div className="app-card p-4 sm:p-6"><p className="metric-label mb-2">{common("origin")}</p><p className="font-headline text-2xl font-bold">{control.shared ? common("shared") : common("mine")}</p></div>
+              <div className="app-card p-4 sm:p-6">
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
                     <p className="metric-label mb-2">{t("currentWeather")}</p>
@@ -569,8 +569,8 @@ export default function ManageWeatherControlView() {
                   </div>
                 )}
               </div>
-              <div className="app-card p-6"><p className="metric-label mb-2">{common("created")}</p><p className="font-semibold">{formatDate(control.createdAt, control.siteTimezone)}</p></div>
-              <div className="app-card p-6"><p className="metric-label mb-2">{common("updated")}</p><p className="font-semibold">{formatDate(control.updatedAt, control.siteTimezone)}</p></div>
+              <div className="app-card p-4 sm:p-6"><p className="metric-label mb-2">{common("created")}</p><p className="font-semibold">{formatDate(control.createdAt, control.siteTimezone)}</p></div>
+              <div className="app-card p-4 sm:p-6"><p className="metric-label mb-2">{common("updated")}</p><p className="font-semibold">{formatDate(control.updatedAt, control.siteTimezone)}</p></div>
               <Link className="secondary-action justify-center" to="/weather-controls">{common("back")}</Link>
             </aside>
           </div>

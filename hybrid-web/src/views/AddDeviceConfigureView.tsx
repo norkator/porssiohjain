@@ -157,7 +157,7 @@ export default function AddDeviceConfigureView() {
         </section>
 
         <section className="space-y-8">
-          <div className="relative overflow-hidden rounded-xl bg-surface-container-low p-8">
+          <div className="relative overflow-hidden rounded-xl bg-surface-container-low p-4 sm:p-6 lg:p-8">
             <div className="relative z-10 max-w-2xl">
               <p className="metric-label mb-4">{t("selectedDeviceType")}</p>
               <h1 className="mb-4 font-headline text-3xl font-extrabold leading-tight text-primary md:text-4xl">
@@ -172,7 +172,7 @@ export default function AddDeviceConfigureView() {
             </div>
           </div>
 
-          <form className="app-card max-w-4xl space-y-8 p-8" onSubmit={handleSubmit}>
+          <form className="app-card max-w-4xl space-y-8 p-4 sm:p-6 lg:p-8" onSubmit={handleSubmit}>
               <div>
                 <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="device-name">
                   {t("deviceName")}
@@ -276,7 +276,7 @@ export default function AddDeviceConfigureView() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-surface-container-low p-6">
+                  <div className="rounded-xl bg-surface-container-low p-4 sm:p-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-headline text-lg font-bold text-on-surface">{t("chooseAcDevice")}</p>
@@ -336,7 +336,7 @@ export default function AddDeviceConfigureView() {
 
       {isAcDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/35 px-4 py-8">
-          <div className="app-card w-full max-w-2xl p-6">
+          <div className="app-card w-full max-w-2xl p-4 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="metric-label mb-2">{t("heatPumpAccount")}</p>

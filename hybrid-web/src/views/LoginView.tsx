@@ -77,7 +77,7 @@ export default function LoginView() {
         </select>
       </label>
 
-      <section className="app-card w-full max-w-md p-8">
+      <section className="app-card w-full max-w-md p-4 sm:p-6 lg:p-8">
         <div className="mb-8 flex items-center gap-4">
           <HeaderLogo />
           <div>

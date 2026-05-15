@@ -174,7 +174,7 @@ export default function SitesView() {
           <p className="max-w-2xl text-lg text-on-surface-variant">{t("description")}</p>
         </section>
 
-        <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-5" onSubmit={handleSubmit}>
+        <form className="app-card mb-8 grid gap-4 p-4 sm:p-6 md:grid-cols-2 lg:grid-cols-5" onSubmit={handleSubmit}>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder={t("siteName")} value={name} />
           <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setType(event.target.value as SiteType)} value={type}>
             {SITE_TYPES.map((item) => <option key={item} value={item}>{siteTypeLabel(item)}</option>)}
@@ -202,12 +202,12 @@ export default function SitesView() {
           {editingSiteId !== null ? <button className="secondary-action justify-center lg:col-span-1" onClick={resetForm} type="button">{common("cancel")}</button> : null}
         </form>
 
-        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div> : null}
-        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
+        {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div> : null}
+        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{error}</div> : null}
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {!isLoading && sites.map((site) => (
-            <article className={`group app-card border-l-4 ${site.enabled ? "border-primary" : "border-outline"} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`} key={site.id}>
+            <article className={`group app-card border-l-4 ${site.enabled ? "border-primary" : "border-outline"} p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6`} key={site.id}>
               <div className="mb-5 flex justify-between gap-3">
                 <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{siteTypeLabel(site.type)}</span>
                 <span className={`rounded px-2 py-1 text-[10px] font-bold ${site.enabled ? "bg-primary-fixed text-primary" : "bg-error-container text-on-error-container"}`}>{site.enabled ? common("enabled") : common("disabled")}</span>

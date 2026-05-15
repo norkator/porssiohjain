@@ -283,11 +283,11 @@ export default function ManageDeviceView() {
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         {isLoading ? (
-          <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div>
+          <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div>
         ) : null}
 
         {!isLoading && loadError ? (
-          <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
+          <div className="app-card border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">
             {t("failedLoad")}. {loadError}
           </div>
         ) : null}
@@ -306,7 +306,7 @@ export default function ManageDeviceView() {
                   </p>
                 </div>
 
-              <form className="app-card min-w-0 space-y-8 overflow-hidden p-8" onSubmit={handleSubmit}>
+              <form className="app-card min-w-0 space-y-8 overflow-hidden p-4 sm:p-6 lg:p-8" onSubmit={handleSubmit}>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="device-name">
@@ -489,14 +489,14 @@ export default function ManageDeviceView() {
                 ) : null}
 
                 {saveError ? (
-                  <div className="rounded-xl border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
+                  <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">
                     {saveError}
                   </div>
                 ) : null}
               </form>
 
               {isStandard ? (
-                <section className="app-card min-w-0 space-y-6 overflow-hidden p-6">
+                <section className="app-card min-w-0 space-y-6 overflow-hidden p-4 sm:p-6">
                   <div>
                     <p className="metric-label mb-2">{t("deviceIntegration")}</p>
                     <h2 className="font-headline text-2xl font-bold text-primary">{t("shellyJavascript")}</h2>
@@ -543,11 +543,11 @@ export default function ManageDeviceView() {
             </section>
 
             <aside className="min-w-0 space-y-6 lg:col-span-4">
-              <div className="app-card p-6">
+              <div className="app-card p-4 sm:p-6">
                 <p className="metric-label mb-2">{common("origin")}</p>
                 <p className="font-headline text-2xl font-bold text-on-surface">{device?.shared ? common("shared") : common("mine")}</p>
               </div>
-              <div className="app-card p-6">
+              <div className="app-card p-4 sm:p-6">
                 <p className="metric-label mb-2">{t("connection")}</p>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
@@ -560,11 +560,11 @@ export default function ManageDeviceView() {
                   </div>
                 </div>
               </div>
-              <div className="app-card p-6">
+              <div className="app-card p-4 sm:p-6">
                 <p className="metric-label mb-2">UUID</p>
                 <p className="break-all font-mono text-sm text-on-surface">{device?.uuid}</p>
               </div>
-              <div className="app-card p-6">
+              <div className="app-card p-4 sm:p-6">
                 <p className="metric-label mb-2">{t("lastSeen")}</p>
                 <p className="font-semibold text-on-surface">{formatDeviceLastCommunication(device?.lastCommunication ?? null)}</p>
               </div>
@@ -572,7 +572,7 @@ export default function ManageDeviceView() {
             </div>
 
             {!device?.shared ? (
-              <section className="app-card border-error-container bg-error-container/40 p-6">
+              <section className="app-card border-error-container bg-error-container/40 p-4 sm:p-6">
                 {!deleteConfirmOpen ? (
                   <button
                     className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
@@ -616,7 +616,7 @@ export default function ManageDeviceView() {
 
       {isAcDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
-          <div className="w-full max-w-2xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
+          <div className="w-full max-w-2xl rounded-xl bg-surface-container-lowest p-4 shadow-2xl sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="metric-label mb-2">{t("acDevices")}</p>

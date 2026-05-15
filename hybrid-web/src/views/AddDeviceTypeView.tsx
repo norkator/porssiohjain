@@ -72,7 +72,7 @@ export default function AddDeviceTypeView() {
             </div>
           ))}
 
-          <div className="relative flex h-full w-full flex-col justify-between overflow-hidden rounded-xl border-2 border-dashed border-outline-variant/30 bg-surface-container p-8">
+          <div className="relative flex h-full w-full flex-col justify-between overflow-hidden rounded-xl border-2 border-dashed border-outline-variant/30 bg-surface-container p-4 sm:p-6 lg:p-8">
             <div className="z-10">
               <h4 className="mb-2 font-headline text-lg font-bold">{t("missingDeviceTitle")}</h4>
               <p className="mb-4 text-sm text-on-surface-variant">

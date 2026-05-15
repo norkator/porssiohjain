@@ -55,11 +55,11 @@ export default function ControlsView() {
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {isLoading ? (
-            <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingControls")}</div>
+            <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loadingControls")}</div>
           ) : null}
 
           {!isLoading && error ? (
-            <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
+            <div className="app-card border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">
               {t("failedToLoad", { error })}
             </div>
           ) : null}
@@ -70,7 +70,7 @@ export default function ControlsView() {
 
                 return (
                   <article
-                    className={`group app-card border-l-4 ${getControlAccent(control)} p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft`}
+                    className={`group app-card border-l-4 ${getControlAccent(control)} p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6`}
                     key={control.id}
                   >
                     <div className="mb-6 flex items-start justify-between gap-4">
@@ -118,7 +118,7 @@ export default function ControlsView() {
             : null}
 
           <Link
-            className="group flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-6 text-center transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:bg-surface-container-high hover:shadow-soft"
+            className="group flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:bg-surface-container-high hover:shadow-soft sm:p-6"
             to="/controls/add"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest font-headline text-xl font-black text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-white">
@@ -132,7 +132,7 @@ export default function ControlsView() {
         </section>
 
         <section className="mt-20 grid grid-cols-1 gap-8 items-center md:grid-cols-12">
-          <div className="group relative overflow-hidden rounded-3xl bg-primary-container p-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.22)] md:col-span-4">
+          <div className="group relative overflow-hidden rounded-3xl bg-primary-container p-4 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.22)] sm:p-6 md:col-span-4">
             <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
             <div className="relative text-white">
               <p className="text-xs font-semibold uppercase tracking-widest opacity-80">{t("controlsConfigured")}</p>
@@ -143,15 +143,15 @@ export default function ControlsView() {
           <div className="flex flex-col gap-6 md:col-span-8">
             <h3 className="font-headline text-3xl font-bold text-primary">{t("summaryTitle")}</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
+              <div className="rounded-2xl bg-surface-container p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high sm:p-6">
                 <p className="font-bold">{t("manualControls")}</p>
                 <p className="text-sm text-on-surface-variant">{isLoading ? common("syncing") : t("manualConfigured", { count: manualCount })}</p>
               </div>
-              <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
+              <div className="rounded-2xl bg-surface-container p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high sm:p-6">
                 <p className="font-bold">{t("sharedResources")}</p>
                 <p className="text-sm text-on-surface-variant">{isLoading ? common("syncing") : t("sharedConfigured", { count: sharedCount })}</p>
               </div>
-              <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high">
+              <div className="rounded-2xl bg-surface-container p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high sm:p-6">
                 <p className="font-bold">{t("lastUpdate")}</p>
                 <p className="text-sm text-on-surface-variant">
                   {latestUpdate ? formatControlDate(latestUpdate) : t("noChanges")}

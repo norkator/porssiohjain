@@ -79,7 +79,7 @@ export default function WeatherControlsView() {
           <p className="max-w-lg text-lg text-on-surface-variant">{t("description")}</p>
         </section>
 
-        <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-3" onSubmit={handleCreate}>
+        <form className="app-card mb-8 grid gap-4 p-4 sm:p-6 md:grid-cols-3" onSubmit={handleCreate}>
           <input className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 outline-none focus:border-primary" onChange={(event) => setName(event.target.value)} placeholder={t("controlName")} value={name} />
           <select className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 outline-none focus:border-primary" onChange={(event) => setSiteId(event.target.value)} value={siteId}>
             <option value="">{t("selectSite")}</option>
@@ -88,12 +88,12 @@ export default function WeatherControlsView() {
           <button className="primary-action justify-center disabled:opacity-60" disabled={isCreating || !name.trim() || !siteId} type="submit">{isCreating ? common("creating") : t("add")}</button>
         </form>
 
-        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div> : null}
-        {error ? <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
+        {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div> : null}
+        {error ? <div className="app-card border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{error}</div> : null}
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {!isLoading && controls.map((control) => (
-            <article className="group app-card border-l-4 border-secondary p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft" key={control.id}>
+            <article className="group app-card border-l-4 border-secondary p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6" key={control.id}>
               <div className="mb-5 flex items-start justify-between gap-3">
                 <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{control.siteName ?? t("noSite")}</span>
                 <span className="rounded bg-primary-fixed px-2 py-1 text-[10px] font-bold text-primary">{control.shared ? common("shared") : common("active")}</span>
@@ -110,9 +110,9 @@ export default function WeatherControlsView() {
         </section>
 
         <section className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="font-bold">{t("configured")}</p><p className="text-sm text-on-surface-variant">{t("configuredCount", { count: controls.length })}</p></div>
-          <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="font-bold">{t("sites")}</p><p className="text-sm text-on-surface-variant">{t("sitesCount", { count: sites.length })}</p></div>
-          <div className="rounded-2xl bg-surface-container p-6 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high"><p className="font-bold">{t("lastUpdate")}</p><p className="text-sm text-on-surface-variant">{latestUpdate ? formatDate(latestUpdate) : t("noChanges")}</p></div>
+          <div className="rounded-2xl bg-surface-container p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high sm:p-6"><p className="font-bold">{t("configured")}</p><p className="text-sm text-on-surface-variant">{t("configuredCount", { count: controls.length })}</p></div>
+          <div className="rounded-2xl bg-surface-container p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high sm:p-6"><p className="font-bold">{t("sites")}</p><p className="text-sm text-on-surface-variant">{t("sitesCount", { count: sites.length })}</p></div>
+          <div className="rounded-2xl bg-surface-container p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-surface-container-high sm:p-6"><p className="font-bold">{t("lastUpdate")}</p><p className="text-sm text-on-surface-variant">{latestUpdate ? formatDate(latestUpdate) : t("noChanges")}</p></div>
         </section>
       </main>
     </>

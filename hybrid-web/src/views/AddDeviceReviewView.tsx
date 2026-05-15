@@ -93,25 +93,25 @@ export default function AddDeviceReviewView() {
             </section>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl bg-surface-container-low p-6">
+              <div className="rounded-xl bg-surface-container-low p-4 sm:p-6">
                 <p className="metric-label mb-2">{t("deviceType")}</p>
                 <p className="font-headline text-xl font-bold text-on-surface">{deviceType.title}</p>
               </div>
-              <div className="rounded-xl bg-surface-container-low p-6">
+              <div className="rounded-xl bg-surface-container-low p-4 sm:p-6">
                 <p className="metric-label mb-2">{t("deviceName")}</p>
                 <p className="font-headline text-xl font-bold text-on-surface">{draft.deviceName}</p>
               </div>
-              <div className="rounded-xl bg-surface-container-low p-6 sm:col-span-2">
+              <div className="rounded-xl bg-surface-container-low p-4 sm:col-span-2 sm:p-6">
                 <p className="metric-label mb-2">{common("timezone")}</p>
                 <p className="font-headline text-xl font-bold text-on-surface">{draft.timezone}</p>
               </div>
               {isHeatPump ? (
                 <>
-                  <div className="rounded-xl bg-surface-container-low p-6">
+                  <div className="rounded-xl bg-surface-container-low p-4 sm:p-6">
                     <p className="metric-label mb-2">{t("heatPumpDeviceName")}</p>
                     <p className="font-headline text-xl font-bold text-on-surface">{draft.hpName}</p>
                   </div>
-                  <div className="rounded-xl bg-surface-container-low p-6">
+                  <div className="rounded-xl bg-surface-container-low p-4 sm:p-6">
                     <p className="metric-label mb-2">{t("selectedAcDevice")}</p>
                     <p className="font-headline text-lg font-bold text-on-surface">{draft.acDeviceLabel}</p>
                     <div className="mt-3 space-y-1 text-sm text-on-surface-variant">
@@ -143,7 +143,7 @@ export default function AddDeviceReviewView() {
             </div>
 
             {submitError ? (
-              <div className="rounded-xl border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
+              <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">
                 {submitError}
               </div>
             ) : null}

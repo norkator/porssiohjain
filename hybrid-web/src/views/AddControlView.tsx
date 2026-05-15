@@ -95,7 +95,7 @@ export default function AddControlView() {
               </p>
             </div>
 
-            <form className="app-card space-y-8 p-8" onSubmit={handleSubmit}>
+            <form className="app-card space-y-8 p-4 sm:p-6 lg:p-8" onSubmit={handleSubmit}>
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="md:col-span-2">
                   <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="control-name">
@@ -247,7 +247,7 @@ export default function AddControlView() {
               </div>
 
               {submitError ? (
-                <div className="rounded-xl border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
+                <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">
                   {submitError}
                 </div>
               ) : null}

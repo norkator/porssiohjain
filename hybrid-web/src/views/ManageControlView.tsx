@@ -457,11 +457,11 @@ export default function ManageControlView() {
 
       <main className="app-page pb-8 pt-4 sm:py-8">
         {isLoading ? (
-          <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div>
+          <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div>
         ) : null}
 
         {!isLoading && loadError ? (
-          <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
+          <div className="app-card border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">
             {t("failedLoad")}. {loadError}
           </div>
         ) : null}
@@ -480,7 +480,7 @@ export default function ManageControlView() {
                   </p>
                 </div>
 
-                <form className="app-card space-y-8 p-8" onSubmit={handleSubmit}>
+                <form className="app-card space-y-8 p-4 sm:p-6 lg:p-8" onSubmit={handleSubmit}>
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="md:col-span-2">
                       <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="control-name">
@@ -647,7 +647,7 @@ export default function ManageControlView() {
                   ) : null}
 
                   {saveError ? (
-                    <div className="rounded-xl border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
+                    <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">
                       {saveError}
                     </div>
                   ) : null}
@@ -655,22 +655,22 @@ export default function ManageControlView() {
               </section>
 
               <aside className="space-y-6 lg:col-span-4">
-                <div className="app-card p-6">
+                <div className="app-card p-4 sm:p-6">
                   <p className="metric-label mb-2">{common("origin")}</p>
                   <p className="font-headline text-2xl font-bold text-on-surface">{control?.shared ? common("shared") : common("mine")}</p>
                 </div>
-                <div className="app-card p-6">
+                <div className="app-card p-4 sm:p-6">
                   <p className="metric-label mb-2">{common("created")}</p>
                   <p className="font-semibold text-on-surface">{formatControlDate(control?.createdAt, timezone)}</p>
                 </div>
-                <div className="app-card p-6">
+                <div className="app-card p-4 sm:p-6">
                   <p className="metric-label mb-2">{common("updated")}</p>
                   <p className="font-semibold text-on-surface">{formatControlDate(control?.updatedAt, timezone)}</p>
                 </div>
               </aside>
             </div>
 
-            <section className="app-card p-6">
+            <section className="app-card p-4 sm:p-6">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="font-headline text-xl font-bold text-on-surface">{t("controlLinks")}</h2>
                 <span className="chip bg-surface-container-highest text-primary-container">{standardLinks.length + heatPumpLinks.length}</span>
@@ -1048,7 +1048,7 @@ export default function ManageControlView() {
             </section>
 
             {!control?.shared ? (
-              <section className="app-card border-error-container bg-error-container/40 p-6">
+              <section className="app-card border-error-container bg-error-container/40 p-4 sm:p-6">
                 {!deleteConfirmOpen ? (
                   <button
                     className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"

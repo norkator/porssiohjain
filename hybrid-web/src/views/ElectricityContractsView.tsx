@@ -136,7 +136,7 @@ export default function ElectricityContractsView() {
           <p className="max-w-2xl text-lg text-on-surface-variant">{t("description")}</p>
         </section>
 
-        <form className="app-card mb-8 grid gap-4 p-6 md:grid-cols-2 lg:grid-cols-4" onSubmit={handleSubmit}>
+        <form className="app-card mb-8 grid gap-4 p-4 sm:p-6 md:grid-cols-2 lg:grid-cols-4" onSubmit={handleSubmit}>
           <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder={t("name")} value={name} />
           <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setType(event.target.value as ElectricityContractType)} value={type}>
             {CONTRACT_TYPES.map((item) => <option key={item} value={item}>{contractTypeLabel(item)}</option>)}
@@ -152,12 +152,12 @@ export default function ElectricityContractsView() {
           {editingContractId !== null ? <button className="secondary-action justify-center" onClick={resetForm} type="button">{common("cancel")}</button> : null}
         </form>
 
-        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">{t("loading")}</div> : null}
-        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
+        {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div> : null}
+        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{error}</div> : null}
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {!isLoading && contracts.map((contract) => (
-            <article className="group app-card border-l-4 border-primary p-6 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft" key={contract.id}>
+            <article className="group app-card border-l-4 border-primary p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6" key={contract.id}>
               <div className="mb-5 flex justify-between gap-3">
                 <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-white">{contractTypeLabel(contract.type)}</span>
                 <span className="rounded px-2 py-1 text-[10px] font-bold bg-primary-fixed text-primary">{contract.staticPrice !== null ? t("staticBadge") : t("variableBadge")}</span>

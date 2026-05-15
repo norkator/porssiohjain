@@ -80,21 +80,21 @@ export default function AddDeviceIntegrationView() {
               </p>
             </section>
 
-            <div className="overflow-hidden rounded-xl bg-surface-container-low p-6">
+            <div className="overflow-hidden rounded-xl bg-surface-container-low p-4 sm:p-6">
               <p className="metric-label mb-2">{t("deviceIdentifier")}</p>
               <div className="overflow-x-auto">
                 <p className="w-max min-w-full font-mono text-base font-bold tracking-wider text-primary">{provisionedDevice.uuid}</p>
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl bg-surface-container-low p-6">
+            <div className="overflow-hidden rounded-xl bg-surface-container-low p-4 sm:p-6">
               <p className="metric-label mb-2">{t("setupInstructions")}</p>
               <p className="text-sm leading-relaxed text-on-surface-variant">
                 {t("instructions")}
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-xl bg-surface-container-low p-6">
+            <div className="overflow-hidden rounded-xl bg-surface-container-low p-4 sm:p-6">
               <p className="metric-label mb-2">{t("mqttCredentials")}</p>
               <div className="space-y-4 rounded-xl bg-surface-container-highest p-4">
                 <div>
@@ -118,7 +118,7 @@ export default function AddDeviceIntegrationView() {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl bg-surface-container-low p-6">
+            <div className="overflow-hidden rounded-xl bg-surface-container-low p-4 sm:p-6">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="metric-label">{t("shellyJavascript")}</p>
                 <button

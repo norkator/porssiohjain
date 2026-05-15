@@ -162,14 +162,14 @@ export default function ManagePowerLimitView() {
     <>
       <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} title={t("manageTitle")} compact />
       <main className="app-page pb-8 pt-4 sm:py-8">
-        {isLoading ? <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingOne")}</div> : null}
-        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">{error}</div> : null}
+        {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loadingOne")}</div> : null}
+        {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{error}</div> : null}
         {!isLoading && limit ? (
           <div className="space-y-8">
             <div className="grid gap-10 lg:grid-cols-12">
               <section className="space-y-8 lg:col-span-8">
                 <div><p className="metric-label mb-3">{t("label", { id: powerLimitId })}</p><h1 className="mb-4 font-headline text-4xl font-extrabold text-primary">{limit.name}</h1></div>
-                <form className="app-card grid gap-4 p-6 md:grid-cols-2" onSubmit={handleSave}>
+                <form className="app-card grid gap-4 p-4 sm:p-6 md:grid-cols-2" onSubmit={handleSave}>
                   <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} value={name} />
                   <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" min="0" onChange={(event) => setLimitKw(event.target.value)} step="0.1" type="number" value={limitKw} />
                   <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setLimitIntervalMinutes(event.target.value)} value={limitIntervalMinutes}><option value="15">15 min</option><option value="60">60 min</option></select>
@@ -181,7 +181,7 @@ export default function ManagePowerLimitView() {
                   {message ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary md:col-span-2">{message}</div> : null}
                 </form>
 
-                <section className="app-card p-6">
+                <section className="app-card p-4 sm:p-6">
                   <div className="mb-5 flex items-center justify-between"><h2 className="font-headline text-xl font-bold">{common("linkedDevices")}</h2><span className="chip bg-surface-container-highest text-primary-container">{links.length}</span></div>
                   <div className="space-y-3">
                     {links.map((link) => (
@@ -238,9 +238,9 @@ export default function ManagePowerLimitView() {
                 </section>
               </section>
               <aside className="space-y-6 lg:col-span-4">
-                <div className="app-card p-6"><p className="metric-label mb-2">{common("currentKw")}</p><p className="font-headline text-3xl font-bold">{formatKw(limit.currentKw)}</p></div>
-                <div className="app-card p-6"><p className="metric-label mb-2">{common("peakKw")}</p><p className="font-headline text-3xl font-bold">{formatKw(limit.peakKw)}</p></div>
-                <div className="app-card p-6"><p className="metric-label mb-2">{common("updated")}</p><p className="font-semibold">{formatDate(limit.updatedAt, limit.timezone)}</p></div>
+                <div className="app-card p-4 sm:p-6"><p className="metric-label mb-2">{common("currentKw")}</p><p className="font-headline text-3xl font-bold">{formatKw(limit.currentKw)}</p></div>
+                <div className="app-card p-4 sm:p-6"><p className="metric-label mb-2">{common("peakKw")}</p><p className="font-headline text-3xl font-bold">{formatKw(limit.peakKw)}</p></div>
+                <div className="app-card p-4 sm:p-6"><p className="metric-label mb-2">{common("updated")}</p><p className="font-semibold">{formatDate(limit.updatedAt, limit.timezone)}</p></div>
                 <Link className="secondary-action justify-center" to="/power-limits">{common("back")}</Link>
               </aside>
             </div>
@@ -251,7 +251,7 @@ export default function ManagePowerLimitView() {
               timezone={limit.timezone}
             />
 
-            <section className="app-card border-error-container bg-error-container/40 p-6">
+            <section className="app-card border-error-container bg-error-container/40 p-4 sm:p-6">
               {!deleteConfirmOpen ? (
                 <button
                   className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
