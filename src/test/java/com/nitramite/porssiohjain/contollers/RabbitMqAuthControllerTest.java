@@ -16,6 +16,7 @@ import com.nitramite.porssiohjain.entity.FactoryDeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
+import com.nitramite.porssiohjain.services.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,10 +42,12 @@ class RabbitMqAuthControllerTest {
     private RabbitMqAuthController controller;
     private DeviceEntity device;
     private FactoryDeviceEntity factoryDevice;
+    private SystemLogService systemLogService;
 
     @BeforeEach
     void setUp() {
-        controller = new RabbitMqAuthController(deviceRepository, factoryDeviceRepository);
+        systemLogService = new SystemLogService();
+        controller = new RabbitMqAuthController(deviceRepository, factoryDeviceRepository, systemLogService);
         device = DeviceEntity.builder()
                 .uuid(UUID.randomUUID())
                 .mqttUsername("device-user")

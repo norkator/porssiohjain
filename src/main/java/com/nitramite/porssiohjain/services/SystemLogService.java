@@ -24,8 +24,30 @@ public class SystemLogService {
 
     private static final int MAX_LOG_ENTRIES = 20;
     private final LinkedList<SystemLogResponse> logs = new LinkedList<>();
+    private final LinkedList<SystemLogResponse> mqttLogs = new LinkedList<>();
 
     public synchronized void log(
+            String message
+    ) {
+        append(logs, message);
+    }
+
+    public synchronized void logMqtt(
+            String message
+    ) {
+        append(mqttLogs, message);
+    }
+
+    public synchronized List<SystemLogResponse> findLatest() {
+        return Collections.unmodifiableList(new LinkedList<>(logs));
+    }
+
+    public synchronized List<SystemLogResponse> findLatestMqtt() {
+        return Collections.unmodifiableList(new LinkedList<>(mqttLogs));
+    }
+
+    private void append(
+            LinkedList<SystemLogResponse> target,
             String message
     ) {
         SystemLogResponse entry = SystemLogResponse.builder()
@@ -33,14 +55,10 @@ public class SystemLogService {
                 .message(message)
                 .build();
 
-        logs.addFirst(entry);
-        if (logs.size() > MAX_LOG_ENTRIES) {
-            logs.removeLast();
+        target.addFirst(entry);
+        if (target.size() > MAX_LOG_ENTRIES) {
+            target.removeLast();
         }
-    }
-
-    public synchronized List<SystemLogResponse> findLatest() {
-        return Collections.unmodifiableList(new LinkedList<>(logs));
     }
 
 }

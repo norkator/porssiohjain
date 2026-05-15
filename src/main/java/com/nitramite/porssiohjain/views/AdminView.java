@@ -19,6 +19,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -40,6 +41,11 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
 
     private final AuthService authService;
     private final I18nService i18n;
+    private final SystemLogService systemLogService;
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            .withZone(ZoneId.of("Europe/Helsinki"));
+    private final VerticalLayout systemLogList = createLogList();
+    private final VerticalLayout mqttLogList = createLogList();
 
     public AdminView(
             AuthService authService,
@@ -48,6 +54,7 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
     ) {
         this.authService = authService;
         this.i18n = i18n;
+        this.systemLogService = systemLogService;
 
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
@@ -71,39 +78,26 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         Button provisioningButton = new Button(t("admin.provisioning.button"),
                 e -> UI.getCurrent().navigate(AdminProvisioningView.class));
         provisioningButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button refreshLogsButton = new Button("Refresh logs", e -> refreshLogs());
 
         H1 title = new H1(t("admin.title"));
         title.getStyle().set("margin-bottom", "1em");
+        H3 systemLogsTitle = new H3("System logs");
+        H3 mqttLogsTitle = new H3("MQTT logs");
 
-        VerticalLayout logList = new VerticalLayout();
-        logList.setWidth("100%");
-        logList.setPadding(false);
-        logList.setSpacing(false);
-        logList.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
-        logList.getStyle().set("border-radius", "8px");
-        logList.getStyle().set("background-color", "var(--lumo-base-color)");
+        refreshLogs();
 
-        ZoneId helsinkiZone = ZoneId.of("Europe/Helsinki");
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                .withZone(helsinkiZone);
-
-        List<SystemLogResponse> logs = systemLogService.findLatest();
-        if (logs.isEmpty()) {
-            Span empty = new Span(t("admin.systemLogEmpty"));
-            empty.getStyle().set("display", "block");
-            empty.getStyle().set("padding", "12px");
-            logList.add(empty);
-        } else {
-            for (SystemLogResponse log : logs) {
-                String formattedTime = formatter.format(log.getCreatedAt());
-                Span line = new Span("[" + formattedTime + "] " + log.getMessage());
-                line.getStyle().set("display", "block");
-                line.getStyle().set("padding", "6px 12px");
-                logList.add(line);
-            }
-        }
-
-        card.add(backButton, title, provisioningButton, createDivider(), logList);
+        card.add(
+                backButton,
+                title,
+                provisioningButton,
+                refreshLogsButton,
+                createDivider(),
+                systemLogsTitle,
+                systemLogList,
+                mqttLogsTitle,
+                mqttLogList
+        );
         add(card);
     }
 
@@ -115,6 +109,44 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
     public void beforeEnter(BeforeEnterEvent event) {
         if (ViewAuthUtils.rerouteToHomeIfNotAdmin(event, authService)) {
             return;
+        }
+    }
+
+    private void refreshLogs() {
+        populateLogList(systemLogList, systemLogService.findLatest(), t("admin.systemLogEmpty"));
+        populateLogList(mqttLogList, systemLogService.findLatestMqtt(), "No MQTT logs available.");
+    }
+
+    private VerticalLayout createLogList() {
+        VerticalLayout logList = new VerticalLayout();
+        logList.setWidth("100%");
+        logList.setPadding(false);
+        logList.setSpacing(false);
+        logList.getStyle().set("border", "1px solid var(--lumo-contrast-20pct)");
+        logList.getStyle().set("border-radius", "8px");
+        logList.getStyle().set("background-color", "var(--lumo-base-color)");
+        return logList;
+    }
+
+    private void populateLogList(
+            VerticalLayout target,
+            List<SystemLogResponse> logs,
+            String emptyMessage
+    ) {
+        target.removeAll();
+        if (logs.isEmpty()) {
+            Span empty = new Span(emptyMessage);
+            empty.getStyle().set("display", "block");
+            empty.getStyle().set("padding", "12px");
+            target.add(empty);
+            return;
+        }
+        for (SystemLogResponse log : logs) {
+            String formattedTime = formatter.format(log.getCreatedAt());
+            Span line = new Span("[" + formattedTime + "] " + log.getMessage());
+            line.getStyle().set("display", "block");
+            line.getStyle().set("padding", "6px 12px");
+            target.add(line);
         }
     }
 }
