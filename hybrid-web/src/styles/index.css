@@ -43,6 +43,14 @@
   button {
     @apply tap-highlight-none;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .device-card-channel-active,
+    .device-card-channel-active-dot {
+      animation: none !important;
+      transform: none !important;
+    }
+  }
 }
 
 @layer components {
@@ -83,10 +91,57 @@
     @apply sticky top-0 z-40 w-full border-b border-outline-variant/50 bg-background/90 backdrop-blur-md;
   }
 
+  .device-card-channel-active {
+    box-shadow:
+      0 0 0 0 rgb(16 185 129 / 0.28),
+      inset 0 0 0 1px rgb(16 185 129 / 0.2);
+    transform-origin: center;
+    animation: active-channel-badge-pulse 1.9s ease-out infinite;
+  }
+
+  .device-card-channel-active-dot {
+    box-shadow: 0 0 0 0 rgb(5 150 105 / 0.52);
+    animation: active-channel-dot-pulse 1.9s ease-out infinite;
+  }
+
 }
 
 @layer utilities {
   .tap-highlight-none {
     -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@keyframes active-channel-badge-pulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgb(16 185 129 / 0.28),
+      inset 0 0 0 1px rgb(16 185 129 / 0.2);
+    transform: scale(1);
+  }
+
+  35% {
+    box-shadow:
+      0 0 0 6px rgb(16 185 129 / 0.12),
+      inset 0 0 0 1px rgb(16 185 129 / 0.3);
+    transform: scale(1.06);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 12px rgb(16 185 129 / 0),
+      inset 0 0 0 1px rgb(16 185 129 / 0.12);
+    transform: scale(1);
+  }
+}
+
+@keyframes active-channel-dot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(5 150 105 / 0.52);
+  }
+
+  75%,
+  100% {
+    box-shadow: 0 0 0 8px rgb(5 150 105 / 0);
   }
 }

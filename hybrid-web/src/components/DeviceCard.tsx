@@ -63,11 +63,13 @@ export default function DeviceCard({
             <span
               className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold ${
                 channelStatus.tone === "active"
-                  ? "bg-emerald-100 text-emerald-800"
+                  ? "device-card-channel-active bg-emerald-100 text-emerald-800"
                   : "bg-slate-200 text-slate-700"
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${channelStatus.tone === "active" ? "bg-emerald-600" : "bg-slate-500"}`} />
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${channelStatus.tone === "active" ? "device-card-channel-active-dot bg-emerald-600" : "bg-slate-500"}`}
+              />
               {channelStatus.label}
             </span>
           ) : null}
