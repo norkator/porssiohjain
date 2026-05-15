@@ -34,6 +34,7 @@ public class SiteService {
     private final AccountRepository accountRepository;
     private final FmiWeatherService fmiWeatherService;
     private final SiteWeatherService siteWeatherService;
+    private final FinnishWeatherPlaceService finnishWeatherPlaceService;
 
     public SiteEntity createSite(
             Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone
@@ -83,6 +84,10 @@ public class SiteService {
                 .toList();
     }
 
+    public List<String> getSupportedWeatherPlaces() {
+        return finnishWeatherPlaceService.getSupportedPlaces();
+    }
+
     public SiteWeatherForecastResponse getSiteWeatherForecast(Long accountId, Long siteId) {
         SiteEntity site = siteRepository.findByIdAndAccountId(siteId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Site not found"));
@@ -113,7 +118,13 @@ public class SiteService {
             return null;
         }
         String trimmed = weatherPlace.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        return finnishWeatherPlaceService.findSupportedPlace(trimmed)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Weather place must be selected from the supported Finnish city list. Other European cities are not supported yet."
+                ));
     }
 
     private String normalizeTimezone(String timezone) {
