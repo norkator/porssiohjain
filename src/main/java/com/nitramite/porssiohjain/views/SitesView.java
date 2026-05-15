@@ -17,6 +17,8 @@ import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.SiteService;
 import com.nitramite.porssiohjain.services.models.SiteResponse;
+import com.nitramite.porssiohjain.services.models.SiteWeatherForecastPointResponse;
+import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -26,6 +28,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -35,7 +38,12 @@ import com.vaadin.flow.router.*;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 
 @PageTitle("Pörssiohjain - Sites")
 @Route("sites")
@@ -46,6 +54,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private final SiteService siteService;
     private final AuthService authService;
     private final I18nService i18n;
+    private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private Long accountId;
     private Long editingSiteId = null;
@@ -56,6 +65,11 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private final ComboBox<SiteType> typeField;
     private final Checkbox enabledToggle;
     private final Button saveButton;
+    private final VerticalLayout weatherInfoSection;
+    private final TextField weatherTimestampField;
+    private final TextField temperatureField;
+    private final TextField windSpeedField;
+    private final TextField humidityField;
 
     @Autowired
     public SitesView(SiteService siteService, AuthService authService, I18nService i18n) {
@@ -69,6 +83,11 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         typeField = new ComboBox<>(t("sites.field.type"));
         enabledToggle = new Checkbox(t("sites.field.enabled"));
         saveButton = new Button(t("sites.button.create"));
+        weatherTimestampField = createReadOnlyField(t("sites.weather.field.time"));
+        temperatureField = createReadOnlyField(t("sites.weather.field.temperature"));
+        windSpeedField = createReadOnlyField(t("sites.weather.field.windSpeed"));
+        humidityField = createReadOnlyField(t("sites.weather.field.humidity"));
+        weatherInfoSection = createWeatherInfoSection();
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -143,9 +162,27 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                 new FormLayout.ResponsiveStep("600px", 2)
         );
 
-        VerticalLayout container = new VerticalLayout(form, saveButton);
+        VerticalLayout container = new VerticalLayout(form, saveButton, weatherInfoSection);
         container.getStyle().set("margin-top", "20px");
 
+        return container;
+    }
+
+    private VerticalLayout createWeatherInfoSection() {
+        H3 title = new H3(t("sites.weather.title"));
+        title.getStyle().set("margin", "0");
+
+        FormLayout weatherForm = new FormLayout(weatherTimestampField, temperatureField, windSpeedField, humidityField);
+        weatherForm.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2),
+                new FormLayout.ResponsiveStep("900px", 4)
+        );
+
+        VerticalLayout container = new VerticalLayout(title, weatherForm);
+        container.setPadding(false);
+        container.setSpacing(true);
+        container.setVisible(false);
         return container;
     }
 
@@ -184,6 +221,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                 typeField.setValue(selected.getType());
                 enabledToggle.setValue(selected.getEnabled());
                 saveButton.setText(t("sites.button.update"));
+                refreshWeatherInfo();
             }
         });
     }
@@ -219,6 +257,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
             );
             Notification notification = Notification.show(t("sites.notification.updated"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            refreshWeatherInfo();
             clearForm();
             loadSites();
         } catch (Exception e) {
@@ -235,10 +274,87 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         enabledToggle.setValue(true);
         saveButton.setText(t("sites.button.create"));
         sitesGrid.deselectAll();
+        clearWeatherInfo();
+        weatherInfoSection.setVisible(false);
     }
 
     private void loadSites() {
         sitesGrid.setItems(siteService.getAllSites(accountId));
+    }
+
+    private TextField createReadOnlyField(String label) {
+        TextField field = new TextField(label);
+        field.setReadOnly(true);
+        field.setWidthFull();
+        return field;
+    }
+
+    private void refreshWeatherInfo() {
+        if (editingSiteId == null) {
+            clearWeatherInfo();
+            weatherInfoSection.setVisible(false);
+            return;
+        }
+
+        weatherInfoSection.setVisible(true);
+
+        SiteWeatherForecastPointResponse point = getCurrentWeatherPoint(editingSiteId);
+        if (point == null) {
+            weatherTimestampField.setValue(t("sites.weather.notAvailable"));
+            temperatureField.setValue("-");
+            windSpeedField.setValue("-");
+            humidityField.setValue("-");
+            return;
+        }
+
+        weatherTimestampField.setValue(formatInstant(point.getTime(), getEditingSiteTimezone()));
+        temperatureField.setValue(formatDecimal(point.getTemperature(), "°C"));
+        windSpeedField.setValue(formatDecimal(point.getWindSpeedMs(), "m/s"));
+        humidityField.setValue(formatDecimal(point.getHumidity(), "%"));
+    }
+
+    private void clearWeatherInfo() {
+        weatherTimestampField.clear();
+        temperatureField.clear();
+        windSpeedField.clear();
+        humidityField.clear();
+    }
+
+    private SiteWeatherForecastPointResponse getCurrentWeatherPoint(Long siteId) {
+        SiteWeatherForecastResponse response = siteService.getStoredSiteWeatherForecast(accountId, siteId, null, null);
+        if (response.getPoints() == null || response.getPoints().isEmpty()) {
+            return null;
+        }
+
+        Instant now = Instant.now();
+        return response.getPoints().stream()
+                .min((left, right) -> {
+                    long leftDistance = Math.abs(left.getTime().toEpochMilli() - now.toEpochMilli());
+                    long rightDistance = Math.abs(right.getTime().toEpochMilli() - now.toEpochMilli());
+                    return Long.compare(leftDistance, rightDistance);
+                })
+                .orElse(null);
+    }
+
+    private String getEditingSiteTimezone() {
+        return Optional.ofNullable(timezoneField.getValue())
+                .filter(value -> !value.isBlank())
+                .orElse("Europe/Helsinki");
+    }
+
+    private String formatInstant(Instant instant, String timezone) {
+        if (instant == null) {
+            return "-";
+        }
+        ZoneId zoneId = ZoneId.of(timezone);
+        return dateTimeFormatter.format(ZonedDateTime.ofInstant(instant, zoneId));
+    }
+
+    private String formatDecimal(BigDecimal value, String suffix) {
+        if (value == null) {
+            return "-";
+        }
+        return value.stripTrailingZeros().toPlainString() + (suffix == null || suffix.isBlank() ? "" : " " + suffix);
     }
 
     @Override
