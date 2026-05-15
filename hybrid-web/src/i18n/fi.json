@@ -116,11 +116,18 @@
     "description": "Hallitse fyysisiä kohteita, aikavyöhykkeitä ja säähakupaikkoja, joita muut automaationäkymät käyttävät.",
     "siteName": "Kohteen nimi",
     "weatherPlace": "Säähakupaikka",
+    "weatherPlaceHelp": "Valitse tuettu suomalainen kaupunki. Muut Euroopan kaupungit eivät ole vielä tuettuja.",
+    "unsupportedWeatherPlace": "Valitse tuettu suomalainen kaupunki. Muut Euroopan kaupungit eivät ole vielä tuettuja.",
     "add": "Lisää kohde",
     "update": "Päivitä kohde",
     "loading": "Ladataan kohteita...",
     "failedLoad": "Kohteiden lataus epäonnistui",
-    "failedSave": "Kohteen tallennus epäonnistui"
+    "failedSave": "Kohteen tallennus epäonnistui",
+    "currentWeather": "Nykyinen sää",
+    "temperature": "Lämpötila",
+    "humidity": "Kosteus",
+    "weatherUnavailable": "Säätietoja ei ole vielä saatavilla tälle kohteelle.",
+    "weatherUnavailableShort": "Ei dataa"
   },
   "electricityContractsView": {
     "title": "Sähkösopimukset",

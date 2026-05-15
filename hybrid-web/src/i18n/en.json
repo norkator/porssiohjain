@@ -116,11 +116,18 @@
     "description": "Manage physical sites, timezone settings, and weather places used by other automation views.",
     "siteName": "Site name",
     "weatherPlace": "Weather place",
+    "weatherPlaceHelp": "Select a supported Finnish city. Other European cities are not supported yet.",
+    "unsupportedWeatherPlace": "Select a supported Finnish city. Other European cities are not supported yet.",
     "add": "Add Site",
     "update": "Update Site",
     "loading": "Loading sites...",
     "failedLoad": "Failed to load sites",
-    "failedSave": "Failed to save site"
+    "failedSave": "Failed to save site",
+    "currentWeather": "Current Weather",
+    "temperature": "Temperature",
+    "humidity": "Humidity",
+    "weatherUnavailable": "Weather data is not available for this site yet.",
+    "weatherUnavailableShort": "No data"
   },
   "electricityContractsView": {
     "title": "Electricity Contracts",

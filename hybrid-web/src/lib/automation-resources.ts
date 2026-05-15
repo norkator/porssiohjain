@@ -277,6 +277,8 @@ export const PRODUCTION_API_TYPES: ProductionApiType[] = ["SHELLY", "SOFAR_SOLAR
 export const SITE_TYPES: SiteType[] = ["HOME", "APARTMENT", "OFFICE", "WAREHOUSE", "FACTORY", "COMMERCIAL", "SOLAR_PLANT", "OTHER"];
 
 export const fetchSites = () => apiGetJson<ApiSite[]>("/api/sites");
+export const fetchSupportedWeatherPlaces = () => apiGetJson<string[]>("/api/sites/weather-places");
+export const fetchSiteWeather = (id: number) => apiGetJson<ApiSiteWeatherForecast>(`/api/sites/${id}/weather`);
 export const createSite = (payload: SitePayload) => postJson<ApiSite>("/api/sites", payload);
 export const updateSite = (id: number, payload: SitePayload) => postJson<ApiSite>(`/api/sites/${id}`, payload, "PUT");
 

@@ -17,9 +17,11 @@ import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.enums.SiteType;
 import com.nitramite.porssiohjain.services.SiteService;
 import com.nitramite.porssiohjain.services.models.SiteResponse;
+import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.List;
 
 @RestController
@@ -34,6 +36,20 @@ public class SitesController {
     @GetMapping
     public List<SiteResponse> listSites() {
         return siteService.getAllSites(authContext.getAccountId());
+    }
+
+    @GetMapping("/weather-places")
+    public List<String> listSupportedWeatherPlaces() {
+        return siteService.getSupportedWeatherPlaces();
+    }
+
+    @GetMapping("/{siteId}/weather")
+    public SiteWeatherForecastResponse getStoredSiteWeather(
+            @PathVariable Long siteId,
+            @RequestParam(required = false) Instant start,
+            @RequestParam(required = false) Instant end
+    ) {
+        return siteService.getStoredSiteWeatherForecast(authContext.getAccountId(), siteId, start, end);
     }
 
     @PostMapping
