@@ -40,8 +40,8 @@ public class MqttListener {
                 ? new String((byte[]) rawPayload)
                 : rawPayload.toString();
         // log.info("Received: {} -> {}", topic, payload);
-        if (topic.endsWith("/online")) {
-            String deviceId = topic.substring(0, topic.indexOf("/"));
+        String deviceId = extractOnlineDeviceId(topic);
+        if (deviceId != null) {
             boolean online = Boolean.parseBoolean(payload);
             deviceRepository.findByUuid(UUID.fromString(deviceId))
                     .ifPresent(device -> {
@@ -54,6 +54,16 @@ public class MqttListener {
         if (topic.startsWith("factory/bootstrap/")) {
             factoryProvisioningService.registerBootstrapMessage(topic, payload);
         }
+    }
+
+    private String extractOnlineDeviceId(String topic) {
+        if (topic.endsWith("/online")) {
+            return topic.substring(0, topic.indexOf("/"));
+        }
+        if (topic.endsWith(".online")) {
+            return topic.substring(0, topic.length() - ".online".length());
+        }
+        return null;
     }
 
 }

@@ -126,6 +126,10 @@ class RabbitMqAuthControllerTest {
                 "write", device.getUuid() + "/online").getBody());
         assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "write", device.getUuid() + "/telemetry/power").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".events.rpc").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".debug.log").getBody());
     }
 
     @Test
@@ -133,10 +137,15 @@ class RabbitMqAuthControllerTest {
         when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
 
         assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", device.getUuid() + ".command").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "read", device.getUuid() + ".command.#").getBody());
-        // Temporarily disabled while authorizeTopic returns allow for auth logging investigation.
-        // assertEquals("deny", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
-        //         "read", UUID.randomUUID() + ".command.#").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", "shellies.command").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", device.getUuid() + ".rpc").getBody());
+        assertEquals("deny", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", UUID.randomUUID() + ".rpc").getBody());
     }
 
     @Test

@@ -76,6 +76,7 @@ public class MqttConfig {
                 new MqttPahoMessageDrivenChannelAdapter(
                         clientId,
                         factory,
+                        "+",
                         "+/online",
                         "factory/bootstrap/+/state",
                         "factory/bootstrap/+/telemetry"

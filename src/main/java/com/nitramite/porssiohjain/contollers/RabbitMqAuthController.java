@@ -212,11 +212,19 @@ public class RabbitMqAuthController {
     }
 
     private boolean isReadableCommandRoutingKey(String topicRoot, String routingKey) {
-        return routingKey.equals(topicRoot + "/command")
+        return routingKey.equals("shellies.command")
+                || routingKey.equals(topicRoot + "/command")
                 || routingKey.startsWith(topicRoot + "/command/")
                 || routingKey.equals(topicRoot + "/command/#")
+                || routingKey.equals(topicRoot + "/rpc")
+                || routingKey.startsWith(topicRoot + "/rpc/")
+                || routingKey.equals(topicRoot + "/rpc/#")
+                || routingKey.equals(topicRoot + ".command")
                 || routingKey.startsWith(topicRoot + ".command.")
-                || routingKey.equals(topicRoot + ".command.#");
+                || routingKey.equals(topicRoot + ".command.#")
+                || routingKey.equals(topicRoot + ".rpc")
+                || routingKey.startsWith(topicRoot + ".rpc.")
+                || routingKey.equals(topicRoot + ".rpc.#");
     }
 
     private boolean isWritableStatusRoutingKey(String topicRoot, String routingKey, boolean finalDevice) {
@@ -224,9 +232,17 @@ public class RabbitMqAuthController {
             return routingKey.equals(topicRoot + "/online")
                     || routingKey.startsWith(topicRoot + "/state/")
                     || routingKey.startsWith(topicRoot + "/telemetry/")
+                    || routingKey.equals(topicRoot + "/events/rpc")
+                    || routingKey.startsWith(topicRoot + "/events/rpc/")
+                    || routingKey.equals(topicRoot + "/debug/log")
+                    || routingKey.startsWith(topicRoot + "/debug/log/")
                     || routingKey.equals(topicRoot + ".online")
                     || routingKey.startsWith(topicRoot + ".state.")
-                    || routingKey.startsWith(topicRoot + ".telemetry.");
+                    || routingKey.startsWith(topicRoot + ".telemetry.")
+                    || routingKey.equals(topicRoot + ".events.rpc")
+                    || routingKey.startsWith(topicRoot + ".events.rpc.")
+                    || routingKey.equals(topicRoot + ".debug.log")
+                    || routingKey.startsWith(topicRoot + ".debug.log.");
         }
         return routingKey.equals(topicRoot + "/state")
                 || routingKey.startsWith(topicRoot + "/telemetry/")
