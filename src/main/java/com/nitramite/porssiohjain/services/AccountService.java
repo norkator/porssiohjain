@@ -52,9 +52,30 @@ public class AccountService {
                 .updatedAt(now)
                 .build();
 
-        accountRepository.save(account);
-        account.setSecret(rawSecret);
-        return account;
+        AccountEntity savedAccount = accountRepository.save(account);
+
+        return AccountEntity.builder()
+                .id(savedAccount.getId())
+                .uuid(savedAccount.getUuid())
+                .secret(rawSecret)
+                .locale(savedAccount.getLocale())
+                .email(savedAccount.getEmail())
+                .notifyPowerLimitExceeded(savedAccount.isNotifyPowerLimitExceeded())
+                .notifyControlActivated(savedAccount.isNotifyControlActivated())
+                .emailNotificationsEnabled(savedAccount.isEmailNotificationsEnabled())
+                .pushNotificationsEnabled(savedAccount.isPushNotificationsEnabled())
+                .tier(savedAccount.getTier())
+                .deviceLimit(savedAccount.getDeviceLimit())
+                .weeklyEmailNotificationCount(savedAccount.getWeeklyEmailNotificationCount())
+                .weeklyEmailNotificationWeekStart(savedAccount.getWeeklyEmailNotificationWeekStart())
+                .weeklyPushNotificationCount(savedAccount.getWeeklyPushNotificationCount())
+                .weeklyPushNotificationWeekStart(savedAccount.getWeeklyPushNotificationWeekStart())
+                .agreedTerms(savedAccount.isAgreedTerms())
+                .agreedTermsAt(savedAccount.getAgreedTermsAt())
+                .admin(savedAccount.isAdmin())
+                .createdAt(savedAccount.getCreatedAt())
+                .updatedAt(savedAccount.getUpdatedAt())
+                .build();
     }
 
     @Transactional(readOnly = true)

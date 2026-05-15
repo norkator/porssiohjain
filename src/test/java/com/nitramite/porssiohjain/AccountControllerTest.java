@@ -29,6 +29,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -68,6 +69,18 @@ class AccountControllerTest {
                 .andExpect(jsonPath("$.createdAt").isString());
 
         assertThat(accountRepository.count()).isGreaterThan(0);
+    }
+
+    @Test
+    @DisplayName("Should store hashed secret when creating account")
+    void createAccountShouldHashStoredSecret() {
+        AccountEntity created = accountService.createAccount("60.60.60.60", true);
+
+        AccountEntity saved = accountRepository.findById(created.getId()).orElseThrow();
+
+        assertThat(saved.getSecret()).isNotEqualTo(created.getSecret());
+        assertThat(saved.getSecret()).startsWith("$2");
+        assertThat(passwordEncoder.matches(created.getSecret(), saved.getSecret())).isTrue();
     }
 
     @Test
