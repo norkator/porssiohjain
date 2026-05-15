@@ -32,6 +32,7 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -291,6 +292,13 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
         uuidField.getElement().setAttribute("readonly", "true");
         uuidField.getElement().setProperty("title", p.getUuid().toString());
+        Button copyUuidButton = new Button(VaadinIcon.COPY.create(), event -> {
+            UI.getCurrent().getPage().executeJs("navigator.clipboard.writeText($0)", p.getUuid().toString());
+            Notification.show("UUID copied").addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        });
+        copyUuidButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        copyUuidButton.getElement().setAttribute("aria-label", "Copy UUID");
+        uuidField.setSuffixComponent(copyUuidButton);
 
         TextField nameField = new TextField(t("powerlimit.field.name"));
         nameField.setValue(p.getName());

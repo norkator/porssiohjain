@@ -47,6 +47,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -96,6 +97,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final ComboBox<String> timezoneCombo;
     private final ComboBox<DeviceType> deviceTypeCombo;
     private final Checkbox enabledField;
+    private final FormLayout mqttCredentialsForm;
+    private final TextField deviceUuidField;
+    private final TextField mqttUsernameField;
+    private final TextField mqttPasswordField;
 
     private FormLayout heatPumpForm;
     private TextField hpNameField;
@@ -165,6 +170,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         timezoneCombo = new ComboBox<>(t("device.field.timezone"));
         deviceTypeCombo = new ComboBox<>(t("device.grid.type"));
         enabledField = new Checkbox(t("device.field.enabled"));
+        mqttCredentialsForm = new FormLayout();
+        deviceUuidField = createCopyableReadOnlyField(t("device.grid.uuid"));
+        mqttUsernameField = createCopyableReadOnlyField(t("device.grid.mqttUsername"));
+        mqttPasswordField = createCopyableReadOnlyField(t("device.grid.mqttPassword"));
         enabledField.setValue(true);
         deviceTypeCombo.setItems(DeviceType.values());
         deviceTypeCombo.setItemLabelGenerator(type -> switch (type) {
@@ -338,6 +347,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 timezoneCombo.setValue(selectedDevice.getTimezone());
                 deviceTypeCombo.setValue(selectedDevice.getDeviceType());
                 enabledField.setValue(selectedDevice.getEnabled() == null || selectedDevice.getEnabled());
+                updateMqttCredentialsFields();
                 if (selectedDevice.getDeviceType() == DeviceType.HEAT_PUMP) {
                     hpNameField.setValue(selectedDevice.getHpName() != null ? selectedDevice.getHpName() : "");
                     acTypeCombo.setValue(selectedDevice.getAcType() != null ? selectedDevice.getAcType() : AcType.NONE);
@@ -394,6 +404,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 new FormLayout.ResponsiveStep("600px", 4)
         );
 
+        mqttCredentialsForm.setWidthFull();
+        mqttCredentialsForm.add(deviceUuidField, mqttUsernameField, mqttPasswordField);
+        mqttCredentialsForm.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 3)
+        );
+        mqttCredentialsForm.setVisible(false);
+
         heatPumpForm.setVisible(false);
 
         VerticalLayout actions = new VerticalLayout(
@@ -411,7 +429,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         VerticalLayout certificateSection = createCertificateSection();
         VerticalLayout claimProvisionedSection = createClaimProvisionedDeviceSection();
 
-        card.add(title, deviceGrid, formLayout, heatPumpForm, actions, Divider.createDivider(), claimProvisionedSection,
+        card.add(title, deviceGrid, formLayout, mqttCredentialsForm, heatPumpForm, actions, Divider.createDivider(), claimProvisionedSection,
                 Divider.createDivider(), certificateSection);
         add(card);
 
@@ -808,6 +826,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         acTypeCombo.setValue(AcType.NONE);
         acUsernameField.clear();
         acPasswordField.clear();
+        clearMqttCredentialsFields();
         updateSelectAcDeviceButton();
         updateAcCommandLogButton();
         updateControlsJsonButton();
@@ -815,6 +834,59 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
         updateLimitInfo();
+    }
+
+    private void updateMqttCredentialsFields() {
+        if (selectedDevice == null) {
+            clearMqttCredentialsFields();
+            return;
+        }
+        deviceUuidField.setValue(selectedDevice.getUuid() != null ? selectedDevice.getUuid().toString() : "");
+        mqttUsernameField.setValue(selectedDevice.getMqttUsername() != null ? selectedDevice.getMqttUsername() : "");
+        mqttPasswordField.setValue(selectedDevice.getMqttPassword() != null ? selectedDevice.getMqttPassword() : "");
+        mqttCredentialsForm.setVisible(true);
+    }
+
+    private void clearMqttCredentialsFields() {
+        deviceUuidField.clear();
+        mqttUsernameField.clear();
+        mqttPasswordField.clear();
+        mqttCredentialsForm.setVisible(false);
+    }
+
+    private TextField createCopyableReadOnlyField(String label) {
+        TextField field = new TextField(label);
+        field.setReadOnly(true);
+        field.setWidthFull();
+        field.getElement().setAttribute("readonly", "true");
+        Button copyButton = new Button(VaadinIcon.COPY.create(), event -> copyToClipboard(field));
+        copyButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        copyButton.getElement().setAttribute("aria-label", "Copy " + label);
+        field.setSuffixComponent(copyButton);
+        return field;
+    }
+
+    private void copyToClipboard(TextField field) {
+        String value = field.getValue();
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        UI.getCurrent().getPage().executeJs("navigator.clipboard.writeText($0)", value);
+        Notification.show(labelForCopiedValue(field) + " copied")
+                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+    }
+
+    private String labelForCopiedValue(TextField field) {
+        if (field == deviceUuidField) {
+            return "UUID";
+        }
+        if (field == mqttUsernameField) {
+            return "MQTT username";
+        }
+        if (field == mqttPasswordField) {
+            return "MQTT password";
+        }
+        return "Value";
     }
 
     private void updateSelectAcDeviceButton() {
