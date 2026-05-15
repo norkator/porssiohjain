@@ -196,6 +196,29 @@ export type ProductionHistoryPoint = {
   kilowatts: number;
 };
 
+export type ProductionNotification = {
+  id: number;
+  sourceId: number;
+  name: string;
+  description: string | null;
+  activeFrom: string;
+  activeTo: string;
+  enabled: boolean;
+  triggerKw: number;
+  lastSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProductionNotificationPayload = {
+  name: string;
+  description: string | null;
+  activeFrom: string;
+  activeTo: string;
+  enabled: boolean;
+  triggerKw: number;
+};
+
 export type ApiPowerLimit = {
   id: number;
   uuid: string;
@@ -309,6 +332,10 @@ export const fetchProductionSourceHeatPumpLinks = (id: number) => apiGetJson<Pro
 export const addProductionSourceHeatPumpLink = (id: number, payload: ProductionSourceHeatPumpPayload) => postJson<ProductionSourceHeatPumpLink>(`/api/production-sources/${id}/heat-pumps`, payload);
 export const updateProductionSourceHeatPumpLink = (id: number, payload: ProductionSourceHeatPumpPayload & { sourceId: number }) => postJson<ProductionSourceHeatPumpLink>(`/api/production-sources/heat-pumps/${id}`, payload, "PUT");
 export const deleteProductionSourceHeatPumpLink = (sourceId: number, linkId: number) => postJson<void>(`/api/production-sources/${sourceId}/heat-pumps/${linkId}`, undefined, "DELETE");
+export const fetchProductionNotifications = (id: number) => apiGetJson<ProductionNotification[]>(`/api/production-sources/${id}/notifications`);
+export const addProductionNotification = (id: number, payload: ProductionNotificationPayload) => postJson<ProductionNotification>(`/api/production-sources/${id}/notifications`, payload);
+export const updateProductionNotification = (id: number, payload: ProductionNotificationPayload & { sourceId: number }) => postJson<ProductionNotification>(`/api/production-sources/notifications/${id}`, payload, "PUT");
+export const deleteProductionNotification = (sourceId: number, notificationId: number) => postJson<void>(`/api/production-sources/${sourceId}/notifications/${notificationId}`, undefined, "DELETE");
 
 export const fetchPowerLimits = () => apiGetJson<ApiPowerLimit[]>("/api/power-limits");
 export const fetchPowerLimit = (id: number) => apiGetJson<ApiPowerLimit>(`/api/power-limits/${id}`);

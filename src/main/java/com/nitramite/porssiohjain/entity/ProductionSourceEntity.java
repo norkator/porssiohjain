@@ -106,6 +106,13 @@ public class ProductionSourceEntity {
     )
     private Set<ProductionSourceHeatPumpEntity> productionSourceHeatPumps;
 
+    @OneToMany(
+            mappedBy = "productionSource",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private Set<ProductionNotificationEntity> productionNotifications;
+
     @PrePersist
     public void onCreate() {
         createdAt = Instant.now();

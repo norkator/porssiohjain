@@ -289,4 +289,125 @@ public class EmailService {
         }
     }
 
+    public void sendProductionNotificationEmail(
+            String recipientEmail,
+            String sourceName,
+            String notificationName,
+            String description,
+            java.math.BigDecimal currentKw,
+            java.math.BigDecimal triggerKw,
+            ZonedDateTime detectedAt,
+            Locale locale
+    ) {
+        try {
+            String subject = messageSource.getMessage(
+                    "mail.productionNotification.subject",
+                    new Object[]{notificationName},
+                    locale
+            );
+
+            String title = messageSource.getMessage(
+                    "mail.productionNotification.title",
+                    null,
+                    locale
+            );
+
+            String intro = messageSource.getMessage(
+                    "mail.productionNotification.intro",
+                    new Object[]{sourceName, notificationName},
+                    locale
+            );
+
+            String descriptionLabel = messageSource.getMessage(
+                    "mail.productionNotification.description",
+                    null,
+                    locale
+            );
+
+            String currentKwLabel = messageSource.getMessage(
+                    "mail.productionNotification.currentKw",
+                    null,
+                    locale
+            );
+
+            String triggerKwLabel = messageSource.getMessage(
+                    "mail.productionNotification.triggerKw",
+                    null,
+                    locale
+            );
+
+            String detectedAtLabel = messageSource.getMessage(
+                    "mail.productionNotification.detectedAt",
+                    null,
+                    locale
+            );
+
+            String footer = messageSource.getMessage(
+                    "mail.productionNotification.footer",
+                    null,
+                    locale
+            );
+
+            String safeDescription = description == null || description.isBlank()
+                    ? "-"
+                    : description.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+            String detectedAtText = detectedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm z"));
+
+            String htmlBody = """
+                    <div style="font-family: Arial, sans-serif; color: #333;">
+                        <h2 style="color: #2e7d32;">%s</h2>
+
+                        <p>%s</p>
+
+                        <table style="border-collapse: collapse; margin-top: 12px;">
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s kW</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s kW</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s</td>
+                            </tr>
+                        </table>
+
+                        <hr style="margin-top: 24px;" />
+                        <p style="font-size: 12px; color: #777;">%s</p>
+                    </div>
+                    """
+                    .formatted(
+                            title,
+                            intro,
+                            descriptionLabel,
+                            safeDescription,
+                            currentKwLabel,
+                            currentKw,
+                            triggerKwLabel,
+                            triggerKw,
+                            detectedAtLabel,
+                            detectedAtText,
+                            footer
+                    );
+
+            Resend resend = new Resend(resentApiKey);
+            CreateEmailOptions params = CreateEmailOptions.builder()
+                    .from(from)
+                    .to(recipientEmail)
+                    .subject(subject)
+                    .html(htmlBody)
+                    .build();
+            CreateEmailResponse data = resend.emails().send(params);
+            log.info("Production notification email sent with Resend id {}", data.getId());
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to send production notification email", e);
+        }
+    }
+
 }

@@ -13,13 +13,16 @@ import PageHeader from "@/components/PageHeader";
 import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
 import ProductionHistoryChartCard from "@/components/ProductionHistoryChartCard";
 import {
+  addProductionNotification,
   addProductionSourceDeviceLink,
   addProductionSourceHeatPumpLink,
   COMPARISONS,
   CONTROL_ACTIONS,
+  deleteProductionNotification,
   deleteProductionSource,
   deleteProductionSourceDeviceLink,
   deleteProductionSourceHeatPumpLink,
+  fetchProductionNotifications,
   fetchProductionSource,
   fetchProductionSourceDeviceLinks,
   fetchProductionSourceHeatPumpLinks,
@@ -28,11 +31,14 @@ import {
   formatKw,
   PRODUCTION_API_TYPES,
   updateProductionSource,
+  updateProductionNotification,
   updateProductionSourceHeatPumpLink,
   type ApiProductionSource,
   type ApiSite,
   type ComparisonType,
   type ControlAction,
+  type ProductionNotification,
+  type ProductionNotificationPayload,
   type ProductionApiType,
   type ProductionSourceDeviceLink,
   type ProductionSourceHeatPumpLink
@@ -58,6 +64,7 @@ export default function ManageProductionSourceView() {
   const [devices, setDevices] = useState<ApiDevice[]>([]);
   const [standardLinks, setStandardLinks] = useState<ProductionSourceDeviceLink[]>([]);
   const [heatPumpLinks, setHeatPumpLinks] = useState<ProductionSourceHeatPumpLink[]>([]);
+  const [notifications, setNotifications] = useState<ProductionNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -95,6 +102,15 @@ export default function ManageProductionSourceView() {
   const [heatPumpCurrentState, setHeatPumpCurrentState] = useState<string | null>(null);
   const [heatPumpLastPolledState, setHeatPumpLastPolledState] = useState<string | null>(null);
   const [heatPumpDialogAcType, setHeatPumpDialogAcType] = useState<AcType>("NONE");
+  const [notificationName, setNotificationName] = useState("");
+  const [notificationDescription, setNotificationDescription] = useState("");
+  const [notificationActiveFrom, setNotificationActiveFrom] = useState("00:00");
+  const [notificationActiveTo, setNotificationActiveTo] = useState("23:59");
+  const [notificationTriggerKw, setNotificationTriggerKw] = useState("0");
+  const [notificationEnabled, setNotificationEnabled] = useState(true);
+  const [editingNotificationId, setEditingNotificationId] = useState<number | null>(null);
+  const [deleteNotificationConfirmId, setDeleteNotificationConfirmId] = useState<number | null>(null);
+  const [isDeletingNotificationId, setIsDeletingNotificationId] = useState<number | null>(null);
 
   const standardDevices = devices.filter((device) => device.deviceType === "STANDARD" && !device.shared);
   const heatPumpDevices = devices.filter((device) => device.deviceType === "HEAT_PUMP" && !device.shared);
@@ -108,15 +124,26 @@ export default function ManageProductionSourceView() {
     setHeatPumpAction("TURN_ON");
   };
 
+  const resetNotificationForm = () => {
+    setEditingNotificationId(null);
+    setNotificationName("");
+    setNotificationDescription("");
+    setNotificationActiveFrom("00:00");
+    setNotificationActiveTo("23:59");
+    setNotificationTriggerKw("0");
+    setNotificationEnabled(true);
+  };
+
   async function loadData() {
     setIsLoading(true);
     setError(null);
     try {
-      const [sourceResponse, siteResponse, standardLinkResponse, heatPumpLinkResponse, deviceResponse] = await Promise.all([
+      const [sourceResponse, siteResponse, standardLinkResponse, heatPumpLinkResponse, notificationResponse, deviceResponse] = await Promise.all([
         fetchProductionSource(sourceId),
         fetchSites(),
         fetchProductionSourceDeviceLinks(sourceId),
         fetchProductionSourceHeatPumpLinks(sourceId),
+        fetchProductionNotifications(sourceId),
         fetchDevices()
       ]);
       setSource(sourceResponse);
@@ -133,6 +160,7 @@ export default function ManageProductionSourceView() {
       setSites(siteResponse);
       setStandardLinks(standardLinkResponse);
       setHeatPumpLinks(heatPumpLinkResponse);
+      setNotifications(notificationResponse);
       setDevices(deviceResponse);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : t("failedOne"));
@@ -263,6 +291,57 @@ export default function ManageProductionSourceView() {
       setError(deleteError instanceof Error ? deleteError.message : t("failedRemoveHeatPumpRule"));
     } finally {
       setIsDeletingHeatPumpId((current) => (current === linkId ? null : current));
+    }
+  };
+
+  const handleSaveNotification = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trigger = Number(notificationTriggerKw);
+    if (!notificationName.trim() || !Number.isFinite(trigger)) return;
+    setError(null);
+    const payload: ProductionNotificationPayload = {
+      name: notificationName.trim(),
+      description: notificationDescription.trim() || null,
+      activeFrom: notificationActiveFrom,
+      activeTo: notificationActiveTo,
+      enabled: notificationEnabled,
+      triggerKw: trigger
+    };
+    try {
+      if (editingNotificationId === null) {
+        await addProductionNotification(sourceId, payload);
+      } else {
+        await updateProductionNotification(editingNotificationId, { sourceId, ...payload });
+      }
+      setNotifications(await fetchProductionNotifications(sourceId));
+      resetNotificationForm();
+    } catch (notificationError) {
+      setError(notificationError instanceof Error ? notificationError.message : editingNotificationId === null ? t("failedCreateNotification") : t("failedUpdateNotification"));
+    }
+  };
+
+  const handleEditNotification = (notification: ProductionNotification) => {
+    setEditingNotificationId(notification.id);
+    setNotificationName(notification.name);
+    setNotificationDescription(notification.description ?? "");
+    setNotificationActiveFrom(notification.activeFrom);
+    setNotificationActiveTo(notification.activeTo);
+    setNotificationTriggerKw(String(notification.triggerKw));
+    setNotificationEnabled(notification.enabled);
+  };
+
+  const handleDeleteNotification = async (notificationId: number) => {
+    setError(null);
+    setIsDeletingNotificationId(notificationId);
+    try {
+      await deleteProductionNotification(sourceId, notificationId);
+      setNotifications((current) => current.filter((notification) => notification.id !== notificationId));
+      if (editingNotificationId === notificationId) resetNotificationForm();
+      setDeleteNotificationConfirmId((current) => (current === notificationId ? null : current));
+    } catch (notificationError) {
+      setError(notificationError instanceof Error ? notificationError.message : t("failedDeleteNotification"));
+    } finally {
+      setIsDeletingNotificationId((current) => (current === notificationId ? null : current));
     }
   };
 
@@ -402,6 +481,59 @@ export default function ManageProductionSourceView() {
     </div>
   );
 
+  const renderNotificationList = () => (
+    <div className="space-y-3">
+      {notifications.map((notification) => (
+        <div className="rounded-xl bg-surface-container p-4" key={notification.id}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-headline font-bold">{notification.name}</p>
+              <p className="text-sm text-on-surface-variant">{notification.description || t("noNotificationDescription")}</p>
+            </div>
+            {deleteNotificationConfirmId === notification.id ? (
+              <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
+                <div>
+                  <p className="font-headline text-sm font-bold text-on-error-container">{common("confirmRemoval")}</p>
+                  <p className="text-xs text-on-error-container">{t("removeNotificationDescription")}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDeletingNotificationId === notification.id}
+                    onClick={() => handleDeleteNotification(notification.id)}
+                    type="button"
+                  >
+                    {isDeletingNotificationId === notification.id ? common("removing") : common("confirm")}
+                  </button>
+                  <button
+                    className="secondary-action justify-center px-3 py-2 text-xs"
+                    disabled={isDeletingNotificationId === notification.id}
+                    onClick={() => setDeleteNotificationConfirmId(null)}
+                    type="button"
+                  >
+                    {common("cancel")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button className="secondary-action justify-center px-3 py-2 text-xs" onClick={() => handleEditNotification(notification)} type="button">{common("edit")}</button>
+                <button className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container" onClick={() => setDeleteNotificationConfirmId(notification.id)} type="button">{common("remove")}</button>
+              </div>
+            )}
+          </div>
+          <div className="mt-3 grid gap-2 text-sm md:grid-cols-4">
+            <div><span className="metric-label">{t("notificationActiveTime")}</span><p className="font-semibold">{notification.activeFrom} - {notification.activeTo}</p></div>
+            <div><span className="metric-label">{t("notificationTriggerKw")}</span><p className="font-semibold">{notification.triggerKw} kW</p></div>
+            <div><span className="metric-label">{common("enabled")}</span><p className="font-semibold">{notification.enabled ? common("yes") : common("no")}</p></div>
+            <div><span className="metric-label">{t("notificationLastSent")}</span><p className="font-semibold">{notification.lastSentAt ? formatDate(notification.lastSentAt, source?.timezone) : "-"}</p></div>
+          </div>
+        </div>
+      ))}
+      {notifications.length === 0 ? <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">{t("noNotifications")}</div> : null}
+    </div>
+  );
+
   return (
     <>
       <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} title={t("manageTitle")} compact />
@@ -493,6 +625,29 @@ export default function ManageProductionSourceView() {
                     </>
                   )}
                 </section>
+
+                {!source.shared ? (
+                  <section className="app-card p-4 sm:p-6">
+                    <div className="mb-5 flex items-center justify-between"><h2 className="font-headline text-xl font-bold">{t("notificationsTitle")}</h2><span className="chip bg-surface-container-highest text-primary-container">{notifications.length}</span></div>
+                    {renderNotificationList()}
+                    <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleSaveNotification}>
+                      <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setNotificationName(event.target.value)} placeholder={t("notificationName")} value={notificationName} />
+                      <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" min="0" onChange={(event) => setNotificationTriggerKw(event.target.value)} placeholder={t("notificationTriggerKw")} step="0.1" type="number" value={notificationTriggerKw} />
+                      <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setNotificationActiveFrom(event.target.value)} type="time" value={notificationActiveFrom} />
+                      <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setNotificationActiveTo(event.target.value)} type="time" value={notificationActiveTo} />
+                      <textarea className="min-h-28 rounded-xl bg-surface-container-highest px-4 py-3 outline-none md:col-span-2" onChange={(event) => setNotificationDescription(event.target.value)} placeholder={t("notificationDescription")} value={notificationDescription} />
+                      <label className="flex items-center justify-between rounded-xl bg-surface-container p-4 md:col-span-2"><span className="font-headline text-sm font-bold">{common("enabled")}</span><input checked={notificationEnabled} onChange={(event) => setNotificationEnabled(event.target.checked)} type="checkbox" /></label>
+                      {editingNotificationId === null ? (
+                        <button className="secondary-action justify-center md:col-span-2" type="submit">{t("addNotification")}</button>
+                      ) : (
+                        <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
+                          <button className="secondary-action justify-center" type="submit">{t("saveNotification")}</button>
+                          <button className="secondary-action justify-center" onClick={resetNotificationForm} type="button">{common("cancel")}</button>
+                        </div>
+                      )}
+                    </form>
+                  </section>
+                ) : null}
               </section>
               <aside className="space-y-6 lg:col-span-4">
                 <div className="app-card p-4 sm:p-6"><p className="metric-label mb-2">{common("currentKw")}</p><p className="font-headline text-3xl font-bold">{formatKw(source.currentKw)}</p></div>
