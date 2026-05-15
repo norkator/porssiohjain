@@ -188,110 +188,112 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
-            <svg
-              aria-label={t("controlAria")}
-              className="h-72 w-full"
-              role="img"
-              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-            >
-              <rect
-                fill="rgb(247 250 249 / 0.7)"
-                height={innerHeight}
-                rx="18"
-                width={innerWidth}
-                x={CHART_PADDING_LEFT}
-                y={CHART_PADDING_TOP}
-              />
+          <div className="relative rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
+            <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
+              <svg
+                aria-label={t("controlAria")}
+                className="h-auto min-w-[44rem] aspect-[16/5] w-[44rem] sm:min-w-0 sm:w-full"
+                role="img"
+                viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+              >
+                <rect
+                  fill="rgb(247 250 249 / 0.7)"
+                  height={innerHeight}
+                  rx="18"
+                  width={innerWidth}
+                  x={CHART_PADDING_LEFT}
+                  y={CHART_PADDING_TOP}
+                />
 
-              {yAxisValues.map((value, index) => {
-                const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
+                {yAxisValues.map((value, index) => {
+                  const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
 
-                return (
-                  <g key={value}>
-                    <line
-                      stroke="rgb(191 200 199 / 0.6)"
-                      strokeDasharray="6 8"
-                      strokeWidth="1"
-                      x1={CHART_PADDING_LEFT}
-                      x2={CHART_PADDING_LEFT + innerWidth}
-                      y1={y}
-                      y2={y}
-                    />
-                    <text fill="rgb(63 72 72)" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
-                      {formatChartPriceLabel(value)}
-                    </text>
-                  </g>
-                );
-              })}
+                  return (
+                    <g key={value}>
+                      <line
+                        stroke="rgb(191 200 199 / 0.6)"
+                        strokeDasharray="6 8"
+                        strokeWidth="1"
+                        x1={CHART_PADDING_LEFT}
+                        x2={CHART_PADDING_LEFT + innerWidth}
+                        y1={y}
+                        y2={y}
+                      />
+                      <text fill="rgb(63 72 72)" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
+                        {formatChartPriceLabel(value)}
+                      </text>
+                    </g>
+                  );
+                })}
 
-              {timeLabels.map((point) => {
-                const index = chart.points.findIndex((candidate) => candidate.timestamp === point.timestamp);
-                const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(chart.points.length - 1, 1);
+                {timeLabels.map((point) => {
+                  const index = chart.points.findIndex((candidate) => candidate.timestamp === point.timestamp);
+                  const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(chart.points.length - 1, 1);
 
-                return (
-                  <g key={point.timestamp}>
-                    <line
-                      stroke="rgb(191 200 199 / 0.5)"
-                      strokeWidth="1"
-                      x1={x}
-                      x2={x}
-                      y1={CHART_PADDING_TOP}
-                      y2={CHART_PADDING_TOP + innerHeight}
-                    />
-                    <text
-                      fill="rgb(63 72 72)"
-                      fontSize="12"
-                      textAnchor={index === chart.points.length - 1 ? "end" : index === 0 ? "start" : "middle"}
-                      x={x}
-                      y={CHART_PADDING_TOP + innerHeight + 24}
-                    >
-                      {formatNordpoolTime(point.timestamp, chart.timezone)}
-                    </text>
-                  </g>
-                );
-              })}
+                  return (
+                    <g key={point.timestamp}>
+                      <line
+                        stroke="rgb(191 200 199 / 0.5)"
+                        strokeWidth="1"
+                        x1={x}
+                        x2={x}
+                        y1={CHART_PADDING_TOP}
+                        y2={CHART_PADDING_TOP + innerHeight}
+                      />
+                      <text
+                        fill="rgb(63 72 72)"
+                        fontSize="12"
+                        textAnchor={index === chart.points.length - 1 ? "end" : index === 0 ? "start" : "middle"}
+                        x={x}
+                        y={CHART_PADDING_TOP + innerHeight + 24}
+                      >
+                        {formatNordpoolTime(point.timestamp, chart.timezone)}
+                      </text>
+                    </g>
+                  );
+                })}
 
-              <path
-                d={buildLinePath(transferValues, innerWidth, innerHeight, minValue, range)}
-                fill="none"
-                stroke="rgb(255 179 67)"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="3"
-              />
-              <path
-                d={buildLinePath(nordpoolValues, innerWidth, innerHeight, minValue, range)}
-                fill="none"
-                stroke="rgb(0 103 125)"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="3"
-              />
-              <path
-                d={buildLinePath(finalValues, innerWidth, innerHeight, minValue, range)}
-                fill="none"
-                stroke="rgb(204 51 51)"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="4"
-              />
+                <path
+                  d={buildLinePath(transferValues, innerWidth, innerHeight, minValue, range)}
+                  fill="none"
+                  stroke="rgb(255 179 67)"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="3"
+                />
+                <path
+                  d={buildLinePath(nordpoolValues, innerWidth, innerHeight, minValue, range)}
+                  fill="none"
+                  stroke="rgb(0 103 125)"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="3"
+                />
+                <path
+                  d={buildLinePath(finalValues, innerWidth, innerHeight, minValue, range)}
+                  fill="none"
+                  stroke="rgb(204 51 51)"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="4"
+                />
 
-              <line
-                stroke="rgb(0 103 125 / 0.45)"
-                strokeDasharray="5 7"
-                strokeWidth="2"
-                x1={currentX}
-                x2={currentX}
-                y1={CHART_PADDING_TOP}
-                y2={CHART_PADDING_TOP + innerHeight}
-              />
-              <circle cx={currentX} cy={currentY} fill="rgb(108 221 254)" r="7" stroke="rgb(0 67 66)" strokeWidth="3" />
+                <line
+                  stroke="rgb(0 103 125 / 0.45)"
+                  strokeDasharray="5 7"
+                  strokeWidth="2"
+                  x1={currentX}
+                  x2={currentX}
+                  y1={CHART_PADDING_TOP}
+                  y2={CHART_PADDING_TOP + innerHeight}
+                />
+                <circle cx={currentX} cy={currentY} fill="rgb(108 221 254)" r="7" stroke="rgb(0 67 66)" strokeWidth="3" />
 
-              <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
-                {t("timeInTimezone", { timezone: chart.timezone })}
-              </text>
-            </svg>
+                <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
+                  {t("timeInTimezone", { timezone: chart.timezone })}
+                </text>
+              </svg>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
