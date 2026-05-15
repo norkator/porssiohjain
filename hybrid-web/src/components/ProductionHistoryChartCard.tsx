@@ -187,102 +187,104 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
-            <svg
-              aria-label={t("productionAria")}
-              className="h-72 w-full"
-              role="img"
-              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-            >
-              <defs>
-                <linearGradient id="production-fill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="rgb(255 179 67)" stopOpacity="0.30" />
-                  <stop offset="100%" stopColor="rgb(255 179 67)" stopOpacity="0.05" />
-                </linearGradient>
-              </defs>
+          <div className="relative rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
+            <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
+              <svg
+                aria-label={t("productionAria")}
+                className="h-auto min-w-[44rem] aspect-[16/5] w-[44rem] sm:min-w-0 sm:w-full"
+                role="img"
+                viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+              >
+                <defs>
+                  <linearGradient id="production-fill" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="rgb(255 179 67)" stopOpacity="0.30" />
+                    <stop offset="100%" stopColor="rgb(255 179 67)" stopOpacity="0.05" />
+                  </linearGradient>
+                </defs>
 
-              <rect
-                fill="rgb(247 250 249 / 0.7)"
-                height={innerHeight}
-                rx="18"
-                width={innerWidth}
-                x={CHART_PADDING_LEFT}
-                y={CHART_PADDING_TOP}
-              />
+                <rect
+                  fill="rgb(247 250 249 / 0.7)"
+                  height={innerHeight}
+                  rx="18"
+                  width={innerWidth}
+                  x={CHART_PADDING_LEFT}
+                  y={CHART_PADDING_TOP}
+                />
 
-              {yAxisValues.map((value, index) => {
-                const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
+                {yAxisValues.map((value, index) => {
+                  const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
 
-                return (
-                  <g key={value}>
-                    <line
-                      stroke="rgb(191 200 199 / 0.6)"
-                      strokeDasharray="6 8"
-                      strokeWidth="1"
-                      x1={CHART_PADDING_LEFT}
-                      x2={CHART_PADDING_LEFT + innerWidth}
-                      y1={y}
-                      y2={y}
-                    />
-                    <text fill="rgb(63 72 72)" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
-                      {formatKwValue(value)} kW
-                    </text>
-                  </g>
-                );
-              })}
+                  return (
+                    <g key={value}>
+                      <line
+                        stroke="rgb(191 200 199 / 0.6)"
+                        strokeDasharray="6 8"
+                        strokeWidth="1"
+                        x1={CHART_PADDING_LEFT}
+                        x2={CHART_PADDING_LEFT + innerWidth}
+                        y1={y}
+                        y2={y}
+                      />
+                      <text fill="rgb(63 72 72)" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
+                        {formatKwValue(value)} kW
+                      </text>
+                    </g>
+                  );
+                })}
 
-              {timeLabels.map((point) => {
-                const index = history.findIndex((candidate) => candidate.createdAt === point.createdAt);
-                const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(history.length - 1, 1);
+                {timeLabels.map((point) => {
+                  const index = history.findIndex((candidate) => candidate.createdAt === point.createdAt);
+                  const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(history.length - 1, 1);
 
-                return (
-                  <g key={point.createdAt}>
-                    <line
-                      stroke="rgb(191 200 199 / 0.5)"
-                      strokeWidth="1"
-                      x1={x}
-                      x2={x}
-                      y1={CHART_PADDING_TOP}
-                      y2={CHART_PADDING_TOP + innerHeight}
-                    />
-                    <text
-                      fill="rgb(63 72 72)"
-                      fontSize="12"
-                      textAnchor={index === history.length - 1 ? "end" : index === 0 ? "start" : "middle"}
-                      x={x}
-                      y={CHART_PADDING_TOP + innerHeight + 24}
-                    >
-                      {formatNordpoolTime(point.createdAt, timezone)}
-                    </text>
-                  </g>
-                );
-              })}
+                  return (
+                    <g key={point.createdAt}>
+                      <line
+                        stroke="rgb(191 200 199 / 0.5)"
+                        strokeWidth="1"
+                        x1={x}
+                        x2={x}
+                        y1={CHART_PADDING_TOP}
+                        y2={CHART_PADDING_TOP + innerHeight}
+                      />
+                      <text
+                        fill="rgb(63 72 72)"
+                        fontSize="12"
+                        textAnchor={index === history.length - 1 ? "end" : index === 0 ? "start" : "middle"}
+                        x={x}
+                        y={CHART_PADDING_TOP + innerHeight + 24}
+                      >
+                        {formatNordpoolTime(point.createdAt, timezone)}
+                      </text>
+                    </g>
+                  );
+                })}
 
-              <path d={buildAreaPath(values, innerWidth, innerHeight, minValue, range)} fill="url(#production-fill)" stroke="none" />
-              <path
-                d={buildLinePath(values, innerWidth, innerHeight, minValue, range)}
-                fill="none"
-                stroke="rgb(255 179 67)"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="4"
-              />
+                <path d={buildAreaPath(values, innerWidth, innerHeight, minValue, range)} fill="url(#production-fill)" stroke="none" />
+                <path
+                  d={buildLinePath(values, innerWidth, innerHeight, minValue, range)}
+                  fill="none"
+                  stroke="rgb(255 179 67)"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="4"
+                />
 
-              <line
-                stroke="rgb(255 179 67 / 0.5)"
-                strokeDasharray="5 7"
-                strokeWidth="2"
-                x1={currentX}
-                x2={currentX}
-                y1={CHART_PADDING_TOP}
-                y2={CHART_PADDING_TOP + innerHeight}
-              />
-              <circle cx={currentX} cy={currentY} fill="rgb(255 232 179)" r="7" stroke="rgb(168 110 0)" strokeWidth="3" />
+                <line
+                  stroke="rgb(255 179 67 / 0.5)"
+                  strokeDasharray="5 7"
+                  strokeWidth="2"
+                  x1={currentX}
+                  x2={currentX}
+                  y1={CHART_PADDING_TOP}
+                  y2={CHART_PADDING_TOP + innerHeight}
+                />
+                <circle cx={currentX} cy={currentY} fill="rgb(255 232 179)" r="7" stroke="rgb(168 110 0)" strokeWidth="3" />
 
-              <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
-                {t("timeInTimezone", { timezone })}
-              </text>
-            </svg>
+                <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
+                  {t("timeInTimezone", { timezone })}
+                </text>
+              </svg>
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
