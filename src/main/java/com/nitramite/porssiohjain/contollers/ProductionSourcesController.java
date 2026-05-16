@@ -16,10 +16,12 @@ import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
+import com.nitramite.porssiohjain.services.ProductionNotificationService;
 import com.nitramite.porssiohjain.services.ProductionSourceService;
 import com.nitramite.porssiohjain.services.models.ProductionSourceDeviceResponse;
 import com.nitramite.porssiohjain.services.models.ProductionSourceHeatPumpResponse;
 import com.nitramite.porssiohjain.services.models.ProductionHistoryResponse;
+import com.nitramite.porssiohjain.services.models.ProductionNotificationResponse;
 import com.nitramite.porssiohjain.services.models.ProductionSourceResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +37,7 @@ public class ProductionSourcesController {
 
     private final AuthContext authContext;
     private final ProductionSourceService productionSourceService;
+    private final ProductionNotificationService productionNotificationService;
 
     @GetMapping
     public List<ProductionSourceResponse> listSources() {
@@ -165,6 +168,51 @@ public class ProductionSourcesController {
         productionSourceService.removeHeatPump(authContext.getAccountId(), sourceId, linkId);
     }
 
+    @GetMapping("/{sourceId}/notifications")
+    public List<ProductionNotificationResponse> getNotifications(@PathVariable Long sourceId) {
+        return productionNotificationService.getProductionNotifications(authContext.getAccountId(), sourceId);
+    }
+
+    @PostMapping("/{sourceId}/notifications")
+    public ProductionNotificationResponse addNotification(
+            @PathVariable Long sourceId,
+            @RequestBody ProductionNotificationRequest request
+    ) {
+        return productionNotificationService.createProductionNotification(
+                authContext.getAccountId(),
+                sourceId,
+                request.name(),
+                request.description(),
+                request.activeFrom(),
+                request.activeTo(),
+                request.enabled(),
+                request.triggerKw()
+        );
+    }
+
+    @PutMapping("/notifications/{notificationId}")
+    public ProductionNotificationResponse updateNotification(
+            @PathVariable Long notificationId,
+            @RequestBody ProductionNotificationUpdateRequest request
+    ) {
+        return productionNotificationService.updateProductionNotification(
+                authContext.getAccountId(),
+                request.sourceId(),
+                notificationId,
+                request.name(),
+                request.description(),
+                request.activeFrom(),
+                request.activeTo(),
+                request.enabled(),
+                request.triggerKw()
+        );
+    }
+
+    @DeleteMapping("/{sourceId}/notifications/{notificationId}")
+    public void deleteNotification(@PathVariable Long sourceId, @PathVariable Long notificationId) {
+        productionNotificationService.deleteProductionNotification(authContext.getAccountId(), sourceId, notificationId);
+    }
+
     public record ProductionSourceRequest(
             String name,
             ProductionApiType apiType,
@@ -204,6 +252,27 @@ public class ProductionSourcesController {
             ControlAction controlAction,
             ComparisonType comparisonType,
             BigDecimal triggerKw
+    ) {
+    }
+
+    public record ProductionNotificationRequest(
+            String name,
+            String description,
+            java.time.LocalTime activeFrom,
+            java.time.LocalTime activeTo,
+            boolean enabled,
+            Double triggerKw
+    ) {
+    }
+
+    public record ProductionNotificationUpdateRequest(
+            Long sourceId,
+            String name,
+            String description,
+            java.time.LocalTime activeFrom,
+            java.time.LocalTime activeTo,
+            boolean enabled,
+            Double triggerKw
     ) {
     }
 }

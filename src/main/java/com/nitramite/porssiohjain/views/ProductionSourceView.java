@@ -47,6 +47,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -74,6 +75,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     private final I18nService i18n;
     private final AuthService authService;
     private final ProductionSourceService productionSourceService;
+    private final ProductionNotificationService productionNotificationService;
     private final DeviceService deviceService;
     private final SiteService siteService;
     private final HeatPumpStateDialogService heatPumpStateDialogService;
@@ -84,6 +86,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
 
     private final Grid<ProductionSourceDeviceResponse> deviceGrid = new Grid<>(ProductionSourceDeviceResponse.class, false);
     private final Grid<ProductionSourceHeatPumpResponse> heatPumpGrid = new Grid<>(ProductionSourceHeatPumpResponse.class, false);
+    private final Grid<ProductionNotificationResponse> notificationGrid = new Grid<>(ProductionNotificationResponse.class, false);
 
     private Div currentKwValue;
     private Div peakKwValue;
@@ -105,6 +108,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
             AuthService authService,
             I18nService i18n,
             ProductionSourceService productionSourceService,
+            ProductionNotificationService productionNotificationService,
             DeviceService deviceService,
             SiteService siteService,
             HeatPumpStateDialogService heatPumpStateDialogService
@@ -112,6 +116,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         this.authService = authService;
         this.i18n = i18n;
         this.productionSourceService = productionSourceService;
+        this.productionNotificationService = productionNotificationService;
         this.deviceService = deviceService;
         this.siteService = siteService;
         this.heatPumpStateDialogService = heatPumpStateDialogService;
@@ -148,8 +153,10 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         card.add(createSourceInfoSection(source));
         configureDeviceGrid();
         configureHeatPumpGrid();
+        configureNotificationGrid();
         loadDevices();
         loadHeatPumps();
+        loadNotifications();
         card.add(createDeviceManagementSection());
         card.add(createCurrentStatsRow(source));
         chartDiv = createChartContainer();
@@ -350,10 +357,47 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         heatPumpGrid.setItems(productionSourceService.getSourceHeatPumps(accountId, sourceId));
     }
 
+    private void configureNotificationGrid() {
+        notificationGrid.removeAllColumns();
+        notificationGrid.addColumn(ProductionNotificationResponse::getName)
+                .setHeader(t("productionsource.notifications.grid.name"));
+        notificationGrid.addColumn(ProductionNotificationResponse::getDescription)
+                .setHeader(t("productionsource.notifications.grid.description"));
+        notificationGrid.addColumn(n -> n.getActiveFrom() + " - " + n.getActiveTo())
+                .setHeader(t("productionsource.notifications.grid.activeTime"));
+        notificationGrid.addColumn(ProductionNotificationResponse::getTriggerKw)
+                .setHeader(t("productionsource.notifications.grid.triggerKw"));
+        notificationGrid.addColumn(n -> n.isEnabled() ? t("common.yes") : t("common.no"))
+                .setHeader(t("productionsource.notifications.grid.enabled"));
+        notificationGrid.addColumn(n -> n.getLastSentAt() != null ? n.getLastSentAt().toString() : "-")
+                .setHeader(t("productionsource.notifications.grid.lastSent"));
+        notificationGrid.addComponentColumn(n -> {
+            if (isSharedProductionSource()) {
+                return new Span("-");
+            }
+            Button edit = new Button(t("controlTable.button.edit"), e -> openEditNotificationDialog(n));
+            Button delete = new Button(t("common.delete"), e -> {
+                productionNotificationService.deleteProductionNotification(accountId, sourceId, n.getId());
+                loadNotifications();
+            });
+            delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            HorizontalLayout actions = new HorizontalLayout(edit, delete);
+            actions.setPadding(false);
+            actions.setSpacing(true);
+            return actions;
+        }).setHeader(t("controlTable.grid.actions"));
+        notificationGrid.setAllRowsVisible(true);
+    }
+
+    private void loadNotifications() {
+        notificationGrid.setItems(productionNotificationService.getProductionNotifications(accountId, sourceId));
+    }
+
     private Component createDeviceManagementSection() {
         Tab standardTab = new Tab(t("device.type.standard"));
         Tab heatPumpTab = new Tab(t("device.type.heatPump"));
-        Tabs tabs = new Tabs(standardTab, heatPumpTab);
+        Tab notificationsTab = new Tab(t("productionsource.notifications.tab"));
+        Tabs tabs = new Tabs(standardTab, heatPumpTab, notificationsTab);
 
         VerticalLayout standardLayout = new VerticalLayout(
                 deviceGrid,
@@ -370,17 +414,27 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
         heatPumpLayout.setSpacing(true);
         heatPumpLayout.setVisible(false);
 
+        VerticalLayout notificationsLayout = new VerticalLayout(
+                notificationGrid,
+                isSharedProductionSource() ? createReadOnlyNotice() : createAddNotificationLayout()
+        );
+        notificationsLayout.setPadding(false);
+        notificationsLayout.setSpacing(true);
+        notificationsLayout.setVisible(false);
+
         tabs.addSelectedChangeListener(event -> {
-            boolean showStandard = event.getSelectedTab() == standardTab;
-            standardLayout.setVisible(showStandard);
-            heatPumpLayout.setVisible(!showStandard);
+            Tab selectedTab = event.getSelectedTab();
+            standardLayout.setVisible(selectedTab == standardTab);
+            heatPumpLayout.setVisible(selectedTab == heatPumpTab);
+            notificationsLayout.setVisible(selectedTab == notificationsTab);
         });
 
         VerticalLayout wrapper = new VerticalLayout(
                 new Div(new Text(t("productionsource.section.descriptionList"))),
                 tabs,
                 standardLayout,
-                heatPumpLayout
+                heatPumpLayout,
+                notificationsLayout
         );
         wrapper.setPadding(false);
         wrapper.setSpacing(true);
@@ -542,6 +596,137 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
 
         clearHeatPumpForm();
         return formLayout;
+    }
+
+    private Component createAddNotificationLayout() {
+        TextField nameField = new TextField(t("productionsource.notifications.field.name"));
+        nameField.setWidthFull();
+
+        TextArea descriptionField = new TextArea(t("productionsource.notifications.field.description"));
+        descriptionField.setWidthFull();
+
+        TimePicker activeFrom = new TimePicker(t("productionsource.notifications.field.activeFrom"));
+        activeFrom.setValue(java.time.LocalTime.of(0, 0));
+        activeFrom.setWidthFull();
+
+        TimePicker activeTo = new TimePicker(t("productionsource.notifications.field.activeTo"));
+        activeTo.setValue(java.time.LocalTime.of(23, 59));
+        activeTo.setWidthFull();
+
+        NumberField triggerKw = new NumberField(t("productionsource.notifications.field.triggerKw"));
+        triggerKw.setValue(0.0);
+        triggerKw.setMin(0);
+        triggerKw.setStep(0.1);
+        triggerKw.setWidthFull();
+
+        Checkbox enabled = new Checkbox(t("productionsource.notifications.field.enabled"));
+        enabled.setValue(true);
+        enabled.getStyle().set("margin-top", "12px");
+
+        Button addButton = new Button(t("productionsource.notifications.button.add"), e -> {
+            try {
+                productionNotificationService.createProductionNotification(
+                        accountId,
+                        sourceId,
+                        nameField.getValue(),
+                        descriptionField.getValue(),
+                        activeFrom.getValue(),
+                        activeTo.getValue(),
+                        enabled.getValue(),
+                        triggerKw.getValue()
+                );
+                nameField.clear();
+                descriptionField.clear();
+                activeFrom.setValue(java.time.LocalTime.of(0, 0));
+                activeTo.setValue(java.time.LocalTime.of(23, 59));
+                triggerKw.setValue(0.0);
+                enabled.setValue(true);
+                loadNotifications();
+            } catch (Exception ex) {
+                Notification notification = Notification.show(t("productionsource.notifications.notification.failed", ex.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addButton.setWidthFull();
+
+        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, triggerKw, enabled, addButton);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 3)
+        );
+
+        formLayout.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                .set("background-color", "var(--lumo-contrast-5pct)");
+
+        return formLayout;
+    }
+
+    private void openEditNotificationDialog(ProductionNotificationResponse notificationResponse) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("productionsource.notifications.editTitle"));
+        dialog.setWidth("700px");
+        dialog.setMaxWidth("95vw");
+
+        TextField nameField = new TextField(t("productionsource.notifications.field.name"));
+        nameField.setValue(notificationResponse.getName() != null ? notificationResponse.getName() : "");
+        nameField.setWidthFull();
+
+        TextArea descriptionField = new TextArea(t("productionsource.notifications.field.description"));
+        descriptionField.setValue(notificationResponse.getDescription() != null ? notificationResponse.getDescription() : "");
+        descriptionField.setWidthFull();
+
+        TimePicker activeFrom = new TimePicker(t("productionsource.notifications.field.activeFrom"));
+        activeFrom.setValue(notificationResponse.getActiveFrom());
+        activeFrom.setWidthFull();
+
+        TimePicker activeTo = new TimePicker(t("productionsource.notifications.field.activeTo"));
+        activeTo.setValue(notificationResponse.getActiveTo());
+        activeTo.setWidthFull();
+
+        NumberField triggerKw = new NumberField(t("productionsource.notifications.field.triggerKw"));
+        triggerKw.setValue(notificationResponse.getTriggerKw() != null ? notificationResponse.getTriggerKw().doubleValue() : 0.0);
+        triggerKw.setMin(0);
+        triggerKw.setStep(0.1);
+        triggerKw.setWidthFull();
+
+        Checkbox enabled = new Checkbox(t("productionsource.notifications.field.enabled"));
+        enabled.setValue(notificationResponse.isEnabled());
+
+        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, triggerKw, enabled);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2)
+        );
+        dialog.add(formLayout);
+
+        Button saveButton = new Button(t("controlTable.button.save"), e -> {
+            try {
+                productionNotificationService.updateProductionNotification(
+                        accountId,
+                        sourceId,
+                        notificationResponse.getId(),
+                        nameField.getValue(),
+                        descriptionField.getValue(),
+                        activeFrom.getValue(),
+                        activeTo.getValue(),
+                        enabled.getValue(),
+                        triggerKw.getValue()
+                );
+                loadNotifications();
+                dialog.close();
+            } catch (Exception ex) {
+                Notification notification = Notification.show(t("productionsource.notifications.notification.failed", ex.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(saveButton);
+        dialog.getFooter().add(new Button(t("common.cancel"), e -> dialog.close()));
+        dialog.open();
     }
 
     private void editHeatPumpRule(ProductionSourceHeatPumpResponse rule) {

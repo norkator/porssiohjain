@@ -18,6 +18,8 @@ import com.google.firebase.messaging.*;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
+import com.nitramite.porssiohjain.entity.ProductionNotificationEntity;
+import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import com.nitramite.porssiohjain.entity.PushNotificationTokenEntity;
 import com.nitramite.porssiohjain.entity.repository.PushNotificationTokenRepository;
 import lombok.RequiredArgsConstructor;
@@ -118,6 +120,32 @@ public class PushNotificationService {
         data.put("controlId", String.valueOf(control.getId()));
         data.put("controlName", control.getName());
         data.put("activeSince", activeSince.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
+    public boolean sendProductionNotification(
+            AccountEntity account,
+            ProductionSourceEntity source,
+            ProductionNotificationEntity notification,
+            ZonedDateTime detectedAt,
+            Locale locale
+    ) {
+        String title = messageSource.getMessage("mail.productionNotification.title", null, locale);
+        String body = messageSource.getMessage(
+                "mail.productionNotification.intro",
+                new Object[]{source.getName(), notification.getName()},
+                locale
+        );
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "PRODUCTION_NOTIFICATION");
+        data.put("sourceId", String.valueOf(source.getId()));
+        data.put("sourceName", source.getName());
+        data.put("notificationId", String.valueOf(notification.getId()));
+        data.put("notificationName", notification.getName());
+        data.put("description", notification.getDescription() == null ? "" : notification.getDescription());
+        data.put("currentKw", source.getCurrentKw() == null ? "" : source.getCurrentKw().toPlainString());
+        data.put("triggerKw", notification.getTriggerKw() == null ? "" : notification.getTriggerKw().toPlainString());
+        data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         return sendToAccount(account.getId(), title, body, data);
     }
 
