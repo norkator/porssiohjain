@@ -38,35 +38,35 @@
 }
 
 :root[data-theme="dark"] {
-  --color-primary: 108 221 254;
-  --color-primary-container: 38 87 97;
-  --color-secondary: 125 211 252;
-  --color-surface: 18 41 45;
-  --color-background: 25 31 36;
-  --color-surface-container: 24 49 55;
-  --color-surface-container-low: 21 44 49;
-  --color-surface-container-high: 29 58 65;
-  --color-surface-container-highest: 37 67 74;
-  --color-surface-container-lowest: 15 24 28;
-  --color-surface-variant: 43 62 67;
-  --color-outline-variant: 72 99 104;
-  --color-outline: 129 159 164;
-  --color-on-surface: 235 244 246;
-  --color-on-surface-variant: 182 205 210;
-  --color-on-primary: 244 250 251;
-  --color-primary-fixed: 195 243 252;
-  --color-primary-fixed-dim: 139 220 240;
-  --color-secondary-container: 116 224 246;
-  --color-error-container: 98 32 37;
-  --color-on-error-container: 255 218 214;
-  --color-background-top: 18 23 28;
-  --gradient-signature-start: 25 31 36;
-  --gradient-signature-end: 18 41 45;
-  --glass-panel-background: 18 41 45 / 0.78;
-  --shadow-soft: 0 16px 36px rgba(0, 0, 0, 0.28);
-  --chart-panel-start: 108 221 254 / 0.12;
-  --chart-panel-end: 108 221 254 / 0.03;
-  --chart-plot-background: 15 24 28 / 0.88;
+  --color-primary: 126 227 220;
+  --color-primary-container: 206 245 241;
+  --color-secondary: 153 220 255;
+  --color-surface: 29 34 41;
+  --color-background: 17 20 26;
+  --color-surface-container: 36 42 50;
+  --color-surface-container-low: 32 38 46;
+  --color-surface-container-high: 44 51 60;
+  --color-surface-container-highest: 54 62 72;
+  --color-surface-container-lowest: 39 45 54;
+  --color-surface-variant: 58 66 77;
+  --color-outline-variant: 97 108 121;
+  --color-outline: 165 176 189;
+  --color-on-surface: 245 247 250;
+  --color-on-surface-variant: 212 219 227;
+  --color-on-primary: 16 25 28;
+  --color-primary-fixed: 223 249 246;
+  --color-primary-fixed-dim: 176 232 228;
+  --color-secondary-container: 174 230 255;
+  --color-error-container: 122 39 47;
+  --color-on-error-container: 255 226 223;
+  --color-background-top: 29 34 42;
+  --gradient-signature-start: 126 227 220;
+  --gradient-signature-end: 90 191 214;
+  --glass-panel-background: 39 45 54 / 0.9;
+  --shadow-soft: 0 18px 42px rgba(0, 0, 0, 0.42);
+  --chart-panel-start: 126 227 220 / 0.16;
+  --chart-panel-end: 126 227 220 / 0.05;
+  --chart-plot-background: 20 24 30 / 0.92;
   color-scheme: dark;
 }
 
@@ -146,6 +146,23 @@
     animation: active-channel-dot-pulse 1.9s ease-out infinite;
   }
 
+}
+
+:root[data-theme="dark"] .app-card {
+  border-color: rgb(var(--color-outline-variant) / 0.9);
+  box-shadow:
+    0 20px 44px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+:root[data-theme="dark"] .primary-action {
+  box-shadow:
+    0 18px 36px rgb(var(--color-primary) / 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+:root[data-theme="dark"] .secondary-action {
+  border: 1px solid rgb(var(--color-outline-variant) / 0.9);
 }
 
 @layer utilities {
