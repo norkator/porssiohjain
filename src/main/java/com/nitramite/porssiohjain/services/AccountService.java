@@ -166,6 +166,13 @@ public class AccountService {
         return true;
     }
 
+    @Transactional
+    public void deleteAccount(Long accountId) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+        accountRepository.delete(account);
+    }
+
     public static boolean isValidSecret(String secret) {
         if (secret == null || secret.length() < 8) {
             return false;

@@ -23,10 +23,12 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -189,7 +191,9 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 createNotificationSection(),
                 saveButton,
                 Divider.createDivider(),
-                buttonRow
+                buttonRow,
+                Divider.createDivider(),
+                createDeleteAccountSection()
         );
 
         add(card);
@@ -251,6 +255,80 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         );
         section.add(title, form, changePasswordButton);
         return section;
+    }
+
+    private Component createDeleteAccountSection() {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(true);
+
+        H3 title = new H3(t("settings.delete.title"));
+        title.getStyle()
+                .set("margin-top", "16px")
+                .set("color", "var(--lumo-error-text-color)");
+
+        Paragraph description = new Paragraph(t("settings.delete.description"));
+        description.getStyle().set("margin", "0");
+
+        Button deleteButton = new Button(t("settings.delete.button.open"), event -> openDeleteAccountDialog());
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+
+        section.getStyle()
+                .set("padding", "var(--lumo-space-m)")
+                .set("border-radius", "14px")
+                .set("border", "1px solid var(--lumo-error-color-50pct)")
+                .set("background", "var(--lumo-error-color-10pct)");
+
+        section.add(title, description, deleteButton);
+        return section;
+    }
+
+    private void openDeleteAccountDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("settings.delete.dialog.title"));
+        dialog.setCloseOnEsc(true);
+        dialog.setCloseOnOutsideClick(true);
+        dialog.setWidth("min(640px, 95vw)");
+
+        Paragraph description = new Paragraph(t("settings.delete.dialog.description"));
+        description.getStyle().set("margin", "0");
+
+        Button cancelButton = new Button(t("common.cancel"), event -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button deleteButton = new Button(t("settings.delete.dialog.confirm"), event -> {
+            dialog.close();
+            deleteAccount();
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+
+        HorizontalLayout actions = new HorizontalLayout(cancelButton, deleteButton);
+        actions.setWidthFull();
+        actions.setJustifyContentMode(JustifyContentMode.END);
+
+        VerticalLayout content = new VerticalLayout(description, actions);
+        content.setPadding(false);
+        content.setSpacing(true);
+        content.setWidthFull();
+
+        dialog.add(content);
+        dialog.open();
+    }
+
+    private void deleteAccount() {
+        try {
+            accountService.deleteAccount(accountId);
+
+            VaadinSession session = VaadinSession.getCurrent();
+            if (session != null) {
+                session.setAttribute("token", null);
+                session.setAttribute("expiresAt", null);
+            }
+
+            UI.getCurrent().navigate(HomeView.class);
+        } catch (IllegalArgumentException ex) {
+            showNotification(t("settings.delete.failed"), NotificationVariant.LUMO_ERROR);
+        }
     }
 
     private void changePassword() {

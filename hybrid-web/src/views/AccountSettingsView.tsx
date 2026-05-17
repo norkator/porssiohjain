@@ -10,12 +10,13 @@
  */
 
 import PageHeader from "@/components/PageHeader";
-import { changePassword, fetchMe, updateMe, type AccountTier } from "@/lib/account";
+import { changePassword, deleteMe, fetchMe, updateMe, type AccountTier } from "@/lib/account";
+import { logoutNative } from "@/lib/android-bridge";
 import { setCurrentLocale, supportedLocales, useI18n } from "@/lib/i18n";
-import { setDevSessionOverride } from "@/lib/session";
+import { clearBrowserSession, getSessionData, setDevSessionOverride } from "@/lib/session";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 import { FormEvent, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function getTierTone(tier: AccountTier) {
   switch (tier) {
@@ -31,13 +32,17 @@ function getTierTone(tier: AccountTier) {
 export default function AccountSettingsView() {
   const { t, group } = useI18n("accountSettings");
   const common = useI18n("common").t;
+  const navigate = useNavigate();
   const tierLabels = group("tierLabels");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [tier, setTier] = useState<AccountTier>("FREE");
@@ -199,6 +204,26 @@ export default function AccountSettingsView() {
   const handleThemeChange = (theme: ThemePreference) => {
     setThemePreference(theme);
     setThemePreferenceState(theme);
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    setDeleteError(null);
+
+    try {
+      await deleteMe();
+
+      if (getSessionData().source === "android") {
+        logoutNative();
+        return;
+      }
+
+      clearBrowserSession();
+      navigate("/login", { replace: true });
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : t("deleteFailed"));
+      setIsDeletingAccount(false);
+    }
   };
 
   return (
@@ -446,10 +471,66 @@ export default function AccountSettingsView() {
                 {passwordMessage ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary">{passwordMessage}</div> : null}
                 {passwordError ? <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{passwordError}</div> : null}
               </form>
+
+              <section className="app-card border border-error-container/70 bg-error-container/20 p-4 sm:p-6 lg:p-8">
+                <div>
+                  <p className="metric-label mb-3 text-on-error-container">{t("deleteEyebrow")}</p>
+                  <h2 className="font-headline text-2xl font-extrabold text-on-error-container">{t("deleteTitle")}</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-on-error-container">{t("deleteDescription")}</p>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <button
+                    className="inline-flex items-center justify-center rounded-xl bg-on-error-container px-6 py-4 font-headline text-lg font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setIsDeleteDialogOpen(true);
+                    }}
+                    type="button"
+                  >
+                    {t("deleteButton")}
+                  </button>
+                </div>
+
+                {deleteError ? <div className="mt-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{deleteError}</div> : null}
+              </section>
             </section>
           </div>
         ) : null}
       </main>
+
+      {isDeleteDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-2xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
+            <div className="mb-5">
+              <p className="metric-label mb-2 text-on-error-container">{t("deleteDialogEyebrow")}</p>
+              <h2 className="font-headline text-2xl font-extrabold text-on-error-container">{t("deleteDialogTitle")}</h2>
+              <p className="mt-3 text-sm leading-6 text-on-surface-variant">{t("deleteDialogDescription")}</p>
+            </div>
+
+            {deleteError ? <div className="mb-5 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{deleteError}</div> : null}
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                className="secondary-action justify-center"
+                disabled={isDeletingAccount}
+                onClick={() => setIsDeleteDialogOpen(false)}
+                type="button"
+              >
+                {common("cancel")}
+              </button>
+              <button
+                className="inline-flex items-center justify-center rounded-xl bg-on-error-container px-6 py-4 font-headline text-lg font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isDeletingAccount}
+                onClick={handleDeleteAccount}
+                type="button"
+              >
+                {isDeletingAccount ? t("deletingAccount") : t("confirmDeleteButton")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

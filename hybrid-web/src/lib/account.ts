@@ -87,3 +87,13 @@ export async function changePassword(input: { currentPassword: string; newPasswo
     throw new Error(await readError(response));
   }
 }
+
+export async function deleteMe() {
+  const response = await apiFetch("/me", {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+}

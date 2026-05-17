@@ -110,6 +110,12 @@ public class MeController {
         }
     }
 
+    @DeleteMapping
+    public ResponseEntity<Void> deleteMe() {
+        accountService.deleteAccount(authContext.getAccountId());
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/push-tokens")
     public java.util.List<PushNotificationTokenResponse> getPushTokens() {
         return pushNotificationTokenService.getPushNotificationTokens(authContext.getAccountId());
