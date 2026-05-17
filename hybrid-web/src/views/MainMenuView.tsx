@@ -21,12 +21,14 @@ import { useDevices } from "@/hooks/useDevices";
 import { logoutNative } from "@/lib/android-bridge";
 import { useI18n } from "@/lib/i18n";
 import { clearBrowserSession, getSessionData } from "@/lib/session";
+import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 import { useEffect, useState } from "react";
 
 export default function MainMenuView() {
   const session = getSessionData();
   const { group, t } = useI18n("mainMenu");
   const tileTitles = group("tileTitles");
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => getThemePreference());
   const [sitesCount, setSitesCount] = useState<number | null>(null);
   const [contractsCount, setContractsCount] = useState<number | null>(null);
   const [sitesError, setSitesError] = useState(false);
@@ -164,6 +166,13 @@ export default function MainMenuView() {
     window.location.hash = "#/login";
   };
 
+  const handleThemeToggle = () => {
+    const nextTheme: ThemePreference = themePreference === "dark" ? "light" : "dark";
+
+    setThemePreference(nextTheme);
+    setThemePreferenceState(nextTheme);
+  };
+
   return (
     <>
       <PageHeader
@@ -180,7 +189,7 @@ export default function MainMenuView() {
         )}
       />
 
-      <main className="mx-auto max-w-7xl px-4 pb-36 pt-4 sm:px-6">
+      <main className="mx-auto max-w-7xl px-4 pb-16 pt-4 sm:px-6">
         <section className="mb-12">
           <div className="grid grid-cols-1 items-end gap-8 lg:grid-cols-12">
             <div className="lg:col-span-7">
@@ -240,7 +249,7 @@ export default function MainMenuView() {
                 <div className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-primary transition-transform duration-300 group-hover:scale-x-100" />
                 <div className="flex h-full flex-col justify-between gap-12">
                   <div className="flex items-start justify-between">
-                    <div className="rounded-lg bg-white p-3 shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-md">
+                    <div className="rounded-lg bg-surface-container-lowest p-3 shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-md">
                       <span className="font-headline text-xl font-black text-primary">{tile.icon}</span>
                     </div>
                     <span className="translate-y-1 text-lg text-outline-variant opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:text-primary group-hover:opacity-100">↗</span>
@@ -287,7 +296,7 @@ export default function MainMenuView() {
                 <div className="absolute -right-12 top-0 h-28 w-28 rounded-full bg-primary/10 blur-2xl transition-transform duration-300 group-hover:scale-125" />
                 <div className="relative flex h-full flex-col justify-between gap-12">
                   <div className="flex items-start justify-between">
-                    <div className="rounded-lg bg-white p-3 shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-md w-fit">
+                    <div className="w-fit rounded-lg bg-surface-container-lowest p-3 shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-md">
                       <span className="font-headline text-xl font-black text-primary">{tile.icon}</span>
                     </div>
                     <span className="translate-y-1 text-lg text-outline-variant opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:text-primary group-hover:opacity-100">↗</span>
@@ -302,6 +311,20 @@ export default function MainMenuView() {
               </Link>
             ))}
           </div>
+        </section>
+
+        <section className="flex justify-center pb-4 pt-2">
+          <button
+            aria-label={t("themeToggle")}
+            className="glass-panel inline-flex items-center gap-3 rounded-full border border-outline-variant/60 px-4 py-3 text-sm font-semibold text-on-surface shadow-soft transition-transform hover:-translate-y-0.5 active:scale-95"
+            onClick={handleThemeToggle}
+            type="button"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-highest text-lg">
+              {themePreference === "dark" ? "☀" : "☾"}
+            </span>
+            <span>{themePreference === "dark" ? t("switchToLight") : t("switchToDark")}</span>
+          </button>
         </section>
       </main>
     </>

@@ -187,7 +187,10 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
             </div>
           </div>
 
-          <div className="relative rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
+          <div
+            className="relative rounded-3xl p-4 sm:p-5"
+            style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
+          >
             <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
               <svg
                 aria-label={t("productionAria")}
@@ -203,7 +206,7 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
                 </defs>
 
                 <rect
-                  fill="rgb(247 250 249 / 0.7)"
+                  fill="rgb(var(--chart-plot-background))"
                   height={innerHeight}
                   rx="18"
                   width={innerWidth}
@@ -217,7 +220,7 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
                   return (
                     <g key={value}>
                       <line
-                        stroke="rgb(191 200 199 / 0.6)"
+                        stroke="rgb(var(--color-outline-variant) / 0.6)"
                         strokeDasharray="6 8"
                         strokeWidth="1"
                         x1={CHART_PADDING_LEFT}
@@ -225,7 +228,7 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
                         y1={y}
                         y2={y}
                       />
-                      <text fill="rgb(63 72 72)" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
+                      <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
                         {formatKwValue(value)} kW
                       </text>
                     </g>
@@ -239,7 +242,7 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
                   return (
                     <g key={point.createdAt}>
                       <line
-                        stroke="rgb(191 200 199 / 0.5)"
+                        stroke="rgb(var(--color-outline-variant) / 0.5)"
                         strokeWidth="1"
                         x1={x}
                         x2={x}
@@ -247,7 +250,7 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
                         y2={CHART_PADDING_TOP + innerHeight}
                       />
                       <text
-                        fill="rgb(63 72 72)"
+                        fill="rgb(var(--color-on-surface-variant))"
                         fontSize="12"
                         textAnchor={index === history.length - 1 ? "end" : index === 0 ? "start" : "middle"}
                         x={x}
@@ -280,7 +283,7 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
                 />
                 <circle cx={currentX} cy={currentY} fill="rgb(255 232 179)" r="7" stroke="rgb(168 110 0)" strokeWidth="3" />
 
-                <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
+                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
                   {t("timeInTimezone", { timezone })}
                 </text>
               </svg>

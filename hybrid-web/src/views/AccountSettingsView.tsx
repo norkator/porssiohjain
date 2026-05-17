@@ -13,6 +13,7 @@ import PageHeader from "@/components/PageHeader";
 import { changePassword, fetchMe, updateMe, type AccountTier } from "@/lib/account";
 import { setCurrentLocale, supportedLocales, useI18n } from "@/lib/i18n";
 import { setDevSessionOverride } from "@/lib/session";
+import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -46,6 +47,7 @@ export default function AccountSettingsView() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [accountId, setAccountId] = useState<number | null>(null);
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => getThemePreference());
   const [deviceLimit, setDeviceLimit] = useState<number>(0);
   const [controlLimit, setControlLimit] = useState<number | null>(null);
   const [productionSourceLimit, setProductionSourceLimit] = useState<number | null>(null);
@@ -59,6 +61,10 @@ export default function AccountSettingsView() {
 
   const formatLimit = (limit: number | null) => (limit === null ? t("unlimited") : String(limit));
   const isValidPassword = (value: string) => value.length >= 8 && /[A-Z]/.test(value) && /[A-Za-z]/.test(value) && /\d/.test(value);
+  const themeOptions: Array<{ value: ThemePreference; label: string }> = [
+    { value: "light", label: t("themeLight") },
+    { value: "dark", label: t("themeDark") }
+  ];
 
   useEffect(() => {
     let isActive = true;
@@ -190,6 +196,11 @@ export default function AccountSettingsView() {
     }
   };
 
+  const handleThemeChange = (theme: ThemePreference) => {
+    setThemePreference(theme);
+    setThemePreferenceState(theme);
+  };
+
   return (
     <>
       <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} title={t("title")} compact />
@@ -285,6 +296,36 @@ export default function AccountSettingsView() {
                         <option key={option.code} value={option.code}>{option.label}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="md:col-span-2 space-y-3">
+                    <div>
+                      <p className="mb-1 ml-1 font-headline text-sm font-bold text-on-surface">{t("theme")}</p>
+                      <p className="ml-1 text-xs text-on-surface-variant">{t("themeDescription")}</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {themeOptions.map((option) => {
+                        const selected = themePreference === option.value;
+
+                        return (
+                          <button
+                            className={`rounded-2xl border px-4 py-4 text-left transition-colors ${
+                              selected
+                                ? "border-primary bg-primary-container text-on-primary"
+                                : "border-outline-variant bg-surface-container-highest text-on-surface hover:border-primary hover:bg-surface-container-high"
+                            }`}
+                            key={option.value}
+                            onClick={() => handleThemeChange(option.value)}
+                            type="button"
+                          >
+                            <span className="block font-headline text-sm font-bold">{option.label}</span>
+                            <span className={`mt-1 block text-xs ${selected ? "text-primary-fixed" : "text-on-surface-variant"}`}>
+                              {selected ? t("themeSelected") : t("themeTapToUse")}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div className="md:col-span-2 space-y-3">

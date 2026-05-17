@@ -14,7 +14,10 @@ import ReactDOM from "react-dom/client";
 import { HashRouter } from "react-router-dom";
 import App from "./App";
 import { clearDevSessionOverride, getSessionData, setDevSessionOverride } from "@/lib/session";
+import { initializeTheme } from "@/lib/theme";
 import "./styles/index.css";
+
+initializeTheme();
 
 if (import.meta.env.DEV && typeof window !== "undefined") {
   window.devSession = {

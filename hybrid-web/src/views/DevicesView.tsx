@@ -192,7 +192,7 @@ export default function DevicesView() {
             className="group flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:bg-surface-container-high hover:shadow-soft sm:p-6"
             to="/devices/add/type"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest font-headline text-xl font-black text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest font-headline text-xl font-black text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-surface-container-lowest">
               +
             </div>
             <div>
@@ -206,7 +206,7 @@ export default function DevicesView() {
           <div className="group relative overflow-hidden rounded-3xl bg-primary-container p-4 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.22)] sm:p-6 md:col-span-4">
             <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
             <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-secondary-container/20 blur-3xl transition-transform duration-500 group-hover:scale-125" />
-            <div className="relative text-white">
+            <div className="relative text-on-primary">
               <p className="text-xs font-semibold uppercase tracking-widest opacity-80">{t("devicesOnline")}</p>
               <p className="font-headline text-4xl font-black">{onlineCount} / {totalCount}</p>
             </div>

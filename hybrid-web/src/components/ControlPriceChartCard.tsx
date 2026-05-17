@@ -188,7 +188,10 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
             </div>
           </div>
 
-          <div className="relative rounded-3xl bg-[linear-gradient(180deg,rgba(0,67,66,0.08),rgba(0,67,66,0.02))] p-4 sm:p-5">
+          <div
+            className="relative rounded-3xl p-4 sm:p-5"
+            style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
+          >
             <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
               <svg
                 aria-label={t("controlAria")}
@@ -197,7 +200,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                 viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
               >
                 <rect
-                  fill="rgb(247 250 249 / 0.7)"
+                  fill="rgb(var(--chart-plot-background))"
                   height={innerHeight}
                   rx="18"
                   width={innerWidth}
@@ -211,7 +214,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                   return (
                     <g key={value}>
                       <line
-                        stroke="rgb(191 200 199 / 0.6)"
+                        stroke="rgb(var(--color-outline-variant) / 0.6)"
                         strokeDasharray="6 8"
                         strokeWidth="1"
                         x1={CHART_PADDING_LEFT}
@@ -219,7 +222,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                         y1={y}
                         y2={y}
                       />
-                      <text fill="rgb(63 72 72)" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
+                      <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
                         {formatChartPriceLabel(value)}
                       </text>
                     </g>
@@ -233,7 +236,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                   return (
                     <g key={point.timestamp}>
                       <line
-                        stroke="rgb(191 200 199 / 0.5)"
+                        stroke="rgb(var(--color-outline-variant) / 0.5)"
                         strokeWidth="1"
                         x1={x}
                         x2={x}
@@ -241,7 +244,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                         y2={CHART_PADDING_TOP + innerHeight}
                       />
                       <text
-                        fill="rgb(63 72 72)"
+                        fill="rgb(var(--color-on-surface-variant))"
                         fontSize="12"
                         textAnchor={index === chart.points.length - 1 ? "end" : index === 0 ? "start" : "middle"}
                         x={x}
@@ -264,7 +267,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                 <path
                   d={buildLinePath(nordpoolValues, innerWidth, innerHeight, minValue, range)}
                   fill="none"
-                  stroke="rgb(0 103 125)"
+                  stroke="rgb(var(--color-secondary))"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="3"
@@ -279,7 +282,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                 />
 
                 <line
-                  stroke="rgb(0 103 125 / 0.45)"
+                  stroke="rgb(var(--color-secondary) / 0.45)"
                   strokeDasharray="5 7"
                   strokeWidth="2"
                   x1={currentX}
@@ -287,9 +290,9 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
                   y1={CHART_PADDING_TOP}
                   y2={CHART_PADDING_TOP + innerHeight}
                 />
-                <circle cx={currentX} cy={currentY} fill="rgb(108 221 254)" r="7" stroke="rgb(0 67 66)" strokeWidth="3" />
+                <circle cx={currentX} cy={currentY} fill="rgb(var(--color-secondary-container))" r="7" stroke="rgb(var(--color-primary))" strokeWidth="3" />
 
-                <text fill="rgb(63 72 72)" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
+                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
                   {t("timeInTimezone", { timezone: chart.timezone })}
                 </text>
               </svg>
