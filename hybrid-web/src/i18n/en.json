@@ -301,7 +301,16 @@
     "genericFailed": "Failed to create account.",
     "creating": "Creating account...",
     "create": "Create Account",
-    "backToLogin": "Back to Login"
+    "backToLogin": "Back to Login",
+    "termsEyebrow": "Terms",
+    "termsTitle": "Terms of Service",
+    "termsDescription": "Please read and accept the terms of service before creating your account.",
+    "termsLoading": "Loading terms of service...",
+    "termsLoadFailed": "Failed to load terms of service.",
+    "termsLoadFailedMessage": "Failed to load terms of service: {error}",
+    "acceptTermsAndCreate": "Accept Terms and Create Account",
+    "cancel": "Cancel",
+    "close": "Close"
   },
   "powerLimits": {
     "title": "Power Limits",

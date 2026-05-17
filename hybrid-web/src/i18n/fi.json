@@ -301,7 +301,16 @@
     "genericFailed": "Tilin luonti epäonnistui.",
     "creating": "Luodaan tiliä...",
     "create": "Luo tili",
-    "backToLogin": "Takaisin kirjautumiseen"
+    "backToLogin": "Takaisin kirjautumiseen",
+    "termsEyebrow": "Ehdot",
+    "termsTitle": "Käyttöehdot",
+    "termsDescription": "Lue ja hyväksy käyttöehdot ennen tilin luomista.",
+    "termsLoading": "Ladataan käyttöehtoja...",
+    "termsLoadFailed": "Käyttöehtojen lataaminen epäonnistui.",
+    "termsLoadFailedMessage": "Käyttöehtojen lataaminen epäonnistui: {error}",
+    "acceptTermsAndCreate": "Hyväksy ehdot ja luo tili",
+    "cancel": "Peruuta",
+    "close": "Sulje"
   },
   "powerLimits": {
     "title": "Tehorajat",

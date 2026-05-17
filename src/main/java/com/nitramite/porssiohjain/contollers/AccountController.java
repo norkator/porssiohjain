@@ -14,11 +14,15 @@ package com.nitramite.porssiohjain.contollers;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.RateLimitService;
+import com.nitramite.porssiohjain.services.TermsOfServiceService;
 import com.nitramite.porssiohjain.services.models.LoginRequest;
+import com.nitramite.porssiohjain.services.models.TermsOfServiceResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/account")
@@ -28,6 +32,7 @@ public class AccountController {
     private final AccountService accountService;
     private final AuthService authService;
     private final RateLimitService rateLimitService;
+    private final TermsOfServiceService termsOfServiceService;
     private final HttpServletRequest request;
 
     private String getClientIp() {
@@ -43,6 +48,18 @@ public class AccountController {
         }
 
         return ResponseEntity.ok(accountService.createAccount(ip, true));
+    }
+
+    @GetMapping("/terms")
+    public ResponseEntity<?> getTerms(@RequestParam(required = false) String locale) {
+        Locale resolvedLocale = locale != null && !locale.isBlank() ? Locale.forLanguageTag(locale) : request.getLocale();
+        String markdown = termsOfServiceService.loadTermsMarkdown(resolvedLocale);
+        if (markdown == null) {
+            return ResponseEntity.internalServerError().body("Terms of service could not be loaded.");
+        }
+
+        String responseLocale = resolvedLocale != null && "fi".equals(resolvedLocale.getLanguage()) ? "fi" : "en";
+        return ResponseEntity.ok(new TermsOfServiceResponse(responseLocale, markdown));
     }
 
     @PostMapping("/login")

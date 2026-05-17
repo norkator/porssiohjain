@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.TermsOfServiceService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -33,11 +34,6 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinRequest;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Create account")
@@ -46,6 +42,7 @@ public class CreateAccountView extends VerticalLayout {
 
     private final AccountService accountService;
     protected final I18nService i18n;
+    private final TermsOfServiceService termsOfServiceService;
 
     private final Button createButton;
     private final VerticalLayout resultLayout = new VerticalLayout();
@@ -53,10 +50,12 @@ public class CreateAccountView extends VerticalLayout {
     @Autowired
     public CreateAccountView(
             AccountService accountService,
-            I18nService i18n
+            I18nService i18n,
+            TermsOfServiceService termsOfServiceService
     ) {
         this.accountService = accountService;
         this.i18n = i18n;
+        this.termsOfServiceService = termsOfServiceService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -173,17 +172,7 @@ public class CreateAccountView extends VerticalLayout {
     }
 
     private String loadTermsMarkdown() {
-        Locale locale = UI.getCurrent().getLocale();
-        String lang = locale != null && "fi".equals(locale.getLanguage()) ? "fi" : "en";
-        ClassPathResource resource = new ClassPathResource("static/terms/" + lang + "/terms-of-service.md");
-        if (!resource.exists()) {
-            return null;
-        }
-        try (InputStream inputStream = resource.getInputStream()) {
-            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            return null;
-        }
+        return termsOfServiceService.loadTermsMarkdown(UI.getCurrent().getLocale());
     }
 
     private void showAccountInfo(AccountEntity account) {

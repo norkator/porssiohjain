@@ -25,6 +25,11 @@ export type CreatedAccount = {
   secret: string;
 };
 
+export type TermsOfService = {
+  locale: string;
+  markdown: string;
+};
+
 function getPublicApiUrl(path: string) {
   const { baseUrl } = getSessionData();
 
@@ -83,4 +88,16 @@ export async function createAccount() {
   }
 
   return response.json() as Promise<CreatedAccount>;
+}
+
+export async function fetchTermsOfService(locale: string) {
+  const response = await fetch(getPublicApiUrl(`/account/terms?locale=${encodeURIComponent(locale)}`), {
+    method: "GET"
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  return response.json() as Promise<TermsOfService>;
 }
