@@ -44,6 +44,11 @@ public class AuthService {
 
         rateLimitService.resetLoginFailures(ip);
 
+        return createTokenForAccount(account);
+    }
+
+    @Transactional
+    public LoginResponse createTokenForAccount(AccountEntity account) {
         TokenEntity token = TokenEntity.builder()
                 .token(UUID.randomUUID().toString().replace("-", ""))
                 .account(account)

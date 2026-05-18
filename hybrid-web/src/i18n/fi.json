@@ -11,7 +11,17 @@
     "languageLabel": "Kieli",
     "languageShortLabel": "Kieli",
     "useDemoAccount": "Käytä demotiliä",
-    "createAccount": "Luo tili"
+    "createAccount": "Luo tili",
+    "loginWithQr": "Kirjaudu QR-koodilla",
+    "qrStarting": "Luodaan QR-kirjautumista...",
+    "qrEyebrow": "QR-kirjautuminen",
+    "qrTitle": "Skannaa kirjautuaksesi",
+    "qrDescription": "Skannaa tämä koodi Android-sovelluksella, jossa olet jo kirjautuneena.",
+    "qrWaiting": "Odotetaan Android-hyväksyntää...",
+    "qrExpired": "QR-kirjautuminen vanheni. Luo uusi koodi.",
+    "qrLoginFailed": "QR-kirjautuminen epäonnistui.",
+    "qrRenderFailed": "QR-koodin näyttäminen epäonnistui.",
+    "qrImageAlt": "QR-kirjautumiskoodi"
   },
   "common": {
     "brand": "Energy Controller",
@@ -62,6 +72,7 @@
   "mainMenu": {
     "brand": "Energy Controller",
     "logout": "Kirjaudu ulos",
+    "scanQrLogin": "Kirjaudu QR koodilla",
     "liveDashboard": "Reaaliaikainen näkymä",
     "headlineTop": "Järjestelmä",
     "headlineHighlight": "optimoitu.",
