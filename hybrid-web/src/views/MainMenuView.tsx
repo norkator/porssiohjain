@@ -180,15 +180,6 @@ export default function MainMenuView() {
         translucent
         rightSlot={(
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {session.source === "android" ? (
-              <button
-                className="secondary-action px-4 py-2 text-sm"
-                onClick={openNativeQrLoginScanner}
-                type="button"
-              >
-                {t("scanQrLogin")}
-              </button>
-            ) : null}
             <button
               className="secondary-action px-4 py-2 text-sm"
               onClick={handleLogout}
@@ -325,17 +316,31 @@ export default function MainMenuView() {
         </section>
 
         <section className="flex justify-center pb-4 pt-2">
-          <button
-            aria-label={t("themeToggle")}
-            className="glass-panel inline-flex items-center gap-3 rounded-full border border-outline-variant/60 px-4 py-3 text-sm font-semibold text-on-surface shadow-soft transition-transform hover:-translate-y-0.5 active:scale-95"
-            onClick={handleThemeToggle}
-            type="button"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-highest text-lg">
-              {themePreference === "dark" ? "☀" : "☾"}
-            </span>
-            <span>{themePreference === "dark" ? t("switchToLight") : t("switchToDark")}</span>
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {session.source === "android" || import.meta.env.DEV ? (
+              <button
+                className="glass-panel inline-flex items-center gap-3 rounded-full border border-outline-variant/60 px-4 py-3 text-sm font-semibold text-on-surface shadow-soft transition-transform hover:-translate-y-0.5 active:scale-95"
+                onClick={openNativeQrLoginScanner}
+                type="button"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-highest text-lg">
+                  ⛶
+                </span>
+                <span>{t("scanQrLogin")}</span>
+              </button>
+            ) : null}
+            <button
+              aria-label={t("themeToggle")}
+              className="glass-panel inline-flex items-center gap-3 rounded-full border border-outline-variant/60 px-4 py-3 text-sm font-semibold text-on-surface shadow-soft transition-transform hover:-translate-y-0.5 active:scale-95"
+              onClick={handleThemeToggle}
+              type="button"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-highest text-lg">
+                {themePreference === "dark" ? "☀" : "☾"}
+              </span>
+              <span>{themePreference === "dark" ? t("switchToLight") : t("switchToDark")}</span>
+            </button>
+          </div>
         </section>
       </main>
     </>

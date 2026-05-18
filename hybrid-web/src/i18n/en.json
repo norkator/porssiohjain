@@ -72,7 +72,7 @@
   "mainMenu": {
     "brand": "Energy Controller",
     "logout": "Log Out",
-    "scanQrLogin": "Scan browser login QR",
+    "scanQrLogin": "Login with QR",
     "liveDashboard": "Live Dashboard",
     "headlineTop": "System",
     "headlineHighlight": "Optimized.",
