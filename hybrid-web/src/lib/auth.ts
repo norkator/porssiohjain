@@ -30,7 +30,7 @@ export type TermsOfService = {
   markdown: string;
 };
 
-function getPublicApiUrl(path: string) {
+export function getPublicApiUrl(path: string) {
   const { baseUrl } = getSessionData();
 
   if (!baseUrl) {
@@ -40,7 +40,7 @@ function getPublicApiUrl(path: string) {
   return new URL(path, baseUrl).toString();
 }
 
-async function readError(response: Response) {
+export async function readError(response: Response) {
   const text = await response.text();
 
   if (!text) {

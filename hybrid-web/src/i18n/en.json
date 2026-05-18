@@ -11,7 +11,17 @@
     "languageLabel": "Language",
     "languageShortLabel": "Language",
     "useDemoAccount": "Use demo account",
-    "createAccount": "Create account"
+    "createAccount": "Create account",
+    "loginWithQr": "Login with QR code",
+    "qrStarting": "Creating QR login...",
+    "qrEyebrow": "QR Login",
+    "qrTitle": "Scan to log in",
+    "qrDescription": "Scan this code with the native Android app while logged in there.",
+    "qrWaiting": "Waiting for Android approval...",
+    "qrExpired": "QR login expired. Create a new code.",
+    "qrLoginFailed": "QR login failed.",
+    "qrRenderFailed": "Could not render QR code.",
+    "qrImageAlt": "QR login code"
   },
   "common": {
     "brand": "Energy Controller",
@@ -62,6 +72,7 @@
   "mainMenu": {
     "brand": "Energy Controller",
     "logout": "Log Out",
+    "scanQrLogin": "Scan browser login QR",
     "liveDashboard": "Live Dashboard",
     "headlineTop": "System",
     "headlineHighlight": "Optimized.",

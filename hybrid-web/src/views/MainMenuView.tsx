@@ -18,7 +18,7 @@ import { formatKw } from "@/lib/account-stats";
 import { useAccountStats } from "@/hooks/useAccountStats";
 import { useControls } from "@/hooks/useControls";
 import { useDevices } from "@/hooks/useDevices";
-import { logoutNative } from "@/lib/android-bridge";
+import { logoutNative, openNativeQrLoginScanner } from "@/lib/android-bridge";
 import { useI18n } from "@/lib/i18n";
 import { clearBrowserSession, getSessionData } from "@/lib/session";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
@@ -179,13 +179,24 @@ export default function MainMenuView() {
         brand={t("brand")}
         translucent
         rightSlot={(
-          <button
-            className="secondary-action px-4 py-2 text-sm"
-            onClick={handleLogout}
-            type="button"
-          >
-            {t("logout")}
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {session.source === "android" ? (
+              <button
+                className="secondary-action px-4 py-2 text-sm"
+                onClick={openNativeQrLoginScanner}
+                type="button"
+              >
+                {t("scanQrLogin")}
+              </button>
+            ) : null}
+            <button
+              className="secondary-action px-4 py-2 text-sm"
+              onClick={handleLogout}
+              type="button"
+            >
+              {t("logout")}
+            </button>
+          </div>
         )}
       />
 

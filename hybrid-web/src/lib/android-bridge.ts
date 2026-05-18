@@ -24,6 +24,7 @@ type AndroidBridgeApi = {
   getBootstrapData?: () => string;
   showToast?: (message: string) => void;
   openNativeScreen?: (screen: string) => void;
+  scanQrLoginCode?: () => void;
   logout?: () => void;
 };
 
@@ -68,6 +69,17 @@ export function showNativeToast(message: string) {
 
 export function openNativeScreen(screen: string) {
   getAndroidBridge()?.openNativeScreen?.(screen);
+}
+
+export function openNativeQrLoginScanner() {
+  const bridge = getAndroidBridge();
+
+  if (bridge?.scanQrLoginCode) {
+    bridge.scanQrLoginCode();
+    return;
+  }
+
+  bridge?.openNativeScreen?.("qrLoginScanner");
 }
 
 export function logoutNative() {
