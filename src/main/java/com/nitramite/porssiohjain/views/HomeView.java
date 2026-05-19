@@ -162,6 +162,20 @@ public class HomeView extends VerticalLayout {
 
         contentBox.add(langButtons, title, subtitle);
 
+        Anchor googlePlayBadgeLink = new Anchor(
+                "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller"
+        );
+        googlePlayBadgeLink.setTarget("_blank");
+        googlePlayBadgeLink.getElement().setAttribute("rel", "noopener noreferrer");
+
+        Image googlePlayBadge = new Image("/get_it_on_google_play_badge.svg", "Get it on Google Play");
+        googlePlayBadge.setWidth("147px");
+        googlePlayBadge.getStyle()
+                .set("max-width", "100%")
+                .set("height", "auto")
+                .set("display", "block");
+        googlePlayBadgeLink.add(googlePlayBadge);
+
         if (loggedIn) {
             configureActionButton(devicesButton, VaadinIcon.DESKTOP);
             configureActionButton(controlsButton, VaadinIcon.SLIDERS);
@@ -190,9 +204,9 @@ public class HomeView extends VerticalLayout {
                 actionGrid.add(adminButton);
             }
 
-            contentBox.add(actionGrid, logoutButton);
+            contentBox.add(actionGrid, googlePlayBadgeLink, logoutButton);
         } else {
-            contentBox.add(loginButton, createAccountButton, mobileAppButton, documentationButton);
+            contentBox.add(loginButton, createAccountButton, mobileAppButton, googlePlayBadgeLink, documentationButton);
         }
 
         Paragraph docLink = new Paragraph(t("home.licenseText") + " ");
