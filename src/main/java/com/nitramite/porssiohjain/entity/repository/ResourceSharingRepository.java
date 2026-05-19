@@ -73,6 +73,11 @@ public interface ResourceSharingRepository extends JpaRepository<ResourceSharing
             Long deviceId
     );
 
+    List<ResourceSharingEntity> findByResourceTypeAndWeatherControlId(
+            ResourceType resourceType,
+            Long weatherControlId
+    );
+
     boolean existsByReceiverAccountIdAndResourceTypeAndControlIdAndEnabledTrue(
             Long receiverAccountId,
             ResourceType resourceType,

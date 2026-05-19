@@ -310,6 +310,7 @@ export const fetchWeatherControl = (id: number) => apiGetJson<ApiWeatherControl>
 export const fetchWeatherControlWeather = (id: number) => apiGetJson<ApiSiteWeatherForecast>(`/api/weather-controls/${id}/weather`);
 export const createWeatherControl = (payload: WeatherControlPayload) => postJson<ApiWeatherControl>("/api/weather-controls", payload);
 export const updateWeatherControl = (id: number, payload: WeatherControlPayload) => postJson<ApiWeatherControl>(`/api/weather-controls/${id}`, payload, "PUT");
+export const deleteWeatherControl = (id: number) => postJson<void>(`/api/weather-controls/${id}`, undefined, "DELETE");
 export const fetchWeatherControlDeviceLinks = (id: number) => apiGetJson<WeatherControlDeviceLink[]>(`/api/weather-controls/${id}/devices`);
 export const addWeatherControlDeviceLink = (id: number, payload: WeatherControlDevicePayload) => postJson<WeatherControlDeviceLink>(`/api/weather-controls/${id}/devices`, payload);
 export const updateWeatherControlDeviceLink = (id: number, payload: WeatherControlDevicePayload) => postJson<WeatherControlDeviceLink>(`/api/weather-controls/devices/${id}`, payload, "PUT");

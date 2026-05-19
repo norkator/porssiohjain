@@ -76,6 +76,11 @@ public class WeatherControlsController {
         );
     }
 
+    @DeleteMapping("/{weatherControlId}")
+    public void deleteWeatherControl(@PathVariable Long weatherControlId) {
+        weatherControlService.deleteWeatherControl(authContext.getAccountId(), weatherControlId);
+    }
+
     @GetMapping("/{weatherControlId}/devices")
     public List<WeatherControlDeviceResponse> getDevices(@PathVariable Long weatherControlId) {
         return weatherControlService.getWeatherControlDevices(authContext.getAccountId(), weatherControlId);

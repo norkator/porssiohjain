@@ -127,6 +127,19 @@ public class WeatherControlService {
         return toResponse(weatherControlRepository.save(entity));
     }
 
+    public void deleteWeatherControl(Long accountId, Long weatherControlId) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        WeatherControlEntity entity = weatherControlRepository.findByIdAndAccountId(weatherControlId, account.getId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Weather control not found for account " + accountId + " and id " + weatherControlId
+                ));
+        resourceSharingRepository.deleteAll(
+                resourceSharingRepository.findByResourceTypeAndWeatherControlId(ResourceType.WEATHER_CONTROL, weatherControlId)
+        );
+        weatherControlRepository.delete(entity);
+    }
+
     public WeatherControlDeviceResponse addDeviceToWeatherControl(
             Long accountId, Long weatherControlId, Long deviceId, Integer deviceChannel, WeatherMetricType weatherMetric,
             ComparisonType comparisonType, BigDecimal thresholdValue, ControlAction controlAction, boolean priorityRule

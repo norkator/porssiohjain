@@ -19,6 +19,7 @@ import {
   type ApiWeatherControl,
   COMPARISONS,
   CONTROL_ACTIONS,
+  deleteWeatherControl,
   deleteWeatherControlDeviceLink,
   deleteWeatherControlHeatPumpLink,
   fetchSites,
@@ -40,13 +41,14 @@ import {
 import { fetchDevices, fetchHeatPumpState, type AcType, type ApiDevice } from "@/lib/devices";
 import { useI18n } from "@/lib/i18n";
 import { FormEvent, useEffect, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
 const label = (value: string) => value.toLowerCase().replace(/_/g, " ").replace(/^\w/, (char: string) => char.toUpperCase());
 
 type RuleTab = "STANDARD" | "HEAT_PUMP";
 
 export default function ManageWeatherControlView() {
+  const navigate = useNavigate();
   const { t, group } = useI18n("manageWeatherControl");
   const common = useI18n("common").t;
   const metricLabels: Record<string, string> = group("metrics");
@@ -65,6 +67,8 @@ export default function ManageWeatherControlView() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [activeRuleTab, setActiveRuleTab] = useState<RuleTab>("STANDARD");
   const [name, setName] = useState("");
   const [siteId, setSiteId] = useState("");
@@ -171,6 +175,18 @@ export default function ManageWeatherControlView() {
       setMessage(t("saved"));
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : t("failedSave"));
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    setError(null);
+    try {
+      await deleteWeatherControl(weatherControlId);
+      navigate("/weather-controls");
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : t("failedDelete"));
+      setIsDeleting(false);
     }
   };
 
@@ -574,6 +590,46 @@ export default function ManageWeatherControlView() {
               <Link className="secondary-action justify-center" to="/weather-controls">{common("back")}</Link>
             </aside>
           </div>
+        ) : null}
+
+        {!isLoading && control && !control.shared ? (
+          <section className="app-card mt-10 border-error-container bg-error-container/40 p-4 sm:p-6">
+            {!deleteConfirmOpen ? (
+              <button
+                className="w-full rounded-xl bg-error-container px-5 py-4 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirmOpen(true)}
+                type="button"
+              >
+                {t("delete")}
+              </button>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <p className="font-headline text-lg font-bold text-on-error-container">{common("confirmDeletion")}</p>
+                  <p className="text-sm text-on-error-container">{t("deleteDescription")}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDeleting}
+                    onClick={handleDelete}
+                    type="button"
+                  >
+                    {isDeleting ? common("deleting") : common("confirm")}
+                  </button>
+                  <button
+                    className="secondary-action justify-center"
+                    disabled={isDeleting}
+                    onClick={() => setDeleteConfirmOpen(false)}
+                    type="button"
+                  >
+                    {common("cancel")}
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
         ) : null}
       </main>
 
