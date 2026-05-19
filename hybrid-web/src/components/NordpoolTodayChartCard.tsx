@@ -240,7 +240,7 @@ export default function NordpoolTodayChartCard() {
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.max)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
-          <div className="rounded-3xl bg-primary-container p-5 text-on-primary">
+          <div className="market-stat-accent">
             <p className="metric-label mb-2 text-primary-fixed">{t("dataPoints")}</p>
             <p className="font-headline text-2xl font-black">{chart.points.length}</p>
             <p className="text-xs text-primary-fixed">{t("todayIntervals")}</p>

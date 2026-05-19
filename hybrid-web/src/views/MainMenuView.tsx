@@ -43,8 +43,7 @@ export default function MainMenuView() {
     error: statsError,
     isLoading: isStatsLoading,
     totalConsumptionKw,
-    totalProductionKw,
-    totalProductionPeakKw
+    totalProductionKw
   } = useAccountStats();
   const deviceTileDetail = isLoading
     ? t("loadingDevices")
@@ -140,8 +139,12 @@ export default function MainMenuView() {
       hasError: contractsError
     }
   ];
-  const productionRatio = totalProductionPeakKw > 0 ? Math.min(totalProductionKw / totalProductionPeakKw, 1) : 0;
-  const productionBarWidth = `${Math.max(productionRatio * 100, 6)}%`;
+  const solarCoverageRatio = totalConsumptionKw > 0
+    ? Math.min(totalProductionKw / totalConsumptionKw, 1)
+    : totalProductionKw > 0
+      ? 1
+      : 0;
+  const productionBarWidth = `${Math.max(solarCoverageRatio * 100, 6)}%`;
   const consumptionLabel = isStatsLoading ? "--" : formatKw(totalConsumptionKw);
   const productionLabel = isStatsLoading ? "--" : formatKw(totalProductionKw, true);
   const netPowerKw = totalProductionKw - totalConsumptionKw;
@@ -206,22 +209,22 @@ export default function MainMenuView() {
             </div>
 
             <div className="lg:col-span-5">
-              <div className="signature-gradient group relative overflow-hidden rounded-xl p-4 text-on-primary shadow-2xl transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.24)] sm:p-6 lg:p-8">
+              <div className="dashboard-hero-card group relative overflow-hidden rounded-xl p-4 text-on-primary shadow-2xl transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.24)] sm:p-6 lg:p-8">
                 <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-secondary-container opacity-10 blur-3xl transition-transform duration-500 group-hover:scale-125" />
                 <div className="mb-10 flex items-start justify-between">
                   <div>
-                    <p className="mb-1 text-sm font-semibold uppercase tracking-wider text-primary-fixed">{t("totalConsumption")}</p>
+                    <p className="dashboard-hero-kicker mb-1 text-sm font-semibold uppercase tracking-wider">{t("totalConsumption")}</p>
                     <div className="flex items-baseline gap-2">
                       <span className="font-headline text-5xl font-extrabold">{consumptionLabel}</span>
-                      <span className="text-xl font-medium opacity-80">kW</span>
+                      <span className="dashboard-hero-unit text-xl font-medium">kW</span>
                     </div>
                   </div>
-                  <span className="font-headline text-4xl font-black text-secondary-container">⚡</span>
+                  <span className="dashboard-hero-accent font-headline text-4xl font-black">⚡</span>
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="opacity-70">{t("solarProduction")}</span>
-                    <span className="font-bold text-secondary-container">{productionLabel} kW</span>
+                    <span className="dashboard-hero-support">{t("solarProduction")}</span>
+                    <span className="dashboard-hero-accent font-bold">{productionLabel} kW</span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/30">
                     <div
@@ -229,7 +232,7 @@ export default function MainMenuView() {
                       style={{ width: productionBarWidth }}
                     />
                   </div>
-                  {statsError ? <p className="text-xs text-primary-fixed">{t("statsSyncUnavailable")}</p> : null}
+                  {statsError ? <p className="dashboard-hero-note text-xs">{t("statsSyncUnavailable")}</p> : null}
                 </div>
               </div>
             </div>
