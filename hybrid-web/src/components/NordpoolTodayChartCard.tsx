@@ -114,19 +114,10 @@ export default function NordpoolTodayChartCard() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:items-end">
-              <button
-                className="secondary-action justify-center px-4 py-2 text-sm"
-                onClick={() => setIsNotificationDialogOpen(true)}
-                type="button"
-              >
-                {t("marketNotifications")}
-              </button>
-              <div className="rounded-2xl bg-surface-container p-4">
-                <p className="metric-label mb-1">{t("current")}</p>
-                <p className="font-headline text-3xl font-black text-primary">{formatNordpoolPrice(chart.current)}</p>
-                <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
-              </div>
+            <div className="rounded-2xl bg-surface-container p-4">
+              <p className="metric-label mb-1">{t("current")}</p>
+              <p className="font-headline text-3xl font-black text-primary">{formatNordpoolPrice(chart.current)}</p>
+              <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
             </div>
           </div>
 
@@ -223,6 +214,13 @@ export default function NordpoolTodayChartCard() {
             <span className="rounded-full bg-surface-container px-3 py-2">
               {t("range", { min: formatNordpoolPrice(chart.min), max: formatNordpoolPrice(chart.max) })}
             </span>
+            <button
+              className="secondary-action justify-center px-4 py-2 text-xs"
+              onClick={() => setIsNotificationDialogOpen(true)}
+              type="button"
+            >
+              {t("marketNotifications")}
+            </button>
           </div>
         </div>
 
