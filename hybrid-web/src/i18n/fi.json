@@ -336,6 +336,10 @@
   "powerLimits": {
     "title": "Tehorajat",
     "description": "Pidä kokonaiskulutus määritettyjen kilowattirajojen alapuolella.",
+    "addNewPowerLimit": "Lisää uusi tehoraja",
+    "createPowerLimit": "Luo tehoraja",
+    "createPowerLimitDescription": "Lisää nimetty kulutusraja seurantaa ja laiteautomaatiota varten.",
+    "createPowerLimitEyebrow": "Uusi tehoraja",
     "limitName": "Rajan nimi",
     "add": "Lisää tehoraja",
     "loading": "Ladataan tehorajoja...",
@@ -359,6 +363,10 @@
   "productionSources": {
     "title": "Oma tuotanto",
     "description": "Seuraa paikallista tuotantoa ja ohjaa kuormia tuotantotason perusteella.",
+    "addNewProductionSource": "Lisää uusi tuotantolähde",
+    "createProductionSource": "Luo tuotantolähde",
+    "createProductionSourceDescription": "Liitä tuotantolähde ja ota sen reaaliaikainen sekä huipputuotanto käyttöön automaatiossa.",
+    "createProductionSourceEyebrow": "Uusi tuotantolähde",
     "sourceName": "Tuotantolähteen nimi",
     "appId": "Sovelluksen ID",
     "appSecret": "Sovelluksen salaisuus",
@@ -437,6 +445,10 @@
   "weatherControls": {
     "title": "Sääohjaukset",
     "description": "Ohjaa laitteita kohteen säärajojen perusteella.",
+    "addNewWeatherControl": "Lisää uusi sääohjaus",
+    "createWeatherControl": "Luo sääohjaus",
+    "createWeatherControlDescription": "Liitä sääautomaatioprofiili kohteeseen ja hallitse sitä ohjausnäkymästä.",
+    "createWeatherControlEyebrow": "Uusi sääohjaus",
     "controlName": "Ohjauksen nimi",
     "selectSite": "Valitse kohde",
     "add": "Lisää sääohjaus",

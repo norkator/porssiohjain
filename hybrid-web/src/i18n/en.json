@@ -336,6 +336,10 @@
   "powerLimits": {
     "title": "Power Limits",
     "description": "Keep total consumption under configured kilowatt limits.",
+    "addNewPowerLimit": "Add New Power Limit",
+    "createPowerLimit": "Create Power Limit",
+    "createPowerLimitDescription": "Add a named consumption limit for monitoring and device automation.",
+    "createPowerLimitEyebrow": "New power limit",
     "limitName": "Limit name",
     "add": "Add Power Limit",
     "loading": "Loading power limits...",
@@ -359,6 +363,10 @@
   "productionSources": {
     "title": "Own Production",
     "description": "Track local generation and switch loads by production level.",
+    "addNewProductionSource": "Add New Production Source",
+    "createProductionSource": "Create Production Source",
+    "createProductionSourceDescription": "Connect a generation source and start using its live and peak output in automation.",
+    "createProductionSourceEyebrow": "New production source",
     "sourceName": "Source name",
     "appId": "App ID",
     "appSecret": "App secret",
@@ -437,6 +445,10 @@
   "weatherControls": {
     "title": "Weather Controls",
     "description": "Switch devices from site weather thresholds.",
+    "addNewWeatherControl": "Add New Weather Control",
+    "createWeatherControl": "Create Weather Control",
+    "createWeatherControlDescription": "Bind a weather automation profile to a site and manage it from the control grid.",
+    "createWeatherControlEyebrow": "New weather control",
     "controlName": "Control name",
     "selectSite": "Select site",
     "add": "Add Weather Control",
