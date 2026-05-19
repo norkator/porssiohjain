@@ -9,7 +9,7 @@
  * See LICENSE for details.
  */
 
-import { apiGetJson } from "@/lib/api";
+import { apiFetch, apiGetJson } from "@/lib/api";
 
 export type NordpoolTodayChartPoint = {
   timestamp: string;
@@ -27,6 +27,37 @@ export type NordpoolTodayChart = {
   points: NordpoolTodayChartPoint[];
 };
 
+export type MarketNotificationMetric = "CURRENT_PRICE" | "DAILY_AVERAGE";
+export type MarketNotificationComparison = "GREATER_THAN" | "LESS_THAN";
+
+export type MarketNotification = {
+  id: number;
+  name: string;
+  description: string | null;
+  metric: MarketNotificationMetric;
+  comparisonType: MarketNotificationComparison;
+  thresholdPrice: number;
+  activeFrom: string;
+  activeTo: string;
+  timezone: string;
+  enabled: boolean;
+  lastSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MarketNotificationPayload = {
+  name: string;
+  description: string | null;
+  metric: MarketNotificationMetric;
+  comparisonType: MarketNotificationComparison;
+  thresholdPrice: number;
+  activeFrom: string;
+  activeTo: string;
+  timezone: string;
+  enabled: boolean;
+};
+
 export async function fetchNordpoolTodayChart(timezone: string) {
   const params = new URLSearchParams();
 
@@ -38,6 +69,29 @@ export async function fetchNordpoolTodayChart(timezone: string) {
 
   return apiGetJson<NordpoolTodayChart>(`/nordpool/today-chart${suffix ? `?${suffix}` : ""}`);
 }
+
+async function sendMarketNotification<T>(path: string, payload: unknown, method = "POST") {
+  const response = await apiFetch(path, {
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+    headers: { "Content-Type": "application/json" },
+    method
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  return text ? JSON.parse(text) as T : undefined as T;
+}
+
+export const fetchMarketNotifications = () => apiGetJson<MarketNotification[]>("/api/market-notifications");
+export const createMarketNotification = (payload: MarketNotificationPayload) => sendMarketNotification<MarketNotification>("/api/market-notifications", payload);
+export const updateMarketNotification = (id: number, payload: MarketNotificationPayload) => sendMarketNotification<MarketNotification>(`/api/market-notifications/${id}`, payload, "PUT");
+export const deleteMarketNotification = (id: number) => sendMarketNotification<void>(`/api/market-notifications/${id}`, undefined, "DELETE");
 
 export function formatNordpoolPrice(value: number) {
   return new Intl.NumberFormat(undefined, {

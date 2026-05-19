@@ -12,6 +12,8 @@
 import { useNordpoolTodayChart } from "@/hooks/useNordpoolTodayChart";
 import { useI18n } from "@/lib/i18n";
 import { formatNordpoolPrice, formatNordpoolTime } from "@/lib/nordpool";
+import MarketNotificationsDialog from "@/components/MarketNotificationsDialog";
+import { useState } from "react";
 
 const CHART_HEIGHT = 240;
 const CHART_WIDTH = 960;
@@ -54,6 +56,7 @@ function buildAreaPath(values: number[], innerWidth: number, innerHeight: number
 export default function NordpoolTodayChartCard() {
   const { t } = useI18n("charts");
   const { chart, error, isLoading } = useNordpoolTodayChart();
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
 
   if (isLoading) {
     return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingNordpool")}</div>;
@@ -111,10 +114,19 @@ export default function NordpoolTodayChartCard() {
               </p>
             </div>
 
-            <div className="rounded-2xl bg-surface-container p-4">
-              <p className="metric-label mb-1">{t("current")}</p>
-              <p className="font-headline text-3xl font-black text-primary">{formatNordpoolPrice(chart.current)}</p>
-              <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
+            <div className="flex flex-col gap-3 sm:items-end">
+              <button
+                className="secondary-action justify-center px-4 py-2 text-sm"
+                onClick={() => setIsNotificationDialogOpen(true)}
+                type="button"
+              >
+                {t("marketNotifications")}
+              </button>
+              <div className="rounded-2xl bg-surface-container p-4">
+                <p className="metric-label mb-1">{t("current")}</p>
+                <p className="font-headline text-3xl font-black text-primary">{formatNordpoolPrice(chart.current)}</p>
+                <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
+              </div>
             </div>
           </div>
 
@@ -237,6 +249,11 @@ export default function NordpoolTodayChartCard() {
           </div>
         </div>
       </div>
+      <MarketNotificationsDialog
+        isOpen={isNotificationDialogOpen}
+        onClose={() => setIsNotificationDialogOpen(false)}
+        timezone={chart.timezone}
+      />
     </article>
   );
 }

@@ -47,6 +47,7 @@ public class Scheduler {
     private final ThermostatControlService thermostatControlService;
     private final ControlNotificationService controlNotificationService;
     private final ProductionNotificationService productionNotificationService;
+    private final MarketNotificationService marketNotificationService;
     private final HeatPumpOnlineCheckService heatPumpOnlineCheckService;
 
     private boolean firstRun = true;
@@ -69,6 +70,7 @@ public class Scheduler {
             ThermostatControlService thermostatControlService,
             ControlNotificationService controlNotificationService,
             ProductionNotificationService productionNotificationService,
+            MarketNotificationService marketNotificationService,
             HeatPumpOnlineCheckService heatPumpOnlineCheckService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
@@ -87,6 +89,7 @@ public class Scheduler {
         this.thermostatControlService = thermostatControlService;
         this.controlNotificationService = controlNotificationService;
         this.productionNotificationService = productionNotificationService;
+        this.marketNotificationService = marketNotificationService;
         this.heatPumpOnlineCheckService = heatPumpOnlineCheckService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
@@ -246,6 +249,11 @@ public class Scheduler {
     @Scheduled(cron = "45 0/1 * * * *", zone = "Europe/Helsinki")
     public void productionNotifications() {
         productionNotificationService.sendDueNotifications();
+    }
+
+    @Scheduled(cron = "30 0/1 * * * *", zone = "Europe/Helsinki")
+    public void marketNotifications() {
+        marketNotificationService.sendDueNotifications();
     }
 
     @Scheduled(fixedDelayString = "${heatpump.control-interval}")

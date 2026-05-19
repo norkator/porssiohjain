@@ -14,6 +14,8 @@ package com.nitramite.porssiohjain.services;
 import com.resend.Resend;
 import com.resend.services.emails.model.CreateEmailOptions;
 import com.resend.services.emails.model.CreateEmailResponse;
+import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.MarketNotificationMetric;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -407,6 +409,107 @@ public class EmailService {
             log.info("Production notification email sent with Resend id {}", data.getId());
         } catch (Exception e) {
             throw new IllegalStateException("Failed to send production notification email", e);
+        }
+    }
+
+    public void sendMarketNotificationEmail(
+            String recipientEmail,
+            String notificationName,
+            String description,
+            MarketNotificationMetric metric,
+            ComparisonType comparisonType,
+            BigDecimal observedPrice,
+            BigDecimal thresholdPrice,
+            ZonedDateTime detectedAt,
+            Locale locale
+    ) {
+        try {
+            String subject = messageSource.getMessage(
+                    "mail.marketNotification.subject",
+                    new Object[]{notificationName},
+                    locale
+            );
+            String title = messageSource.getMessage("mail.marketNotification.title", null, locale);
+            String intro = messageSource.getMessage(
+                    "mail.marketNotification.intro",
+                    new Object[]{notificationName},
+                    locale
+            );
+            String descriptionLabel = messageSource.getMessage("mail.marketNotification.description", null, locale);
+            String metricLabel = messageSource.getMessage("mail.marketNotification.metric", null, locale);
+            String observedLabel = messageSource.getMessage("mail.marketNotification.observedPrice", null, locale);
+            String thresholdLabel = messageSource.getMessage("mail.marketNotification.thresholdPrice", null, locale);
+            String detectedAtLabel = messageSource.getMessage("mail.marketNotification.detectedAt", null, locale);
+            String footer = messageSource.getMessage("mail.marketNotification.footer", null, locale);
+
+            String safeDescription = description == null || description.isBlank()
+                    ? "-"
+                    : description.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+            String metricText = messageSource.getMessage("mail.marketNotification.metric." + metric.name(), null, locale);
+            String comparisonText = messageSource.getMessage("mail.marketNotification.comparison." + comparisonType.name(), null, locale);
+            String detectedAtText = detectedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm z"));
+
+            String htmlBody = """
+                    <div style="font-family: Arial, sans-serif; color: #333;">
+                        <h2 style="color: #00677d;">%s</h2>
+
+                        <p>%s</p>
+
+                        <table style="border-collapse: collapse; margin-top: 12px;">
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s snt/kWh</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s %s snt/kWh</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">%s:</td>
+                                <td style="padding: 6px 12px;">%s</td>
+                            </tr>
+                        </table>
+
+                        <hr style="margin-top: 24px;" />
+                        <p style="font-size: 12px; color: #777;">%s</p>
+                    </div>
+                    """
+                    .formatted(
+                            title,
+                            intro,
+                            descriptionLabel,
+                            safeDescription,
+                            metricLabel,
+                            metricText,
+                            observedLabel,
+                            observedPrice.stripTrailingZeros().toPlainString(),
+                            thresholdLabel,
+                            comparisonText,
+                            thresholdPrice.stripTrailingZeros().toPlainString(),
+                            detectedAtLabel,
+                            detectedAtText,
+                            footer
+                    );
+
+            Resend resend = new Resend(resentApiKey);
+            CreateEmailOptions params = CreateEmailOptions.builder()
+                    .from(from)
+                    .to(recipientEmail)
+                    .subject(subject)
+                    .html(htmlBody)
+                    .build();
+            CreateEmailResponse data = resend.emails().send(params);
+            log.info("Market notification email sent with Resend id {}", data.getId());
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to send market notification email", e);
         }
     }
 
