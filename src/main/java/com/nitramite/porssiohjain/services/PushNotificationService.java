@@ -18,6 +18,7 @@ import com.google.firebase.messaging.*;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
+import com.nitramite.porssiohjain.entity.MarketNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import com.nitramite.porssiohjain.entity.PushNotificationTokenEntity;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
@@ -145,6 +147,32 @@ public class PushNotificationService {
         data.put("description", notification.getDescription() == null ? "" : notification.getDescription());
         data.put("currentKw", source.getCurrentKw() == null ? "" : source.getCurrentKw().toPlainString());
         data.put("triggerKw", notification.getTriggerKw() == null ? "" : notification.getTriggerKw().toPlainString());
+        data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
+    public boolean sendMarketNotification(
+            AccountEntity account,
+            MarketNotificationEntity notification,
+            BigDecimal observedPrice,
+            ZonedDateTime detectedAt,
+            Locale locale
+    ) {
+        String title = messageSource.getMessage("mail.marketNotification.title", null, locale);
+        String body = messageSource.getMessage(
+                "mail.marketNotification.intro",
+                new Object[]{notification.getName()},
+                locale
+        );
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "MARKET_NOTIFICATION");
+        data.put("notificationId", String.valueOf(notification.getId()));
+        data.put("notificationName", notification.getName());
+        data.put("description", notification.getDescription() == null ? "" : notification.getDescription());
+        data.put("metric", notification.getMetric().name());
+        data.put("comparisonType", notification.getComparisonType().name());
+        data.put("observedPrice", observedPrice.toPlainString());
+        data.put("thresholdPrice", notification.getThresholdPrice().toPlainString());
         data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         return sendToAccount(account.getId(), title, body, data);
     }
