@@ -34,6 +34,7 @@ public class PushNotificationTokenService {
 
     private final PushNotificationTokenRepository pushNotificationTokenRepository;
     private final AccountRepository accountRepository;
+    private final DemoAccountGuard demoAccountGuard;
 
     public List<PushNotificationTokenResponse> getPushNotificationTokens(Long accountId) {
         return pushNotificationTokenRepository.findByAccountIdAndInvalidatedAtIsNullOrderByUpdatedAtDesc(accountId)
@@ -48,6 +49,7 @@ public class PushNotificationTokenService {
             String platform,
             String deviceName
     ) {
+        demoAccountGuard.assertWritable(accountId);
         String normalizedToken = normalizeToken(token);
         String normalizedPlatform = normalizePlatform(platform);
         String normalizedDeviceName = normalizeDeviceName(deviceName);
@@ -70,6 +72,7 @@ public class PushNotificationTokenService {
     }
 
     public void deletePushNotificationToken(Long accountId, Long tokenId) {
+        demoAccountGuard.assertWritable(accountId);
         PushNotificationTokenEntity entity = pushNotificationTokenRepository.findByIdAndAccountId(tokenId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Push notification token not found: " + tokenId));
         entity.setInvalidatedAt(Instant.now());

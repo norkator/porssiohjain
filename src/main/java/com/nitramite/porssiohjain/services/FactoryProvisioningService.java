@@ -32,6 +32,7 @@ public class FactoryProvisioningService {
     private final DeviceService deviceService;
     private final MqttProfileService mqttProfileService;
     private final ObjectProvider<MqttService> mqttServiceProvider;
+    private final DemoAccountGuard demoAccountGuard;
 
     @Transactional(readOnly = true)
     public List<FactoryDeviceResponse> listFactoryDevices() {
@@ -152,6 +153,7 @@ public class FactoryProvisioningService {
 
     @Transactional
     public DeviceResponse claimProvisionedDevice(Long accountId, ClaimProvisionedDeviceRequest request) {
+        demoAccountGuard.assertWritable(accountId);
         FactoryDeviceEntity factoryDevice = factoryDeviceRepository.findByClaimCode(requireText(request.getClaimCode(), "claimCode"))
                 .orElseThrow(() -> new EntityNotFoundException("Provisioned device not found"));
         return claimFactoryDeviceInternal(factoryDevice, accountId, request.getDeviceName(), request.getTimezone());
@@ -219,6 +221,7 @@ public class FactoryProvisioningService {
 
     @Transactional
     public OtaDeploymentResponse createOtaDeployment(Long requestedByAccountId, Long factoryDeviceId, CreateOtaDeploymentRequest request) {
+        demoAccountGuard.assertWritable(requestedByAccountId);
         FactoryDeviceEntity factoryDevice = getFactoryDeviceEntity(factoryDeviceId);
         OtaReleaseEntity release = otaReleaseRepository.findById(request.getOtaReleaseId())
                 .orElseThrow(() -> new EntityNotFoundException("OTA release not found: " + request.getOtaReleaseId()));

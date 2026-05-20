@@ -49,6 +49,7 @@ public class ProductionNotificationService {
     private final PushNotificationService pushNotificationService;
     private final PushNotificationTokenService pushNotificationTokenService;
     private final AccountLimitService accountLimitService;
+    private final DemoAccountGuard demoAccountGuard;
 
     public List<ProductionNotificationResponse> getProductionNotifications(Long accountId, Long sourceId) {
         ensureAccessibleSource(accountId, sourceId);
@@ -68,6 +69,7 @@ public class ProductionNotificationService {
             boolean enabled,
             Double triggerKw
     ) {
+        demoAccountGuard.assertWritable(accountId);
         validate(name, activeFrom, activeTo, triggerKw);
         ProductionSourceEntity source = ensureOwnedSource(accountId, sourceId);
         AccountEntity account = accountRepository.findById(accountId)
@@ -98,6 +100,7 @@ public class ProductionNotificationService {
             boolean enabled,
             Double triggerKw
     ) {
+        demoAccountGuard.assertWritable(accountId);
         validate(name, activeFrom, activeTo, triggerKw);
         ProductionNotificationEntity entity = ensureOwnedNotification(accountId, sourceId, notificationId);
         entity.setName(name.trim());
@@ -110,6 +113,7 @@ public class ProductionNotificationService {
     }
 
     public void deleteProductionNotification(Long accountId, Long sourceId, Long notificationId) {
+        demoAccountGuard.assertWritable(accountId);
         ProductionNotificationEntity entity = ensureOwnedNotification(accountId, sourceId, notificationId);
         productionNotificationRepository.delete(entity);
     }

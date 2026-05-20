@@ -47,10 +47,12 @@ public class PowerLimitService {
     private final ElectricityContractRepository electricityContractRepository;
     private final NordpoolRepository nordpoolRepository;
     private final AccountLimitService accountLimitService;
+    private final DemoAccountGuard demoAccountGuard;
     private final Map<Long, Instant> lastNotificationSent = new ConcurrentHashMap<>();
 
     @Transactional
     public PowerLimitResponse createLimit(Long accountId, String name, Double limitKw, boolean enabled) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
@@ -84,6 +86,7 @@ public class PowerLimitService {
             BigDecimal limitKw, Integer limitIntervalMinutes, boolean enabled, boolean notifyEnabled,
             String timezone, Long siteId, Long energyContractId, Long transferContractId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         PowerLimitEntity entity = powerLimitRepository
@@ -147,6 +150,7 @@ public class PowerLimitService {
 
     @Transactional
     public void addDeviceToPowerLimit(Long accountId, Long powerLimitId, Long deviceId, int channel) {
+        demoAccountGuard.assertWritable(accountId);
         PowerLimitEntity limit = powerLimitRepository.findById(powerLimitId)
                 .orElseThrow(() -> new IllegalArgumentException("Power limit not found: " + powerLimitId));
 
@@ -170,6 +174,7 @@ public class PowerLimitService {
 
     @Transactional
     public void deletePowerLimitDevice(Long accountId, Long powerLimitDeviceId) {
+        demoAccountGuard.assertWritable(accountId);
         PowerLimitDeviceEntity entity = powerLimitDeviceRepository.findById(powerLimitDeviceId)
                 .orElseThrow(() -> new IllegalArgumentException("Power limit device not found: " + powerLimitDeviceId));
 
@@ -535,6 +540,7 @@ public class PowerLimitService {
     public void deletePowerLimit(
             Long accountId, Long powerLimitId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         PowerLimitEntity entity = powerLimitRepository

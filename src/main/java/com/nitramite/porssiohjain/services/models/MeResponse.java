@@ -26,6 +26,7 @@ public class MeResponse {
     private AccountTier tier;
     private String email;
     private String locale;
+    private boolean demo;
     private boolean notifyPowerLimitExceeded;
     private boolean notifyControlActivated;
     private boolean emailNotificationsEnabled;

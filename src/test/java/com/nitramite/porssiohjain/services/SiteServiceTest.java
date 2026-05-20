@@ -44,6 +44,9 @@ class SiteServiceTest {
     @Mock
     private SiteWeatherService siteWeatherService;
 
+    @Mock
+    private DemoAccountGuard demoAccountGuard;
+
     @Test
     void createSiteRejectsUnsupportedWeatherPlace() {
         SiteService service = new SiteService(
@@ -51,7 +54,8 @@ class SiteServiceTest {
                 accountRepository,
                 fmiWeatherService,
                 siteWeatherService,
-                new FinnishWeatherPlaceService()
+                new FinnishWeatherPlaceService(),
+                demoAccountGuard
         );
         when(accountRepository.findById(1L)).thenReturn(Optional.of(AccountEntity.builder().id(1L).build()));
 
@@ -73,7 +77,8 @@ class SiteServiceTest {
                 accountRepository,
                 fmiWeatherService,
                 siteWeatherService,
-                new FinnishWeatherPlaceService()
+                new FinnishWeatherPlaceService(),
+                demoAccountGuard
         );
         AccountEntity account = AccountEntity.builder().id(1L).build();
         when(accountRepository.findById(1L)).thenReturn(Optional.of(account));

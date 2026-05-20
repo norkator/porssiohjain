@@ -54,6 +54,7 @@ import com.nitramite.porssiohjain.services.PushNotificationService;
 import com.nitramite.porssiohjain.services.PushNotificationTokenService;
 import com.nitramite.porssiohjain.services.ControlPriceService;
 import com.nitramite.porssiohjain.services.ThermostatCurveService;
+import com.nitramite.porssiohjain.services.DemoAccountGuard;
 import com.nitramite.porssiohjain.services.models.DeviceThermostatDebugSnapshotResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -152,6 +153,9 @@ class ControlServiceTest {
     @Mock
     private ControlPriceService controlPriceService;
 
+    @Mock
+    private DemoAccountGuard demoAccountGuard;
+
     private ControlService controlService;
 
     @BeforeEach
@@ -179,7 +183,8 @@ class ControlServiceTest {
                 pushNotificationService,
                 pushNotificationTokenService,
                 thermostatCurveService,
-                controlPriceService
+                controlPriceService,
+                demoAccountGuard
         );
         lenient().when(loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
         lenient().when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());

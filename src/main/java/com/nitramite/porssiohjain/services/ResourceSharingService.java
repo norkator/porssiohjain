@@ -14,6 +14,7 @@ import java.util.List;
 public class ResourceSharingService {
 
     private final ResourceSharingRepository repository;
+    private final DemoAccountGuard demoAccountGuard;
 
     public List<ResourceSharingEntity> getSharesForResource(
             Long sharerAccountId,
@@ -50,6 +51,7 @@ public class ResourceSharingService {
             ResourceType type,
             Long resourceId
     ) {
+        demoAccountGuard.assertWritable(sharerAccountId);
         boolean exists = repository.existsBySharerAccountIdAndReceiverAccountIdAndResourceTypeAndResourceId(
                 sharerAccountId,
                 receiverAccountId,
@@ -80,6 +82,7 @@ public class ResourceSharingService {
             Long sharerAccountId,
             Long shareId
     ) {
+        demoAccountGuard.assertWritable(sharerAccountId);
         ResourceSharingEntity entity = repository.findById(shareId)
                 .orElseThrow(() -> new IllegalArgumentException("Share not found"));
         if (!entity.getSharerAccountId().equals(sharerAccountId)) {

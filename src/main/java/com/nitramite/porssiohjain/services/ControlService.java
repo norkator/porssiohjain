@@ -60,6 +60,7 @@ public class ControlService {
     private final PushNotificationTokenService pushNotificationTokenService;
     private final ThermostatCurveService thermostatCurveService;
     private final ControlPriceService controlPriceService;
+    private final DemoAccountGuard demoAccountGuard;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -67,6 +68,7 @@ public class ControlService {
             BigDecimal taxPercent, ControlMode mode, Boolean manualOn,
             Boolean alwaysOnBelowMinPrice
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
 
@@ -98,6 +100,7 @@ public class ControlService {
             Boolean alwaysOnBelowMinPrice, Long energyContractId, Long transferContractId,
             Long siteId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
 
@@ -138,6 +141,7 @@ public class ControlService {
     public void deleteControl(
             Long accountId, Long controlId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         ControlEntity entity = controlRepository
@@ -267,6 +271,7 @@ public class ControlService {
     public ControlDeviceResponse addDeviceToControl(
             Long accountId, Long controlId, Long deviceId, Integer deviceChannel, BigDecimal estimatedPowerKw
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
         if (control.getAccount().getId().equals(accountId)) {
@@ -303,6 +308,7 @@ public class ControlService {
     public ControlDeviceResponse updateControlDevice(
             Long accountId, Long controlDeviceId, Long deviceId, Integer deviceChannel, BigDecimal estimatedPowerKw
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlDeviceEntity controlDevice = controlDeviceRepository.findById(controlDeviceId)
                 .orElseThrow(() -> new EntityNotFoundException("ControlDevice not found with id: " + controlDeviceId));
 
@@ -336,6 +342,7 @@ public class ControlService {
     public void deleteControlDevice(
             Long accountId, Long controlDeviceId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlDeviceEntity controlDevice = controlDeviceRepository.findById(controlDeviceId)
                 .orElseThrow(() -> new EntityNotFoundException("ControlDevice not found with id: " + controlDeviceId));
         if (controlDevice.getControl().getAccount().getId().equals(accountId)) {
@@ -396,6 +403,7 @@ public class ControlService {
             Long accountId, Long controlId, Long deviceId, String stateHex, ControlAction controlAction,
             ComparisonType comparisonType, BigDecimal priceLimit, BigDecimal estimatedPowerKw
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
         if (control.getAccount().getId().equals(accountId)) {
@@ -422,6 +430,7 @@ public class ControlService {
             Long accountId, Long controlHeatPumpId, Long deviceId, String stateHex, ControlAction controlAction,
             ComparisonType comparisonType, BigDecimal priceLimit, BigDecimal estimatedPowerKw
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlHeatPumpEntity entity = controlHeatPumpRepository.findById(controlHeatPumpId)
                 .orElseThrow(() -> new EntityNotFoundException("ControlHeatPump not found with id: " + controlHeatPumpId));
 
@@ -444,6 +453,7 @@ public class ControlService {
     public void deleteControlHeatPump(
             Long accountId, Long controlHeatPumpId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlHeatPumpEntity entity = controlHeatPumpRepository.findById(controlHeatPumpId)
                 .orElseThrow(() -> new EntityNotFoundException("ControlHeatPump not found with id: " + controlHeatPumpId));
         if (entity.getControl().getAccount().getId().equals(accountId)) {
@@ -493,6 +503,7 @@ public class ControlService {
             BigDecimal minTemperature, BigDecimal maxTemperature, BigDecimal fallbackTemperature,
             BigDecimal estimatedPowerKw, boolean enabled
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
         if (!control.getAccount().getId().equals(accountId)) {
@@ -530,6 +541,7 @@ public class ControlService {
             BigDecimal minTemperature, BigDecimal maxTemperature, BigDecimal fallbackTemperature,
             BigDecimal estimatedPowerKw, boolean enabled
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlThermostatEntity entity = controlThermostatRepository.findById(controlThermostatId)
                 .orElseThrow(() -> new EntityNotFoundException("ControlThermostat not found with id: " + controlThermostatId));
         if (!entity.getControl().getAccount().getId().equals(accountId)) {
@@ -565,6 +577,7 @@ public class ControlService {
     public void deleteControlThermostat(
             Long accountId, Long controlThermostatId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ControlThermostatEntity entity = controlThermostatRepository.findById(controlThermostatId)
                 .orElseThrow(() -> new EntityNotFoundException("ControlThermostat not found with id: " + controlThermostatId));
         if (entity.getControl().getAccount().getId().equals(accountId)) {
@@ -1227,6 +1240,7 @@ public class ControlService {
     }
 
     public void sendDebugMqttRelayCommand(Long accountId, Long deviceId, int channel, boolean on) {
+        demoAccountGuard.assertWritable(accountId);
         if (channel < 0 || channel > 3) {
             throw new IllegalArgumentException("Unsupported relay channel: " + channel);
         }

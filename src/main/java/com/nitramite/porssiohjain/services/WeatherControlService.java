@@ -61,8 +61,10 @@ public class WeatherControlService {
     private final ResourceSharingRepository resourceSharingRepository;
     private final AccountLimitService accountLimitService;
     private final SiteWeatherService siteWeatherService;
+    private final DemoAccountGuard demoAccountGuard;
 
     public WeatherControlEntity createWeatherControl(Long accountId, String name, Long siteId) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
         accountLimitService.assertCanCreateWeatherControl(accountId);
@@ -116,6 +118,7 @@ public class WeatherControlService {
     }
 
     public WeatherControlResponse updateWeatherControl(Long accountId, Long weatherControlId, String name, Long siteId) {
+        demoAccountGuard.assertWritable(accountId);
         WeatherControlEntity entity = weatherControlRepository.findByIdAndAccountId(weatherControlId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Weather control not found for your account with ID: " + weatherControlId));
 
@@ -128,6 +131,7 @@ public class WeatherControlService {
     }
 
     public void deleteWeatherControl(Long accountId, Long weatherControlId) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         WeatherControlEntity entity = weatherControlRepository.findByIdAndAccountId(weatherControlId, account.getId())
@@ -144,6 +148,7 @@ public class WeatherControlService {
             Long accountId, Long weatherControlId, Long deviceId, Integer deviceChannel, WeatherMetricType weatherMetric,
             ComparisonType comparisonType, BigDecimal thresholdValue, ControlAction controlAction, boolean priorityRule
     ) {
+        demoAccountGuard.assertWritable(accountId);
         WeatherControlEntity weatherControl = getOwnedWeatherControl(accountId, weatherControlId);
         DeviceEntity device = getOwnedDevice(accountId, deviceId);
 
@@ -169,6 +174,7 @@ public class WeatherControlService {
             Long accountId, Long weatherControlDeviceId, Long deviceId, Integer deviceChannel, WeatherMetricType weatherMetric,
             ComparisonType comparisonType, BigDecimal thresholdValue, ControlAction controlAction, boolean priorityRule
     ) {
+        demoAccountGuard.assertWritable(accountId);
         WeatherControlDeviceEntity entity = weatherControlDeviceRepository.findById(weatherControlDeviceId)
                 .orElseThrow(() -> new EntityNotFoundException("WeatherControlDevice not found with id: " + weatherControlDeviceId));
         ensureOwnership(accountId, entity.getWeatherControl().getAccount().getId());
@@ -191,6 +197,7 @@ public class WeatherControlService {
     }
 
     public void deleteWeatherControlDevice(Long accountId, Long weatherControlDeviceId) {
+        demoAccountGuard.assertWritable(accountId);
         WeatherControlDeviceEntity entity = weatherControlDeviceRepository.findById(weatherControlDeviceId)
                 .orElseThrow(() -> new EntityNotFoundException("WeatherControlDevice not found with id: " + weatherControlDeviceId));
         ensureOwnership(accountId, entity.getWeatherControl().getAccount().getId());
@@ -213,6 +220,7 @@ public class WeatherControlService {
             Long accountId, Long weatherControlId, Long deviceId, String stateHex, WeatherMetricType weatherMetric,
             ComparisonType comparisonType, BigDecimal thresholdValue
     ) {
+        demoAccountGuard.assertWritable(accountId);
         WeatherControlEntity weatherControl = getOwnedWeatherControl(accountId, weatherControlId);
         DeviceEntity device = getOwnedDevice(accountId, deviceId);
 
@@ -232,6 +240,7 @@ public class WeatherControlService {
             Long accountId, Long weatherControlHeatPumpId, Long deviceId, String stateHex, WeatherMetricType weatherMetric,
             ComparisonType comparisonType, BigDecimal thresholdValue
     ) {
+        demoAccountGuard.assertWritable(accountId);
         WeatherControlHeatPumpEntity entity = weatherControlHeatPumpRepository.findById(weatherControlHeatPumpId)
                 .orElseThrow(() -> new EntityNotFoundException("WeatherControlHeatPump not found with id: " + weatherControlHeatPumpId));
         ensureOwnership(accountId, entity.getWeatherControl().getAccount().getId());
@@ -247,6 +256,7 @@ public class WeatherControlService {
     }
 
     public void deleteWeatherControlHeatPump(Long accountId, Long weatherControlHeatPumpId) {
+        demoAccountGuard.assertWritable(accountId);
         WeatherControlHeatPumpEntity entity = weatherControlHeatPumpRepository.findById(weatherControlHeatPumpId)
                 .orElseThrow(() -> new EntityNotFoundException("WeatherControlHeatPump not found with id: " + weatherControlHeatPumpId));
         ensureOwnership(accountId, entity.getWeatherControl().getAccount().getId());

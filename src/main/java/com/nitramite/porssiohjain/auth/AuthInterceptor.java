@@ -17,6 +17,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -24,6 +25,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 @RequiredArgsConstructor
 public class AuthInterceptor implements HandlerInterceptor {
+
+    private static final String DEMO_WRITE_BLOCKED_MESSAGE = "Demo account is read-only.";
 
     private final AuthService authService;
     private final AuthContext authContext;
@@ -56,7 +59,13 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         try {
             AccountEntity account = authService.authenticate(token);
-            authContext.setAccountId(account.getId());
+            authContext.setAccount(account.getId(), account.isDemo());
+            if (account.isDemo() && isWriteRequest(request) && !isDemoWriteAllowed(request)) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType(MediaType.TEXT_PLAIN_VALUE);
+                response.getWriter().write(DEMO_WRITE_BLOCKED_MESSAGE);
+                return false;
+            }
         } catch (IllegalArgumentException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Unauthorized");
@@ -64,6 +73,17 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
 
         return true;
+    }
+
+    private boolean isWriteRequest(HttpServletRequest request) {
+        return HttpMethod.POST.matches(request.getMethod())
+                || HttpMethod.PUT.matches(request.getMethod())
+                || HttpMethod.PATCH.matches(request.getMethod())
+                || HttpMethod.DELETE.matches(request.getMethod());
+    }
+
+    private boolean isDemoWriteAllowed(HttpServletRequest request) {
+        return request.getRequestURI().startsWith("/account/qr-login/");
     }
 
     @Override

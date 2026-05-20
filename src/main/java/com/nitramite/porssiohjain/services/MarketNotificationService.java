@@ -50,6 +50,7 @@ public class MarketNotificationService {
     private final PushNotificationService pushNotificationService;
     private final PushNotificationTokenService pushNotificationTokenService;
     private final AccountLimitService accountLimitService;
+    private final DemoAccountGuard demoAccountGuard;
 
     public List<MarketNotificationResponse> getMarketNotifications(Long accountId) {
         return marketNotificationRepository.findByAccountIdOrderByIdAsc(accountId)
@@ -59,6 +60,7 @@ public class MarketNotificationService {
     }
 
     public MarketNotificationResponse createMarketNotification(Long accountId, MarketNotificationRequest request) {
+        demoAccountGuard.assertWritable(accountId);
         validate(request);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -80,6 +82,7 @@ public class MarketNotificationService {
     }
 
     public MarketNotificationResponse updateMarketNotification(Long accountId, Long notificationId, MarketNotificationRequest request) {
+        demoAccountGuard.assertWritable(accountId);
         validate(request);
         MarketNotificationEntity entity = ensureOwnedNotification(accountId, notificationId);
 
@@ -98,6 +101,7 @@ public class MarketNotificationService {
     }
 
     public void deleteMarketNotification(Long accountId, Long notificationId) {
+        demoAccountGuard.assertWritable(accountId);
         marketNotificationRepository.delete(ensureOwnedNotification(accountId, notificationId));
     }
 

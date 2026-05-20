@@ -19,6 +19,7 @@ export type MeResponse = {
   tier: AccountTier;
   email: string | null;
   locale: string;
+  demo: boolean;
   notifyPowerLimitExceeded: boolean;
   notifyControlActivated: boolean;
   emailNotificationsEnabled: boolean;

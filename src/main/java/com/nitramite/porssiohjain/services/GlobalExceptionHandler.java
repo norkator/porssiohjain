@@ -64,6 +64,16 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    @ExceptionHandler(DemoAccountMutationException.class)
+    public ResponseEntity<Map<String, Object>> handleDemoAccountMutation(DemoAccountMutationException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of(
+                        "status", 403,
+                        "error", "Forbidden",
+                        "message", ex.getMessage()
+                ));
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException ex) {
         return ResponseEntity.status(ex.getStatusCode())

@@ -62,6 +62,9 @@ class ProductionNotificationServiceTest {
     @Mock
     private AccountLimitService accountLimitService;
 
+    @Mock
+    private DemoAccountGuard demoAccountGuard;
+
     private ProductionNotificationService productionNotificationService;
 
     @BeforeEach
@@ -74,7 +77,8 @@ class ProductionNotificationServiceTest {
                 emailService,
                 pushNotificationService,
                 pushNotificationTokenService,
-                accountLimitService
+                accountLimitService,
+                demoAccountGuard
         );
     }
 

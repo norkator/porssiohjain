@@ -61,6 +61,7 @@ public class AuthService {
                 .expiresAt(token.getExpiresAt())
                 .accountId(account.getId())
                 .locale(account.getLocale())
+                .demo(account.isDemo())
                 .build();
     }
 

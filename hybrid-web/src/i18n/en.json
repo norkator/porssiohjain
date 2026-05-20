@@ -219,6 +219,7 @@
     "loading": "Loading account settings...",
     "failedLoad": "Failed to load account settings.",
     "failedSave": "Failed to save account settings.",
+    "demoReadOnly": "This is a demo account. Stored account data and automation resources are read-only.",
     "deleteEyebrow": "Danger zone",
     "deleteTitle": "Delete account",
     "deleteDescription": "Permanently delete this account and every related detail, including devices, automations, sites, notifications, and all other stored account data. This action cannot be undone.",

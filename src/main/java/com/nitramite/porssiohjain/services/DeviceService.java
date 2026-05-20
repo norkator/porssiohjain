@@ -57,6 +57,7 @@ public class DeviceService {
     private final AccountLimitService accountLimitService;
     private final ControlService controlService;
     private final MqttProfileService mqttProfileService;
+    private final DemoAccountGuard demoAccountGuard;
 
     @Transactional
     public DeviceResponse createDevice(
@@ -64,6 +65,7 @@ public class DeviceService {
             boolean enabled,
             String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId, String buildingId
     ) {
+        demoAccountGuard.assertWritable(authAccountId);
         DeviceType resolvedDeviceType = deviceType == null ? DeviceType.STANDARD : deviceType;
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -111,6 +113,7 @@ public class DeviceService {
             String mqttPassword,
             MqttDeviceProfile mqttDeviceProfile
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
@@ -253,6 +256,7 @@ public class DeviceService {
 
     @Transactional
     public void updateAcDeviceId(Long accountId, Long deviceId, String acDeviceId, String buildingId) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found"));
         DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
@@ -270,6 +274,7 @@ public class DeviceService {
             Long accountId, Long deviceId, String newName, String newTimezone, DeviceType deviceType, boolean enabled,
             String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId, String buildingId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         DeviceType resolvedDeviceType = deviceType == null ? DeviceType.STANDARD : deviceType;
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -305,6 +310,7 @@ public class DeviceService {
 
     @Transactional
     public void deleteDevice(Long accountId, Long deviceId) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
         DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
