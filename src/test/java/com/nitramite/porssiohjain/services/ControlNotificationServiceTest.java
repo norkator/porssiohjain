@@ -65,6 +65,9 @@ class ControlNotificationServiceTest {
     @Mock
     private AccountLimitService accountLimitService;
 
+    @Mock
+    private DemoAccountGuard demoAccountGuard;
+
     private ControlNotificationService controlNotificationService;
 
     @BeforeEach
@@ -77,7 +80,8 @@ class ControlNotificationServiceTest {
                 emailService,
                 pushNotificationService,
                 pushNotificationTokenService,
-                accountLimitService
+                accountLimitService,
+                demoAccountGuard
         );
     }
 

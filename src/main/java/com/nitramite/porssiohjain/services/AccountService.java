@@ -73,6 +73,7 @@ public class AccountService {
                 .agreedTerms(savedAccount.isAgreedTerms())
                 .agreedTermsAt(savedAccount.getAgreedTermsAt())
                 .admin(savedAccount.isAdmin())
+                .demo(savedAccount.isDemo())
                 .createdAt(savedAccount.getCreatedAt())
                 .updatedAt(savedAccount.getUpdatedAt())
                 .build();
@@ -137,6 +138,7 @@ public class AccountService {
             boolean pushNotificationsEnabled,
             String locale
     ) {
+        assertWritable(accountId);
         accountRepository.findById(accountId).ifPresent(account -> {
             account.setEmail(email != null && !email.isBlank() ? email.trim() : null);
             account.setNotifyPowerLimitExceeded(notifyPowerLimitExceeded);
@@ -150,6 +152,7 @@ public class AccountService {
 
     @Transactional
     public boolean changeSecret(Long accountId, String currentSecret, String newSecret) {
+        assertWritable(accountId);
         if (!isValidSecret(newSecret)) {
             throw new IllegalArgumentException("New password does not meet requirements.");
         }
@@ -168,6 +171,7 @@ public class AccountService {
 
     @Transactional
     public void deleteAccount(Long accountId) {
+        assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         accountRepository.delete(account);
@@ -199,6 +203,19 @@ public class AccountService {
         return accountRepository.findById(accountId)
                 .map(AccountEntity::getCreatedAt)
                 .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isDemoAccount(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::isDemo)
+                .orElse(false);
+    }
+
+    private void assertWritable(Long accountId) {
+        if (isDemoAccount(accountId)) {
+            throw new DemoAccountMutationException();
+        }
     }
 
 }

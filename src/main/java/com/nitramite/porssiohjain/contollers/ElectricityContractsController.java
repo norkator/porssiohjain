@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
 import com.nitramite.porssiohjain.entity.enums.ContractType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
+import com.nitramite.porssiohjain.services.DemoAccountGuard;
 import com.nitramite.porssiohjain.services.models.ElectricityContractResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +35,7 @@ public class ElectricityContractsController {
     private final AuthContext authContext;
     private final ElectricityContractRepository electricityContractRepository;
     private final AccountRepository accountRepository;
+    private final DemoAccountGuard demoAccountGuard;
 
     @GetMapping
     public List<ElectricityContractResponse> listContracts(
@@ -47,6 +49,7 @@ public class ElectricityContractsController {
 
     @PostMapping
     public ElectricityContractResponse createContract(@RequestBody ElectricityContractRequest request) {
+        demoAccountGuard.assertWritable(authContext.getAccountId());
         AccountEntity account = accountRepository.findById(authContext.getAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
 
@@ -70,6 +73,7 @@ public class ElectricityContractsController {
             @PathVariable Long contractId,
             @RequestBody ElectricityContractRequest request
     ) {
+        demoAccountGuard.assertWritable(authContext.getAccountId());
         ElectricityContractEntity contract = electricityContractRepository.findByIdAndAccountId(contractId, authContext.getAccountId())
                 .orElseThrow(() -> new IllegalArgumentException("Electricity contract not found"));
         contract.setName(request.name());

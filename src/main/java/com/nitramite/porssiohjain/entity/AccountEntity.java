@@ -94,6 +94,10 @@ public class AccountEntity {
     @Builder.Default
     private boolean admin = false;
 
+    @Column(name = "demo", nullable = false)
+    @Builder.Default
+    private boolean demo = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

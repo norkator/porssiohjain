@@ -35,10 +35,12 @@ public class SiteService {
     private final FmiWeatherService fmiWeatherService;
     private final SiteWeatherService siteWeatherService;
     private final FinnishWeatherPlaceService finnishWeatherPlaceService;
+    private final DemoAccountGuard demoAccountGuard;
 
     public SiteEntity createSite(
             Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         SiteEntity site = SiteEntity.builder()
@@ -57,10 +59,12 @@ public class SiteService {
     public SiteEntity updateSite(Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone) {
         SiteEntity site = siteRepository.findById(siteId)
                 .orElseThrow(() -> new IllegalArgumentException("Site not found"));
+        demoAccountGuard.assertWritable(site.getAccount().getId());
         return updateSite(site, name, type, enabled, weatherPlace, timezone);
     }
 
     public SiteEntity updateSite(Long accountId, Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone) {
+        demoAccountGuard.assertWritable(accountId);
         SiteEntity site = siteRepository.findByIdAndAccountId(siteId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Site not found"));
         return updateSite(site, name, type, enabled, weatherPlace, timezone);

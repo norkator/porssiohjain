@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.DemoAccountGuard;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -50,6 +51,7 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
     private final I18nService i18n;
     private final ElectricityContractRepository contractRepository;
     private final AccountRepository accountRepository;
+    private final DemoAccountGuard demoAccountGuard;
 
     private Long accountId;
 
@@ -77,12 +79,14 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
             AuthService authService,
             I18nService i18n,
             ElectricityContractRepository contractRepository,
-            AccountRepository accountRepository
+            AccountRepository accountRepository,
+            DemoAccountGuard demoAccountGuard
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.contractRepository = contractRepository;
         this.accountRepository = accountRepository;
+        this.demoAccountGuard = demoAccountGuard;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -255,6 +259,7 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
     }
 
     private void save() {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Authenticated account not found: " + accountId

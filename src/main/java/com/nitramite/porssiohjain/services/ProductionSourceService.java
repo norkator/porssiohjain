@@ -47,6 +47,7 @@ public class ProductionSourceService {
     private final SiteRepository siteRepository;
     private final ResourceSharingRepository resourceSharingRepository;
     private final AccountLimitService accountLimitService;
+    private final DemoAccountGuard demoAccountGuard;
 
     @Transactional
     public void deleteOldProductionHistory() {
@@ -68,6 +69,7 @@ public class ProductionSourceService {
             String stationId,
             boolean enabled
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         accountLimitService.assertCanCreateProductionSource(accountId);
@@ -210,6 +212,7 @@ public class ProductionSourceService {
             Long accountId, Long sourceId, Long deviceId, int channel,
             BigDecimal triggerKw, ComparisonType comparisonType, ControlAction action
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository
                 .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         ProductionSourceEntity source = productionSourceRepository
@@ -234,6 +237,7 @@ public class ProductionSourceService {
             Long accountId, Long sourceId, Long deviceId, String stateHex,
             ControlAction controlAction, ComparisonType comparisonType, BigDecimal triggerKw
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository
                 .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         ProductionSourceEntity source = productionSourceRepository
@@ -261,6 +265,7 @@ public class ProductionSourceService {
             Long accountId, Long sourceId, Long heatPumpMappingId, Long deviceId, String stateHex,
             ControlAction controlAction, ComparisonType comparisonType, BigDecimal triggerKw
     ) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository
                 .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         ProductionSourceEntity source = productionSourceRepository
@@ -288,6 +293,7 @@ public class ProductionSourceService {
 
     @Transactional
     public void removeDevice(Long accountId, Long sourceId, Long deviceMappingId) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository
                 .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         ProductionSourceEntity source = productionSourceRepository
@@ -298,6 +304,7 @@ public class ProductionSourceService {
 
     @Transactional
     public void removeHeatPump(Long accountId, Long sourceId, Long heatPumpMappingId) {
+        demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository
                 .findById(accountId).orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         ProductionSourceEntity source = productionSourceRepository
@@ -320,6 +327,7 @@ public class ProductionSourceService {
             String stationId,
             Long siteId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         ProductionSourceEntity entity = productionSourceRepository
                 .findByIdAndAccountId(sourceId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Source not found"));
@@ -373,6 +381,7 @@ public class ProductionSourceService {
     public void deleteProductionSource(
             Long accountId, Long sourceId
     ) {
+        demoAccountGuard.assertWritable(accountId);
         accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
         ProductionSourceEntity source = productionSourceRepository

@@ -219,6 +219,7 @@
     "loading": "Ladataan tilin asetuksia...",
     "failedLoad": "Tilin asetusten lataus epäonnistui.",
     "failedSave": "Tilin asetusten tallennus epäonnistui.",
+    "demoReadOnly": "Tämä on demotili. Tallennetut tilitiedot ja automaatioresurssit ovat vain luettavissa.",
     "deleteEyebrow": "Vaaravyöhyke",
     "deleteTitle": "Poista tili",
     "deleteDescription": "Poista tämä tili pysyvästi sekä kaikki siihen liittyvät tiedot, mukaan lukien laitteet, automaatiot, kohteet, ilmoitukset ja kaikki muu tallennettu tilidata. Tätä toimintoa ei voi perua.",

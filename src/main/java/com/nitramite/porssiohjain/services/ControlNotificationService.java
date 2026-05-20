@@ -53,6 +53,7 @@ public class ControlNotificationService {
     private final PushNotificationService pushNotificationService;
     private final PushNotificationTokenService pushNotificationTokenService;
     private final AccountLimitService accountLimitService;
+    private final DemoAccountGuard demoAccountGuard;
 
     public List<ControlNotificationResponse> getControlNotifications(Long accountId, Long controlId) {
         ensureOwnedControl(accountId, controlId);
@@ -73,6 +74,7 @@ public class ControlNotificationService {
             Double cheapestHours,
             Integer sendEarlierMinutes
     ) {
+        demoAccountGuard.assertWritable(accountId);
         validate(name, activeFrom, activeTo, cheapestHours, sendEarlierMinutes);
         ControlEntity control = ensureOwnedControl(accountId, controlId);
         AccountEntity account = accountRepository.findById(accountId)
@@ -105,6 +107,7 @@ public class ControlNotificationService {
             Double cheapestHours,
             Integer sendEarlierMinutes
     ) {
+        demoAccountGuard.assertWritable(accountId);
         validate(name, activeFrom, activeTo, cheapestHours, sendEarlierMinutes);
         ControlNotificationEntity entity = ensureOwnedNotification(accountId, controlId, notificationId);
 
@@ -120,6 +123,7 @@ public class ControlNotificationService {
     }
 
     public void deleteControlNotification(Long accountId, Long controlId, Long notificationId) {
+        demoAccountGuard.assertWritable(accountId);
         ControlNotificationEntity entity = ensureOwnedNotification(accountId, controlId, notificationId);
         controlNotificationRepository.delete(entity);
     }

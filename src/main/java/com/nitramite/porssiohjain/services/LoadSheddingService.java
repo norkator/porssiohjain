@@ -43,6 +43,7 @@ public class LoadSheddingService {
     private final DeviceRepository deviceRepository;
     private final LoadSheddingNodeRepository loadSheddingNodeRepository;
     private final LoadSheddingLinkRepository loadSheddingLinkRepository;
+    private final DemoAccountGuard demoAccountGuard;
 
     @Transactional(readOnly = true)
     public List<LoadSheddingNodeResponse> getNodes(Long accountId) {
@@ -62,6 +63,7 @@ public class LoadSheddingService {
 
     @Transactional
     public LoadSheddingNodeResponse saveNode(Long accountId, Long nodeId, Long deviceId, int channel, int canvasX, int canvasY) {
+        demoAccountGuard.assertWritable(accountId);
         validateChannel(channel);
         AccountEntity account = validateAccount(accountId);
         DeviceEntity device = validateStandardDevice(accountId, deviceId);
@@ -82,6 +84,7 @@ public class LoadSheddingService {
 
     @Transactional
     public void updateNodePosition(Long accountId, Long nodeId, int canvasX, int canvasY) {
+        demoAccountGuard.assertWritable(accountId);
         LoadSheddingNodeEntity entity = loadSheddingNodeRepository.findByIdAndAccountId(nodeId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Load shedding node not found: " + nodeId));
         entity.setCanvasX(Math.max(0, canvasX));
@@ -91,6 +94,7 @@ public class LoadSheddingService {
 
     @Transactional
     public void deleteNode(Long accountId, Long nodeId) {
+        demoAccountGuard.assertWritable(accountId);
         LoadSheddingNodeEntity node = loadSheddingNodeRepository.findByIdAndAccountId(nodeId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Load shedding node not found: " + nodeId));
         loadSheddingLinkRepository.deleteAll(loadSheddingLinkRepository.findBySourceNode(node));
@@ -108,6 +112,7 @@ public class LoadSheddingService {
             ControlAction targetAction,
             boolean reverseOnClear
     ) {
+        demoAccountGuard.assertWritable(accountId);
         if (triggerState == null) {
             throw new IllegalArgumentException("Trigger state is required");
         }
@@ -141,6 +146,7 @@ public class LoadSheddingService {
 
     @Transactional
     public void deleteLink(Long accountId, Long linkId) {
+        demoAccountGuard.assertWritable(accountId);
         LoadSheddingLinkEntity link = loadSheddingLinkRepository.findByIdAndAccountId(linkId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Load shedding link not found: " + linkId));
         loadSheddingLinkRepository.delete(link);

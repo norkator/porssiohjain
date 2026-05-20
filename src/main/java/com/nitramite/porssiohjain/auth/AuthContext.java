@@ -16,16 +16,27 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuthContext {
     private static final ThreadLocal<Long> accountIdHolder = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> demoAccountHolder = new ThreadLocal<>();
 
     public void setAccountId(Long accountId) {
         accountIdHolder.set(accountId);
+    }
+
+    public void setAccount(Long accountId, boolean demo) {
+        accountIdHolder.set(accountId);
+        demoAccountHolder.set(demo);
     }
 
     public Long getAccountId() {
         return accountIdHolder.get();
     }
 
+    public boolean isDemoAccount() {
+        return Boolean.TRUE.equals(demoAccountHolder.get());
+    }
+
     public void clear() {
         accountIdHolder.remove();
+        demoAccountHolder.remove();
     }
 }

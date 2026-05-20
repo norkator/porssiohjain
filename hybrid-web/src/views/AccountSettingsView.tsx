@@ -52,6 +52,7 @@ export default function AccountSettingsView() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [accountId, setAccountId] = useState<number | null>(null);
+  const [isDemoAccount, setIsDemoAccount] = useState(false);
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => getThemePreference());
   const [deviceLimit, setDeviceLimit] = useState<number>(0);
   const [controlLimit, setControlLimit] = useState<number | null>(null);
@@ -86,6 +87,7 @@ export default function AccountSettingsView() {
         }
 
         setAccountId(response.accountId);
+        setIsDemoAccount(response.demo);
         setTier(response.tier);
         setEmail(response.email ?? "");
         setLocaleValue(response.locale || "en");
@@ -136,6 +138,7 @@ export default function AccountSettingsView() {
       });
 
       setTier(response.tier);
+      setIsDemoAccount(response.demo);
       setEmail(response.email ?? "");
       setLocaleValue(response.locale || "en");
       setDeviceLimit(response.deviceLimit);
@@ -291,6 +294,12 @@ export default function AccountSettingsView() {
             </section>
 
             <section className="space-y-6 lg:col-span-8">
+              {isDemoAccount ? (
+                <div className="app-card border border-primary/40 bg-primary-fixed p-4 text-sm font-semibold text-primary sm:p-6">
+                  {t("demoReadOnly")}
+                </div>
+              ) : null}
+
               <form className="app-card space-y-8 p-4 sm:p-6 lg:p-8" onSubmit={handleSave}>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="md:col-span-2">
@@ -300,6 +309,7 @@ export default function AccountSettingsView() {
                     <input
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
                       id="account-email"
+                      disabled={isDemoAccount}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder={t("emailPlaceholder")}
                       type="email"
@@ -314,6 +324,7 @@ export default function AccountSettingsView() {
                     <select
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
                       id="account-language"
+                      disabled={isDemoAccount}
                       onChange={(event) => setLocaleValue(event.target.value)}
                       value={locale}
                     >
@@ -359,6 +370,7 @@ export default function AccountSettingsView() {
                       <span>{t("notifyPowerLimitExceeded")}</span>
                       <input
                         checked={notifyPowerLimitExceeded}
+                        disabled={isDemoAccount}
                         onChange={(event) => setNotifyPowerLimitExceeded(event.target.checked)}
                         type="checkbox"
                       />
@@ -368,6 +380,7 @@ export default function AccountSettingsView() {
                         <span>{t("notifyControlActivated")}</span>
                         <input
                           checked={notifyControlActivated}
+                          disabled={isDemoAccount}
                           onChange={(event) => setNotifyControlActivated(event.target.checked)}
                           type="checkbox"
                         />
@@ -382,6 +395,7 @@ export default function AccountSettingsView() {
                       <span>{t("emailNotificationsEnabled")}</span>
                       <input
                         checked={emailNotificationsEnabled}
+                        disabled={isDemoAccount}
                         onChange={(event) => setEmailNotificationsEnabled(event.target.checked)}
                         type="checkbox"
                       />
@@ -390,6 +404,7 @@ export default function AccountSettingsView() {
                       <span>{t("pushNotificationsEnabled")}</span>
                       <input
                         checked={pushNotificationsEnabled}
+                        disabled={isDemoAccount}
                         onChange={(event) => setPushNotificationsEnabled(event.target.checked)}
                         type="checkbox"
                       />
@@ -398,7 +413,7 @@ export default function AccountSettingsView() {
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isSaving} type="submit">
+                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isSaving || isDemoAccount} type="submit">
                     {isSaving ? t("saving") : t("save")}
                   </button>
                   <Link className="secondary-action justify-center" to="/menu">
@@ -425,6 +440,7 @@ export default function AccountSettingsView() {
                     <input
                       autoComplete="current-password"
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
+                      disabled={isDemoAccount}
                       id="account-current-password"
                       onChange={(event) => setCurrentPassword(event.target.value)}
                       type="password"
@@ -439,6 +455,7 @@ export default function AccountSettingsView() {
                     <input
                       autoComplete="new-password"
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
+                      disabled={isDemoAccount}
                       id="account-new-password"
                       onChange={(event) => setNewPassword(event.target.value)}
                       type="password"
@@ -454,6 +471,7 @@ export default function AccountSettingsView() {
                     <input
                       autoComplete="new-password"
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
+                      disabled={isDemoAccount}
                       id="account-confirm-password"
                       onChange={(event) => setConfirmNewPassword(event.target.value)}
                       type="password"
@@ -463,7 +481,7 @@ export default function AccountSettingsView() {
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isChangingPassword} type="submit">
+                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isChangingPassword || isDemoAccount} type="submit">
                     {isChangingPassword ? t("passwordChanging") : t("passwordChange")}
                   </button>
                 </div>
@@ -486,6 +504,7 @@ export default function AccountSettingsView() {
                       setDeleteError(null);
                       setIsDeleteDialogOpen(true);
                     }}
+                    disabled={isDemoAccount}
                     type="button"
                   >
                     {t("deleteButton")}

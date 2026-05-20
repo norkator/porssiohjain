@@ -52,6 +52,7 @@ public class MeController {
                 .tier(accountService.getTier(accountId))
                 .email(accountService.getEmail(accountId))
                 .locale(accountService.getLocale(accountId))
+                .demo(accountService.isDemoAccount(accountId))
                 .notifyPowerLimitExceeded(accountService.getNotifyPowerLimitExceeded(accountId))
                 .notifyControlActivated(accountService.getNotifyControlActivated(accountId))
                 .emailNotificationsEnabled(accountService.getEmailNotificationsEnabled(accountId))

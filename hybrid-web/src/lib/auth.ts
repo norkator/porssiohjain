@@ -17,6 +17,7 @@ export type LoginResponse = {
   expiresAt: string;
   accountId?: number;
   locale?: string;
+  demo?: boolean;
 };
 
 export type CreatedAccount = {

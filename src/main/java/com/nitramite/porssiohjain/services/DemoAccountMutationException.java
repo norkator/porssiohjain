@@ -9,19 +9,11 @@
  * See LICENSE for details.
  */
 
-package com.nitramite.porssiohjain.services.models;
+package com.nitramite.porssiohjain.services;
 
-import lombok.Builder;
-import lombok.Data;
+public class DemoAccountMutationException extends RuntimeException {
 
-import java.time.Instant;
-
-@Data
-@Builder
-public class LoginResponse {
-    private String token;
-    private Instant expiresAt;
-    private Long accountId;
-    private String locale;
-    private boolean demo;
+    public DemoAccountMutationException() {
+        super("Demo account is read-only.");
+    }
 }
