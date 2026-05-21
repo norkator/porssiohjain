@@ -10,6 +10,7 @@
  */
 
 import PageHeader from "@/components/PageHeader";
+import AppDialog from "@/components/AppDialog";
 import {
   createSite,
   fetchSiteWeather,
@@ -49,6 +50,7 @@ export default function SitesView() {
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [enabled, setEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
 
   async function loadSiteWeather(sitesToLoad: ApiSite[]) {
     const weatherEntries = await Promise.all(
@@ -98,6 +100,12 @@ export default function SitesView() {
     setEnabled(true);
   }
 
+  function openCreateDialog() {
+    resetForm();
+    setError(null);
+    setIsFormDialogOpen(true);
+  }
+
   function startEdit(site: ApiSite) {
     setEditingSiteId(site.id);
     setName(site.name);
@@ -106,6 +114,8 @@ export default function SitesView() {
     setWeatherPlaceError(null);
     setTimezone(site.timezone ?? DEFAULT_TIMEZONE);
     setEnabled(site.enabled);
+    setError(null);
+    setIsFormDialogOpen(true);
   }
 
   function normalizeSupportedWeatherPlace(value: string) {
@@ -157,6 +167,7 @@ export default function SitesView() {
         await updateSite(editingSiteId, payload);
       }
       resetForm();
+      setIsFormDialogOpen(false);
       await loadSites();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : t("failedSave"));
@@ -169,38 +180,21 @@ export default function SitesView() {
     <>
       <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} translucent />
       <main className="app-page pt-4 sm:pt-12">
-        <section className="mb-10">
-          <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">{t("title")}</h1>
-          <p className="max-w-2xl text-lg text-on-surface-variant">{t("description")}</p>
-        </section>
-
-        <form className="app-card mb-8 grid gap-4 p-4 sm:p-6 md:grid-cols-2 lg:grid-cols-5" onSubmit={handleSubmit}>
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder={t("siteName")} value={name} />
-          <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setType(event.target.value as SiteType)} value={type}>
-            {SITE_TYPES.map((item) => <option key={item} value={item}>{siteTypeLabel(item)}</option>)}
-          </select>
-          <div className="lg:col-span-1">
-            <input
-              className="w-full rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none"
-              list="site-weather-place-options"
-              onChange={(event) => {
-                setWeatherPlace(event.target.value);
-                if (weatherPlaceError) setWeatherPlaceError(null);
-              }}
-              placeholder={t("weatherPlace")}
-              value={weatherPlace}
-            />
-            <datalist id="site-weather-place-options">
-              {supportedWeatherPlaces.map((place) => <option key={place} value={place} />)}
-            </datalist>
-            <p className="mt-2 text-xs text-on-surface-variant">{t("weatherPlaceHelp")}</p>
-            {weatherPlaceError ? <p className="mt-1 text-xs text-error">{weatherPlaceError}</p> : null}
+        <section className="mb-12 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-2xl">
+            <h1 className="mb-4 font-headline text-4xl font-extrabold tracking-tight text-primary md:text-5xl">{t("title")}</h1>
+            <p className="max-w-2xl text-lg text-on-surface-variant">{t("description")}</p>
           </div>
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setTimezone(event.target.value)} placeholder={common("timezone")} value={timezone} />
-          <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">{common("enabled")}</span><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" /></label>
-          <button className="primary-action justify-center disabled:opacity-60 lg:col-span-4" disabled={isSaving || !name.trim()} type="submit">{isSaving ? (editingSiteId === null ? common("creating") : common("save")) : editingSiteId === null ? t("add") : t("update")}</button>
-          {editingSiteId !== null ? <button className="secondary-action justify-center lg:col-span-1" onClick={resetForm} type="button">{common("cancel")}</button> : null}
-        </form>
+
+          <button
+            className="primary-action transition-all duration-300 hover:-translate-y-0.5 hover:shadow-soft"
+            onClick={openCreateDialog}
+            type="button"
+          >
+            <span>+</span>
+            {t("addNewSite")}
+          </button>
+        </section>
 
         {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div> : null}
         {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{error}</div> : null}
@@ -246,8 +240,92 @@ export default function SitesView() {
               </div>
             </article>
           ))}
+
+          <button
+            className="group flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:bg-surface-container-high hover:shadow-soft sm:p-6"
+            onClick={openCreateDialog}
+            type="button"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest font-headline text-xl font-black text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-surface-container-lowest">
+              +
+            </div>
+            <div>
+              <h3 className="font-headline text-lg font-bold text-on-surface">{t("createSite")}</h3>
+              <p className="px-8 text-xs text-on-surface-variant">{t("createSiteDescription")}</p>
+            </div>
+          </button>
         </section>
       </main>
+
+      <AppDialog
+        description={editingSiteId === null ? t("createSiteDescription") : t("updateSiteDescription")}
+        eyebrow={editingSiteId === null ? t("createSiteEyebrow") : t("updateSiteEyebrow")}
+        isOpen={isFormDialogOpen}
+        maxWidthClassName="max-w-5xl"
+        onClose={() => {
+          setIsFormDialogOpen(false);
+          resetForm();
+          setError(null);
+        }}
+        title={editingSiteId === null ? t("createSite") : t("update")}
+      >
+        <form className="grid gap-4 md:grid-cols-2 lg:grid-cols-5" onSubmit={handleSubmit}>
+          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder={t("siteName")} value={name} />
+          <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setType(event.target.value as SiteType)} value={type}>
+            {SITE_TYPES.map((item) => <option key={item} value={item}>{siteTypeLabel(item)}</option>)}
+          </select>
+          <div className="lg:col-span-1">
+            <input
+              className="w-full rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none"
+              list="site-weather-place-options"
+              onChange={(event) => {
+                setWeatherPlace(event.target.value);
+                if (weatherPlaceError) setWeatherPlaceError(null);
+              }}
+              placeholder={t("weatherPlace")}
+              value={weatherPlace}
+            />
+            <datalist id="site-weather-place-options">
+              {supportedWeatherPlaces.map((place) => <option key={place} value={place} />)}
+            </datalist>
+            <p className="mt-2 text-xs text-on-surface-variant">{t("weatherPlaceHelp")}</p>
+            {weatherPlaceError ? <p className="mt-1 text-xs text-error">{weatherPlaceError}</p> : null}
+          </div>
+          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setTimezone(event.target.value)} placeholder={common("timezone")} value={timezone} />
+          <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">{common("enabled")}</span><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" /></label>
+
+          {error ? (
+            <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container md:col-span-2 lg:col-span-5">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="flex flex-col-reverse gap-3 md:col-span-2 lg:col-span-5 sm:flex-row sm:justify-end">
+            <button
+              className="secondary-action justify-center"
+              onClick={() => {
+                setIsFormDialogOpen(false);
+                resetForm();
+                setError(null);
+              }}
+              type="button"
+            >
+              {common("cancel")}
+            </button>
+            <button className="primary-action justify-center disabled:opacity-60" disabled={isSaving || !name.trim()} type="submit">
+              {isSaving ? (editingSiteId === null ? common("creating") : common("save")) : editingSiteId === null ? t("add") : t("update")}
+            </button>
+          </div>
+        </form>
+      </AppDialog>
+
+      <button
+        className="signature-gradient fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full text-3xl text-on-primary shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,67,66,0.22)] active:scale-90 md:hidden"
+        onClick={openCreateDialog}
+        type="button"
+      >
+        +
+      </button>
     </>
   );
 }
