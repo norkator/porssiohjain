@@ -148,6 +148,7 @@ export default function MainMenuView() {
   const consumptionLabel = isStatsLoading ? "--" : formatKw(totalConsumptionKw);
   const productionLabel = isStatsLoading ? "--" : formatKw(totalProductionKw, true);
   const netPowerKw = totalProductionKw - totalConsumptionKw;
+  const showAndroidAppLink = session.source !== "android";
   const summaryText = (isLoading && isStatsLoading)
     ? t("summaryLoading")
     : (error && statsError)
@@ -346,29 +347,31 @@ export default function MainMenuView() {
           </div>
         </section>
 
-        <section className="pb-4 pt-6">
-          <div className="app-card flex flex-col items-center justify-between gap-4 p-4 text-center sm:p-5 lg:flex-row lg:text-left">
-            <div className="max-w-xl">
-              <p className="metric-label mb-2">Android App</p>
-              <h2 className="font-headline text-xl font-black text-on-surface">Energy Controller on Google Play</h2>
-              <p className="mt-1 text-sm leading-6 text-on-surface-variant">
-                Install the mobile app for quick access to your energy controls and live dashboard.
-              </p>
+        {showAndroidAppLink ? (
+          <section className="pb-4 pt-6">
+            <div className="app-card flex flex-col items-center justify-between gap-4 p-4 text-center sm:p-5 lg:flex-row lg:text-left">
+              <div className="max-w-xl">
+                <p className="metric-label mb-2">Android App</p>
+                <h2 className="font-headline text-xl font-black text-on-surface">Energy Controller on Google Play</h2>
+                <p className="mt-1 text-sm leading-6 text-on-surface-variant">
+                  Install the mobile app for quick access to your energy controls and live dashboard.
+                </p>
+              </div>
+              <a
+                className="transition-transform duration-300 hover:-translate-y-0.5"
+                href="https://play.google.com/store/apps/details?id=com.nitramite.energycontroller"
+                rel="noreferrer"
+                target="_blank"
+              >
+                <img
+                  alt="Get it on Google Play"
+                  className="h-auto w-[160px] max-w-full"
+                  src="/get_it_on_google_play_badge.svg"
+                />
+              </a>
             </div>
-            <a
-              className="transition-transform duration-300 hover:-translate-y-0.5"
-              href="https://play.google.com/store/apps/details?id=com.nitramite.energycontroller"
-              rel="noreferrer"
-              target="_blank"
-            >
-              <img
-                alt="Get it on Google Play"
-                className="h-auto w-[160px] max-w-full"
-                src="/get_it_on_google_play_badge.svg"
-              />
-            </a>
-          </div>
-        </section>
+          </section>
+        ) : null}
       </main>
     </>
   );
