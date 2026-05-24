@@ -78,6 +78,7 @@ public class MqttConfig {
                         factory,
                         "+",
                         "+/online",
+                        "+/+/get",
                         "factory/bootstrap/+/state",
                         "factory/bootstrap/+/telemetry"
                 );

@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.messaging.Message;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -40,15 +41,9 @@ public class MqttListener {
                 ? new String((byte[]) rawPayload)
                 : rawPayload.toString();
         // log.info("Received: {} -> {}", topic, payload);
-        String deviceId = extractOnlineDeviceId(topic);
-        if (deviceId != null) {
-            boolean online = parseOnlinePayload(payload);
-            deviceRepository.findByUuid(UUID.fromString(deviceId))
-                    .ifPresent(device -> {
-                        device.setMqttOnline(online);
-                        device.setLastCommunication(Instant.now());
-                        deviceRepository.save(device);
-                    });
+        Optional<UUID> deviceUuid = extractDeviceUuid(topic);
+        if (deviceUuid.isPresent()) {
+            updateDevicePresence(deviceUuid.get(), parseOnlineState(topic, payload));
             return;
         }
         if (topic.startsWith("factory/bootstrap/")) {
@@ -56,17 +51,41 @@ public class MqttListener {
         }
     }
 
-    private String extractOnlineDeviceId(String topic) {
+    private Optional<UUID> extractDeviceUuid(String topic) {
         if (topic.endsWith("/online")) {
-            return topic.substring(0, topic.indexOf("/"));
+            return parseUuid(topic.substring(0, topic.indexOf("/")));
         }
         if (topic.endsWith(".online")) {
-            return topic.substring(0, topic.length() - ".online".length());
+            return parseUuid(topic.substring(0, topic.length() - ".online".length()));
         }
         if (topic.endsWith(".connected")) {
-            return topic.substring(0, topic.length() - ".connected".length());
+            return parseUuid(topic.substring(0, topic.length() - ".connected".length()));
         }
-        return null;
+        int slashIndex = topic.indexOf('/');
+        if (slashIndex > 0) {
+            return parseUuid(topic.substring(0, slashIndex));
+        }
+        int dotIndex = topic.indexOf('.');
+        if (dotIndex > 0) {
+            return parseUuid(topic.substring(0, dotIndex));
+        }
+        return Optional.empty();
+    }
+
+    private void updateDevicePresence(UUID deviceUuid, boolean online) {
+        deviceRepository.findByUuid(deviceUuid)
+                .ifPresent(device -> {
+                    device.setMqttOnline(online);
+                    device.setLastCommunication(Instant.now());
+                    deviceRepository.save(device);
+                });
+    }
+
+    private boolean parseOnlineState(String topic, String payload) {
+        if (topic.endsWith("/online") || topic.endsWith(".online") || topic.endsWith(".connected")) {
+            return parseOnlinePayload(payload);
+        }
+        return true;
     }
 
     private boolean parseOnlinePayload(String payload) {
@@ -75,6 +94,14 @@ public class MqttListener {
                 || "1".equals(normalized)
                 || "online".equalsIgnoreCase(normalized)
                 || "connected".equalsIgnoreCase(normalized);
+    }
+
+    private Optional<UUID> parseUuid(String candidate) {
+        try {
+            return Optional.of(UUID.fromString(candidate));
+        } catch (IllegalArgumentException exception) {
+            return Optional.empty();
+        }
     }
 
 }

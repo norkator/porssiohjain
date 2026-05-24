@@ -96,6 +96,34 @@ class MqttListenerTest {
     }
 
     @Test
+    void marksDeviceOnlineForOpenBekenMetadataTopic() {
+        when(deviceRepository.findByUuid(device.getUuid())).thenReturn(Optional.of(device));
+
+        listener.handleMessage(MessageBuilder.withPayload("obk-relay")
+                .setHeader("mqtt_receivedTopic", device.getUuid() + ".host")
+                .build());
+
+        ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
+        verify(deviceRepository).save(savedDevice.capture());
+        assertTrue(savedDevice.getValue().isMqttOnline());
+        assertNotNull(savedDevice.getValue().getLastCommunication());
+    }
+
+    @Test
+    void marksDeviceOnlineForOpenBekenChannelStateTopic() {
+        when(deviceRepository.findByUuid(device.getUuid())).thenReturn(Optional.of(device));
+
+        listener.handleMessage(MessageBuilder.withPayload("1")
+                .setHeader("mqtt_receivedTopic", device.getUuid() + "/1/get")
+                .build());
+
+        ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
+        verify(deviceRepository).save(savedDevice.capture());
+        assertTrue(savedDevice.getValue().isMqttOnline());
+        assertNotNull(savedDevice.getValue().getLastCommunication());
+    }
+
+    @Test
     void registersFactoryBootstrapMessages() {
         listener.handleMessage(MessageBuilder.withPayload("{\"ok\":true}")
                 .setHeader("mqtt_receivedTopic", "factory/bootstrap/SER-001/state")
