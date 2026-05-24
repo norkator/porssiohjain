@@ -175,6 +175,8 @@ class RabbitMqAuthControllerTest {
         assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "write", device.getUuid() + ".connected").getBody());
         assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".host").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "write", device.getUuid() + "/1/get").getBody());
     }
 

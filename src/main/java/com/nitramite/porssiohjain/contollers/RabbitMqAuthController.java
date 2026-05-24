@@ -293,6 +293,7 @@ public class RabbitMqAuthController {
             return false;
         }
         return routingKey.equals(topicRoot + ".connected")
+                || isOpenBekenMetadataRoutingKey(topicRoot, routingKey)
                 || isOpenBekenChannelGetRoutingKey(topicRoot, routingKey, "/")
                 || isOpenBekenChannelGetRoutingKey(topicRoot, routingKey, ".");
     }
@@ -305,6 +306,15 @@ public class RabbitMqAuthController {
         }
         String channelSegment = routingKey.substring(prefix.length(), routingKey.length() - suffix.length());
         return !channelSegment.isBlank() && !channelSegment.contains("/") && !channelSegment.contains(".");
+    }
+
+    private boolean isOpenBekenMetadataRoutingKey(String topicRoot, String routingKey) {
+        String prefix = topicRoot + ".";
+        if (!routingKey.startsWith(prefix)) {
+            return false;
+        }
+        String suffix = routingKey.substring(prefix.length());
+        return !suffix.isBlank() && !suffix.contains(".") && !"command".equals(suffix) && !"rpc".equals(suffix);
     }
 
 }
