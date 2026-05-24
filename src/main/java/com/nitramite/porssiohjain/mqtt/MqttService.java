@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.mqtt;
 
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -33,9 +34,33 @@ public class MqttService {
     }
 
     public void switchControl(String deviceId, int channel, boolean on) {
-        String topic = deviceId + "/command/switch:" + channel;
-        String payload = on ? "on" : "off";
+        switchControl(deviceId, MqttDeviceProfile.GENERIC_RELAY, channel, on);
+    }
+
+    public void switchControl(String deviceId, MqttDeviceProfile mqttDeviceProfile, int channel, boolean on) {
+        String topic = buildSwitchTopic(deviceId, mqttDeviceProfile, channel);
+        String payload = buildSwitchPayload(mqttDeviceProfile, on);
         publish(topic, payload);
+    }
+
+    private String buildSwitchTopic(String deviceId, MqttDeviceProfile mqttDeviceProfile, int channel) {
+        if (mqttDeviceProfile == MqttDeviceProfile.OPENBEKEN_RELAY) {
+            return "cmnd/" + deviceId + "/" + openBekenPowerCommand(channel);
+        }
+        String topic = deviceId + "/command/switch:" + channel;
+        return topic;
+    }
+
+    private String buildSwitchPayload(MqttDeviceProfile mqttDeviceProfile, boolean on) {
+        if (mqttDeviceProfile == MqttDeviceProfile.OPENBEKEN_RELAY) {
+            return on ? "1" : "0";
+        }
+        return on ? "on" : "off";
+    }
+
+    private String openBekenPowerCommand(int channel) {
+        int relayIndex = channel + 1;
+        return relayIndex == 1 ? "Power" : "Power" + relayIndex;
     }
 
     public void setThermostatTemperature(String deviceId, int channel, BigDecimal targetTemperature) {

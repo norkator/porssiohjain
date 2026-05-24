@@ -42,7 +42,7 @@ public class MqttListener {
         // log.info("Received: {} -> {}", topic, payload);
         String deviceId = extractOnlineDeviceId(topic);
         if (deviceId != null) {
-            boolean online = Boolean.parseBoolean(payload);
+            boolean online = parseOnlinePayload(payload);
             deviceRepository.findByUuid(UUID.fromString(deviceId))
                     .ifPresent(device -> {
                         device.setMqttOnline(online);
@@ -63,7 +63,18 @@ public class MqttListener {
         if (topic.endsWith(".online")) {
             return topic.substring(0, topic.length() - ".online".length());
         }
+        if (topic.endsWith(".connected")) {
+            return topic.substring(0, topic.length() - ".connected".length());
+        }
         return null;
+    }
+
+    private boolean parseOnlinePayload(String payload) {
+        String normalized = payload == null ? "" : payload.trim();
+        return "true".equalsIgnoreCase(normalized)
+                || "1".equals(normalized)
+                || "online".equalsIgnoreCase(normalized)
+                || "connected".equalsIgnoreCase(normalized);
     }
 
 }

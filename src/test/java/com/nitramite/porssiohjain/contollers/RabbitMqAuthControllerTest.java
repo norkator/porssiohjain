@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.contollers;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.FactoryDeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
 import com.nitramite.porssiohjain.services.SystemLogService;
@@ -52,6 +53,7 @@ class RabbitMqAuthControllerTest {
                 .uuid(UUID.randomUUID())
                 .mqttUsername("device-user")
                 .mqttPassword("secret")
+                .mqttDeviceProfile(MqttDeviceProfile.GENERIC_RELAY)
                 .build();
         factoryDevice = FactoryDeviceEntity.builder()
                 .serialNumber("SER-001")
@@ -149,6 +151,23 @@ class RabbitMqAuthControllerTest {
                 "read", device.getUuid() + ".rpc").getBody());
         assertEquals("deny", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "read", UUID.randomUUID() + ".rpc").getBody());
+    }
+
+    @Test
+    void allowsOpenBekenRelayTopicsForDevice() {
+        device.setMqttDeviceProfile(MqttDeviceProfile.OPENBEKEN_RELAY);
+        when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
+
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", device.getUuid() + "/+/set").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", "cmnd/" + device.getUuid() + "/#").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", "cmnd." + device.getUuid() + ".*").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".connected").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + "/1/get").getBody());
     }
 
     @Test

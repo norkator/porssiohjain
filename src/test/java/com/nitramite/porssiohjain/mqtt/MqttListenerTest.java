@@ -82,6 +82,20 @@ class MqttListenerTest {
     }
 
     @Test
+    void marksDeviceOnlineForConnectedTopicWithNumericPayload() {
+        when(deviceRepository.findByUuid(device.getUuid())).thenReturn(Optional.of(device));
+
+        listener.handleMessage(MessageBuilder.withPayload("1")
+                .setHeader("mqtt_receivedTopic", device.getUuid() + ".connected")
+                .build());
+
+        ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
+        verify(deviceRepository).save(savedDevice.capture());
+        assertTrue(savedDevice.getValue().isMqttOnline());
+        assertNotNull(savedDevice.getValue().getLastCommunication());
+    }
+
+    @Test
     void registersFactoryBootstrapMessages() {
         listener.handleMessage(MessageBuilder.withPayload("{\"ok\":true}")
                 .setHeader("mqtt_receivedTopic", "factory/bootstrap/SER-001/state")

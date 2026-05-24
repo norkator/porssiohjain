@@ -1225,7 +1225,7 @@ public class ControlService {
             for (Map.Entry<Integer, Integer> entry : controls.entrySet()) {
                 Integer channel = entry.getKey();
                 boolean on = entry.getValue() != null && entry.getValue() == 1;
-                commands.add(new MqttControlCommand(uuid, channel, on));
+                commands.add(new MqttControlCommand(device, channel, on));
             }
         }
         commands.stream()
@@ -1233,10 +1233,22 @@ public class ControlService {
                         .comparing(MqttControlCommand::on)
                         .thenComparing(MqttControlCommand::uuid)
                         .thenComparing(MqttControlCommand::channel))
-                .forEach(command -> mqttService.switchControl(command.uuid(), command.channel(), command.on()));
+                .forEach(command -> mqttService.switchControl(
+                        command.uuid(),
+                        command.mqttDeviceProfile(),
+                        command.channel(),
+                        command.on()
+                ));
     }
 
-    private record MqttControlCommand(String uuid, Integer channel, boolean on) {
+    private record MqttControlCommand(DeviceEntity device, Integer channel, boolean on) {
+        private String uuid() {
+            return device.getUuid().toString();
+        }
+
+        private MqttDeviceProfile mqttDeviceProfile() {
+            return device.getMqttDeviceProfile() == null ? MqttDeviceProfile.GENERIC_RELAY : device.getMqttDeviceProfile();
+        }
     }
 
     public void sendDebugMqttRelayCommand(Long accountId, Long deviceId, int channel, boolean on) {
@@ -1257,7 +1269,7 @@ public class ControlService {
             throw new IllegalArgumentException("Device is not connected with MQTT");
         }
 
-        mqttService.switchControl(device.getUuid().toString(), channel, on);
+        mqttService.switchControl(device.getUuid().toString(), device.getMqttDeviceProfile(), channel, on);
     }
 
 }
