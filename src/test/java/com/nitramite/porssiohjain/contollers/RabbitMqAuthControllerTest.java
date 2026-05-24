@@ -161,9 +161,17 @@ class RabbitMqAuthControllerTest {
         assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "read", device.getUuid() + "/+/set").getBody());
         assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", device.getUuid() + "/+/get").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", "homeassistant/+").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", "homeassistant.*").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "read", "cmnd/" + device.getUuid() + "/#").getBody());
         assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "read", "cmnd." + device.getUuid() + ".*").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", device.getUuid() + ".*.get").getBody());
         assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
                 "write", device.getUuid() + ".connected").getBody());
         assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",

@@ -276,6 +276,12 @@ public class RabbitMqAuthController {
         }
         return routingKey.equals(topicRoot + "/+/set")
                 || routingKey.equals(topicRoot + ".*.set")
+                || isOpenBekenChannelGetRoutingKey(topicRoot, routingKey, "/")
+                || isOpenBekenChannelGetRoutingKey(topicRoot, routingKey, ".")
+                || routingKey.equals("homeassistant/+")
+                || routingKey.equals("homeassistant/#")
+                || routingKey.equals("homeassistant.*")
+                || routingKey.equals("homeassistant.#")
                 || routingKey.equals("cmnd/" + topicRoot + "/+")
                 || routingKey.equals("cmnd/" + topicRoot + "/#")
                 || routingKey.equals("cmnd." + topicRoot + ".*")
