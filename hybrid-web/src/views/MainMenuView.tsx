@@ -331,8 +331,8 @@ export default function MainMenuView() {
             <div className="app-card p-4 sm:p-6">
               <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="metric-label mb-2">{t("savingsEyebrow")}</p>
-                  <h2 className="font-headline text-2xl font-extrabold text-primary">{t("savingsTitle")}</h2>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("savingsEyebrow")}</p>
+                  <h2 className="font-headline text-3xl font-black tracking-tight text-on-surface">{t("savingsTitle")}</h2>
                 </div>
                 {currentMonthSavings ? (
                   <div className="text-left sm:text-right">
