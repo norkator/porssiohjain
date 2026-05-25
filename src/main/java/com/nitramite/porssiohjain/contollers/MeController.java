@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
+import com.nitramite.porssiohjain.services.AccountDataExportService;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.PushNotificationTokenService;
@@ -22,6 +23,9 @@ import com.nitramite.porssiohjain.services.models.PushNotificationTokenRequest;
 import com.nitramite.porssiohjain.services.models.PushNotificationTokenResponse;
 import com.nitramite.porssiohjain.services.models.UpdateMeRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,6 +46,7 @@ public class MeController {
     private final AccountService accountService;
     private final AccountLimitService accountLimitService;
     private final PushNotificationTokenService pushNotificationTokenService;
+    private final AccountDataExportService accountDataExportService;
 
     @GetMapping
     public MeResponse getMe() {
@@ -115,6 +120,21 @@ public class MeController {
     public ResponseEntity<Void> deleteMe() {
         accountService.deleteAccount(authContext.getAccountId());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportMe() {
+        Long accountId = authContext.getAccountId();
+        byte[] export = accountDataExportService.exportAccountData(accountId);
+        String filename = "porssiohjain-account-" + accountService.getUuidById(accountId) + "-export.json";
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(filename)
+                        .build()
+                        .toString())
+                .body(export);
     }
 
     @GetMapping("/push-tokens")

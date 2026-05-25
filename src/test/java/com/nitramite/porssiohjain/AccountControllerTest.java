@@ -11,10 +11,13 @@
 
 package com.nitramite.porssiohjain;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.AccountService;
+import com.nitramite.porssiohjain.services.AuthService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +33,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -52,6 +56,11 @@ class AccountControllerTest {
 
     @Autowired
     private AccountService accountService;
+
+    @Autowired
+    private AuthService authService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
     @DisplayName("Should create account in real DB and return JSON")
@@ -216,6 +225,32 @@ class AccountControllerTest {
         assertThat(AccountService.isValidSecret("lowercase1")).isFalse();
         assertThat(AccountService.isValidSecret("NoNumbers")).isFalse();
         assertThat(AccountService.isValidSecret("Validpass1")).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should download authenticated account data export")
+    void shouldDownloadAccountDataExport() throws Exception {
+        AccountEntity created = accountService.createAccount("70.70.70.70", true);
+        String token = authService.login("70.70.70.71", created.getUuid(), created.getSecret()).getToken();
+
+        String content = mockMvc.perform(get("/me/export")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("attachment")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode export = objectMapper.readTree(content);
+        assertThat(export.get("schemaVersion").asInt()).isEqualTo(1);
+        assertThat(export.get("accountId").asLong()).isEqualTo(created.getId());
+
+        JsonNode accountRows = export.get("tables").findValues("entity").stream()
+                .filter(node -> node.asText().equals("AccountEntity"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(accountRows.asText()).isEqualTo("AccountEntity");
     }
 
 }

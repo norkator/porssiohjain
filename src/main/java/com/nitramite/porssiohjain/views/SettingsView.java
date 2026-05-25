@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.AccountTier;
+import com.nitramite.porssiohjain.services.AccountDataExportService;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
@@ -20,6 +21,7 @@ import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -39,10 +41,12 @@ import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.router.*;
+import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.io.ByteArrayInputStream;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -55,6 +59,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
     private final I18nService i18n;
     private final AccountService accountService;
     private final AccountLimitService accountLimitService;
+    private final AccountDataExportService accountDataExportService;
     private Long accountId;
 
     private final EmailField emailField;
@@ -72,12 +77,14 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
             AuthService authService,
             I18nService i18n,
             AccountService accountService,
-            AccountLimitService accountLimitService
+            AccountLimitService accountLimitService,
+            AccountDataExportService accountDataExportService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.accountService = accountService;
         this.accountLimitService = accountLimitService;
+        this.accountDataExportService = accountDataExportService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -193,6 +200,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 Divider.createDivider(),
                 buttonRow,
                 Divider.createDivider(),
+                createDataExportSection(),
+                Divider.createDivider(),
                 createDeleteAccountSection()
         );
 
@@ -239,6 +248,34 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 new FormLayout.ResponsiveStep("600px", 2)
         );
         section.add(title, form);
+        return section;
+    }
+
+    private Component createDataExportSection() {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(true);
+
+        H3 title = new H3(t("settings.export.title"));
+        title.getStyle().set("margin-top", "16px");
+
+        Paragraph description = new Paragraph(t("settings.export.description"));
+        description.getStyle().set("margin", "0");
+
+        StreamResource resource = new StreamResource(
+                "porssiohjain-account-" + accountService.getUuidById(accountId) + "-export.json",
+                () -> new ByteArrayInputStream(accountDataExportService.exportAccountData(accountId))
+        );
+        resource.setContentType("application/json");
+
+        Anchor downloadLink = new Anchor(resource, "");
+        downloadLink.getElement().setAttribute("download", true);
+
+        Button downloadButton = new Button(t("settings.export.button"));
+        downloadButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        downloadLink.add(downloadButton);
+
+        section.add(title, description, downloadLink);
         return section;
     }
 

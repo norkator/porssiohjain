@@ -10,7 +10,7 @@
  */
 
 import PageHeader from "@/components/PageHeader";
-import { changePassword, deleteMe, fetchMe, updateMe, type AccountTier } from "@/lib/account";
+import { changePassword, deleteMe, downloadAccountExport, fetchMe, updateMe, type AccountTier } from "@/lib/account";
 import { logoutNative } from "@/lib/android-bridge";
 import { setCurrentLocale, supportedLocales, useI18n } from "@/lib/i18n";
 import { clearBrowserSession, getSessionData, setDevSessionOverride } from "@/lib/session";
@@ -39,10 +39,12 @@ export default function AccountSettingsView() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isDownloadingExport, setIsDownloadingExport] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [tier, setTier] = useState<AccountTier>("FREE");
@@ -226,6 +228,19 @@ export default function AccountSettingsView() {
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : t("deleteFailed"));
       setIsDeletingAccount(false);
+    }
+  };
+
+  const handleDownloadExport = async () => {
+    setIsDownloadingExport(true);
+    setExportError(null);
+
+    try {
+      await downloadAccountExport();
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : t("exportFailed"));
+    } finally {
+      setIsDownloadingExport(false);
     }
   };
 
@@ -489,6 +504,27 @@ export default function AccountSettingsView() {
                 {passwordMessage ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary">{passwordMessage}</div> : null}
                 {passwordError ? <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{passwordError}</div> : null}
               </form>
+
+              <section className="app-card p-4 sm:p-6 lg:p-8">
+                <div>
+                  <p className="metric-label mb-3">{t("exportEyebrow")}</p>
+                  <h2 className="font-headline text-2xl font-extrabold text-primary">{t("exportTitle")}</h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-on-surface-variant">{t("exportDescription")}</p>
+                </div>
+
+                <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <button
+                    className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isDownloadingExport}
+                    onClick={handleDownloadExport}
+                    type="button"
+                  >
+                    {isDownloadingExport ? t("exportDownloading") : t("exportButton")}
+                  </button>
+                </div>
+
+                {exportError ? <div className="mt-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{exportError}</div> : null}
+              </section>
 
               <section className="app-card border border-error-container/70 bg-error-container/20 p-4 sm:p-6 lg:p-8">
                 <div>
