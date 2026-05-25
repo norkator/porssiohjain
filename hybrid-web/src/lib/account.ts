@@ -98,3 +98,24 @@ export async function deleteMe() {
     throw new Error(await readError(response));
   }
 }
+
+export async function downloadAccountExport() {
+  const response = await apiFetch("/me/export");
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const filenameMatch = /filename="?([^"]+)"?/i.exec(disposition);
+  const filename = filenameMatch?.[1] ?? "porssiohjain-account-export.json";
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
