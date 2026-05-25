@@ -12,6 +12,7 @@
 import PageHeader from "@/components/PageHeader";
 import NordpoolTodayChartCard from "@/components/NordpoolTodayChartCard";
 import { fetchSites } from "@/lib/automation-resources";
+import { fetchControlSavings, type ControlSavings } from "@/lib/dashboard";
 import { fetchElectricityContracts } from "@/lib/electricity-contracts";
 import { Link } from "react-router-dom";
 import { formatKw } from "@/lib/account-stats";
@@ -31,6 +32,8 @@ export default function MainMenuView() {
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => getThemePreference());
   const [sitesCount, setSitesCount] = useState<number | null>(null);
   const [contractsCount, setContractsCount] = useState<number | null>(null);
+  const [monthlySavings, setMonthlySavings] = useState<ControlSavings[]>([]);
+  const [savingsError, setSavingsError] = useState(false);
   const [sitesError, setSitesError] = useState(false);
   const [contractsError, setContractsError] = useState(false);
   const { error, isLoading, onlineCount, totalCount } = useDevices();
@@ -106,6 +109,37 @@ export default function MainMenuView() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const now = new Date();
+    const monthRanges = Array.from({ length: 6 }, (_, index) => {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const monthEnd = index === 5
+        ? now
+        : new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
+
+      return {
+        from: monthStart.toISOString(),
+        to: monthEnd.toISOString()
+      };
+    });
+
+    Promise.all(monthRanges.map((range) => fetchControlSavings({ from: range.from, to: range.to })))
+      .then((savings) => {
+        if (!active) return;
+        setMonthlySavings(savings);
+        setSavingsError(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSavingsError(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const tiles = [
     { key: "devices", title: tileTitles.devices, detail: deviceTileDetail, to: "/devices", icon: "D", hasError: Boolean(error) },
     { key: "controls", title: tileTitles.controls, detail: controlsDetail, to: "/controls", icon: "C", hasError: Boolean(controlsError) },
@@ -149,6 +183,12 @@ export default function MainMenuView() {
   const productionLabel = isStatsLoading ? "--" : formatKw(totalProductionKw, true);
   const netPowerKw = totalProductionKw - totalConsumptionKw;
   const showAndroidAppLink = session.source !== "android";
+  const currentMonthSavings = monthlySavings.length > 0 ? monthlySavings[monthlySavings.length - 1] : undefined;
+  const hasSavingsData = monthlySavings.some((saving) => saving.scheduleEntryCount > 0 && saving.controlsWithEstimatedPowerCount > 0 && saving.estimatedUsageKwh > 0);
+  const savingsSummaryText = currentMonthSavings && currentMonthSavings.scheduleEntryCount > 0 && currentMonthSavings.controlsWithEstimatedPowerCount > 0
+    ? t("summarySavings", { savings: currentMonthSavings.estimatedSavingsEur.toFixed(2) })
+    : "";
+  const maxMonthlySavings = Math.max(...monthlySavings.map((saving) => Math.max(saving.estimatedSavingsEur, 0)), 0);
   const summaryText = (isLoading && isStatsLoading)
     ? t("summaryLoading")
     : (error && statsError)
@@ -159,7 +199,7 @@ export default function MainMenuView() {
           ? t("summaryDevicesUnavailable", { consumptionKw: formatKw(totalConsumptionKw), productionKw: formatKw(totalProductionKw) })
           : netPowerKw >= 0
             ? t("summaryProductionAhead", { onlineCount, totalCount, netKw: formatKw(netPowerKw), consumptionKw: formatKw(totalConsumptionKw) })
-            : t("summaryConsumptionAhead", { onlineCount, totalCount, consumptionKw: formatKw(totalConsumptionKw), netKw: formatKw(Math.abs(netPowerKw)) });
+            : t("summaryConsumptionAhead", { onlineCount, totalCount, consumptionKw: formatKw(totalConsumptionKw), netKw: formatKw(Math.abs(netPowerKw)), savingsText: savingsSummaryText });
   const handleLogout = () => {
     if (session.source === "android") {
       logoutNative();
@@ -285,6 +325,56 @@ export default function MainMenuView() {
           </h2>
           <NordpoolTodayChartCard />
         </section>
+
+        {hasSavingsData && !savingsError ? (
+          <section className="mb-12">
+            <div className="app-card p-4 sm:p-6">
+              <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="metric-label mb-2">{t("savingsEyebrow")}</p>
+                  <h2 className="font-headline text-2xl font-extrabold text-primary">{t("savingsTitle")}</h2>
+                </div>
+                {currentMonthSavings ? (
+                  <div className="text-left sm:text-right">
+                    <p className="text-3xl font-black text-on-surface">{currentMonthSavings.estimatedSavingsEur.toFixed(2)} €</p>
+                    <p className="text-xs text-on-surface-variant">{t("savingsThisMonth")}</p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="grid grid-cols-6 items-end gap-3">
+                {monthlySavings.map((saving) => {
+                  const month = new Date(saving.from).toLocaleDateString(undefined, { month: "short" });
+                  const positiveSavings = Math.max(saving.estimatedSavingsEur, 0);
+                  const barHeight = maxMonthlySavings > 0 ? Math.max((positiveSavings / maxMonthlySavings) * 100, 8) : 8;
+
+                  return (
+                    <div className="flex min-h-40 flex-col justify-end gap-2" key={saving.from}>
+                      <div className="flex flex-1 items-end rounded-lg bg-surface-container-highest px-2 pb-2">
+                        <div
+                          className="w-full rounded-md bg-primary transition-[height] duration-700"
+                          style={{ height: `${barHeight}%` }}
+                          title={`${positiveSavings.toFixed(2)} €`}
+                        />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-on-surface">{positiveSavings.toFixed(0)} €</p>
+                        <p className="text-xs text-on-surface-variant">{month}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="mt-5 text-xs leading-5 text-on-surface-variant">
+                {t("savingsBasis", {
+                  controls: currentMonthSavings?.controlsWithEstimatedPowerCount ?? 0,
+                  total: currentMonthSavings?.controlCount ?? 0
+                })}
+              </p>
+            </div>
+          </section>
+        ) : null}
 
         <section className="mb-12">
           <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold">

@@ -9,7 +9,7 @@
  * See LICENSE for details.
  */
 
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import HeaderLogo from "@/components/HeaderLogo";
 import { useI18n } from "@/lib/i18n";
 
@@ -35,18 +35,28 @@ export default function PageHeader({
   translucent?: boolean;
 }) {
   const { t } = useI18n("common");
+  const location = useLocation();
   const hasItems = items.length > 0;
   const hasRightSlot = rightSlot !== undefined && rightSlot !== null;
+  const brandContent = (
+    <>
+      <HeaderLogo />
+      <div className={compact ? "font-headline text-lg font-bold tracking-tight text-primary-container sm:text-xl" : "font-headline text-lg font-black tracking-tight text-primary-container sm:text-xl"}>
+        {title ?? brand ?? t("brand")}
+      </div>
+    </>
+  );
 
   return (
     <header className={`sticky top-0 z-40 w-full ${translucent ? "bg-background/85 backdrop-blur-md" : "bg-surface-container-low"}`}>
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <HeaderLogo />
-          <div className={compact ? "font-headline text-lg font-bold tracking-tight text-primary-container sm:text-xl" : "font-headline text-lg font-black tracking-tight text-primary-container sm:text-xl"}>
-            {title ?? brand ?? t("brand")}
-          </div>
-        </div>
+        {location.pathname === "/menu" ? (
+          <div className="flex items-center gap-3 sm:gap-4">{brandContent}</div>
+        ) : (
+          <Link className="flex items-center gap-3 rounded-lg transition-opacity hover:opacity-80 sm:gap-4" to="/menu">
+            {brandContent}
+          </Link>
+        )}
 
         {hasItems ? (
           <nav className="hidden items-center gap-6 md:flex">

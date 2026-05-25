@@ -114,7 +114,12 @@
     "summaryStatsUnavailable": "Laitelistassa {onlineCount}/{totalCount} laitetta on verkossa. Reaaliaikaiset tehotilastot eivät ole nyt saatavilla.",
     "summaryDevicesUnavailable": "{consumptionKw} kW on tällä hetkellä hallinnassa tehorajoilla, ja tuotantoa on saatavilla {productionKw} kW.",
     "summaryProductionAhead": "{onlineCount}/{totalCount} laitetta on verkossa. Aurinkotuotanto on {netKw} kW kulutusta edellä, nykyinen kulutus on {consumptionKw} kW.",
-    "summaryConsumptionAhead": "{onlineCount}/{totalCount} laitetta on verkossa. Nykyinen kulutus on {consumptionKw} kW, mikä on {netKw} kW aurinkotuotantoa enemmän.",
+    "summaryConsumptionAhead": "{onlineCount}/{totalCount} laitetta on verkossa. Nykyinen kulutus on {consumptionKw} kW, mik\u00E4 on {netKw} kW aurinkotuotantoa enemm\u00E4n.{savingsText}",
+    "summarySavings": " S\u00E4\u00E4st\u00F6 {savings} € t\u00E4ss\u00E4 kuussa.",
+    "savingsEyebrow": "S\u00E4\u00E4st\u00F6t",
+    "savingsTitle": "Kuukausittaiset ohjauss\u00E4\u00E4st\u00F6t",
+    "savingsThisMonth": "arvio t\u00E4ss\u00E4 kuussa",
+    "savingsBasis": "Perustuu {controls}/{total} ohjaukseen, joilla on arvioitu kuorma ja vahvistettuja aikatauluja.",
     "tileTitles": {
       "devices": "Laitteet",
       "controls": "Ohjaukset",
