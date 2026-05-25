@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AuthService;
@@ -96,6 +97,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final TextField nameField;
     private final ComboBox<String> timezoneCombo;
     private final ComboBox<DeviceType> deviceTypeCombo;
+    private final ComboBox<DevicePlatform> devicePlatformCombo;
     private final Checkbox enabledField;
     private final FormLayout mqttCredentialsForm;
     private final TextField deviceUuidField;
@@ -169,6 +171,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         nameField = new TextField(t("device.field.name"));
         timezoneCombo = new ComboBox<>(t("device.field.timezone"));
         deviceTypeCombo = new ComboBox<>(t("device.grid.type"));
+        devicePlatformCombo = new ComboBox<>(t("device.field.platform"));
         enabledField = new Checkbox(t("device.field.enabled"));
         mqttCredentialsForm = new FormLayout();
         deviceUuidField = createCopyableReadOnlyField(t("device.grid.uuid"));
@@ -184,6 +187,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceTypeCombo.setValue(DeviceType.STANDARD);
         deviceTypeCombo.setHelperText(t("device.type.helper"));
         // deviceTypeCombo.setWidth("250px");
+
+        devicePlatformCombo.setItems(DevicePlatform.values());
+        devicePlatformCombo.setItemLabelGenerator(this::formatDevicePlatform);
+        devicePlatformCombo.setValue(DevicePlatform.GENERIC_MQTT);
+        devicePlatformCombo.setHelperText(t("device.platform.helper"));
 
         saveButton = new Button(t("device.button.save"));
         limitInfo = new Span();
@@ -271,6 +279,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 case THERMOSTAT -> t("device.type.thermostat");
             };
         }).setHeader(t("device.grid.type")).setAutoWidth(true);
+        deviceGrid.addColumn(device -> formatDevicePlatform(device.getDevicePlatform()))
+                .setHeader(t("device.grid.platform"))
+                .setAutoWidth(true);
         deviceGrid.addComponentColumn(device -> {
             boolean enabled = device.getEnabled() != null && device.getEnabled();
             Span badge = new Span(enabled ? t("common.yes") : t("common.no"));
@@ -346,6 +357,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 nameField.setValue(selectedDevice.getDeviceName());
                 timezoneCombo.setValue(selectedDevice.getTimezone());
                 deviceTypeCombo.setValue(selectedDevice.getDeviceType());
+                devicePlatformCombo.setValue(selectedDevice.getDevicePlatform() != null
+                        ? selectedDevice.getDevicePlatform()
+                        : DevicePlatform.GENERIC_MQTT);
                 enabledField.setValue(selectedDevice.getEnabled() == null || selectedDevice.getEnabled());
                 updateMqttCredentialsFields();
                 if (selectedDevice.getDeviceType() == DeviceType.HEAT_PUMP) {
@@ -398,10 +412,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         FormLayout formLayout = new FormLayout();
         formLayout.setWidthFull();
         formLayout.getStyle().set("margin-top", "20px");
-        formLayout.add(nameField, timezoneCombo, deviceTypeCombo, enabledField);
+        formLayout.add(nameField, timezoneCombo, deviceTypeCombo, devicePlatformCombo, enabledField);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 4)
+                new FormLayout.ResponsiveStep("600px", 5)
         );
 
         mqttCredentialsForm.setWidthFull();
@@ -646,6 +660,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             String deviceName = nameField.getValue();
             String timezone = timezoneCombo.getValue();
             DeviceType deviceType = deviceTypeCombo.getValue();
+            DevicePlatform devicePlatform = devicePlatformCombo.getValue();
             boolean enabled = enabledField.getValue();
 
             if (deviceName == null || deviceName.isBlank()) {
@@ -686,14 +701,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
             if (selectedDevice != null) {
                 deviceService.updateDevice(
-                        accountId, selectedDevice.getId(), deviceName, timezone, deviceType, enabled,
+                        accountId, selectedDevice.getId(), deviceName, timezone, deviceType, devicePlatform, enabled,
                         hpName, acType, acUsername, acPassword, pendingAcDeviceId, pendingBuildingId
                 );
                 Notification notification = Notification.show(t("device.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } else {
                 deviceService.createDevice(
-                        authAccountId, accountId, deviceName, timezone, deviceType, enabled,
+                        authAccountId, accountId, deviceName, timezone, deviceType, devicePlatform, enabled,
                         hpName, acType, acUsername, acPassword, pendingAcDeviceId, pendingBuildingId
                 );
                 Notification notification = Notification.show(t("device.notification.created"));
@@ -821,6 +836,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         nameField.clear();
         timezoneCombo.setValue(ZoneId.systemDefault().getId());
         deviceTypeCombo.setValue(DeviceType.STANDARD);
+        devicePlatformCombo.setValue(DevicePlatform.GENERIC_MQTT);
         enabledField.setValue(true);
         hpNameField.clear();
         acTypeCombo.setValue(AcType.NONE);
@@ -1010,6 +1026,18 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     protected String t(String key, Object... args) {
         return i18n.t(key, args);
+    }
+
+    private String formatDevicePlatform(DevicePlatform platform) {
+        if (platform == null) {
+            return t("device.platform.genericMqtt");
+        }
+        return switch (platform) {
+            case OPENBEKEN -> t("device.platform.openbeken");
+            case TASMOTA -> t("device.platform.tasmota");
+            case ESPHOME -> t("device.platform.esphome");
+            case GENERIC_MQTT -> t("device.platform.genericMqtt");
+        };
     }
 
     private void openAcCommandLogDialog() {

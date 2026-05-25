@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.entity;
 
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
@@ -42,6 +43,11 @@ public class DeviceEntity {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private DeviceType deviceType = DeviceType.STANDARD;
+
+    @Column(name = "device_platform", nullable = false, length = 32)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private DevicePlatform devicePlatform = DevicePlatform.GENERIC_MQTT;
 
     @Column(name = "enabled", nullable = false)
     @Builder.Default
@@ -95,6 +101,9 @@ public class DeviceEntity {
 
         if (deviceType == null) {
             deviceType = DeviceType.STANDARD;
+        }
+        if (devicePlatform == null) {
+            devicePlatform = DevicePlatform.GENERIC_MQTT;
         }
 
         if (mqttUsername == null) {

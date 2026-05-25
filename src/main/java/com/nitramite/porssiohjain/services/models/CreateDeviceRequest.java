@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services.models;
 
 import com.nitramite.porssiohjain.entity.enums.AcType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import lombok.Data;
 
@@ -20,6 +21,7 @@ public class CreateDeviceRequest {
     private String deviceName;
     private String timezone;
     private DeviceType deviceType;
+    private DevicePlatform devicePlatform;
     private Boolean enabled;
     private String hpName;
     private AcType acType;

@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.AcType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.enums.ResourceType;
@@ -62,11 +63,13 @@ public class DeviceService {
     @Transactional
     public DeviceResponse createDevice(
             Long authAccountId, Long accountId, String deviceName, String timezone, DeviceType deviceType,
+            DevicePlatform devicePlatform,
             boolean enabled,
             String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId, String buildingId
     ) {
         demoAccountGuard.assertWritable(authAccountId);
         DeviceType resolvedDeviceType = deviceType == null ? DeviceType.STANDARD : deviceType;
+        DevicePlatform resolvedDevicePlatform = devicePlatform == null ? DevicePlatform.GENERIC_MQTT : devicePlatform;
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
@@ -76,9 +79,10 @@ public class DeviceService {
                     .deviceName(deviceName)
                     .timezone(timezone)
                     .deviceType(resolvedDeviceType)
+                    .devicePlatform(resolvedDevicePlatform)
                     .enabled(enabled)
                     .lastCommunication(null)
-                    .mqttDeviceProfile(defaultProfileForType(resolvedDeviceType))
+                    .mqttDeviceProfile(defaultProfileForTypeAndPlatform(resolvedDeviceType, resolvedDevicePlatform))
                     .account(account)
                     .build();
             device = deviceRepository.save(device);
@@ -109,6 +113,7 @@ public class DeviceService {
             String deviceName,
             String timezone,
             DeviceType deviceType,
+            DevicePlatform devicePlatform,
             String mqttUsername,
             String mqttPassword,
             MqttDeviceProfile mqttDeviceProfile
@@ -123,6 +128,7 @@ public class DeviceService {
                 .deviceName(deviceName)
                 .timezone(timezone)
                 .deviceType(deviceType)
+                .devicePlatform(devicePlatform == null ? DevicePlatform.GENERIC_MQTT : devicePlatform)
                 .enabled(true)
                 .lastCommunication(null)
                 .mqttUsername(mqttUsername)
@@ -201,6 +207,7 @@ public class DeviceService {
                 .id(entity.getId())
                 .uuid(entity.getUuid())
                 .deviceType(entity.getDeviceType())
+                .devicePlatform(entity.getDevicePlatform())
                 .enabled(entity.isEnabled())
                 .deviceName(entity.getDeviceName())
                 .timezone(entity.getTimezone())
@@ -271,20 +278,31 @@ public class DeviceService {
 
     @Transactional
     public void updateDevice(
-            Long accountId, Long deviceId, String newName, String newTimezone, DeviceType deviceType, boolean enabled,
+            Long accountId, Long deviceId, String newName, String newTimezone, DeviceType deviceType,
+            DevicePlatform devicePlatform,
+            boolean enabled,
             String hpName, AcType acType, String acUsername, String acPassword, String acDeviceId, String buildingId
     ) {
         demoAccountGuard.assertWritable(accountId);
         DeviceType resolvedDeviceType = deviceType == null ? DeviceType.STANDARD : deviceType;
+        DevicePlatform resolvedDevicePlatform = devicePlatform == null ? DevicePlatform.GENERIC_MQTT : devicePlatform;
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
         DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
         DeviceType previousType = device.getDeviceType();
+        DevicePlatform previousPlatform = device.getDevicePlatform();
         device.setDeviceName(newName);
         device.setTimezone(newTimezone);
         device.setDeviceType(resolvedDeviceType);
-        device.setMqttDeviceProfile(resolveUpdatedProfile(device.getMqttDeviceProfile(), previousType, resolvedDeviceType));
+        device.setDevicePlatform(resolvedDevicePlatform);
+        device.setMqttDeviceProfile(resolveUpdatedProfile(
+                device.getMqttDeviceProfile(),
+                previousType,
+                resolvedDeviceType,
+                previousPlatform,
+                resolvedDevicePlatform
+        ));
         device.setEnabled(enabled);
         deviceRepository.save(device);
 
@@ -368,6 +386,7 @@ public class DeviceService {
                 .id(entity.getId())
                 .uuid(entity.getUuid())
                 .deviceType(entity.getDeviceType())
+                .devicePlatform(entity.getDevicePlatform())
                 .enabled(entity.isEnabled())
                 .deviceName(entity.getDeviceName())
                 .mqttDeviceProfile(entity.getMqttDeviceProfile())
@@ -407,24 +426,38 @@ public class DeviceService {
     }
 
     private MqttDeviceProfile defaultProfileForType(DeviceType deviceType) {
-        return switch (deviceType) {
-            case THERMOSTAT -> MqttDeviceProfile.GENERIC_THERMOSTAT;
-            case STANDARD, HEAT_PUMP -> MqttDeviceProfile.GENERIC_RELAY;
+        return defaultProfileForTypeAndPlatform(deviceType, DevicePlatform.GENERIC_MQTT);
+    }
+
+    private MqttDeviceProfile defaultProfileForTypeAndPlatform(DeviceType deviceType, DevicePlatform devicePlatform) {
+        if (deviceType == DeviceType.THERMOSTAT) {
+            return MqttDeviceProfile.GENERIC_THERMOSTAT;
+        }
+        return switch (devicePlatform == null ? DevicePlatform.GENERIC_MQTT : devicePlatform) {
+            case OPENBEKEN -> MqttDeviceProfile.OPENBEKEN_RELAY;
+            case TASMOTA -> MqttDeviceProfile.TASMOTA_RELAY;
+            case ESPHOME -> MqttDeviceProfile.ESPHOME_RELAY;
+            case GENERIC_MQTT -> MqttDeviceProfile.GENERIC_RELAY;
         };
     }
 
     private MqttDeviceProfile resolveUpdatedProfile(
             MqttDeviceProfile currentProfile,
             DeviceType previousType,
-            DeviceType newType
+            DeviceType newType,
+            DevicePlatform previousPlatform,
+            DevicePlatform newPlatform
     ) {
         if (newType == DeviceType.THERMOSTAT) {
             return MqttDeviceProfile.GENERIC_THERMOSTAT;
         }
         if (previousType == DeviceType.THERMOSTAT && currentProfile == MqttDeviceProfile.GENERIC_THERMOSTAT) {
-            return MqttDeviceProfile.GENERIC_RELAY;
+            return defaultProfileForTypeAndPlatform(newType, newPlatform);
         }
-        return currentProfile == null ? defaultProfileForType(newType) : currentProfile;
+        if (previousPlatform != newPlatform || currentProfile == null) {
+            return defaultProfileForTypeAndPlatform(newType, newPlatform);
+        }
+        return currentProfile;
     }
 
 }

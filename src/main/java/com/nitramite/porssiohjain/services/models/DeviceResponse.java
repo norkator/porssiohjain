@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services.models;
 
 import com.nitramite.porssiohjain.entity.enums.AcType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.MqttCapability;
 import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
@@ -32,6 +33,7 @@ public class DeviceResponse {
     private Long id;
     private UUID uuid;
     private DeviceType deviceType;
+    private DevicePlatform devicePlatform;
     private Boolean enabled;
     private String deviceName;
     private String timezone;

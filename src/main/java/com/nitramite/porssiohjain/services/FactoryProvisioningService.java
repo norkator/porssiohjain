@@ -177,6 +177,7 @@ public class FactoryProvisioningService {
                 requireText(deviceName, "deviceName"),
                 requireText(timezone, "timezone"),
                 DeviceType.STANDARD,
+                factoryDevice.getPlatform(),
                 factoryDevice.getMqttUsername(),
                 factoryDevice.getMqttPassword(),
                 factoryDevice.getMqttDeviceProfile()

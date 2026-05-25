@@ -11,8 +11,11 @@
 
 package com.nitramite.porssiohjain;
 
+import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlHeatPumpRepository;
@@ -42,7 +45,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -150,6 +155,43 @@ class DeviceServiceTest {
 
         deviceService.checkOfflineDevices();
 
+        verify(deviceRepository).save(device);
+    }
+
+    @Test
+    void updatesStandardDevicePlatformAndMatchingMqttProfile() {
+        AccountEntity account = new AccountEntity();
+        account.setId(1L);
+
+        DeviceEntity device = new DeviceEntity();
+        device.setId(10L);
+        device.setAccount(account);
+        device.setDeviceType(DeviceType.STANDARD);
+        device.setDevicePlatform(DevicePlatform.GENERIC_MQTT);
+        device.setMqttDeviceProfile(MqttDeviceProfile.GENERIC_RELAY);
+
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(deviceRepository.findByIdAndAccount(10L, account)).thenReturn(Optional.of(device));
+        when(deviceRepository.save(device)).thenReturn(device);
+
+        deviceService.updateDevice(
+                1L,
+                10L,
+                "Relay",
+                "Europe/Helsinki",
+                DeviceType.STANDARD,
+                DevicePlatform.TASMOTA,
+                true,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertThat(device.getDevicePlatform()).isEqualTo(DevicePlatform.TASMOTA);
+        assertThat(device.getMqttDeviceProfile()).isEqualTo(MqttDeviceProfile.TASMOTA_RELAY);
         verify(deviceRepository).save(device);
     }
 }
