@@ -198,9 +198,9 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 createNotificationSection(),
                 saveButton,
                 Divider.createDivider(),
-                createDataExportSection(),
-                Divider.createDivider(),
                 buttonRow,
+                Divider.createDivider(),
+                createDataExportSection(),
                 Divider.createDivider(),
                 createDeleteAccountSection()
         );
