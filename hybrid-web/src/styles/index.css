@@ -73,6 +73,7 @@
 @layer base {
   html {
     @apply bg-background text-on-surface;
+    font-size: 15px;
   }
 
   body {
