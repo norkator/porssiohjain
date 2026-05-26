@@ -1,3 +1,5 @@
+import { setNativeTheme } from "@/lib/android-bridge";
+
 const THEME_STORAGE_KEY = "porssiohjain-theme";
 
 export type ThemePreference = "light" | "dark";
@@ -34,4 +36,5 @@ export function setThemePreference(theme: ThemePreference) {
   }
 
   applyThemePreference(theme);
+  setNativeTheme(theme);
 }

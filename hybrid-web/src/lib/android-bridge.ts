@@ -25,6 +25,7 @@ type AndroidBridgeApi = {
   showToast?: (message: string) => void;
   openNativeScreen?: (screen: string) => void;
   scanQrLoginCode?: () => void;
+  setTheme?: (theme: "light" | "dark") => void;
   logout?: () => void;
 };
 
@@ -80,6 +81,10 @@ export function openNativeQrLoginScanner() {
   }
 
   bridge?.openNativeScreen?.("qrLoginScanner");
+}
+
+export function setNativeTheme(theme: "light" | "dark") {
+  getAndroidBridge()?.setTheme?.(theme);
 }
 
 export function logoutNative() {
