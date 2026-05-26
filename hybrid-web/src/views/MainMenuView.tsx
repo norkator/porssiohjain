@@ -185,6 +185,7 @@ export default function MainMenuView() {
   const showAndroidAppLink = session.source !== "android";
   const currentMonthSavings = monthlySavings.length > 0 ? monthlySavings[monthlySavings.length - 1] : undefined;
   const hasSavingsData = monthlySavings.some((saving) => saving.scheduleEntryCount > 0 && saving.controlsWithEstimatedPowerCount > 0 && saving.estimatedUsageKwh > 0);
+  const showSavingsEmptyState = !hasSavingsData;
   const savingsSummaryText = currentMonthSavings && currentMonthSavings.scheduleEntryCount > 0 && currentMonthSavings.controlsWithEstimatedPowerCount > 0
     ? t("summarySavings", { savings: currentMonthSavings.estimatedSavingsEur.toFixed(2) })
     : "";
@@ -326,7 +327,7 @@ export default function MainMenuView() {
           <NordpoolTodayChartCard />
         </section>
 
-        {hasSavingsData && !savingsError ? (
+        {!savingsError ? (
           <section className="mb-12">
             <div className="app-card p-4 sm:p-6">
               <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -342,29 +343,35 @@ export default function MainMenuView() {
                 ) : null}
               </div>
 
-              <div className="grid grid-cols-6 items-end gap-3">
-                {monthlySavings.map((saving) => {
-                  const month = new Date(saving.from).toLocaleDateString(undefined, { month: "short" });
-                  const positiveSavings = Math.max(saving.estimatedSavingsEur, 0);
-                  const barHeight = maxMonthlySavings > 0 ? Math.max((positiveSavings / maxMonthlySavings) * 100, 8) : 8;
+              {showSavingsEmptyState ? (
+                <p className="rounded-lg bg-surface-container-high px-4 py-3 text-sm text-on-surface-variant">
+                  {t("savingsEmpty")}
+                </p>
+              ) : (
+                <div className="grid grid-cols-6 items-end gap-3">
+                  {monthlySavings.map((saving) => {
+                    const month = new Date(saving.from).toLocaleDateString(undefined, { month: "short" });
+                    const positiveSavings = Math.max(saving.estimatedSavingsEur, 0);
+                    const barHeight = maxMonthlySavings > 0 ? Math.max((positiveSavings / maxMonthlySavings) * 100, 8) : 8;
 
-                  return (
-                    <div className="flex min-h-40 flex-col justify-end gap-2" key={saving.from}>
-                      <div className="flex flex-1 items-end rounded-lg bg-surface-container-highest px-2 pb-2">
-                        <div
-                          className="w-full rounded-md bg-primary transition-[height] duration-700"
-                          style={{ height: `${barHeight}%` }}
-                          title={`${positiveSavings.toFixed(2)} €`}
-                        />
+                    return (
+                      <div className="flex min-h-40 flex-col justify-end gap-2" key={saving.from}>
+                        <div className="flex flex-1 items-end rounded-lg bg-surface-container-highest px-2 pb-2">
+                          <div
+                            className="w-full rounded-md bg-primary transition-[height] duration-700"
+                            style={{ height: `${barHeight}%` }}
+                            title={`${positiveSavings.toFixed(2)} €`}
+                          />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs font-bold text-on-surface">{positiveSavings.toFixed(0)} €</p>
+                          <p className="text-xs text-on-surface-variant">{month}</p>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-xs font-bold text-on-surface">{positiveSavings.toFixed(0)} €</p>
-                        <p className="text-xs text-on-surface-variant">{month}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <p className="mt-5 text-xs leading-5 text-on-surface-variant">
                 {t("savingsBasis", {

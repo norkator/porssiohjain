@@ -119,6 +119,7 @@
     "savingsEyebrow": "S\u00E4\u00E4st\u00F6t",
     "savingsTitle": "Kuukausittaiset ohjauss\u00E4\u00E4st\u00F6t",
     "savingsThisMonth": "arvio t\u00E4ss\u00E4 kuussa",
+    "savingsEmpty": "S\u00E4\u00E4st\u00F6dataa ei ole viel\u00E4 saatavilla.",
     "savingsBasis": "Perustuu {controls}/{total} ohjaukseen, joilla on arvioitu kuorma ja vahvistettuja aikatauluja.",
     "tileTitles": {
       "devices": "Laitteet",

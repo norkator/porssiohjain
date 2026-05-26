@@ -119,6 +119,7 @@
     "savingsEyebrow": "Savings",
     "savingsTitle": "Monthly control savings",
     "savingsThisMonth": "estimated this month",
+    "savingsEmpty": "No savings data available yet.",
     "savingsBasis": "Based on {controls}/{total} controls with estimated load and finalized schedules.",
     "tileTitles": {
       "devices": "Devices",
