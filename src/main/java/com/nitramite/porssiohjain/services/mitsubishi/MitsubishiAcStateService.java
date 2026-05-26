@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +49,7 @@ public class MitsubishiAcStateService {
     private final MitsubishiLoginService mitsubishiLoginService;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final DeviceRepository deviceRepository;
+    private final DeviceOfflineNotificationService deviceOfflineNotificationService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public MitsubishiAcStateResponse getAcState(DeviceAcDataEntity acData) {
@@ -181,8 +183,20 @@ public class MitsubishiAcStateService {
         if (lastCommunication != null) {
             managedDevice.setLastCommunication(lastCommunication);
         }
-        managedDevice.setApiOnline(isApiOnlineFromLastCommunication(lastCommunication));
+        boolean wasApiOnline = managedDevice.isApiOnline();
+        boolean wasMqttOnline = managedDevice.isMqttOnline();
+        boolean apiOnline = isApiOnlineFromLastCommunication(lastCommunication);
+        managedDevice.setApiOnline(apiOnline);
         deviceRepository.save(managedDevice);
+        if (!apiOnline) {
+            deviceOfflineNotificationService.sendIfDeviceWentOffline(
+                    managedDevice,
+                    wasApiOnline,
+                    wasMqttOnline,
+                    "API",
+                    Instant.now()
+            );
+        }
     }
 
     public static Instant parseLastCommunication(String value) {

@@ -35,6 +35,7 @@ import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpReposi
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.DemoAccountGuard;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.MqttProfileService;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +52,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 @ExtendWith(MockitoExtension.class)
 class DeviceServiceTest {
@@ -93,6 +96,8 @@ class DeviceServiceTest {
     private ControlService controlService;
     @Mock
     private DemoAccountGuard demoAccountGuard;
+    @Mock
+    private DeviceOfflineNotificationService deviceOfflineNotificationService;
     private MqttProfileService mqttProfileService;
 
     private DeviceService deviceService;
@@ -120,7 +125,8 @@ class DeviceServiceTest {
                 accountLimitService,
                 controlService,
                 mqttProfileService,
-                demoAccountGuard
+                demoAccountGuard,
+                deviceOfflineNotificationService
         );
     }
 
@@ -156,6 +162,56 @@ class DeviceServiceTest {
         deviceService.checkOfflineDevices();
 
         verify(deviceRepository).save(device);
+    }
+
+    @Test
+    void sendsOfflineNotificationWhenMqttDeviceLosesLastOnlineState() {
+        DeviceEntity device = new DeviceEntity();
+        device.setId(3L);
+        device.setDeviceType(DeviceType.STANDARD);
+        device.setApiOnline(false);
+        device.setMqttOnline(true);
+        device.setLastCommunication(Instant.now().minusSeconds(6 * 60));
+
+        when(deviceRepository.findByApiOnlineTrue()).thenReturn(List.of());
+        when(deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(any()))
+                .thenReturn(List.of(device));
+
+        deviceService.checkOfflineDevices();
+
+        verify(deviceRepository).save(device);
+        verify(deviceOfflineNotificationService).sendIfDeviceWentOffline(
+                eq(device),
+                eq(false),
+                eq(true),
+                eq("MQTT"),
+                any()
+        );
+    }
+
+    @Test
+    void doesNotSendOfflineNotificationWhenApiOnlineRemainsTrue() {
+        DeviceEntity device = new DeviceEntity();
+        device.setId(4L);
+        device.setDeviceType(DeviceType.STANDARD);
+        device.setApiOnline(true);
+        device.setMqttOnline(true);
+        device.setLastCommunication(Instant.now().minusSeconds(6 * 60));
+
+        when(deviceRepository.findByApiOnlineTrue()).thenReturn(List.of());
+        when(deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(any()))
+                .thenReturn(List.of(device));
+
+        deviceService.checkOfflineDevices();
+
+        verify(deviceRepository).save(device);
+        verify(deviceOfflineNotificationService).sendIfDeviceWentOffline(
+                eq(device),
+                eq(true),
+                eq(true),
+                eq("MQTT"),
+                any()
+        );
     }
 
     @Test

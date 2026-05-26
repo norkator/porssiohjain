@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class ToshibaAcStateService {
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final DeviceRepository deviceRepository;
+    private final DeviceOfflineNotificationService deviceOfflineNotificationService;
     private static final String STATE_URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=";
 
     public ToshibaAcStateResponse getAcState(
@@ -139,8 +141,20 @@ public class ToshibaAcStateService {
         if (lastConnectionTime != null) {
             device.setLastCommunication(lastConnectionTime);
         }
-        device.setApiOnline(isWithinOnlineThreshold(lastConnectionTime));
+        boolean wasApiOnline = device.isApiOnline();
+        boolean wasMqttOnline = device.isMqttOnline();
+        boolean apiOnline = isWithinOnlineThreshold(lastConnectionTime);
+        device.setApiOnline(apiOnline);
         deviceRepository.save(device);
+        if (!apiOnline) {
+            deviceOfflineNotificationService.sendIfDeviceWentOffline(
+                    device,
+                    wasApiOnline,
+                    wasMqttOnline,
+                    "API",
+                    Instant.now()
+            );
+        }
     }
 
     private boolean isWithinOnlineThreshold(Instant lastConnectionTime) {

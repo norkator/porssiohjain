@@ -211,6 +211,8 @@
     "notifyPowerLimitExceeded": "Notify when power limit is exceeded",
     "notifyControlActivated": "Notify when control activates",
     "notifyControlActivatedHelp": "Uses Firebase push notifications only and is sent when a control actually turns on.",
+    "notifyDeviceOffline": "Notify when device goes offline",
+    "notifyDeviceOfflineHelp": "Uses Firebase push notifications only and is sent once when a device loses both API and MQTT online status.",
     "notificationChannels": "Notification channels",
     "emailNotificationsEnabled": "Send notifications by email",
     "pushNotificationsEnabled": "Send notifications in app",

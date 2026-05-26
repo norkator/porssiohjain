@@ -53,6 +53,10 @@ public class AccountEntity {
     @Builder.Default
     private boolean notifyControlActivated = false;
 
+    @Column(name = "notify_device_offline", nullable = false)
+    @Builder.Default
+    private boolean notifyDeviceOffline = false;
+
     @Column(name = "email_notifications_enabled", nullable = false)
     @Builder.Default
     private boolean emailNotificationsEnabled = false;

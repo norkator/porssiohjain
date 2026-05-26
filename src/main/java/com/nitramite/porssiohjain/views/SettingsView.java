@@ -65,6 +65,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
     private final EmailField emailField;
     private final Checkbox notifyPowerLimitExceeded;
     private final Checkbox notifyControlActivated;
+    private final Checkbox notifyDeviceOffline;
     private final Checkbox emailNotificationsEnabled;
     private final Checkbox pushNotificationsEnabled;
     private final Select<String> localeSelect;
@@ -121,6 +122,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 new Checkbox(t("settings.notifications.powerLimitExceeded"));
         notifyControlActivated =
                 new Checkbox(t("settings.notifications.controlActivated"));
+        notifyDeviceOffline =
+                new Checkbox(t("settings.notifications.deviceOffline"));
         emailNotificationsEnabled =
                 new Checkbox(t("settings.notifications.emailEnabled"));
         pushNotificationsEnabled =
@@ -210,6 +213,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         emailField.setValue(Optional.ofNullable(accountService.getEmail(accountId)).orElse(""));
         notifyPowerLimitExceeded.setValue(accountService.getNotifyPowerLimitExceeded(accountId));
         notifyControlActivated.setValue(accountService.getNotifyControlActivated(accountId));
+        notifyDeviceOffline.setValue(accountService.getNotifyDeviceOffline(accountId));
         emailNotificationsEnabled.setValue(accountService.getEmailNotificationsEnabled(accountId));
         pushNotificationsEnabled.setValue(accountService.getPushNotificationsEnabled(accountId));
         localeSelect.setValue(accountService.getLocale(accountId));
@@ -220,6 +224,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                     emailField.getValue(),
                     notifyPowerLimitExceeded.getValue(),
                     notifyControlActivated.getValue(),
+                    notifyDeviceOffline.getValue(),
                     emailNotificationsEnabled.getValue(),
                     pushNotificationsEnabled.getValue(),
                     localeSelect.getValue()
@@ -512,6 +517,12 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         controlHelp.getStyle()
                 .set("font-size", "var(--lumo-font-size-s)")
                 .set("color", "var(--lumo-secondary-text-color)");
+        H3 deviceTitle = new H3(t("settings.notifications.deviceTitle"));
+        deviceTitle.getStyle().set("margin", "8px 0 0 0");
+        Span deviceHelp = new Span(t("settings.notifications.deviceHelp"));
+        deviceHelp.getStyle()
+                .set("font-size", "var(--lumo-font-size-s)")
+                .set("color", "var(--lumo-secondary-text-color)");
         H3 channelTitle = new H3(t("settings.notifications.channelTitle"));
         channelTitle.getStyle().set("margin", "8px 0 0 0");
         section.add(
@@ -521,6 +532,9 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 controlTitle,
                 controlHelp,
                 notifyControlActivated,
+                deviceTitle,
+                deviceHelp,
+                notifyDeviceOffline,
                 channelTitle,
                 emailNotificationsEnabled,
                 pushNotificationsEnabled

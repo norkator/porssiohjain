@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.mqtt;
 
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.FactoryProvisioningService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class MqttListener {
 
     private final DeviceRepository deviceRepository;
     private final FactoryProvisioningService factoryProvisioningService;
+    private final DeviceOfflineNotificationService deviceOfflineNotificationService;
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMessage(Message<?> message) {
@@ -45,9 +47,21 @@ public class MqttListener {
             boolean online = Boolean.parseBoolean(payload);
             deviceRepository.findByUuid(UUID.fromString(deviceId))
                     .ifPresent(device -> {
+                        boolean wasApiOnline = device.isApiOnline();
+                        boolean wasMqttOnline = device.isMqttOnline();
+                        Instant now = Instant.now();
                         device.setMqttOnline(online);
-                        device.setLastCommunication(Instant.now());
+                        device.setLastCommunication(now);
                         deviceRepository.save(device);
+                        if (!online) {
+                            deviceOfflineNotificationService.sendIfDeviceWentOffline(
+                                    device,
+                                    wasApiOnline,
+                                    wasMqttOnline,
+                                    "MQTT",
+                                    now
+                            );
+                        }
                     });
             return;
         }

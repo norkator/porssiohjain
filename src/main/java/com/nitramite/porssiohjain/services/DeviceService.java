@@ -59,6 +59,7 @@ public class DeviceService {
     private final ControlService controlService;
     private final MqttProfileService mqttProfileService;
     private final DemoAccountGuard demoAccountGuard;
+    private final DeviceOfflineNotificationService deviceOfflineNotificationService;
 
     @Transactional
     public DeviceResponse createDevice(
@@ -401,15 +402,33 @@ public class DeviceService {
         List<DeviceEntity> apiDevices = deviceRepository.findByApiOnlineTrue();
         for (DeviceEntity device : apiDevices) {
             if (isApiDeviceOffline(device, now)) {
+                boolean wasApiOnline = device.isApiOnline();
+                boolean wasMqttOnline = device.isMqttOnline();
                 device.setApiOnline(false);
                 deviceRepository.save(device);
+                deviceOfflineNotificationService.sendIfDeviceWentOffline(
+                        device,
+                        wasApiOnline,
+                        wasMqttOnline,
+                        "API",
+                        now
+                );
             }
         }
         Instant mqttThreshold = now.minusSeconds(MQTT_OFFLINE_SECONDS);
         List<DeviceEntity> mqttDevices = deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(mqttThreshold);
         for (DeviceEntity device : mqttDevices) {
+            boolean wasApiOnline = device.isApiOnline();
+            boolean wasMqttOnline = device.isMqttOnline();
             device.setMqttOnline(false);
             deviceRepository.save(device);
+            deviceOfflineNotificationService.sendIfDeviceWentOffline(
+                    device,
+                    wasApiOnline,
+                    wasMqttOnline,
+                    "MQTT",
+                    now
+            );
         }
     }
 
