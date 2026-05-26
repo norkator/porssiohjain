@@ -19,6 +19,7 @@ public class UpdateMeRequest {
     private String locale;
     private Boolean notifyPowerLimitExceeded;
     private Boolean notifyControlActivated;
+    private Boolean notifyDeviceOffline;
     private Boolean emailNotificationsEnabled;
     private Boolean pushNotificationsEnabled;
 }

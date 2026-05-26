@@ -60,6 +60,7 @@ public class MeController {
                 .demo(accountService.isDemoAccount(accountId))
                 .notifyPowerLimitExceeded(accountService.getNotifyPowerLimitExceeded(accountId))
                 .notifyControlActivated(accountService.getNotifyControlActivated(accountId))
+                .notifyDeviceOffline(accountService.getNotifyDeviceOffline(accountId))
                 .emailNotificationsEnabled(accountService.getEmailNotificationsEnabled(accountId))
                 .pushNotificationsEnabled(accountService.getPushNotificationsEnabled(accountId))
                 .createdAt(accountService.getCreatedAt(accountId))
@@ -84,6 +85,9 @@ public class MeController {
                 request.getNotifyControlActivated() != null
                         ? request.getNotifyControlActivated()
                         : accountService.getNotifyControlActivated(accountId),
+                request.getNotifyDeviceOffline() != null
+                        ? request.getNotifyDeviceOffline()
+                        : accountService.getNotifyDeviceOffline(accountId),
                 request.getEmailNotificationsEnabled() != null
                         ? request.getEmailNotificationsEnabled()
                         : accountService.getEmailNotificationsEnabled(accountId),

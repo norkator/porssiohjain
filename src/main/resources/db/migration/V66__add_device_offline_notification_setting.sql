@@ -1,0 +1,2 @@
+ALTER TABLE account
+    ADD COLUMN notify_device_offline BOOLEAN NOT NULL DEFAULT FALSE;

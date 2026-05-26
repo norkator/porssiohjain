@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.mqtt;
 
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.FactoryProvisioningService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,9 +27,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class MqttListenerTest {
@@ -39,12 +45,15 @@ class MqttListenerTest {
     @Mock
     private FactoryProvisioningService factoryProvisioningService;
 
+    @Mock
+    private DeviceOfflineNotificationService deviceOfflineNotificationService;
+
     private MqttListener listener;
     private DeviceEntity device;
 
     @BeforeEach
     void setUp() {
-        listener = new MqttListener(deviceRepository, factoryProvisioningService);
+        listener = new MqttListener(deviceRepository, factoryProvisioningService, deviceOfflineNotificationService);
         device = DeviceEntity.builder()
                 .id(1L)
                 .uuid(UUID.randomUUID())
@@ -55,7 +64,7 @@ class MqttListenerTest {
 
     @Test
     void marksDeviceOnlineForSlashTopic() {
-        when(deviceRepository.findByUuid(device.getUuid())).thenReturn(Optional.of(device));
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
 
         listener.handleMessage(MessageBuilder.withPayload("true")
                 .setHeader("mqtt_receivedTopic", device.getUuid() + "/online")
@@ -65,11 +74,12 @@ class MqttListenerTest {
         verify(deviceRepository).save(savedDevice.capture());
         assertTrue(savedDevice.getValue().isMqttOnline());
         assertNotNull(savedDevice.getValue().getLastCommunication());
+        verify(deviceOfflineNotificationService, never()).sendIfDeviceWentOffline(any(), anyBoolean(), anyBoolean(), any(), any());
     }
 
     @Test
     void marksDeviceOnlineForDotTopic() {
-        when(deviceRepository.findByUuid(device.getUuid())).thenReturn(Optional.of(device));
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
 
         listener.handleMessage(MessageBuilder.withPayload("true")
                 .setHeader("mqtt_receivedTopic", device.getUuid() + ".online")
@@ -79,6 +89,27 @@ class MqttListenerTest {
         verify(deviceRepository).save(savedDevice.capture());
         assertTrue(savedDevice.getValue().isMqttOnline());
         assertNotNull(savedDevice.getValue().getLastCommunication());
+    }
+
+    @Test
+    void sendsOfflineNotificationForMqttOfflineTransition() {
+        device.setMqttOnline(true);
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
+
+        listener.handleMessage(MessageBuilder.withPayload("false")
+                .setHeader("mqtt_receivedTopic", device.getUuid() + "/online")
+                .build());
+
+        ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
+        verify(deviceRepository).save(savedDevice.capture());
+        assertFalse(savedDevice.getValue().isMqttOnline());
+        verify(deviceOfflineNotificationService).sendIfDeviceWentOffline(
+                eq(device),
+                eq(false),
+                eq(true),
+                eq("MQTT"),
+                any()
+        );
     }
 
     @Test

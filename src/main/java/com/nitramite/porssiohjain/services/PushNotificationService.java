@@ -18,6 +18,7 @@ import com.google.firebase.messaging.*;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.MarketNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
@@ -36,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.Instant;
 import java.util.*;
 
 @Slf4j
@@ -174,6 +176,29 @@ public class PushNotificationService {
         data.put("observedPrice", observedPrice.toPlainString());
         data.put("thresholdPrice", notification.getThresholdPrice().toPlainString());
         data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
+    public boolean sendDeviceOfflineNotification(
+            AccountEntity account,
+            DeviceEntity device,
+            String offlineSource,
+            Instant detectedAt,
+            Locale locale
+    ) {
+        String title = messageSource.getMessage("mail.deviceOffline.title", null, locale);
+        String body = messageSource.getMessage(
+                "mail.deviceOffline.intro",
+                new Object[]{device.getDeviceName()},
+                locale
+        );
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "DEVICE_OFFLINE");
+        data.put("deviceId", String.valueOf(device.getId()));
+        data.put("deviceUuid", device.getUuid() == null ? "" : device.getUuid().toString());
+        data.put("deviceName", device.getDeviceName());
+        data.put("offlineSource", offlineSource);
+        data.put("detectedAt", detectedAt.toString());
         return sendToAccount(account.getId(), title, body, data);
     }
 

@@ -211,6 +211,8 @@
     "notifyPowerLimitExceeded": "Ilmoita kun tehoraja ylittyy",
     "notifyControlActivated": "Ilmoita kun ohjaus aktivoituu",
     "notifyControlActivatedHelp": "Käyttää vain Firebase push -ilmoituksia ja lähetetään, kun ohjaus kytkeytyy päälle.",
+    "notifyDeviceOffline": "Ilmoita kun laite menee pois verkosta",
+    "notifyDeviceOfflineHelp": "Käyttää vain Firebase push -ilmoituksia ja lähetetään kerran, kun laite menettää sekä API- että MQTT-yhteyden.",
     "notificationChannels": "Ilmoituskanavat",
     "emailNotificationsEnabled": "Lähetä ilmoitukset sähköpostilla",
     "pushNotificationsEnabled": "Lähetä ilmoitukset sovelluksessa",

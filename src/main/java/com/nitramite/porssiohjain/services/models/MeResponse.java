@@ -29,6 +29,7 @@ public class MeResponse {
     private boolean demo;
     private boolean notifyPowerLimitExceeded;
     private boolean notifyControlActivated;
+    private boolean notifyDeviceOffline;
     private boolean emailNotificationsEnabled;
     private boolean pushNotificationsEnabled;
     private Instant createdAt;
