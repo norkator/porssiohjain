@@ -138,8 +138,8 @@ class DeviceServiceTest {
         device.setApiOnline(true);
         device.setLastCommunication(Instant.now().minusSeconds(3 * 60 * 60));
 
-        when(deviceRepository.findByApiOnlineTrue()).thenReturn(List.of(device));
-        when(deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(org.mockito.ArgumentMatchers.any()))
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of(device));
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(List.of());
 
         deviceService.checkOfflineDevices();
@@ -155,8 +155,8 @@ class DeviceServiceTest {
         device.setApiOnline(true);
         device.setLastCommunication(Instant.now().minusSeconds(4 * 60 * 60 + 60));
 
-        when(deviceRepository.findByApiOnlineTrue()).thenReturn(List.of(device));
-        when(deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(org.mockito.ArgumentMatchers.any()))
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of(device));
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(List.of());
 
         deviceService.checkOfflineDevices();
@@ -173,8 +173,8 @@ class DeviceServiceTest {
         device.setMqttOnline(true);
         device.setLastCommunication(Instant.now().minusSeconds(6 * 60));
 
-        when(deviceRepository.findByApiOnlineTrue()).thenReturn(List.of());
-        when(deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(any()))
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of());
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(any()))
                 .thenReturn(List.of(device));
 
         deviceService.checkOfflineDevices();
@@ -198,8 +198,8 @@ class DeviceServiceTest {
         device.setMqttOnline(true);
         device.setLastCommunication(Instant.now().minusSeconds(6 * 60));
 
-        when(deviceRepository.findByApiOnlineTrue()).thenReturn(List.of());
-        when(deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(any()))
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of());
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(any()))
                 .thenReturn(List.of(device));
 
         deviceService.checkOfflineDevices();

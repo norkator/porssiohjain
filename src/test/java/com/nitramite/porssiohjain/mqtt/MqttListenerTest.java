@@ -64,7 +64,7 @@ class MqttListenerTest {
 
     @Test
     void marksDeviceOnlineForSlashTopic() {
-        when(deviceRepository.findByUuid(device.getUuid())).thenReturn(Optional.of(device));
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
 
         listener.handleMessage(MessageBuilder.withPayload("true")
                 .setHeader("mqtt_receivedTopic", device.getUuid() + "/online")
@@ -79,7 +79,7 @@ class MqttListenerTest {
 
     @Test
     void marksDeviceOnlineForDotTopic() {
-        when(deviceRepository.findByUuid(device.getUuid())).thenReturn(Optional.of(device));
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
 
         listener.handleMessage(MessageBuilder.withPayload("true")
                 .setHeader("mqtt_receivedTopic", device.getUuid() + ".online")
@@ -94,7 +94,7 @@ class MqttListenerTest {
     @Test
     void sendsOfflineNotificationForMqttOfflineTransition() {
         device.setMqttOnline(true);
-        when(deviceRepository.findByUuid(device.getUuid())).thenReturn(Optional.of(device));
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
 
         listener.handleMessage(MessageBuilder.withPayload("false")
                 .setHeader("mqtt_receivedTopic", device.getUuid() + "/online")

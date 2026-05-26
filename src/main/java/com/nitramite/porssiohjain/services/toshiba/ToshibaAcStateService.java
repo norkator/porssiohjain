@@ -129,7 +129,7 @@ public class ToshibaAcStateService {
         if (deviceId == null) {
             return;
         }
-        DeviceEntity device = deviceRepository.findById(deviceId)
+        DeviceEntity device = deviceRepository.findWithAccountById(deviceId)
                 .orElse(null);
         if (device == null) {
             return;

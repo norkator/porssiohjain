@@ -399,7 +399,7 @@ public class DeviceService {
 
     public void checkOfflineDevices() {
         Instant now = Instant.now();
-        List<DeviceEntity> apiDevices = deviceRepository.findByApiOnlineTrue();
+        List<DeviceEntity> apiDevices = deviceRepository.findWithAccountByApiOnlineTrue();
         for (DeviceEntity device : apiDevices) {
             if (isApiDeviceOffline(device, now)) {
                 boolean wasApiOnline = device.isApiOnline();
@@ -416,7 +416,7 @@ public class DeviceService {
             }
         }
         Instant mqttThreshold = now.minusSeconds(MQTT_OFFLINE_SECONDS);
-        List<DeviceEntity> mqttDevices = deviceRepository.findByMqttOnlineTrueAndLastCommunicationBefore(mqttThreshold);
+        List<DeviceEntity> mqttDevices = deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(mqttThreshold);
         for (DeviceEntity device : mqttDevices) {
             boolean wasApiOnline = device.isApiOnline();
             boolean wasMqttOnline = device.isMqttOnline();

@@ -45,7 +45,7 @@ public class MqttListener {
         String deviceId = extractOnlineDeviceId(topic);
         if (deviceId != null) {
             boolean online = Boolean.parseBoolean(payload);
-            deviceRepository.findByUuid(UUID.fromString(deviceId))
+            deviceRepository.findWithAccountByUuid(UUID.fromString(deviceId))
                     .ifPresent(device -> {
                         boolean wasApiOnline = device.isApiOnline();
                         boolean wasMqttOnline = device.isMqttOnline();

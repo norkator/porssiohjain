@@ -175,7 +175,7 @@ public class MitsubishiAcStateService {
         if (device == null || device.getId() == null) {
             return;
         }
-        DeviceEntity managedDevice = deviceRepository.findById(device.getId()).orElse(null);
+        DeviceEntity managedDevice = deviceRepository.findWithAccountById(device.getId()).orElse(null);
         if (managedDevice == null) {
             return;
         }
