@@ -12,14 +12,22 @@
 import PageHeader from "@/components/PageHeader";
 import NordpoolTodayChartCard from "@/components/NordpoolTodayChartCard";
 import { fetchSites } from "@/lib/automation-resources";
+import { fetchMe } from "@/lib/account";
 import { fetchControlSavings, type ControlSavings } from "@/lib/dashboard";
 import { fetchElectricityContracts } from "@/lib/electricity-contracts";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { formatKw } from "@/lib/account-stats";
 import { useAccountStats } from "@/hooks/useAccountStats";
 import { useControls } from "@/hooks/useControls";
 import { useDevices } from "@/hooks/useDevices";
-import { logoutNative, openNativeQrLoginScanner } from "@/lib/android-bridge";
+import { logoutNative, openNativeQrLoginScanner, showNativeToast } from "@/lib/android-bridge";
+import {
+  getMockDiscoveredBrandedDevices,
+  mockClaimBrandedDevice,
+  scanWifiAccessPoints,
+  type MockDiscoveredBrandedDevice,
+  type MockWifiAccessPoint
+} from "@/lib/mock-branded-device-provisioning";
 import { useI18n } from "@/lib/i18n";
 import { clearBrowserSession, getSessionData } from "@/lib/session";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
@@ -75,10 +83,24 @@ function buildSavingsAreaPath(values: number[], maxValue: number) {
 }
 
 export default function MainMenuView() {
+  const navigate = useNavigate();
   const session = getSessionData();
   const { group, t } = useI18n("mainMenu");
+  const common = useI18n("common").t;
   const tileTitles = group("tileTitles");
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => getThemePreference());
+  const [discoveredDevices, setDiscoveredDevices] = useState<MockDiscoveredBrandedDevice[]>(() => getMockDiscoveredBrandedDevices());
+  const [isDemoAccount, setIsDemoAccount] = useState(false);
+  const [isMockDiscoveryDialogOpen, setIsMockDiscoveryDialogOpen] = useState(false);
+  const [selectedDiscoveredDevice, setSelectedDiscoveredDevice] = useState<MockDiscoveredBrandedDevice | null>(null);
+  const [wifiAccessPoints, setWifiAccessPoints] = useState<MockWifiAccessPoint[]>([]);
+  const [selectedWifiSsid, setSelectedWifiSsid] = useState("");
+  const [wifiPassword, setWifiPassword] = useState("");
+  const [mockDeviceName, setMockDeviceName] = useState("");
+  const [mockProvisioningError, setMockProvisioningError] = useState<string | null>(null);
+  const [wifiScanError, setWifiScanError] = useState<string | null>(null);
+  const [isWifiScanning, setIsWifiScanning] = useState(false);
+  const [isMockProvisioning, setIsMockProvisioning] = useState(false);
   const [sitesCount, setSitesCount] = useState<number | null>(null);
   const [contractsCount, setContractsCount] = useState<number | null>(null);
   const [monthlySavings, setMonthlySavings] = useState<ControlSavings[]>([]);
@@ -130,6 +152,16 @@ export default function MainMenuView() {
 
   useEffect(() => {
     let active = true;
+
+    fetchMe()
+      .then((account) => {
+        if (!active) return;
+        setIsDemoAccount(account.demo);
+      })
+      .catch(() => {
+        if (!active) return;
+        setIsDemoAccount(false);
+      });
 
     fetchSites()
       .then((sites) => {
@@ -273,6 +305,80 @@ export default function MainMenuView() {
     setThemePreference(nextTheme);
     setThemePreferenceState(nextTheme);
   };
+  const handleSelectMockDevice = async (device: MockDiscoveredBrandedDevice) => {
+    setSelectedDiscoveredDevice(device);
+    setMockDeviceName(device.productModel);
+    setSelectedWifiSsid("");
+    setWifiAccessPoints([]);
+    setWifiPassword("");
+    setMockProvisioningError(null);
+    setWifiScanError(null);
+    setIsWifiScanning(true);
+
+    try {
+      const networks = await scanWifiAccessPoints(device.discoveryId);
+
+      setWifiAccessPoints(networks);
+      setSelectedWifiSsid(networks[0]?.ssid ?? "");
+    } catch (error) {
+      setWifiScanError(error instanceof Error ? error.message : t("mockWifiScanFailed"));
+    } finally {
+      setIsWifiScanning(false);
+    }
+  };
+  const handleMockProvision = () => {
+    if (!selectedDiscoveredDevice || isMockProvisioning) {
+      return;
+    }
+
+    const trimmedDeviceName = mockDeviceName.trim();
+
+    if (!trimmedDeviceName) {
+      setMockProvisioningError(t("mockDeviceNameRequired"));
+      return;
+    }
+
+    if (!selectedWifiSsid) {
+      setMockProvisioningError(t("mockWifiRequired"));
+      return;
+    }
+
+    if (wifiPassword.trim().length < 8) {
+      setMockProvisioningError(t("mockWifiPasswordRequired"));
+      return;
+    }
+
+    setIsMockProvisioning(true);
+    setMockProvisioningError(null);
+
+    window.setTimeout(() => {
+      mockClaimBrandedDevice({
+        device: selectedDiscoveredDevice,
+        deviceName: trimmedDeviceName,
+        ssid: selectedWifiSsid,
+        wifiPassword
+      })
+        .then(() => {
+          setDiscoveredDevices(getMockDiscoveredBrandedDevices());
+          setSelectedDiscoveredDevice(null);
+          setIsMockDiscoveryDialogOpen(false);
+          showNativeToast(t("mockAddedToast", { deviceName: trimmedDeviceName }));
+          navigate("/devices");
+        })
+        .catch((error) => {
+          setMockProvisioningError(error instanceof Error ? error.message : t("mockProvisioningFailed"));
+        })
+        .finally(() => {
+          setIsMockProvisioning(false);
+        });
+    }, 700);
+  };
+  const handleCloseMockDiscoveryDialog = () => {
+    setIsMockDiscoveryDialogOpen(false);
+    setSelectedDiscoveredDevice(null);
+    setMockProvisioningError(null);
+    setWifiScanError(null);
+  };
 
   return (
     <>
@@ -336,6 +442,162 @@ export default function MainMenuView() {
             </div>
           </div>
         </section>
+
+        {isDemoAccount && discoveredDevices.length > 0 ? (
+          <button
+            aria-label={t("mockDiscoveryTitle")}
+            className="fixed right-4 top-20 z-40 flex items-center gap-3 rounded-full border border-primary/40 bg-white px-4 py-3 text-primary shadow-2xl transition-transform hover:-translate-y-0.5 hover:border-primary active:scale-95 sm:right-6 sm:top-24"
+            onClick={() => setIsMockDiscoveryDialogOpen(true)}
+            type="button"
+          >
+            <span className="text-sm font-black">{t("mockDevicesFound")}</span>
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-black text-on-primary">
+              {discoveredDevices.length}
+            </span>
+          </button>
+        ) : null}
+
+        {isDemoAccount && discoveredDevices.length > 0 && isMockDiscoveryDialogOpen ? (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-3 py-4 sm:items-center sm:px-6">
+            <section className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-surface p-4 shadow-2xl sm:p-6">
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <p className="metric-label mb-2">
+                    {selectedDiscoveredDevice ? t("mockSetupEyebrow") : t("mockDiscoveryEyebrow")}
+                  </p>
+                  <h2 className="font-headline text-2xl font-black text-on-surface">
+                    {selectedDiscoveredDevice ? selectedDiscoveredDevice.productModel : t("mockDiscoveryTitle")}
+                  </h2>
+                  <p className="mt-1 font-mono text-xs text-outline">
+                    {selectedDiscoveredDevice
+                      ? selectedDiscoveredDevice.serialNumber
+                      : t("mockDiscoveryCount", { count: discoveredDevices.length })}
+                  </p>
+                </div>
+                <button
+                  className="secondary-action rounded-lg px-3 py-2 text-sm"
+                  onClick={handleCloseMockDiscoveryDialog}
+                  type="button"
+                >
+                  {common("close")}
+                </button>
+              </div>
+
+              {!selectedDiscoveredDevice ? (
+                <div className="grid grid-cols-1 gap-3">
+                  {discoveredDevices.map((device) => (
+                    <button
+                      className="group rounded-lg border border-outline-variant/50 bg-surface-container-high p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-surface-container-highest"
+                      key={device.discoveryId}
+                      onClick={() => handleSelectMockDevice(device)}
+                      type="button"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="font-headline text-lg font-bold text-on-surface group-hover:text-primary">{device.productModel}</h3>
+                          <p className="mt-1 font-mono text-xs text-outline">{device.serialNumber}</p>
+                          <p className="mt-3 text-xs text-on-surface-variant">
+                            {t("mockDiscoveryDetail", { channels: device.relayChannels })}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded bg-surface-container-lowest px-2 py-1 text-[10px] font-bold text-on-surface-variant">
+                          {device.rssi} dBm
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-on-surface" htmlFor="mock-wifi-ssid">
+                      {t("mockWifiNetwork")}
+                    </label>
+                    {isWifiScanning ? (
+                      <p className="rounded-lg bg-surface-container-highest px-4 py-4 text-sm text-on-surface-variant">
+                        {t("mockWifiScanning")}
+                      </p>
+                    ) : (
+                      <select
+                        className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none focus:border-primary"
+                        id="mock-wifi-ssid"
+                        onChange={(event) => setSelectedWifiSsid(event.target.value)}
+                        value={selectedWifiSsid}
+                      >
+                        {wifiAccessPoints.map((network) => (
+                          <option key={`${network.mock ? "mock" : "real"}-${network.ssid}`} value={network.ssid}>
+                            {network.ssid} ({network.security.toUpperCase()}, {network.rssi} dBm{network.mock ? `, ${t("mockWifiDevLabel")}` : ""})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {wifiScanError ? (
+                      <p className="mt-2 text-sm text-on-error-container">
+                        {wifiScanError}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-on-surface" htmlFor="mock-wifi-password">
+                      {t("mockWifiPassword")}
+                    </label>
+                    <input
+                      className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none placeholder:text-on-surface-variant/40 focus:border-primary"
+                      id="mock-wifi-password"
+                      onChange={(event) => setWifiPassword(event.target.value)}
+                      placeholder={t("mockWifiPasswordPlaceholder")}
+                      type="password"
+                      value={wifiPassword}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-on-surface" htmlFor="mock-device-name">
+                      {t("mockDeviceName")}
+                    </label>
+                    <input
+                      className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none placeholder:text-on-surface-variant/40 focus:border-primary"
+                      id="mock-device-name"
+                      onChange={(event) => setMockDeviceName(event.target.value)}
+                      placeholder={t("mockDeviceNamePlaceholder")}
+                      type="text"
+                      value={mockDeviceName}
+                    />
+                  </div>
+
+                  <div className="rounded-lg bg-surface-container-low p-4 text-sm text-on-surface-variant">
+                    {t("mockClaimNotice", { claimCode: selectedDiscoveredDevice.claimCode })}
+                  </div>
+
+                  {mockProvisioningError ? (
+                    <p className="rounded-lg border border-error-container bg-error-container/50 p-3 text-sm text-on-error-container">
+                      {mockProvisioningError}
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                    <button
+                      className="secondary-action justify-center px-4 py-3"
+                      onClick={() => setSelectedDiscoveredDevice(null)}
+                      type="button"
+                    >
+                      {common("back")}
+                    </button>
+                    <button
+                      className="primary-action justify-center px-4 py-3 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isMockProvisioning}
+                      onClick={handleMockProvision}
+                      type="button"
+                    >
+                      {isMockProvisioning ? t("mockAddingDevice") : t("mockAddDevice")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+        ) : null}
 
         <section className="mb-12">
           <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold">

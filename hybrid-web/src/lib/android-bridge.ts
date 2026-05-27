@@ -25,6 +25,7 @@ type AndroidBridgeApi = {
   showToast?: (message: string) => void;
   openNativeScreen?: (screen: string) => void;
   scanQrLoginCode?: () => void;
+  scanWifiAccessPoints?: (discoveryId: string) => string;
   setTheme?: (theme: "light" | "dark") => void;
   logout?: () => void;
 };
