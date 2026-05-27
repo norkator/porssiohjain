@@ -202,6 +202,29 @@ public class PushNotificationService {
         return sendToAccount(account.getId(), title, body, data);
     }
 
+    public boolean sendDeviceOnlineNotification(
+            AccountEntity account,
+            DeviceEntity device,
+            String onlineSource,
+            Instant detectedAt,
+            Locale locale
+    ) {
+        String title = messageSource.getMessage("mail.deviceOnline.title", null, locale);
+        String body = messageSource.getMessage(
+                "mail.deviceOnline.intro",
+                new Object[]{device.getDeviceName()},
+                locale
+        );
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "DEVICE_ONLINE");
+        data.put("deviceId", String.valueOf(device.getId()));
+        data.put("deviceUuid", device.getUuid() == null ? "" : device.getUuid().toString());
+        data.put("deviceName", device.getDeviceName());
+        data.put("onlineSource", onlineSource);
+        data.put("detectedAt", detectedAt.toString());
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
     @Transactional
     public boolean sendToAccount(Long accountId, String title, String body, Map<String, String> data) {
         List<PushNotificationTokenEntity> tokens = pushNotificationTokenRepository

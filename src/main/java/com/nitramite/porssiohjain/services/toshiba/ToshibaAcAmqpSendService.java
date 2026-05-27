@@ -20,6 +20,7 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +52,7 @@ public class ToshibaAcAmqpSendService {
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final DeviceRepository deviceRepository;
     private final DeviceAcCommandLogService deviceAcCommandLogService;
+    private final DeviceOfflineNotificationService deviceOfflineNotificationService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void sendMessage(DeviceAcDataEntity acData, String payload) {
@@ -268,14 +270,24 @@ public class ToshibaAcAmqpSendService {
         if (deviceId == null) {
             return;
         }
-        DeviceEntity device = deviceRepository.findById(deviceId)
+        DeviceEntity device = deviceRepository.findWithAccountById(deviceId)
                 .orElse(null);
         if (device == null) {
             return;
         }
-        device.setLastCommunication(Instant.now());
+        Instant now = Instant.now();
+        boolean wasApiOnline = device.isApiOnline();
+        boolean wasMqttOnline = device.isMqttOnline();
+        device.setLastCommunication(now);
         device.setApiOnline(true);
         deviceRepository.save(device);
+        deviceOfflineNotificationService.sendIfDeviceCameOnline(
+                device,
+                wasApiOnline,
+                wasMqttOnline,
+                "API",
+                now
+        );
     }
 
     private Long getDeviceId(DeviceAcDataEntity acData) {

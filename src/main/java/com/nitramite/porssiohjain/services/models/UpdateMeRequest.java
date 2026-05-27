@@ -20,6 +20,7 @@ public class UpdateMeRequest {
     private Boolean notifyPowerLimitExceeded;
     private Boolean notifyControlActivated;
     private Boolean notifyDeviceOffline;
+    private Boolean notifyDeviceOnline;
     private Boolean emailNotificationsEnabled;
     private Boolean pushNotificationsEnabled;
 }

@@ -1,0 +1,2 @@
+ALTER TABLE account
+    ADD COLUMN notify_device_online BOOLEAN NOT NULL DEFAULT FALSE;

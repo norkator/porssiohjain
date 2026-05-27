@@ -214,6 +214,8 @@
     "notifyControlActivatedHelp": "Käyttää vain Firebase push -ilmoituksia ja lähetetään, kun ohjaus kytkeytyy päälle.",
     "notifyDeviceOffline": "Ilmoita kun laite menee pois verkosta",
     "notifyDeviceOfflineHelp": "Käyttää vain Firebase push -ilmoituksia ja lähetetään kerran, kun laite menettää sekä API- että MQTT-yhteyden.",
+    "notifyDeviceOnline": "Ilmoita kun laite palaa verkkoon",
+    "notifyDeviceOnlineHelp": "Käyttää vain Firebase push -ilmoituksia ja lähetetään kerran, kun täysin offline-tilassa ollut laite yhdistää API:n tai MQTT:n kautta.",
     "notificationChannels": "Ilmoituskanavat",
     "emailNotificationsEnabled": "Lähetä ilmoitukset sähköpostilla",
     "pushNotificationsEnabled": "Lähetä ilmoitukset sovelluksessa",

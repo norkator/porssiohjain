@@ -105,6 +105,47 @@ class DeviceOfflineNotificationServiceTest {
         );
     }
 
+    @Test
+    void sendsPushWhenDeviceComesOnlineFromFullyOfflineState() {
+        AccountEntity account = enabledAccount();
+        account.setNotifyDeviceOnline(true);
+        DeviceEntity device = offlineDevice(account);
+        device.setApiOnline(true);
+        Instant detectedAt = Instant.now();
+
+        when(pushNotificationTokenService.hasActivePushToken(1L)).thenReturn(true);
+        when(accountLimitService.tryConsumeWeeklyPushNotification(1L, detectedAt)).thenReturn(true);
+
+        service.sendIfDeviceCameOnline(device, false, false, "API", detectedAt);
+
+        verify(pushNotificationService).sendDeviceOnlineNotification(
+                eq(account),
+                eq(device),
+                eq("API"),
+                eq(detectedAt),
+                eq(Locale.ENGLISH)
+        );
+    }
+
+    @Test
+    void skipsOnlinePushWhenDeviceWasAlreadyOnlineByAnotherPath() {
+        AccountEntity account = enabledAccount();
+        account.setNotifyDeviceOnline(true);
+        DeviceEntity device = offlineDevice(account);
+        device.setMqttOnline(true);
+        Instant detectedAt = Instant.now();
+
+        service.sendIfDeviceCameOnline(device, true, false, "MQTT", detectedAt);
+
+        verify(pushNotificationService, never()).sendDeviceOnlineNotification(
+                eq(account),
+                eq(device),
+                eq("MQTT"),
+                eq(detectedAt),
+                eq(Locale.ENGLISH)
+        );
+    }
+
     private AccountEntity enabledAccount() {
         AccountEntity account = new AccountEntity();
         account.setId(1L);

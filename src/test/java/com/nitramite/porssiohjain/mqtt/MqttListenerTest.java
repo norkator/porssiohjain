@@ -75,6 +75,7 @@ class MqttListenerTest {
         assertTrue(savedDevice.getValue().isMqttOnline());
         assertNotNull(savedDevice.getValue().getLastCommunication());
         verify(deviceOfflineNotificationService, never()).sendIfDeviceWentOffline(any(), anyBoolean(), anyBoolean(), any(), any());
+        verify(deviceOfflineNotificationService).sendIfDeviceCameOnline(eq(device), eq(false), eq(false), eq("MQTT"), any());
     }
 
     @Test

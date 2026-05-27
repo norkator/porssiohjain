@@ -58,6 +58,7 @@ public class ControlService {
     private final AccountLimitService accountLimitService;
     private final PushNotificationService pushNotificationService;
     private final PushNotificationTokenService pushNotificationTokenService;
+    private final DeviceOfflineNotificationService deviceOfflineNotificationService;
     private final ThermostatCurveService thermostatCurveService;
     private final ControlPriceService controlPriceService;
     private final DemoAccountGuard demoAccountGuard;
@@ -692,9 +693,18 @@ public class ControlService {
 
         Instant nowUtc = Instant.now(); // current UTC time
         if (updateHeartbeat) {
+            boolean wasApiOnline = device.isApiOnline();
+            boolean wasMqttOnline = device.isMqttOnline();
             device.setLastCommunication(nowUtc);
             device.setApiOnline(true);
             deviceRepository.save(device);
+            deviceOfflineNotificationService.sendIfDeviceCameOnline(
+                    device,
+                    wasApiOnline,
+                    wasMqttOnline,
+                    "API",
+                    nowUtc
+            );
         }
 
         Map<Integer, Integer> channelMap = new HashMap<>();

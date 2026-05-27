@@ -53,7 +53,15 @@ public class MqttListener {
                         device.setMqttOnline(online);
                         device.setLastCommunication(now);
                         deviceRepository.save(device);
-                        if (!online) {
+                        if (online) {
+                            deviceOfflineNotificationService.sendIfDeviceCameOnline(
+                                    device,
+                                    wasApiOnline,
+                                    wasMqttOnline,
+                                    "MQTT",
+                                    now
+                            );
+                        } else {
                             deviceOfflineNotificationService.sendIfDeviceWentOffline(
                                     device,
                                     wasApiOnline,
