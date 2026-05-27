@@ -71,4 +71,5 @@ Bridge contract:
 - `getBootstrapData()`
 - `showToast(message)`
 - `openNativeScreen(screen)`
+- `scanWifiAccessPoints(discoveryId)`
 - `logout()`
