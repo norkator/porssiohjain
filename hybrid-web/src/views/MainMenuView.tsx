@@ -25,6 +25,55 @@ import { clearBrowserSession, getSessionData } from "@/lib/session";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 import { useEffect, useState } from "react";
 
+const SAVINGS_CHART_WIDTH = 720;
+const SAVINGS_CHART_HEIGHT = 170;
+const SAVINGS_CHART_PADDING_LEFT = 48;
+const SAVINGS_CHART_PADDING_RIGHT = 18;
+const SAVINGS_CHART_PADDING_TOP = 22;
+const SAVINGS_CHART_PADDING_BOTTOM = 38;
+const SAVINGS_CHART_Y_AXIS_STEPS = 4;
+const SAVINGS_CHART_LABEL_SIZE = 10;
+
+function formatSavingsAmount(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    style: "currency",
+    currency: "EUR"
+  }).format(value);
+}
+
+function getSavingsChartPoint(value: number, index: number, pointCount: number, maxValue: number) {
+  const innerWidth = SAVINGS_CHART_WIDTH - SAVINGS_CHART_PADDING_LEFT - SAVINGS_CHART_PADDING_RIGHT;
+  const innerHeight = SAVINGS_CHART_HEIGHT - SAVINGS_CHART_PADDING_TOP - SAVINGS_CHART_PADDING_BOTTOM;
+  const x = SAVINGS_CHART_PADDING_LEFT + (innerWidth * index) / Math.max(pointCount - 1, 1);
+  const y = SAVINGS_CHART_PADDING_TOP + innerHeight - (value / Math.max(maxValue, 1)) * innerHeight;
+
+  return { x, y };
+}
+
+function buildSavingsLinePath(values: number[], maxValue: number) {
+  return values
+    .map((value, index) => {
+      const point = getSavingsChartPoint(value, index, values.length, maxValue);
+      return `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
+    })
+    .join(" ");
+}
+
+function buildSavingsAreaPath(values: number[], maxValue: number) {
+  if (values.length === 0) {
+    return "";
+  }
+
+  const linePath = buildSavingsLinePath(values, maxValue);
+  const startX = SAVINGS_CHART_PADDING_LEFT;
+  const endX = SAVINGS_CHART_WIDTH - SAVINGS_CHART_PADDING_RIGHT;
+  const baselineY = SAVINGS_CHART_HEIGHT - SAVINGS_CHART_PADDING_BOTTOM;
+
+  return `${linePath} L ${endX.toFixed(2)} ${baselineY.toFixed(2)} L ${startX.toFixed(2)} ${baselineY.toFixed(2)} Z`;
+}
+
 export default function MainMenuView() {
   const session = getSessionData();
   const { group, t } = useI18n("mainMenu");
@@ -189,7 +238,14 @@ export default function MainMenuView() {
   const savingsSummaryText = currentMonthSavings && currentMonthSavings.scheduleEntryCount > 0 && currentMonthSavings.controlsWithEstimatedPowerCount > 0
     ? t("summarySavings", { savings: currentMonthSavings.estimatedSavingsEur.toFixed(2) })
     : "";
-  const maxMonthlySavings = Math.max(...monthlySavings.map((saving) => Math.max(saving.estimatedSavingsEur, 0)), 0);
+  const monthlySavingsValues = monthlySavings.map((saving) => Math.max(saving.estimatedSavingsEur, 0));
+  const maxMonthlySavings = Math.max(...monthlySavingsValues, 0);
+  const savingsChartMaxValue = maxMonthlySavings > 0 ? maxMonthlySavings * 1.15 : 1;
+  const savingsLinePath = buildSavingsLinePath(monthlySavingsValues, savingsChartMaxValue);
+  const savingsAreaPath = buildSavingsAreaPath(monthlySavingsValues, savingsChartMaxValue);
+  const savingsYAxisValues = Array.from({ length: SAVINGS_CHART_Y_AXIS_STEPS + 1 }, (_, index) =>
+    savingsChartMaxValue - (savingsChartMaxValue * index) / SAVINGS_CHART_Y_AXIS_STEPS
+  );
   const summaryText = (isLoading && isStatsLoading)
     ? t("summaryLoading")
     : (error && statsError)
@@ -348,28 +404,96 @@ export default function MainMenuView() {
                   {t("savingsEmpty")}
                 </p>
               ) : (
-                <div className="grid grid-cols-6 items-end gap-3">
-                  {monthlySavings.map((saving) => {
-                    const month = new Date(saving.from).toLocaleDateString(undefined, { month: "short" });
-                    const positiveSavings = Math.max(saving.estimatedSavingsEur, 0);
-                    const barHeight = maxMonthlySavings > 0 ? Math.max((positiveSavings / maxMonthlySavings) * 100, 8) : 8;
+                <div
+                  className="relative rounded-2xl p-2 sm:p-3"
+                  style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
+                >
+                  <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
+                    <svg
+                      aria-label={t("savingsTitle")}
+                      className="h-auto min-w-[34rem] aspect-[72/17] w-[34rem] sm:min-w-0 sm:w-full"
+                      role="img"
+                      viewBox={`0 0 ${SAVINGS_CHART_WIDTH} ${SAVINGS_CHART_HEIGHT}`}
+                    >
+                      <defs>
+                        <linearGradient id="monthly-savings-fill" x1="0" x2="0" y1="0" y2="1">
+                          <stop offset="0%" stopColor="rgb(var(--color-secondary) / 0.3)" />
+                          <stop offset="100%" stopColor="rgb(var(--color-secondary) / 0.04)" />
+                        </linearGradient>
+                      </defs>
 
-                    return (
-                      <div className="flex min-h-40 flex-col justify-end gap-2" key={saving.from}>
-                        <div className="flex flex-1 items-end rounded-lg bg-surface-container-highest px-2 pb-2">
-                          <div
-                            className="w-full rounded-md bg-primary transition-[height] duration-700"
-                            style={{ height: `${barHeight}%` }}
-                            title={`${positiveSavings.toFixed(2)} €`}
-                          />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs font-bold text-on-surface">{positiveSavings.toFixed(0)} €</p>
-                          <p className="text-xs text-on-surface-variant">{month}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      <rect
+                        fill="rgb(var(--chart-plot-background))"
+                        height={SAVINGS_CHART_HEIGHT - SAVINGS_CHART_PADDING_TOP - SAVINGS_CHART_PADDING_BOTTOM}
+                        rx="18"
+                        width={SAVINGS_CHART_WIDTH - SAVINGS_CHART_PADDING_LEFT - SAVINGS_CHART_PADDING_RIGHT}
+                        x={SAVINGS_CHART_PADDING_LEFT}
+                        y={SAVINGS_CHART_PADDING_TOP}
+                      />
+
+                      {savingsYAxisValues.map((value, index) => {
+                        const y = SAVINGS_CHART_PADDING_TOP
+                          + ((SAVINGS_CHART_HEIGHT - SAVINGS_CHART_PADDING_TOP - SAVINGS_CHART_PADDING_BOTTOM) * index) / SAVINGS_CHART_Y_AXIS_STEPS;
+
+                        return (
+                          <g key={value}>
+                            <line
+                              stroke="rgb(var(--color-outline-variant) / 0.6)"
+                              strokeDasharray="6 8"
+                              strokeWidth="1"
+                              x1={SAVINGS_CHART_PADDING_LEFT}
+                              x2={SAVINGS_CHART_WIDTH - SAVINGS_CHART_PADDING_RIGHT}
+                              y1={y}
+                              y2={y}
+                            />
+                            <text fill="rgb(var(--color-on-surface-variant))" fontSize={SAVINGS_CHART_LABEL_SIZE} textAnchor="end" x={SAVINGS_CHART_PADDING_LEFT - 8} y={y + 3}>
+                              {formatSavingsAmount(value)}
+                            </text>
+                          </g>
+                        );
+                      })}
+
+                      {monthlySavings.map((saving, index) => {
+                        const point = getSavingsChartPoint(monthlySavingsValues[index], index, monthlySavingsValues.length, savingsChartMaxValue);
+                        const month = new Date(saving.from).toLocaleDateString(undefined, { month: "short" });
+
+                        return (
+                          <text
+                            fill="rgb(var(--color-on-surface-variant))"
+                            fontSize={SAVINGS_CHART_LABEL_SIZE}
+                            key={saving.from}
+                            textAnchor={index === monthlySavings.length - 1 ? "end" : index === 0 ? "start" : "middle"}
+                            x={point.x}
+                            y={SAVINGS_CHART_HEIGHT - 14}
+                          >
+                            {month}
+                          </text>
+                        );
+                      })}
+
+                      <path d={savingsAreaPath} fill="url(#monthly-savings-fill)" />
+                      <path d={savingsLinePath} fill="none" stroke="rgb(var(--color-primary))" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
+
+                      {monthlySavings.map((saving, index) => {
+                        const positiveSavings = monthlySavingsValues[index];
+                        const point = getSavingsChartPoint(positiveSavings, index, monthlySavingsValues.length, savingsChartMaxValue);
+
+                        return (
+                          <g key={`${saving.from}-point`}>
+                            <circle
+                              cx={point.x}
+                              cy={point.y}
+                              fill="rgb(var(--color-secondary-container))"
+                              r="4"
+                              stroke="rgb(var(--color-primary))"
+                              strokeWidth="2"
+                            />
+                            <title>{`${positiveSavings.toFixed(2)} €`}</title>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
                 </div>
               )}
 
