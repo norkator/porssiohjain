@@ -63,6 +63,7 @@ public class AccountService {
                 .notifyPowerLimitExceeded(savedAccount.isNotifyPowerLimitExceeded())
                 .notifyControlActivated(savedAccount.isNotifyControlActivated())
                 .notifyDeviceOffline(savedAccount.isNotifyDeviceOffline())
+                .notifyDeviceOnline(savedAccount.isNotifyDeviceOnline())
                 .emailNotificationsEnabled(savedAccount.isEmailNotificationsEnabled())
                 .pushNotificationsEnabled(savedAccount.isPushNotificationsEnabled())
                 .tier(savedAccount.getTier())
@@ -123,6 +124,13 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
+    public boolean getNotifyDeviceOnline(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::isNotifyDeviceOnline)
+                .orElse(false);
+    }
+
+    @Transactional(readOnly = true)
     public boolean getPushNotificationsEnabled(Long accountId) {
         return accountRepository.findById(accountId)
                 .map(AccountEntity::isPushNotificationsEnabled)
@@ -143,6 +151,7 @@ public class AccountService {
             boolean notifyPowerLimitExceeded,
             boolean notifyControlActivated,
             boolean notifyDeviceOffline,
+            boolean notifyDeviceOnline,
             boolean emailNotificationsEnabled,
             boolean pushNotificationsEnabled,
             String locale
@@ -153,6 +162,7 @@ public class AccountService {
             account.setNotifyPowerLimitExceeded(notifyPowerLimitExceeded);
             account.setNotifyControlActivated(notifyControlActivated);
             account.setNotifyDeviceOffline(notifyDeviceOffline);
+            account.setNotifyDeviceOnline(notifyDeviceOnline);
             account.setEmailNotificationsEnabled(emailNotificationsEnabled);
             account.setPushNotificationsEnabled(pushNotificationsEnabled);
             account.setLocale(locale != null && !locale.isBlank() ? locale.trim() : "en");

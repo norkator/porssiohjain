@@ -62,4 +62,38 @@ public class DeviceOfflineNotificationService {
             log.error("Failed to send device {} offline push", device.getId(), e);
         }
     }
+
+    public void sendIfDeviceCameOnline(
+            DeviceEntity device,
+            boolean wasApiOnline,
+            boolean wasMqttOnline,
+            String onlineSource,
+            Instant detectedAt
+    ) {
+        boolean wasOnline = wasApiOnline || wasMqttOnline;
+        boolean isOnline = device.isApiOnline() || device.isMqttOnline();
+        if (wasOnline || !isOnline) {
+            return;
+        }
+
+        AccountEntity account = device.getAccount();
+        if (account == null || !account.isNotifyDeviceOnline() || !account.isPushNotificationsEnabled()) {
+            return;
+        }
+        if (!pushNotificationTokenService.hasActivePushToken(account.getId())) {
+            log.info("Device online push not sent because account {} has no active push tokens", account.getId());
+            return;
+        }
+        if (!accountLimitService.tryConsumeWeeklyPushNotification(account.getId(), detectedAt)) {
+            log.info("Device online push not sent because account {} reached weekly push notification limit", account.getId());
+            return;
+        }
+
+        Locale locale = Locale.forLanguageTag(account.getLocale() != null ? account.getLocale() : "en");
+        try {
+            pushNotificationService.sendDeviceOnlineNotification(account, device, onlineSource, detectedAt, locale);
+        } catch (RuntimeException e) {
+            log.error("Failed to send device {} online push", device.getId(), e);
+        }
+    }
 }

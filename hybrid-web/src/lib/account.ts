@@ -23,6 +23,7 @@ export type MeResponse = {
   notifyPowerLimitExceeded: boolean;
   notifyControlActivated: boolean;
   notifyDeviceOffline: boolean;
+  notifyDeviceOnline: boolean;
   emailNotificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
   createdAt: string | null;
@@ -59,6 +60,7 @@ export async function updateMe(input: {
   notifyPowerLimitExceeded: boolean;
   notifyControlActivated: boolean;
   notifyDeviceOffline: boolean;
+  notifyDeviceOnline: boolean;
   emailNotificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
 }) {

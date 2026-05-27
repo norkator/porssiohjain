@@ -65,6 +65,7 @@ export default function AccountSettingsView() {
   const [notifyPowerLimitExceeded, setNotifyPowerLimitExceeded] = useState(false);
   const [notifyControlActivated, setNotifyControlActivated] = useState(false);
   const [notifyDeviceOffline, setNotifyDeviceOffline] = useState(false);
+  const [notifyDeviceOnline, setNotifyDeviceOnline] = useState(false);
   const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(false);
   const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(false);
 
@@ -103,6 +104,7 @@ export default function AccountSettingsView() {
         setNotifyPowerLimitExceeded(response.notifyPowerLimitExceeded);
         setNotifyControlActivated(response.notifyControlActivated);
         setNotifyDeviceOffline(response.notifyDeviceOffline);
+        setNotifyDeviceOnline(response.notifyDeviceOnline);
         setEmailNotificationsEnabled(response.emailNotificationsEnabled);
         setPushNotificationsEnabled(response.pushNotificationsEnabled);
       } catch (error) {
@@ -138,6 +140,7 @@ export default function AccountSettingsView() {
         notifyPowerLimitExceeded,
         notifyControlActivated,
         notifyDeviceOffline,
+        notifyDeviceOnline,
         emailNotificationsEnabled,
         pushNotificationsEnabled
       });
@@ -155,6 +158,7 @@ export default function AccountSettingsView() {
       setNotifyPowerLimitExceeded(response.notifyPowerLimitExceeded);
       setNotifyControlActivated(response.notifyControlActivated);
       setNotifyDeviceOffline(response.notifyDeviceOffline);
+      setNotifyDeviceOnline(response.notifyDeviceOnline);
       setEmailNotificationsEnabled(response.emailNotificationsEnabled);
       setPushNotificationsEnabled(response.pushNotificationsEnabled);
       setCurrentLocale((response.locale || "en") as "en" | "fi");
@@ -417,6 +421,18 @@ export default function AccountSettingsView() {
                         />
                       </label>
                       <p className="mt-2 text-xs leading-5 text-on-surface-variant">{t("notifyDeviceOfflineHelp")}</p>
+                    </div>
+                    <div className="rounded-2xl bg-surface-container-highest px-4 py-4 text-sm text-on-surface">
+                      <label className="flex items-center justify-between gap-4">
+                        <span>{t("notifyDeviceOnline")}</span>
+                        <input
+                          checked={notifyDeviceOnline}
+                          disabled={isDemoAccount}
+                          onChange={(event) => setNotifyDeviceOnline(event.target.checked)}
+                          type="checkbox"
+                        />
+                      </label>
+                      <p className="mt-2 text-xs leading-5 text-on-surface-variant">{t("notifyDeviceOnlineHelp")}</p>
                     </div>
                   </div>
 

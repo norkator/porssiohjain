@@ -146,7 +146,15 @@ public class ToshibaAcStateService {
         boolean apiOnline = isWithinOnlineThreshold(lastConnectionTime);
         device.setApiOnline(apiOnline);
         deviceRepository.save(device);
-        if (!apiOnline) {
+        if (apiOnline) {
+            deviceOfflineNotificationService.sendIfDeviceCameOnline(
+                    device,
+                    wasApiOnline,
+                    wasMqttOnline,
+                    "API",
+                    Instant.now()
+            );
+        } else {
             deviceOfflineNotificationService.sendIfDeviceWentOffline(
                     device,
                     wasApiOnline,

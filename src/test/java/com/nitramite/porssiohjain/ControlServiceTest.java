@@ -49,6 +49,7 @@ import com.nitramite.porssiohjain.entity.repository.WeatherControlDeviceReposito
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.ControlService;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import com.nitramite.porssiohjain.services.PushNotificationService;
 import com.nitramite.porssiohjain.services.PushNotificationTokenService;
@@ -148,6 +149,9 @@ class ControlServiceTest {
     private PushNotificationTokenService pushNotificationTokenService;
 
     @Mock
+    private DeviceOfflineNotificationService deviceOfflineNotificationService;
+
+    @Mock
     private ThermostatCurveService thermostatCurveService;
 
     @Mock
@@ -182,6 +186,7 @@ class ControlServiceTest {
                 accountLimitService,
                 pushNotificationService,
                 pushNotificationTokenService,
+                deviceOfflineNotificationService,
                 thermostatCurveService,
                 controlPriceService,
                 demoAccountGuard

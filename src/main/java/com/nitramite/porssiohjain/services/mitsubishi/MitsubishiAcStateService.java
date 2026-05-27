@@ -188,7 +188,15 @@ public class MitsubishiAcStateService {
         boolean apiOnline = isApiOnlineFromLastCommunication(lastCommunication);
         managedDevice.setApiOnline(apiOnline);
         deviceRepository.save(managedDevice);
-        if (!apiOnline) {
+        if (apiOnline) {
+            deviceOfflineNotificationService.sendIfDeviceCameOnline(
+                    managedDevice,
+                    wasApiOnline,
+                    wasMqttOnline,
+                    "API",
+                    Instant.now()
+            );
+        } else {
             deviceOfflineNotificationService.sendIfDeviceWentOffline(
                     managedDevice,
                     wasApiOnline,
