@@ -53,8 +53,17 @@ export function getCurrentLocale() {
   return getSupportedLocale(getSessionData().locale) ?? getSupportedLocale(getBrowserLocale()) ?? "en";
 }
 
+export function syncDocumentLocale(locale?: string) {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.documentElement.lang = getSupportedLocale(locale) ?? getCurrentLocale();
+}
+
 export function setCurrentLocale(locale: SupportedLocale) {
   setDevSessionOverride({ locale });
+  syncDocumentLocale(locale);
 }
 
 function interpolate(value: string, params?: TranslationParams) {

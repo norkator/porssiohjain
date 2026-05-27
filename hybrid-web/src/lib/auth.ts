@@ -10,7 +10,7 @@
  */
 
 import { getSessionData, setBrowserSession } from "@/lib/session";
-import { getCurrentLocale } from "@/lib/i18n";
+import { getCurrentLocale, syncDocumentLocale } from "@/lib/i18n";
 
 export type LoginResponse = {
   token: string;
@@ -75,6 +75,7 @@ export async function loginWithCredentials(input: { uuid: string; secret: string
     accountId: loginResponse.accountId,
     locale: loginResponse.locale ?? getCurrentLocale()
   });
+  syncDocumentLocale(loginResponse.locale);
 
   return loginResponse;
 }

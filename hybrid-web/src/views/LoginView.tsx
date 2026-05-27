@@ -14,7 +14,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import HeaderLogo from "@/components/HeaderLogo";
 import { loginWithCredentials } from "@/lib/auth";
-import { getCurrentLocale, setCurrentLocale, supportedLocales, type SupportedLocale, useI18n } from "@/lib/i18n";
+import { getCurrentLocale, setCurrentLocale, supportedLocales, syncDocumentLocale, type SupportedLocale, useI18n } from "@/lib/i18n";
 import { cancelQrLoginChallenge, completeQrLoginChallenge, createQrLoginChallenge, isQrLoginComplete, type QrLoginChallenge } from "@/lib/qr-login";
 import { getSessionData, setBrowserSession } from "@/lib/session";
 
@@ -89,6 +89,7 @@ export default function LoginView() {
             accountId: result.accountId,
             locale: result.locale ?? getCurrentLocale()
           });
+          syncDocumentLocale(result.locale);
           navigate("/menu", { replace: true });
           return;
         }
