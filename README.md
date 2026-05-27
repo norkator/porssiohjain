@@ -86,28 +86,7 @@ Editable source: [doc/control-output-high-level.puml](./doc/control-output-high-
     * Built-in documentation pages.
     * REST endpoints for account, device, control, power, dashboard, onboarding and Nord Pool data.
 
-## Installation Guide
-
-### Service Account and Settings
-
-#### User Account
-
-Start by creating a user account and copy the credentials immediately, because they are shown only once.
-
-![account](./doc/account.png)
-
-#### Adding Devices
-
-After logging in, add your devices and copy the UUID.
-For example, in the Shelly script, this UUID is used as the `DEVICE_UUID` value.
-
-![my-devices](./doc/my_devices.png)
-
-#### Creating Controls
-
-Create controls in the `My controls` view by setting the mode, tax, and maximum prices.
-
-In each control, add the devices and channels you want to control from the menu.
+## Installation guides
 
 ### Shelly Script for Controls
 
