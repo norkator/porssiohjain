@@ -32,6 +32,7 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.AttachmentType;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
@@ -41,8 +42,9 @@ import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.router.*;
-import com.vaadin.flow.server.StreamResource;
 import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.server.streams.DownloadHandler;
+import com.vaadin.flow.server.streams.DownloadResponse;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -272,14 +274,18 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         Paragraph description = new Paragraph(t("settings.export.description"));
         description.getStyle().set("margin", "0");
 
-        StreamResource resource = new StreamResource(
-                "porssiohjain-account-" + accountService.getUuidById(accountId) + "-export.json",
-                () -> new ByteArrayInputStream(accountDataExportService.exportAccountData(accountId))
-        );
-        resource.setContentType("application/json");
+        String filename = "porssiohjain-account-" + accountService.getUuidById(accountId) + "-export.json";
+        DownloadHandler downloadHandler = DownloadHandler.fromInputStream(event -> {
+            byte[] export = accountDataExportService.exportAccountData(accountId);
+            return new DownloadResponse(
+                    new ByteArrayInputStream(export),
+                    filename,
+                    "application/json",
+                    export.length
+            );
+        });
 
-        Anchor downloadLink = new Anchor(resource, "");
-        downloadLink.getElement().setAttribute("download", true);
+        Anchor downloadLink = new Anchor(downloadHandler, AttachmentType.DOWNLOAD, "");
 
         Button downloadButton = new Button(t("settings.export.button"));
         downloadButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
