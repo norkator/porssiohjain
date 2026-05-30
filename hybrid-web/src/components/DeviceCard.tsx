@@ -76,13 +76,13 @@ export default function DeviceCard({
           <span
             className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold ${
               statusTone === "online"
-                ? "bg-primary-fixed text-primary"
+                ? "bg-primary-fixed text-[#004342]"
                 : "bg-error-container text-on-error-container"
             }`}
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                statusTone === "online" ? "bg-primary" : "bg-red-500"
+                statusTone === "online" ? "bg-[#004342]" : "bg-red-500"
               }`}
             />
             {status}

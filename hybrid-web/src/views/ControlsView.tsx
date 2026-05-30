@@ -80,11 +80,11 @@ export default function ControlsView() {
                       <span
                         className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold ${
                           status.tone === "online"
-                            ? "bg-primary-fixed text-primary"
+                            ? "bg-primary-fixed text-[#004342]"
                             : "bg-error-container text-on-error-container"
                         }`}
                       >
-                        <span className={`h-1.5 w-1.5 rounded-full ${status.tone === "online" ? "bg-primary" : "bg-red-500"}`} />
+                        <span className={`h-1.5 w-1.5 rounded-full ${status.tone === "online" ? "bg-[#004342]" : "bg-red-500"}`} />
                         {status.label}
                       </span>
                     </div>

@@ -129,7 +129,7 @@ export default function ProductionSourcesView() {
             <article className={`group app-card border-l-4 ${source.enabled ? "border-primary" : "border-outline"} p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6`} key={source.id}>
               <div className="mb-5 flex justify-between gap-3">
                 <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-surface-container-lowest">{label(source.apiType)}</span>
-                <span className={`rounded px-2 py-1 text-[10px] font-bold ${source.enabled ? "bg-primary-fixed text-primary" : "bg-error-container text-on-error-container"}`}>{source.enabled ? common("enabled") : common("disabled")}</span>
+                <span className={`rounded px-2 py-1 text-[10px] font-bold ${source.enabled ? "bg-primary-fixed text-[#004342]" : "bg-error-container text-on-error-container"}`}>{source.enabled ? common("enabled") : common("disabled")}</span>
               </div>
               <h3 className="font-headline text-2xl font-bold">{source.name}</h3>
               <p className="mb-6 mt-1 font-mono text-xs text-outline">{common("id", { id: source.id })}</p>
