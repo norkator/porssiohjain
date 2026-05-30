@@ -85,7 +85,7 @@ function buildSavingsAreaPath(values: number[], maxValue: number) {
 export default function MainMenuView() {
   const navigate = useNavigate();
   const session = getSessionData();
-  const { group, t } = useI18n("mainMenu");
+  const { group, locale, t } = useI18n("mainMenu");
   const common = useI18n("common").t;
   const tileTitles = group("tileTitles");
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => getThemePreference());
@@ -719,7 +719,7 @@ export default function MainMenuView() {
 
                       {monthlySavings.map((saving, index) => {
                         const point = getSavingsChartPoint(monthlySavingsValues[index], index, monthlySavingsValues.length, savingsChartMaxValue);
-                        const month = new Date(saving.from).toLocaleDateString(undefined, { month: "short" });
+                        const month = new Date(saving.from).toLocaleDateString(locale, { month: "short" });
 
                         return (
                           <text
