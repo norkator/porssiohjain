@@ -271,7 +271,7 @@ export default function MainMenuView() {
   const showSavingsEmptyState = !hasSavingsData;
   const savingsSummaryText = currentMonthSavings && currentMonthSavings.scheduleEntryCount > 0 && currentMonthSavings.controlsWithEstimatedPowerCount > 0
     ? t("summarySavings", { savings: currentMonthSavings.estimatedSavingsEur.toFixed(2) })
-    : "";
+    : t("summarySavingsUnavailable");
   const monthlySavingsValues = monthlySavings.map((saving) => Math.max(saving.estimatedSavingsEur, 0));
   const maxMonthlySavings = Math.max(...monthlySavingsValues, 0);
   const savingsChartMaxValue = maxMonthlySavings > 0 ? maxMonthlySavings * 1.15 : 1;
@@ -289,7 +289,7 @@ export default function MainMenuView() {
         : error
           ? t("summaryDevicesUnavailable", { consumptionKw: formatKw(totalConsumptionKw), productionKw: formatKw(totalProductionKw) })
           : netPowerKw >= 0
-            ? t("summaryProductionAhead", { onlineCount, totalCount, netKw: formatKw(netPowerKw), consumptionKw: formatKw(totalConsumptionKw) })
+            ? t("summaryProductionAhead", { onlineCount, totalCount, netKw: formatKw(netPowerKw), consumptionKw: formatKw(totalConsumptionKw), savingsText: savingsSummaryText })
             : t("summaryConsumptionAhead", { onlineCount, totalCount, consumptionKw: formatKw(totalConsumptionKw), netKw: formatKw(Math.abs(netPowerKw)), savingsText: savingsSummaryText });
   const handleLogout = () => {
     if (session.source === "android") {
