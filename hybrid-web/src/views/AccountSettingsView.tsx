@@ -268,12 +268,12 @@ export default function AccountSettingsView() {
               </div>
 
               <article className="app-card overflow-hidden">
-                <div className="signature-gradient relative p-4 text-on-primary sm:p-6">
+                <div className="account-tier-card signature-gradient relative p-4 text-on-primary sm:p-6">
                   <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-secondary-container/20 blur-2xl" />
                   <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-primary-fixed">{t("tierCardEyebrow")}</p>
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <h2 className="font-headline text-3xl font-black">{tierLabels[tier]}</h2>
+                      <h2 className="font-headline text-3xl font-black text-white">{tierLabels[tier]}</h2>
                       <p className="mt-2 text-sm text-primary-fixed">{t("tierDescription")}</p>
                     </div>
                     <span className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-[0.2em] text-white ${getTierTone(tier)}`}>
@@ -378,7 +378,7 @@ export default function AccountSettingsView() {
                             type="button"
                           >
                             <span className="block font-headline text-sm font-bold">{option.label}</span>
-                            <span className={`mt-1 block text-xs ${selected ? "text-primary-fixed" : "text-on-surface-variant"}`}>
+                            <span className={`mt-1 block text-xs ${selected ? "text-on-primary/75" : "text-on-surface-variant"}`}>
                               {selected ? t("themeSelected") : t("themeTapToUse")}
                             </span>
                           </button>
@@ -468,7 +468,7 @@ export default function AccountSettingsView() {
                   </Link>
                 </div>
 
-                {message ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary">{message}</div> : null}
+                {message ? <div className="rounded-xl bg-primary-container p-4 text-sm font-semibold text-on-primary">{message}</div> : null}
                 {saveError ? <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{saveError}</div> : null}
               </form>
 
@@ -533,7 +533,7 @@ export default function AccountSettingsView() {
                   </button>
                 </div>
 
-                {passwordMessage ? <div className="rounded-xl bg-primary-fixed p-4 text-sm font-semibold text-primary">{passwordMessage}</div> : null}
+                {passwordMessage ? <div className="rounded-xl bg-primary-container p-4 text-sm font-semibold text-on-primary">{passwordMessage}</div> : null}
                 {passwordError ? <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{passwordError}</div> : null}
               </form>
 
@@ -567,7 +567,7 @@ export default function AccountSettingsView() {
 
                 <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
                   <button
-                    className="inline-flex items-center justify-center rounded-xl bg-on-error-container px-6 py-4 font-headline text-lg font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-xl bg-on-error-container px-6 py-4 font-headline text-lg font-bold text-error-container transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                     onClick={() => {
                       setDeleteError(null);
                       setIsDeleteDialogOpen(true);
@@ -607,7 +607,7 @@ export default function AccountSettingsView() {
                 {common("cancel")}
               </button>
               <button
-                className="inline-flex items-center justify-center rounded-xl bg-on-error-container px-6 py-4 font-headline text-lg font-bold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-xl bg-on-error-container px-6 py-4 font-headline text-lg font-bold text-error-container transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isDeletingAccount}
                 onClick={handleDeleteAccount}
                 type="button"
