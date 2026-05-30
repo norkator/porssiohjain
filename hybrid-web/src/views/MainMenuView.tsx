@@ -117,6 +117,7 @@ export default function MainMenuView() {
     error: statsError,
     isLoading: isStatsLoading,
     totalConsumptionKw,
+    totalProductionPeakKw,
     totalProductionKw
   } = useAccountStats();
   const deviceTileDetail = isLoading
@@ -254,14 +255,15 @@ export default function MainMenuView() {
       hasError: contractsError
     }
   ];
-  const solarCoverageRatio = totalConsumptionKw > 0
-    ? Math.min(totalProductionKw / totalConsumptionKw, 1)
+  const productionUtilizationRatio = totalProductionPeakKw > 0
+    ? Math.min(totalProductionKw / totalProductionPeakKw, 1)
     : totalProductionKw > 0
       ? 1
       : 0;
-  const productionBarWidth = `${Math.max(solarCoverageRatio * 100, 6)}%`;
+  const productionBarWidth = `${productionUtilizationRatio * 100}%`;
   const consumptionLabel = isStatsLoading ? "--" : formatKw(totalConsumptionKw);
   const productionLabel = isStatsLoading ? "--" : formatKw(totalProductionKw, true);
+  const productionPeakLabel = isStatsLoading ? "--" : formatKw(totalProductionPeakKw);
   const netPowerKw = totalProductionKw - totalConsumptionKw;
   const showAndroidAppLink = session.source !== "android";
   const currentMonthSavings = monthlySavings.length > 0 ? monthlySavings[monthlySavings.length - 1] : undefined;
@@ -428,7 +430,7 @@ export default function MainMenuView() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between text-sm">
                     <span className="dashboard-hero-support">{t("solarProduction")}</span>
-                    <span className="dashboard-hero-accent font-bold">{productionLabel} kW</span>
+                    <span className="dashboard-hero-accent font-bold">{productionLabel} kW/{productionPeakLabel} kW</span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/30">
                     <div
