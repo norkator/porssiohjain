@@ -110,7 +110,7 @@ public class MarketNotificationService {
     }
 
     void sendDueNotifications(Instant now) {
-        for (MarketNotificationEntity notification : marketNotificationRepository.findByEnabledTrueAndLastSentAtIsNullOrderByIdAsc()) {
+        for (MarketNotificationEntity notification : marketNotificationRepository.findByEnabledTrueOrderByIdAsc()) {
             try {
                 sendIfDue(notification, now);
             } catch (Exception e) {
@@ -128,6 +128,9 @@ public class MarketNotificationService {
         ZoneId zone = ZoneId.of(notification.getTimezone());
         ZonedDateTime nowLocal = now.atZone(zone);
         if (!isInsideActiveWindow(nowLocal.toLocalTime(), notification.getActiveFrom(), notification.getActiveTo())) {
+            return;
+        }
+        if (wasSentForNotificationDate(notification.getLastSentAt(), nowLocal.toLocalDate(), zone)) {
             return;
         }
 
@@ -254,6 +257,10 @@ public class MarketNotificationService {
             return !now.isBefore(from) && now.isBefore(to);
         }
         return !now.isBefore(from) || now.isBefore(to);
+    }
+
+    private boolean wasSentForNotificationDate(Instant lastSentAt, LocalDate notificationDate, ZoneId zone) {
+        return lastSentAt != null && lastSentAt.atZone(zone).toLocalDate().equals(notificationDate);
     }
 
     private boolean hasNotificationDeliveryChannel(AccountEntity account) {

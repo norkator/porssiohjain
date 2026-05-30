@@ -21,7 +21,7 @@ public interface MarketNotificationRepository extends JpaRepository<MarketNotifi
 
     List<MarketNotificationEntity> findByAccountIdOrderByIdAsc(Long accountId);
 
-    List<MarketNotificationEntity> findByEnabledTrueAndLastSentAtIsNullOrderByIdAsc();
+    List<MarketNotificationEntity> findByEnabledTrueOrderByIdAsc();
 
     Optional<MarketNotificationEntity> findByIdAndAccountId(Long id, Long accountId);
 }
