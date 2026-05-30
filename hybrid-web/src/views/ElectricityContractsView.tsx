@@ -166,7 +166,7 @@ export default function ElectricityContractsView() {
             <article className="group app-card border-l-4 border-primary p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft sm:p-6" key={contract.id}>
               <div className="mb-5 flex justify-between gap-3">
                 <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-surface-container-lowest">{contractTypeLabel(contract.type)}</span>
-                <span className="rounded px-2 py-1 text-[10px] font-bold bg-primary-fixed text-primary">{contract.staticPrice !== null ? t("staticBadge") : t("variableBadge")}</span>
+                <span className="rounded bg-primary-fixed px-2 py-1 text-[10px] font-bold text-[#004342]">{contract.staticPrice !== null ? t("staticBadge") : t("variableBadge")}</span>
               </div>
               <h3 className="font-headline text-2xl font-bold">{contract.name}</h3>
               <p className="mb-6 mt-1 font-mono text-xs text-outline">{common("id", { id: contract.id })}</p>
