@@ -90,12 +90,8 @@ public class PushNotificationService {
             ZonedDateTime activeSince,
             Locale locale
     ) {
-        String title = messageSource.getMessage("mail.controlNotification.title", null, locale);
-        String body = messageSource.getMessage(
-                "mail.controlNotification.intro",
-                new Object[]{control.getName(), notification.getName()},
-                locale
-        );
+        String title = notification.getName();
+        String body = notification.getDescription() == null ? "" : notification.getDescription();
         Map<String, String> data = new LinkedHashMap<>();
         data.put("type", "CONTROL_NOTIFICATION");
         data.put("controlId", String.valueOf(control.getId()));
@@ -160,12 +156,8 @@ public class PushNotificationService {
             ZonedDateTime detectedAt,
             Locale locale
     ) {
-        String title = messageSource.getMessage("mail.marketNotification.title", null, locale);
-        String body = messageSource.getMessage(
-                "mail.marketNotification.intro",
-                new Object[]{notification.getName()},
-                locale
-        );
+        String title = notification.getName();
+        String body = notification.getDescription() == null ? "" : notification.getDescription();
         Map<String, String> data = new LinkedHashMap<>();
         data.put("type", "MARKET_NOTIFICATION");
         data.put("notificationId", String.valueOf(notification.getId()));
