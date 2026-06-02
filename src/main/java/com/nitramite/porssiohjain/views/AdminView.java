@@ -78,6 +78,9 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         Button provisioningButton = new Button(t("admin.provisioning.button"),
                 e -> UI.getCurrent().navigate(AdminProvisioningView.class));
         provisioningButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button usersButton = new Button(t("admin.users.button"),
+                e -> UI.getCurrent().navigate(AdminUsersView.class));
+        usersButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button refreshLogsButton = new Button("Refresh logs", e -> refreshLogs());
 
         H1 title = new H1(t("admin.title"));
@@ -91,6 +94,7 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
                 backButton,
                 title,
                 provisioningButton,
+                usersButton,
                 refreshLogsButton,
                 createDivider(),
                 systemLogsTitle,
