@@ -18,6 +18,8 @@ import { getThemePreference, setThemePreference, type ThemePreference } from "@/
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+const ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller";
+
 function getTierTone(tier: AccountTier) {
   switch (tier) {
     case "FREE":
@@ -308,7 +310,13 @@ export default function AccountSettingsView() {
               <article className="app-card p-4 sm:p-6">
                 <p className="metric-label mb-3">{t("billingEyebrow")}</p>
                 <h2 className="font-headline text-2xl font-extrabold text-primary">{t("billingTitle")}</h2>
-                <p className="mt-3 text-sm leading-6 text-on-surface-variant">{t("billingDescription")}</p>
+                {t("billingDescription") ? <p className="mt-3 text-sm leading-6 text-on-surface-variant">{t("billingDescription")}</p> : null}
+                <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+                  {t("billingAndroidAppPrompt")}{" "}
+                  <a className="font-semibold text-primary underline underline-offset-2" href={ANDROID_APP_URL} rel="noreferrer" target="_blank">
+                    {t("billingAndroidAppLink")}
+                  </a>
+                </p>
                 <div className="mt-5 space-y-3">
                   {subscriptionProducts.map((product) => {
                     const isCurrentTier = tier === product.tier;
