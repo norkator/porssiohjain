@@ -11,7 +11,7 @@
 
 import PageHeader from "@/components/PageHeader";
 import { changePassword, deleteMe, downloadAccountExport, fetchMe, updateMe, type AccountTier } from "@/lib/account";
-import { logoutNative } from "@/lib/android-bridge";
+import { logoutNative, showNativeToast, startGooglePlaySubscriptionPurchase } from "@/lib/android-bridge";
 import { setCurrentLocale, supportedLocales, useI18n } from "@/lib/i18n";
 import { clearBrowserSession, getSessionData, setDevSessionOverride } from "@/lib/session";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
@@ -46,6 +46,8 @@ export default function AccountSettingsView() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [billingMessage, setBillingMessage] = useState<string | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [tier, setTier] = useState<AccountTier>("FREE");
   const [email, setEmail] = useState("");
@@ -74,6 +76,10 @@ export default function AccountSettingsView() {
   const themeOptions: Array<{ value: ThemePreference; label: string }> = [
     { value: "light", label: t("themeLight") },
     { value: "dark", label: t("themeDark") }
+  ];
+  const subscriptionProducts = [
+    { productId: "porssiohjain_pro_monthly", tier: "PRO" as AccountTier },
+    { productId: "porssiohjain_business_monthly", tier: "BUSINESS" as AccountTier }
   ];
 
   useEffect(() => {
@@ -252,6 +258,21 @@ export default function AccountSettingsView() {
     }
   };
 
+  const handleStartSubscription = (productId: string) => {
+    setBillingMessage(null);
+    setBillingError(null);
+
+    const started = startGooglePlaySubscriptionPurchase(productId);
+    if (!started) {
+      setBillingError(t("billingBridgeUnavailable"));
+      return;
+    }
+
+    const nextMessage = t("billingStarted");
+    setBillingMessage(nextMessage);
+    showNativeToast(nextMessage);
+  };
+
   return (
     <>
       <PageHeader rightSlot={<Link className="secondary-action px-4 py-2 text-sm" to="/menu">{common("menu")}</Link>} title={t("title")} compact />
@@ -282,6 +303,34 @@ export default function AccountSettingsView() {
                   </div>
                   {accountId !== null ? <p className="mt-6 text-xs text-primary-fixed">{t("accountId", { id: accountId })}</p> : null}
                 </div>
+              </article>
+
+              <article className="app-card p-4 sm:p-6">
+                <p className="metric-label mb-3">{t("billingEyebrow")}</p>
+                <h2 className="font-headline text-2xl font-extrabold text-primary">{t("billingTitle")}</h2>
+                <p className="mt-3 text-sm leading-6 text-on-surface-variant">{t("billingDescription")}</p>
+                <div className="mt-5 space-y-3">
+                  {subscriptionProducts.map((product) => {
+                    const isCurrentTier = tier === product.tier;
+
+                    return (
+                      <button
+                        className="w-full rounded-2xl border border-outline-variant bg-surface-container-highest px-4 py-4 text-left text-sm transition-colors hover:border-primary hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={isDemoAccount || isCurrentTier}
+                        key={product.productId}
+                        onClick={() => handleStartSubscription(product.productId)}
+                        type="button"
+                      >
+                        <span className="block font-headline font-bold text-on-surface">{t("billingSubscribe", { tier: tierLabels[product.tier] })}</span>
+                        <span className="mt-1 block text-xs text-on-surface-variant">
+                          {isCurrentTier ? t("billingCurrentPlan") : t("billingNativeFlow")}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {billingMessage ? <div className="mt-4 rounded-xl bg-primary-container p-4 text-sm font-semibold text-on-primary">{billingMessage}</div> : null}
+                {billingError ? <div className="mt-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{billingError}</div> : null}
               </article>
 
               <article className="app-card p-4 sm:p-6">

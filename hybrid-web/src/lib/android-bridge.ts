@@ -26,6 +26,7 @@ type AndroidBridgeApi = {
   openNativeScreen?: (screen: string) => void;
   scanQrLoginCode?: () => void;
   scanWifiAccessPoints?: (discoveryId: string) => string;
+  startGooglePlaySubscriptionPurchase?: (productId: string) => void;
   setTheme?: (theme: "light" | "dark") => void;
   logout?: () => void;
 };
@@ -82,6 +83,17 @@ export function openNativeQrLoginScanner() {
   }
 
   bridge?.openNativeScreen?.("qrLoginScanner");
+}
+
+export function startGooglePlaySubscriptionPurchase(productId: string) {
+  const bridge = getAndroidBridge();
+
+  if (!bridge?.startGooglePlaySubscriptionPurchase) {
+    return false;
+  }
+
+  bridge.startGooglePlaySubscriptionPurchase(productId);
+  return true;
 }
 
 export function setNativeTheme(theme: "light" | "dark") {
