@@ -57,6 +57,8 @@ import java.util.Optional;
 @PermitAll
 public class SettingsView extends VerticalLayout implements BeforeEnterObserver {
 
+    private static final String ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller";
+
     private final AuthService authService;
     private final I18nService i18n;
     private final AccountService accountService;
@@ -460,15 +462,25 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
             case PRO -> badge.getStyle().set("background", "#0d6efd");
             case BUSINESS -> badge.getStyle().set("background", "#198754");
         }
-        Button manageButton = new Button(t("settings.account.managePlan"));
-        manageButton.setEnabled(false);
-        manageButton.getStyle()
+        Span managePlanHelp = new Span(t("settings.account.managePlanAndroidApp"));
+        managePlanHelp.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.85rem")
                 .set("margin-top", "12px");
+
+        Button manageButton = new Button(t("settings.account.managePlan"));
+        manageButton.getStyle()
+                .set("margin-top", "8px");
+        Anchor managePlanLink = new Anchor(ANDROID_APP_URL);
+        managePlanLink.setTarget("_blank");
+        managePlanLink.getElement().setAttribute("rel", "noopener noreferrer");
+        managePlanLink.add(manageButton);
+
         HorizontalLayout header = new HorizontalLayout(tierTitle, badge);
         header.setWidthFull();
         header.setJustifyContentMode(JustifyContentMode.BETWEEN);
         header.setAlignItems(Alignment.CENTER);
-        card.add(header, description, manageButton);
+        card.add(header, description, managePlanHelp, managePlanLink);
         return card;
     }
 

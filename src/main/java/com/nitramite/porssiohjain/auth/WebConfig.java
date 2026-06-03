@@ -31,6 +31,7 @@ public class WebConfig implements WebMvcConfigurer {
     };
     private static final String[] MOBILE_API_PATHS = {
             "/account/**",
+            "/billing/**",
             "/me/**",
             "/devices/**",
             "/api/**",
