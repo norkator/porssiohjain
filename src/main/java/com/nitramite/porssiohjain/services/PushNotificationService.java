@@ -130,12 +130,8 @@ public class PushNotificationService {
             ZonedDateTime detectedAt,
             Locale locale
     ) {
-        String title = messageSource.getMessage("mail.productionNotification.title", null, locale);
-        String body = messageSource.getMessage(
-                "mail.productionNotification.intro",
-                new Object[]{source.getName(), notification.getName()},
-                locale
-        );
+        String title = notification.getName();
+        String body = notification.getDescription() == null ? "" : notification.getDescription();
         Map<String, String> data = new LinkedHashMap<>();
         data.put("type", "PRODUCTION_NOTIFICATION");
         data.put("sourceId", String.valueOf(source.getId()));

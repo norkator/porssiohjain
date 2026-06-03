@@ -15,6 +15,8 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
 import com.nitramite.porssiohjain.entity.MarketNotificationEntity;
+import com.nitramite.porssiohjain.entity.ProductionNotificationEntity;
+import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.MarketNotificationMetric;
 import com.nitramite.porssiohjain.entity.repository.PushNotificationTokenRepository;
@@ -122,5 +124,46 @@ class PushNotificationServiceTest {
                 dataCaptor.capture()
         );
         assertEquals("Price is low", dataCaptor.getValue().get("description"));
+    }
+
+    @Test
+    void productionNotificationPushUsesNotificationNameAndDescription() {
+        PushNotificationService pushNotificationService = spy(new PushNotificationService(
+                messageSource,
+                pushNotificationTokenRepository
+        ));
+        AccountEntity account = new AccountEntity();
+        account.setId(1L);
+        ProductionSourceEntity source = new ProductionSourceEntity();
+        source.setId(2L);
+        source.setName("Solar roof");
+        source.setCurrentKw(BigDecimal.valueOf(6.5));
+        ProductionNotificationEntity notification = ProductionNotificationEntity.builder()
+                .id(3L)
+                .name("Solar surplus")
+                .description("Own production is high")
+                .triggerKw(BigDecimal.valueOf(5))
+                .build();
+        ZonedDateTime detectedAt = ZonedDateTime.parse("2026-01-01T10:00:00Z");
+
+        doReturn(true).when(pushNotificationService).sendToAccount(eq(1L), any(), any(), any());
+
+        pushNotificationService.sendProductionNotification(
+                account,
+                source,
+                notification,
+                detectedAt,
+                Locale.ENGLISH
+        );
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(pushNotificationService).sendToAccount(
+                eq(1L),
+                eq("Solar surplus"),
+                eq("Own production is high"),
+                dataCaptor.capture()
+        );
+        assertEquals("Own production is high", dataCaptor.getValue().get("description"));
     }
 }
