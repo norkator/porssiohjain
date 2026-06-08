@@ -11,6 +11,7 @@
 
 import { apiFetch, apiGetJson } from "@/lib/api";
 import { type ApiDevice } from "@/lib/devices";
+import { getCurrentIntlLocales } from "@/lib/i18n";
 
 export type ControlMode = "BELOW_MAX_PRICE" | "CHEAPEST_HOURS" | "MANUAL" | "SCHEDULED";
 
@@ -327,7 +328,7 @@ export function formatControlDate(value: string | null | undefined, timezone?: s
     return "Unknown";
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",

@@ -10,6 +10,7 @@
  */
 
 import { apiFetch, apiGetJson } from "@/lib/api";
+import { getCurrentIntlLocales } from "@/lib/i18n";
 
 export type NordpoolTodayChartPoint = {
   timestamp: string;
@@ -94,14 +95,14 @@ export const updateMarketNotification = (id: number, payload: MarketNotification
 export const deleteMarketNotification = (id: number) => sendMarketNotification<void>(`/api/market-notifications/${id}`, undefined, "DELETE");
 
 export function formatNordpoolPrice(value: number) {
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(getCurrentIntlLocales(), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value);
 }
 
 export function formatNordpoolTime(value: string, timezone?: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
     hour: "2-digit",
     hour12: false,
     hourCycle: "h23",

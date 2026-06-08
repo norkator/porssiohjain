@@ -10,6 +10,7 @@
  */
 
 import { apiFetch, apiGetJson } from "@/lib/api";
+import { getCurrentIntlLocales } from "@/lib/i18n";
 
 export type ApiDevice = {
   id: number;
@@ -205,7 +206,7 @@ export function formatDeviceLastCommunication(lastCommunication: string | null) 
     return "Unknown";
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",

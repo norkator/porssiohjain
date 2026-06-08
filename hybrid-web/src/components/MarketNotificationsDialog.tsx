@@ -11,7 +11,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import TimeInput from "@/components/TimeInput";
-import { useI18n } from "@/lib/i18n";
+import { getCurrentIntlLocales, useI18n } from "@/lib/i18n";
 import {
   createMarketNotification,
   deleteMarketNotification,
@@ -61,7 +61,7 @@ function formatDate(value: string | null, timezone: string) {
     return "-";
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",

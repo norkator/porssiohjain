@@ -10,7 +10,7 @@
  */
 
 import type { InputHTMLAttributes } from "react";
-import { getCurrentLocale } from "@/lib/i18n";
+import { getCurrentIntlLocales } from "@/lib/i18n";
 
 type TimeInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "inputMode" | "onChange" | "pattern" | "placeholder" | "type" | "value"> & {
   onChange: (value: string) => void;
@@ -25,12 +25,7 @@ function usesTwelveHourClock() {
     return false;
   }
 
-  const locales = [
-    getCurrentLocale(),
-    ...(typeof navigator === "undefined" ? [] : navigator.languages)
-  ];
-
-  return Intl.DateTimeFormat(locales, { hour: "numeric" }).resolvedOptions().hour12 === true;
+  return Intl.DateTimeFormat(getCurrentIntlLocales(), { hour: "numeric" }).resolvedOptions().hour12 === true;
 }
 
 function parseTime(value: string) {
