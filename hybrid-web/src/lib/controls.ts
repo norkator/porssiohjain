@@ -11,7 +11,7 @@
 
 import { apiFetch, apiGetJson } from "@/lib/api";
 import { type ApiDevice } from "@/lib/devices";
-import { getCurrentIntlLocales } from "@/lib/i18n";
+import { getCommonTranslation, getCurrentIntlLocales } from "@/lib/i18n";
 
 export type ControlMode = "BELOW_MAX_PRICE" | "CHEAPEST_HOURS" | "MANUAL" | "SCHEDULED";
 
@@ -319,13 +319,13 @@ export function formatControlMode(mode: ControlMode) {
 
 export function formatControlDate(value: string | null | undefined, timezone?: string | null) {
   if (!value) {
-    return "Not available";
+    return getCommonTranslation("notAvailable");
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Unknown";
+    return getCommonTranslation("unknown");
   }
 
   return new Intl.DateTimeFormat(getCurrentIntlLocales(), {

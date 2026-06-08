@@ -11,7 +11,7 @@
 
 import { apiFetch, apiGetJson } from "@/lib/api";
 import { type ApiDevice } from "@/lib/devices";
-import { getCurrentIntlLocales } from "@/lib/i18n";
+import { getCommonTranslation, getCurrentIntlLocales } from "@/lib/i18n";
 
 export type ApiSite = {
   id: number;
@@ -262,9 +262,9 @@ export type PowerLimitHistoryPoint = {
 };
 
 export function formatDate(value: string | null | undefined, timezone?: string | null) {
-  if (!value) return "Not available";
+  if (!value) return getCommonTranslation("notAvailable");
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
+  if (Number.isNaN(date.getTime())) return getCommonTranslation("unknown");
   return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
     day: "2-digit",
     hour: "2-digit",

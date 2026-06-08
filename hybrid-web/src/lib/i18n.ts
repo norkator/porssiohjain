@@ -60,6 +60,20 @@ export function getCurrentIntlLocales() {
   ];
 }
 
+export function getCommonTranslation<TKey extends Extract<keyof EnglishTranslations["common"], string>>(key: TKey, params?: TranslationParams) {
+  const locale = getCurrentLocale();
+  const localeMessages = translationsByLocale[locale]?.common ?? {};
+  const translated = localeMessages[key];
+  const fallback = enTranslations.common[key];
+  const value = typeof translated === "string"
+    ? translated
+    : typeof fallback === "string"
+      ? fallback
+      : key;
+
+  return interpolate(value, params);
+}
+
 export function syncDocumentLocale(locale?: string) {
   if (typeof document === "undefined") {
     return;

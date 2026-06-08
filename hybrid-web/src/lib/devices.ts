@@ -10,7 +10,7 @@
  */
 
 import { apiFetch, apiGetJson } from "@/lib/api";
-import { getCurrentIntlLocales } from "@/lib/i18n";
+import { getCommonTranslation, getCurrentIntlLocales } from "@/lib/i18n";
 
 export type ApiDevice = {
   id: number;
@@ -197,13 +197,13 @@ export function formatAcType(acType: string | null | undefined) {
 
 export function formatDeviceLastCommunication(lastCommunication: string | null) {
   if (!lastCommunication) {
-    return "No contact yet";
+    return getCommonTranslation("noContactYet");
   }
 
   const date = new Date(lastCommunication);
 
   if (Number.isNaN(date.getTime())) {
-    return "Unknown";
+    return getCommonTranslation("unknown");
   }
 
   return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
