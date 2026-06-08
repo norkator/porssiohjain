@@ -47,6 +47,7 @@ public class Scheduler {
     private final ThermostatControlService thermostatControlService;
     private final ControlNotificationService controlNotificationService;
     private final ProductionNotificationService productionNotificationService;
+    private final PowerLimitNotificationService powerLimitNotificationService;
     private final MarketNotificationService marketNotificationService;
     private final HeatPumpOnlineCheckService heatPumpOnlineCheckService;
 
@@ -70,6 +71,7 @@ public class Scheduler {
             ThermostatControlService thermostatControlService,
             ControlNotificationService controlNotificationService,
             ProductionNotificationService productionNotificationService,
+            PowerLimitNotificationService powerLimitNotificationService,
             MarketNotificationService marketNotificationService,
             HeatPumpOnlineCheckService heatPumpOnlineCheckService
     ) {
@@ -89,6 +91,7 @@ public class Scheduler {
         this.thermostatControlService = thermostatControlService;
         this.controlNotificationService = controlNotificationService;
         this.productionNotificationService = productionNotificationService;
+        this.powerLimitNotificationService = powerLimitNotificationService;
         this.marketNotificationService = marketNotificationService;
         this.heatPumpOnlineCheckService = heatPumpOnlineCheckService;
 
@@ -249,6 +252,11 @@ public class Scheduler {
     @Scheduled(cron = "45 0/1 * * * *", zone = "Europe/Helsinki")
     public void productionNotifications() {
         productionNotificationService.sendDueNotifications();
+    }
+
+    @Scheduled(cron = "50 0/1 * * * *", zone = "Europe/Helsinki")
+    public void powerLimitNotifications() {
+        powerLimitNotificationService.sendDueNotifications();
     }
 
     @Scheduled(cron = "30 0/1 * * * *", zone = "Europe/Helsinki")

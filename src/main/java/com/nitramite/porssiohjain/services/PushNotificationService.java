@@ -20,6 +20,8 @@ import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.MarketNotificationEntity;
+import com.nitramite.porssiohjain.entity.PowerLimitEntity;
+import com.nitramite.porssiohjain.entity.PowerLimitNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import com.nitramite.porssiohjain.entity.PushNotificationTokenEntity;
@@ -140,6 +142,29 @@ public class PushNotificationService {
         data.put("notificationName", notification.getName());
         data.put("description", notification.getDescription() == null ? "" : notification.getDescription());
         data.put("currentKw", source.getCurrentKw() == null ? "" : source.getCurrentKw().toPlainString());
+        data.put("triggerKw", notification.getTriggerKw() == null ? "" : notification.getTriggerKw().toPlainString());
+        data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
+    public boolean sendPowerLimitNotification(
+            AccountEntity account,
+            PowerLimitEntity powerLimit,
+            PowerLimitNotificationEntity notification,
+            BigDecimal currentKw,
+            ZonedDateTime detectedAt,
+            Locale locale
+    ) {
+        String title = notification.getName();
+        String body = notification.getDescription() == null ? "" : notification.getDescription();
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "POWER_LIMIT_NOTIFICATION");
+        data.put("powerLimitId", String.valueOf(powerLimit.getId()));
+        data.put("powerLimitName", powerLimit.getName());
+        data.put("notificationId", String.valueOf(notification.getId()));
+        data.put("notificationName", notification.getName());
+        data.put("description", notification.getDescription() == null ? "" : notification.getDescription());
+        data.put("currentKw", currentKw == null ? "" : currentKw.toPlainString());
         data.put("triggerKw", notification.getTriggerKw() == null ? "" : notification.getTriggerKw().toPlainString());
         data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         return sendToAccount(account.getId(), title, body, data);

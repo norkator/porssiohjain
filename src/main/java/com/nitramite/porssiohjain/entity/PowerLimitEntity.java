@@ -93,6 +93,9 @@ public class PowerLimitEntity {
     @OneToMany(mappedBy = "powerLimit", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<PowerLimitDeviceEntity> powerLimitDevices;
 
+    @OneToMany(mappedBy = "powerLimit", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<PowerLimitNotificationEntity> powerLimitNotifications;
+
     @OneToMany(
             mappedBy = "powerLimit",
             cascade = CascadeType.ALL,

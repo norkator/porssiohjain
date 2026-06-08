@@ -13,9 +13,11 @@ package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
+import com.nitramite.porssiohjain.services.PowerLimitNotificationService;
 import com.nitramite.porssiohjain.services.PowerLimitService;
 import com.nitramite.porssiohjain.services.models.PowerLimitDeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
+import com.nitramite.porssiohjain.services.models.PowerLimitNotificationResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +33,7 @@ public class PowerLimitsController {
 
     private final AuthContext authContext;
     private final PowerLimitService powerLimitService;
+    private final PowerLimitNotificationService powerLimitNotificationService;
 
     @GetMapping
     public List<PowerLimitResponse> listLimits() {
@@ -107,6 +110,51 @@ public class PowerLimitsController {
         powerLimitService.deletePowerLimitDevice(authContext.getAccountId(), linkId);
     }
 
+    @GetMapping("/{powerLimitId}/notifications")
+    public List<PowerLimitNotificationResponse> getNotifications(@PathVariable Long powerLimitId) {
+        return powerLimitNotificationService.getPowerLimitNotifications(authContext.getAccountId(), powerLimitId);
+    }
+
+    @PostMapping("/{powerLimitId}/notifications")
+    public PowerLimitNotificationResponse addNotification(
+            @PathVariable Long powerLimitId,
+            @RequestBody PowerLimitNotificationRequest request
+    ) {
+        return powerLimitNotificationService.createPowerLimitNotification(
+                authContext.getAccountId(),
+                powerLimitId,
+                request.name(),
+                request.description(),
+                request.activeFrom(),
+                request.activeTo(),
+                request.enabled(),
+                request.triggerKw()
+        );
+    }
+
+    @PutMapping("/notifications/{notificationId}")
+    public PowerLimitNotificationResponse updateNotification(
+            @PathVariable Long notificationId,
+            @RequestBody PowerLimitNotificationUpdateRequest request
+    ) {
+        return powerLimitNotificationService.updatePowerLimitNotification(
+                authContext.getAccountId(),
+                request.powerLimitId(),
+                notificationId,
+                request.name(),
+                request.description(),
+                request.activeFrom(),
+                request.activeTo(),
+                request.enabled(),
+                request.triggerKw()
+        );
+    }
+
+    @DeleteMapping("/{powerLimitId}/notifications/{notificationId}")
+    public void deleteNotification(@PathVariable Long powerLimitId, @PathVariable Long notificationId) {
+        powerLimitNotificationService.deletePowerLimitNotification(authContext.getAccountId(), powerLimitId, notificationId);
+    }
+
     public record PowerLimitRequest(
             String name,
             BigDecimal limitKw,
@@ -119,5 +167,26 @@ public class PowerLimitsController {
     }
 
     public record PowerLimitDeviceRequest(Long deviceId, int deviceChannel) {
+    }
+
+    public record PowerLimitNotificationRequest(
+            String name,
+            String description,
+            java.time.LocalTime activeFrom,
+            java.time.LocalTime activeTo,
+            boolean enabled,
+            Double triggerKw
+    ) {
+    }
+
+    public record PowerLimitNotificationUpdateRequest(
+            Long powerLimitId,
+            String name,
+            String description,
+            java.time.LocalTime activeFrom,
+            java.time.LocalTime activeTo,
+            boolean enabled,
+            Double triggerKw
+    ) {
     }
 }

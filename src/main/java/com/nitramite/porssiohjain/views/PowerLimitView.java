@@ -38,8 +38,12 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
@@ -74,12 +78,14 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private final I18nService i18n;
     private final AuthService authService;
     private final PowerLimitService powerLimitService;
+    private final PowerLimitNotificationService powerLimitNotificationService;
     private final DeviceService deviceService;
     private final SiteService siteService;
     private final ElectricityContractRepository contractRepository;
 
     private Long powerLimitId;
     private final Grid<PowerLimitDeviceResponse> deviceGrid = new Grid<>(PowerLimitDeviceResponse.class, false);
+    private final Grid<PowerLimitNotificationResponse> notificationGrid = new Grid<>(PowerLimitNotificationResponse.class, false);
     private Div lastTotalKwh;
     private Div peakKwValue;
     private Div currentKwValue;
@@ -94,6 +100,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
             AuthService authService,
             I18nService i18n,
             PowerLimitService powerLimitService,
+            PowerLimitNotificationService powerLimitNotificationService,
             DeviceService deviceService,
             SiteService siteService,
             ElectricityContractRepository contractRepository
@@ -101,6 +108,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         this.authService = authService;
         this.i18n = i18n;
         this.powerLimitService = powerLimitService;
+        this.powerLimitNotificationService = powerLimitNotificationService;
         this.deviceService = deviceService;
         this.siteService = siteService;
         this.contractRepository = contractRepository;
@@ -162,9 +170,10 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         card.add(createPowerLimitInfoSection(powerLimit));
 
         configureDeviceGrid();
+        configureNotificationGrid();
         loadPowerLimitDevices();
-        card.add(deviceGrid);
-        card.add(createAddDeviceLayout());
+        loadNotifications();
+        card.add(createPowerLimitManagementSection());
 
         card.add(createCurrentUsageRow(powerLimit));
 
@@ -238,6 +247,66 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         deviceGrid.setItems(powerLimitService.getPowerLimitDevices(getAccountId(), powerLimitId));
     }
 
+    private void configureNotificationGrid() {
+        notificationGrid.removeAllColumns();
+        notificationGrid.addColumn(PowerLimitNotificationResponse::getName)
+                .setHeader(t("powerlimit.notifications.grid.name"));
+        notificationGrid.addColumn(PowerLimitNotificationResponse::getDescription)
+                .setHeader(t("powerlimit.notifications.grid.description"));
+        notificationGrid.addColumn(n -> n.getActiveFrom() + " - " + n.getActiveTo())
+                .setHeader(t("powerlimit.notifications.grid.activeTime"));
+        notificationGrid.addColumn(PowerLimitNotificationResponse::getTriggerKw)
+                .setHeader(t("powerlimit.notifications.grid.triggerKw"));
+        notificationGrid.addColumn(n -> n.isEnabled() ? t("common.yes") : t("common.no"))
+                .setHeader(t("powerlimit.notifications.grid.enabled"));
+        notificationGrid.addColumn(n -> n.getLastSentAt() != null ? n.getLastSentAt().toString() : "-")
+                .setHeader(t("powerlimit.notifications.grid.lastSent"));
+        notificationGrid.addComponentColumn(n -> {
+            Button edit = new Button(t("controlTable.button.edit"), e -> openEditNotificationDialog(n));
+            Button delete = new Button(t("common.delete"), e -> {
+                powerLimitNotificationService.deletePowerLimitNotification(getAccountId(), powerLimitId, n.getId());
+                loadNotifications();
+            });
+            delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            HorizontalLayout actions = new HorizontalLayout(edit, delete);
+            actions.setPadding(false);
+            actions.setSpacing(true);
+            return actions;
+        }).setHeader(t("controlTable.grid.actions"));
+        notificationGrid.setAllRowsVisible(true);
+    }
+
+    private void loadNotifications() {
+        notificationGrid.setItems(powerLimitNotificationService.getPowerLimitNotifications(getAccountId(), powerLimitId));
+    }
+
+    private Component createPowerLimitManagementSection() {
+        Tab devicesTab = new Tab(t("common.linkedDevices"));
+        Tab notificationsTab = new Tab(t("powerlimit.notifications.tab"));
+        Tabs tabs = new Tabs(devicesTab, notificationsTab);
+
+        VerticalLayout devicesLayout = new VerticalLayout(deviceGrid, createAddDeviceLayout());
+        devicesLayout.setPadding(false);
+        devicesLayout.setSpacing(true);
+
+        VerticalLayout notificationsLayout = new VerticalLayout(notificationGrid, createAddNotificationLayout());
+        notificationsLayout.setPadding(false);
+        notificationsLayout.setSpacing(true);
+        notificationsLayout.setVisible(false);
+
+        tabs.addSelectedChangeListener(event -> {
+            Tab selectedTab = event.getSelectedTab();
+            devicesLayout.setVisible(selectedTab == devicesTab);
+            notificationsLayout.setVisible(selectedTab == notificationsTab);
+        });
+
+        VerticalLayout wrapper = new VerticalLayout(tabs, devicesLayout, notificationsLayout);
+        wrapper.setPadding(false);
+        wrapper.setSpacing(true);
+        wrapper.setWidthFull();
+        return wrapper;
+    }
+
     private Component createAddDeviceLayout() {
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
@@ -274,6 +343,137 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                 .set("background-color", "var(--lumo-contrast-5pct)");
 
         return formLayout;
+    }
+
+    private Component createAddNotificationLayout() {
+        TextField nameField = new TextField(t("powerlimit.notifications.field.name"));
+        nameField.setWidthFull();
+
+        TextArea descriptionField = new TextArea(t("powerlimit.notifications.field.description"));
+        descriptionField.setWidthFull();
+
+        TimePicker activeFrom = new TimePicker(t("powerlimit.notifications.field.activeFrom"));
+        activeFrom.setValue(LocalTime.of(0, 0));
+        activeFrom.setWidthFull();
+
+        TimePicker activeTo = new TimePicker(t("powerlimit.notifications.field.activeTo"));
+        activeTo.setValue(LocalTime.of(23, 59));
+        activeTo.setWidthFull();
+
+        NumberField triggerKw = new NumberField(t("powerlimit.notifications.field.triggerKw"));
+        triggerKw.setValue(0.0);
+        triggerKw.setMin(0);
+        triggerKw.setStep(0.1);
+        triggerKw.setWidthFull();
+
+        Checkbox enabled = new Checkbox(t("powerlimit.notifications.field.enabled"));
+        enabled.setValue(true);
+        enabled.getStyle().set("margin-top", "12px");
+
+        Button addButton = new Button(t("powerlimit.notifications.button.add"), e -> {
+            try {
+                powerLimitNotificationService.createPowerLimitNotification(
+                        getAccountId(),
+                        powerLimitId,
+                        nameField.getValue(),
+                        descriptionField.getValue(),
+                        activeFrom.getValue(),
+                        activeTo.getValue(),
+                        enabled.getValue(),
+                        triggerKw.getValue()
+                );
+                nameField.clear();
+                descriptionField.clear();
+                activeFrom.setValue(LocalTime.of(0, 0));
+                activeTo.setValue(LocalTime.of(23, 59));
+                triggerKw.setValue(0.0);
+                enabled.setValue(true);
+                loadNotifications();
+            } catch (Exception ex) {
+                Notification notification = Notification.show(t("powerlimit.notifications.notification.failed", ex.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addButton.setWidthFull();
+
+        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, triggerKw, enabled, addButton);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 3)
+        );
+
+        formLayout.getStyle()
+                .set("padding", "16px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
+                .set("background-color", "var(--lumo-contrast-5pct)");
+
+        return formLayout;
+    }
+
+    private void openEditNotificationDialog(PowerLimitNotificationResponse notificationResponse) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("powerlimit.notifications.editTitle"));
+        dialog.setWidth("700px");
+        dialog.setMaxWidth("95vw");
+
+        TextField nameField = new TextField(t("powerlimit.notifications.field.name"));
+        nameField.setValue(notificationResponse.getName() != null ? notificationResponse.getName() : "");
+        nameField.setWidthFull();
+
+        TextArea descriptionField = new TextArea(t("powerlimit.notifications.field.description"));
+        descriptionField.setValue(notificationResponse.getDescription() != null ? notificationResponse.getDescription() : "");
+        descriptionField.setWidthFull();
+
+        TimePicker activeFrom = new TimePicker(t("powerlimit.notifications.field.activeFrom"));
+        activeFrom.setValue(notificationResponse.getActiveFrom());
+        activeFrom.setWidthFull();
+
+        TimePicker activeTo = new TimePicker(t("powerlimit.notifications.field.activeTo"));
+        activeTo.setValue(notificationResponse.getActiveTo());
+        activeTo.setWidthFull();
+
+        NumberField triggerKw = new NumberField(t("powerlimit.notifications.field.triggerKw"));
+        triggerKw.setValue(notificationResponse.getTriggerKw() != null ? notificationResponse.getTriggerKw().doubleValue() : 0.0);
+        triggerKw.setMin(0);
+        triggerKw.setStep(0.1);
+        triggerKw.setWidthFull();
+
+        Checkbox enabled = new Checkbox(t("powerlimit.notifications.field.enabled"));
+        enabled.setValue(notificationResponse.isEnabled());
+
+        FormLayout formLayout = new FormLayout(nameField, descriptionField, activeFrom, activeTo, triggerKw, enabled);
+        formLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2)
+        );
+        dialog.add(formLayout);
+
+        Button saveButton = new Button(t("controlTable.button.save"), e -> {
+            try {
+                powerLimitNotificationService.updatePowerLimitNotification(
+                        getAccountId(),
+                        powerLimitId,
+                        notificationResponse.getId(),
+                        nameField.getValue(),
+                        descriptionField.getValue(),
+                        activeFrom.getValue(),
+                        activeTo.getValue(),
+                        enabled.getValue(),
+                        triggerKw.getValue()
+                );
+                loadNotifications();
+                dialog.close();
+            } catch (Exception ex) {
+                Notification notification = Notification.show(t("powerlimit.notifications.notification.failed", ex.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        dialog.getFooter().add(saveButton);
+        dialog.getFooter().add(new Button(t("common.cancel"), e -> dialog.close()));
+        dialog.open();
     }
 
     private Long getAccountId() {

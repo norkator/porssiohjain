@@ -255,6 +255,29 @@ export type PowerLimitDeviceLink = {
   device: Pick<ApiDevice, "deviceName" | "deviceType" | "id" | "uuid">;
 };
 
+export type PowerLimitNotification = {
+  id: number;
+  powerLimitId: number;
+  name: string;
+  description: string | null;
+  activeFrom: string;
+  activeTo: string;
+  enabled: boolean;
+  triggerKw: number;
+  lastSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PowerLimitNotificationPayload = {
+  name: string;
+  description: string | null;
+  activeFrom: string;
+  activeTo: string;
+  enabled: boolean;
+  triggerKw: number;
+};
+
 export type PowerLimitHistoryPoint = {
   accountId: number;
   kilowatts: number;
@@ -348,3 +371,7 @@ export const fetchPowerLimitDeviceLinks = (id: number) => apiGetJson<PowerLimitD
 export const fetchPowerLimitHistory = (id: number, hours = 24) => apiGetJson<PowerLimitHistoryPoint[]>(`/api/power-limits/${id}/history?hours=${hours}`);
 export const addPowerLimitDeviceLink = (id: number, payload: { deviceId: number; deviceChannel: number }) => postJson<void>(`/api/power-limits/${id}/devices`, payload);
 export const deletePowerLimitDeviceLink = (id: number) => postJson<void>(`/api/power-limits/devices/${id}`, undefined, "DELETE");
+export const fetchPowerLimitNotifications = (id: number) => apiGetJson<PowerLimitNotification[]>(`/api/power-limits/${id}/notifications`);
+export const addPowerLimitNotification = (id: number, payload: PowerLimitNotificationPayload) => postJson<PowerLimitNotification>(`/api/power-limits/${id}/notifications`, payload);
+export const updatePowerLimitNotification = (id: number, payload: PowerLimitNotificationPayload & { powerLimitId: number }) => postJson<PowerLimitNotification>(`/api/power-limits/notifications/${id}`, payload, "PUT");
+export const deletePowerLimitNotification = (powerLimitId: number, notificationId: number) => postJson<void>(`/api/power-limits/${powerLimitId}/notifications/${notificationId}`, undefined, "DELETE");
