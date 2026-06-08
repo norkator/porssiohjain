@@ -12,6 +12,7 @@
 import PageHeader from "@/components/PageHeader";
 import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
 import ProductionHistoryChartCard from "@/components/ProductionHistoryChartCard";
+import TimeInput from "@/components/TimeInput";
 import {
   addProductionNotification,
   addProductionSourceDeviceLink,
@@ -633,8 +634,8 @@ export default function ManageProductionSourceView() {
                     <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleSaveNotification}>
                       <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setNotificationName(event.target.value)} placeholder={t("notificationName")} value={notificationName} />
                       <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" min="0" onChange={(event) => setNotificationTriggerKw(event.target.value)} placeholder={t("notificationTriggerKw")} step="0.1" type="number" value={notificationTriggerKw} />
-                      <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setNotificationActiveFrom(event.target.value)} type="time" value={notificationActiveFrom} />
-                      <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setNotificationActiveTo(event.target.value)} type="time" value={notificationActiveTo} />
+                      <TimeInput className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={setNotificationActiveFrom} value={notificationActiveFrom} />
+                      <TimeInput className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={setNotificationActiveTo} value={notificationActiveTo} />
                       <textarea className="min-h-28 rounded-xl bg-surface-container-highest px-4 py-3 outline-none md:col-span-2" onChange={(event) => setNotificationDescription(event.target.value)} placeholder={t("notificationDescription")} value={notificationDescription} />
                       <label className="flex items-center justify-between rounded-xl bg-surface-container p-4 md:col-span-2"><span className="font-headline text-sm font-bold">{common("enabled")}</span><input checked={notificationEnabled} onChange={(event) => setNotificationEnabled(event.target.checked)} type="checkbox" /></label>
                       {editingNotificationId === null ? (

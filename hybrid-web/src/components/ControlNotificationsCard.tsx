@@ -10,6 +10,7 @@
  */
 
 import { FormEvent, useEffect, useState } from "react";
+import TimeInput from "@/components/TimeInput";
 import {
   createControlNotification,
   deleteControlNotification,
@@ -381,11 +382,10 @@ export default function ControlNotificationsCard({
                 <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="notification-active-from">
                   {t("activeFrom")}
                 </label>
-                <input
+                <TimeInput
                   className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
                   id="notification-active-from"
-                  onChange={(event) => setCreateForm((current) => ({ ...current, activeFrom: event.target.value }))}
-                  type="time"
+                  onChange={(value) => setCreateForm((current) => ({ ...current, activeFrom: value }))}
                   value={createForm.activeFrom}
                 />
               </div>
@@ -394,11 +394,10 @@ export default function ControlNotificationsCard({
                   <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="notification-active-to">
                     {t("activeTo")}
                   </label>
-                  <input
+                  <TimeInput
                     className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
                     id="notification-active-to"
-                    onChange={(event) => setCreateForm((current) => ({ ...current, activeTo: event.target.value }))}
-                    type="time"
+                    onChange={(value) => setCreateForm((current) => ({ ...current, activeTo: value }))}
                     value={createForm.activeTo}
                   />
                 </div>
@@ -511,11 +510,10 @@ export default function ControlNotificationsCard({
                   <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="edit-notification-active-from">
                     {t("activeFrom")}
                   </label>
-                  <input
+                  <TimeInput
                     className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
                     id="edit-notification-active-from"
-                    onChange={(event) => setEditForm((current) => ({ ...current, activeFrom: event.target.value }))}
-                    type="time"
+                    onChange={(value) => setEditForm((current) => ({ ...current, activeFrom: value }))}
                     value={editForm.activeFrom}
                   />
                 </div>
@@ -524,11 +522,10 @@ export default function ControlNotificationsCard({
                   <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="edit-notification-active-to">
                     {t("activeTo")}
                   </label>
-                  <input
+                  <TimeInput
                     className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
                     id="edit-notification-active-to"
-                    onChange={(event) => setEditForm((current) => ({ ...current, activeTo: event.target.value }))}
-                    type="time"
+                    onChange={(value) => setEditForm((current) => ({ ...current, activeTo: value }))}
                     value={editForm.activeTo}
                   />
                 </div>

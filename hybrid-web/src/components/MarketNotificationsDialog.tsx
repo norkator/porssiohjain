@@ -10,6 +10,7 @@
  */
 
 import { FormEvent, useEffect, useState } from "react";
+import TimeInput from "@/components/TimeInput";
 import { useI18n } from "@/lib/i18n";
 import {
   createMarketNotification,
@@ -316,11 +317,11 @@ export default function MarketNotificationsDialog({ isOpen, onClose, timezone }:
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface">{t("activeFrom")}</span>
-                  <input className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:border-primary" onChange={(event) => setForm((current) => ({ ...current, activeFrom: event.target.value }))} type="time" value={form.activeFrom} />
+                  <TimeInput className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:border-primary" onChange={(value) => setForm((current) => ({ ...current, activeFrom: value }))} value={form.activeFrom} />
                 </label>
                 <label className="block">
                   <span className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface">{t("activeTo")}</span>
-                  <input className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:border-primary" onChange={(event) => setForm((current) => ({ ...current, activeTo: event.target.value }))} type="time" value={form.activeTo} />
+                  <TimeInput className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:border-primary" onChange={(value) => setForm((current) => ({ ...current, activeTo: value }))} value={form.activeTo} />
                 </label>
               </div>
 
