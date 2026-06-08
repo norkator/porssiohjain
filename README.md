@@ -1,4 +1,4 @@
-# Pörssiohjain 2000 ™
+# Pörssiohjain ™
 
 ![ukjx6lcc](./doc/odw6ej6ii.png)
 

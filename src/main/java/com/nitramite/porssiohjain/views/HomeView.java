@@ -86,10 +86,6 @@ public class HomeView extends VerticalLayout {
         title.getStyle().set("margin-top", "0");
         title.getStyle().set("font-size", "1.8em");
 
-        Paragraph subtitle = new Paragraph(t("home.subtitle") + " ™");
-        subtitle.getStyle().set("margin-bottom", "1.5em");
-        subtitle.getStyle().set("color", "var(--lumo-secondary-text-color)");
-
         Button fiButton = new Button(t("lang.finnish"), e -> switchLocale("fi"));
         Button enButton = new Button(t("lang.english"), e -> switchLocale("en"));
         HorizontalLayout langButtons = new HorizontalLayout(enButton, fiButton);
@@ -160,7 +156,7 @@ public class HomeView extends VerticalLayout {
         boolean loggedIn = authenticatedAccount != null;
         boolean admin = loggedIn && authenticatedAccount.isAdmin();
 
-        contentBox.add(langButtons, title, subtitle);
+        contentBox.add(langButtons, title);
 
         Anchor googlePlayBadgeLink = new Anchor(
                 "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller"

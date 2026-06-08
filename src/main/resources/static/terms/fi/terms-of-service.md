@@ -4,8 +4,7 @@ mukaisesti.
 ## Kehitysvaihe
 
 - Pörssiohjain on edelleen voimakkaasti kehityksen alla, ja palvelua tulee tällä hetkellä pitää beta-vaiheen palveluna.
-- Ominaisuudet, toiminta, integraatiot ja käyttöliittymän yksityiskohdat voivat muuttua milloin tahansa ilman
-  ennakkoilmoitusta.
+- Ominaisuudet, toiminta, integraatiot ja käyttöliittymän yksityiskohdat voivat muuttua milloin tahansa ilman ennakkoilmoitusta.
 - Virheitä, odottamatonta toimintaa, keskeneräisiä ominaisuuksia ja tilapäisiä palvelukatkoja on syytä odottaa.
 
 ## Tilin vastuu
