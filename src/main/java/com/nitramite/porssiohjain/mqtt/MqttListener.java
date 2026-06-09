@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.services.FactoryProvisioningService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.stereotype.Service;
 import org.springframework.messaging.Message;
@@ -36,11 +37,12 @@ public class MqttListener {
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleMessage(Message<?> message) {
-        String topic = message.getHeaders().get("mqtt_receivedTopic").toString();
+        String topic = message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC).toString();
         Object rawPayload = message.getPayload();
         String payload = rawPayload instanceof byte[]
                 ? new String((byte[]) rawPayload)
                 : rawPayload.toString();
+        boolean retained = Boolean.TRUE.equals(message.getHeaders().get(MqttHeaders.RECEIVED_RETAINED));
         // log.info("Received: {} -> {}", topic, payload);
         String deviceId = extractOnlineDeviceId(topic);
         if (deviceId != null) {
@@ -53,6 +55,9 @@ public class MqttListener {
                         device.setMqttOnline(online);
                         device.setLastCommunication(now);
                         deviceRepository.save(device);
+                        if (retained) {
+                            return;
+                        }
                         if (online) {
                             deviceOfflineNotificationService.sendIfDeviceCameOnline(
                                     device,

@@ -37,6 +37,8 @@ class DeviceOfflineNotificationServiceTest {
     private PushNotificationTokenService pushNotificationTokenService;
     @Mock
     private AccountLimitService accountLimitService;
+    @Mock
+    private ConnectivityNotificationGuard connectivityNotificationGuard;
 
     private DeviceOfflineNotificationService service;
 
@@ -45,7 +47,8 @@ class DeviceOfflineNotificationServiceTest {
         service = new DeviceOfflineNotificationService(
                 pushNotificationService,
                 pushNotificationTokenService,
-                accountLimitService
+                accountLimitService,
+                connectivityNotificationGuard
         );
     }
 
@@ -106,6 +109,26 @@ class DeviceOfflineNotificationServiceTest {
     }
 
     @Test
+    void skipsOfflinePushWhenConnectivityNotificationsAreMuted() {
+        AccountEntity account = enabledAccount();
+        DeviceEntity device = offlineDevice(account);
+        Instant detectedAt = Instant.now();
+
+        when(connectivityNotificationGuard.isMuted(detectedAt)).thenReturn(true);
+
+        service.sendIfDeviceWentOffline(device, true, false, "API", detectedAt);
+
+        verify(pushNotificationTokenService, never()).hasActivePushToken(1L);
+        verify(pushNotificationService, never()).sendDeviceOfflineNotification(
+                eq(account),
+                eq(device),
+                eq("API"),
+                eq(detectedAt),
+                eq(Locale.ENGLISH)
+        );
+    }
+
+    @Test
     void sendsPushWhenDeviceComesOnlineFromFullyOfflineState() {
         AccountEntity account = enabledAccount();
         account.setNotifyDeviceOnline(true);
@@ -141,6 +164,28 @@ class DeviceOfflineNotificationServiceTest {
                 eq(account),
                 eq(device),
                 eq("MQTT"),
+                eq(detectedAt),
+                eq(Locale.ENGLISH)
+        );
+    }
+
+    @Test
+    void skipsOnlinePushWhenConnectivityNotificationsAreMuted() {
+        AccountEntity account = enabledAccount();
+        account.setNotifyDeviceOnline(true);
+        DeviceEntity device = offlineDevice(account);
+        device.setApiOnline(true);
+        Instant detectedAt = Instant.now();
+
+        when(connectivityNotificationGuard.isMuted(detectedAt)).thenReturn(true);
+
+        service.sendIfDeviceCameOnline(device, false, false, "API", detectedAt);
+
+        verify(pushNotificationTokenService, never()).hasActivePushToken(1L);
+        verify(pushNotificationService, never()).sendDeviceOnlineNotification(
+                eq(account),
+                eq(device),
+                eq("API"),
                 eq(detectedAt),
                 eq(Locale.ENGLISH)
         );
