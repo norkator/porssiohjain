@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -25,6 +26,7 @@ public class ConnectivityNotificationGuard {
     private final Duration startupQuietPeriod;
     private final Instant startedAt;
 
+    @Autowired
     public ConnectivityNotificationGuard(
             @Value("${app.device-connectivity.startup-notification-quiet-period:10m}")
             Duration startupQuietPeriod
