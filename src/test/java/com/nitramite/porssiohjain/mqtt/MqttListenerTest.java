@@ -21,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.support.MessageBuilder;
 
 import java.util.Optional;
@@ -67,7 +68,7 @@ class MqttListenerTest {
         when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
 
         listener.handleMessage(MessageBuilder.withPayload("true")
-                .setHeader("mqtt_receivedTopic", device.getUuid() + "/online")
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, device.getUuid() + "/online")
                 .build());
 
         ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
@@ -83,7 +84,7 @@ class MqttListenerTest {
         when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
 
         listener.handleMessage(MessageBuilder.withPayload("true")
-                .setHeader("mqtt_receivedTopic", device.getUuid() + ".online")
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, device.getUuid() + ".online")
                 .build());
 
         ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
@@ -98,7 +99,7 @@ class MqttListenerTest {
         when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
 
         listener.handleMessage(MessageBuilder.withPayload("false")
-                .setHeader("mqtt_receivedTopic", device.getUuid() + "/online")
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, device.getUuid() + "/online")
                 .build());
 
         ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
@@ -114,9 +115,26 @@ class MqttListenerTest {
     }
 
     @Test
+    void updatesStateButSkipsNotificationsForRetainedOnlineMessages() {
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
+
+        listener.handleMessage(MessageBuilder.withPayload("true")
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, device.getUuid() + "/online")
+                .setHeader(MqttHeaders.RECEIVED_RETAINED, true)
+                .build());
+
+        ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
+        verify(deviceRepository).save(savedDevice.capture());
+        assertTrue(savedDevice.getValue().isMqttOnline());
+        assertNotNull(savedDevice.getValue().getLastCommunication());
+        verify(deviceOfflineNotificationService, never()).sendIfDeviceCameOnline(any(), anyBoolean(), anyBoolean(), any(), any());
+        verify(deviceOfflineNotificationService, never()).sendIfDeviceWentOffline(any(), anyBoolean(), anyBoolean(), any(), any());
+    }
+
+    @Test
     void registersFactoryBootstrapMessages() {
         listener.handleMessage(MessageBuilder.withPayload("{\"ok\":true}")
-                .setHeader("mqtt_receivedTopic", "factory/bootstrap/SER-001/state")
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, "factory/bootstrap/SER-001/state")
                 .build());
 
         verify(factoryProvisioningService).registerBootstrapMessage(

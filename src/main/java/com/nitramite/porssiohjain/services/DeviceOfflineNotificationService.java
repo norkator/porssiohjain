@@ -28,6 +28,7 @@ public class DeviceOfflineNotificationService {
     private final PushNotificationService pushNotificationService;
     private final PushNotificationTokenService pushNotificationTokenService;
     private final AccountLimitService accountLimitService;
+    private final ConnectivityNotificationGuard connectivityNotificationGuard;
 
     public void sendIfDeviceWentOffline(
             DeviceEntity device,
@@ -39,6 +40,10 @@ public class DeviceOfflineNotificationService {
         boolean wasOnline = wasApiOnline || wasMqttOnline;
         boolean isOnline = device.isApiOnline() || device.isMqttOnline();
         if (!wasOnline || isOnline) {
+            return;
+        }
+        if (connectivityNotificationGuard.isMuted(detectedAt)) {
+            log.info("Device {} offline push not sent because connectivity notifications are muted", device.getId());
             return;
         }
 
@@ -73,6 +78,10 @@ public class DeviceOfflineNotificationService {
         boolean wasOnline = wasApiOnline || wasMqttOnline;
         boolean isOnline = device.isApiOnline() || device.isMqttOnline();
         if (wasOnline || !isOnline) {
+            return;
+        }
+        if (connectivityNotificationGuard.isMuted(detectedAt)) {
+            log.info("Device {} online push not sent because connectivity notifications are muted", device.getId());
             return;
         }
 
