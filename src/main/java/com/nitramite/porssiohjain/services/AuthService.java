@@ -41,6 +41,7 @@ public class AuthService {
         if (!passwordEncoder.matches(secret, account.getSecret())) {
             throw invalidCredentials(ip);
         }
+        assertNotBlocked(account);
 
         rateLimitService.resetLoginFailures(ip);
 
@@ -49,6 +50,8 @@ public class AuthService {
 
     @Transactional
     public LoginResponse createTokenForAccount(AccountEntity account) {
+        assertNotBlocked(account);
+
         TokenEntity token = TokenEntity.builder()
                 .token(UUID.randomUUID().toString().replace("-", ""))
                 .account(account)
@@ -78,6 +81,7 @@ public class AuthService {
         if (token.getExpiresAt().isBefore(java.time.Instant.now())) {
             throw new IllegalArgumentException("Token expired");
         }
+        assertNotBlocked(token.getAccount());
 
         return token.getAccount();
     }
@@ -85,6 +89,12 @@ public class AuthService {
     @Transactional
     public void deleteExpiredTokens() {
         tokenRepository.deleteAllExpiredTokens(Instant.now());
+    }
+
+    private void assertNotBlocked(AccountEntity account) {
+        if (account.isBlocked()) {
+            throw new IllegalArgumentException("Account is blocked");
+        }
     }
 
 }

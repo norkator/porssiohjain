@@ -106,6 +106,10 @@ public class AccountEntity {
     @Builder.Default
     private boolean demo = false;
 
+    @Column(name = "blocked", nullable = false)
+    @Builder.Default
+    private boolean blocked = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

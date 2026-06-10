@@ -138,6 +138,33 @@ class AccountControllerTest {
     }
 
     @Test
+    @DisplayName("Should reject blocked account login")
+    void blockedAccountShouldNotLogin() throws Exception {
+        String password = "supersecret";
+        AccountEntity account = new AccountEntity();
+        account.setUuid(UUID.randomUUID());
+        account.setSecret(passwordEncoder.encode(password));
+        account.setBlocked(true);
+        account.setCreatedAt(Instant.now());
+        account.setUpdatedAt(Instant.now());
+        accountRepository.save(account);
+
+        String requestBody = """
+                {
+                    "uuid": "%s",
+                    "secret": "%s"
+                }
+                """.formatted(account.getUuid(), password);
+
+        mockMvc.perform(post("/account/login")
+                        .header("X-Forwarded-For", "35.35.35.35")
+                        .contentType("application/json")
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Account is blocked"));
+    }
+
+    @Test
     @DisplayName("Should not rate limit repeated successful logins")
     void shouldNotRateLimitSuccessfulLogins() throws Exception {
         String password = "supersecret";

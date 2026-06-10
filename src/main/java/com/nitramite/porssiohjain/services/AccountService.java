@@ -76,6 +76,7 @@ public class AccountService {
                 .agreedTermsAt(savedAccount.getAgreedTermsAt())
                 .admin(savedAccount.isAdmin())
                 .demo(savedAccount.isDemo())
+                .blocked(savedAccount.isBlocked())
                 .createdAt(savedAccount.getCreatedAt())
                 .updatedAt(savedAccount.getUpdatedAt())
                 .build();
