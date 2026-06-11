@@ -26,15 +26,17 @@ public class NordpoolController {
 
     @GetMapping("/today-stats")
     public TodayPriceStatsResponse getTodayStats(
-            @RequestParam(required = false) String timezone
+            @RequestParam(required = false) String timezone,
+            @RequestParam(required = false) String marketIndexName
     ) {
-        return nordpoolService.getTodayStats(null, timezone);
+        return nordpoolService.getTodayStats(null, timezone, marketIndexName);
     }
 
     @GetMapping("/today-chart")
     public TodayPriceChartResponse getTodayChart(
-            @RequestParam(required = false) String timezone
+            @RequestParam(required = false) String timezone,
+            @RequestParam(required = false) String marketIndexName
     ) {
-        return nordpoolService.getTodayChart(null, timezone);
+        return nordpoolService.getTodayChart(null, timezone, marketIndexName);
     }
 }

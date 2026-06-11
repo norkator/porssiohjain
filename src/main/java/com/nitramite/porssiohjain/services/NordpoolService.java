@@ -66,7 +66,11 @@ public class NordpoolService {
     }
 
     public TodayPriceStatsResponse getTodayStats(Long accountId, String timezone) {
-        PricingContext pricingContext = resolvePricingContext(accountId, timezone);
+        return getTodayStats(accountId, timezone, null);
+    }
+
+    public TodayPriceStatsResponse getTodayStats(Long accountId, String timezone, String marketIndexName) {
+        PricingContext pricingContext = resolvePricingContext(accountId, timezone, marketIndexName);
         ZoneId zone = pricingContext.zone();
         LocalDate today = LocalDate.now(zone);
         ZonedDateTime startOfDay = today.atStartOfDay(zone);
@@ -102,7 +106,11 @@ public class NordpoolService {
     }
 
     public TodayPriceChartResponse getTodayChart(Long accountId, String timezone) {
-        PricingContext pricingContext = resolvePricingContext(accountId, timezone);
+        return getTodayChart(accountId, timezone, null);
+    }
+
+    public TodayPriceChartResponse getTodayChart(Long accountId, String timezone, String marketIndexName) {
+        PricingContext pricingContext = resolvePricingContext(accountId, timezone, marketIndexName);
         ZoneId zone = pricingContext.zone();
         LocalDate today = LocalDate.now(zone);
         ZonedDateTime startOfDay = today.atStartOfDay(zone);
@@ -170,7 +178,7 @@ public class NordpoolService {
                 .build();
     }
 
-    private PricingContext resolvePricingContext(Long accountId, String timezone) {
+    private PricingContext resolvePricingContext(Long accountId, String timezone, String requestedMarketIndexName) {
         ZoneId zone = ZoneId.systemDefault();
         BigDecimal taxMultiplier;
 
@@ -206,7 +214,7 @@ public class NordpoolService {
         }
 
         String marketIndexName = accountId == null
-                ? NordpoolMarket.DEFAULT_MARKET
+                ? NordpoolMarket.normalize(requestedMarketIndexName)
                 : accountRepository.findById(accountId)
                         .map(account -> NordpoolMarket.normalize(account.getMarketIndexName()))
                         .orElse(NordpoolMarket.DEFAULT_MARKET);
