@@ -19,6 +19,7 @@ export type MeResponse = {
   tier: AccountTier;
   email: string | null;
   locale: string;
+  marketIndexName: string;
   demo: boolean;
   notifyPowerLimitExceeded: boolean;
   notifyControlActivated: boolean;
@@ -57,6 +58,7 @@ export async function fetchMe() {
 export async function updateMe(input: {
   email: string;
   locale: string;
+  marketIndexName: string;
   notifyPowerLimitExceeded: boolean;
   notifyControlActivated: boolean;
   notifyDeviceOffline: boolean;

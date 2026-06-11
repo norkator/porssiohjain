@@ -85,7 +85,7 @@ class MarketNotificationServiceTest {
         Instant now = Instant.parse("2026-01-02T10:00:15Z");
         MarketNotificationEntity notification = notification(now.minusSeconds(24 * 60 * 60));
         when(marketNotificationRepository.findByEnabledTrueOrderByIdAsc()).thenReturn(List.of(notification));
-        when(nordpoolRepository.findFirstByDeliveryStartLessThanEqualAndDeliveryEndGreaterThan(now, now)).thenReturn(Optional.of(price(now)));
+        when(nordpoolRepository.findFirstByMarketIndexNameAndDeliveryStartLessThanEqualAndDeliveryEndGreaterThan("FI", now, now)).thenReturn(Optional.of(price(now)));
         when(accountLimitService.tryConsumeWeeklyEmailNotification(1L, now)).thenReturn(true);
 
         marketNotificationService.sendDueNotifications(now);
@@ -157,6 +157,7 @@ class MarketNotificationServiceTest {
         price.setId(1L);
         price.setDeliveryStart(now.minusSeconds(60 * 60));
         price.setDeliveryEnd(now.plusSeconds(60 * 60));
+        price.setMarketIndexName("FI");
         price.setPriceFi(BigDecimal.valueOf(20));
         return price;
     }

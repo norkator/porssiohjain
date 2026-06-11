@@ -236,7 +236,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                     notifyDeviceOnline.getValue(),
                     emailNotificationsEnabled.getValue(),
                     pushNotificationsEnabled.getValue(),
-                    localeSelect.getValue()
+                    localeSelect.getValue(),
+                    accountService.getMarketIndexName(accountId)
             );
 
             Locale newLocale = Locale.forLanguageTag(localeSelect.getValue());

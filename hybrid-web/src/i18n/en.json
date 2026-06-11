@@ -238,6 +238,8 @@
     "email": "Email address",
     "emailPlaceholder": "user@example.com",
     "language": "Language",
+    "market": "Electricity market area",
+    "marketDescription": "Used for Nord Pool prices in charts, controls, power-limit costs, and market notifications.",
     "theme": "Theme",
     "themeDescription": "Choose the appearance used on this device.",
     "themeLight": "Light",

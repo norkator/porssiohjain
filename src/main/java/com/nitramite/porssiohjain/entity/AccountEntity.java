@@ -42,6 +42,10 @@ public class AccountEntity {
     @Builder.Default
     private String locale = "en";
 
+    @Column(name = "market_index_name", length = 10, nullable = false)
+    @Builder.Default
+    private String marketIndexName = "FI";
+
     @Column(name = "email", nullable = true)
     private String email;
 

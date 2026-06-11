@@ -21,6 +21,7 @@ import com.nitramite.porssiohjain.entity.repository.MarketNotificationRepository
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.services.models.MarketNotificationRequest;
 import com.nitramite.porssiohjain.services.models.MarketNotificationResponse;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -151,7 +152,11 @@ public class MarketNotificationService {
 
     private BigDecimal resolveObservedPrice(MarketNotificationEntity notification, Instant now, ZoneId zone) {
         if (notification.getMetric() == MarketNotificationMetric.CURRENT_PRICE) {
-            return nordpoolRepository.findFirstByDeliveryStartLessThanEqualAndDeliveryEndGreaterThan(now, now)
+            return nordpoolRepository.findFirstByMarketIndexNameAndDeliveryStartLessThanEqualAndDeliveryEndGreaterThan(
+                            NordpoolMarket.normalize(notification.getAccount().getMarketIndexName()),
+                            now,
+                            now
+                    )
                     .map(price -> toPriceWithTax(price.getPriceFi()))
                     .orElse(null);
         }
@@ -159,7 +164,11 @@ public class MarketNotificationService {
         LocalDate today = LocalDate.now(zone);
         Instant start = today.atStartOfDay(zone).toInstant();
         Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
-        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(start, end);
+        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(
+                NordpoolMarket.normalize(notification.getAccount().getMarketIndexName()),
+                start,
+                end
+        );
         if (prices.isEmpty()) {
             return null;
         }

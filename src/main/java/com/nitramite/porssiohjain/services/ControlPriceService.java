@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
 import com.nitramite.porssiohjain.entity.NordpoolEntity;
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +31,11 @@ public class ControlPriceService {
     private final NordpoolRepository nordpoolRepository;
 
     public Optional<BigDecimal> getCurrentCombinedPrice(ControlEntity control, Instant now) {
-        return nordpoolRepository.findFirstByDeliveryStartLessThanEqualAndDeliveryEndGreaterThan(now, now)
+        return nordpoolRepository.findFirstByMarketIndexNameAndDeliveryStartLessThanEqualAndDeliveryEndGreaterThan(
+                        NordpoolMarket.normalize(control.getAccount().getMarketIndexName()),
+                        now,
+                        now
+                )
                 .map(currentPrice -> getCombinedPrice(control, currentPrice));
     }
 

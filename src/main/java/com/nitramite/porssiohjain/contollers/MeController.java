@@ -57,6 +57,7 @@ public class MeController {
                 .tier(accountService.getTier(accountId))
                 .email(accountService.getEmail(accountId))
                 .locale(accountService.getLocale(accountId))
+                .marketIndexName(accountService.getMarketIndexName(accountId))
                 .demo(accountService.isDemoAccount(accountId))
                 .notifyPowerLimitExceeded(accountService.getNotifyPowerLimitExceeded(accountId))
                 .notifyControlActivated(accountService.getNotifyControlActivated(accountId))
@@ -98,7 +99,10 @@ public class MeController {
                 request.getPushNotificationsEnabled() != null
                         ? request.getPushNotificationsEnabled()
                         : accountService.getPushNotificationsEnabled(accountId),
-                request.getLocale()
+                request.getLocale(),
+                request.getMarketIndexName() != null
+                        ? request.getMarketIndexName()
+                        : accountService.getMarketIndexName(accountId)
         );
         return getMe();
     }

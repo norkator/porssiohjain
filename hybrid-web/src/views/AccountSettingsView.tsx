@@ -19,6 +19,31 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller";
+const marketOptions = [
+  { code: "AT", label: "Austria" },
+  { code: "BE", label: "Belgium" },
+  { code: "BG", label: "Bulgaria" },
+  { code: "DK1", label: "Denmark 1" },
+  { code: "DK2", label: "Denmark 2" },
+  { code: "EE", label: "Estonia" },
+  { code: "FI", label: "Finland" },
+  { code: "FR", label: "France" },
+  { code: "GER", label: "Germany" },
+  { code: "LT", label: "Lithuania" },
+  { code: "LV", label: "Latvia" },
+  { code: "NL", label: "Netherlands" },
+  { code: "NO1", label: "Norway 1" },
+  { code: "NO2", label: "Norway 2" },
+  { code: "NO3", label: "Norway 3" },
+  { code: "NO4", label: "Norway 4" },
+  { code: "NO5", label: "Norway 5" },
+  { code: "PL", label: "Poland" },
+  { code: "SE1", label: "Sweden 1" },
+  { code: "SE2", label: "Sweden 2" },
+  { code: "SE3", label: "Sweden 3" },
+  { code: "SE4", label: "Sweden 4" },
+  { code: "TEL", label: "TEL" }
+];
 
 function getTierTone(tier: AccountTier) {
   switch (tier) {
@@ -54,6 +79,7 @@ export default function AccountSettingsView() {
   const [tier, setTier] = useState<AccountTier>("FREE");
   const [email, setEmail] = useState("");
   const [locale, setLocaleValue] = useState("en");
+  const [marketIndexName, setMarketIndexName] = useState("FI");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
@@ -103,6 +129,7 @@ export default function AccountSettingsView() {
         setTier(response.tier);
         setEmail(response.email ?? "");
         setLocaleValue(response.locale || "en");
+        setMarketIndexName(response.marketIndexName || "FI");
         setDeviceLimit(response.deviceLimit);
         setControlLimit(response.controlLimit);
         setProductionSourceLimit(response.productionSourceLimit);
@@ -145,6 +172,7 @@ export default function AccountSettingsView() {
       const response = await updateMe({
         email: email.trim(),
         locale,
+        marketIndexName,
         notifyPowerLimitExceeded,
         notifyControlActivated,
         notifyDeviceOffline,
@@ -157,6 +185,7 @@ export default function AccountSettingsView() {
       setIsDemoAccount(response.demo);
       setEmail(response.email ?? "");
       setLocaleValue(response.locale || "en");
+      setMarketIndexName(response.marketIndexName || "FI");
       setDeviceLimit(response.deviceLimit);
       setControlLimit(response.controlLimit);
       setProductionSourceLimit(response.productionSourceLimit);
@@ -412,6 +441,24 @@ export default function AccountSettingsView() {
                         <option key={option.code} value={option.code}>{option.label}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="account-market">
+                      {t("market")}
+                    </label>
+                    <select
+                      className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
+                      id="account-market"
+                      disabled={isDemoAccount}
+                      onChange={(event) => setMarketIndexName(event.target.value)}
+                      value={marketIndexName}
+                    >
+                      {marketOptions.map((option) => (
+                        <option key={option.code} value={option.code}>{option.label} ({option.code})</option>
+                      ))}
+                    </select>
+                    <p className="mt-3 ml-1 text-xs text-on-surface-variant">{t("marketDescription")}</p>
                   </div>
 
                   <div className="md:col-span-2 space-y-3">
