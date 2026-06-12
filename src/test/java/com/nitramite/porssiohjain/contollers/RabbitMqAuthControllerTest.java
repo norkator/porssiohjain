@@ -152,6 +152,50 @@ class RabbitMqAuthControllerTest {
     }
 
     @Test
+    void allowsOpenBekenDeviceNativeCommandSubscriptions() {
+        device.setDevicePlatform(DevicePlatform.OPENBEKEN);
+        when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
+
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", device.getUuid() + ".*.set").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", device.getUuid() + ".*.get").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", "cmnd." + device.getUuid() + ".POWER").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", "homeassistant.*").getBody());
+        assertEquals("deny", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", "homeassistant.#").getBody());
+        assertEquals("deny", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "read", UUID.randomUUID() + ".*.set").getBody());
+    }
+
+    @Test
+    void allowsOpenBekenDeviceNativeStatusPublishes() {
+        device.setDevicePlatform(DevicePlatform.OPENBEKEN);
+        when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
+
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".connected").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".host").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".build").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".mac").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".temp").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".ssid").getBody());
+        assertEquals("allow", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".1.get").getBody());
+        assertEquals("deny", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", device.getUuid() + ".1.set").getBody());
+        assertEquals("deny", controller.authorizeTopic("device-user", "/", "topic", "amq.topic",
+                "write", UUID.randomUUID() + ".ssid").getBody());
+    }
+
+    @Test
     void allowsFactoryDeviceToReadOwnCommandTopicOnly() {
         when(deviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.empty());
         when(factoryDeviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.of(factoryDevice));
