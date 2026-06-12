@@ -22,6 +22,7 @@ import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -58,9 +59,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 @JsModule("./js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Power Limit")
@@ -69,6 +67,7 @@ import java.util.concurrent.TimeUnit;
 public class PowerLimitView extends VerticalLayout implements BeforeEnterObserver {
 
     private static final int HISTORY_DIALOG_INTERVAL_MINUTES = 60;
+    private static final int AUTO_REFRESH_INTERVAL_MILLIS = 30_000;
 
     private enum HistoryPeriod {
         WEEK,
@@ -91,8 +90,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     private Div currentKwValue;
     private Div quarterSumValue;
     private Div chartDiv;
-    private ScheduledExecutorService scheduler;
     private UI ui;
+    private Registration pollRegistration;
     private Long accountId;
 
     @Autowired
@@ -1035,32 +1034,42 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
     }
 
     private void startAutoRefresh() {
-        scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleAtFixedRate(() -> {
-            try {
-                if (ui == null || !ui.isAttached()) {
-                    return;
-                }
-                PowerLimitResponse updated = powerLimitService.getPowerLimit(accountId, powerLimitId);
-                Optional<BigDecimal> sum = powerLimitService.getCurrentIntervalSum(
-                        accountId,
-                        powerLimitId
-                );
-                ui.access(() -> {
-                    lastTotalKwh.setText(formatLastTotalKwh(updated.getLastTotalKwh()));
-                    peakKwValue.setText(updated.getPeakKw() + " kW");
-                    currentKwValue.setText(updated.getCurrentKw() + " kW");
-                    quarterSumValue.setText(
-                            sum.map(a -> a + " kW").orElse("N/A")
-                    );
-                    updatePowerLimitHistoryChart(chartDiv, updated);
-                });
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }, 0, 30, TimeUnit.SECONDS);
+        refreshPowerLimitStatus();
+        ui.setPollInterval(AUTO_REFRESH_INTERVAL_MILLIS);
+        pollRegistration = ui.addPollListener(event -> refreshPowerLimitStatus());
     }
 
+    private void refreshPowerLimitStatus() {
+        if (lastTotalKwh == null || peakKwValue == null || currentKwValue == null || quarterSumValue == null || chartDiv == null) {
+            return;
+        }
+        try {
+            PowerLimitResponse updated = powerLimitService.getPowerLimit(accountId, powerLimitId);
+            Optional<BigDecimal> sum = powerLimitService.getCurrentIntervalSum(
+                    accountId,
+                    powerLimitId
+            );
+            lastTotalKwh.setText(formatLastTotalKwh(updated.getLastTotalKwh()));
+            peakKwValue.setText(updated.getPeakKw() + " kW");
+            currentKwValue.setText(updated.getCurrentKw() + " kW");
+            quarterSumValue.setText(
+                    sum.map(a -> a + " kW").orElse("N/A")
+            );
+            updatePowerLimitHistoryChart(chartDiv, updated);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void stopAutoRefresh() {
+        if (pollRegistration != null) {
+            pollRegistration.remove();
+            pollRegistration = null;
+        }
+        if (ui != null) {
+            ui.setPollInterval(-1);
+        }
+    }
 
     @Override
     protected void onAttach(AttachEvent attachEvent) {
@@ -1072,9 +1081,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
 
     @Override
     protected void onDetach(DetachEvent detachEvent) {
-        if (scheduler != null && !scheduler.isShutdown()) {
-            scheduler.shutdownNow();
-        }
+        stopAutoRefresh();
         super.onDetach(detachEvent);
     }
 
