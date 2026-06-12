@@ -31,7 +31,7 @@ public class DeviceMapper {
                 .lastCommunication(entity.getLastCommunication())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
-                .accountId(entity.getAccount().getId())
+                .accountId(entity.getAccount() != null ? entity.getAccount().getId() : null)
                 .build();
     }
 

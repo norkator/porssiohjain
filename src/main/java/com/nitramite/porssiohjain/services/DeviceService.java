@@ -155,7 +155,7 @@ public class DeviceService {
     public DeviceResponse getDevice(Long authAccountId, Long deviceId) {
         DeviceEntity device = deviceRepository.findById(deviceId)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
-        if (device.getAccount().getId().equals(authAccountId)) {
+        if (device.getAccount() != null && device.getAccount().getId().equals(authAccountId)) {
             return mapToResponse(device, false);
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -215,7 +215,7 @@ public class DeviceService {
                 .lastCommunication(entity.getLastCommunication())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
-                .accountId(entity.getAccount().getId())
+                .accountId(entity.getAccount() != null ? entity.getAccount().getId() : null)
                 .shared(isShared)
                 .apiOnline(entity.isApiOnline())
                 .mqttOnline(entity.isMqttOnline())

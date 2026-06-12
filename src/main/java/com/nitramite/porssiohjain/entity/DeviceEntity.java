@@ -13,6 +13,8 @@ package com.nitramite.porssiohjain.entity;
 
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+import com.nitramite.porssiohjain.entity.enums.DeviceChipId;
+import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
 import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.utils.CryptoConverter;
 import jakarta.persistence.*;
@@ -49,6 +51,18 @@ public class DeviceEntity {
     @Builder.Default
     private DevicePlatform devicePlatform = DevicePlatform.GENERIC_MQTT;
 
+    @Column(name = "serial_number", unique = true, length = 128)
+    private String serialNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "chip_id", length = 32)
+    private DeviceChipId chipId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "factory_device_status", nullable = false, length = 32)
+    @Builder.Default
+    private FactoryDeviceStatus factoryDeviceStatus = FactoryDeviceStatus.CLAIMED;
+
     @Column(name = "enabled", nullable = false)
     @Builder.Default
     private boolean enabled = true;
@@ -83,14 +97,20 @@ public class DeviceEntity {
     @Builder.Default
     private MqttDeviceProfile mqttDeviceProfile = MqttDeviceProfile.GENERIC_RELAY;
 
+    @Column(name = "claim_code", unique = true, length = 64)
+    private String claimCode;
+
+    @Column(name = "claimed_at")
+    private Instant claimedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "account_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id")
     private AccountEntity account;
 
     @PrePersist
@@ -105,6 +125,9 @@ public class DeviceEntity {
         if (devicePlatform == null) {
             devicePlatform = DevicePlatform.GENERIC_MQTT;
         }
+        if (factoryDeviceStatus == null) {
+            factoryDeviceStatus = FactoryDeviceStatus.CLAIMED;
+        }
 
         if (mqttUsername == null) {
             mqttUsername = "device-" + uuid.toString().substring(0, 8);
@@ -115,6 +138,9 @@ public class DeviceEntity {
         }
         if (mqttDeviceProfile == null) {
             mqttDeviceProfile = MqttDeviceProfile.GENERIC_RELAY;
+        }
+        if (serialNumber != null && (claimCode == null || claimCode.isBlank())) {
+            claimCode = "QR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         }
     }
 

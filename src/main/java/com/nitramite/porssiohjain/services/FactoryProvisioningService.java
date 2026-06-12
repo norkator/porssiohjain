@@ -17,26 +17,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class FactoryProvisioningService {
 
-    private final FactoryDeviceRepository factoryDeviceRepository;
     private final FactoryTestRunRepository factoryTestRunRepository;
     private final FactoryTestStepResultRepository factoryTestStepResultRepository;
     private final OtaReleaseRepository otaReleaseRepository;
     private final OtaDeploymentRepository otaDeploymentRepository;
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
-    private final DeviceService deviceService;
+    private final AccountLimitService accountLimitService;
     private final MqttProfileService mqttProfileService;
     private final ObjectProvider<MqttService> mqttServiceProvider;
     private final DemoAccountGuard demoAccountGuard;
 
     @Transactional(readOnly = true)
     public List<FactoryDeviceResponse> listFactoryDevices() {
-        return factoryDeviceRepository.findAllByOrderByIdDesc().stream()
+        return deviceRepository.findBySerialNumberIsNotNullOrderByIdDesc().stream()
                 .map(this::mapFactoryDevice)
                 .toList();
     }
@@ -49,39 +51,35 @@ public class FactoryProvisioningService {
     @Transactional
     public FactoryDeviceResponse createFactoryDevice(CreateFactoryDeviceRequest request) {
         String serialNumber = requireText(request.getSerialNumber(), "serialNumber");
-        factoryDeviceRepository.findBySerialNumber(serialNumber)
+        deviceRepository.findBySerialNumber(serialNumber)
                 .ifPresent(existing -> {
                     throw new DuplicateEntityException("Factory device already exists with serial number: " + serialNumber);
                 });
-        FactoryDeviceEntity entity = FactoryDeviceEntity.builder()
+        DeviceEntity entity = DeviceEntity.builder()
                 .serialNumber(serialNumber)
-                .hardwareMac(blankToNull(request.getHardwareMac()))
-                .chipId(blankToNull(request.getChipId()))
-                .platform(request.getPlatform())
-                .productModel(requireText(request.getProductModel(), "productModel"))
-                .firmwareVersion(blankToNull(request.getFirmwareVersion()))
-                .mqttTopicRoot(defaultTopicRoot(serialNumber, request.getMqttTopicRoot()))
+                .chipId(request.getChipId())
+                .deviceName(serialNumber)
+                .timezone("UTC")
+                .deviceType(DeviceType.STANDARD)
+                .devicePlatform(request.getPlatform() == null ? com.nitramite.porssiohjain.entity.enums.DevicePlatform.GENERIC_MQTT : request.getPlatform())
                 .mqttUsername(blankToNull(request.getMqttUsername()))
                 .mqttPassword(blankToNull(request.getMqttPassword()))
                 .mqttDeviceProfile(defaultProfile(request.getMqttDeviceProfile()))
                 .claimCode(blankToNull(request.getClaimCode()))
-                .metadataJson(blankToNull(request.getMetadataJson()))
-                .status(FactoryDeviceStatus.REGISTERED)
+                .factoryDeviceStatus(FactoryDeviceStatus.REGISTERED)
+                .account(null)
                 .build();
-        return mapFactoryDevice(factoryDeviceRepository.save(entity));
+        return mapFactoryDevice(deviceRepository.save(entity));
     }
 
     @Transactional
     public FactoryDeviceResponse updateFactoryDevice(Long id, UpdateFactoryDeviceRequest request) {
-        FactoryDeviceEntity entity = getFactoryDeviceEntity(id);
-        if (request.getHardwareMac() != null) {
-            entity.setHardwareMac(blankToNull(request.getHardwareMac()));
-        }
+        DeviceEntity entity = getFactoryDeviceEntity(id);
         if (request.getChipId() != null) {
-            entity.setChipId(blankToNull(request.getChipId()));
+            entity.setChipId(request.getChipId());
         }
         if (request.getFirmwareVersion() != null) {
-            entity.setFirmwareVersion(blankToNull(request.getFirmwareVersion()));
+            // Firmware version is intentionally no longer stored on DeviceEntity.
         }
         if (request.getMqttDeviceProfile() != null) {
             entity.setMqttDeviceProfile(request.getMqttDeviceProfile());
@@ -90,21 +88,21 @@ public class FactoryProvisioningService {
             entity.setClaimCode(requireText(request.getClaimCode(), "claimCode"));
         }
         if (request.getMetadataJson() != null) {
-            entity.setMetadataJson(blankToNull(request.getMetadataJson()));
+            // Metadata is intentionally no longer stored on DeviceEntity.
         }
         if (request.getStatus() != null) {
-            entity.setStatus(request.getStatus());
+            entity.setFactoryDeviceStatus(request.getStatus());
         }
-        return mapFactoryDevice(factoryDeviceRepository.save(entity));
+        return mapFactoryDevice(deviceRepository.save(entity));
     }
 
     @Transactional
     public FactoryTestRunResponse startTestRun(Long operatorAccountId, Long factoryDeviceId, CreateFactoryTestRunRequest request) {
-        FactoryDeviceEntity factoryDevice = getFactoryDeviceEntity(factoryDeviceId);
+        DeviceEntity factoryDevice = getFactoryDeviceEntity(factoryDeviceId);
         AccountEntity operator = accountRepository.findById(operatorAccountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found: " + operatorAccountId));
-        factoryDevice.setStatus(FactoryDeviceStatus.TESTING);
-        factoryDeviceRepository.save(factoryDevice);
+        factoryDevice.setFactoryDeviceStatus(FactoryDeviceStatus.TESTING);
+        deviceRepository.save(factoryDevice);
 
         FactoryTestRunEntity run = FactoryTestRunEntity.builder()
                 .factoryDevice(factoryDevice)
@@ -140,13 +138,13 @@ public class FactoryProvisioningService {
 
     @Transactional
     public DeviceResponse claimFactoryDevice(Long factoryDeviceId, ClaimFactoryDeviceRequest request) {
-        FactoryDeviceEntity factoryDevice = getFactoryDeviceEntity(factoryDeviceId);
+        DeviceEntity factoryDevice = getFactoryDeviceEntity(factoryDeviceId);
         return claimFactoryDeviceInternal(factoryDevice, request.getAccountId(), request.getDeviceName(), request.getTimezone());
     }
 
     @Transactional(readOnly = true)
     public ProvisionedDeviceLookupResponse lookupProvisionedDevice(String claimCode) {
-        FactoryDeviceEntity factoryDevice = factoryDeviceRepository.findByClaimCode(requireText(claimCode, "claimCode"))
+        DeviceEntity factoryDevice = deviceRepository.findByClaimCode(requireText(claimCode, "claimCode"))
                 .orElseThrow(() -> new EntityNotFoundException("Provisioned device not found"));
         return mapProvisionedLookup(factoryDevice);
     }
@@ -154,41 +152,32 @@ public class FactoryProvisioningService {
     @Transactional
     public DeviceResponse claimProvisionedDevice(Long accountId, ClaimProvisionedDeviceRequest request) {
         demoAccountGuard.assertWritable(accountId);
-        FactoryDeviceEntity factoryDevice = factoryDeviceRepository.findByClaimCode(requireText(request.getClaimCode(), "claimCode"))
+        DeviceEntity factoryDevice = deviceRepository.findByClaimCode(requireText(request.getClaimCode(), "claimCode"))
                 .orElseThrow(() -> new EntityNotFoundException("Provisioned device not found"));
         return claimFactoryDeviceInternal(factoryDevice, accountId, request.getDeviceName(), request.getTimezone());
     }
 
     private DeviceResponse claimFactoryDeviceInternal(
-            FactoryDeviceEntity factoryDevice,
+            DeviceEntity factoryDevice,
             Long accountId,
             String deviceName,
             String timezone
     ) {
-        if (factoryDevice.getClaimedDevice() != null) {
+        if (factoryDevice.getAccount() != null || factoryDevice.getFactoryDeviceStatus() == FactoryDeviceStatus.CLAIMED) {
             throw new DuplicateEntityException("Factory device already claimed");
         }
-        if (factoryDevice.getStatus() != FactoryDeviceStatus.PASSED) {
+        if (factoryDevice.getFactoryDeviceStatus() != FactoryDeviceStatus.PASSED) {
             throw new IllegalArgumentException("Factory device must pass testing before claim");
         }
-
-        DeviceResponse created = deviceService.createProvisionedDevice(
-                accountId,
-                requireText(deviceName, "deviceName"),
-                requireText(timezone, "timezone"),
-                DeviceType.STANDARD,
-                factoryDevice.getPlatform(),
-                factoryDevice.getMqttUsername(),
-                factoryDevice.getMqttPassword(),
-                factoryDevice.getMqttDeviceProfile()
-        );
-        DeviceEntity device = deviceRepository.findById(created.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Claimed device not found after creation"));
-        factoryDevice.setClaimedDevice(device);
-        factoryDevice.setStatus(FactoryDeviceStatus.CLAIMED);
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        accountLimitService.assertCanCreateDevice(accountId);
+        factoryDevice.setAccount(account);
+        factoryDevice.setDeviceName(requireText(deviceName, "deviceName"));
+        factoryDevice.setTimezone(requireText(timezone, "timezone"));
+        factoryDevice.setFactoryDeviceStatus(FactoryDeviceStatus.CLAIMED);
         factoryDevice.setClaimedAt(Instant.now());
-        factoryDeviceRepository.save(factoryDevice);
-        return created;
+        return mapDeviceResponse(deviceRepository.save(factoryDevice));
     }
 
     @Transactional(readOnly = true)
@@ -223,13 +212,13 @@ public class FactoryProvisioningService {
     @Transactional
     public OtaDeploymentResponse createOtaDeployment(Long requestedByAccountId, Long factoryDeviceId, CreateOtaDeploymentRequest request) {
         demoAccountGuard.assertWritable(requestedByAccountId);
-        FactoryDeviceEntity factoryDevice = getFactoryDeviceEntity(factoryDeviceId);
+        DeviceEntity factoryDevice = getFactoryDeviceEntity(factoryDeviceId);
         OtaReleaseEntity release = otaReleaseRepository.findById(request.getOtaReleaseId())
                 .orElseThrow(() -> new EntityNotFoundException("OTA release not found: " + request.getOtaReleaseId()));
         AccountEntity requestedBy = accountRepository.findById(requestedByAccountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found: " + requestedByAccountId));
 
-        String commandTopic = factoryDevice.getMqttTopicRoot() + "/command";
+        String commandTopic = factoryDevice.getUuid() + "/command";
         String commandPayload = buildOtaCommandPayload(factoryDevice, release, request.getCommandTemplate());
 
         OtaDeploymentEntity deployment = OtaDeploymentEntity.builder()
@@ -255,32 +244,30 @@ public class FactoryProvisioningService {
     @Transactional
     public void registerBootstrapMessage(String topic, String payload) {
         String topicRoot = extractTopicRoot(topic);
-        factoryDeviceRepository.findByMqttTopicRoot(topicRoot).ifPresent(device -> {
-            device.setLastSeenAt(Instant.now());
-            device.setLastBootstrapPayload(payload);
-            if (device.getStatus() == FactoryDeviceStatus.REGISTERED) {
-                device.setStatus(FactoryDeviceStatus.REGISTERED);
-            }
-            factoryDeviceRepository.save(device);
+        parseUuid(topicRoot).flatMap(deviceRepository::findByUuidAndSerialNumberIsNotNull).ifPresent(device -> {
+            device.setLastCommunication(Instant.now());
+            device.setLastTelemetry(payload);
+            deviceRepository.save(device);
         });
     }
 
     private void finalizeTestRun(FactoryTestRunEntity run, FactoryTestStatus finalStatus) {
         run.setStatus(finalStatus == FactoryTestStatus.FAILED ? FactoryTestStatus.FAILED : FactoryTestStatus.PASSED);
         run.setFinishedAt(Instant.now());
-        FactoryDeviceEntity factoryDevice = run.getFactoryDevice();
-        factoryDevice.setStatus(finalStatus == FactoryTestStatus.FAILED
+        DeviceEntity factoryDevice = run.getFactoryDevice();
+        factoryDevice.setFactoryDeviceStatus(finalStatus == FactoryTestStatus.FAILED
                 ? FactoryDeviceStatus.FAILED
                 : FactoryDeviceStatus.PASSED);
-        factoryDeviceRepository.save(factoryDevice);
+        deviceRepository.save(factoryDevice);
     }
 
-    private FactoryDeviceEntity getFactoryDeviceEntity(Long id) {
-        return factoryDeviceRepository.findById(id)
+    private DeviceEntity getFactoryDeviceEntity(Long id) {
+        return deviceRepository.findById(id)
+                .filter(device -> device.getSerialNumber() != null)
                 .orElseThrow(() -> new EntityNotFoundException("Factory device not found: " + id));
     }
 
-    private FactoryDeviceResponse mapFactoryDevice(FactoryDeviceEntity entity) {
+    private FactoryDeviceResponse mapFactoryDevice(DeviceEntity entity) {
         List<FactoryTestRunResponse> testRuns = factoryTestRunRepository.findByFactoryDeviceOrderByStartedAtDesc(entity).stream()
                 .map(this::mapTestRun)
                 .toList();
@@ -290,22 +277,21 @@ public class FactoryProvisioningService {
         return FactoryDeviceResponse.builder()
                 .id(entity.getId())
                 .serialNumber(entity.getSerialNumber())
-                .hardwareMac(entity.getHardwareMac())
                 .chipId(entity.getChipId())
-                .platform(entity.getPlatform())
-                .productModel(entity.getProductModel())
-                .firmwareVersion(entity.getFirmwareVersion())
-                .mqttTopicRoot(entity.getMqttTopicRoot())
+                .platform(entity.getDevicePlatform())
+                .productModel(null)
+                .firmwareVersion(null)
+                .mqttTopicRoot(entity.getUuid() != null ? entity.getUuid().toString() : null)
                 .mqttUsername(entity.getMqttUsername())
                 .mqttPassword(entity.getMqttPassword())
                 .mqttDeviceProfile(entity.getMqttDeviceProfile())
                 .mqttCapabilities(mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
                 .claimCode(entity.getClaimCode())
-                .status(entity.getStatus())
-                .lastSeenAt(entity.getLastSeenAt())
-                .lastBootstrapPayload(entity.getLastBootstrapPayload())
-                .metadataJson(entity.getMetadataJson())
-                .claimedDeviceId(entity.getClaimedDevice() != null ? entity.getClaimedDevice().getId() : null)
+                .status(entity.getFactoryDeviceStatus())
+                .lastSeenAt(entity.getLastCommunication())
+                .lastBootstrapPayload(entity.getLastTelemetry())
+                .metadataJson(null)
+                .claimedDeviceId(entity.getAccount() != null ? entity.getId() : null)
                 .claimedAt(entity.getClaimedAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
@@ -372,13 +358,13 @@ public class FactoryProvisioningService {
                 .build();
     }
 
-    private String buildOtaCommandPayload(FactoryDeviceEntity factoryDevice, OtaReleaseEntity release, String commandTemplate) {
+    private String buildOtaCommandPayload(DeviceEntity factoryDevice, OtaReleaseEntity release, String commandTemplate) {
         if (commandTemplate != null && !commandTemplate.isBlank()) {
             return commandTemplate
                     .replace("{url}", release.getBinaryUrl())
                     .replace("{checksum}", release.getChecksumSha256() == null ? "" : release.getChecksumSha256())
                     .replace("{version}", release.getVersion())
-                    .replace("{platform}", factoryDevice.getPlatform().name())
+                    .replace("{platform}", factoryDevice.getDevicePlatform().name())
                     .replace("{profile}", factoryDevice.getMqttDeviceProfile().name());
         }
         return mqttProfileService.buildDefaultOtaPayload(
@@ -389,16 +375,17 @@ public class FactoryProvisioningService {
         );
     }
 
-    private String defaultTopicRoot(String serialNumber, String requestedTopicRoot) {
-        if (requestedTopicRoot != null && !requestedTopicRoot.isBlank()) {
-            return requestedTopicRoot;
-        }
-        return "factory/bootstrap/" + serialNumber;
-    }
-
     private String extractTopicRoot(String topic) {
         int lastSlash = topic.lastIndexOf('/');
         return lastSlash > 0 ? topic.substring(0, lastSlash) : topic;
+    }
+
+    private java.util.Optional<java.util.UUID> parseUuid(String value) {
+        try {
+            return java.util.Optional.of(java.util.UUID.fromString(value));
+        } catch (IllegalArgumentException e) {
+            return java.util.Optional.empty();
+        }
     }
 
     private String requireText(String value, String fieldName) {
@@ -416,18 +403,52 @@ public class FactoryProvisioningService {
         return mqttDeviceProfile == null ? MqttDeviceProfile.GENERIC_RELAY : mqttDeviceProfile;
     }
 
-    private ProvisionedDeviceLookupResponse mapProvisionedLookup(FactoryDeviceEntity entity) {
+    private ProvisionedDeviceLookupResponse mapProvisionedLookup(DeviceEntity entity) {
         return ProvisionedDeviceLookupResponse.builder()
                 .factoryDeviceId(entity.getId())
                 .claimCode(entity.getClaimCode())
                 .serialNumber(entity.getSerialNumber())
-                .productModel(entity.getProductModel())
-                .platform(entity.getPlatform())
+                .productModel(null)
+                .platform(entity.getDevicePlatform())
                 .mqttDeviceProfile(entity.getMqttDeviceProfile())
                 .mqttCapabilities(mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
-                .firmwareVersion(entity.getFirmwareVersion())
-                .lastSeenAt(entity.getLastSeenAt())
-                .claimable(entity.getClaimedDevice() == null && entity.getStatus() == FactoryDeviceStatus.PASSED)
+                .firmwareVersion(null)
+                .lastSeenAt(entity.getLastCommunication())
+                .claimable(entity.getAccount() == null && entity.getFactoryDeviceStatus() == FactoryDeviceStatus.PASSED)
                 .build();
+    }
+
+    private DeviceResponse mapDeviceResponse(DeviceEntity entity) {
+        DeviceResponse response = DeviceResponse.builder()
+                .id(entity.getId())
+                .uuid(entity.getUuid())
+                .deviceType(entity.getDeviceType())
+                .devicePlatform(entity.getDevicePlatform())
+                .enabled(entity.isEnabled())
+                .deviceName(entity.getDeviceName())
+                .timezone(entity.getTimezone())
+                .lastCommunication(entity.getLastCommunication())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .accountId(entity.getAccount() != null ? entity.getAccount().getId() : null)
+                .shared(false)
+                .apiOnline(entity.isApiOnline())
+                .mqttOnline(entity.isMqttOnline())
+                .mqttUsername(entity.getMqttUsername())
+                .mqttPassword(entity.getMqttPassword())
+                .mqttDeviceProfile(entity.getMqttDeviceProfile())
+                .mqttCapabilities(mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
+                .build();
+
+        Map<Integer, Integer> channelSnapshot = Map.of();
+        boolean hasActiveChannels = channelSnapshot.values().stream()
+                .anyMatch(value -> value != null && value == 1);
+        List<Boolean> relayChannelStates = new ArrayList<>();
+        for (int channel = 0; channel < 4; channel++) {
+            relayChannelStates.add(Objects.equals(channelSnapshot.get(channel), 1));
+        }
+        response.setHasActiveChannels(hasActiveChannels);
+        response.setRelayChannelStates(relayChannelStates);
+        return response;
     }
 }

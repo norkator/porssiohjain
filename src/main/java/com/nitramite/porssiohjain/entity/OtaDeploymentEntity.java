@@ -25,7 +25,7 @@ public class OtaDeploymentEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "factory_device_id")
-    private FactoryDeviceEntity factoryDevice;
+    private DeviceEntity factoryDevice;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "device_id")
