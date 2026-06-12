@@ -21,7 +21,7 @@ public class FactoryTestRunEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "factory_device_id", nullable = false)
-    private FactoryDeviceEntity factoryDevice;
+    private DeviceEntity factoryDevice;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "operator_account_id")

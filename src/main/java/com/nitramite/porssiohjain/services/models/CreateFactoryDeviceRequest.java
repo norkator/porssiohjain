@@ -1,14 +1,14 @@
 package com.nitramite.porssiohjain.services.models;
 
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+import com.nitramite.porssiohjain.entity.enums.DeviceChipId;
 import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import lombok.Data;
 
 @Data
 public class CreateFactoryDeviceRequest {
     private String serialNumber;
-    private String hardwareMac;
-    private String chipId;
+    private DeviceChipId chipId;
     private DevicePlatform platform;
     private String productModel;
     private String firmwareVersion;

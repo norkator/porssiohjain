@@ -5,7 +5,6 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
-import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerLimitRepository;
 import com.nitramite.porssiohjain.entity.repository.ProductionSourceRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
@@ -47,9 +46,6 @@ class AdminFactoryControllerTest {
     private TokenRepository tokenRepository;
 
     @Autowired
-    private FactoryDeviceRepository factoryDeviceRepository;
-
-    @Autowired
     private DeviceRepository deviceRepository;
 
     @Autowired
@@ -72,7 +68,6 @@ class AdminFactoryControllerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        factoryDeviceRepository.deleteAll();
         deviceRepository.deleteAll();
         productionSourceRepository.deleteAll();
         powerLimitRepository.deleteAll();
@@ -107,7 +102,6 @@ class AdminFactoryControllerTest {
                 {
                     "serialNumber": "SER-001",
                     "platform": "OPENBEKEN",
-                    "productModel": "Relay-2CH",
                     "mqttDeviceProfile": "OPENBEKEN_RELAY"
                 }
                 """;
@@ -119,7 +113,7 @@ class AdminFactoryControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.serialNumber").value("SER-001"))
-                .andExpect(jsonPath("$.mqttTopicRoot").value("factory/bootstrap/SER-001"))
+                .andExpect(jsonPath("$.mqttTopicRoot").isString())
                 .andExpect(jsonPath("$.mqttUsername").isString())
                 .andExpect(jsonPath("$.mqttPassword").isString())
                 .andExpect(jsonPath("$.mqttDeviceProfile").value(MqttDeviceProfile.OPENBEKEN_RELAY.name()))

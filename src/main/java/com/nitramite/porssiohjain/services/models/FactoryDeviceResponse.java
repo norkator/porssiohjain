@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.services.models;
 
+import com.nitramite.porssiohjain.entity.enums.DeviceChipId;
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
 import com.nitramite.porssiohjain.entity.enums.MqttCapability;
@@ -19,8 +20,7 @@ import java.util.List;
 public class FactoryDeviceResponse {
     private Long id;
     private String serialNumber;
-    private String hardwareMac;
-    private String chipId;
+    private DeviceChipId chipId;
     private DevicePlatform platform;
     private String productModel;
     private String firmwareVersion;

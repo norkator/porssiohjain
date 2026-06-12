@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.entity.enums.DeviceChipId;
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
 import com.nitramite.porssiohjain.entity.enums.FactoryTestStatus;
@@ -35,7 +36,6 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -62,19 +62,9 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
 
     private final Grid<FactoryDeviceResponse> grid = new Grid<>(FactoryDeviceResponse.class, false);
     private final TextField serialNumberField = new TextField();
-    private final TextField productModelField = new TextField();
-    private final TextField firmwareVersionField = new TextField();
-    private final TextField hardwareMacField = new TextField();
-    private final TextField chipIdField = new TextField();
-    private final TextField mqttTopicRootField = new TextField();
-    private final TextField mqttUsernameField = new TextField();
-    private final TextField mqttPasswordField = new TextField();
-    private final TextField claimCodeField = new TextField();
+    private final ComboBox<DeviceChipId> chipIdField = new ComboBox<>();
     private final ComboBox<DevicePlatform> platformField = new ComboBox<>();
     private final ComboBox<MqttDeviceProfile> profileField = new ComboBox<>();
-    private final TextArea metadataField = new TextArea();
-    private String lastSuggestedTopicRoot;
-    private String lastSuggestedMqttUsername;
 
     public AdminProvisioningView(
             AuthService authService,
@@ -126,17 +116,9 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
 
         FormLayout formLayout = new FormLayout(
                 serialNumberField,
-                productModelField,
                 platformField,
                 profileField,
-                firmwareVersionField,
-                hardwareMacField,
                 chipIdField,
-                claimCodeField,
-                mqttTopicRootField,
-                mqttUsernameField,
-                mqttPasswordField,
-                metadataField,
                 actions
         );
         formLayout.setWidthFull();
@@ -144,7 +126,6 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("720px", 2)
         );
-        formLayout.setColspan(metadataField, 2);
         formLayout.setColspan(actions, 2);
         return formLayout;
     }
@@ -153,18 +134,9 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         serialNumberField.setLabel(t("admin.provisioning.serial"));
         serialNumberField.setRequired(true);
 
-        productModelField.setLabel(t("admin.provisioning.productModel"));
-        productModelField.setRequired(true);
-
-        firmwareVersionField.setLabel(t("admin.provisioning.firmwareVersion"));
-        hardwareMacField.setLabel(t("admin.provisioning.hardwareMac"));
         chipIdField.setLabel(t("admin.provisioning.chipId"));
-        mqttTopicRootField.setLabel(t("admin.provisioning.topicRoot"));
-        mqttUsernameField.setLabel(t("admin.provisioning.mqttUsername"));
-        mqttPasswordField.setLabel(t("admin.provisioning.mqttPassword"));
-        claimCodeField.setLabel(t("admin.provisioning.claimCode"));
-        claimCodeField.setHelperText(t("admin.provisioning.claimCodeHelper"));
-
+        chipIdField.setItems(DeviceChipId.values());
+        chipIdField.setClearButtonVisible(true);
         platformField.setLabel(t("admin.provisioning.platform"));
         platformField.setItems(DevicePlatform.values());
         platformField.setRequired(true);
@@ -173,20 +145,11 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         profileField.setItems(MqttDeviceProfile.values());
         profileField.setValue(MqttDeviceProfile.GENERIC_RELAY);
 
-        metadataField.setLabel(t("admin.provisioning.metadata"));
-        metadataField.setMinHeight("120px");
-
-        mqttTopicRootField.setHelperText(t("admin.provisioning.topicRootHelper"));
-        mqttUsernameField.setHelperText(t("admin.provisioning.mqttUsernameHelper"));
-        mqttPasswordField.setHelperText(t("admin.provisioning.mqttPasswordHelper"));
-
-        serialNumberField.addValueChangeListener(event -> applySerialBasedDefaults(event.getValue()));
     }
 
     private void configureGrid() {
         grid.setWidthFull();
         grid.addColumn(FactoryDeviceResponse::getSerialNumber).setHeader(t("admin.provisioning.serial")).setAutoWidth(true);
-        grid.addColumn(FactoryDeviceResponse::getProductModel).setHeader(t("admin.provisioning.productModel")).setAutoWidth(true);
         grid.addColumn(item -> item.getPlatform() != null ? item.getPlatform().name() : "")
                 .setHeader(t("admin.provisioning.platform")).setAutoWidth(true);
         grid.addColumn(item -> item.getMqttDeviceProfile() != null ? item.getMqttDeviceProfile().name() : "")
@@ -194,7 +157,8 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         grid.addColumn(FactoryDeviceResponse::getClaimCode).setHeader(t("admin.provisioning.claimCode")).setAutoWidth(true);
         grid.addColumn(item -> item.getStatus() != null ? item.getStatus().name() : "")
                 .setHeader(t("admin.provisioning.status")).setAutoWidth(true);
-        grid.addColumn(FactoryDeviceResponse::getMqttTopicRoot).setHeader(t("admin.provisioning.topicRoot")).setAutoWidth(true).setFlexGrow(1);
+        grid.addColumn(item -> item.getMqttTopicRoot() != null ? item.getMqttTopicRoot() : "")
+                .setHeader(t("admin.provisioning.topicRoot")).setAutoWidth(true).setFlexGrow(1);
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("Europe/Helsinki"));
         grid.addColumn(item -> item.getLastSeenAt() != null ? formatter.format(item.getLastSeenAt()) : "")
@@ -216,18 +180,9 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         try {
             CreateFactoryDeviceRequest request = new CreateFactoryDeviceRequest();
             request.setSerialNumber(serialNumberField.getValue());
-            request.setProductModel(productModelField.getValue());
             request.setPlatform(platformField.getValue());
             request.setMqttDeviceProfile(profileField.getValue());
-            request.setFirmwareVersion(firmwareVersionField.getValue());
-            request.setHardwareMac(hardwareMacField.getValue());
             request.setChipId(chipIdField.getValue());
-            request.setMqttTopicRoot(mqttTopicRootField.getValue());
-            request.setMqttUsername(mqttUsernameField.getValue());
-            request.setMqttPassword(mqttPasswordField.getValue());
-            request.setClaimCode(claimCodeField.getValue());
-            request.setMetadataJson(metadataField.getValue());
-
             FactoryDeviceResponse created = factoryProvisioningService.createFactoryDevice(request);
             refreshGrid();
             clearForm();
@@ -313,53 +268,9 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
 
     private void clearForm() {
         serialNumberField.clear();
-        productModelField.clear();
-        firmwareVersionField.clear();
-        hardwareMacField.clear();
         chipIdField.clear();
-        mqttTopicRootField.clear();
-        mqttUsernameField.clear();
-        mqttPasswordField.clear();
-        claimCodeField.clear();
-        metadataField.clear();
         platformField.clear();
         profileField.setValue(MqttDeviceProfile.GENERIC_RELAY);
-        lastSuggestedTopicRoot = null;
-        lastSuggestedMqttUsername = null;
-    }
-
-    private void applySerialBasedDefaults(String serialNumber) {
-        String suggestedTopicRoot = buildSuggestedTopicRoot(serialNumber);
-        String suggestedMqttUsername = buildSuggestedMqttUsername(serialNumber);
-
-        if (shouldApplySuggestion(mqttTopicRootField.getValue(), lastSuggestedTopicRoot)) {
-            mqttTopicRootField.setValue(suggestedTopicRoot);
-        }
-        if (shouldApplySuggestion(mqttUsernameField.getValue(), lastSuggestedMqttUsername)) {
-            mqttUsernameField.setValue(suggestedMqttUsername);
-        }
-
-        lastSuggestedTopicRoot = suggestedTopicRoot;
-        lastSuggestedMqttUsername = suggestedMqttUsername;
-    }
-
-    private boolean shouldApplySuggestion(String currentValue, String previousSuggestion) {
-        return currentValue == null || currentValue.isBlank() || currentValue.equals(previousSuggestion);
-    }
-
-    private String buildSuggestedTopicRoot(String serialNumber) {
-        if (serialNumber == null || serialNumber.isBlank()) {
-            return "";
-        }
-        return "factory/bootstrap/" + serialNumber.trim();
-    }
-
-    private String buildSuggestedMqttUsername(String serialNumber) {
-        if (serialNumber == null || serialNumber.isBlank()) {
-            return "";
-        }
-        String normalized = serialNumber.toLowerCase().replaceAll("[^a-z0-9]", "");
-        return normalized.isBlank() ? "" : "factory-" + normalized;
     }
 
     private FactoryTestRunResponse latestRun(FactoryDeviceResponse device) {

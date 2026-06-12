@@ -12,10 +12,9 @@
 package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.entity.DeviceEntity;
-import com.nitramite.porssiohjain.entity.FactoryDeviceEntity;
+import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
-import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,28 +35,25 @@ class RabbitMqAuthControllerTest {
     @Mock
     private DeviceRepository deviceRepository;
 
-    @Mock
-    private FactoryDeviceRepository factoryDeviceRepository;
-
     private RabbitMqAuthController controller;
     private DeviceEntity device;
-    private FactoryDeviceEntity factoryDevice;
+    private DeviceEntity factoryDevice;
     private SystemLogService systemLogService;
 
     @BeforeEach
     void setUp() {
         systemLogService = new SystemLogService();
-        controller = new RabbitMqAuthController(deviceRepository, factoryDeviceRepository, systemLogService);
+        controller = new RabbitMqAuthController(deviceRepository, systemLogService);
         device = DeviceEntity.builder()
                 .uuid(UUID.randomUUID())
                 .mqttUsername("device-user")
                 .mqttPassword("secret")
+                .account(AccountEntity.builder().id(1L).build())
                 .build();
-        factoryDevice = FactoryDeviceEntity.builder()
+        factoryDevice = DeviceEntity.builder()
+                .uuid(UUID.randomUUID())
                 .serialNumber("SER-001")
-                .platform(DevicePlatform.OPENBEKEN)
-                .productModel("Relay-2CH")
-                .mqttTopicRoot("factory/bootstrap/SER-001")
+                .devicePlatform(DevicePlatform.OPENBEKEN)
                 .mqttUsername("factory-user")
                 .mqttPassword("factory-secret")
                 .build();
@@ -72,8 +68,7 @@ class RabbitMqAuthControllerTest {
 
     @Test
     void authenticatesFactoryUserWithMatchingPassword() {
-        when(deviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.empty());
-        when(factoryDeviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.of(factoryDevice));
+        when(deviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.of(factoryDevice));
 
         assertEquals("allow", controller.authenticateUser("factory-user", "factory-secret", "client-1", "/").getBody());
     }
@@ -197,11 +192,10 @@ class RabbitMqAuthControllerTest {
 
     @Test
     void allowsFactoryDeviceToReadOwnCommandTopicOnly() {
-        when(deviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.empty());
-        when(factoryDeviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.of(factoryDevice));
+        when(deviceRepository.findByMqttUsername("factory-user")).thenReturn(Optional.of(factoryDevice));
 
         assertEquals("allow", controller.authorizeTopic("factory-user", "/", "topic", "amq.topic",
-                "read", "factory/bootstrap/SER-001/command/#").getBody());
+                "read", factoryDevice.getUuid() + "/command/#").getBody());
         // Temporarily disabled while authorizeTopic returns allow for auth logging investigation.
         // assertEquals("deny", controller.authorizeTopic("factory-user", "/", "topic", "amq.topic",
         //         "write", "factory/bootstrap/SER-001/command/reboot").getBody());

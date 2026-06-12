@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
 
 public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
 
@@ -40,6 +41,16 @@ public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
     Optional<DeviceEntity> findWithAccountById(Long id);
 
     Optional<DeviceEntity> findByMqttUsername(String mqttUsername);
+
+    List<DeviceEntity> findBySerialNumberIsNotNullOrderByIdDesc();
+
+    Optional<DeviceEntity> findBySerialNumber(String serialNumber);
+
+    Optional<DeviceEntity> findByClaimCode(String claimCode);
+
+    Optional<DeviceEntity> findByUuidAndSerialNumberIsNotNull(UUID uuid);
+
+    List<DeviceEntity> findByFactoryDeviceStatus(FactoryDeviceStatus factoryDeviceStatus);
 
     List<DeviceEntity> findByApiOnlineTrue();
 
