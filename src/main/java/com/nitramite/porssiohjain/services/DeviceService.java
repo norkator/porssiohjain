@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
 import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.entity.repository.*;
@@ -350,6 +351,20 @@ public class DeviceService {
         productionSourceHeatPumpRepository.deleteAll(productionSourceHeatPumpRepository.findByDevice(device));
         weatherControlHeatPumpRepository.deleteAll(weatherControlHeatPumpRepository.findByDevice(device));
         resourceSharingRepository.deleteAll(resourceSharingRepository.findByResourceTypeAndDeviceId(ResourceType.DEVICE, deviceId));
+
+        if (device.getSerialNumber() != null) {
+            device.setAccount(null);
+            device.setDeviceName(device.getSerialNumber());
+            device.setTimezone("UTC");
+            device.setFactoryDeviceStatus(FactoryDeviceStatus.PASSED);
+            device.setClaimedAt(null);
+            device.setEnabled(true);
+            device.setApiOnline(false);
+            device.setMqttOnline(false);
+            deviceRepository.save(device);
+            return;
+        }
+
         deviceRepository.delete(device);
     }
 
