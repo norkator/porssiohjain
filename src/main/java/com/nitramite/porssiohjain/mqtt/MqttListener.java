@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.messaging.Message;
 
 import java.time.Instant;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -44,10 +46,14 @@ public class MqttListener {
                 : rawPayload.toString();
         boolean retained = Boolean.TRUE.equals(message.getHeaders().get(MqttHeaders.RECEIVED_RETAINED));
         // log.info("Received: {} -> {}", topic, payload);
-        String deviceId = extractOnlineDeviceId(topic);
-        if (deviceId != null) {
-            boolean online = Boolean.parseBoolean(payload);
-            deviceRepository.findWithAccountByUuid(UUID.fromString(deviceId))
+        Optional<UUID> onlineDeviceUuid = extractOnlineDeviceUuid(topic);
+        if (onlineDeviceUuid.isPresent()) {
+            Boolean online = parseOnlineStatusPayload(payload);
+            if (online == null) {
+                log.warn("Ignoring MQTT online status topic '{}' with unsupported payload '{}'", topic, payload);
+                return;
+            }
+            deviceRepository.findWithAccountByUuid(onlineDeviceUuid.get())
                     .ifPresent(device -> {
                         boolean wasApiOnline = device.isApiOnline();
                         boolean wasMqttOnline = device.isMqttOnline();
@@ -83,14 +89,36 @@ public class MqttListener {
         }
     }
 
-    private String extractOnlineDeviceId(String topic) {
+    private Optional<UUID> extractOnlineDeviceUuid(String topic) {
+        String deviceId = null;
         if (topic.endsWith("/online")) {
-            return topic.substring(0, topic.indexOf("/"));
+            deviceId = topic.substring(0, topic.indexOf("/"));
+        } else if (topic.endsWith(".online")) {
+            deviceId = topic.substring(0, topic.length() - ".online".length());
+        } else if (topic.endsWith(".connected")) {
+            deviceId = topic.substring(0, topic.length() - ".connected".length());
+        } else if (topic.endsWith("/connected")) {
+            deviceId = topic.substring(0, topic.indexOf("/"));
         }
-        if (topic.endsWith(".online")) {
-            return topic.substring(0, topic.length() - ".online".length());
+
+        if (deviceId == null) {
+            return Optional.empty();
         }
-        return null;
+        try {
+            return Optional.of(UUID.fromString(deviceId));
+        } catch (IllegalArgumentException e) {
+            log.warn("Ignoring MQTT online status topic '{}' because '{}' is not a valid device UUID", topic, deviceId);
+            return Optional.empty();
+        }
+    }
+
+    private Boolean parseOnlineStatusPayload(String payload) {
+        String normalized = payload == null ? "" : payload.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "true", "online", "1" -> true;
+            case "false", "offline", "0" -> false;
+            default -> null;
+        };
     }
 
 }

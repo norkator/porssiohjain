@@ -26,6 +26,7 @@ import com.nitramite.porssiohjain.entity.WeatherControlEntity;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.ControlMode;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.LoadSheddingTriggerState;
 import com.nitramite.porssiohjain.entity.enums.Status;
@@ -362,8 +363,8 @@ class ControlServiceTest {
         controlService.mqttDeviceControls();
 
         InOrder inOrder = inOrder(mqttService);
-        inOrder.verify(mqttService).switchControl(targetDeviceUuid.toString(), 2, false);
-        inOrder.verify(mqttService).switchControl(sourceDeviceUuid.toString(), 1, true);
+        inOrder.verify(mqttService).switchControl(targetDeviceUuid.toString(), 2, false, DevicePlatform.GENERIC_MQTT);
+        inOrder.verify(mqttService).switchControl(sourceDeviceUuid.toString(), 1, true, DevicePlatform.GENERIC_MQTT);
     }
 
     @Test
