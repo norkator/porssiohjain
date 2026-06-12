@@ -63,12 +63,8 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
     private final Grid<FactoryDeviceResponse> grid = new Grid<>(FactoryDeviceResponse.class, false);
     private final TextField serialNumberField = new TextField();
     private final ComboBox<DeviceChipId> chipIdField = new ComboBox<>();
-    private final TextField mqttUsernameField = new TextField();
-    private final TextField mqttPasswordField = new TextField();
-    private final TextField claimCodeField = new TextField();
     private final ComboBox<DevicePlatform> platformField = new ComboBox<>();
     private final ComboBox<MqttDeviceProfile> profileField = new ComboBox<>();
-    private String lastSuggestedMqttUsername;
 
     public AdminProvisioningView(
             AuthService authService,
@@ -123,9 +119,6 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
                 platformField,
                 profileField,
                 chipIdField,
-                claimCodeField,
-                mqttUsernameField,
-                mqttPasswordField,
                 actions
         );
         formLayout.setWidthFull();
@@ -144,11 +137,6 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         chipIdField.setLabel(t("admin.provisioning.chipId"));
         chipIdField.setItems(DeviceChipId.values());
         chipIdField.setClearButtonVisible(true);
-        mqttUsernameField.setLabel(t("admin.provisioning.mqttUsername"));
-        mqttPasswordField.setLabel(t("admin.provisioning.mqttPassword"));
-        claimCodeField.setLabel(t("admin.provisioning.claimCode"));
-        claimCodeField.setHelperText(t("admin.provisioning.claimCodeHelper"));
-
         platformField.setLabel(t("admin.provisioning.platform"));
         platformField.setItems(DevicePlatform.values());
         platformField.setRequired(true);
@@ -157,10 +145,6 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         profileField.setItems(MqttDeviceProfile.values());
         profileField.setValue(MqttDeviceProfile.GENERIC_RELAY);
 
-        mqttUsernameField.setHelperText(t("admin.provisioning.mqttUsernameHelper"));
-        mqttPasswordField.setHelperText(t("admin.provisioning.mqttPasswordHelper"));
-
-        serialNumberField.addValueChangeListener(event -> applySerialBasedDefaults(event.getValue()));
     }
 
     private void configureGrid() {
@@ -199,10 +183,6 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
             request.setPlatform(platformField.getValue());
             request.setMqttDeviceProfile(profileField.getValue());
             request.setChipId(chipIdField.getValue());
-            request.setMqttUsername(mqttUsernameField.getValue());
-            request.setMqttPassword(mqttPasswordField.getValue());
-            request.setClaimCode(claimCodeField.getValue());
-
             FactoryDeviceResponse created = factoryProvisioningService.createFactoryDevice(request);
             refreshGrid();
             clearForm();
@@ -289,34 +269,8 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
     private void clearForm() {
         serialNumberField.clear();
         chipIdField.clear();
-        mqttUsernameField.clear();
-        mqttPasswordField.clear();
-        claimCodeField.clear();
         platformField.clear();
         profileField.setValue(MqttDeviceProfile.GENERIC_RELAY);
-        lastSuggestedMqttUsername = null;
-    }
-
-    private void applySerialBasedDefaults(String serialNumber) {
-        String suggestedMqttUsername = buildSuggestedMqttUsername(serialNumber);
-
-        if (shouldApplySuggestion(mqttUsernameField.getValue(), lastSuggestedMqttUsername)) {
-            mqttUsernameField.setValue(suggestedMqttUsername);
-        }
-
-        lastSuggestedMqttUsername = suggestedMqttUsername;
-    }
-
-    private boolean shouldApplySuggestion(String currentValue, String previousSuggestion) {
-        return currentValue == null || currentValue.isBlank() || currentValue.equals(previousSuggestion);
-    }
-
-    private String buildSuggestedMqttUsername(String serialNumber) {
-        if (serialNumber == null || serialNumber.isBlank()) {
-            return "";
-        }
-        String normalized = serialNumber.toLowerCase().replaceAll("[^a-z0-9]", "");
-        return normalized.isBlank() ? "" : "factory-" + normalized;
     }
 
     private FactoryTestRunResponse latestRun(FactoryDeviceResponse device) {
