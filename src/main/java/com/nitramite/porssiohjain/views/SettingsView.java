@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -74,6 +75,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
     private final Checkbox emailNotificationsEnabled;
     private final Checkbox pushNotificationsEnabled;
     private final Select<String> localeSelect;
+    private final Select<String> marketIndexSelect;
     private final PasswordField currentPasswordField;
     private final PasswordField newPasswordField;
     private final PasswordField confirmNewPasswordField;
@@ -122,6 +124,12 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
             default -> "English";
         });
         localeSelect.setWidthFull();
+
+        marketIndexSelect = new Select<>();
+        marketIndexSelect.setLabel(t("settings.account.market"));
+        marketIndexSelect.setItems(NordpoolMarket.SUPPORTED_MARKETS);
+        marketIndexSelect.setItemLabelGenerator(this::getMarketLabel);
+        marketIndexSelect.setWidthFull();
 
         notifyPowerLimitExceeded =
                 new Checkbox(t("settings.notifications.powerLimitExceeded"));
@@ -225,6 +233,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         emailNotificationsEnabled.setValue(accountService.getEmailNotificationsEnabled(accountId));
         pushNotificationsEnabled.setValue(accountService.getPushNotificationsEnabled(accountId));
         localeSelect.setValue(accountService.getLocale(accountId));
+        marketIndexSelect.setValue(accountService.getMarketIndexName(accountId));
 
         saveButton.addClickListener(e -> {
             accountService.updateAccountSettings(
@@ -236,7 +245,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                     notifyDeviceOnline.getValue(),
                     emailNotificationsEnabled.getValue(),
                     pushNotificationsEnabled.getValue(),
-                    localeSelect.getValue()
+                    localeSelect.getValue(),
+                    marketIndexSelect.getValue()
             );
 
             Locale newLocale = Locale.forLanguageTag(localeSelect.getValue());
@@ -256,13 +266,46 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         section.setSpacing(true);
         H3 title = new H3(t("settings.account.title"));
         title.getStyle().set("margin-top", "16px");
-        FormLayout form = new FormLayout(emailField, localeSelect);
+        FormLayout form = new FormLayout(emailField, localeSelect, marketIndexSelect);
         form.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2)
         );
         section.add(title, form);
         return section;
+    }
+
+    private String getMarketLabel(String market) {
+        boolean finnish = Locale.forLanguageTag(localeSelect.getValue() != null ? localeSelect.getValue() : "en")
+                .getLanguage()
+                .equals("fi");
+        String name = switch (market) {
+            case "AT" -> finnish ? "Itävalta" : "Austria";
+            case "BE" -> finnish ? "Belgia" : "Belgium";
+            case "BG" -> finnish ? "Bulgaria" : "Bulgaria";
+            case "DK1" -> finnish ? "Tanska 1" : "Denmark 1";
+            case "DK2" -> finnish ? "Tanska 2" : "Denmark 2";
+            case "EE" -> finnish ? "Viro" : "Estonia";
+            case "FI" -> finnish ? "Suomi" : "Finland";
+            case "FR" -> finnish ? "Ranska" : "France";
+            case "GER" -> finnish ? "Saksa" : "Germany";
+            case "LT" -> finnish ? "Liettua" : "Lithuania";
+            case "LV" -> finnish ? "Latvia" : "Latvia";
+            case "NL" -> finnish ? "Alankomaat" : "Netherlands";
+            case "NO1" -> finnish ? "Norja 1" : "Norway 1";
+            case "NO2" -> finnish ? "Norja 2" : "Norway 2";
+            case "NO3" -> finnish ? "Norja 3" : "Norway 3";
+            case "NO4" -> finnish ? "Norja 4" : "Norway 4";
+            case "NO5" -> finnish ? "Norja 5" : "Norway 5";
+            case "PL" -> finnish ? "Puola" : "Poland";
+            case "SE1" -> finnish ? "Ruotsi 1" : "Sweden 1";
+            case "SE2" -> finnish ? "Ruotsi 2" : "Sweden 2";
+            case "SE3" -> finnish ? "Ruotsi 3" : "Sweden 3";
+            case "SE4" -> finnish ? "Ruotsi 4" : "Sweden 4";
+            case "TEL" -> "TEL";
+            default -> market;
+        };
+        return name + " (" + market + ")";
     }
 
     private Component createDataExportSection() {

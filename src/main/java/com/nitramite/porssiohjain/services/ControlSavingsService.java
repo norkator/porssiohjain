@@ -22,6 +22,7 @@ import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.services.models.ControlSavingsResponse;
 import com.nitramite.porssiohjain.services.models.ControlSavingsSummaryResponse;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -124,7 +125,11 @@ public class ControlSavingsService {
                         from,
                         to
                 );
-        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(from, to);
+        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(
+                NordpoolMarket.normalize(control.getAccount().getMarketIndexName()),
+                from,
+                to
+        );
         Map<LocalDate, BigDecimal> baselinePriceByDay = calculateBaselinePriceByDay(control, prices, zone);
 
         BigDecimal usageKwh = BigDecimal.ZERO;

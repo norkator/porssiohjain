@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.entity.repository.ControlRepository;
 import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.services.models.ControlTableResponse;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -92,9 +93,12 @@ public class ControlSchedulerService {
             Instant startTime,
             Instant endTime
     ) {
-        List<NordpoolEntity> prices = nordpoolRepository.findByDeliveryStartBetween(startTime, endTime);
-
         for (ControlEntity control : controls) {
+            List<NordpoolEntity> prices = nordpoolRepository.findByMarketIndexNameAndDeliveryStartBetween(
+                    NordpoolMarket.normalize(control.getAccount().getMarketIndexName()),
+                    startTime,
+                    endTime
+            );
             ControlMode controlMode = control.getMode();
 
             controlTableRepository.deleteByControlAndStartTimeBetween(control, startTime, endTime);

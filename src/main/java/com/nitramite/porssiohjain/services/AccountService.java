@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.AccountTier;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -59,6 +60,7 @@ public class AccountService {
                 .uuid(savedAccount.getUuid())
                 .secret(rawSecret)
                 .locale(savedAccount.getLocale())
+                .marketIndexName(savedAccount.getMarketIndexName())
                 .email(savedAccount.getEmail())
                 .notifyPowerLimitExceeded(savedAccount.isNotifyPowerLimitExceeded())
                 .notifyControlActivated(savedAccount.isNotifyControlActivated())
@@ -145,6 +147,14 @@ public class AccountService {
                 .orElse("en");
     }
 
+    @Transactional(readOnly = true)
+    public String getMarketIndexName(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::getMarketIndexName)
+                .map(NordpoolMarket::normalize)
+                .orElse(NordpoolMarket.DEFAULT_MARKET);
+    }
+
     @Transactional
     public void updateAccountSettings(
             Long accountId,
@@ -155,7 +165,8 @@ public class AccountService {
             boolean notifyDeviceOnline,
             boolean emailNotificationsEnabled,
             boolean pushNotificationsEnabled,
-            String locale
+            String locale,
+            String marketIndexName
     ) {
         assertWritable(accountId);
         accountRepository.findById(accountId).ifPresent(account -> {
@@ -167,6 +178,7 @@ public class AccountService {
             account.setEmailNotificationsEnabled(emailNotificationsEnabled);
             account.setPushNotificationsEnabled(pushNotificationsEnabled);
             account.setLocale(locale != null && !locale.isBlank() ? locale.trim() : "en");
+            account.setMarketIndexName(NordpoolMarket.normalize(marketIndexName));
             accountRepository.save(account);
         });
     }

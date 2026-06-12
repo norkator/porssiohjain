@@ -110,7 +110,7 @@ public class PowerLimitServiceTest {
 
         List<NordpoolEntity> priceList = new ArrayList<>();
         priceList.add(getNordpoolEntity(start, end));
-        when(nordpoolRepository.findPricesBetween(any(Instant.class), any(Instant.class))).thenReturn(priceList);
+        when(nordpoolRepository.findPricesBetween(anyString(), any(Instant.class), any(Instant.class))).thenReturn(priceList);
 
         List<DailyUsageCostResponse> result = powerLimitService
                 .getDailyUsageCostForMonth(accountId, powerLimitId, selectedMonth);
@@ -181,6 +181,7 @@ public class PowerLimitServiceTest {
         nordpoolEntity.setId(1L);
         nordpoolEntity.setDeliveryStart(start);
         nordpoolEntity.setDeliveryEnd(end);
+        nordpoolEntity.setMarketIndexName("FI");
         nordpoolEntity.setPriceFi(BigDecimal.valueOf(0.119590));
         return nordpoolEntity;
     }

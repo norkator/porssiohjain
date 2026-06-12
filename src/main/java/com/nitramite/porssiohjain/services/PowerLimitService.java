@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import com.nitramite.porssiohjain.utils.Utils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -498,7 +499,11 @@ public class PowerLimitService {
         List<PowerLimitHistoryEntity> usageList = powerLimitHistoryRepository
                 .findByPowerLimitAndCreatedAtBetween(accountId, powerLimitId, start, end);
 
-        List<NordpoolEntity> priceList = nordpoolRepository.findPricesBetween(start, end);
+        List<NordpoolEntity> priceList = nordpoolRepository.findPricesBetween(
+                NordpoolMarket.normalize(account.getMarketIndexName()),
+                start,
+                end
+        );
 
         Map<LocalDate, DailyUsageCostResponse> dailyMap = new TreeMap<>();
         for (PowerLimitHistoryEntity usage : usageList) {

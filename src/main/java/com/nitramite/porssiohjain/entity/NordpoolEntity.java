@@ -32,6 +32,9 @@ public class NordpoolEntity {
     @Column(name = "delivery_end", nullable = false)
     private Instant deliveryEnd;
 
+    @Column(name = "market_index_name", length = 10, nullable = false)
+    private String marketIndexName;
+
     @Column(name = "price_fi", precision = 10, scale = 4, nullable = false)
     private BigDecimal priceFi;
 

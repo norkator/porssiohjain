@@ -238,6 +238,8 @@
     "email": "Sähköpostiosoite",
     "emailPlaceholder": "user@example.com",
     "language": "Kieli",
+    "market": "Sähkömarkkina-alue",
+    "marketDescription": "Käytetään Nord Pool -hintoihin kaavioissa, ohjauksissa, tehorajojen kustannuksissa ja markkinailmoituksissa.",
     "theme": "Teema",
     "themeDescription": "Valitse tällä laitteella käytettävä ulkoasu.",
     "themeLight": "Vaalea",

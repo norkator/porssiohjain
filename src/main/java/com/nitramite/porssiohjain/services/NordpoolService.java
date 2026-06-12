@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.NordpoolEntity;
 import com.nitramite.porssiohjain.entity.repository.*;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import com.nitramite.porssiohjain.services.models.NordpoolPriceResponse;
 import com.nitramite.porssiohjain.services.models.TodayPriceChartPointResponse;
 import com.nitramite.porssiohjain.services.models.TodayPriceChartResponse;
@@ -37,6 +38,7 @@ public class NordpoolService {
     private static final int TODAY_CHART_RESOLUTION_MINUTES = 15;
     private final NordpoolRepository nordpoolRepository;
     private final ControlRepository controlRepository;
+    private final AccountRepository accountRepository;
 
     public List<NordpoolPriceResponse> getNordpoolPricesForControl(
             Long controlId, Instant startDate, Instant endDate
@@ -48,7 +50,8 @@ public class NordpoolService {
         Instant start = startDate != null ? startDate : now.truncatedTo(ChronoUnit.DAYS);
         Instant end = endDate != null ? endDate : start.plus(2, ChronoUnit.DAYS).minusNanos(1);
 
-        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(start, end);
+        String marketIndexName = NordpoolMarket.normalize(control.getAccount().getMarketIndexName());
+        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(marketIndexName, start, end);
 
         BigDecimal taxMultiplier = BigDecimal.ONE.add(control.getTaxPercent().divide(BigDecimal.valueOf(100), RoundingMode.HALF_UP));
 
@@ -63,14 +66,18 @@ public class NordpoolService {
     }
 
     public TodayPriceStatsResponse getTodayStats(Long accountId, String timezone) {
-        PricingContext pricingContext = resolvePricingContext(accountId, timezone);
+        return getTodayStats(accountId, timezone, null);
+    }
+
+    public TodayPriceStatsResponse getTodayStats(Long accountId, String timezone, String marketIndexName) {
+        PricingContext pricingContext = resolvePricingContext(accountId, timezone, marketIndexName);
         ZoneId zone = pricingContext.zone();
         LocalDate today = LocalDate.now(zone);
         ZonedDateTime startOfDay = today.atStartOfDay(zone);
         ZonedDateTime endOfDay = today.plusDays(1).atStartOfDay(zone);
 
         List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(
-                startOfDay.toInstant(), endOfDay.toInstant()
+                pricingContext.marketIndexName(), startOfDay.toInstant(), endOfDay.toInstant()
         );
 
         if (prices.isEmpty()) {
@@ -99,7 +106,11 @@ public class NordpoolService {
     }
 
     public TodayPriceChartResponse getTodayChart(Long accountId, String timezone) {
-        PricingContext pricingContext = resolvePricingContext(accountId, timezone);
+        return getTodayChart(accountId, timezone, null);
+    }
+
+    public TodayPriceChartResponse getTodayChart(Long accountId, String timezone, String marketIndexName) {
+        PricingContext pricingContext = resolvePricingContext(accountId, timezone, marketIndexName);
         ZoneId zone = pricingContext.zone();
         LocalDate today = LocalDate.now(zone);
         ZonedDateTime startOfDay = today.atStartOfDay(zone);
@@ -107,7 +118,7 @@ public class NordpoolService {
         Instant start = startOfDay.toInstant();
         Instant end = endOfDay.toInstant();
 
-        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(start, end);
+        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(pricingContext.marketIndexName(), start, end);
         Map<Instant, BigDecimal> pointsByTimestamp = new LinkedHashMap<>();
 
         for (NordpoolEntity priceEntry : prices) {
@@ -167,7 +178,7 @@ public class NordpoolService {
                 .build();
     }
 
-    private PricingContext resolvePricingContext(Long accountId, String timezone) {
+    private PricingContext resolvePricingContext(Long accountId, String timezone, String requestedMarketIndexName) {
         ZoneId zone = ZoneId.systemDefault();
         BigDecimal taxMultiplier;
 
@@ -202,14 +213,20 @@ public class NordpoolService {
             }
         }
 
-        return new PricingContext(zone, taxMultiplier);
+        String marketIndexName = accountId == null
+                ? NordpoolMarket.normalize(requestedMarketIndexName)
+                : accountRepository.findById(accountId)
+                        .map(account -> NordpoolMarket.normalize(account.getMarketIndexName()))
+                        .orElse(NordpoolMarket.DEFAULT_MARKET);
+
+        return new PricingContext(zone, taxMultiplier, marketIndexName);
     }
 
     private BigDecimal toPriceWithTax(BigDecimal priceFi, BigDecimal taxMultiplier) {
         return priceFi.multiply(BigDecimal.valueOf(0.1)).multiply(taxMultiplier);
     }
 
-    private record PricingContext(ZoneId zone, BigDecimal taxMultiplier) {
+    private record PricingContext(ZoneId zone, BigDecimal taxMultiplier, String marketIndexName) {
     }
 
 }

@@ -22,19 +22,20 @@ import java.util.Optional;
 
 public interface NordpoolRepository extends JpaRepository<NordpoolEntity, Long> {
 
-    List<NordpoolEntity> findByDeliveryStartBetween(Instant start, Instant end);
+    List<NordpoolEntity> findByMarketIndexNameAndDeliveryStartBetween(String marketIndexName, Instant start, Instant end);
 
     @Query("SELECT n FROM NordpoolEntity n " +
-            "WHERE n.deliveryStart >= :start AND n.deliveryStart <= :end " +
+            "WHERE n.marketIndexName = :marketIndexName AND n.deliveryStart >= :start AND n.deliveryStart <= :end " +
             "ORDER BY n.deliveryStart ASC")
-    List<NordpoolEntity> findPricesBetween(@Param("start") Instant start, @Param("end") Instant end);
+    List<NordpoolEntity> findPricesBetween(@Param("marketIndexName") String marketIndexName, @Param("start") Instant start, @Param("end") Instant end);
 
-    Optional<NordpoolEntity> findFirstByDeliveryStartLessThanEqualAndDeliveryEndGreaterThan(
+    Optional<NordpoolEntity> findFirstByMarketIndexNameAndDeliveryStartLessThanEqualAndDeliveryEndGreaterThan(
+            String marketIndexName,
             Instant deliveryStart,
             Instant deliveryEnd
     );
 
-    boolean existsByDeliveryStartBetween(Instant start, Instant end);
+    boolean existsByMarketIndexNameAndDeliveryStartBetween(String marketIndexName, Instant start, Instant end);
 
     void deleteByDeliveryStartBefore(Instant cutoff);
 

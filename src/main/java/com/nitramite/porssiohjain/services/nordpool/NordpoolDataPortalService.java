@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services.nordpool;
 
 import com.nitramite.porssiohjain.entity.NordpoolEntity;
+import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.services.Day;
 import com.nitramite.porssiohjain.services.SystemLogService;
@@ -47,13 +48,16 @@ public class NordpoolDataPortalService {
     private Integer deleteAfterMonths;
 
     private final NordpoolRepository nordpoolRepository;
+    private final AccountRepository accountRepository;
     private final SystemLogService systemLogService;
 
     NordpoolDataPortalService(
             NordpoolRepository nordpoolRepository,
+            AccountRepository accountRepository,
             SystemLogService systemLogService
     ) {
         this.nordpoolRepository = nordpoolRepository;
+        this.accountRepository = accountRepository;
         this.systemLogService = systemLogService;
     }
 
@@ -70,11 +74,12 @@ public class NordpoolDataPortalService {
         LocalDate tomorrow = today.plusDays(1);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         String formattedDate = day.equals(Day.TODAY) ? today.format(formatter) : tomorrow.format(formatter);
+        String indexNames = getRequiredMarketIndexNames();
 
         String urlWithParams = UriComponentsBuilder.fromUriString(apiUrl)
                 .queryParam("currency", "EUR")
                 .queryParam("market", "DayAhead")
-                .queryParam("indexNames", "FI")
+                .queryParam("indexNames", indexNames)
                 .queryParam("resolutionInMinutes", "15")
                 .queryParam("date", formattedDate)
                 .build(true)
@@ -88,30 +93,41 @@ public class NordpoolDataPortalService {
         );
 
         assert response.getBody() != null;
-        saveEntries(response.getBody().getMultiIndexEntries());
+        saveEntries(response.getBody().getMultiIndexEntries(), NordpoolMarket.splitIndexNames(indexNames));
         return response.getBody();
     }
 
-    private void saveEntries(List<NordpoolResponse.MultiIndexEntry> entries) {
+    private String getRequiredMarketIndexNames() {
+        Set<String> markets = accountRepository.findDistinctMarketIndexNames().stream()
+                .map(NordpoolMarket::normalize)
+                .collect(Collectors.toSet());
+        markets.add(NordpoolMarket.DEFAULT_MARKET);
+        return NordpoolMarket.normalizeAll(markets).stream()
+                .collect(Collectors.joining(","));
+    }
+
+    private void saveEntries(List<NordpoolResponse.MultiIndexEntry> entries, List<String> markets) {
         List<NordpoolEntity> existing = nordpoolRepository.findAll();
         Set<String> existingKeys = existing.stream()
-                .map(e -> e.getDeliveryStart() + "|" + e.getDeliveryEnd())
+                .map(e -> e.getMarketIndexName() + "|" + e.getDeliveryStart() + "|" + e.getDeliveryEnd())
                 .collect(Collectors.toSet());
 
         List<NordpoolEntity> toInsert = entries.stream()
-                .filter(e -> e.getEntryPerArea().containsKey("FI"))
-                .filter(e -> !existingKeys.contains(e.getDeliveryStart() + "|" + e.getDeliveryEnd()))
-                .map(e -> {
-                    NordpoolEntity entity = new NordpoolEntity();
-                    entity.setDeliveryStart(e.getDeliveryStart());
-                    entity.setDeliveryEnd(e.getDeliveryEnd());
-                    entity.setPriceFi(e.getEntryPerArea().get("FI"));
-                    return entity;
-                })
+                .flatMap(e -> markets.stream()
+                        .filter(market -> e.getEntryPerArea().containsKey(market))
+                        .filter(market -> !existingKeys.contains(market + "|" + e.getDeliveryStart() + "|" + e.getDeliveryEnd()))
+                        .map(market -> {
+                            NordpoolEntity entity = new NordpoolEntity();
+                            entity.setDeliveryStart(e.getDeliveryStart());
+                            entity.setDeliveryEnd(e.getDeliveryEnd());
+                            entity.setMarketIndexName(market);
+                            entity.setPriceFi(e.getEntryPerArea().get(market));
+                            return entity;
+                        }))
                 .toList();
 
         if (!toInsert.isEmpty()) {
-            log.info("Inserting {} Nordpool multiIndex entries", toInsert.size());
+            log.info("Inserting {} Nordpool multiIndex entries for markets {}", toInsert.size(), markets);
             nordpoolRepository.saveAll(toInsert);
             systemLogService.log("Insert of " + toInsert.size() + " Nordpool entries completed.");
         }
@@ -122,7 +138,8 @@ public class NordpoolDataPortalService {
         LocalDate today = LocalDate.now();
         Instant start = today.atStartOfDay(ZoneId.systemDefault()).plusHours(4).toInstant();
         Instant end = today.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
-        return nordpoolRepository.existsByDeliveryStartBetween(start, end);
+        return NordpoolMarket.splitIndexNames(getRequiredMarketIndexNames()).stream()
+                .allMatch(market -> nordpoolRepository.existsByMarketIndexNameAndDeliveryStartBetween(market, start, end));
     }
 
     public void deleteOldNordpoolData() {
