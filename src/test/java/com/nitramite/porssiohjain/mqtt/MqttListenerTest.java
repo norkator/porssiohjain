@@ -94,6 +94,21 @@ class MqttListenerTest {
     }
 
     @Test
+    void marksOpenBekenDeviceOnlineForConnectedTopic() {
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
+
+        listener.handleMessage(MessageBuilder.withPayload("online")
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, device.getUuid() + ".connected")
+                .build());
+
+        ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
+        verify(deviceRepository).save(savedDevice.capture());
+        assertTrue(savedDevice.getValue().isMqttOnline());
+        assertNotNull(savedDevice.getValue().getLastCommunication());
+        verify(deviceOfflineNotificationService).sendIfDeviceCameOnline(eq(device), eq(false), eq(false), eq("MQTT"), any());
+    }
+
+    @Test
     void sendsOfflineNotificationForMqttOfflineTransition() {
         device.setMqttOnline(true);
         when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
@@ -112,6 +127,37 @@ class MqttListenerTest {
                 eq("MQTT"),
                 any()
         );
+    }
+
+    @Test
+    void marksOpenBekenDeviceOfflineForConnectedTopic() {
+        device.setMqttOnline(true);
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
+
+        listener.handleMessage(MessageBuilder.withPayload("offline")
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, device.getUuid() + ".connected")
+                .build());
+
+        ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
+        verify(deviceRepository).save(savedDevice.capture());
+        assertFalse(savedDevice.getValue().isMqttOnline());
+        verify(deviceOfflineNotificationService).sendIfDeviceWentOffline(
+                eq(device),
+                eq(false),
+                eq(true),
+                eq("MQTT"),
+                any()
+        );
+    }
+
+    @Test
+    void ignoresUnsupportedOnlinePayload() {
+        listener.handleMessage(MessageBuilder.withPayload("unknown")
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, device.getUuid() + ".connected")
+                .build());
+
+        verify(deviceRepository, never()).findWithAccountByUuid(any());
+        verify(deviceRepository, never()).save(any());
     }
 
     @Test

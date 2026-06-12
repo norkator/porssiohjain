@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.mqtt;
 
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -33,6 +34,16 @@ public class MqttService {
     }
 
     public void switchControl(String deviceId, int channel, boolean on) {
+        switchControl(deviceId, channel, on, DevicePlatform.GENERIC_MQTT);
+    }
+
+    public void switchControl(String deviceId, int channel, boolean on, DevicePlatform platform) {
+        if (platform == DevicePlatform.OPENBEKEN) {
+            String topic = deviceId + "/" + channel + "/set";
+            String payload = on ? "1" : "0";
+            publish(topic, payload);
+            return;
+        }
         String topic = deviceId + "/command/switch:" + channel;
         String payload = on ? "on" : "off";
         publish(topic, payload);

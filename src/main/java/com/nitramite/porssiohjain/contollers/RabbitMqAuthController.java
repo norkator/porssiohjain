@@ -2,6 +2,7 @@ package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.FactoryDeviceEntity;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
 import com.nitramite.porssiohjain.services.SystemLogService;
@@ -138,7 +139,8 @@ public class RabbitMqAuthController {
                     name,
                     permission,
                     routing_key,
-                    true
+                    true,
+                    deviceOpt.get().getDevicePlatform()
             );
         } else {
             Optional<FactoryDeviceEntity> factoryDeviceOpt = factoryDeviceRepository.findByMqttUsername(username);
@@ -151,7 +153,8 @@ public class RabbitMqAuthController {
                         name,
                         permission,
                         routing_key,
-                        false
+                        false,
+                        factoryDeviceOpt.get().getPlatform()
                 );
             }
         }
@@ -191,7 +194,8 @@ public class RabbitMqAuthController {
             String name,
             String permission,
             String routingKey,
-            boolean finalDevice
+            boolean finalDevice,
+            DevicePlatform platform
     ) {
         if (!DEFAULT_VHOST.equals(vhost)
                 || !"topic".equals(resource)
@@ -200,11 +204,11 @@ public class RabbitMqAuthController {
         }
 
         if ("read".equals(permission)) {
-            return isReadableCommandRoutingKey(topicRoot, routingKey) ? ALLOW : DENY;
+            return isReadableCommandRoutingKey(topicRoot, routingKey, platform) ? ALLOW : DENY;
         }
 
         if ("write".equals(permission)) {
-            return isWritableStatusRoutingKey(topicRoot, routingKey, finalDevice) ? ALLOW : DENY;
+            return isWritableStatusRoutingKey(topicRoot, routingKey, finalDevice, platform) ? ALLOW : DENY;
         }
 
         return DENY;
@@ -218,7 +222,7 @@ public class RabbitMqAuthController {
         return "read".equals(permission) || "write".equals(permission);
     }
 
-    private boolean isReadableCommandRoutingKey(String topicRoot, String routingKey) {
+    private boolean isReadableCommandRoutingKey(String topicRoot, String routingKey, DevicePlatform platform) {
         return routingKey.equals("shellies.command")
                 || routingKey.equals(topicRoot + "/command")
                 || routingKey.startsWith(topicRoot + "/command/")
@@ -231,10 +235,16 @@ public class RabbitMqAuthController {
                 || routingKey.equals(topicRoot + ".command.#")
                 || routingKey.equals(topicRoot + ".rpc")
                 || routingKey.startsWith(topicRoot + ".rpc.")
-                || routingKey.equals(topicRoot + ".rpc.#");
+                || routingKey.equals(topicRoot + ".rpc.#")
+                || isOpenBekenReadableCommandRoutingKey(topicRoot, routingKey, platform);
     }
 
-    private boolean isWritableStatusRoutingKey(String topicRoot, String routingKey, boolean finalDevice) {
+    private boolean isWritableStatusRoutingKey(
+            String topicRoot,
+            String routingKey,
+            boolean finalDevice,
+            DevicePlatform platform
+    ) {
         if (finalDevice) {
             return routingKey.equals(topicRoot + "/online")
                     || routingKey.startsWith(topicRoot + "/state/")
@@ -249,7 +259,8 @@ public class RabbitMqAuthController {
                     || routingKey.equals(topicRoot + ".events.rpc")
                     || routingKey.startsWith(topicRoot + ".events.rpc.")
                     || routingKey.equals(topicRoot + ".debug.log")
-                    || routingKey.startsWith(topicRoot + ".debug.log.");
+                    || routingKey.startsWith(topicRoot + ".debug.log.")
+                    || isOpenBekenWritableStatusRoutingKey(topicRoot, routingKey, platform);
         }
         return routingKey.equals(topicRoot + "/state")
                 || routingKey.startsWith(topicRoot + "/telemetry/")
@@ -257,6 +268,32 @@ public class RabbitMqAuthController {
                 || routingKey.equals(topicRoot + ".state")
                 || routingKey.startsWith(topicRoot + ".telemetry.")
                 || routingKey.startsWith(topicRoot + ".status.");
+    }
+
+    private boolean isOpenBekenReadableCommandRoutingKey(String topicRoot, String routingKey, DevicePlatform platform) {
+        if (platform != DevicePlatform.OPENBEKEN) {
+            return false;
+        }
+        return routingKey.equals(topicRoot + "/+/set")
+                || routingKey.equals(topicRoot + ".*.set")
+                || routingKey.equals(topicRoot + "/+/get")
+                || routingKey.equals(topicRoot + ".*.get")
+                || routingKey.equals("homeassistant/+")
+                || routingKey.equals("homeassistant.*")
+                || routingKey.startsWith("cmnd/" + topicRoot + "/")
+                || routingKey.equals("cmnd/" + topicRoot + "/#")
+                || routingKey.startsWith("cmnd." + topicRoot + ".")
+                || routingKey.equals("cmnd." + topicRoot + ".#");
+    }
+
+    private boolean isOpenBekenWritableStatusRoutingKey(String topicRoot, String routingKey, DevicePlatform platform) {
+        if (platform != DevicePlatform.OPENBEKEN) {
+            return false;
+        }
+        return routingKey.equals(topicRoot + ".connected")
+                || routingKey.equals(topicRoot + "/connected")
+                || routingKey.matches("^" + java.util.regex.Pattern.quote(topicRoot) + "[./][^./]+$")
+                || routingKey.matches("^" + java.util.regex.Pattern.quote(topicRoot) + "[./][^./]+[./]get$");
     }
 
 }
