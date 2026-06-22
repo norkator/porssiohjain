@@ -27,6 +27,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -99,6 +100,21 @@ class MqttListenerTest {
 
         listener.handleMessage(MessageBuilder.withPayload("online")
                 .setHeader(MqttHeaders.RECEIVED_TOPIC, device.getUuid() + ".connected")
+                .build());
+
+        ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
+        verify(deviceRepository).save(savedDevice.capture());
+        assertTrue(savedDevice.getValue().isMqttOnline());
+        assertNotNull(savedDevice.getValue().getLastCommunication());
+        verify(deviceOfflineNotificationService).sendIfDeviceCameOnline(eq(device), eq(false), eq(false), eq("MQTT"), any());
+    }
+
+    @Test
+    void marksOpenBekenDeviceOnlineForSlashConnectedTopic() {
+        when(deviceRepository.findWithAccountByUuid(device.getUuid())).thenReturn(Optional.of(device));
+
+        listener.handleMessage(MessageBuilder.withPayload("online")
+                .setHeader(MqttHeaders.RECEIVED_TOPIC, device.getUuid() + "/connected")
                 .build());
 
         ArgumentCaptor<DeviceEntity> savedDevice = ArgumentCaptor.forClass(DeviceEntity.class);
@@ -187,5 +203,16 @@ class MqttListenerTest {
                 "factory/bootstrap/SER-001/state",
                 "{\"ok\":true}"
         );
+    }
+
+    @Test
+    void subscribesToOpenBekenSlashConnectedAvailabilityTopic() {
+        assertArrayEquals(new String[]{
+                "+",
+                "+/online",
+                "+/connected",
+                "factory/bootstrap/+/state",
+                "factory/bootstrap/+/telemetry"
+        }, MqttConfig.INBOUND_TOPICS);
     }
 }

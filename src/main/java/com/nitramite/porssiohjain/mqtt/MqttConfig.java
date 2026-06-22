@@ -33,6 +33,14 @@ import org.springframework.messaging.MessageHandler;
 @Slf4j
 public class MqttConfig {
 
+    static final String[] INBOUND_TOPICS = {
+            "+",
+            "+/online",
+            "+/connected",
+            "factory/bootstrap/+/state",
+            "factory/bootstrap/+/telemetry"
+    };
+
     @Value("${mqtt.client-id}")
     private String clientId;
 
@@ -76,12 +84,10 @@ public class MqttConfig {
                 new MqttPahoMessageDrivenChannelAdapter(
                         clientId,
                         factory,
-                        "+",
-                        "+/online",
-                        "factory/bootstrap/+/state",
-                        "factory/bootstrap/+/telemetry"
+                        INBOUND_TOPICS
                 );
         adapter.setOutputChannel(mqttInputChannel());
+        log.info("MQTT inbound adapter '{}' subscribing to topics: {}", clientId, String.join(", ", INBOUND_TOPICS));
         return adapter;
     }
 
