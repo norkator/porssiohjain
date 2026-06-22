@@ -1,10 +1,8 @@
 package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.entity.DeviceEntity;
-import com.nitramite.porssiohjain.entity.FactoryDeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
-import com.nitramite.porssiohjain.entity.repository.FactoryDeviceRepository;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +26,6 @@ public class RabbitMqAuthController {
     private static final String MQTT_SUBSCRIPTION_QUEUE_PREFIX = "mqtt-subscription-";
 
     private final DeviceRepository deviceRepository;
-    private final FactoryDeviceRepository factoryDeviceRepository;
     private final SystemLogService systemLogService;
 
     private ResponseEntity<String> plainTextResponse(String body) {
@@ -62,18 +59,6 @@ public class RabbitMqAuthController {
             return plainTextResponse(ALLOW);
         }
 
-        Optional<FactoryDeviceEntity> factoryDeviceOpt = factoryDeviceRepository.findByMqttUsername(username);
-        if (factoryDeviceOpt.isPresent()) {
-            FactoryDeviceEntity factoryDevice = factoryDeviceOpt.get();
-            if (!Objects.equals(factoryDevice.getMqttPassword(), password)) {
-                logMqtt("Factory MQTT auth denied for username '%s' - invalid password".formatted(username));
-                return plainTextResponse(DENY);
-            }
-            logMqtt("Factory MQTT auth allowed for username '%s' (serial: %s)"
-                    .formatted(username, factoryDevice.getSerialNumber()));
-            return plainTextResponse(ALLOW);
-        }
-
         logMqtt("MQTT auth denied for username '%s' - device not found".formatted(username));
         return plainTextResponse(DENY);
     }
@@ -85,8 +70,7 @@ public class RabbitMqAuthController {
             @RequestParam(required = false) String ip
     ) {
         logMqtt("VHOST auth: username='%s', vhost='%s', ip='%s'".formatted(username, vhost, ip));
-        boolean userExists = deviceRepository.findByMqttUsername(username).isPresent()
-                || factoryDeviceRepository.findByMqttUsername(username).isPresent();
+        boolean userExists = deviceRepository.findByMqttUsername(username).isPresent();
         boolean vhostMatches = DEFAULT_VHOST.equals(vhost);
         String result = userExists && vhostMatches ? ALLOW : DENY;
         logMqtt("VHOST auth result: username='%s', vhost='%s', userExists=%s, vhostMatches=%s, result=%s'"
@@ -106,8 +90,7 @@ public class RabbitMqAuthController {
         log.debug("RESOURCE auth: username='{}', vhost='{}', resource='{}', name='{}', permission='{}'",
                 username, vhost, resource, name, permission);
 
-        boolean userExists = deviceRepository.findByMqttUsername(username).isPresent()
-                || factoryDeviceRepository.findByMqttUsername(username).isPresent();
+        boolean userExists = deviceRepository.findByMqttUsername(username).isPresent();
         String result = userExists ? authorizeClientResource(vhost, resource, name, permission) : DENY;
         logMqtt("RESOURCE auth result: username='%s', vhost='%s', resource='%s', name='%s', permission='%s', userExists=%s, result=%s'"
                 .formatted(username, vhost, resource, name, permission, userExists, result));
@@ -139,24 +122,9 @@ public class RabbitMqAuthController {
                     name,
                     permission,
                     routing_key,
-                    true,
+                    deviceOpt.get().getAccount() != null,
                     deviceOpt.get().getDevicePlatform()
             );
-        } else {
-            Optional<FactoryDeviceEntity> factoryDeviceOpt = factoryDeviceRepository.findByMqttUsername(username);
-            if (factoryDeviceOpt.isPresent()) {
-                userType = "factoryDevice";
-                result = authorizeClientTopic(
-                        factoryDeviceOpt.get().getMqttTopicRoot(),
-                        vhost,
-                        resource,
-                        name,
-                        permission,
-                        routing_key,
-                        false,
-                        factoryDeviceOpt.get().getPlatform()
-                );
-            }
         }
 
         logMqtt("TOPIC auth result: username='%s', vhost='%s', resource='%s', name='%s', permission='%s', routing_key='%s', userType=%s, result=%s"
