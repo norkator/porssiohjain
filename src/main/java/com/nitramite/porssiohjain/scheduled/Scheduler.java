@@ -50,6 +50,7 @@ public class Scheduler {
     private final PowerLimitNotificationService powerLimitNotificationService;
     private final MarketNotificationService marketNotificationService;
     private final HeatPumpOnlineCheckService heatPumpOnlineCheckService;
+    private final MqttRelayTestService mqttRelayTestService;
 
     private boolean firstRun = true;
 
@@ -73,7 +74,8 @@ public class Scheduler {
             ProductionNotificationService productionNotificationService,
             PowerLimitNotificationService powerLimitNotificationService,
             MarketNotificationService marketNotificationService,
-            HeatPumpOnlineCheckService heatPumpOnlineCheckService
+            HeatPumpOnlineCheckService heatPumpOnlineCheckService,
+            MqttRelayTestService mqttRelayTestService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -94,6 +96,7 @@ public class Scheduler {
         this.powerLimitNotificationService = powerLimitNotificationService;
         this.marketNotificationService = marketNotificationService;
         this.heatPumpOnlineCheckService = heatPumpOnlineCheckService;
+        this.mqttRelayTestService = mqttRelayTestService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -242,6 +245,11 @@ public class Scheduler {
     @Scheduled(cron = "1 0/1 * * * *", zone = "Europe/Helsinki")
     public void mqttDeviceControls() {
         controlService.mqttDeviceControls();
+    }
+
+    @Scheduled(fixedDelayString = "5s")
+    public void mqttRelayTests() {
+        mqttRelayTestService.runDueTests();
     }
 
     @Scheduled(cron = "15 0/1 * * * *", zone = "Europe/Helsinki")

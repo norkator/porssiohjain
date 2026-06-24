@@ -78,6 +78,9 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         Button provisioningButton = new Button(t("admin.provisioning.button"),
                 e -> UI.getCurrent().navigate(AdminProvisioningView.class));
         provisioningButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button mqttRelayTestButton = new Button(t("admin.mqttRelayTest.button"),
+                e -> UI.getCurrent().navigate(AdminMqttRelayTestView.class));
+        mqttRelayTestButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button usersButton = new Button(t("admin.users.button"),
                 e -> UI.getCurrent().navigate(AdminUsersView.class));
         usersButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -94,6 +97,7 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
                 backButton,
                 title,
                 provisioningButton,
+                mqttRelayTestButton,
                 usersButton,
                 refreshLogsButton,
                 createDivider(),
