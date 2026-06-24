@@ -32,6 +32,8 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class EmailService {
 
+    private static final String FEEDBACK_RECIPIENT_EMAIL = "nitramite@outlook.com";
+
     private final MessageSource messageSource;
 
     @Value("${resent.api-key}")
@@ -601,6 +603,58 @@ public class EmailService {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to send market notification email", e);
         }
+    }
+
+    public void sendFeedbackEmail(
+            String feedback,
+            String contactEmail
+    ) {
+        try {
+            String safeFeedback = escapeHtml(feedback);
+            String safeContactEmail = escapeHtml(contactEmail);
+
+            String htmlBody = """
+                    <div style="font-family: Arial, sans-serif; color: #333;">
+                        <h2 style="color: #00677d;">New feedback</h2>
+
+                        <div style="margin-top: 16px; padding: 12px; background: #f5f5f5; border-left: 4px solid #00677d; white-space: pre-wrap;">%s</div>
+
+                        <table style="border-collapse: collapse; margin-top: 16px;">
+                            <tr>
+                                <td style="padding: 6px 12px; font-weight: bold;">Contact email:</td>
+                                <td style="padding: 6px 12px;">%s</td>
+                            </tr>
+                        </table>
+                    </div>
+                    """
+                    .formatted(
+                            safeFeedback,
+                            safeContactEmail
+                    );
+
+            Resend resend = new Resend(resentApiKey);
+            CreateEmailOptions params = CreateEmailOptions.builder()
+                    .from(from)
+                    .to(FEEDBACK_RECIPIENT_EMAIL)
+                    .subject("New feedback")
+                    .html(htmlBody)
+                    .build();
+            CreateEmailResponse data = resend.emails().send(params);
+            log.info("Feedback email sent with Resend id {}", data.getId());
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to send feedback email", e);
+        }
+    }
+
+    private String escapeHtml(String value) {
+        return value == null
+                ? ""
+                : value
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 
 }

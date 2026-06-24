@@ -83,7 +83,8 @@ public class AuthInterceptor implements HandlerInterceptor {
     }
 
     private boolean isDemoWriteAllowed(HttpServletRequest request) {
-        return request.getRequestURI().startsWith("/account/qr-login/");
+        return request.getRequestURI().startsWith("/account/qr-login/")
+                || request.getRequestURI().equals("/api/feedback");
     }
 
     @Override

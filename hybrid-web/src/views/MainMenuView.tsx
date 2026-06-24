@@ -11,10 +11,12 @@
 
 import PageHeader from "@/components/PageHeader";
 import NordpoolTodayChartCard from "@/components/NordpoolTodayChartCard";
+import AppDialog from "@/components/AppDialog";
 import { fetchSites } from "@/lib/automation-resources";
 import { fetchMe } from "@/lib/account";
 import { fetchControlSavings, type ControlSavings } from "@/lib/dashboard";
 import { fetchElectricityContracts } from "@/lib/electricity-contracts";
+import { sendFeedback } from "@/lib/feedback";
 import { Link, useNavigate } from "react-router-dom";
 import { formatKw } from "@/lib/account-stats";
 import { useAccountStats } from "@/hooks/useAccountStats";
@@ -31,7 +33,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { clearBrowserSession, getSessionData } from "@/lib/session";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 const SAVINGS_CHART_WIDTH = 720;
 const SAVINGS_CHART_HEIGHT = 170;
@@ -103,6 +105,13 @@ export default function MainMenuView() {
   const [isMockProvisioning, setIsMockProvisioning] = useState(false);
   const [sitesCount, setSitesCount] = useState<number | null>(null);
   const [contractsCount, setContractsCount] = useState<number | null>(null);
+  const [accountEmail, setAccountEmail] = useState("");
+  const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackContactEmail, setFeedbackContactEmail] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [monthlySavings, setMonthlySavings] = useState<ControlSavings[]>([]);
   const [savingsError, setSavingsError] = useState(false);
   const [sitesError, setSitesError] = useState(false);
@@ -158,6 +167,8 @@ export default function MainMenuView() {
       .then((account) => {
         if (!active) return;
         setIsDemoAccount(account.demo);
+        setAccountEmail(account.email ?? "");
+        setFeedbackContactEmail((current) => current || account.email || "");
       })
       .catch(() => {
         if (!active) return;
@@ -190,6 +201,15 @@ export default function MainMenuView() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!feedbackMessage) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => setFeedbackMessage(null), 3500);
+    return () => window.clearTimeout(timeoutId);
+  }, [feedbackMessage]);
 
   useEffect(() => {
     let active = true;
@@ -306,6 +326,55 @@ export default function MainMenuView() {
 
     setThemePreference(nextTheme);
     setThemePreferenceState(nextTheme);
+  };
+  const handleOpenFeedbackDialog = () => {
+    setFeedbackError(null);
+    setFeedbackMessage(null);
+    setFeedbackContactEmail((current) => current || accountEmail);
+    setIsFeedbackDialogOpen(true);
+  };
+  const handleCloseFeedbackDialog = () => {
+    if (isSendingFeedback) {
+      return;
+    }
+
+    setIsFeedbackDialogOpen(false);
+  };
+  const handleSendFeedback = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmedFeedback = feedbackText.trim();
+    const trimmedContactEmail = feedbackContactEmail.trim();
+
+    if (!trimmedFeedback) {
+      setFeedbackError(t("feedbackTextRequired"));
+      return;
+    }
+
+    if (!trimmedContactEmail) {
+      setFeedbackError(t("feedbackEmailRequired"));
+      return;
+    }
+
+    setIsSendingFeedback(true);
+    setFeedbackError(null);
+    setFeedbackMessage(null);
+
+    try {
+      await sendFeedback({
+        contactEmail: trimmedContactEmail,
+        feedback: trimmedFeedback
+      });
+      const sentMessage = t("feedbackSent");
+      setFeedbackText("");
+      setFeedbackMessage(sentMessage);
+      setIsFeedbackDialogOpen(false);
+      showNativeToast(sentMessage);
+    } catch {
+      setFeedbackError(t("feedbackFailed"));
+    } finally {
+      setIsSendingFeedback(false);
+    }
   };
   const handleSelectMockDevice = async (device: MockDiscoveredBrandedDevice) => {
     setSelectedDiscoveredDevice(device);
@@ -829,6 +898,16 @@ export default function MainMenuView() {
               </span>
               <span>{themePreference === "dark" ? t("switchToLight") : t("switchToDark")}</span>
             </button>
+            <button
+              className="glass-panel inline-flex items-center gap-3 rounded-full border border-outline-variant/60 px-4 py-3 text-sm font-semibold text-on-surface shadow-soft transition-transform hover:-translate-y-0.5 active:scale-95"
+              onClick={handleOpenFeedbackDialog}
+              type="button"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-container-highest text-lg">
+                ✉
+              </span>
+              <span>{t("feedback")}</span>
+            </button>
           </div>
         </section>
 
@@ -858,6 +937,83 @@ export default function MainMenuView() {
           </section>
         ) : null}
       </main>
+
+      {feedbackMessage && !isFeedbackDialogOpen ? (
+        <div className="fixed inset-x-4 bottom-5 z-50 mx-auto max-w-sm rounded-lg bg-surface-container-high px-4 py-3 text-center text-sm font-semibold text-on-surface shadow-2xl">
+          {feedbackMessage}
+        </div>
+      ) : null}
+
+      <AppDialog
+        description={t("feedbackDescription")}
+        isOpen={isFeedbackDialogOpen}
+        maxWidthClassName="max-w-xl"
+        onClose={handleCloseFeedbackDialog}
+        title={t("feedbackTitle")}
+      >
+        <form className="space-y-5" onSubmit={handleSendFeedback}>
+          <div>
+            <label className="mb-2 block text-sm font-bold text-on-surface" htmlFor="feedback-text">
+              {t("feedbackTextLabel")}
+            </label>
+            <textarea
+              className="min-h-40 w-full resize-y rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none placeholder:text-on-surface-variant/40 focus:border-primary"
+              disabled={isSendingFeedback}
+              id="feedback-text"
+              onChange={(event) => setFeedbackText(event.target.value)}
+              placeholder={t("feedbackTextPlaceholder")}
+              required
+              value={feedbackText}
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-on-surface" htmlFor="feedback-contact-email">
+              {t("feedbackEmailLabel")}
+            </label>
+            <input
+              className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none placeholder:text-on-surface-variant/40 focus:border-primary"
+              disabled={isSendingFeedback}
+              id="feedback-contact-email"
+              onChange={(event) => setFeedbackContactEmail(event.target.value)}
+              placeholder={t("feedbackEmailPlaceholder")}
+              required
+              type="email"
+              value={feedbackContactEmail}
+            />
+          </div>
+
+          {feedbackError ? (
+            <p className="rounded-lg border border-error-container bg-error-container/50 p-3 text-sm text-on-error-container">
+              {feedbackError}
+            </p>
+          ) : null}
+
+          {feedbackMessage ? (
+            <p className="rounded-lg bg-surface-container-high p-3 text-sm text-on-surface-variant">
+              {feedbackMessage}
+            </p>
+          ) : null}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              className="secondary-action justify-center px-4 py-3"
+              disabled={isSendingFeedback}
+              onClick={handleCloseFeedbackDialog}
+              type="button"
+            >
+              {common("cancel")}
+            </button>
+            <button
+              className="primary-action justify-center px-4 py-3 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isSendingFeedback}
+              type="submit"
+            >
+              {isSendingFeedback ? t("feedbackSending") : t("feedbackSend")}
+            </button>
+          </div>
+        </form>
+      </AppDialog>
     </>
   );
 }
