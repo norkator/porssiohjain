@@ -9,18 +9,20 @@
  * See LICENSE for details.
  */
 
-import { useEffect, useState } from "react";
+import AppDialog from "@/components/AppDialog";
+import { type PointerEvent, useEffect, useState } from "react";
 import { fetchControlChart, type ControlChart } from "@/lib/controls";
 import { useI18n } from "@/lib/i18n";
 import { formatNordpoolPrice, formatNordpoolTime } from "@/lib/nordpool";
 
-const CHART_HEIGHT = 300;
 const CHART_WIDTH = 960;
 const CHART_PADDING_LEFT = 58;
 const CHART_PADDING_RIGHT = 22;
 const CHART_PADDING_TOP = 20;
 const CHART_PADDING_BOTTOM = 42;
 const Y_AXIS_STEPS = 4;
+const COMPACT_CHART_HEIGHT = 300;
+const EXPANDED_CHART_HEIGHT = 420;
 
 type ControlPriceChartCardProps = {
   controlId: number;
@@ -30,6 +32,15 @@ type ChartState = {
   chart: ControlChart | null;
   error: string | null;
   isLoading: boolean;
+};
+
+type ControlChartSurfaceProps = {
+  chart: ControlChart;
+  chartHeight: number;
+  selectedPointIndex?: number | null;
+  variant?: "compact" | "expanded";
+  onActivate?: () => void;
+  onSelectedPointChange?: (index: number | null) => void;
 };
 
 function buildLinePath(values: Array<number | null>, innerWidth: number, innerHeight: number, minValue: number, range: number) {
@@ -55,8 +66,7 @@ function formatChartPriceLabel(value: number) {
   return `${formatNordpoolPrice(value)} snt`;
 }
 
-function getTimeLabelPoints(chart: ControlChart) {
-  const targetLabels = 5;
+function getTimeLabelPoints(chart: ControlChart, targetLabels: number) {
   const lastIndex = chart.points.length - 1;
   if (lastIndex <= 0) {
     return chart.points;
@@ -69,6 +79,23 @@ function getTimeLabelPoints(chart: ControlChart) {
   return indexes
     .map((index) => chart.points[index])
     .filter((point, index, points) => points.findIndex((candidate) => candidate.timestamp === point.timestamp) === index);
+}
+
+function getCurrentPointIndex(chart: ControlChart) {
+  for (let index = chart.points.length - 1; index >= 0; index -= 1) {
+    if (new Date(chart.points[index].timestamp).getTime() <= Date.now()) {
+      return index;
+    }
+  }
+
+  return 0;
+}
+
+function getPointCoordinates(index: number, value: number, innerWidth: number, innerHeight: number, minValue: number, range: number, pointCount: number) {
+  return {
+    x: CHART_PADDING_LEFT + (innerWidth * index) / Math.max(pointCount - 1, 1),
+    y: CHART_PADDING_TOP + innerHeight - ((value - minValue) / range) * innerHeight
+  };
 }
 
 function useControlChart(controlId: number): ChartState {
@@ -120,9 +147,137 @@ function useControlChart(controlId: number): ChartState {
   return state;
 }
 
+function ControlChartSurface({
+  chart,
+  chartHeight,
+  onActivate,
+  onSelectedPointChange,
+  selectedPointIndex,
+  variant = "compact"
+}: ControlChartSurfaceProps) {
+  const { t } = useI18n("charts");
+  const innerWidth = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
+  const innerHeight = chartHeight - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
+  const nordpoolValues = chart.points.map((point) => point.nordpoolPrice);
+  const transferValues = chart.points.map((point) => point.transferPrice);
+  const finalValues = chart.points.map((point) => point.finalControlPrice);
+  const allValues = [...nordpoolValues, ...transferValues, ...finalValues].filter((value): value is number => value !== null);
+  const minValue = Math.min(...allValues);
+  const maxValue = Math.max(...allValues);
+  const range = maxValue - minValue || 1;
+  const yAxisValues = Array.from({ length: Y_AXIS_STEPS + 1 }, (_, index) => maxValue - (range * index) / Y_AXIS_STEPS);
+  const timeLabels = getTimeLabelPoints(chart, variant === "expanded" ? 9 : 5);
+  const currentIndex = getCurrentPointIndex(chart);
+  const currentPoint = chart.points[currentIndex];
+  const currentMarkerValue = currentPoint.finalControlPrice ?? currentPoint.nordpoolPrice;
+  const currentCoordinates = getPointCoordinates(currentIndex, currentMarkerValue, innerWidth, innerHeight, minValue, range, chart.points.length);
+  const activePointIndex = selectedPointIndex ?? currentIndex;
+  const activePoint = chart.points[activePointIndex];
+  const activeMarkerValue = activePoint.finalControlPrice ?? activePoint.nordpoolPrice;
+  const activeCoordinates = getPointCoordinates(activePointIndex, activeMarkerValue, innerWidth, innerHeight, minValue, range, chart.points.length);
+  const activeTooltipX = Math.min(Math.max(activeCoordinates.x, CHART_PADDING_LEFT + 86), CHART_PADDING_LEFT + innerWidth - 86);
+  const activeTooltipY = Math.max(activeCoordinates.y - 54, CHART_PADDING_TOP + 34);
+
+  function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
+    if (!onSelectedPointChange) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const relativeX = ((event.clientX - rect.left) / rect.width) * CHART_WIDTH;
+    const boundedX = Math.min(Math.max(relativeX, CHART_PADDING_LEFT), CHART_PADDING_LEFT + innerWidth);
+    const index = Math.round(((boundedX - CHART_PADDING_LEFT) / innerWidth) * Math.max(chart.points.length - 1, 1));
+    onSelectedPointChange(Math.min(Math.max(index, 0), chart.points.length - 1));
+  }
+
+  return (
+    <div
+      className={`relative rounded-3xl p-4 sm:p-5 ${onActivate ? "cursor-pointer transition-transform active:scale-[0.99]" : ""}`}
+      onClick={onActivate}
+      style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
+    >
+      <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
+        <svg
+          aria-label={t("controlAria")}
+          className={`h-auto ${variant === "expanded" ? "min-w-[54rem] aspect-[16/7]" : "min-w-[44rem] aspect-[16/5]"} w-full sm:min-w-0`}
+          onPointerLeave={() => onSelectedPointChange?.(null)}
+          onPointerMove={handlePointerMove}
+          role="img"
+          viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
+        >
+          <rect fill="rgb(var(--chart-plot-background))" height={innerHeight} rx="18" width={innerWidth} x={CHART_PADDING_LEFT} y={CHART_PADDING_TOP} />
+
+          {yAxisValues.map((value, index) => {
+            const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
+
+            return (
+              <g key={value}>
+                <line stroke="rgb(var(--color-outline-variant) / 0.6)" strokeDasharray="6 8" strokeWidth="1" x1={CHART_PADDING_LEFT} x2={CHART_PADDING_LEFT + innerWidth} y1={y} y2={y} />
+                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
+                  {formatChartPriceLabel(value)}
+                </text>
+              </g>
+            );
+          })}
+
+          {timeLabels.map((point) => {
+            const index = chart.points.findIndex((candidate) => candidate.timestamp === point.timestamp);
+            const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(chart.points.length - 1, 1);
+
+            return (
+              <g key={point.timestamp}>
+                <line stroke="rgb(var(--color-outline-variant) / 0.5)" strokeWidth="1" x1={x} x2={x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
+                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor={index === chart.points.length - 1 ? "end" : index === 0 ? "start" : "middle"} x={x} y={CHART_PADDING_TOP + innerHeight + 24}>
+                  {formatNordpoolTime(point.timestamp, chart.timezone)}
+                </text>
+              </g>
+            );
+          })}
+
+          <path d={buildLinePath(transferValues, innerWidth, innerHeight, minValue, range)} fill="none" stroke="rgb(255 179 67)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+          <path d={buildLinePath(nordpoolValues, innerWidth, innerHeight, minValue, range)} fill="none" stroke="rgb(var(--color-secondary))" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+          <path d={buildLinePath(finalValues, innerWidth, innerHeight, minValue, range)} fill="none" stroke="rgb(204 51 51)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+
+          <line stroke="rgb(var(--color-secondary) / 0.45)" strokeDasharray="5 7" strokeWidth="2" x1={currentCoordinates.x} x2={currentCoordinates.x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
+          <circle cx={currentCoordinates.x} cy={currentCoordinates.y} fill="rgb(var(--color-secondary-container))" r="7" stroke="rgb(var(--color-primary))" strokeWidth="3" />
+
+          {variant === "expanded" ? (
+            <g>
+              <line stroke="rgb(204 51 51 / 0.65)" strokeDasharray="4 6" strokeWidth="2" x1={activeCoordinates.x} x2={activeCoordinates.x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
+              <circle cx={activeCoordinates.x} cy={activeCoordinates.y} fill="rgb(var(--color-surface-container-lowest))" r="8" stroke="rgb(204 51 51)" strokeWidth="3" />
+              <rect fill="rgb(var(--color-surface-container-lowest))" height="58" rx="10" stroke="rgb(var(--color-outline-variant))" width="172" x={activeTooltipX - 86} y={activeTooltipY - 26} />
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY - 7}>
+                {formatNordpoolTime(activePoint.timestamp, chart.timezone)}
+              </text>
+              <text fill="rgb(var(--color-on-surface))" fontSize="14" fontWeight="800" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 10}>
+                {activePoint.finalControlPrice === null ? "-" : formatNordpoolPrice(activePoint.finalControlPrice)} snt/kWh
+              </text>
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 25}>
+                {t("finalControlPrice")}
+              </text>
+            </g>
+          ) : null}
+
+          <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={chartHeight - 6}>
+            {t("timeInTimezone", { timezone: chart.timezone })}
+          </text>
+        </svg>
+      </div>
+
+      {onActivate ? (
+        <span className="absolute right-5 top-5 rounded-full bg-surface-container-lowest/90 px-3 py-1 text-xs font-bold text-primary shadow-sm">
+          {t("openDetailedChart")}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ControlPriceChartCard({ controlId }: ControlPriceChartCardProps) {
   const { t } = useI18n("charts");
   const { chart, error, isLoading } = useControlChart(controlId);
+  const [isChartDialogOpen, setIsChartDialogOpen] = useState(false);
+  const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
 
   if (isLoading) {
     return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingControlChart")}</div>;
@@ -144,30 +299,16 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
     );
   }
 
-  const innerWidth = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
-  const innerHeight = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
   const nordpoolValues = chart.points.map((point) => point.nordpoolPrice);
   const transferValues = chart.points.map((point) => point.transferPrice);
   const finalValues = chart.points.map((point) => point.finalControlPrice);
   const allValues = [...nordpoolValues, ...transferValues, ...finalValues].filter((value): value is number => value !== null);
   const minValue = Math.min(...allValues);
   const maxValue = Math.max(...allValues);
-  const range = maxValue - minValue || 1;
-  const yAxisValues = Array.from({ length: Y_AXIS_STEPS + 1 }, (_, index) => maxValue - (range * index) / Y_AXIS_STEPS);
-  const timeLabels = getTimeLabelPoints(chart);
-
-  let currentPointIndex = -1;
-  for (let index = chart.points.length - 1; index >= 0; index -= 1) {
-    if (new Date(chart.points[index].timestamp).getTime() <= Date.now()) {
-      currentPointIndex = index;
-      break;
-    }
-  }
-  const currentIndex = Math.max(currentPointIndex, 0);
+  const currentIndex = getCurrentPointIndex(chart);
   const currentPoint = chart.points[currentIndex];
-  const currentX = CHART_PADDING_LEFT + (innerWidth * currentIndex) / Math.max(chart.points.length - 1, 1);
-  const currentMarkerValue = currentPoint.finalControlPrice ?? currentPoint.nordpoolPrice;
-  const currentY = CHART_PADDING_TOP + innerHeight - ((currentMarkerValue - minValue) / range) * innerHeight;
+  const dialogPointIndex = selectedPointIndex ?? currentIndex;
+  const dialogPoint = chart.points[dialogPointIndex];
 
   return (
     <article className="app-card overflow-hidden">
@@ -188,116 +329,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
             </div>
           </div>
 
-          <div
-            className="relative rounded-3xl p-4 sm:p-5"
-            style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
-          >
-            <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
-              <svg
-                aria-label={t("controlAria")}
-                className="h-auto min-w-[44rem] aspect-[16/5] w-[44rem] sm:min-w-0 sm:w-full"
-                role="img"
-                viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-              >
-                <rect
-                  fill="rgb(var(--chart-plot-background))"
-                  height={innerHeight}
-                  rx="18"
-                  width={innerWidth}
-                  x={CHART_PADDING_LEFT}
-                  y={CHART_PADDING_TOP}
-                />
-
-                {yAxisValues.map((value, index) => {
-                  const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
-
-                  return (
-                    <g key={value}>
-                      <line
-                        stroke="rgb(var(--color-outline-variant) / 0.6)"
-                        strokeDasharray="6 8"
-                        strokeWidth="1"
-                        x1={CHART_PADDING_LEFT}
-                        x2={CHART_PADDING_LEFT + innerWidth}
-                        y1={y}
-                        y2={y}
-                      />
-                      <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
-                        {formatChartPriceLabel(value)}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {timeLabels.map((point) => {
-                  const index = chart.points.findIndex((candidate) => candidate.timestamp === point.timestamp);
-                  const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(chart.points.length - 1, 1);
-
-                  return (
-                    <g key={point.timestamp}>
-                      <line
-                        stroke="rgb(var(--color-outline-variant) / 0.5)"
-                        strokeWidth="1"
-                        x1={x}
-                        x2={x}
-                        y1={CHART_PADDING_TOP}
-                        y2={CHART_PADDING_TOP + innerHeight}
-                      />
-                      <text
-                        fill="rgb(var(--color-on-surface-variant))"
-                        fontSize="12"
-                        textAnchor={index === chart.points.length - 1 ? "end" : index === 0 ? "start" : "middle"}
-                        x={x}
-                        y={CHART_PADDING_TOP + innerHeight + 24}
-                      >
-                        {formatNordpoolTime(point.timestamp, chart.timezone)}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                <path
-                  d={buildLinePath(transferValues, innerWidth, innerHeight, minValue, range)}
-                  fill="none"
-                  stroke="rgb(255 179 67)"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="3"
-                />
-                <path
-                  d={buildLinePath(nordpoolValues, innerWidth, innerHeight, minValue, range)}
-                  fill="none"
-                  stroke="rgb(var(--color-secondary))"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="3"
-                />
-                <path
-                  d={buildLinePath(finalValues, innerWidth, innerHeight, minValue, range)}
-                  fill="none"
-                  stroke="rgb(204 51 51)"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="4"
-                />
-
-                <line
-                  stroke="rgb(var(--color-secondary) / 0.45)"
-                  strokeDasharray="5 7"
-                  strokeWidth="2"
-                  x1={currentX}
-                  x2={currentX}
-                  y1={CHART_PADDING_TOP}
-                  y2={CHART_PADDING_TOP + innerHeight}
-                />
-                <circle cx={currentX} cy={currentY} fill="rgb(var(--color-secondary-container))" r="7" stroke="rgb(var(--color-primary))" strokeWidth="3" />
-
-                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
-                  {t("timeInTimezone", { timezone: chart.timezone })}
-                </text>
-              </svg>
-            </div>
-          </div>
+          <ControlChartSurface chart={chart} chartHeight={COMPACT_CHART_HEIGHT} onActivate={() => setIsChartDialogOpen(true)} />
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
             <span className="rounded-full bg-surface-container px-3 py-2">
@@ -349,6 +381,46 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
           </div>
         </div>
       </div>
+      <AppDialog
+        description={t("controlExpandedDescription", { timezone: chart.timezone })}
+        eyebrow={t("controlPricing")}
+        isOpen={isChartDialogOpen}
+        maxWidthClassName="max-w-6xl"
+        onClose={() => {
+          setIsChartDialogOpen(false);
+          setSelectedPointIndex(null);
+        }}
+        title={t("controlExpandedTitle")}
+      >
+        <ControlChartSurface
+          chart={chart}
+          chartHeight={EXPANDED_CHART_HEIGHT}
+          onSelectedPointChange={setSelectedPointIndex}
+          selectedPointIndex={selectedPointIndex}
+          variant="expanded"
+        />
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
+          <div className="rounded-2xl bg-surface-container-low p-4">
+            <p className="metric-label mb-2">{t("selectedInterval")}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolTime(dialogPoint.timestamp, chart.timezone)}</p>
+          </div>
+          <div className="rounded-2xl bg-surface-container-low p-4">
+            <p className="metric-label mb-2">{t("selectedNordpool")}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(dialogPoint.nordpoolPrice)}</p>
+            <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
+          </div>
+          <div className="rounded-2xl bg-surface-container-low p-4">
+            <p className="metric-label mb-2">{t("selectedTransfer")}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{dialogPoint.transferPrice === null ? "-" : formatNordpoolPrice(dialogPoint.transferPrice)}</p>
+            <p className="text-xs text-on-surface-variant">{t("priceUnit")}</p>
+          </div>
+          <div className="rounded-2xl bg-primary-container p-4 text-on-primary">
+            <p className="metric-label mb-2 text-primary-fixed">{t("selectedFinal")}</p>
+            <p className="font-headline text-2xl font-black">{dialogPoint.finalControlPrice === null ? "-" : formatNordpoolPrice(dialogPoint.finalControlPrice)}</p>
+            <p className="text-xs text-primary-fixed">{t("finalPriceUnit")}</p>
+          </div>
+        </div>
+      </AppDialog>
     </article>
   );
 }
