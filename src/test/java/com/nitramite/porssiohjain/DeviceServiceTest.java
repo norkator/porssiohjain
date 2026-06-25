@@ -165,6 +165,47 @@ class DeviceServiceTest {
     }
 
     @Test
+    void keepsStandardApiDeviceOnlineWithinTenMinutes() {
+        DeviceEntity device = new DeviceEntity();
+        device.setId(5L);
+        device.setDeviceType(DeviceType.STANDARD);
+        device.setApiOnline(true);
+        device.setLastCommunication(Instant.now().minusSeconds(9 * 60));
+
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of(device));
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(any()))
+                .thenReturn(List.of());
+
+        deviceService.checkOfflineDevices();
+
+        verify(deviceRepository, never()).save(device);
+    }
+
+    @Test
+    void marksStandardApiDeviceOfflineAfterTenMinutes() {
+        DeviceEntity device = new DeviceEntity();
+        device.setId(6L);
+        device.setDeviceType(DeviceType.STANDARD);
+        device.setApiOnline(true);
+        device.setLastCommunication(Instant.now().minusSeconds(11 * 60));
+
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of(device));
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(any()))
+                .thenReturn(List.of());
+
+        deviceService.checkOfflineDevices();
+
+        verify(deviceRepository).save(device);
+        verify(deviceOfflineNotificationService).sendIfDeviceWentOffline(
+                eq(device),
+                eq(true),
+                eq(false),
+                eq("API"),
+                any()
+        );
+    }
+
+    @Test
     void sendsOfflineNotificationWhenMqttDeviceLosesLastOnlineState() {
         DeviceEntity device = new DeviceEntity();
         device.setId(3L);

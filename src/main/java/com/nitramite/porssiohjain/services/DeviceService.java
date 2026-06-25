@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DeviceService {
 
-    private static final long STANDARD_API_OFFLINE_SECONDS = 300L;
+    private static final long STANDARD_API_OFFLINE_SECONDS = 10L * 60L;
     private static final long HEAT_PUMP_API_OFFLINE_SECONDS = 4L * 60L * 60L;
     private static final long MQTT_OFFLINE_SECONDS = 300L;
 
