@@ -9,18 +9,20 @@
  * See LICENSE for details.
  */
 
-import { useEffect, useState } from "react";
+import AppDialog from "@/components/AppDialog";
+import { type PointerEvent, useEffect, useState } from "react";
 import { fetchProductionHistory, type ProductionHistoryPoint } from "@/lib/automation-resources";
 import { useI18n } from "@/lib/i18n";
 import { formatNordpoolTime } from "@/lib/nordpool";
 
-const CHART_HEIGHT = 300;
 const CHART_WIDTH = 960;
 const CHART_PADDING_LEFT = 58;
 const CHART_PADDING_RIGHT = 22;
 const CHART_PADDING_TOP = 20;
 const CHART_PADDING_BOTTOM = 42;
 const Y_AXIS_STEPS = 4;
+const COMPACT_CHART_HEIGHT = 300;
+const EXPANDED_CHART_HEIGHT = 420;
 
 type ProductionHistoryChartCardProps = {
   sourceId: number;
@@ -31,6 +33,16 @@ type ChartState = {
   error: string | null;
   history: ProductionHistoryPoint[];
   isLoading: boolean;
+};
+
+type ProductionHistoryChartSurfaceProps = {
+  chartHeight: number;
+  history: ProductionHistoryPoint[];
+  selectedPointIndex?: number | null;
+  timezone: string;
+  variant?: "compact" | "expanded";
+  onActivate?: () => void;
+  onSelectedPointChange?: (index: number | null) => void;
 };
 
 function formatKwValue(value: number) {
@@ -63,8 +75,7 @@ function buildAreaPath(values: number[], innerWidth: number, innerHeight: number
   return `${linePath} L ${endX.toFixed(2)} ${baselineY.toFixed(2)} L ${startX.toFixed(2)} ${baselineY.toFixed(2)} Z`;
 }
 
-function getTimeLabelPoints(history: ProductionHistoryPoint[]) {
-  const targetLabels = 5;
+function getTimeLabelPoints(history: ProductionHistoryPoint[], targetLabels: number) {
   const lastIndex = history.length - 1;
   if (lastIndex <= 0) {
     return history;
@@ -77,6 +88,23 @@ function getTimeLabelPoints(history: ProductionHistoryPoint[]) {
   return indexes
     .map((index) => history[index])
     .filter((point, index, points) => points.findIndex((candidate) => candidate.createdAt === point.createdAt) === index);
+}
+
+function getCurrentPointIndex(history: ProductionHistoryPoint[]) {
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    if (new Date(history[index].createdAt).getTime() <= Date.now()) {
+      return index;
+    }
+  }
+
+  return 0;
+}
+
+function getPointCoordinates(index: number, value: number, innerWidth: number, innerHeight: number, minValue: number, range: number, pointCount: number) {
+  return {
+    x: CHART_PADDING_LEFT + (innerWidth * index) / Math.max(pointCount - 1, 1),
+    y: CHART_PADDING_TOP + innerHeight - ((value - minValue) / range) * innerHeight
+  };
 }
 
 function useProductionHistory(sourceId: number): ChartState {
@@ -122,9 +150,136 @@ function useProductionHistory(sourceId: number): ChartState {
   return state;
 }
 
+function ProductionHistoryChartSurface({
+  chartHeight,
+  history,
+  onActivate,
+  onSelectedPointChange,
+  selectedPointIndex,
+  timezone,
+  variant = "compact"
+}: ProductionHistoryChartSurfaceProps) {
+  const { t } = useI18n("charts");
+  const innerWidth = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
+  const innerHeight = chartHeight - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
+  const values = history.map((point) => point.kilowatts);
+  const minValue = Math.min(...values, 0);
+  const maxValue = Math.max(...values);
+  const range = maxValue - minValue || 1;
+  const yAxisValues = Array.from({ length: Y_AXIS_STEPS + 1 }, (_, index) => maxValue - (range * index) / Y_AXIS_STEPS);
+  const timeLabels = getTimeLabelPoints(history, variant === "expanded" ? 9 : 5);
+  const currentIndex = getCurrentPointIndex(history);
+  const currentPoint = history[currentIndex];
+  const currentCoordinates = getPointCoordinates(currentIndex, currentPoint.kilowatts, innerWidth, innerHeight, minValue, range, history.length);
+  const activePointIndex = selectedPointIndex ?? currentIndex;
+  const activePoint = history[activePointIndex];
+  const activeCoordinates = getPointCoordinates(activePointIndex, activePoint.kilowatts, innerWidth, innerHeight, minValue, range, history.length);
+  const activeTooltipX = Math.min(Math.max(activeCoordinates.x, CHART_PADDING_LEFT + 76), CHART_PADDING_LEFT + innerWidth - 76);
+  const activeTooltipY = Math.max(activeCoordinates.y - 44, CHART_PADDING_TOP + 22);
+
+  function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
+    if (!onSelectedPointChange) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const relativeX = ((event.clientX - rect.left) / rect.width) * CHART_WIDTH;
+    const boundedX = Math.min(Math.max(relativeX, CHART_PADDING_LEFT), CHART_PADDING_LEFT + innerWidth);
+    const index = Math.round(((boundedX - CHART_PADDING_LEFT) / innerWidth) * Math.max(history.length - 1, 1));
+    onSelectedPointChange(Math.min(Math.max(index, 0), history.length - 1));
+  }
+
+  return (
+    <div
+      className={`relative rounded-3xl p-4 sm:p-5 ${onActivate ? "cursor-pointer transition-transform active:scale-[0.99]" : ""}`}
+      onClick={onActivate}
+      style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
+    >
+      <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
+        <svg
+          aria-label={t("productionAria")}
+          className={`h-auto ${variant === "expanded" ? "min-w-[54rem] aspect-[16/7]" : "min-w-[44rem] aspect-[16/5]"} w-full sm:min-w-0`}
+          onPointerLeave={() => onSelectedPointChange?.(null)}
+          onPointerMove={handlePointerMove}
+          role="img"
+          viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
+        >
+          <defs>
+            <linearGradient id={`production-fill-${variant}`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="rgb(255 179 67)" stopOpacity="0.30" />
+              <stop offset="100%" stopColor="rgb(255 179 67)" stopOpacity="0.05" />
+            </linearGradient>
+          </defs>
+
+          <rect fill="rgb(var(--chart-plot-background))" height={innerHeight} rx="18" width={innerWidth} x={CHART_PADDING_LEFT} y={CHART_PADDING_TOP} />
+
+          {yAxisValues.map((value, index) => {
+            const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
+
+            return (
+              <g key={value}>
+                <line stroke="rgb(var(--color-outline-variant) / 0.6)" strokeDasharray="6 8" strokeWidth="1" x1={CHART_PADDING_LEFT} x2={CHART_PADDING_LEFT + innerWidth} y1={y} y2={y} />
+                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
+                  {formatKwValue(value)} kW
+                </text>
+              </g>
+            );
+          })}
+
+          {timeLabels.map((point) => {
+            const index = history.findIndex((candidate) => candidate.createdAt === point.createdAt);
+            const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(history.length - 1, 1);
+
+            return (
+              <g key={point.createdAt}>
+                <line stroke="rgb(var(--color-outline-variant) / 0.5)" strokeWidth="1" x1={x} x2={x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
+                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor={index === history.length - 1 ? "end" : index === 0 ? "start" : "middle"} x={x} y={CHART_PADDING_TOP + innerHeight + 24}>
+                  {formatNordpoolTime(point.createdAt, timezone)}
+                </text>
+              </g>
+            );
+          })}
+
+          <path d={buildAreaPath(values, innerWidth, innerHeight, minValue, range)} fill={`url(#production-fill-${variant})`} stroke="none" />
+          <path d={buildLinePath(values, innerWidth, innerHeight, minValue, range)} fill="none" stroke="rgb(255 179 67)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+
+          <line stroke="rgb(255 179 67 / 0.5)" strokeDasharray="5 7" strokeWidth="2" x1={currentCoordinates.x} x2={currentCoordinates.x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
+          <circle cx={currentCoordinates.x} cy={currentCoordinates.y} fill="rgb(255 232 179)" r="7" stroke="rgb(168 110 0)" strokeWidth="3" />
+
+          {variant === "expanded" ? (
+            <g>
+              <line stroke="rgb(204 51 51 / 0.65)" strokeDasharray="4 6" strokeWidth="2" x1={activeCoordinates.x} x2={activeCoordinates.x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
+              <circle cx={activeCoordinates.x} cy={activeCoordinates.y} fill="rgb(var(--color-surface-container-lowest))" r="8" stroke="rgb(204 51 51)" strokeWidth="3" />
+              <rect fill="rgb(var(--color-surface-container-lowest))" height="42" rx="10" stroke="rgb(var(--color-outline-variant))" width="152" x={activeTooltipX - 76} y={activeTooltipY - 20} />
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY - 3}>
+                {formatNordpoolTime(activePoint.createdAt, timezone)}
+              </text>
+              <text fill="rgb(var(--color-on-surface))" fontSize="14" fontWeight="800" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 14}>
+                {formatKwValue(activePoint.kilowatts)} kW
+              </text>
+            </g>
+          ) : null}
+
+          <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={chartHeight - 6}>
+            {t("timeInTimezone", { timezone })}
+          </text>
+        </svg>
+      </div>
+
+      {onActivate ? (
+        <span className="absolute right-5 top-5 rounded-full bg-surface-container-lowest/90 px-3 py-1 text-xs font-bold text-primary shadow-sm">
+          {t("openDetailedChart")}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ProductionHistoryChartCard({ sourceId, timezone }: ProductionHistoryChartCardProps) {
   const { t } = useI18n("charts");
   const { history, error, isLoading } = useProductionHistory(sourceId);
+  const [isChartDialogOpen, setIsChartDialogOpen] = useState(false);
+  const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
 
   if (isLoading) {
     return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingProductionHistory")}</div>;
@@ -146,27 +301,11 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
     );
   }
 
-  const innerWidth = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
-  const innerHeight = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
   const values = history.map((point) => point.kilowatts);
-  const minValue = Math.min(...values, 0);
-  const maxValue = Math.max(...values);
-  const range = maxValue - minValue || 1;
-  const yAxisValues = Array.from({ length: Y_AXIS_STEPS + 1 }, (_, index) => maxValue - (range * index) / Y_AXIS_STEPS);
-  const timeLabels = getTimeLabelPoints(history);
-
-  let currentPointIndex = -1;
-  for (let index = history.length - 1; index >= 0; index -= 1) {
-    if (new Date(history[index].createdAt).getTime() <= Date.now()) {
-      currentPointIndex = index;
-      break;
-    }
-  }
-
-  const currentIndex = Math.max(currentPointIndex, 0);
+  const currentIndex = getCurrentPointIndex(history);
   const currentPoint = history[currentIndex];
-  const currentX = CHART_PADDING_LEFT + (innerWidth * currentIndex) / Math.max(history.length - 1, 1);
-  const currentY = CHART_PADDING_TOP + innerHeight - ((currentPoint.kilowatts - minValue) / range) * innerHeight;
+  const dialogPointIndex = selectedPointIndex ?? currentIndex;
+  const dialogPoint = history[dialogPointIndex];
 
   return (
     <article className="app-card overflow-hidden">
@@ -187,108 +326,12 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
             </div>
           </div>
 
-          <div
-            className="relative rounded-3xl p-4 sm:p-5"
-            style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
-          >
-            <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
-              <svg
-                aria-label={t("productionAria")}
-                className="h-auto min-w-[44rem] aspect-[16/5] w-[44rem] sm:min-w-0 sm:w-full"
-                role="img"
-                viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-              >
-                <defs>
-                  <linearGradient id="production-fill" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor="rgb(255 179 67)" stopOpacity="0.30" />
-                    <stop offset="100%" stopColor="rgb(255 179 67)" stopOpacity="0.05" />
-                  </linearGradient>
-                </defs>
-
-                <rect
-                  fill="rgb(var(--chart-plot-background))"
-                  height={innerHeight}
-                  rx="18"
-                  width={innerWidth}
-                  x={CHART_PADDING_LEFT}
-                  y={CHART_PADDING_TOP}
-                />
-
-                {yAxisValues.map((value, index) => {
-                  const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
-
-                  return (
-                    <g key={value}>
-                      <line
-                        stroke="rgb(var(--color-outline-variant) / 0.6)"
-                        strokeDasharray="6 8"
-                        strokeWidth="1"
-                        x1={CHART_PADDING_LEFT}
-                        x2={CHART_PADDING_LEFT + innerWidth}
-                        y1={y}
-                        y2={y}
-                      />
-                      <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 10} y={y + 4}>
-                        {formatKwValue(value)} kW
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {timeLabels.map((point) => {
-                  const index = history.findIndex((candidate) => candidate.createdAt === point.createdAt);
-                  const x = CHART_PADDING_LEFT + (innerWidth * index) / Math.max(history.length - 1, 1);
-
-                  return (
-                    <g key={point.createdAt}>
-                      <line
-                        stroke="rgb(var(--color-outline-variant) / 0.5)"
-                        strokeWidth="1"
-                        x1={x}
-                        x2={x}
-                        y1={CHART_PADDING_TOP}
-                        y2={CHART_PADDING_TOP + innerHeight}
-                      />
-                      <text
-                        fill="rgb(var(--color-on-surface-variant))"
-                        fontSize="12"
-                        textAnchor={index === history.length - 1 ? "end" : index === 0 ? "start" : "middle"}
-                        x={x}
-                        y={CHART_PADDING_TOP + innerHeight + 24}
-                      >
-                        {formatNordpoolTime(point.createdAt, timezone)}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                <path d={buildAreaPath(values, innerWidth, innerHeight, minValue, range)} fill="url(#production-fill)" stroke="none" />
-                <path
-                  d={buildLinePath(values, innerWidth, innerHeight, minValue, range)}
-                  fill="none"
-                  stroke="rgb(255 179 67)"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="4"
-                />
-
-                <line
-                  stroke="rgb(255 179 67 / 0.5)"
-                  strokeDasharray="5 7"
-                  strokeWidth="2"
-                  x1={currentX}
-                  x2={currentX}
-                  y1={CHART_PADDING_TOP}
-                  y2={CHART_PADDING_TOP + innerHeight}
-                />
-                <circle cx={currentX} cy={currentY} fill="rgb(255 232 179)" r="7" stroke="rgb(168 110 0)" strokeWidth="3" />
-
-                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 6}>
-                  {t("timeInTimezone", { timezone })}
-                </text>
-              </svg>
-            </div>
-          </div>
+          <ProductionHistoryChartSurface
+            chartHeight={COMPACT_CHART_HEIGHT}
+            history={history}
+            onActivate={() => setIsChartDialogOpen(true)}
+            timezone={timezone}
+          />
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
             <span className="rounded-full bg-surface-container px-3 py-2">
@@ -330,6 +373,44 @@ export default function ProductionHistoryChartCard({ sourceId, timezone }: Produ
           </div>
         </div>
       </div>
+      <AppDialog
+        description={t("productionExpandedDescription", { timezone })}
+        eyebrow={t("productionHistory")}
+        isOpen={isChartDialogOpen}
+        maxWidthClassName="max-w-6xl"
+        onClose={() => {
+          setIsChartDialogOpen(false);
+          setSelectedPointIndex(null);
+        }}
+        title={t("productionExpandedTitle")}
+      >
+        <ProductionHistoryChartSurface
+          chartHeight={EXPANDED_CHART_HEIGHT}
+          history={history}
+          onSelectedPointChange={setSelectedPointIndex}
+          selectedPointIndex={selectedPointIndex}
+          timezone={timezone}
+          variant="expanded"
+        />
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl bg-surface-container-low p-4">
+            <p className="metric-label mb-2">{t("selectedInterval")}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolTime(dialogPoint.createdAt, timezone)}</p>
+          </div>
+          <div className="rounded-2xl bg-surface-container-low p-4">
+            <p className="metric-label mb-2">{t("selectedProduction")}</p>
+            <p className="font-headline text-2xl font-black text-primary">{formatKwValue(dialogPoint.kilowatts)} kW</p>
+            <p className="text-xs text-on-surface-variant">{t("kwAverage")}</p>
+          </div>
+          <div className="rounded-2xl bg-surface-container-low p-4">
+            <p className="metric-label mb-2">{t("visibleRange")}</p>
+            <p className="font-headline text-lg font-black text-on-surface">
+              {formatKwValue(Math.min(...values))} - {formatKwValue(Math.max(...values))} kW
+            </p>
+            <p className="text-xs text-on-surface-variant">{t("intervalPoints", { count: history.length })}</p>
+          </div>
+        </div>
+      </AppDialog>
     </article>
   );
 }
