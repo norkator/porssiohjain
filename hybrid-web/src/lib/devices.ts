@@ -61,8 +61,21 @@ export type DevicePayload = {
   buildingId?: string;
 };
 
+function sortDevicesByName(devices: ApiDevice[]) {
+  const collator = new Intl.Collator(getCurrentIntlLocales(), {
+    sensitivity: "base",
+    numeric: true
+  });
+
+  return [...devices].sort((left, right) => {
+    const nameComparison = collator.compare(left.deviceName, right.deviceName);
+    return nameComparison || left.id - right.id;
+  });
+}
+
 export async function fetchDevices() {
-  return apiGetJson<ApiDevice[]>("/devices");
+  const devices = await apiGetJson<ApiDevice[]>("/devices");
+  return sortDevicesByName(devices);
 }
 
 export async function fetchDevice(deviceId: number) {
