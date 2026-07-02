@@ -569,7 +569,7 @@
       "shelly-pro-relays.setupNotice": "Before adding a Shelly device, make sure it has been added and configured in the Shelly Smart Control application.",
       "openbeken.title": "OpenBeken",
       "openbeken.description": "OpenBeken devices using MQTT control.",
-      "openbeken.setupNotice": "Before adding an OpenBeken device, make sure it is flashed, connected to Wi-Fi, and ready for MQTT configuration.",
+      "openbeken.setupNotice": "Before adding an OpenBeken device, make sure it is connected to Wi-Fi, and ready for MQTT configuration.",
       "toshiba-heat-pump.title": "Toshiba Heat Pump",
       "toshiba-heat-pump.description": "Devices using the Toshiba Home AC Control app.",
       "toshiba-heat-pump.setupNotice": "Before continuing, make sure your Toshiba heat pump is already available in the Toshiba Home AC Control application.",

@@ -72,7 +72,7 @@ export const DEVICE_TYPE_OPTIONS: DeviceTypeOption[] = [
     description: "OpenBeken devices using MQTT control.",
     icon: "O",
     setupNotice:
-      "Before adding an OpenBeken device, make sure it is flashed, connected to Wi-Fi, and ready for MQTT configuration."
+      "Before adding an OpenBeken device, make sure it is connected to Wi-Fi, and ready for MQTT configuration."
   }
 ];
 

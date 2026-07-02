@@ -569,7 +569,7 @@
       "shelly-pro-relays.setupNotice": "Ennen Shelly-laitteen lisäämistä varmista, että laite on lisätty ja määritetty Shelly Smart Control -sovelluksessa.",
       "openbeken.title": "OpenBeken",
       "openbeken.description": "MQTT-ohjausta käyttävät OpenBeken-laitteet.",
-      "openbeken.setupNotice": "Ennen OpenBeken-laitteen lisäämistä varmista, että laite on flashattu, yhdistetty Wi-Fiin ja valmis MQTT-määrityksille.",
+      "openbeken.setupNotice": "Ennen OpenBeken-laitteen lisäämistä varmista, että laite on yhdistetty Wi-Fiin ja valmis MQTT-määrityksille.",
       "toshiba-heat-pump.title": "Toshiba-lämpöpumppu",
       "toshiba-heat-pump.description": "Toshiba Home AC Control -sovellusta käyttävät laitteet.",
       "toshiba-heat-pump.setupNotice": "Ennen jatkamista varmista, että Toshiba-lämpöpumppu näkyy jo Toshiba Home AC Control -sovelluksessa.",
