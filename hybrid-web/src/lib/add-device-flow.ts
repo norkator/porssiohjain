@@ -65,6 +65,14 @@ export const DEVICE_TYPE_OPTIONS: DeviceTypeOption[] = [
     icon: "M",
     setupNotice:
       "Before continuing, make sure your Mitsubishi heat pump is already available in MELCloud application."
+  },
+  {
+    id: "openbeken",
+    title: "OpenBeken",
+    description: "OpenBeken devices using MQTT control.",
+    icon: "O",
+    setupNotice:
+      "Before adding an OpenBeken device, make sure it is flashed, connected to Wi-Fi, and ready for MQTT configuration."
   }
 ];
 

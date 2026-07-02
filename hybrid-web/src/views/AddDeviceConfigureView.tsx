@@ -31,6 +31,9 @@ export default function AddDeviceConfigureView() {
   const common = useI18n("common").t;
   const draft = readAddDeviceDraft();
   const deviceType = getDeviceTypeOption(draft.deviceTypeId);
+  const deviceTypeLabels: Record<string, string> = useI18n("addDeviceType").group("deviceTypes");
+  const translatedDeviceTypeTitle = deviceTypeLabels[`${deviceType?.id}.title`] ?? deviceType?.title ?? "";
+  const translatedSetupNotice = deviceTypeLabels[`${deviceType?.id}.setupNotice`] ?? deviceType?.setupNotice ?? "";
   const isHeatPump = deviceType?.id === "toshiba-heat-pump" || deviceType?.id === "mitsubishi-heat-pump";
   const availableTimezones = useMemo(() => getAvailableTimezones(), []);
   const [deviceName, setDeviceName] = useState(draft.deviceName);
@@ -161,10 +164,10 @@ export default function AddDeviceConfigureView() {
             <div className="relative z-10 max-w-2xl">
               <p className="metric-label mb-4">{t("selectedDeviceType")}</p>
               <h1 className="mb-4 font-headline text-3xl font-extrabold leading-tight text-primary md:text-4xl">
-                {deviceType.title}
+                {translatedDeviceTypeTitle}
               </h1>
               <p className="text-sm leading-relaxed text-on-surface-variant">
-                {deviceType.setupNotice}
+                {translatedSetupNotice}
               </p>
             </div>
             <div className="absolute -bottom-4 -right-4 opacity-10">
@@ -182,7 +185,7 @@ export default function AddDeviceConfigureView() {
                     className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
                     id="device-name"
                     onChange={(event) => setDeviceName(event.target.value)}
-                    placeholder={t("deviceNamePlaceholder", { deviceType: deviceType.title })}
+                    placeholder={t("deviceNamePlaceholder", { deviceType: translatedDeviceTypeTitle })}
                     type="text"
                     value={deviceName}
                   />
@@ -344,7 +347,7 @@ export default function AddDeviceConfigureView() {
                   {t("selectAcDevice")}
                 </h2>
                 <p className="mt-2 text-sm text-on-surface-variant">
-                  {t("chooseReturnedDevice", { deviceType: deviceType.title })}
+                  {t("chooseReturnedDevice", { deviceType: translatedDeviceTypeTitle })}
                 </p>
               </div>
               <button

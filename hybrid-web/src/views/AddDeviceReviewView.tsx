@@ -28,6 +28,8 @@ export default function AddDeviceReviewView() {
   const common = useI18n("common").t;
   const draft = readAddDeviceDraft();
   const deviceType = getDeviceTypeOption(draft.deviceTypeId);
+  const deviceTypeLabels: Record<string, string> = useI18n("addDeviceType").group("deviceTypes");
+  const translatedDeviceTypeTitle = deviceTypeLabels[`${deviceType?.id}.title`] ?? deviceType?.title ?? "";
   const isHeatPump = deviceType?.id === "toshiba-heat-pump" || deviceType?.id === "mitsubishi-heat-pump";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -95,7 +97,7 @@ export default function AddDeviceReviewView() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-surface-container-low p-4 sm:p-6">
                 <p className="metric-label mb-2">{t("deviceType")}</p>
-                <p className="font-headline text-xl font-bold text-on-surface">{deviceType.title}</p>
+                <p className="font-headline text-xl font-bold text-on-surface">{translatedDeviceTypeTitle}</p>
               </div>
               <div className="rounded-xl bg-surface-container-low p-4 sm:p-6">
                 <p className="metric-label mb-2">{t("deviceName")}</p>

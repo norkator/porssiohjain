@@ -30,6 +30,7 @@ type CreateDeviceRequest = {
 function getBackendDeviceType(deviceTypeId: string) {
   switch (deviceTypeId) {
     case "shelly-pro-relays":
+    case "openbeken":
       return "STANDARD";
     case "toshiba-heat-pump":
     case "mitsubishi-heat-pump":

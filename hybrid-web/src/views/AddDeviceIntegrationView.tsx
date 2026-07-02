@@ -18,9 +18,13 @@ import shellyTemplate from "../../../devices/shelly/script.js?raw";
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 
+const MQTT_HOST = "www.porssiohjain.fi";
+const MQTT_PORT = "8883";
+
 export default function AddDeviceIntegrationView() {
   const navigate = useNavigate();
   const { t } = useI18n("addDeviceIntegration");
+  const deviceTypeLabels: Record<string, string> = useI18n("addDeviceType").group("deviceTypes");
   const common = useI18n("common").t;
   const draft = readAddDeviceDraft();
   const provisionedDevice = readProvisionedDeviceDraft();
@@ -30,6 +34,10 @@ export default function AddDeviceIntegrationView() {
   if (!deviceType || !provisionedDevice) {
     return <Navigate replace to="/devices/add/type" />;
   }
+
+  const translatedDeviceTypeTitle = deviceTypeLabels[`${deviceType.id}.title`] ?? deviceType.title;
+  const isOpenBeken = deviceType.id === "openbeken";
+  const isShelly = deviceType.id === "shelly-pro-relays";
 
   const handleFinish = () => {
     clearAddDeviceDraft();
@@ -56,6 +64,28 @@ export default function AddDeviceIntegrationView() {
     }
   };
 
+  const handleCopyValue = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      showNativeToast(t("copyValueSuccess"));
+    } catch {
+      showNativeToast(t("copyValueFailed"));
+    }
+  };
+
+  const mqttRows = [
+    ...(isOpenBeken ? [
+      { label: t("openBekenClientTopic"), value: provisionedDevice.uuid },
+      { label: t("openBekenGroupTopic"), value: provisionedDevice.uuid }
+    ] : [
+      { label: t("mqttDeviceUuid"), value: provisionedDevice.uuid }
+    ]),
+    { label: t("mqttHost"), value: MQTT_HOST },
+    { label: t("mqttPort"), value: MQTT_PORT },
+    { label: t("mqttUsername"), value: provisionedDevice.mqttUsername ?? t("pendingValue") },
+    { label: t("mqttPassword"), value: provisionedDevice.mqttPassword ?? t("pendingValue") }
+  ];
+
   return (
     <>
       <PageHeader
@@ -73,10 +103,10 @@ export default function AddDeviceIntegrationView() {
           <div className="space-y-8">
             <section>
               <h2 className="mb-4 font-headline text-3xl font-extrabold leading-tight text-primary md:text-5xl">
-                {t("headline", { deviceType: deviceType.title })}
+                {t("headline", { deviceType: translatedDeviceTypeTitle })}
               </h2>
               <p className="max-w-2xl text-lg text-on-surface-variant">
-                {t("description")}
+                {t(isOpenBeken ? "openBekenDescription" : "description")}
               </p>
             </section>
 
@@ -90,34 +120,34 @@ export default function AddDeviceIntegrationView() {
             <div className="overflow-hidden rounded-xl bg-surface-container-low p-4 sm:p-6">
               <p className="metric-label mb-2">{t("setupInstructions")}</p>
               <p className="text-sm leading-relaxed text-on-surface-variant">
-                {t("instructions")}
+                {t(isOpenBeken ? "openBekenInstructions" : "instructions")}
               </p>
             </div>
 
             <div className="overflow-hidden rounded-xl bg-surface-container-low p-4 sm:p-6">
               <p className="metric-label mb-2">{t("mqttCredentials")}</p>
               <div className="space-y-4 rounded-xl bg-surface-container-highest p-4">
-                <div>
-                  <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttDeviceUuid")}</p>
-                  <div className="overflow-x-auto">
-                    <p className="w-max min-w-full font-mono text-sm font-bold text-on-surface">{provisionedDevice.uuid}</p>
+                {mqttRows.map((row) => (
+                  <div key={row.label} className="rounded-lg bg-surface-container p-3">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{row.label}</p>
+                      <button
+                        className="secondary-action shrink-0 px-3 py-1 text-xs"
+                        onClick={() => void handleCopyValue(row.value)}
+                        type="button"
+                      >
+                        {t("copyValue")}
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <p className="w-max min-w-full font-mono text-sm font-bold text-on-surface">{row.value}</p>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttUsername")}</p>
-                  <div className="overflow-x-auto">
-                    <p className="w-max min-w-full font-mono text-sm font-bold text-on-surface">{provisionedDevice.mqttUsername ?? t("pendingValue")}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttPassword")}</p>
-                  <div className="overflow-x-auto">
-                    <p className="w-max min-w-full font-mono text-sm font-bold text-on-surface">{provisionedDevice.mqttPassword ?? t("pendingValue")}</p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
+            {isShelly ? (
             <div className="overflow-hidden rounded-xl bg-surface-container-low p-4 sm:p-6">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="metric-label">{t("shellyJavascript")}</p>
@@ -134,6 +164,7 @@ export default function AddDeviceIntegrationView() {
                 <pre className="inline-block min-w-full whitespace-pre text-xs leading-relaxed text-on-surface">{shellyScript}</pre>
               </div>
             </div>
+            ) : null}
 
             <div className="pt-4">
               <button
