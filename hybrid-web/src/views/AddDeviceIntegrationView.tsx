@@ -74,14 +74,14 @@ export default function AddDeviceIntegrationView() {
   };
 
   const mqttRows = [
+    { label: t("mqttHost"), value: MQTT_HOST },
+    { label: t("mqttPort"), value: MQTT_PORT },
     ...(isOpenBeken ? [
       { label: t("openBekenClientTopic"), value: provisionedDevice.uuid },
       { label: t("openBekenGroupTopic"), value: provisionedDevice.uuid }
     ] : [
       { label: t("mqttDeviceUuid"), value: provisionedDevice.uuid }
     ]),
-    { label: t("mqttHost"), value: MQTT_HOST },
-    { label: t("mqttPort"), value: MQTT_PORT },
     { label: t("mqttUsername"), value: provisionedDevice.mqttUsername ?? t("pendingValue") },
     { label: t("mqttPassword"), value: provisionedDevice.mqttPassword ?? t("pendingValue") }
   ];

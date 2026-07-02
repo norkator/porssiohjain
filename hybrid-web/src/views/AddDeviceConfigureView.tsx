@@ -175,7 +175,7 @@ export default function AddDeviceConfigureView() {
             </div>
           </div>
 
-          <form className="app-card max-w-4xl space-y-8 p-4 sm:p-6 lg:p-8" onSubmit={handleSubmit}>
+          <form className="app-card w-full space-y-8 p-4 sm:p-6 lg:p-8" onSubmit={handleSubmit}>
               <div>
                 <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="device-name">
                   {t("deviceName")}
