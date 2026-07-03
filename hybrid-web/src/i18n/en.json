@@ -636,7 +636,7 @@
     "openBekenDescription": "Your device has been provisioned. Use the MQTT credentials below in your OpenBeken device MQTT settings.",
     "deviceIdentifier": "Device Identifier",
     "setupInstructions": "Setup Instructions",
-    "instructions": "Open Shelly Smart Control, go to your configured Shelly device, add the required script, then paste the generated content below. This page is intentionally separate so other device types can later show their own post-provisioning instructions.",
+    "instructions": "Open Shelly Smart Control, go to your configured Shelly device, add the required script, then paste the generated content below.",
     "openBekenInstructions": "Open the OpenBeken device settings and configure the MQTT connection with the values below. Use the device UUID for both Client Topic / Base Topic and Group Topic / Secondary Topic.",
     "mqttCredentials": "MQTT Credentials",
     "mqttDeviceUuid": "Device UUID",

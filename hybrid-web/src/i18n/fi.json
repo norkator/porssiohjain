@@ -636,7 +636,7 @@
     "openBekenDescription": "Laite on nyt luotu. Käytä alla olevia MQTT-tunnuksia OpenBeken-laitteen MQTT-asetuksissa.",
     "deviceIdentifier": "Laitteen tunniste",
     "setupInstructions": "Asennusohjeet",
-    "instructions": "Avaa Shelly Smart Control, siirry määritettyyn Shelly-laitteeseen, lisää tarvittava skripti ja liitä alla luotu sisältö. Tämä sivu on erillinen, jotta muut laitetyypit voivat myöhemmin näyttää omat käyttöönotto-ohjeensa.",
+    "instructions": "Avaa Shelly Smart Control, siirry määritettyyn Shelly-laitteeseen, lisää tarvittava skripti ja liitä alla luotu sisältö.",
     "openBekenInstructions": "Avaa OpenBeken-laitteen asetukset ja määritä MQTT-yhteys alla olevilla arvoilla. Käytä laitteen UUID-arvoa sekä Client Topic / Base Topic -kentässä että Group Topic / Secondary Topic -kentässä.",
     "mqttCredentials": "MQTT-tunnukset",
     "mqttDeviceUuid": "Laitteen UUID",
