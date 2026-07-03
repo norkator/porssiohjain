@@ -17,6 +17,7 @@ type CreateDeviceRequest = {
   deviceName: string;
   timezone: string;
   deviceType: string;
+  devicePlatform: "OPENBEKEN" | "TASMOTA" | "ESPHOME" | "GENERIC_MQTT";
   enabled: boolean;
   acType?: "TOSHIBA" | "MITSUBISHI";
   hpName?: string;
@@ -48,6 +49,19 @@ function getBackendAcType(deviceTypeId: string) {
       return "MITSUBISHI" as const;
     default:
       return undefined;
+  }
+}
+
+function getBackendDevicePlatform(deviceTypeId: string) {
+  switch (deviceTypeId) {
+    case "openbeken":
+      return "OPENBEKEN" as const;
+    case "shelly-pro-relays":
+    case "toshiba-heat-pump":
+    case "mitsubishi-heat-pump":
+      return "GENERIC_MQTT" as const;
+    default:
+      throw new Error(`Unsupported device type: ${deviceTypeId}`);
   }
 }
 
@@ -84,6 +98,7 @@ export async function createDevice(input: {
     deviceName: input.deviceName,
     timezone: input.timezone,
     deviceType: getBackendDeviceType(input.deviceTypeId),
+    devicePlatform: getBackendDevicePlatform(input.deviceTypeId),
     enabled: true,
     acType: getBackendAcType(input.deviceTypeId),
     hpName: input.hpName,

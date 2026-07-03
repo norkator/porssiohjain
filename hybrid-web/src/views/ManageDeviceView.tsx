@@ -175,6 +175,7 @@ export default function ManageDeviceView() {
     acUsername: isHeatPump ? acUsername.trim() : undefined,
     buildingId: isHeatPump ? buildingId : undefined,
     deviceName: deviceName.trim(),
+    devicePlatform: isHeatPump ? "GENERIC_MQTT" : device?.devicePlatform ?? "GENERIC_MQTT",
     deviceType,
     enabled,
     hpName: isHeatPump ? hpName.trim() : undefined,
