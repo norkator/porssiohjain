@@ -38,6 +38,7 @@ import com.nitramite.porssiohjain.services.DemoAccountGuard;
 import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.MqttProfileService;
+import com.nitramite.porssiohjain.services.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -126,8 +127,37 @@ class DeviceServiceTest {
                 controlService,
                 mqttProfileService,
                 demoAccountGuard,
-                deviceOfflineNotificationService
+                deviceOfflineNotificationService,
+                new SystemLogService()
         );
+    }
+
+    @Test
+    void allowsNextMqttPasswordChangeForOwnedDevice() {
+        AccountEntity account = AccountEntity.builder().id(1L).build();
+        DeviceEntity device = new DeviceEntity();
+        device.setId(10L);
+        device.setUuid(java.util.UUID.randomUUID());
+        device.setAccount(account);
+        device.setDeviceName("Device");
+        device.setTimezone("Europe/Helsinki");
+        device.setDeviceType(DeviceType.STANDARD);
+        device.setDevicePlatform(DevicePlatform.GENERIC_MQTT);
+        device.setMqttUsername("device-user");
+        device.setMqttDeviceProfile(MqttDeviceProfile.GENERIC_RELAY);
+        device.setCreatedAt(Instant.now());
+        device.setUpdatedAt(Instant.now());
+
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(deviceRepository.findByIdAndAccount(10L, account)).thenReturn(Optional.of(device));
+        when(deviceRepository.save(device)).thenReturn(device);
+
+        var response = deviceService.allowNextMqttPasswordChange(1L, 10L);
+
+        assertThat(device.isMqttPasswordChangeAllowed()).isTrue();
+        assertThat(device.getMqttPasswordChangeAllowedUntil()).isAfter(Instant.now());
+        assertThat(response.getMqttPasswordChangeAllowed()).isTrue();
+        assertThat(response.getMqttPasswordChangeAllowedUntil()).isEqualTo(device.getMqttPasswordChangeAllowedUntil());
     }
 
     @Test

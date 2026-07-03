@@ -113,6 +113,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final Button showAcCommandLogButton;
     private final Button showControlsJsonButton;
     private final Button mqttRelayDebugButton;
+    private final Button allowMqttPasswordChangeButton;
+    private final Span mqttPasswordChangeStatus;
     private final Anchor userCaDownloadLink;
     private final Span userCaStatus;
 
@@ -228,6 +230,17 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         mqttRelayDebugButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
         mqttRelayDebugButton.addClickListener(e -> openMqttRelayDebugDialog());
         mqttRelayDebugButton.setVisible(false);
+
+        allowMqttPasswordChangeButton = new Button(t("device.mqttPasswordChange.button"));
+        allowMqttPasswordChangeButton.addThemeVariants(ButtonVariant.LUMO_WARNING);
+        allowMqttPasswordChangeButton.addClickListener(e -> openAllowMqttPasswordChangeDialog());
+        allowMqttPasswordChangeButton.setVisible(false);
+
+        mqttPasswordChangeStatus = new Span();
+        mqttPasswordChangeStatus.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.9rem");
+        mqttPasswordChangeStatus.setVisible(false);
 
         userCaDownloadLink = new Anchor(
                 DownloadHandler.fromInputStream(event -> {
@@ -382,6 +395,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 updateAcCommandLogButton();
                 updateControlsJsonButton();
                 updateMqttRelayDebugButton();
+                updateMqttPasswordChangeAction();
                 saveButton.setText(t("device.button.update"));
             } else {
                 clearForm();
@@ -433,6 +447,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 showAcCommandLogButton,
                 showControlsJsonButton,
                 mqttRelayDebugButton,
+                allowMqttPasswordChangeButton,
+                mqttPasswordChangeStatus,
                 limitInfo,
                 saveButton
         );
@@ -459,6 +475,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             updateAcCommandLogButton();
             updateControlsJsonButton();
             updateMqttRelayDebugButton();
+            updateMqttPasswordChangeAction();
             updateSaveButtonState();
         });
 
@@ -829,6 +846,40 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         dialog.open();
     }
 
+    private void openAllowMqttPasswordChangeDialog() {
+        if (selectedDevice == null || Boolean.TRUE.equals(selectedDevice.getShared())) {
+            return;
+        }
+
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("device.mqttPasswordChange.dialog.title"));
+        dialog.add(t("device.mqttPasswordChange.dialog.description"));
+
+        Button confirmButton = new Button(t("device.mqttPasswordChange.dialog.confirm"), event -> {
+            try {
+                AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+                if (currentAccount == null) {
+                    dialog.close();
+                    return;
+                }
+                selectedDevice = deviceService.allowNextMqttPasswordChange(currentAccount.getId(), selectedDevice.getId());
+                updateMqttPasswordChangeAction();
+                loadDevices();
+                Notification.show(t("device.mqttPasswordChange.notification.enabled"))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                dialog.close();
+            } catch (Exception e) {
+                Notification.show(t("device.notification.failed", e.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_WARNING);
+        Button cancelButton = new Button(t("button.cancel"), event -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        dialog.getFooter().add(cancelButton, confirmButton);
+        dialog.open();
+    }
+
     private void clearForm() {
         selectedDevice = null;
         pendingAcDeviceId = null;
@@ -847,6 +898,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         updateAcCommandLogButton();
         updateControlsJsonButton();
         updateMqttRelayDebugButton();
+        updateMqttPasswordChangeAction();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
         updateLimitInfo();
@@ -935,6 +987,26 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 && selectedDevice.getDeviceType() == DeviceType.STANDARD
                 && Boolean.TRUE.equals(selectedDevice.getMqttOnline());
         mqttRelayDebugButton.setVisible(visible);
+    }
+
+    private void updateMqttPasswordChangeAction() {
+        boolean visible = selectedDevice != null && !Boolean.TRUE.equals(selectedDevice.getShared());
+        allowMqttPasswordChangeButton.setVisible(visible);
+
+        boolean active = visible
+                && Boolean.TRUE.equals(selectedDevice.getMqttPasswordChangeAllowed())
+                && selectedDevice.getMqttPasswordChangeAllowedUntil() != null
+                && selectedDevice.getMqttPasswordChangeAllowedUntil().isAfter(Instant.now());
+        mqttPasswordChangeStatus.setVisible(active);
+        if (active) {
+            ZoneId zone = ZoneId.of(selectedDevice.getTimezone());
+            mqttPasswordChangeStatus.setText(t(
+                    "device.mqttPasswordChange.status",
+                    ZonedDateTime.ofInstant(selectedDevice.getMqttPasswordChangeAllowedUntil(), zone).format(formatter)
+            ));
+        } else {
+            mqttPasswordChangeStatus.setText("");
+        }
     }
 
     private void updateSaveButtonState() {

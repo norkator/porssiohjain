@@ -46,6 +46,8 @@ public class DeviceResponse {
     private Boolean mqttOnline;
     private String mqttUsername;
     private String mqttPassword;
+    private Boolean mqttPasswordChangeAllowed;
+    private Instant mqttPasswordChangeAllowedUntil;
     private MqttDeviceProfile mqttDeviceProfile;
     private List<MqttCapability> mqttCapabilities;
     private Boolean hasActiveChannels;
