@@ -92,6 +92,13 @@ public class DeviceEntity {
     @Column(name = "mqtt_password")
     private String mqttPassword;
 
+    @Column(name = "mqtt_password_change_allowed", nullable = false)
+    @Builder.Default
+    private boolean mqttPasswordChangeAllowed = false;
+
+    @Column(name = "mqtt_password_change_allowed_until")
+    private Instant mqttPasswordChangeAllowedUntil;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "mqtt_device_profile", nullable = false, length = 64)
     @Builder.Default
@@ -135,6 +142,9 @@ public class DeviceEntity {
         if (mqttPassword == null) {
             byte[] randomBytes = new SecureRandom().generateSeed(12);
             mqttPassword = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+        }
+        if (mqttPasswordChangeAllowedUntil != null && !mqttPasswordChangeAllowed) {
+            mqttPasswordChangeAllowedUntil = null;
         }
         if (mqttDeviceProfile == null) {
             mqttDeviceProfile = MqttDeviceProfile.GENERIC_RELAY;

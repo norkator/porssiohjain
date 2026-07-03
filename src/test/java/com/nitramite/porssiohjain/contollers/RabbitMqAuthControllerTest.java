@@ -23,10 +23,13 @@ import org.springframework.http.MediaType;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -78,6 +81,35 @@ class RabbitMqAuthControllerTest {
         when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
 
         assertEquals("deny", controller.authenticateUser("device-user", "wrong", "client-1", "/").getBody());
+        verify(deviceRepository, never()).save(device);
+    }
+
+    @Test
+    void acceptsDeviceProvidedPasswordWhenPasswordChangeWindowIsActive() {
+        device.setMqttPassword("\u241E\uFFFDhie@j\u0005H\uFFFD_o\uFFFD\uFFFD_");
+        device.setMqttPasswordChangeAllowed(true);
+        device.setMqttPasswordChangeAllowedUntil(Instant.now().plusSeconds(300));
+        when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
+
+        assertEquals("allow", controller.authenticateUser("device-user", "real-field-password", "client-1", "/").getBody());
+        assertEquals("real-field-password", device.getMqttPassword());
+        assertEquals(false, device.isMqttPasswordChangeAllowed());
+        assertEquals(null, device.getMqttPasswordChangeAllowedUntil());
+        verify(deviceRepository).save(device);
+    }
+
+    @Test
+    void deniesDeviceProvidedPasswordWhenPasswordChangeWindowExpired() {
+        device.setMqttPassword("old-secret");
+        device.setMqttPasswordChangeAllowed(true);
+        device.setMqttPasswordChangeAllowedUntil(Instant.now().minusSeconds(1));
+        when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
+
+        assertEquals("deny", controller.authenticateUser("device-user", "new-secret", "client-1", "/").getBody());
+        assertEquals("old-secret", device.getMqttPassword());
+        assertEquals(false, device.isMqttPasswordChangeAllowed());
+        assertEquals(null, device.getMqttPasswordChangeAllowedUntil());
+        verify(deviceRepository).save(device);
     }
 
     @Test

@@ -39,6 +39,7 @@ public class DeviceService {
     private static final long STANDARD_API_OFFLINE_SECONDS = 10L * 60L;
     private static final long HEAT_PUMP_API_OFFLINE_SECONDS = 4L * 60L * 60L;
     private static final long MQTT_OFFLINE_SECONDS = 300L;
+    private static final long MQTT_PASSWORD_CHANGE_WINDOW_SECONDS = 30L * 60L;
 
     private final DeviceRepository deviceRepository;
     private final AccountRepository accountRepository;
@@ -61,6 +62,7 @@ public class DeviceService {
     private final MqttProfileService mqttProfileService;
     private final DemoAccountGuard demoAccountGuard;
     private final DeviceOfflineNotificationService deviceOfflineNotificationService;
+    private final SystemLogService systemLogService;
 
     @Transactional
     public DeviceResponse createDevice(
@@ -222,6 +224,8 @@ public class DeviceService {
                 .mqttOnline(entity.isMqttOnline())
                 .mqttUsername(entity.getMqttUsername())
                 .mqttPassword(entity.getMqttPassword())
+                .mqttPasswordChangeAllowed(entity.isMqttPasswordChangeAllowed())
+                .mqttPasswordChangeAllowedUntil(entity.getMqttPasswordChangeAllowedUntil())
                 .mqttDeviceProfile(entity.getMqttDeviceProfile())
                 .mqttCapabilities(mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
                 .build();
@@ -276,6 +280,27 @@ public class DeviceService {
         acData.setBuildingId(buildingId);
         acData.setAcDeviceUniqueId(null);
         deviceAcDataRepository.save(acData);
+    }
+
+    @Transactional
+    public DeviceResponse allowNextMqttPasswordChange(Long accountId, Long deviceId) {
+        demoAccountGuard.assertWritable(accountId);
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
+        DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
+                .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
+
+        Instant allowedUntil = Instant.now().plusSeconds(MQTT_PASSWORD_CHANGE_WINDOW_SECONDS);
+        device.setMqttPasswordChangeAllowed(true);
+        device.setMqttPasswordChangeAllowedUntil(allowedUntil);
+        device = deviceRepository.save(device);
+
+        String message = "MQTT password change enabled for next connection: username='%s', device uuid=%s, allowedUntil=%s"
+                .formatted(device.getMqttUsername(), device.getUuid(), allowedUntil);
+        systemLogService.log(message);
+        systemLogService.logMqtt(message);
+
+        return mapToResponse(device, false);
     }
 
     @Transactional
@@ -406,6 +431,8 @@ public class DeviceService {
                 .enabled(entity.isEnabled())
                 .deviceName(entity.getDeviceName())
                 .mqttDeviceProfile(entity.getMqttDeviceProfile())
+                .mqttPasswordChangeAllowed(entity.isMqttPasswordChangeAllowed())
+                .mqttPasswordChangeAllowedUntil(entity.getMqttPasswordChangeAllowedUntil())
                 .mqttCapabilities(mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

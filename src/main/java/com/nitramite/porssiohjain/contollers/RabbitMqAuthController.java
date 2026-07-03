@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -52,6 +53,9 @@ public class RabbitMqAuthController {
         if (deviceOpt.isPresent()) {
             DeviceEntity device = deviceOpt.get();
             if (!Objects.equals(device.getMqttPassword(), password)) {
+                if (acceptMqttPasswordChange(device, password)) {
+                    return plainTextResponse(ALLOW);
+                }
                 logMqtt("MQTT auth denied for username '%s' - invalid password".formatted(username));
                 return plainTextResponse(DENY);
             }
@@ -61,6 +65,33 @@ public class RabbitMqAuthController {
 
         logMqtt("MQTT auth denied for username '%s' - device not found".formatted(username));
         return plainTextResponse(DENY);
+    }
+
+    private boolean acceptMqttPasswordChange(DeviceEntity device, String providedPassword) {
+        if (!device.isMqttPasswordChangeAllowed()) {
+            return false;
+        }
+        Instant allowedUntil = device.getMqttPasswordChangeAllowedUntil();
+        Instant now = Instant.now();
+        if (allowedUntil == null || !allowedUntil.isAfter(now)) {
+            device.setMqttPasswordChangeAllowed(false);
+            device.setMqttPasswordChangeAllowedUntil(null);
+            deviceRepository.save(device);
+            logMqtt("MQTT password change window expired for username '%s' (device uuid: %s)"
+                    .formatted(device.getMqttUsername(), device.getUuid()));
+            return false;
+        }
+        if (providedPassword == null || providedPassword.isBlank()) {
+            return false;
+        }
+
+        device.setMqttPassword(providedPassword);
+        device.setMqttPasswordChangeAllowed(false);
+        device.setMqttPasswordChangeAllowedUntil(null);
+        deviceRepository.save(device);
+        logMqtt("MQTT auth accepted device-provided password change for username '%s' (device uuid: %s)"
+                .formatted(device.getMqttUsername(), device.getUuid()));
+        return true;
     }
 
     @PostMapping("/vhost")
