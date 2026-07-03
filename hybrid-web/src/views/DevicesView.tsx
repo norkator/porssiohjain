@@ -13,13 +13,34 @@ import DeviceCard from "@/components/DeviceCard";
 import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
 import PageHeader from "@/components/PageHeader";
 import { useDevices } from "@/hooks/useDevices";
-import { fetchHeatPumpState, formatAcType, formatDeviceLastCommunication, formatDeviceType, getDeviceAccent, getDeviceConnectionState, sendHeatPumpCommand, sendMqttRelayDebugCommand, type AcType, type ApiDevice } from "@/lib/devices";
+import { fetchHeatPumpState, formatAcType, formatDeviceLastCommunication, formatDeviceType, getDeviceAccent, getDeviceConnectionState, sendHeatPumpCommand, sendMqttRelayDebugCommand, type AcType, type ApiDevice, type DevicePlatform } from "@/lib/devices";
 import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
 function getInitialRelayStates(device: ApiDevice) {
   return Array.from({ length: 4 }, (_, channel) => device.relayChannelStates?.[channel] ?? false);
+}
+
+function formatDevicePlatform(devicePlatform: DevicePlatform) {
+  switch (devicePlatform) {
+    case "OPENBEKEN":
+      return "OpenBeken";
+    case "TASMOTA":
+      return "Tasmota";
+    case "ESPHOME":
+      return "ESPHome";
+    case "GENERIC_MQTT":
+    default:
+      return null;
+  }
+}
+
+function formatDeviceTypeWithPlatform(device: ApiDevice) {
+  const typeLabel = formatDeviceType(device.deviceType);
+  const platformLabel = formatDevicePlatform(device.devicePlatform);
+
+  return platformLabel ? `${typeLabel} - ${platformLabel}` : typeLabel;
 }
 
 export default function DevicesView() {
@@ -182,7 +203,7 @@ export default function DevicesView() {
                     statusTone={connection.tone}
                     subtitle={t("uuid", { uuid: device.uuid })}
                     title={device.deviceName}
-                    type={formatDeviceType(device.deviceType)}
+                    type={formatDeviceTypeWithPlatform(device)}
                   />
                 );
               })
