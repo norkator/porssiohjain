@@ -30,17 +30,12 @@ import java.util.Base64;
 public class CryptoConverter implements AttributeConverter<String, String> {
 
     private final SecretKeySpec keySpec;
-    private final Cipher encryptCipher;
-    private final Cipher decryptCipher;
 
     public CryptoConverter(
             @Value("${app.crypto.key}") String key
     ) throws Exception {
         byte[] keyBytes = Arrays.copyOf(key.getBytes(StandardCharsets.UTF_8), 32);
         this.keySpec = new SecretKeySpec(keyBytes, "AES");
-        encryptCipher = Cipher.getInstance("AES/GCM/NoPadding");
-        decryptCipher = Cipher.getInstance("AES/GCM/NoPadding");
-        // Todo investigate possible thread-safety issue!
     }
 
     @Override
@@ -49,6 +44,7 @@ public class CryptoConverter implements AttributeConverter<String, String> {
         try {
             byte[] iv = SecureRandom.getInstanceStrong().generateSeed(12);
             GCMParameterSpec spec = new GCMParameterSpec(128, iv);
+            Cipher encryptCipher = Cipher.getInstance("AES/GCM/NoPadding");
             encryptCipher.init(Cipher.ENCRYPT_MODE, keySpec, spec);
 
             byte[] encrypted = encryptCipher.doFinal(attribute.getBytes(StandardCharsets.UTF_8));
@@ -78,6 +74,7 @@ public class CryptoConverter implements AttributeConverter<String, String> {
             buffer.get(encrypted);
 
             GCMParameterSpec spec = new GCMParameterSpec(128, iv);
+            Cipher decryptCipher = Cipher.getInstance("AES/GCM/NoPadding");
             decryptCipher.init(Cipher.DECRYPT_MODE, keySpec, spec);
 
             return new String(decryptCipher.doFinal(encrypted), StandardCharsets.UTF_8);

@@ -52,6 +52,13 @@ public class RabbitMqAuthController {
         if (deviceOpt.isPresent()) {
             DeviceEntity device = deviceOpt.get();
             if (!Objects.equals(device.getMqttPassword(), password)) {
+                if (isRecoverableCorruptedPassword(device.getMqttPassword()) && password != null && !password.isBlank()) {
+                    device.setMqttPassword(password);
+                    deviceRepository.save(device);
+                    logMqtt("MQTT auth recovered corrupted password for username '%s' (device uuid: %s)"
+                            .formatted(username, device.getUuid()));
+                    return plainTextResponse(ALLOW);
+                }
                 logMqtt("MQTT auth denied for username '%s' - invalid password".formatted(username));
                 return plainTextResponse(DENY);
             }
@@ -61,6 +68,17 @@ public class RabbitMqAuthController {
 
         logMqtt("MQTT auth denied for username '%s' - device not found".formatted(username));
         return plainTextResponse(DENY);
+    }
+
+    private boolean isRecoverableCorruptedPassword(String storedPassword) {
+        if (storedPassword == null || storedPassword.isBlank()) {
+            return false;
+        }
+        return storedPassword.chars().anyMatch(ch ->
+                ch == '\uFFFD'
+                        || Character.isISOControl(ch)
+                        || (ch >= 0x2400 && ch <= 0x2426)
+        );
     }
 
     @PostMapping("/vhost")

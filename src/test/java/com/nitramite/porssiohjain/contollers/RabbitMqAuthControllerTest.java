@@ -27,6 +27,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -78,6 +80,17 @@ class RabbitMqAuthControllerTest {
         when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
 
         assertEquals("deny", controller.authenticateUser("device-user", "wrong", "client-1", "/").getBody());
+        verify(deviceRepository, never()).save(device);
+    }
+
+    @Test
+    void recoversCorruptedStoredPasswordFromDeviceProvidedPassword() {
+        device.setMqttPassword("\u241E\uFFFDhie@j\u0005H\uFFFD_o\uFFFD\uFFFD_");
+        when(deviceRepository.findByMqttUsername("device-user")).thenReturn(Optional.of(device));
+
+        assertEquals("allow", controller.authenticateUser("device-user", "real-field-password", "client-1", "/").getBody());
+        assertEquals("real-field-password", device.getMqttPassword());
+        verify(deviceRepository).save(device);
     }
 
     @Test
