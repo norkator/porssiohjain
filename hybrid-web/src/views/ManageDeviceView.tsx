@@ -29,6 +29,7 @@ import {
   type HeatPumpAcType
 } from "@/lib/heat-pump-devices";
 import { useI18n } from "@/lib/i18n";
+import { MQTT_HOST, MQTT_PORT } from "@/lib/mqtt-config";
 import shellyTemplate from "../../../devices/shelly/script.js?raw";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
@@ -88,6 +89,7 @@ export default function ManageDeviceView() {
     );
   const canSave = deviceName.trim().length > 0 && timezoneIsValid && heatPumpReady && !device?.shared && !isSaving && !isDeleting;
   const isStandard = deviceType === "STANDARD";
+  const showShellyScript = isStandard && device?.devicePlatform === "GENERIC_MQTT";
 
   useEffect(() => {
     let isActive = true;
@@ -258,6 +260,21 @@ export default function ManageDeviceView() {
         `const DEVICE_UUID = '${device.uuid}';`
       )
     : "";
+  const isOpenBeken = device?.devicePlatform === "OPENBEKEN";
+  const mqttRows = device
+    ? [
+        { label: t("mqttHost"), value: MQTT_HOST },
+        { label: t("mqttPort"), value: MQTT_PORT },
+        ...(isOpenBeken ? [
+          { label: t("openBekenClientTopic"), value: device.uuid },
+          { label: t("openBekenGroupTopic"), value: device.uuid }
+        ] : [
+          { label: t("mqttDeviceUuid"), value: device.uuid }
+        ]),
+        { label: t("mqttUsername"), value: device.mqttUsername ?? t("pendingValue") },
+        { label: t("mqttPassword"), value: device.mqttPassword ?? t("pendingValue") }
+      ]
+    : [];
 
   const handleCopyScript = async () => {
     if (!shellyScript) {
@@ -275,6 +292,17 @@ export default function ManageDeviceView() {
       setSaveMessage(null);
     } finally {
       setIsCopyingScript(false);
+    }
+  };
+
+  const handleCopyValue = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setSaveMessage(t("copyValueSuccess"));
+      setSaveError(null);
+    } catch {
+      setSaveError(t("copyValueFailed"));
+      setSaveMessage(null);
     }
   };
 
@@ -500,44 +528,49 @@ export default function ManageDeviceView() {
                 <section className="app-card min-w-0 space-y-6 overflow-hidden p-4 sm:p-6">
                   <div>
                     <p className="metric-label mb-2">{t("deviceIntegration")}</p>
-                    <h2 className="font-headline text-2xl font-bold text-primary">{t("shellyJavascript")}</h2>
+                    <h2 className="font-headline text-2xl font-bold text-primary">{t("mqttProperties")}</h2>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="rounded-xl bg-surface-container p-4">
-                      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttDeviceUuid")}</p>
-                      <div className="max-w-full overflow-x-auto">
-                        <p className="inline-block whitespace-nowrap font-mono text-sm font-bold text-on-surface">{device?.uuid}</p>
+                    {mqttRows.map((row) => (
+                      <div className="rounded-xl bg-surface-container p-4" key={row.label}>
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{row.label}</p>
+                          <button
+                            className="secondary-action shrink-0 px-3 py-1 text-xs"
+                            onClick={() => void handleCopyValue(row.value)}
+                            type="button"
+                          >
+                            {t("copyValue")}
+                          </button>
+                        </div>
+                        <div className="max-w-full overflow-x-auto">
+                          <p className="inline-block whitespace-nowrap font-mono text-sm font-bold text-on-surface">{row.value}</p>
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {showShellyScript ? (
+                <section className="app-card min-w-0 space-y-6 overflow-hidden p-4 sm:p-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="metric-label mb-2">{t("deviceIntegration")}</p>
+                      <h2 className="font-headline text-2xl font-bold text-primary">{t("shellyJavascript")}</h2>
                     </div>
-                    <div className="rounded-xl bg-surface-container p-4">
-                      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttUsername")}</p>
-                      <div className="max-w-full overflow-x-auto">
-                        <p className="inline-block whitespace-nowrap font-mono text-sm font-bold text-on-surface">{device?.mqttUsername ?? t("pendingValue")}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-surface-container p-4">
-                      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("mqttPassword")}</p>
-                      <div className="max-w-full overflow-x-auto">
-                        <p className="inline-block whitespace-nowrap font-mono text-sm font-bold text-on-surface">{device?.mqttPassword ?? t("pendingValue")}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-surface-container p-4">
-                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-on-surface-variant">{t("shellyJavascript")}</p>
-                        <button
-                          className="secondary-action w-full justify-center px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-                          disabled={isCopyingScript}
-                          onClick={() => void handleCopyScript()}
-                          type="button"
-                        >
-                          {isCopyingScript ? t("copying") : t("copyScript")}
-                        </button>
-                      </div>
-                      <div className="max-h-72 min-w-0 max-w-full overflow-x-auto overflow-y-auto rounded-xl bg-surface-container-highest p-4">
-                        <pre className="w-max min-w-full whitespace-pre text-xs leading-relaxed text-on-surface">{shellyScript}</pre>
-                      </div>
-                    </div>
+                    <button
+                      className="secondary-action w-full justify-center px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                      disabled={isCopyingScript}
+                      onClick={() => void handleCopyScript()}
+                      type="button"
+                    >
+                      {isCopyingScript ? t("copying") : t("copyScript")}
+                    </button>
+                  </div>
+                  <div className="max-h-72 min-w-0 max-w-full overflow-x-auto overflow-y-auto rounded-xl bg-surface-container-highest p-4">
+                    <pre className="w-max min-w-full whitespace-pre text-xs leading-relaxed text-on-surface">{shellyScript}</pre>
                   </div>
                 </section>
               ) : null}

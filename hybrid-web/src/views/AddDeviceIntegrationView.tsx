@@ -14,12 +14,10 @@ import ProgressHeader from "@/components/ProgressHeader";
 import { clearAddDeviceDraft, clearProvisionedDeviceDraft, getDeviceTypeOption, readAddDeviceDraft, readProvisionedDeviceDraft } from "@/lib/add-device-flow";
 import { showNativeToast } from "@/lib/android-bridge";
 import { useI18n } from "@/lib/i18n";
+import { MQTT_HOST, MQTT_PORT } from "@/lib/mqtt-config";
 import shellyTemplate from "../../../devices/shelly/script.js?raw";
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-
-const MQTT_HOST = "www.porssiohjain.fi";
-const MQTT_PORT = "8883";
 
 export default function AddDeviceIntegrationView() {
   const navigate = useNavigate();
