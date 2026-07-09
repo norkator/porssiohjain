@@ -16,13 +16,16 @@ import com.nitramite.porssiohjain.entity.enums.AccountTier;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AccountService {
@@ -30,6 +33,7 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final RateLimitService rateLimitService;
     private final PasswordEncoder passwordEncoder;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional
     public AccountEntity createAccount(String ip, boolean agreedTerms) {
@@ -54,6 +58,7 @@ public class AccountService {
                 .build();
 
         AccountEntity savedAccount = accountRepository.save(account);
+        notifyAdminsAccountCreated(savedAccount);
 
         return AccountEntity.builder()
                 .id(savedAccount.getId())
@@ -82,6 +87,14 @@ public class AccountService {
                 .createdAt(savedAccount.getCreatedAt())
                 .updatedAt(savedAccount.getUpdatedAt())
                 .build();
+    }
+
+    private void notifyAdminsAccountCreated(AccountEntity account) {
+        try {
+            pushNotificationService.sendNewAccountCreatedAdminNotification(account, Locale.ENGLISH);
+        } catch (Exception e) {
+            log.warn("Failed to send new account admin push notification for account {}", account.getId(), e);
+        }
     }
 
     @Transactional(readOnly = true)

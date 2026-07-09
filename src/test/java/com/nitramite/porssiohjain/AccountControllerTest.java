@@ -18,8 +18,10 @@ import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.PushNotificationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -29,10 +31,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -47,6 +52,9 @@ class AccountControllerTest {
 
     @MockitoBean
     private MqttService mqttService;
+
+    @MockitoBean
+    private PushNotificationService pushNotificationService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -90,6 +98,16 @@ class AccountControllerTest {
         assertThat(saved.getSecret()).isNotEqualTo(created.getSecret());
         assertThat(saved.getSecret()).startsWith("$2");
         assertThat(passwordEncoder.matches(created.getSecret(), saved.getSecret())).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should notify admins when creating account")
+    void createAccountShouldNotifyAdmins() {
+        AccountEntity created = accountService.createAccount("61.61.61.61", true);
+
+        ArgumentCaptor<AccountEntity> accountCaptor = ArgumentCaptor.forClass(AccountEntity.class);
+        verify(pushNotificationService).sendNewAccountCreatedAdminNotification(accountCaptor.capture(), eq(Locale.ENGLISH));
+        assertThat(accountCaptor.getValue().getId()).isEqualTo(created.getId());
     }
 
     @Test

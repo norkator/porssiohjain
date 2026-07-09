@@ -28,9 +28,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,6 +40,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PushNotificationServiceTest {
@@ -47,6 +50,40 @@ class PushNotificationServiceTest {
 
     @Mock
     private PushNotificationTokenRepository pushNotificationTokenRepository;
+
+    @Test
+    void newAccountAdminPushUsesAccountDetails() {
+        PushNotificationService pushNotificationService = spy(new PushNotificationService(
+                messageSource,
+                pushNotificationTokenRepository
+        ));
+        UUID uuid = UUID.fromString("78bc4f55-793d-42fc-8f9b-89fbd00b50fe");
+        Instant createdAt = Instant.parse("2026-01-01T10:00:00Z");
+        AccountEntity account = new AccountEntity();
+        account.setId(1L);
+        account.setUuid(uuid);
+        account.setCreatedAt(createdAt);
+
+        when(messageSource.getMessage(eq("push.admin.newAccount.title"), any(), eq(Locale.ENGLISH)))
+                .thenReturn("New account created");
+        when(messageSource.getMessage(eq("push.admin.newAccount.body"), any(), eq(Locale.ENGLISH)))
+                .thenReturn("New account %s was created.".formatted(uuid));
+        doReturn(true).when(pushNotificationService).sendToAdminAccounts(any(), any(), any());
+
+        pushNotificationService.sendNewAccountCreatedAdminNotification(account, Locale.ENGLISH);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(pushNotificationService).sendToAdminAccounts(
+                eq("New account created"),
+                eq("New account %s was created.".formatted(uuid)),
+                dataCaptor.capture()
+        );
+        assertEquals("NEW_ACCOUNT_CREATED", dataCaptor.getValue().get("type"));
+        assertEquals("1", dataCaptor.getValue().get("accountId"));
+        assertEquals(uuid.toString(), dataCaptor.getValue().get("accountUuid"));
+        assertEquals(createdAt.toString(), dataCaptor.getValue().get("createdAt"));
+    }
 
     @Test
     void controlNotificationPushUsesNotificationNameAndDescription() {

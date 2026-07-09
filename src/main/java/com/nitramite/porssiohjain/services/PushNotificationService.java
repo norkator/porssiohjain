@@ -238,10 +238,36 @@ public class PushNotificationService {
         return sendToAccount(account.getId(), title, body, data);
     }
 
+    public boolean sendNewAccountCreatedAdminNotification(AccountEntity account, Locale locale) {
+        String title = messageSource.getMessage("push.admin.newAccount.title", null, locale);
+        String body = messageSource.getMessage(
+                "push.admin.newAccount.body",
+                new Object[]{account.getUuid()},
+                locale
+        );
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "NEW_ACCOUNT_CREATED");
+        data.put("accountId", String.valueOf(account.getId()));
+        data.put("accountUuid", account.getUuid() == null ? "" : account.getUuid().toString());
+        data.put("createdAt", account.getCreatedAt() == null ? "" : account.getCreatedAt().toString());
+        return sendToAdminAccounts(title, body, data);
+    }
+
+    @Transactional
+    public boolean sendToAdminAccounts(String title, String body, Map<String, String> data) {
+        List<PushNotificationTokenEntity> tokens = pushNotificationTokenRepository
+                .findActiveAdminTokensOrderByUpdatedAtDesc();
+        return sendToTokens(tokens, title, body, data);
+    }
+
     @Transactional
     public boolean sendToAccount(Long accountId, String title, String body, Map<String, String> data) {
         List<PushNotificationTokenEntity> tokens = pushNotificationTokenRepository
                 .findByAccountIdAndInvalidatedAtIsNullOrderByUpdatedAtDesc(accountId);
+        return sendToTokens(tokens, title, body, data);
+    }
+
+    private boolean sendToTokens(List<PushNotificationTokenEntity> tokens, String title, String body, Map<String, String> data) {
         if (tokens.isEmpty()) {
             return false;
         }

@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.entity.repository;
 
 import com.nitramite.porssiohjain.entity.PushNotificationTokenEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,4 +27,14 @@ public interface PushNotificationTokenRepository extends JpaRepository<PushNotif
     Optional<PushNotificationTokenEntity> findByToken(String token);
 
     boolean existsByAccountIdAndInvalidatedAtIsNull(Long accountId);
+
+    @Query("""
+            SELECT token
+            FROM PushNotificationTokenEntity token
+            JOIN FETCH token.account account
+            WHERE account.admin = true
+            AND token.invalidatedAt IS NULL
+            ORDER BY token.updatedAt DESC
+            """)
+    List<PushNotificationTokenEntity> findActiveAdminTokensOrderByUpdatedAtDesc();
 }
