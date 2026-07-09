@@ -12,6 +12,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AccountSettingsView from "@/views/AccountSettingsView";
 import AppShell from "@/layouts/AppShell";
+import MarketIndexVerificationDialog from "@/components/MarketIndexVerificationDialog";
 import ScrollToTop from "@/components/ScrollToTop";
 import AddDeviceConfigureView from "@/views/AddDeviceConfigureView";
 import AddDeviceIntegrationView from "@/views/AddDeviceIntegrationView";
@@ -64,29 +65,32 @@ function ProtectedAppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/menu" replace />} />
-      <Route path="/menu" element={<MainMenuView />} />
-      <Route path="/account/settings" element={<AccountSettingsView />} />
-      <Route path="/devices" element={<DevicesView />} />
-      <Route path="/devices/:deviceId" element={<ManageDeviceView />} />
-      <Route path="/devices/add/type" element={<AddDeviceTypeView />} />
-      <Route path="/devices/add/configure" element={<AddDeviceConfigureView />} />
-      <Route path="/devices/add/review" element={<AddDeviceReviewView />} />
-      <Route path="/devices/add/integration" element={<AddDeviceIntegrationView />} />
-      <Route path="/controls" element={<ControlsView />} />
-      <Route path="/controls/add" element={<AddControlView />} />
-      <Route path="/controls/:controlId" element={<ManageControlView />} />
-      <Route path="/weather-controls" element={<WeatherControlsView />} />
-      <Route path="/weather-controls/:weatherControlId" element={<ManageWeatherControlView />} />
-      <Route path="/sites" element={<SitesView />} />
-      <Route path="/electricity-contracts" element={<ElectricityContractsView />} />
-      <Route path="/production-sources" element={<ProductionSourcesView />} />
-      <Route path="/production-sources/:sourceId" element={<ManageProductionSourceView />} />
-      <Route path="/power-limits" element={<PowerLimitsView />} />
-      <Route path="/power-limits/:powerLimitId" element={<ManagePowerLimitView />} />
-      <Route path="*" element={<Navigate to="/menu" replace />} />
-    </Routes>
+    <>
+      <MarketIndexVerificationDialog />
+      <Routes>
+        <Route path="/" element={<Navigate to="/menu" replace />} />
+        <Route path="/menu" element={<MainMenuView />} />
+        <Route path="/account/settings" element={<AccountSettingsView />} />
+        <Route path="/devices" element={<DevicesView />} />
+        <Route path="/devices/:deviceId" element={<ManageDeviceView />} />
+        <Route path="/devices/add/type" element={<AddDeviceTypeView />} />
+        <Route path="/devices/add/configure" element={<AddDeviceConfigureView />} />
+        <Route path="/devices/add/review" element={<AddDeviceReviewView />} />
+        <Route path="/devices/add/integration" element={<AddDeviceIntegrationView />} />
+        <Route path="/controls" element={<ControlsView />} />
+        <Route path="/controls/add" element={<AddControlView />} />
+        <Route path="/controls/:controlId" element={<ManageControlView />} />
+        <Route path="/weather-controls" element={<WeatherControlsView />} />
+        <Route path="/weather-controls/:weatherControlId" element={<ManageWeatherControlView />} />
+        <Route path="/sites" element={<SitesView />} />
+        <Route path="/electricity-contracts" element={<ElectricityContractsView />} />
+        <Route path="/production-sources" element={<ProductionSourcesView />} />
+        <Route path="/production-sources/:sourceId" element={<ManageProductionSourceView />} />
+        <Route path="/power-limits" element={<PowerLimitsView />} />
+        <Route path="/power-limits/:powerLimitId" element={<ManagePowerLimitView />} />
+        <Route path="*" element={<Navigate to="/menu" replace />} />
+      </Routes>
+    </>
   );
 }
 

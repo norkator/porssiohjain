@@ -13,37 +13,13 @@ import PageHeader from "@/components/PageHeader";
 import { changePassword, deleteMe, downloadAccountExport, fetchMe, updateMe, type AccountTier } from "@/lib/account";
 import { logoutNative, showNativeToast, startGooglePlaySubscriptionPurchase } from "@/lib/android-bridge";
 import { setCurrentLocale, supportedLocales, useI18n } from "@/lib/i18n";
+import { marketOptions } from "@/lib/market-options";
 import { clearBrowserSession, getSessionData, setDevSessionOverride } from "@/lib/session";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller";
-const marketOptions = [
-  { code: "AT", label: "Austria" },
-  { code: "BE", label: "Belgium" },
-  { code: "BG", label: "Bulgaria" },
-  { code: "DK1", label: "Denmark 1" },
-  { code: "DK2", label: "Denmark 2" },
-  { code: "EE", label: "Estonia" },
-  { code: "FI", label: "Finland" },
-  { code: "FR", label: "France" },
-  { code: "GER", label: "Germany" },
-  { code: "LT", label: "Lithuania" },
-  { code: "LV", label: "Latvia" },
-  { code: "NL", label: "Netherlands" },
-  { code: "NO1", label: "Norway 1" },
-  { code: "NO2", label: "Norway 2" },
-  { code: "NO3", label: "Norway 3" },
-  { code: "NO4", label: "Norway 4" },
-  { code: "NO5", label: "Norway 5" },
-  { code: "PL", label: "Poland" },
-  { code: "SE1", label: "Sweden 1" },
-  { code: "SE2", label: "Sweden 2" },
-  { code: "SE3", label: "Sweden 3" },
-  { code: "SE4", label: "Sweden 4" },
-  { code: "TEL", label: "TEL" }
-];
 
 function getTierTone(tier: AccountTier) {
   switch (tier) {
@@ -173,6 +149,7 @@ export default function AccountSettingsView() {
         email: email.trim(),
         locale,
         marketIndexName,
+        marketIndexNameConfirmed: true,
         notifyPowerLimitExceeded,
         notifyControlActivated,
         notifyDeviceOffline,

@@ -72,6 +72,17 @@
     "licenseText": "This service uses software licensed under the Pörssiohjain Personal Use License v1.0.",
     "docLink": "Documentation and source code"
   },
+  "marketIndexVerification": {
+    "eyebrow": "Market area",
+    "title": "Confirm your electricity market area",
+    "description": "Please check that this market area is correct for your account. It is used for Nord Pool prices and automation calculations.",
+    "market": "Electricity market area",
+    "marketDescription": "FI is the default. Change it if your electricity price area is somewhere else.",
+    "confirm": "Confirm market area",
+    "saving": "Saving...",
+    "failedLoad": "Failed to load account settings.",
+    "failedSave": "Failed to save market area."
+  },
   "mainMenu": {
     "brand": "Energy Controller",
     "logout": "Log Out",

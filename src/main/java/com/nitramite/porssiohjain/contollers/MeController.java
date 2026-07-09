@@ -58,6 +58,7 @@ public class MeController {
                 .email(accountService.getEmail(accountId))
                 .locale(accountService.getLocale(accountId))
                 .marketIndexName(accountService.getMarketIndexName(accountId))
+                .marketIndexNameConfirmed(accountService.getMarketIndexNameConfirmed(accountId))
                 .demo(accountService.isDemoAccount(accountId))
                 .notifyPowerLimitExceeded(accountService.getNotifyPowerLimitExceeded(accountId))
                 .notifyControlActivated(accountService.getNotifyControlActivated(accountId))
@@ -102,7 +103,10 @@ public class MeController {
                 request.getLocale(),
                 request.getMarketIndexName() != null
                         ? request.getMarketIndexName()
-                        : accountService.getMarketIndexName(accountId)
+                        : accountService.getMarketIndexName(accountId),
+                request.getMarketIndexNameConfirmed() != null
+                        ? request.getMarketIndexNameConfirmed()
+                        : accountService.getMarketIndexNameConfirmed(accountId)
         );
         return getMe();
     }

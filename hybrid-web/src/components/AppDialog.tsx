@@ -19,6 +19,7 @@ type Props = {
   onClose: () => void;
   title: string;
   eyebrow?: string;
+  isDismissible?: boolean;
   maxWidthClassName?: string;
 };
 
@@ -26,6 +27,7 @@ export default function AppDialog({
   children,
   description,
   eyebrow,
+  isDismissible = true,
   isOpen,
   maxWidthClassName = "max-w-3xl",
   onClose,
@@ -39,14 +41,14 @@ export default function AppDialog({
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && isDismissible) {
         onClose();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isDismissible, isOpen, onClose]);
 
   if (!isOpen) {
     return null;
@@ -55,7 +57,7 @@ export default function AppDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center"
-      onClick={onClose}
+      onClick={isDismissible ? onClose : undefined}
     >
       <section
         aria-labelledby="app-dialog-title"
@@ -70,9 +72,11 @@ export default function AppDialog({
             <h2 className="font-headline text-2xl font-black text-on-surface" id="app-dialog-title">{title}</h2>
             <p className="mt-1 max-w-2xl text-sm text-on-surface-variant">{description}</p>
           </div>
-          <button className="secondary-action px-3 py-2 text-sm" onClick={onClose} type="button">
-            {common("close")}
-          </button>
+          {isDismissible ? (
+            <button className="secondary-action px-3 py-2 text-sm" onClick={onClose} type="button">
+              {common("close")}
+            </button>
+          ) : null}
         </div>
 
         {children}

@@ -46,6 +46,10 @@ public class AccountEntity {
     @Builder.Default
     private String marketIndexName = "FI";
 
+    @Column(name = "market_index_name_confirmed", nullable = false)
+    @Builder.Default
+    private boolean marketIndexNameConfirmed = false;
+
     @Column(name = "email", nullable = true)
     private String email;
 
