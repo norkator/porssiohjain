@@ -28,6 +28,9 @@ public interface TokenRepository extends JpaRepository<TokenEntity, Long> {
     @Query("SELECT t FROM TokenEntity t JOIN FETCH t.account WHERE t.token = :token")
     Optional<TokenEntity> findByTokenWithAccount(@Param("token") String token);
 
+    @Query("SELECT MAX(t.expiresAt) FROM TokenEntity t WHERE t.account.id = :accountId")
+    Optional<Instant> findLatestExpiresAtByAccountId(@Param("accountId") Long accountId);
+
     @Transactional
     @Modifying
     @Query("DELETE FROM TokenEntity t WHERE t.expiresAt <= :now")

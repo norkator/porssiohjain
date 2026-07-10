@@ -14,7 +14,9 @@ package com.nitramite.porssiohjain.entity.repository;
 import com.nitramite.porssiohjain.entity.PushNotificationTokenEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +29,9 @@ public interface PushNotificationTokenRepository extends JpaRepository<PushNotif
     Optional<PushNotificationTokenEntity> findByToken(String token);
 
     boolean existsByAccountIdAndInvalidatedAtIsNull(Long accountId);
+
+    @Query("SELECT MAX(token.lastSeenAt) FROM PushNotificationTokenEntity token WHERE token.account.id = :accountId")
+    Optional<Instant> findLatestLastSeenAtByAccountId(@Param("accountId") Long accountId);
 
     @Query("""
             SELECT token

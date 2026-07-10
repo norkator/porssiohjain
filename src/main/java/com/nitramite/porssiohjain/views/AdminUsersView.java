@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
+import com.nitramite.porssiohjain.services.AdminAccountService;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -51,7 +52,9 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
     private final I18nService i18n;
     private final AccountRepository accountRepository;
     private final AccountLimitService accountLimitService;
+    private final AdminAccountService adminAccountService;
     private final Grid<AccountEntity> grid = new Grid<>(AccountEntity.class, false);
+    private Long currentAdminAccountId;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
             .withZone(ZoneId.of("Europe/Helsinki"));
 
@@ -59,17 +62,20 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
             AuthService authService,
             I18nService i18n,
             AccountRepository accountRepository,
-            AccountLimitService accountLimitService
+            AccountLimitService accountLimitService,
+            AdminAccountService adminAccountService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.accountRepository = accountRepository;
         this.accountLimitService = accountLimitService;
+        this.adminAccountService = adminAccountService;
 
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
             return;
         }
+        currentAdminAccountId = account.getId();
 
         setWidthFull();
         setSizeFull();
@@ -147,6 +153,11 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
                 .setAutoWidth(true)
                 .setSortable(true)
                 .setComparator(Comparator.comparing(AccountEntity::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+        grid.addColumn(account -> adminAccountService.getLastActivity(account.getId())
+                        .map(formatter::format)
+                        .orElse(""))
+                .setHeader(t("admin.users.lastActivity"))
+                .setAutoWidth(true);
         grid.addItemClickListener(event -> openUserDialog(event.getItem()));
     }
 
@@ -168,6 +179,10 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         Paragraph status = new Paragraph(t(
                 account.isBlocked() ? "admin.users.dialogStatusBlocked" : "admin.users.dialogStatusAllowed"
         ));
+        Paragraph lastActivity = new Paragraph(t(
+                "admin.users.dialogLastActivity",
+                adminAccountService.getLastActivity(account.getId()).map(formatter::format).orElse("-")
+        ));
 
         Button closeButton = new Button(t("admin.users.close"), event -> dialog.close());
         Button toggleBlockButton = new Button(
@@ -185,14 +200,64 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         );
         toggleBlockButton.addThemeVariants(account.isBlocked() ? ButtonVariant.LUMO_PRIMARY : ButtonVariant.LUMO_ERROR);
 
-        HorizontalLayout actions = new HorizontalLayout(closeButton, toggleBlockButton);
+        Button deleteButton = new Button(t("admin.users.delete"), event -> {
+            dialog.close();
+            openDeleteAccountDialog(account);
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        deleteButton.setEnabled(currentAdminAccountId != null && !currentAdminAccountId.equals(account.getId()));
+
+        HorizontalLayout actions = new HorizontalLayout(closeButton, deleteButton, toggleBlockButton);
         actions.setWidthFull();
         actions.setJustifyContentMode(JustifyContentMode.END);
 
-        VerticalLayout content = new VerticalLayout(title, email, status, actions);
+        VerticalLayout content = new VerticalLayout(title, email, status, lastActivity, actions);
         content.setPadding(false);
         content.setSpacing(true);
         content.setAlignItems(Alignment.STRETCH);
+        dialog.add(content);
+        dialog.open();
+    }
+
+    private void openDeleteAccountDialog(AccountEntity account) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("admin.users.deleteConfirmTitle"));
+        dialog.setCloseOnEsc(true);
+        dialog.setCloseOnOutsideClick(true);
+        dialog.setWidth("min(560px, 95vw)");
+
+        Paragraph description = new Paragraph(t(
+                "admin.users.deleteConfirmDescription",
+                account.getEmail() != null ? account.getEmail() : account.getId()
+        ));
+        description.getStyle().set("margin", "0");
+
+        Button cancelButton = new Button(t("common.cancel"), event -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button deleteButton = new Button(t("admin.users.deleteConfirmButton"), event -> {
+            try {
+                adminAccountService.deleteAccountAsAdmin(currentAdminAccountId, account.getId());
+                refreshGrid();
+                dialog.close();
+                Notification notification = Notification.show(t("admin.users.deleted"));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (IllegalArgumentException ex) {
+                Notification notification = Notification.show(t("admin.users.deleteFailed"));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+
+        HorizontalLayout actions = new HorizontalLayout(cancelButton, deleteButton);
+        actions.setWidthFull();
+        actions.setJustifyContentMode(JustifyContentMode.END);
+
+        VerticalLayout content = new VerticalLayout(description, actions);
+        content.setPadding(false);
+        content.setSpacing(true);
+        content.setWidthFull();
+
         dialog.add(content);
         dialog.open();
     }
