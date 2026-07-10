@@ -72,6 +72,17 @@
     "licenseText": "Tämä palvelu käyttää ohjelmistoa, joka on lisensoitu Pörssiohjain Personal Use License v1.0 -lisenssillä.",
     "docLink": "Dokumentaatio ja lähdekoodi"
   },
+  "marketIndexVerification": {
+    "eyebrow": "Markkina-alue",
+    "title": "Vahvista sähkön markkina-alue",
+    "description": "Tarkista, että tilisi markkina-alue on oikein. Sitä käytetään Nord Pool -hintoihin ja automaation laskentoihin.",
+    "market": "Sähkömarkkina-alue",
+    "marketDescription": "FI on oletus. Vaihda arvo, jos sähkön hinta-alueesi on muualla.",
+    "confirm": "Vahvista markkina-alue",
+    "saving": "Tallennetaan...",
+    "failedLoad": "Tilin asetusten lataus epäonnistui.",
+    "failedSave": "Markkina-alueen tallennus epäonnistui."
+  },
   "mainMenu": {
     "brand": "Energy Controller",
     "logout": "Kirjaudu ulos",

@@ -27,6 +27,7 @@ public class MeResponse {
     private String email;
     private String locale;
     private String marketIndexName;
+    private boolean marketIndexNameConfirmed;
     private boolean demo;
     private boolean notifyPowerLimitExceeded;
     private boolean notifyControlActivated;

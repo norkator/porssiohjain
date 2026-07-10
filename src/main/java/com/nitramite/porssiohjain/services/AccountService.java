@@ -66,6 +66,7 @@ public class AccountService {
                 .secret(rawSecret)
                 .locale(savedAccount.getLocale())
                 .marketIndexName(savedAccount.getMarketIndexName())
+                .marketIndexNameConfirmed(savedAccount.isMarketIndexNameConfirmed())
                 .email(savedAccount.getEmail())
                 .notifyPowerLimitExceeded(savedAccount.isNotifyPowerLimitExceeded())
                 .notifyControlActivated(savedAccount.isNotifyControlActivated())
@@ -168,6 +169,13 @@ public class AccountService {
                 .orElse(NordpoolMarket.DEFAULT_MARKET);
     }
 
+    @Transactional(readOnly = true)
+    public boolean getMarketIndexNameConfirmed(Long accountId) {
+        return accountRepository.findById(accountId)
+                .map(AccountEntity::isMarketIndexNameConfirmed)
+                .orElse(false);
+    }
+
     @Transactional
     public void updateAccountSettings(
             Long accountId,
@@ -179,7 +187,8 @@ public class AccountService {
             boolean emailNotificationsEnabled,
             boolean pushNotificationsEnabled,
             String locale,
-            String marketIndexName
+            String marketIndexName,
+            boolean marketIndexNameConfirmed
     ) {
         assertWritable(accountId);
         accountRepository.findById(accountId).ifPresent(account -> {
@@ -192,6 +201,7 @@ public class AccountService {
             account.setPushNotificationsEnabled(pushNotificationsEnabled);
             account.setLocale(locale != null && !locale.isBlank() ? locale.trim() : "en");
             account.setMarketIndexName(NordpoolMarket.normalize(marketIndexName));
+            account.setMarketIndexNameConfirmed(marketIndexNameConfirmed);
             accountRepository.save(account);
         });
     }

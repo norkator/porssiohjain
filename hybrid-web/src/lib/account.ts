@@ -20,6 +20,7 @@ export type MeResponse = {
   email: string | null;
   locale: string;
   marketIndexName: string;
+  marketIndexNameConfirmed: boolean;
   demo: boolean;
   notifyPowerLimitExceeded: boolean;
   notifyControlActivated: boolean;
@@ -59,6 +60,7 @@ export async function updateMe(input: {
   email: string;
   locale: string;
   marketIndexName: string;
+  marketIndexNameConfirmed?: boolean;
   notifyPowerLimitExceeded: boolean;
   notifyControlActivated: boolean;
   notifyDeviceOffline: boolean;
