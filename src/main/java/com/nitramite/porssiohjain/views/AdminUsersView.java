@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.services.AdminAccountService;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.SystemLogService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -27,6 +28,7 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.BeforeEnterEvent;
@@ -53,6 +55,7 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
     private final AccountRepository accountRepository;
     private final AccountLimitService accountLimitService;
     private final AdminAccountService adminAccountService;
+    private final SystemLogService systemLogService;
     private final Grid<AccountEntity> grid = new Grid<>(AccountEntity.class, false);
     private Long currentAdminAccountId;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -63,15 +66,17 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
             I18nService i18n,
             AccountRepository accountRepository,
             AccountLimitService accountLimitService,
-            AdminAccountService adminAccountService
+            AdminAccountService adminAccountService,
+            SystemLogService systemLogService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.accountRepository = accountRepository;
         this.accountLimitService = accountLimitService;
         this.adminAccountService = adminAccountService;
+        this.systemLogService = systemLogService;
 
-        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        var account = ViewAuthUtils.findRealAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
             return;
         }
@@ -168,7 +173,7 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
 
     private void openUserDialog(AccountEntity account) {
         Dialog dialog = new Dialog();
-        dialog.setWidth("420px");
+        dialog.setWidth("min(640px, 95vw)");
         dialog.setCloseOnEsc(true);
         dialog.setCloseOnOutsideClick(true);
 
@@ -185,6 +190,24 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         ));
 
         Button closeButton = new Button(t("admin.users.close"), event -> dialog.close());
+        Button impersonateButton = new Button(t("admin.users.impersonate"), event -> {
+            try {
+                ViewAuthUtils.startImpersonating(authService, account.getId());
+                systemLogService.log("Admin account " + currentAdminAccountId + " started viewing as account " + account.getId());
+                dialog.close();
+                Notification notification = Notification.show(t("admin.users.impersonationStarted", account.getId()));
+                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                UI.getCurrent().navigate(HomeView.class);
+            } catch (IllegalArgumentException ex) {
+                Notification notification = Notification.show(t("admin.users.impersonationFailed", ex.getMessage()));
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        impersonateButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        impersonateButton.setEnabled(currentAdminAccountId != null
+                && !currentAdminAccountId.equals(account.getId())
+                && !account.isAdmin());
+
         Button toggleBlockButton = new Button(
                 account.isBlocked() ? t("admin.users.allowLogin") : t("admin.users.blockLogin"),
                 event -> {
@@ -207,9 +230,16 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         deleteButton.setEnabled(currentAdminAccountId != null && !currentAdminAccountId.equals(account.getId()));
 
-        HorizontalLayout actions = new HorizontalLayout(closeButton, deleteButton, toggleBlockButton);
+        FlexLayout actions = new FlexLayout(closeButton, impersonateButton, deleteButton, toggleBlockButton);
         actions.setWidthFull();
+        actions.setFlexWrap(FlexLayout.FlexWrap.WRAP);
         actions.setJustifyContentMode(JustifyContentMode.END);
+        actions.getStyle().set("gap", "var(--lumo-space-s)");
+
+        closeButton.getStyle().set("flex", "1 1 130px");
+        impersonateButton.getStyle().set("flex", "1 1 150px");
+        deleteButton.getStyle().set("flex", "1 1 150px");
+        toggleBlockButton.getStyle().set("flex", "1 1 150px");
 
         VerticalLayout content = new VerticalLayout(title, email, status, lastActivity, actions);
         content.setPadding(false);

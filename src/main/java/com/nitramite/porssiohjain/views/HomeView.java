@@ -134,6 +134,7 @@ public class HomeView extends VerticalLayout {
 
         Button logoutButton = new Button(t("home.logout"), e -> {
             VaadinSession session = VaadinSession.getCurrent();
+            ViewAuthUtils.stopImpersonating();
             session.setAttribute("token", null);
             session.setAttribute("expiresAt", null);
             removeAll();
@@ -142,6 +143,17 @@ public class HomeView extends VerticalLayout {
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
         logoutButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+
+        Button stopImpersonatingButton = new Button(t("home.stopImpersonating"), e -> {
+            Long impersonatedAccountId = ViewAuthUtils.getImpersonatedAccountId();
+            ViewAuthUtils.stopImpersonating();
+            removeAll();
+            buildContent();
+            Notification notification = Notification.show(t("home.impersonationStopped",
+                    impersonatedAccountId != null ? impersonatedAccountId : ""));
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        });
+        stopImpersonatingButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
 
         Stream.of(
                 loginButton, createAccountButton, documentationButton, devicesButton, controlsButton, weatherControlsButton, loadSheddingButton, myProductionButton, powerLimitsButton,
@@ -184,6 +196,7 @@ public class HomeView extends VerticalLayout {
             configureActionButton(documentationButton, VaadinIcon.BOOK);
             configureActionButton(logoutButton, VaadinIcon.SIGN_OUT);
             configureActionButton(adminButton, VaadinIcon.SHIELD);
+            configureActionButton(stopImpersonatingButton, VaadinIcon.CLOSE_CIRCLE);
 
             FlexLayout actionGrid = new FlexLayout();
             actionGrid.setWidthFull();
@@ -200,7 +213,18 @@ public class HomeView extends VerticalLayout {
                 actionGrid.add(adminButton);
             }
 
+            if (ViewAuthUtils.isImpersonating()) {
+                Span impersonationNotice = new Span(t("home.impersonatingNotice", authenticatedAccount.getId()));
+                impersonationNotice.getStyle()
+                        .set("color", "var(--lumo-error-text-color)")
+                        .set("font-weight", "600")
+                        .set("text-align", "center");
+                contentBox.add(impersonationNotice);
+            }
             contentBox.add(actionGrid, googlePlayBadgeLink, logoutButton);
+            if (ViewAuthUtils.isImpersonating()) {
+                contentBox.add(stopImpersonatingButton);
+            }
         } else {
             contentBox.add(loginButton, createAccountButton, mobileAppButton, googlePlayBadgeLink, documentationButton);
         }

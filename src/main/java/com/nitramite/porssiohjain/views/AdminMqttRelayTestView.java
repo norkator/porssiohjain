@@ -68,7 +68,7 @@ public class AdminMqttRelayTestView extends VerticalLayout implements BeforeEnte
         this.deviceService = deviceService;
         this.mqttRelayTestService = mqttRelayTestService;
 
-        account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        account = ViewAuthUtils.findRealAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
             return;
         }

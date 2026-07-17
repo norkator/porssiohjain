@@ -352,6 +352,16 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2)
         );
+        if (ViewAuthUtils.isImpersonating()) {
+            currentPasswordField.setEnabled(false);
+            newPasswordField.setEnabled(false);
+            confirmNewPasswordField.setEnabled(false);
+            changePasswordButton.setEnabled(false);
+            Paragraph notice = new Paragraph(t("settings.impersonation.sensitiveActionsDisabled"));
+            notice.getStyle().set("margin", "0").set("color", "var(--lumo-error-text-color)");
+            section.add(title, notice, form, changePasswordButton);
+            return section;
+        }
         section.add(title, form, changePasswordButton);
         return section;
     }
@@ -371,6 +381,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         Button deleteButton = new Button(t("settings.delete.button.open"), event -> openDeleteAccountDialog());
         deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+        deleteButton.setEnabled(!ViewAuthUtils.isImpersonating());
 
         section.getStyle()
                 .set("padding", "var(--lumo-space-m)")
@@ -378,11 +389,23 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                 .set("border", "1px solid var(--lumo-error-color-50pct)")
                 .set("background", "var(--lumo-error-color-10pct)");
 
+        if (ViewAuthUtils.isImpersonating()) {
+            Paragraph notice = new Paragraph(t("settings.impersonation.sensitiveActionsDisabled"));
+            notice.getStyle().set("margin", "0").set("color", "var(--lumo-error-text-color)");
+            section.add(title, description, notice, deleteButton);
+            return section;
+        }
+
         section.add(title, description, deleteButton);
         return section;
     }
 
     private void openDeleteAccountDialog() {
+        if (ViewAuthUtils.isImpersonating()) {
+            showNotification(t("settings.impersonation.sensitiveActionsDisabled"), NotificationVariant.LUMO_ERROR);
+            return;
+        }
+
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(t("settings.delete.dialog.title"));
         dialog.setCloseOnEsc(true);
@@ -415,11 +438,17 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
     }
 
     private void deleteAccount() {
+        if (ViewAuthUtils.isImpersonating()) {
+            showNotification(t("settings.impersonation.sensitiveActionsDisabled"), NotificationVariant.LUMO_ERROR);
+            return;
+        }
+
         try {
             accountService.deleteAccount(accountId);
 
             VaadinSession session = VaadinSession.getCurrent();
             if (session != null) {
+                ViewAuthUtils.stopImpersonating();
                 session.setAttribute("token", null);
                 session.setAttribute("expiresAt", null);
             }
@@ -431,6 +460,11 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
     }
 
     private void changePassword() {
+        if (ViewAuthUtils.isImpersonating()) {
+            showNotification(t("settings.impersonation.sensitiveActionsDisabled"), NotificationVariant.LUMO_ERROR);
+            return;
+        }
+
         String currentPassword = currentPasswordField.getValue();
         String newPassword = newPasswordField.getValue();
         String confirmNewPassword = confirmNewPasswordField.getValue();

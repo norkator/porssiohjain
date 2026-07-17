@@ -86,6 +86,12 @@ public class AuthService {
         return token.getAccount();
     }
 
+    @Transactional(readOnly = true)
+    public AccountEntity getAccount(Long accountId) {
+        return accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+    }
+
     @Transactional
     public void deleteExpiredTokens() {
         tokenRepository.deleteAllExpiredTokens(Instant.now());
