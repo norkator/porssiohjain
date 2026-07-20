@@ -292,10 +292,12 @@ function NordpoolChartSurface({
 
 export default function NordpoolTodayChartCard() {
   const { t } = useI18n("charts");
-  const { chart, error, isLoading } = useNordpoolTodayChart();
+  const { chart, tomorrowChart, error, isLoading } = useNordpoolTodayChart();
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [isChartDialogOpen, setIsChartDialogOpen] = useState(false);
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<"today" | "tomorrow">("today");
+  const [tomorrowNotice, setTomorrowNotice] = useState(false);
 
   if (isLoading) {
     return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingNordpool")}</div>;
@@ -317,10 +319,26 @@ export default function NordpoolTodayChartCard() {
     );
   }
 
-  const currentPointIndex = getCurrentPointIndex(chart);
-  const currentPoint = chart.points[currentPointIndex];
+  const hasTomorrowChart = Boolean(tomorrowChart && tomorrowChart.points.length > 0);
+  const activeDay = selectedDay === "tomorrow" && hasTomorrowChart ? "tomorrow" : "today";
+  const activeChart = activeDay === "tomorrow" ? tomorrowChart! : chart;
+  const currentPointIndex = getCurrentPointIndex(activeChart);
+  const currentPoint = activeChart.points[currentPointIndex];
   const dialogPointIndex = selectedPointIndex ?? currentPointIndex;
-  const dialogPoint = chart.points[dialogPointIndex];
+  const dialogPoint = activeChart.points[dialogPointIndex];
+  const activeDayLabel = activeDay === "tomorrow" ? t("tomorrow") : t("today");
+  const activePriceDayLabel = activeDay === "tomorrow" ? t("tomorrowPriceDay") : t("todayPriceDay");
+
+  function selectDay(day: "today" | "tomorrow") {
+    if (day === "tomorrow" && !hasTomorrowChart) {
+      setTomorrowNotice(true);
+      return;
+    }
+
+    setSelectedDay(day);
+    setSelectedPointIndex(null);
+    setTomorrowNotice(false);
+  }
 
   return (
     <article className="app-card overflow-hidden">
@@ -331,32 +349,59 @@ export default function NordpoolTodayChartCard() {
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("nordpoolTitle")}</p>
               <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">{t("nordpoolHeadline")}</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
-                {t("nordpoolDescription", { timezone: chart.timezone })}
+                {t("nordpoolDescription", { day: activePriceDayLabel, timezone: activeChart.timezone })}
               </p>
             </div>
 
             <div className="rounded-2xl bg-surface-container p-4">
-              <p className="metric-label mb-1">{t("current")}</p>
-              <p className="font-headline text-3xl font-black text-primary">{formatNordpoolPrice(chart.current)}</p>
+              <p className="metric-label mb-1">{activeDay === "today" ? t("current") : t("firstInterval")}</p>
+              <p className="font-headline text-3xl font-black text-primary">{formatNordpoolPrice(activeChart.current)}</p>
               <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
             </div>
           </div>
 
+          <div className="mb-4">
+            <div className="inline-flex rounded-full bg-surface-container p-1">
+              <button
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${activeDay === "today" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
+                onClick={() => selectDay("today")}
+                type="button"
+              >
+                {t("today")}
+              </button>
+              <button
+                aria-disabled={!hasTomorrowChart}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${activeDay === "tomorrow" ? "bg-primary text-on-primary shadow-sm" : hasTomorrowChart ? "text-on-surface-variant hover:text-on-surface" : "text-on-surface-variant/45"}`}
+                onClick={() => selectDay("tomorrow")}
+                type="button"
+              >
+                {t("tomorrow")}
+              </button>
+            </div>
+            {tomorrowNotice ? (
+              <p className="mt-2 text-sm font-medium text-on-surface-variant">
+                {t("tomorrowNotAvailable")}
+              </p>
+            ) : null}
+          </div>
+
           <NordpoolChartSurface
-            chart={chart}
+            chart={activeChart}
             chartHeight={240}
             onActivate={() => setIsChartDialogOpen(true)}
           />
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
             <span className="rounded-full bg-surface-container px-3 py-2">
-              {t("now", { time: formatNordpoolTime(currentPoint.timestamp, chart.timezone) })}
+              {activeDay === "today"
+                ? t("now", { time: formatNordpoolTime(currentPoint.timestamp, activeChart.timezone) })
+                : t("firstIntervalAt", { time: formatNordpoolTime(currentPoint.timestamp, activeChart.timezone) })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              {t("resolution", { minutes: chart.resolutionMinutes })}
+              {t("resolution", { minutes: activeChart.resolutionMinutes })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              {t("range", { min: formatNordpoolPrice(chart.min), max: formatNordpoolPrice(chart.max) })}
+              {t("range", { min: formatNordpoolPrice(activeChart.min), max: formatNordpoolPrice(activeChart.max) })}
             </span>
             <button
               className="secondary-action justify-center px-4 py-2 text-xs"
@@ -371,34 +416,34 @@ export default function NordpoolTodayChartCard() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-2">
           <div className="rounded-3xl bg-surface-container-low p-5">
             <p className="metric-label mb-2">{t("minimum")}</p>
-            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.min)}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.min)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-5">
             <p className="metric-label mb-2">{t("average")}</p>
-            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.avg)}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.avg)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-5">
             <p className="metric-label mb-2">{t("maximum")}</p>
-            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.max)}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.max)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="market-stat-accent">
             <p className="metric-label mb-2 text-primary-fixed">{t("dataPoints")}</p>
-            <p className="font-headline text-2xl font-black">{chart.points.length}</p>
-            <p className="text-xs text-primary-fixed">{t("todayIntervals")}</p>
+            <p className="font-headline text-2xl font-black">{activeChart.points.length}</p>
+            <p className="text-xs text-primary-fixed">{t("dayIntervals", { day: activePriceDayLabel })}</p>
           </div>
         </div>
       </div>
       <MarketNotificationsDialog
         isOpen={isNotificationDialogOpen}
         onClose={() => setIsNotificationDialogOpen(false)}
-        timezone={chart.timezone}
+        timezone={activeChart.timezone}
       />
       <AppDialog
-        description={t("nordpoolExpandedDescription", { timezone: chart.timezone })}
-        eyebrow={t("nordpoolTitle")}
+        description={t("nordpoolExpandedDescription", { day: activePriceDayLabel, timezone: activeChart.timezone })}
+        eyebrow={activeDayLabel}
         isOpen={isChartDialogOpen}
         maxWidthClassName="max-w-6xl"
         onClose={() => {
@@ -408,7 +453,7 @@ export default function NordpoolTodayChartCard() {
         title={t("nordpoolExpandedTitle")}
       >
         <NordpoolChartSurface
-          chart={chart}
+          chart={activeChart}
           chartHeight={420}
           onSelectedPointChange={setSelectedPointIndex}
           selectedPointIndex={selectedPointIndex}
@@ -418,7 +463,7 @@ export default function NordpoolTodayChartCard() {
           <div className="rounded-2xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("selectedInterval")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">
-              {formatNordpoolTime(dialogPoint.timestamp, chart.timezone)}
+              {formatNordpoolTime(dialogPoint.timestamp, activeChart.timezone)}
             </p>
           </div>
           <div className="rounded-2xl bg-surface-container-low p-4">
@@ -431,9 +476,9 @@ export default function NordpoolTodayChartCard() {
           <div className="rounded-2xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("visibleRange")}</p>
             <p className="font-headline text-lg font-black text-on-surface">
-              {formatNordpoolPrice(chart.min)} - {formatNordpoolPrice(chart.max)}
+              {formatNordpoolPrice(activeChart.min)} - {formatNordpoolPrice(activeChart.max)}
             </p>
-            <p className="text-xs text-on-surface-variant">{t("pointsCount", { count: chart.points.length })}</p>
+            <p className="text-xs text-on-surface-variant">{t("pointsCount", { count: activeChart.points.length })}</p>
           </div>
         </div>
       </AppDialog>

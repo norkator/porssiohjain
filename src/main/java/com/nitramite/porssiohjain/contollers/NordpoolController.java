@@ -39,4 +39,12 @@ public class NordpoolController {
     ) {
         return nordpoolService.getTodayChart(null, timezone, marketIndexName);
     }
+
+    @GetMapping("/tomorrow-chart")
+    public TodayPriceChartResponse getTomorrowChart(
+            @RequestParam(required = false) String timezone,
+            @RequestParam(required = false) String marketIndexName
+    ) {
+        return nordpoolService.getTomorrowChart(null, timezone, marketIndexName);
+    }
 }

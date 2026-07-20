@@ -60,6 +60,14 @@ export type MarketNotificationPayload = {
 };
 
 export async function fetchNordpoolTodayChart(timezone: string) {
+  return fetchNordpoolChart("/nordpool/today-chart", timezone);
+}
+
+export async function fetchNordpoolTomorrowChart(timezone: string) {
+  return fetchNordpoolChart("/nordpool/tomorrow-chart", timezone);
+}
+
+async function fetchNordpoolChart(path: string, timezone: string) {
   const params = new URLSearchParams();
 
   if (timezone) {
@@ -68,7 +76,7 @@ export async function fetchNordpoolTodayChart(timezone: string) {
 
   const suffix = params.toString();
 
-  return apiGetJson<NordpoolTodayChart>(`/nordpool/today-chart${suffix ? `?${suffix}` : ""}`);
+  return apiGetJson<NordpoolTodayChart>(`${path}${suffix ? `?${suffix}` : ""}`);
 }
 
 async function sendMarketNotification<T>(path: string, payload: unknown, method = "POST") {

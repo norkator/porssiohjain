@@ -11,10 +11,11 @@
 
 import { useEffect, useState } from "react";
 import { getCurrentTimezone } from "@/lib/add-device-flow";
-import { fetchNordpoolTodayChart, type NordpoolTodayChart } from "@/lib/nordpool";
+import { fetchNordpoolTodayChart, fetchNordpoolTomorrowChart, type NordpoolTodayChart } from "@/lib/nordpool";
 
 type UseNordpoolTodayChartState = {
   chart: NordpoolTodayChart | null;
+  tomorrowChart: NordpoolTodayChart | null;
   isLoading: boolean;
   error: string | null;
 };
@@ -22,6 +23,7 @@ type UseNordpoolTodayChartState = {
 export function useNordpoolTodayChart() {
   const [state, setState] = useState<UseNordpoolTodayChartState>({
     chart: null,
+    tomorrowChart: null,
     isLoading: true,
     error: null
   });
@@ -33,6 +35,7 @@ export function useNordpoolTodayChart() {
     async function loadChart() {
       try {
         const chart = await fetchNordpoolTodayChart(timezone);
+        const tomorrowChart = await fetchNordpoolTomorrowChart(timezone).catch(() => null);
 
         if (!isActive) {
           return;
@@ -40,6 +43,7 @@ export function useNordpoolTodayChart() {
 
         setState({
           chart,
+          tomorrowChart,
           isLoading: false,
           error: null
         });
@@ -50,6 +54,7 @@ export function useNordpoolTodayChart() {
 
         setState({
           chart: null,
+          tomorrowChart: null,
           isLoading: false,
           error: error instanceof Error ? error.message : "Failed to load Nord Pool pricing"
         });

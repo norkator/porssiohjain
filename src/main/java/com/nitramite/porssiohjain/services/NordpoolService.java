@@ -110,11 +110,19 @@ public class NordpoolService {
     }
 
     public TodayPriceChartResponse getTodayChart(Long accountId, String timezone, String marketIndexName) {
+        return getChartForDay(accountId, timezone, marketIndexName, 0);
+    }
+
+    public TodayPriceChartResponse getTomorrowChart(Long accountId, String timezone, String marketIndexName) {
+        return getChartForDay(accountId, timezone, marketIndexName, 1);
+    }
+
+    private TodayPriceChartResponse getChartForDay(Long accountId, String timezone, String marketIndexName, int daysFromToday) {
         PricingContext pricingContext = resolvePricingContext(accountId, timezone, marketIndexName);
         ZoneId zone = pricingContext.zone();
-        LocalDate today = LocalDate.now(zone);
-        ZonedDateTime startOfDay = today.atStartOfDay(zone);
-        ZonedDateTime endOfDay = today.plusDays(1).atStartOfDay(zone);
+        LocalDate chartDate = LocalDate.now(zone).plusDays(daysFromToday);
+        ZonedDateTime startOfDay = chartDate.atStartOfDay(zone);
+        ZonedDateTime endOfDay = chartDate.plusDays(1).atStartOfDay(zone);
         Instant start = startOfDay.toInstant();
         Instant end = endOfDay.toInstant();
 
@@ -160,14 +168,16 @@ public class NordpoolService {
                         .divide(BigDecimal.valueOf(values.size()), 4, RoundingMode.HALF_UP);
 
         Instant now = Instant.now();
-        BigDecimal current = prices.stream()
-                .filter(priceEntry -> !priceEntry.getDeliveryStart().isAfter(now) && priceEntry.getDeliveryEnd().isAfter(now))
-                .findFirst()
-                .map(priceEntry -> toPriceWithTax(priceEntry.getPriceFi(), pricingContext.taxMultiplier()))
-                .orElseGet(() -> points.isEmpty() ? BigDecimal.ZERO : points.get(points.size() - 1).getPrice());
+        BigDecimal current = chartDate.equals(LocalDate.now(zone))
+                ? prices.stream()
+                        .filter(priceEntry -> !priceEntry.getDeliveryStart().isAfter(now) && priceEntry.getDeliveryEnd().isAfter(now))
+                        .findFirst()
+                        .map(priceEntry -> toPriceWithTax(priceEntry.getPriceFi(), pricingContext.taxMultiplier()))
+                        .orElseGet(() -> points.isEmpty() ? BigDecimal.ZERO : points.get(points.size() - 1).getPrice())
+                : points.isEmpty() ? BigDecimal.ZERO : points.get(0).getPrice();
 
         return TodayPriceChartResponse.builder()
-                .date(today)
+                .date(chartDate)
                 .timezone(zone.getId())
                 .resolutionMinutes(TODAY_CHART_RESOLUTION_MINUTES)
                 .min(min)
