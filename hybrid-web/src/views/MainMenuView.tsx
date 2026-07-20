@@ -841,6 +841,31 @@ export default function MainMenuView() {
         ) : null}
 
         <section className="mb-12">
+          <div className="app-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div>
+              <p className="metric-label mb-2">{t("contactEyebrow")}</p>
+              <h2 className="font-headline text-xl font-black text-on-surface">{t("contactTitle")}</h2>
+              <p className="mt-1 text-sm leading-6 text-on-surface-variant">
+                {t("contactDescription")}
+              </p>
+              <a
+                className="mt-2 inline-block text-sm font-bold text-primary hover:underline"
+                href="mailto:nitramite@outlook.com"
+              >
+                nitramite@outlook.com
+              </a>
+            </div>
+            <button
+              className="primary-action justify-center px-5 py-3 text-sm"
+              onClick={handleOpenFeedbackDialog}
+              type="button"
+            >
+              {t("sendFeedback")}
+            </button>
+          </div>
+        </section>
+
+        <section className="mb-12">
           <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold">
             <span className="h-1 w-8 rounded-full bg-primary" />
             {t("siteOwn")}
