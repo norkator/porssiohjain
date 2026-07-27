@@ -16,6 +16,7 @@ let sessionExpiredHandled = false;
 
 type DevSessionOverride = {
   token?: string;
+  refreshToken?: string;
   baseUrl?: string;
   accountId?: number;
   locale?: string;
@@ -70,13 +71,14 @@ export function getSessionData(): SessionData {
     return {
       appName: bootstrap.appName ?? "Energy Controller",
       baseUrl: bootstrap.baseUrl ?? "",
-      token: bootstrap.token ?? "",
       accountId: bootstrap.accountId,
       locale: override.locale ?? bootstrap.locale,
-      hasToken: Boolean(bootstrap.token),
+      hasToken: Boolean(override.token ?? bootstrap.token),
       environment: bootstrap.environment ?? "production",
       error: bootstrap.error,
-      source: "android"
+      source: "android",
+      token: override.token ?? bootstrap.token ?? "",
+      refreshToken: override.refreshToken ?? bootstrap.refreshToken
     };
   }
 
@@ -85,6 +87,7 @@ export function getSessionData(): SessionData {
   const token = override.token ?? envSession.token;
   const hasOverride = override.baseUrl !== undefined
     || override.token !== undefined
+    || override.refreshToken !== undefined
     || override.accountId !== undefined
     || override.locale !== undefined;
 
@@ -92,6 +95,7 @@ export function getSessionData(): SessionData {
     appName: "Energy Controller",
     baseUrl,
     token,
+    refreshToken: override.refreshToken,
     accountId: override.accountId,
     locale: override.locale,
     hasToken: Boolean(token),
@@ -119,8 +123,17 @@ export function setDevSessionOverride(nextOverride: DevSessionOverride) {
   window.localStorage.setItem(DEV_SESSION_STORAGE_KEY, JSON.stringify(mergedOverride));
 }
 
-export function setBrowserSession(input: { token: string; accountId?: number; locale?: string }) {
+export function setBrowserSession(input: {
+  token: string;
+  refreshToken?: string;
+  accountId?: number;
+  locale?: string;
+}) {
   setDevSessionOverride(input);
+
+  if (input.refreshToken) {
+    getAndroidBridge()?.updateSessionTokens?.(input.token, input.refreshToken);
+  }
 }
 
 export function clearDevSessionOverride() {
@@ -132,6 +145,19 @@ export function clearDevSessionOverride() {
 }
 
 export function clearBrowserSession() {
+  const session = getSessionData();
+
+  if (session.refreshToken && session.baseUrl) {
+    void fetch(new URL("/account/logout", session.baseUrl), {
+      body: JSON.stringify({ refreshToken: session.refreshToken }),
+      headers: {
+        "Content-Type": "application/json"
+      },
+      keepalive: true,
+      method: "POST"
+    }).catch(() => undefined);
+  }
+
   clearDevSessionOverride();
 }
 
@@ -161,7 +187,8 @@ export function handleUnauthorizedSession() {
   window.localStorage.setItem(DEV_SESSION_STORAGE_KEY, JSON.stringify({
     baseUrl: override.baseUrl,
     locale: override.locale,
-    token: ""
+    token: "",
+    refreshToken: ""
   }));
   window.location.hash = "#/login";
 }

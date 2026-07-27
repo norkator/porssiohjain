@@ -21,6 +21,8 @@ import java.time.Instant;
 public class LoginResponse {
     private String token;
     private Instant expiresAt;
+    private String refreshToken;
+    private Instant refreshTokenExpiresAt;
     private Long accountId;
     private String locale;
     private boolean demo;

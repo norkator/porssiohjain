@@ -13,6 +13,7 @@ export type BootstrapData = {
   appName?: string;
   baseUrl?: string;
   token?: string;
+  refreshToken?: string;
   accountId?: number;
   locale?: string;
   hasToken?: boolean;
@@ -29,6 +30,7 @@ type AndroidBridgeApi = {
   startGooglePlaySubscriptionPurchase?: (productId: string) => void;
   setTheme?: (theme: "light" | "dark") => void;
   logout?: () => void;
+  updateSessionTokens?: (token: string, refreshToken: string) => void;
 };
 
 declare global {

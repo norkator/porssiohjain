@@ -86,6 +86,7 @@ export default function LoginView() {
         if (isQrLoginComplete(result)) {
           setBrowserSession({
             token: result.token,
+            refreshToken: result.refreshToken,
             accountId: result.accountId,
             locale: result.locale ?? getCurrentLocale()
           });

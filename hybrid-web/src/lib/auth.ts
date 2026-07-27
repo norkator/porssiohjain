@@ -15,6 +15,8 @@ import { getCurrentLocale, syncDocumentLocale } from "@/lib/i18n";
 export type LoginResponse = {
   token: string;
   expiresAt: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: string;
   accountId?: number;
   locale?: string;
   demo?: boolean;
@@ -72,6 +74,7 @@ export async function loginWithCredentials(input: { uuid: string; secret: string
   const loginResponse = await response.json() as LoginResponse;
   setBrowserSession({
     token: loginResponse.token,
+    refreshToken: loginResponse.refreshToken,
     accountId: loginResponse.accountId,
     locale: loginResponse.locale ?? getCurrentLocale()
   });

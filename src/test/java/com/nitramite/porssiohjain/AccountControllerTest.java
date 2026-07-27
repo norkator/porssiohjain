@@ -151,8 +151,52 @@ class AccountControllerTest {
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(jsonPath("$.token").isString())
                 .andExpect(jsonPath("$.expiresAt").isString())
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andExpect(jsonPath("$.refreshTokenExpiresAt").isString())
                 .andExpect(jsonPath("$.accountId").value(account.getId()))
                 .andExpect(jsonPath("$.locale").value("en"));
+    }
+
+    @Test
+    @DisplayName("Should rotate refresh token and reject reuse")
+    void refreshShouldRotateToken() throws Exception {
+        String password = "refreshsecret";
+        AccountEntity account = new AccountEntity();
+        account.setUuid(UUID.randomUUID());
+        account.setSecret(passwordEncoder.encode(password));
+        account.setCreatedAt(Instant.now());
+        account.setUpdatedAt(Instant.now());
+        accountRepository.save(account);
+
+        String loginResponse = mockMvc.perform(post("/account/login")
+                        .header("X-Forwarded-For", "31.31.31.31")
+                        .contentType("application/json")
+                        .content("""
+                                {"uuid":"%s","secret":"%s"}
+                                """.formatted(account.getUuid(), password)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        String originalRefreshToken = objectMapper.readTree(loginResponse).get("refreshToken").asText();
+        String refreshResponse = mockMvc.perform(post("/account/token/refresh")
+                        .contentType("application/json")
+                        .content("""
+                                {"refreshToken":"%s"}
+                                """.formatted(originalRefreshToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isString())
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(objectMapper.readTree(refreshResponse).get("refreshToken").asText())
+                .isNotEqualTo(originalRefreshToken);
+
+        mockMvc.perform(post("/account/token/refresh")
+                        .contentType("application/json")
+                        .content("""
+                                {"refreshToken":"%s"}
+                                """.formatted(originalRefreshToken)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

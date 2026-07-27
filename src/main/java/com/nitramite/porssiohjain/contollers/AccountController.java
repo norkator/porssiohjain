@@ -16,6 +16,7 @@ import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.RateLimitService;
 import com.nitramite.porssiohjain.services.TermsOfServiceService;
 import com.nitramite.porssiohjain.services.models.LoginRequest;
+import com.nitramite.porssiohjain.services.models.RefreshTokenRequest;
 import com.nitramite.porssiohjain.services.models.TermsOfServiceResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -70,6 +71,17 @@ public class AccountController {
         }
 
         return ResponseEntity.ok(authService.login(ip, requestBody.getUuid(), requestBody.getSecret()));
+    }
+
+    @PostMapping("/token/refresh")
+    public ResponseEntity<?> refresh(@RequestBody RefreshTokenRequest requestBody) {
+        return ResponseEntity.ok(authService.refresh(requestBody.getRefreshToken()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestBody RefreshTokenRequest requestBody) {
+        authService.revokeRefreshToken(requestBody.getRefreshToken());
+        return ResponseEntity.noContent().build();
     }
 
 }

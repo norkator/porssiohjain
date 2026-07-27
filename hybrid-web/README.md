@@ -57,6 +57,7 @@ Current structure:
 - `src/lib/android-bridge.ts`: typed Android bridge wrapper
 - `src/lib/session.ts`: unified session source for Android bootstrap or browser env fallback
 - `src/lib/api.ts`: shared helpers for base URL and bearer-authenticated fetches
+- authenticated requests automatically exchange the stored rotating refresh token and retry once after a `401`
 - `src/styles/`: theme tokens and local font loading
 - `views/`: original HTML mock files kept as references
 
