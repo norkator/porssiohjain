@@ -20,6 +20,7 @@ import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
 import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.RefreshTokenRepository;
 import com.nitramite.porssiohjain.entity.repository.TokenRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
@@ -65,6 +66,9 @@ class DeviceControllerTest {
     private TokenRepository tokenRepository;
 
     @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
     private DeviceRepository deviceRepository;
 
     @Autowired
@@ -82,6 +86,7 @@ class DeviceControllerTest {
     @BeforeEach
     void setUp() throws Exception {
         deviceRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
         tokenRepository.deleteAll();
         accountRepository.deleteAll();
 

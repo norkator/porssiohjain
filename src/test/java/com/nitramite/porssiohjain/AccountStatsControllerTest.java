@@ -21,6 +21,7 @@ import com.nitramite.porssiohjain.entity.enums.SiteType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerLimitRepository;
 import com.nitramite.porssiohjain.entity.repository.ProductionSourceRepository;
+import com.nitramite.porssiohjain.entity.repository.RefreshTokenRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.TokenRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
@@ -61,6 +62,9 @@ class AccountStatsControllerTest {
     private TokenRepository tokenRepository;
 
     @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
     private SiteRepository siteRepository;
 
     @Autowired
@@ -83,6 +87,7 @@ class AccountStatsControllerTest {
         productionSourceRepository.deleteAll();
         powerLimitRepository.deleteAll();
         siteRepository.deleteAll();
+        refreshTokenRepository.deleteAll();
         tokenRepository.deleteAll();
         accountRepository.deleteAll();
 
