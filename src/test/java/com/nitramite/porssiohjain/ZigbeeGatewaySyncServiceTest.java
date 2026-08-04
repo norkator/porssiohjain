@@ -68,6 +68,23 @@ class ZigbeeGatewaySyncServiceTest {
         assertTrue(service.sync(7L, gateway, request(3, true)).getDevices().isEmpty());
     }
 
+    @Test void resendsDesiredVersionWhenReportedSetpointDriftsAfterManualChange() {
+        ZigbeeGatewayDeviceEntity link = link(account, 4, 4);
+        link.setDesiredTemperature(new BigDecimal("19.00")); link.setDesiredMode("HEAT");
+        link.setDesiredExpiresAt(Instant.now().plusSeconds(600));
+        when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb")).thenReturn(Optional.of(link));
+
+        ZigbeeGatewaySyncRequest request = request(4, true);
+        request.getDevices().getFirst().setSetpoint(new BigDecimal("10.00"));
+        request.getDevices().getFirst().setMode("HEAT");
+
+        var response = service.sync(7L, gateway, request);
+
+        assertEquals(5, response.getDevices().getFirst().getVersion());
+        assertEquals(5, link.getDesiredVersion());
+        assertEquals(4, link.getAppliedVersion());
+    }
+
     @Test void rejectsCrossAccountGatewayLink() {
         AccountEntity other = new AccountEntity(); other.setId(8L);
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb"))

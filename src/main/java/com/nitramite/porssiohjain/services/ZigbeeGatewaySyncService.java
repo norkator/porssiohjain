@@ -91,7 +91,22 @@ public class ZigbeeGatewaySyncService {
         } else if (Boolean.FALSE.equals(report.getSuccess())) {
             link.setLastError(truncate(report.getError(), 512));
         }
+        if (reportedStateDrifted(link) && link.getAppliedVersion() >= link.getDesiredVersion()) {
+            link.setDesiredVersion(link.getDesiredVersion() + 1);
+            link.setDesiredAt(now);
+            link.setLastError("Reported thermostat state drifted from desired cloud state");
+        }
         zigbeeRepository.save(link);
+    }
+
+    private boolean reportedStateDrifted(ZigbeeGatewayDeviceEntity link) {
+        if (link.getDesiredVersion() <= 0 || link.getDesiredTemperature() == null || link.getDesiredMode() == null) {
+            return false;
+        }
+        boolean setpointDrifted = link.getReportedSetpoint() != null
+                && link.getReportedSetpoint().compareTo(link.getDesiredTemperature()) != 0;
+        boolean modeDrifted = link.getReportedMode() != null && !link.getReportedMode().equals(link.getDesiredMode());
+        return setpointDrifted || modeDrifted;
     }
 
     private ZigbeeGatewayDeviceEntity requireOwner(ZigbeeGatewayDeviceEntity link, Long accountId) {
