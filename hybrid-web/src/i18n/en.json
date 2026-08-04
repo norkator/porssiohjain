@@ -99,6 +99,8 @@
     "accountSectionEyebrow": "Account",
     "accountSettingsTitle": "Account settings",
     "accountSettingsDescription": "Review your subscription tier and update the email address and language used by the app.",
+    "zigbeeUsbLabTitle": "Zigbee USB gateway lab",
+    "zigbeeUsbLabDescription": "Open the native Android Zigbee USB gateway lab.",
     "openAccountSettings": "Open account settings",
     "accountSettingsFootnote": "More account tools can be added here later.",
     "themeToggle": "Toggle theme",

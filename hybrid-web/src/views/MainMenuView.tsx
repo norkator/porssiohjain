@@ -22,7 +22,7 @@ import { formatKw } from "@/lib/account-stats";
 import { useAccountStats } from "@/hooks/useAccountStats";
 import { useControls } from "@/hooks/useControls";
 import { useDevices } from "@/hooks/useDevices";
-import { logoutNative, openNativeQrLoginScanner, showNativeToast } from "@/lib/android-bridge";
+import { logoutNative, openNativeQrLoginScanner, openNativeScreen, showNativeToast } from "@/lib/android-bridge";
 import {
   getMockDiscoveredBrandedDevices,
   mockClaimBrandedDevice,
@@ -43,6 +43,17 @@ const SAVINGS_CHART_PADDING_TOP = 22;
 const SAVINGS_CHART_PADDING_BOTTOM = 38;
 const SAVINGS_CHART_Y_AXIS_STEPS = 4;
 const SAVINGS_CHART_LABEL_SIZE = 10;
+
+type SiteOwnTile = {
+  key: string;
+  title: string;
+  detail: string;
+  icon: string;
+  hasError: boolean;
+} & (
+  | { to: string; onClick?: never }
+  | { to?: never; onClick: () => void }
+);
 
 function formatSavingsAmount(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -249,7 +260,7 @@ export default function MainMenuView() {
     { key: "ownProduction", title: tileTitles.ownProduction, detail: ownProductionDetail, to: "/production-sources", icon: "P", hasError: Boolean(statsError) },
     { key: "powerLimits", title: tileTitles.powerLimits, detail: powerLimitsDetail, to: "/power-limits", icon: "L", hasError: Boolean(statsError) }
   ];
-  const siteOwnTiles = [
+  const siteOwnTiles: SiteOwnTile[] = [
     {
       key: "accountSettings",
       title: t("accountSettingsTitle"),
@@ -273,8 +284,37 @@ export default function MainMenuView() {
       to: "/electricity-contracts",
       icon: "E",
       hasError: contractsError
-    }
+    },
+    ...(session.source === "android" || import.meta.env.DEV ? [{
+      key: "zigbeeUsbLab",
+      title: t("zigbeeUsbLabTitle"),
+      detail: t("zigbeeUsbLabDescription"),
+      onClick: () => openNativeScreen("zigbeeUsb"),
+      icon: "Z",
+      hasError: false
+    }] : [])
   ];
+  const siteOwnTileClassName = "group relative overflow-hidden rounded-xl bg-surface-container-low p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98] sm:p-6";
+  const renderSiteOwnTileContent = (tile: typeof siteOwnTiles[number]) => (
+    <>
+      <div className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-primary transition-transform duration-300 group-hover:scale-x-100" />
+      <div className="absolute -right-12 top-0 h-28 w-28 rounded-full bg-primary/10 blur-2xl transition-transform duration-300 group-hover:scale-125" />
+      <div className="relative flex h-full flex-col justify-between gap-12">
+        <div className="flex items-start justify-between">
+          <div className="w-fit rounded-lg bg-surface-container-lowest p-3 shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-md">
+            <span className="font-headline text-xl font-black text-primary">{tile.icon}</span>
+          </div>
+          <span className="translate-y-1 text-lg text-outline-variant opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:text-primary group-hover:opacity-100">↗</span>
+        </div>
+        <div>
+          <h3 className="text-xl font-bold transition-colors duration-300 group-hover:text-primary">{tile.title}</h3>
+          <p className={`mt-2 text-sm leading-6 ${tile.hasError ? "text-on-error-container" : "text-on-surface-variant"}`}>
+            {tile.detail}
+          </p>
+        </div>
+      </div>
+    </>
+  );
   const productionUtilizationRatio = totalProductionPeakKw > 0
     ? Math.min(totalProductionKw / totalProductionPeakKw, 1)
     : totalProductionKw > 0
@@ -872,28 +912,15 @@ export default function MainMenuView() {
           </h2>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             {siteOwnTiles.map((tile) => (
-              <Link
-                key={tile.key}
-                className="group relative overflow-hidden rounded-xl bg-surface-container-low p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98] sm:p-6"
-                to={tile.to}
-              >
-                <div className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-primary transition-transform duration-300 group-hover:scale-x-100" />
-                <div className="absolute -right-12 top-0 h-28 w-28 rounded-full bg-primary/10 blur-2xl transition-transform duration-300 group-hover:scale-125" />
-                <div className="relative flex h-full flex-col justify-between gap-12">
-                  <div className="flex items-start justify-between">
-                    <div className="w-fit rounded-lg bg-surface-container-lowest p-3 shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-md">
-                      <span className="font-headline text-xl font-black text-primary">{tile.icon}</span>
-                    </div>
-                    <span className="translate-y-1 text-lg text-outline-variant opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:text-primary group-hover:opacity-100">↗</span>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold transition-colors duration-300 group-hover:text-primary">{tile.title}</h3>
-                    <p className={`mt-2 text-sm leading-6 ${tile.hasError ? "text-on-error-container" : "text-on-surface-variant"}`}>
-                      {tile.detail}
-                    </p>
-                  </div>
-                </div>
-              </Link>
+              tile.to ? (
+                <Link className={siteOwnTileClassName} key={tile.key} to={tile.to}>
+                  {renderSiteOwnTileContent(tile)}
+                </Link>
+              ) : (
+                <button className={siteOwnTileClassName} key={tile.key} onClick={tile.onClick} type="button">
+                  {renderSiteOwnTileContent(tile)}
+                </button>
+              )
             ))}
           </div>
         </section>

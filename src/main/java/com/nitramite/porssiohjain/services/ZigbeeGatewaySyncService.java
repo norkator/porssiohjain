@@ -25,6 +25,7 @@ import java.time.*;
 import java.util.*;
 
 @Service
+
 @RequiredArgsConstructor
 @Transactional
 public class ZigbeeGatewaySyncService {

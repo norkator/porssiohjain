@@ -99,6 +99,8 @@
     "accountSectionEyebrow": "Tili",
     "accountSettingsTitle": "Tilin asetukset",
     "accountSettingsDescription": "Tarkista tilitasosi ja päivitä sovelluksen käyttämä sähköpostiosoite ja kieli.",
+    "zigbeeUsbLabTitle": "Zigbee USB -gateway lab",
+    "zigbeeUsbLabDescription": "Avaa Androidin natiivi Zigbee USB -gateway -laboratorio.",
     "openAccountSettings": "Avaa tilin asetukset",
     "accountSettingsFootnote": "Tähän osioon voidaan lisätä myöhemmin lisää tilitoimintoja.",
     "themeToggle": "Vaihda teemaa",
