@@ -4,5 +4,6 @@ public enum DevicePlatform {
     OPENBEKEN,
     TASMOTA,
     ESPHOME,
-    GENERIC_MQTT
+    GENERIC_MQTT,
+    ANDROID_ZIGBEE
 }

@@ -498,7 +498,7 @@ public class DeviceService {
             case OPENBEKEN -> MqttDeviceProfile.OPENBEKEN_RELAY;
             case TASMOTA -> MqttDeviceProfile.TASMOTA_RELAY;
             case ESPHOME -> MqttDeviceProfile.ESPHOME_RELAY;
-            case GENERIC_MQTT -> MqttDeviceProfile.GENERIC_RELAY;
+            case GENERIC_MQTT, ANDROID_ZIGBEE -> MqttDeviceProfile.GENERIC_RELAY;
         };
     }
 

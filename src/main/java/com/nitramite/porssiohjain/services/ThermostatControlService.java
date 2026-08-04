@@ -14,7 +14,9 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.ControlThermostatEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.repository.ControlThermostatRepository;
+import com.nitramite.porssiohjain.entity.repository.ZigbeeGatewayDeviceRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,7 @@ public class ThermostatControlService {
     private final ControlPriceService controlPriceService;
     private final ThermostatCurveService thermostatCurveService;
     private final MqttService mqttService;
+    private final ZigbeeGatewayDeviceRepository zigbeeGatewayDeviceRepository;
 
     public void runScheduledThermostatControls() {
         Instant now = Instant.now();
@@ -88,6 +91,10 @@ public class ThermostatControlService {
 
     private void dispatchCandidate(ThermostatCommandCandidate candidate, Instant now) {
         ControlThermostatEntity rule = candidate.rule();
+        if (rule.getDevice().getDevicePlatform() == DevicePlatform.ANDROID_ZIGBEE) {
+            storeZigbeeDesiredState(candidate, now);
+            return;
+        }
         BigDecimal lastAppliedTemperature = rule.getLastAppliedTemperature();
         Instant lastAppliedAt = rule.getLastAppliedAt();
 
@@ -116,8 +123,31 @@ public class ThermostatControlService {
         );
     }
 
+    private void storeZigbeeDesiredState(ThermostatCommandCandidate candidate, Instant now) {
+        ControlThermostatEntity rule = candidate.rule();
+        var link = zigbeeGatewayDeviceRepository.findByDeviceId(rule.getDevice().getId()).orElse(null);
+        if (link == null) {
+            log.warn("Skipping Android Zigbee thermostat deviceId={} because it has no gateway link", rule.getDevice().getId());
+            return;
+        }
+        boolean changed = link.getDesiredTemperature() == null
+                || candidate.targetTemperature().compareTo(link.getDesiredTemperature()) != 0
+                || !"HEAT".equals(link.getDesiredMode());
+        if (changed) {
+            link.setDesiredVersion(link.getDesiredVersion() + 1);
+            link.setDesiredTemperature(candidate.targetTemperature());
+            link.setDesiredMode("HEAT");
+            link.setDesiredAt(now);
+        }
+        link.setDesiredExpiresAt(now.plus(Duration.ofMinutes(30)));
+        zigbeeGatewayDeviceRepository.save(link);
+        log.info("Stored Android Zigbee desired state deviceId={}, version={}, targetTemperature={}",
+                rule.getDevice().getId(), link.getDesiredVersion(), candidate.targetTemperature());
+    }
+
     private boolean isEligibleDevice(DeviceEntity device) {
-        return device != null && device.isEnabled() && device.isMqttOnline() && device.getDeviceType() == DeviceType.THERMOSTAT;
+        return device != null && device.isEnabled() && device.getDeviceType() == DeviceType.THERMOSTAT
+                && (device.getDevicePlatform() == DevicePlatform.ANDROID_ZIGBEE || device.isMqttOnline());
     }
 
     private record ThermostatCommandCandidate(

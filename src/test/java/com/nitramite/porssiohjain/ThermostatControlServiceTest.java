@@ -14,8 +14,11 @@ package com.nitramite.porssiohjain;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlThermostatEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.ZigbeeGatewayDeviceEntity;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.repository.ControlThermostatRepository;
+import com.nitramite.porssiohjain.entity.repository.ZigbeeGatewayDeviceRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.ControlPriceService;
 import com.nitramite.porssiohjain.services.ThermostatControlService;
@@ -32,6 +35,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -52,6 +56,9 @@ class ThermostatControlServiceTest {
     @Mock
     private MqttService mqttService;
 
+    @Mock
+    private ZigbeeGatewayDeviceRepository zigbeeGatewayDeviceRepository;
+
     private ThermostatControlService thermostatControlService;
 
     @BeforeEach
@@ -60,7 +67,8 @@ class ThermostatControlServiceTest {
                 controlThermostatRepository,
                 controlPriceService,
                 thermostatCurveService,
-                mqttService
+                mqttService,
+                zigbeeGatewayDeviceRepository
         );
     }
 
@@ -113,6 +121,27 @@ class ThermostatControlServiceTest {
 
         verify(mqttService, never()).setThermostatTemperature(any(), any(Integer.class), any());
         verify(controlThermostatRepository, never()).save(any(ControlThermostatEntity.class));
+    }
+
+    @Test
+    void storesVersionedDesiredStateForAndroidZigbeeWithoutPublishingMqtt() {
+        DeviceEntity device = thermostatDevice(3L, true, false);
+        device.setDevicePlatform(DevicePlatform.ANDROID_ZIGBEE);
+        ControlEntity control = new ControlEntity(); control.setId(12L);
+        ControlThermostatEntity rule = ControlThermostatEntity.builder().id(22L).control(control)
+                .device(device).thermostatChannel(1).curveJson("[]").enabled(true).build();
+        ZigbeeGatewayDeviceEntity link = ZigbeeGatewayDeviceEntity.builder().device(device).desiredVersion(4).build();
+        when(controlThermostatRepository.findAll()).thenReturn(List.of(rule));
+        when(controlPriceService.getCurrentCombinedPrice(any(), any())).thenReturn(Optional.of(BigDecimal.ONE));
+        when(thermostatCurveService.evaluate("[]", BigDecimal.ONE)).thenReturn(new BigDecimal("20.50"));
+        when(zigbeeGatewayDeviceRepository.findByDeviceId(3L)).thenReturn(Optional.of(link));
+
+        thermostatControlService.runScheduledThermostatControls();
+
+        assertEquals(5, link.getDesiredVersion());
+        assertEquals(new BigDecimal("20.50"), link.getDesiredTemperature());
+        verify(zigbeeGatewayDeviceRepository).save(link);
+        verify(mqttService, never()).setThermostatTemperature(any(), any(Integer.class), any());
     }
 
     private DeviceEntity thermostatDevice(Long id, boolean enabled, boolean mqttOnline) {

@@ -1109,6 +1109,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case TASMOTA -> t("device.platform.tasmota");
             case ESPHOME -> t("device.platform.esphome");
             case GENERIC_MQTT -> t("device.platform.genericMqtt");
+            case ANDROID_ZIGBEE -> "Android Zigbee";
         };
     }
 
