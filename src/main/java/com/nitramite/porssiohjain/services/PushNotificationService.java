@@ -238,6 +238,32 @@ public class PushNotificationService {
         return sendToAccount(account.getId(), title, body, data);
     }
 
+    public boolean sendZigbeeGatewayOfflineNotification(
+            AccountEntity account, UUID gatewayId, Instant detectedAt, Locale locale) {
+        String title = messageSource.getMessage("push.zigbeeGateway.offline.title", null, locale);
+        String body = messageSource.getMessage(
+                "push.zigbeeGateway.offline.body", new Object[]{gatewayId}, locale);
+        Map<String, String> data = zigbeeGatewayData("ZIGBEE_GATEWAY_OFFLINE", gatewayId, detectedAt);
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
+    public boolean sendZigbeeGatewayOnlineNotification(
+            AccountEntity account, UUID gatewayId, Instant detectedAt, Locale locale) {
+        String title = messageSource.getMessage("push.zigbeeGateway.online.title", null, locale);
+        String body = messageSource.getMessage(
+                "push.zigbeeGateway.online.body", new Object[]{gatewayId}, locale);
+        Map<String, String> data = zigbeeGatewayData("ZIGBEE_GATEWAY_ONLINE", gatewayId, detectedAt);
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
+    private Map<String, String> zigbeeGatewayData(String type, UUID gatewayId, Instant detectedAt) {
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", type);
+        data.put("gatewayId", gatewayId.toString());
+        data.put("detectedAt", detectedAt.toString());
+        return data;
+    }
+
     public boolean sendNewAccountCreatedAdminNotification(AccountEntity account, Locale locale) {
         String title = messageSource.getMessage("push.admin.newAccount.title", null, locale);
         String body = messageSource.getMessage(

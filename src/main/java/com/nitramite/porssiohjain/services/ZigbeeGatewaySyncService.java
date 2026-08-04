@@ -34,6 +34,7 @@ public class ZigbeeGatewaySyncService {
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
     private final ZigbeeGatewayDeviceRepository zigbeeRepository;
+    private final ZigbeeGatewayConnectivityService connectivityService;
 
     public ZigbeeGatewaySyncResponse sync(Long accountId, UUID pathGatewayId, ZigbeeGatewaySyncRequest request) {
         if (request == null || request.getGatewayId() == null || !pathGatewayId.equals(request.getGatewayId())) {
@@ -42,6 +43,7 @@ public class ZigbeeGatewaySyncService {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         Instant now = Instant.now();
+        connectivityService.recordHeartbeat(account, pathGatewayId, now);
         List<ZigbeeGatewaySyncResponse.DeviceCommand> commands = new ArrayList<>();
         for (ZigbeeGatewaySyncRequest.DeviceReport report : Optional.ofNullable(request.getDevices()).orElse(List.of())) {
             String ieee = normalizeIeee(report.getZigbeeIeee());

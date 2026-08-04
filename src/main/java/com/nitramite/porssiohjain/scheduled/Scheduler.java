@@ -51,6 +51,7 @@ public class Scheduler {
     private final MarketNotificationService marketNotificationService;
     private final HeatPumpOnlineCheckService heatPumpOnlineCheckService;
     private final MqttRelayTestService mqttRelayTestService;
+    private final ZigbeeGatewayConnectivityService zigbeeGatewayConnectivityService;
 
     private boolean firstRun = true;
 
@@ -75,7 +76,8 @@ public class Scheduler {
             PowerLimitNotificationService powerLimitNotificationService,
             MarketNotificationService marketNotificationService,
             HeatPumpOnlineCheckService heatPumpOnlineCheckService,
-            MqttRelayTestService mqttRelayTestService
+            MqttRelayTestService mqttRelayTestService,
+            ZigbeeGatewayConnectivityService zigbeeGatewayConnectivityService
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -97,6 +99,7 @@ public class Scheduler {
         this.marketNotificationService = marketNotificationService;
         this.heatPumpOnlineCheckService = heatPumpOnlineCheckService;
         this.mqttRelayTestService = mqttRelayTestService;
+        this.zigbeeGatewayConnectivityService = zigbeeGatewayConnectivityService;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -240,6 +243,11 @@ public class Scheduler {
     @Scheduled(fixedDelayString = "5m")
     public void checkOfflineDevices() {
         deviceService.checkOfflineDevices();
+    }
+
+    @Scheduled(fixedDelayString = "1m")
+    public void checkOfflineZigbeeGateways() {
+        zigbeeGatewayConnectivityService.detectOfflineGateways();
     }
 
     @Scheduled(cron = "1 0/1 * * * *", zone = "Europe/Helsinki")

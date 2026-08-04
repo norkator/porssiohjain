@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain;
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.ZigbeeGatewaySyncService;
+import com.nitramite.porssiohjain.services.ZigbeeGatewayConnectivityService;
 import com.nitramite.porssiohjain.services.models.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,12 +35,13 @@ class ZigbeeGatewaySyncServiceTest {
     @Mock AccountRepository accounts;
     @Mock DeviceRepository devices;
     @Mock ZigbeeGatewayDeviceRepository links;
+    @Mock ZigbeeGatewayConnectivityService connectivityService;
     ZigbeeGatewaySyncService service;
     AccountEntity account;
     UUID gateway;
 
     @BeforeEach void setUp() {
-        service = new ZigbeeGatewaySyncService(accounts, devices, links);
+        service = new ZigbeeGatewaySyncService(accounts, devices, links, connectivityService);
         account = new AccountEntity(); account.setId(7L);
         gateway = UUID.randomUUID();
         when(accounts.findById(7L)).thenReturn(Optional.of(account));
@@ -51,6 +53,7 @@ class ZigbeeGatewaySyncServiceTest {
         when(links.save(any())).thenAnswer(call -> call.getArgument(0));
         var response = service.sync(7L, gateway, request(0, null));
         assertTrue(response.getDevices().isEmpty());
+        verify(connectivityService).recordHeartbeat(eq(account), eq(gateway), any());
         ArgumentCaptor<DeviceEntity> captured = ArgumentCaptor.forClass(DeviceEntity.class);
         verify(devices).save(captured.capture());
         assertEquals(account, captured.getValue().getAccount());
