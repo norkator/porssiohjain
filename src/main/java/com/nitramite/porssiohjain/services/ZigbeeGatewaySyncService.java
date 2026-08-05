@@ -35,6 +35,7 @@ public class ZigbeeGatewaySyncService {
     private final DeviceRepository deviceRepository;
     private final ZigbeeGatewayDeviceRepository zigbeeRepository;
     private final ZigbeeGatewayConnectivityService connectivityService;
+    private final DeviceOfflineNotificationService deviceOfflineNotificationService;
 
     public ZigbeeGatewaySyncResponse sync(Long accountId, UUID pathGatewayId, ZigbeeGatewaySyncRequest request) {
         if (request == null || request.getGatewayId() == null || !pathGatewayId.equals(request.getGatewayId())) {
@@ -99,6 +100,20 @@ public class ZigbeeGatewaySyncService {
             link.setLastError("Reported thermostat state drifted from desired cloud state");
         }
         zigbeeRepository.save(link);
+
+        DeviceEntity device = link.getDevice();
+        boolean wasApiOnline = device.isApiOnline();
+        boolean wasMqttOnline = device.isMqttOnline();
+        device.setLastCommunication(now);
+        device.setApiOnline(true);
+        deviceRepository.save(device);
+        deviceOfflineNotificationService.sendIfDeviceCameOnline(
+                device,
+                wasApiOnline,
+                wasMqttOnline,
+                "API",
+                now
+        );
     }
 
     private boolean reportedStateDrifted(ZigbeeGatewayDeviceEntity link) {

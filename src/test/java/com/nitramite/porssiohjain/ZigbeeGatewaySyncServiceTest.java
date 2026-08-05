@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.ZigbeeGatewaySyncService;
 import com.nitramite.porssiohjain.services.ZigbeeGatewayConnectivityService;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.models.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,12 +37,14 @@ class ZigbeeGatewaySyncServiceTest {
     @Mock DeviceRepository devices;
     @Mock ZigbeeGatewayDeviceRepository links;
     @Mock ZigbeeGatewayConnectivityService connectivityService;
+    @Mock DeviceOfflineNotificationService deviceOfflineNotificationService;
     ZigbeeGatewaySyncService service;
     AccountEntity account;
     UUID gateway;
 
     @BeforeEach void setUp() {
-        service = new ZigbeeGatewaySyncService(accounts, devices, links, connectivityService);
+        service = new ZigbeeGatewaySyncService(
+                accounts, devices, links, connectivityService, deviceOfflineNotificationService);
         account = new AccountEntity(); account.setId(7L);
         gateway = UUID.randomUUID();
         when(accounts.findById(7L)).thenReturn(Optional.of(account));
@@ -55,9 +58,32 @@ class ZigbeeGatewaySyncServiceTest {
         assertTrue(response.getDevices().isEmpty());
         verify(connectivityService).recordHeartbeat(eq(account), eq(gateway), any());
         ArgumentCaptor<DeviceEntity> captured = ArgumentCaptor.forClass(DeviceEntity.class);
-        verify(devices).save(captured.capture());
-        assertEquals(account, captured.getValue().getAccount());
-        assertEquals("ANDROID_ZIGBEE", captured.getValue().getDevicePlatform().name());
+        verify(devices, times(2)).save(captured.capture());
+        DeviceEntity registered = captured.getAllValues().getLast();
+        assertEquals(account, registered.getAccount());
+        assertEquals("ANDROID_ZIGBEE", registered.getDevicePlatform().name());
+        assertTrue(registered.isApiOnline());
+        assertNotNull(registered.getLastCommunication());
+        verify(deviceOfflineNotificationService).sendIfDeviceCameOnline(
+                eq(registered), eq(false), eq(false), eq("API"), eq(registered.getLastCommunication()));
+    }
+
+    @Test void thermostatReportMarksExistingDeviceApiOnline() {
+        DeviceEntity device = DeviceEntity.builder()
+                .id(11L).account(account).deviceName("Hall thermostat").timezone("Europe/Helsinki")
+                .apiOnline(false).mqttOnline(false).build();
+        ZigbeeGatewayDeviceEntity link = link(account, 0, 0);
+        link.setDevice(device);
+        when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb"))
+                .thenReturn(Optional.of(link));
+
+        service.sync(7L, gateway, request(0, null));
+
+        assertTrue(device.isApiOnline());
+        assertNotNull(device.getLastCommunication());
+        verify(devices).save(device);
+        verify(deviceOfflineNotificationService).sendIfDeviceCameOnline(
+                eq(device), eq(false), eq(false), eq("API"), eq(device.getLastCommunication()));
     }
 
     @Test void repeatsDesiredVersionUntilSuccessfulAcknowledgement() {
@@ -103,7 +129,9 @@ class ZigbeeGatewaySyncServiceTest {
     }
 
     private ZigbeeGatewayDeviceEntity link(AccountEntity owner, long desired, long applied) {
-        return ZigbeeGatewayDeviceEntity.builder().account(owner).gatewayId(gateway)
+        DeviceEntity device = DeviceEntity.builder()
+                .id(11L).account(owner).deviceName("Thermostat").timezone("Europe/Helsinki").build();
+        return ZigbeeGatewayDeviceEntity.builder().account(owner).device(device).gatewayId(gateway)
                 .zigbeeIeee("8c6fb9fffe2d5cdb").profile("schneider_wde002497")
                 .desiredVersion(desired).appliedVersion(applied).build();
     }
