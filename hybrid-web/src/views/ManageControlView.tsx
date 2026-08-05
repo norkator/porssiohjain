@@ -12,6 +12,7 @@
 import ControlPriceChartCard from "@/components/ControlPriceChartCard";
 import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
 import ControlNotificationsCard from "@/components/ControlNotificationsCard";
+import ControlThermostatsCard from "@/components/ControlThermostatsCard";
 import PageHeader from "@/components/PageHeader";
 import { fetchElectricityContracts, type ElectricityContract } from "@/lib/electricity-contracts";
 import { getAvailableTimezones } from "@/lib/add-device-flow";
@@ -40,7 +41,7 @@ import { useI18n } from "@/lib/i18n";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
-type DeviceTab = "STANDARD" | "HEAT_PUMP" | "NOTIFICATIONS";
+type DeviceTab = "STANDARD" | "HEAT_PUMP" | "THERMOSTAT" | "NOTIFICATIONS";
 
 function toInputNumber(value: number | null | undefined, fallback: string) {
   return value === null || value === undefined ? fallback : String(value);
@@ -692,6 +693,13 @@ export default function ManageControlView() {
                   {t("heatPump")}
                 </button>
                 <button
+                  className={activeDeviceTab === "THERMOSTAT" ? "primary-action px-4 py-3 text-sm" : "secondary-action px-4 py-3 text-sm"}
+                  onClick={() => setActiveDeviceTab("THERMOSTAT")}
+                  type="button"
+                >
+                  {t("thermostat")}
+                </button>
+                <button
                   className={activeDeviceTab === "NOTIFICATIONS" ? "primary-action px-4 py-3 text-sm" : "secondary-action px-4 py-3 text-sm"}
                   onClick={() => setActiveDeviceTab("NOTIFICATIONS")}
                   type="button"
@@ -1034,6 +1042,10 @@ export default function ManageControlView() {
 
               {activeDeviceTab === "NOTIFICATIONS" ? (
                 <ControlNotificationsCard controlId={controlId} isReadOnly={Boolean(control?.shared)} timezone={timezone} />
+              ) : null}
+
+              {activeDeviceTab === "THERMOSTAT" ? (
+                <ControlThermostatsCard controlId={controlId} isReadOnly={Boolean(control?.shared)} />
               ) : null}
 
               {linksError ? (

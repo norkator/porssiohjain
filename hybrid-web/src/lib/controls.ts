@@ -100,6 +100,33 @@ export type ControlHeatPumpLinkPayload = {
   estimatedPowerKw: number | null;
 };
 
+export type ControlThermostatLink = {
+  id: number;
+  controlId: number;
+  deviceId: number;
+  thermostatChannel: number;
+  curveJson: string;
+  minTemperature: number | null;
+  maxTemperature: number | null;
+  fallbackTemperature: number | null;
+  estimatedPowerKw: number | null;
+  enabled: boolean;
+  lastAppliedTemperature: number | null;
+  lastAppliedAt: string | null;
+  device: Pick<ApiDevice, "createdAt" | "deviceName" | "deviceType" | "id" | "lastCommunication" | "updatedAt" | "uuid">;
+};
+
+export type ControlThermostatLinkPayload = {
+  deviceId: number;
+  thermostatChannel: number;
+  curveJson: string;
+  minTemperature: number | null;
+  maxTemperature: number | null;
+  fallbackTemperature: number | null;
+  estimatedPowerKw: number | null;
+  enabled: boolean;
+};
+
 export type ControlNotification = {
   id: number;
   controlId: number;
@@ -236,6 +263,35 @@ export async function updateControlHeatPumpLink(linkId: number, payload: Control
   }
 
   return response.json() as Promise<ControlHeatPumpLink>;
+}
+
+export async function fetchControlThermostatLinks(controlId: number) {
+  return apiGetJson<ControlThermostatLink[]>(`/api/controls/${controlId}/links/thermostats`);
+}
+
+export async function addControlThermostatLink(controlId: number, payload: ControlThermostatLinkPayload) {
+  const response = await apiFetch(`/api/controls/${controlId}/links/thermostats`, {
+    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json" },
+    method: "POST"
+  });
+  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+  return response.json() as Promise<ControlThermostatLink>;
+}
+
+export async function updateControlThermostatLink(linkId: number, payload: ControlThermostatLinkPayload) {
+  const response = await apiFetch(`/api/controls/links/thermostats/${linkId}`, {
+    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json" },
+    method: "PUT"
+  });
+  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+  return response.json() as Promise<ControlThermostatLink>;
+}
+
+export async function deleteControlThermostatLink(linkId: number) {
+  const response = await apiFetch(`/api/controls/links/thermostats/${linkId}`, { method: "DELETE" });
+  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
 }
 
 export async function fetchControlNotifications(controlId: number) {
