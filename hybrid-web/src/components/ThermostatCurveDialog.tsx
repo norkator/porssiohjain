@@ -1,5 +1,5 @@
 import AppDialog from "@/components/AppDialog";
-import { PointerEvent, useEffect, useMemo, useState } from "react";
+import { type PointerEvent, useEffect, useMemo, useState } from "react";
 
 export type ThermostatCurvePoint = { price: number; temperature: number };
 
@@ -16,6 +16,13 @@ const DEFAULT_POINTS: ThermostatCurvePoint[] = [
   { price: 10, temperature: 21 },
   { price: 20, temperature: 19 }
 ];
+const CHART_WIDTH = 920;
+const CHART_HEIGHT = 420;
+const CHART_PADDING_LEFT = 70;
+const CHART_PADDING_RIGHT = 30;
+const CHART_PADDING_TOP = 28;
+const CHART_PADDING_BOTTOM = 62;
+const AXIS_STEPS = 5;
 
 function parseCurve(value: string): ThermostatCurvePoint[] {
   const parsed: unknown = JSON.parse(value);
@@ -36,10 +43,19 @@ function stringify(points: ThermostatCurvePoint[]) {
   })), null, 2);
 }
 
+function getStepValues(minValue: number, maxValue: number) {
+  return Array.from({ length: AXIS_STEPS + 1 }, (_, index) => minValue + ((maxValue - minValue) * index) / AXIS_STEPS);
+}
+
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 export default function ThermostatCurveDialog({ curveJson, isOpen, labels, onClose, onSave }: Props) {
   const [points, setPoints] = useState<ThermostatCurvePoint[]>(DEFAULT_POINTS);
   const [json, setJson] = useState(stringify(DEFAULT_POINTS));
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,45 +69,70 @@ export default function ThermostatCurveDialog({ curveJson, isOpen, labels, onClo
       setJson(stringify(DEFAULT_POINTS));
     }
     setSelectedIndex(null);
+    setDraggingIndex(null);
     setError(null);
   }, [curveJson, isOpen]);
 
   const bounds = useMemo(() => {
     const prices = points.map((point) => point.price);
     const temperatures = points.map((point) => point.temperature);
+    const minPrice = Math.min(0, ...prices);
+    const maxPrice = Math.max(20, ...prices);
+    const minTemperature = Math.min(15, ...temperatures);
+    const maxTemperature = Math.max(25, ...temperatures);
+    const pricePadding = Math.max(2, (maxPrice - minPrice) * 0.12);
+    const temperaturePadding = Math.max(1, (maxTemperature - minTemperature) * 0.12);
+
     return {
-      maxPrice: Math.max(20, ...prices) + 5,
-      maxTemperature: Math.max(25, ...temperatures) + 2,
-      minPrice: Math.min(0, ...prices),
-      minTemperature: Math.min(15, ...temperatures) - 2
+      maxPrice: maxPrice + pricePadding,
+      maxTemperature: maxTemperature + temperaturePadding,
+      minPrice: 0,
+      minTemperature: minTemperature - temperaturePadding
     };
   }, [points]);
-  const width = 760;
-  const height = 340;
-  const pad = 48;
-  const x = (price: number) => pad + ((price - bounds.minPrice) / (bounds.maxPrice - bounds.minPrice)) * (width - pad * 2);
-  const y = (temperature: number) => height - pad - ((temperature - bounds.minTemperature) / (bounds.maxTemperature - bounds.minTemperature)) * (height - pad * 2);
+  const innerWidth = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
+  const innerHeight = CHART_HEIGHT - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
+  const priceRange = bounds.maxPrice - bounds.minPrice || 1;
+  const temperatureRange = bounds.maxTemperature - bounds.minTemperature || 1;
+  const x = (price: number) => CHART_PADDING_LEFT + ((price - bounds.minPrice) / priceRange) * innerWidth;
+  const y = (temperature: number) => CHART_PADDING_TOP + innerHeight - ((temperature - bounds.minTemperature) / temperatureRange) * innerHeight;
+  const priceTicks = getStepValues(bounds.minPrice, bounds.maxPrice);
+  const temperatureTicks = getStepValues(bounds.minTemperature, bounds.maxTemperature);
+  const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${x(point.price).toFixed(2)} ${y(point.temperature).toFixed(2)}`).join(" ");
 
-  const updatePoints = (next: ThermostatCurvePoint[]) => {
+  const updatePoints = (next: ThermostatCurvePoint[], selectedPoint?: ThermostatCurvePoint) => {
     const sorted = [...next].sort((a, b) => a.price - b.price);
     setPoints(sorted);
     setJson(stringify(sorted));
+    if (selectedPoint) {
+      setSelectedIndex(sorted.findIndex((point) => point.price === selectedPoint.price && point.temperature === selectedPoint.temperature));
+    }
     setError(null);
+    return sorted;
   };
 
-  const dragPoint = (index: number, event: PointerEvent<SVGCircleElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    const svg = event.currentTarget.ownerSVGElement;
-    if (!svg) return;
+  const getPointFromEvent = (event: PointerEvent<SVGSVGElement>) => {
+    const svg = event.currentTarget;
     const rect = svg.getBoundingClientRect();
-    const px = ((event.clientX - rect.left) / rect.width) * width;
-    const py = ((event.clientY - rect.top) / rect.height) * height;
-    const price = bounds.minPrice + ((Math.max(pad, Math.min(width - pad, px)) - pad) / (width - pad * 2)) * (bounds.maxPrice - bounds.minPrice);
-    const temperature = bounds.minTemperature + ((height - pad - Math.max(pad, Math.min(height - pad, py))) / (height - pad * 2)) * (bounds.maxTemperature - bounds.minTemperature);
+    const px = ((event.clientX - rect.left) / rect.width) * CHART_WIDTH;
+    const py = ((event.clientY - rect.top) / rect.height) * CHART_HEIGHT;
+    const boundedX = Math.max(CHART_PADDING_LEFT, Math.min(CHART_PADDING_LEFT + innerWidth, px));
+    const boundedY = Math.max(CHART_PADDING_TOP, Math.min(CHART_PADDING_TOP + innerHeight, py));
+    const price = Math.max(0, bounds.minPrice + ((boundedX - CHART_PADDING_LEFT) / innerWidth) * priceRange);
+    const temperature = bounds.minTemperature + ((CHART_PADDING_TOP + innerHeight - boundedY) / innerHeight) * temperatureRange;
+
+    return {
+      price: Number(price.toFixed(1)),
+      temperature: Number(temperature.toFixed(1))
+    };
+  };
+
+  const dragPoint = (index: number, event: PointerEvent<SVGSVGElement>) => {
+    const point = getPointFromEvent(event);
     const next = [...points];
-    next[index] = { price: Number(price.toFixed(1)), temperature: Number(temperature.toFixed(1)) };
-    updatePoints(next);
-    setSelectedIndex(next.sort((a, b) => a.price - b.price).findIndex((point) => point.price === Number(price.toFixed(1))));
+    next[index] = point;
+    const sorted = updatePoints(next, point);
+    setDraggingIndex(sorted.findIndex((candidate) => candidate.price === point.price && candidate.temperature === point.temperature));
   };
 
   const applyJson = () => {
@@ -110,15 +151,97 @@ export default function ThermostatCurveDialog({ curveJson, isOpen, labels, onClo
           <button className="secondary-action px-4 py-2 text-sm disabled:opacity-50" disabled={selectedIndex === null || points.length <= 1} onClick={() => { if (selectedIndex !== null) updatePoints(points.filter((_, index) => index !== selectedIndex)); setSelectedIndex(null); }} type="button">{labels.removePoint}</button>
           <button className="secondary-action px-4 py-2 text-sm" onClick={() => updatePoints(DEFAULT_POINTS)} type="button">{labels.reset}</button>
         </div>
-        <div className="overflow-x-auto rounded-xl bg-surface-container p-2">
-          <svg className="min-w-[640px] touch-none" role="img" viewBox={`0 0 ${width} ${height}`}>
-            <line stroke="currentColor" strokeOpacity=".25" x1={pad} x2={width - pad} y1={height - pad} y2={height - pad} />
-            <line stroke="currentColor" strokeOpacity=".25" x1={pad} x2={pad} y1={pad} y2={height - pad} />
-            <polyline fill="none" points={points.map((point) => `${x(point.price)},${y(point.temperature)}`).join(" ")} stroke="currentColor" strokeWidth="3" />
-            {points.map((point, index) => <circle aria-label={`${point.price}, ${point.temperature}`} cx={x(point.price)} cy={y(point.temperature)} fill={selectedIndex === index ? "#ef6c00" : "#1976d2"} key={`${point.price}-${index}`} onPointerDown={() => setSelectedIndex(index)} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) dragPoint(index, event); }} r="8" />)}
-            <text fill="currentColor" fontSize="12" textAnchor="middle" x={width / 2} y={height - 8}>{labels.priceAxis}</text>
-            <text fill="currentColor" fontSize="12" transform={`rotate(-90 14 ${height / 2})`} textAnchor="middle" x="14" y={height / 2}>{labels.temperatureAxis}</text>
+        <div className="rounded-3xl p-3 sm:p-4" style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}>
+          <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
+            <svg
+              aria-label={labels.title}
+              className="aspect-[16/7] h-auto min-w-[46rem] touch-none select-none sm:min-w-0"
+              onPointerCancel={() => setDraggingIndex(null)}
+              onPointerLeave={() => setDraggingIndex(null)}
+              onPointerMove={(event) => {
+                if (draggingIndex !== null) {
+                  dragPoint(draggingIndex, event);
+                }
+              }}
+              onPointerUp={(event) => {
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  event.currentTarget.releasePointerCapture(event.pointerId);
+                }
+                setDraggingIndex(null);
+              }}
+              role="img"
+              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+            >
+              <rect fill="rgb(var(--chart-plot-background))" height={innerHeight} rx="18" width={innerWidth} x={CHART_PADDING_LEFT} y={CHART_PADDING_TOP} />
+
+              {temperatureTicks.map((value) => {
+                const tickY = y(value);
+
+                return (
+                  <g key={`temperature-${value}`}>
+                    <line stroke="rgb(var(--color-outline-variant) / 0.6)" strokeDasharray="6 8" strokeWidth="1" x1={CHART_PADDING_LEFT} x2={CHART_PADDING_LEFT + innerWidth} y1={tickY} y2={tickY} />
+                    <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="end" x={CHART_PADDING_LEFT - 12} y={tickY + 4}>
+                      {formatNumber(value)} C
+                    </text>
+                  </g>
+                );
+              })}
+
+              {priceTicks.map((value) => {
+                const tickX = x(value);
+
+                return (
+                  <g key={`price-${value}`}>
+                    <line stroke="rgb(var(--color-outline-variant) / 0.48)" strokeWidth="1" x1={tickX} x2={tickX} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
+                    <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={tickX} y={CHART_PADDING_TOP + innerHeight + 26}>
+                      {formatNumber(value)}
+                    </text>
+                  </g>
+                );
+              })}
+
+              <path d={linePath} fill="none" stroke="rgb(var(--color-primary))" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+
+              {points.map((point, index) => {
+                const pointX = x(point.price);
+                const pointY = y(point.temperature);
+                const selected = selectedIndex === index;
+                const labelY = Math.max(CHART_PADDING_TOP + 16, pointY - 18);
+
+                return (
+                  <g key={`${point.price}-${point.temperature}-${index}`}>
+                    <line stroke={selected ? "rgb(204 51 51 / 0.62)" : "rgb(var(--color-primary) / 0.22)"} strokeDasharray="4 6" strokeWidth="2" x1={pointX} x2={pointX} y1={pointY} y2={CHART_PADDING_TOP + innerHeight} />
+                    <circle
+                      aria-label={`${formatNumber(point.price)} snt/kWh, ${formatNumber(point.temperature)} C`}
+                      cx={pointX}
+                      cy={pointY}
+                      fill={selected ? "rgb(var(--color-surface-container-lowest))" : "rgb(var(--color-secondary-container))"}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId);
+                        setSelectedIndex(index);
+                        setDraggingIndex(index);
+                      }}
+                      r={selected ? 11 : 9}
+                      role="button"
+                      stroke={selected ? "rgb(204 51 51)" : "rgb(var(--color-primary))"}
+                      strokeWidth="3"
+                      tabIndex={0}
+                    />
+                    <text fill="rgb(var(--color-on-surface))" fontSize="12" fontWeight="800" pointerEvents="none" textAnchor="middle" x={pointX} y={labelY}>
+                      {formatNumber(point.temperature)} C
+                    </text>
+                    <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" pointerEvents="none" textAnchor="middle" x={pointX} y={labelY + 15}>
+                      {formatNumber(point.price)} snt/kWh
+                    </text>
+                  </g>
+                );
+              })}
+
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="13" fontWeight="800" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 14}>{labels.priceAxis}</text>
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="13" fontWeight="800" textAnchor="middle" transform={`rotate(-90 18 ${CHART_PADDING_TOP + innerHeight / 2})`} x="18" y={CHART_PADDING_TOP + innerHeight / 2}>{labels.temperatureAxis}</text>
           </svg>
+          </div>
         </div>
         <label className="block font-headline text-sm font-bold text-on-surface" htmlFor="thermostat-curve-json">{labels.curveJson}</label>
         <textarea className="min-h-48 w-full rounded-xl bg-surface-container-highest p-4 font-mono text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary" id="thermostat-curve-json" onBlur={applyJson} onChange={(event) => setJson(event.target.value)} value={json} />
