@@ -775,8 +775,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         thermostatSaveButton = new Button(t("controlTable.button.addDevice"), e -> {
             if (thermostatDeviceSelect.getValue() == null
-                    || thermostatChannelField.getValue() == null
-                    || thermostatCurveField.getValue().isBlank()) {
+                    || thermostatChannelField.getValue() == null) {
                 return;
             }
 

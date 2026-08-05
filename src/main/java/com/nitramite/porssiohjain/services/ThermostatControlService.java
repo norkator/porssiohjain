@@ -67,11 +67,12 @@ public class ThermostatControlService {
         }
 
         BigDecimal targetTemperature = controlPriceService.getCurrentCombinedPrice(rule.getControl(), now)
-                .map(price -> thermostatCurveService.evaluate(rule.getCurveJson(), price))
-                .orElse(rule.getFallbackTemperature());
+                .map(price -> thermostatCurveService.evaluateOrFallback(
+                        rule.getCurveJson(), price, rule.getFallbackTemperature()))
+                .orElse(null);
 
         if (targetTemperature == null) {
-            log.debug("Skipping thermostat rule {} because current price and fallback temperature are both unavailable", rule.getId());
+            log.debug("Skipping thermostat rule {} because current price, configured curve, or fallback temperature is unavailable", rule.getId());
             return Optional.empty();
         }
 

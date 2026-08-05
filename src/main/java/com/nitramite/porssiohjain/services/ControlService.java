@@ -741,13 +741,12 @@ public class ControlService {
             Optional<BigDecimal> price = controlPriceService.getCurrentCombinedPrice(rule.getControl(), now);
             if (price.isPresent()) {
                 currentCombinedPrice = price.get();
-                targetTemperature = thermostatCurveService.evaluate(rule.getCurveJson(), currentCombinedPrice);
-            } else {
-                targetTemperature = rule.getFallbackTemperature();
+                targetTemperature = thermostatCurveService.evaluateOrFallback(
+                        rule.getCurveJson(), currentCombinedPrice, rule.getFallbackTemperature());
             }
 
             if (targetTemperature == null) {
-                skipReason = "Current price unavailable and fallback temperature is not configured";
+                skipReason = "Current price, configured curve, or fallback temperature is unavailable";
             } else {
                 if (rule.getMinTemperature() != null && targetTemperature.compareTo(rule.getMinTemperature()) < 0) {
                     targetTemperature = rule.getMinTemperature();

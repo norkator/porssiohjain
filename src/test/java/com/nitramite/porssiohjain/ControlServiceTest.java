@@ -542,7 +542,9 @@ class ControlServiceTest {
         when(deviceRepository.findByUuid(deviceUuid)).thenReturn(Optional.of(device));
         when(controlThermostatRepository.findByDevice(device)).thenReturn(List.of(rule));
         when(controlPriceService.getCurrentCombinedPrice(eq(control), any(Instant.class))).thenReturn(Optional.of(new BigDecimal("5.00")));
-        when(thermostatCurveService.evaluate("[]", new BigDecimal("5.00"))).thenReturn(new BigDecimal("21.45"));
+        when(thermostatCurveService.evaluateOrFallback(
+                "[]", new BigDecimal("5.00"), new BigDecimal("20.00")))
+                .thenReturn(new BigDecimal("21.45"));
 
         DeviceThermostatDebugSnapshotResponse snapshot =
                 controlService.getThermostatDebugSnapshotForDevice(deviceUuid.toString());

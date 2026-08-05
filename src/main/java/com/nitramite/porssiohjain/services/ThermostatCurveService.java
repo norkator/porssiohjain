@@ -17,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 
@@ -32,36 +31,15 @@ public class ThermostatCurveService {
         if (points.isEmpty()) {
             throw new IllegalArgumentException("Thermostat curve must contain at least one point");
         }
+        return points.stream()
+                .min(Comparator.comparing(point -> point.price().subtract(price).abs()))
+                .orElseThrow()
+                .temperature();
+    }
 
-        if (points.size() == 1) {
-            return points.getFirst().temperature().setScale(2, RoundingMode.HALF_UP);
-        }
-
-        if (price.compareTo(points.getFirst().price()) <= 0) {
-            return points.getFirst().temperature().setScale(2, RoundingMode.HALF_UP);
-        }
-        if (price.compareTo(points.getLast().price()) >= 0) {
-            return points.getLast().temperature().setScale(2, RoundingMode.HALF_UP);
-        }
-
-        for (int i = 1; i < points.size(); i++) {
-            CurvePoint left = points.get(i - 1);
-            CurvePoint right = points.get(i);
-            if (price.compareTo(right.price()) <= 0) {
-                BigDecimal span = right.price().subtract(left.price());
-                if (span.compareTo(BigDecimal.ZERO) == 0) {
-                    return right.temperature().setScale(2, RoundingMode.HALF_UP);
-                }
-                BigDecimal position = price.subtract(left.price())
-                        .divide(span, 8, RoundingMode.HALF_UP);
-                BigDecimal temperatureDelta = right.temperature().subtract(left.temperature());
-                return left.temperature()
-                        .add(temperatureDelta.multiply(position))
-                        .setScale(2, RoundingMode.HALF_UP);
-            }
-        }
-
-        return points.getLast().temperature().setScale(2, RoundingMode.HALF_UP);
+    public BigDecimal evaluateOrFallback(String curveJson, BigDecimal price, BigDecimal fallbackTemperature) {
+        List<CurvePoint> points = parseCurve(curveJson);
+        return points.isEmpty() ? fallbackTemperature : evaluate(curveJson, price);
     }
 
     public String normalizeCurveJson(String curveJson) {
@@ -74,10 +52,13 @@ public class ThermostatCurveService {
     }
 
     public List<CurvePoint> parseCurve(String curveJson) {
+        if (curveJson == null || curveJson.isBlank()) {
+            return List.of();
+        }
         try {
             List<CurvePoint> points = objectMapper.readValue(curveJson, new TypeReference<>() {});
-            if (points == null || points.isEmpty()) {
-                throw new IllegalArgumentException("Thermostat curve must contain at least one point");
+            if (points == null) {
+                return List.of();
             }
             List<CurvePoint> sorted = points.stream()
                     .peek(point -> {

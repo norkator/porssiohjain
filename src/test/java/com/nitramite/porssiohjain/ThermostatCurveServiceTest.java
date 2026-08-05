@@ -24,7 +24,7 @@ class ThermostatCurveServiceTest {
     private final ThermostatCurveService thermostatCurveService = new ThermostatCurveService();
 
     @Test
-    void interpolatesTemperatureBetweenCurvePoints() {
+    void selectsTemperatureFromClosestCurvePoint() {
         String curveJson = """
                 [
                   {"price":0,"temperature":22.0},
@@ -33,9 +33,25 @@ class ThermostatCurveServiceTest {
                 ]
                 """;
 
-        BigDecimal result = thermostatCurveService.evaluate(curveJson, BigDecimal.valueOf(5));
+        BigDecimal result = thermostatCurveService.evaluate(curveJson, BigDecimal.valueOf(6));
 
-        assertEquals(new BigDecimal("21.00"), result);
+        assertEquals(new BigDecimal("20.0"), result);
+    }
+
+    @Test
+    void usesFallbackOnlyWhenCurveHasNoPoints() {
+        assertEquals(new BigDecimal("19.5"), thermostatCurveService.evaluateOrFallback(
+                "[]", BigDecimal.valueOf(6), new BigDecimal("19.5")));
+    }
+
+    @Test
+    void configuredCurveTakesPrecedenceOverFallback() {
+        String curveJson = """
+                [{"price":2,"temperature":22},{"price":5,"temperature":21}]
+                """;
+
+        assertEquals(new BigDecimal("21"), thermostatCurveService.evaluateOrFallback(
+                curveJson, BigDecimal.valueOf(6), new BigDecimal("17")));
     }
 
     @Test

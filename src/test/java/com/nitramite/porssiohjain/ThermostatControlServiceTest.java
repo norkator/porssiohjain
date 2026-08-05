@@ -88,7 +88,8 @@ class ThermostatControlServiceTest {
 
         when(controlThermostatRepository.findAll()).thenReturn(List.of(rule));
         when(controlPriceService.getCurrentCombinedPrice(any(), any())).thenReturn(Optional.of(BigDecimal.valueOf(8)));
-        when(thermostatCurveService.evaluate("[]", BigDecimal.valueOf(8))).thenReturn(BigDecimal.valueOf(21.5));
+        when(thermostatCurveService.evaluateOrFallback("[]", BigDecimal.valueOf(8), null))
+                .thenReturn(BigDecimal.valueOf(21.5));
         when(controlThermostatRepository.save(any(ControlThermostatEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         thermostatControlService.runScheduledThermostatControls();
@@ -115,7 +116,8 @@ class ThermostatControlServiceTest {
 
         when(controlThermostatRepository.findAll()).thenReturn(List.of(rule));
         when(controlPriceService.getCurrentCombinedPrice(any(), any())).thenReturn(Optional.of(BigDecimal.valueOf(5)));
-        when(thermostatCurveService.evaluate("[]", BigDecimal.valueOf(5))).thenReturn(new BigDecimal("21.40"));
+        when(thermostatCurveService.evaluateOrFallback("[]", BigDecimal.valueOf(5), null))
+                .thenReturn(new BigDecimal("21.40"));
 
         thermostatControlService.runScheduledThermostatControls();
 
@@ -133,7 +135,8 @@ class ThermostatControlServiceTest {
         ZigbeeGatewayDeviceEntity link = ZigbeeGatewayDeviceEntity.builder().device(device).desiredVersion(4).build();
         when(controlThermostatRepository.findAll()).thenReturn(List.of(rule));
         when(controlPriceService.getCurrentCombinedPrice(any(), any())).thenReturn(Optional.of(BigDecimal.ONE));
-        when(thermostatCurveService.evaluate("[]", BigDecimal.ONE)).thenReturn(new BigDecimal("20.50"));
+        when(thermostatCurveService.evaluateOrFallback("[]", BigDecimal.ONE, null))
+                .thenReturn(new BigDecimal("20.50"));
         when(zigbeeGatewayDeviceRepository.findByDeviceId(3L)).thenReturn(Optional.of(link));
 
         thermostatControlService.runScheduledThermostatControls();
