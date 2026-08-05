@@ -236,6 +236,51 @@ class DeviceServiceTest {
     }
 
     @Test
+    void keepsThermostatApiOnlineWithinTenMinutes() {
+        DeviceEntity device = new DeviceEntity();
+        device.setId(7L);
+        device.setDeviceType(DeviceType.THERMOSTAT);
+        device.setDevicePlatform(DevicePlatform.ANDROID_ZIGBEE);
+        device.setApiOnline(true);
+        device.setLastCommunication(Instant.now().minusSeconds(9 * 60));
+
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of(device));
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(any()))
+                .thenReturn(List.of());
+
+        deviceService.checkOfflineDevices();
+
+        assertThat(device.isApiOnline()).isTrue();
+        verify(deviceRepository, never()).save(device);
+    }
+
+    @Test
+    void marksThermostatApiOfflineAfterTenMinutes() {
+        DeviceEntity device = new DeviceEntity();
+        device.setId(8L);
+        device.setDeviceType(DeviceType.THERMOSTAT);
+        device.setDevicePlatform(DevicePlatform.ANDROID_ZIGBEE);
+        device.setApiOnline(true);
+        device.setLastCommunication(Instant.now().minusSeconds(11 * 60));
+
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of(device));
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(any()))
+                .thenReturn(List.of());
+
+        deviceService.checkOfflineDevices();
+
+        assertThat(device.isApiOnline()).isFalse();
+        verify(deviceRepository).save(device);
+        verify(deviceOfflineNotificationService).sendIfDeviceWentOffline(
+                eq(device),
+                eq(true),
+                eq(false),
+                eq("API"),
+                any()
+        );
+    }
+
+    @Test
     void sendsOfflineNotificationWhenMqttDeviceLosesLastOnlineState() {
         DeviceEntity device = new DeviceEntity();
         device.setId(3L);
