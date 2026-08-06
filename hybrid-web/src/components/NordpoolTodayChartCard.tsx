@@ -342,7 +342,7 @@ export default function NordpoolTodayChartCard() {
 
   return (
     <article className="app-card overflow-hidden">
-      <div className="grid grid-cols-1 gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_17rem] lg:p-8">
+      <div className="grid grid-cols-1 gap-6 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <div>
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -413,23 +413,23 @@ export default function NordpoolTodayChartCard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-2">
-          <div className="rounded-3xl bg-surface-container-low p-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2">
+          <div className="rounded-3xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("minimum")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.min)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
-          <div className="rounded-3xl bg-surface-container-low p-5">
+          <div className="rounded-3xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("average")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.avg)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
-          <div className="rounded-3xl bg-surface-container-low p-5">
+          <div className="rounded-3xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("maximum")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.max)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
-          <div className="market-stat-accent">
+          <div className="market-stat-accent p-4">
             <p className="metric-label mb-2 text-primary-fixed">{t("dataPoints")}</p>
             <p className="font-headline text-2xl font-black">{activeChart.points.length}</p>
             <p className="text-xs text-primary-fixed">{t("dayIntervals", { day: activePriceDayLabel })}</p>
