@@ -143,6 +143,19 @@ export default function ThermostatCurveDialog({ curveJson, isOpen, labels, onClo
     }
   };
 
+  const updatePointValue = (index: number, field: keyof ThermostatCurvePoint, value: string) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      setError(labels.invalidJson);
+      return;
+    }
+
+    const next = [...points];
+    const point = { ...next[index], [field]: parsed };
+    next[index] = point;
+    updatePoints(next, point);
+  };
+
   return (
     <AppDialog description={labels.instructions} isOpen={isOpen} maxWidthClassName="max-w-5xl" onClose={onClose} title={labels.title}>
       <div className="space-y-4">
@@ -240,7 +253,46 @@ export default function ThermostatCurveDialog({ curveJson, isOpen, labels, onClo
 
               <text fill="rgb(var(--color-on-surface-variant))" fontSize="13" fontWeight="800" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={CHART_HEIGHT - 14}>{labels.priceAxis}</text>
               <text fill="rgb(var(--color-on-surface-variant))" fontSize="13" fontWeight="800" textAnchor="middle" transform={`rotate(-90 18 ${CHART_PADDING_TOP + innerHeight / 2})`} x="18" y={CHART_PADDING_TOP + innerHeight / 2}>{labels.temperatureAxis}</text>
-          </svg>
+            </svg>
+          </div>
+        </div>
+        <div className="rounded-2xl bg-surface-container p-3 sm:p-4">
+          <p className="metric-label mb-3">{labels.pointTable}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[28rem] border-separate border-spacing-y-2 text-left text-sm">
+              <thead>
+                <tr className="text-on-surface-variant">
+                  <th className="px-2 pb-1 font-headline text-xs font-bold uppercase tracking-[0.16em]">{labels.price}</th>
+                  <th className="px-2 pb-1 font-headline text-xs font-bold uppercase tracking-[0.16em]">{labels.temperature}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {points.map((point, index) => (
+                  <tr key={`row-${index}`}>
+                    <td className="px-2">
+                      <input
+                        className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-3 py-2 text-on-surface outline-none focus:border-primary"
+                        onChange={(event) => updatePointValue(index, "price", event.target.value)}
+                        onFocus={() => setSelectedIndex(index)}
+                        step="1"
+                        type="number"
+                        value={point.price}
+                      />
+                    </td>
+                    <td className="px-2">
+                      <input
+                        className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-3 py-2 text-on-surface outline-none focus:border-primary"
+                        onChange={(event) => updatePointValue(index, "temperature", event.target.value)}
+                        onFocus={() => setSelectedIndex(index)}
+                        step="0.5"
+                        type="number"
+                        value={point.temperature}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
         <label className="block font-headline text-sm font-bold text-on-surface" htmlFor="thermostat-curve-json">{labels.curveJson}</label>
