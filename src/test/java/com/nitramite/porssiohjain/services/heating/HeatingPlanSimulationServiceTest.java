@@ -88,7 +88,8 @@ class HeatingPlanSimulationServiceTest {
                 Duration.ofMinutes(15), Duration.ofHours(2),
                 new BigDecimal("5.0"), new BigDecimal("20.0"),
                 new BigDecimal("23.0"), preheatMaximum, absoluteMaximum,
-                new BigDecimal("19.0"), new BigDecimal("20.0"), new BigDecimal("23.5")
+                new BigDecimal("19.0"), new BigDecimal("20.0"), new BigDecimal("23.5"),
+                new BigDecimal("5.0")
         );
     }
 
@@ -113,8 +114,11 @@ class HeatingPlanSimulationServiceTest {
                 point(start.plus(Duration.ofHours(2)), "25.0")
         ));
         var stove = new HeatingPlanSimulationService.WoodStoveSettings(
-                true, "Normal basket", new BigDecimal("8.0"),
-                Duration.ofMinutes(45), Duration.ofHours(6), new BigDecimal("0.40")
+                true, true, "Normal basket", new BigDecimal("8.0"),
+                Duration.ofMinutes(45), Duration.ofHours(6), new BigDecimal("0.40"),
+                new BigDecimal("0.0"),
+                List.of(new HeatingPlanSimulationService.StoveAvailability(
+                        start, start.plus(Duration.ofHours(12))))
         );
         var request = new HeatingPlanSimulationService.SimulationRequest(
                 base.initialFloorTemperature(), base.initialRoomTemperature(), base.settings(),
@@ -134,5 +138,38 @@ class HeatingPlanSimulationServiceTest {
                 .filter(point -> point.woodRoomHeatingRate().signum() > 0)
                 .map(HeatingPlanSimulationService.SimulationPoint::reason))
                 .allMatch(reason -> reason.contains("wood stove"));
+    }
+
+    @Test
+    void doesNotRecommendWoodWhenStoveIsNotLoaded() {
+        Instant start = Instant.parse("2026-01-15T16:00:00Z");
+        var base = request(List.of(point(start.plus(Duration.ofHours(1)), "25.0")));
+        var stove = new HeatingPlanSimulationService.WoodStoveSettings(
+                true, false, "Normal basket", new BigDecimal("8.0"),
+                Duration.ofMinutes(45), Duration.ofHours(6), new BigDecimal("0.40"),
+                new BigDecimal("0.0"),
+                List.of(new HeatingPlanSimulationService.StoveAvailability(start, start.plus(Duration.ofHours(12))))
+        );
+        var request = new HeatingPlanSimulationService.SimulationRequest(
+                base.initialFloorTemperature(), base.initialRoomTemperature(), base.settings(),
+                base.model(), base.market(), stove
+        );
+
+        assertThat(service.simulate(request).woodStoveRecommendation()).isNull();
+    }
+
+    @Test
+    void keepsOptimizationInactiveWhenForecastStaysAboveActivationTemperature() {
+        Instant start = Instant.parse("2026-01-15T16:00:00Z");
+        var warmPoint = new HeatingPlanSimulationService.MarketPoint(
+                start, new BigDecimal("25.0"), new BigDecimal("8.0"), new BigDecimal("2.0"));
+        var request = request(List.of(warmPoint));
+
+        var result = service.simulate(request);
+
+        assertThat(result.plannerActive()).isFalse();
+        assertThat(result.woodStoveRecommendation()).isNull();
+        assertThat(result.points().getFirst().mode())
+                .isEqualTo(HeatingPlanSimulationService.OperatingMode.INACTIVE);
     }
 }

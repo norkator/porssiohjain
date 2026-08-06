@@ -38,7 +38,11 @@ The intended user-visible scope is the plan for today and tomorrow, plus the exa
 - an optional heat-retaining wood stove with user-configured load amount, delay, release duration, and declining heat effect;
 - an advisory push telling the user when to light the stove.
 
+Heat-pump optimization is explicitly outside this feature's scope. Existing heat pumps control themselves. Their effect is observed indirectly through room-temperature measurements and may reduce the need for floor preheating or a wood recommendation; Heating Planner must not issue heat-pump commands.
+
 Wood cost is intentionally outside the model. Stove operation must remain human-controlled. Floor heating must be suppressed when predicted stove heat covers the room, subject to comfort recovery and safety limits.
+
+Keep two separate configurable weather gates: a forecast temperature below which Heating Planner becomes active (for example +5 °C), and a forecast temperature below which wood may be recommended for the relevant expensive period (for example 0 °C). The UI must explain when either gate suppresses planning.
 
 Before replacing mock data, first define normalized Zigbee temperature/humidity measurement history and persisted room-to-thermostat/sensor ownership. Do not use `DeviceEntity.lastTelemetry` as historical storage. Preserve the existing acknowledged/read-back Zigbee desired-state rules and the current thermostat price-curve controller as a fallback.
 

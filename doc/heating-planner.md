@@ -53,7 +53,9 @@ Every planned action must be selectable in the chart or timeline and expose its 
 
 ### Monitoring stage
 
-Once telemetry persistence exists, the same view becomes the room configuration and monitoring view. It compares planned, simulated, and measured temperatures and shows model error. A room belongs to one site and links exactly one floor thermostat and one room sensor initially. A room may also contain one heat-retaining wood stove, and other configured rooms may receive a reduced share of its heat. Later versions may support several sensors and heating devices.
+Once telemetry persistence exists, the same view becomes the room configuration and monitoring view. It compares planned, simulated, and measured temperatures and shows model error. Configuration is organized as a house/site containing heat zones. A zone normally links one room sensor and zero or more heat sources. Kitchen, shower, toilet, and entrance can each have an independently controlled floor thermostat. The living-room zone can contain the heat-retaining wood stove without floor heating. Other configured rooms may receive a reduced share of stove heat.
+
+A separately controlled heat pump is outside Heating Planner scope. It continues using its own thermostat. Its heating effect is naturally visible in room-temperature measurements, so the planner responds by reducing unnecessary floor preheating or wood recommendations without issuing heat-pump commands.
 
 ## Planning inputs
 
@@ -66,6 +68,13 @@ The planner deliberately uses only:
 - configured thermal response of the floor, room, and wood stove.
 
 Wood price is outside the scope. A wood burn is preferred when it can replace electric heating during a sufficiently expensive period while keeping rooms within their comfort ranges.
+
+Two independent user-defined weather gates apply:
+
+- **Planner active below:** Heating Planner performs floor preheating and wood planning only when at least one forecast point in the today/tomorrow horizon is below this outdoor temperature, for example +5 °C. Above it, existing heating controls continue normally and the optimization plan is visibly inactive.
+- **Recommend wood below:** a wood recommendation is permitted only when forecast outdoor temperature at the expensive period being covered is below this threshold, for example 0 °C.
+
+Both comparisons are strict `below` comparisons. The view must show the configured thresholds, the forecast values used, and the reason when either gate suppresses planning.
 
 ## Sensor roles
 
@@ -97,6 +106,8 @@ notification time = desired heat-release start - configured release delay
 ```
 
 It emits a recommendation rather than operating the stove. The push notification should state the room, configured wood amount/load name, recommended lighting time, expected release interval, expensive interval being covered, and the reason. The user can acknowledge `lit now`, `skip`, or record a different lighting time. Actual lighting time must replace the recommendation in subsequent predictions.
+
+The planner must also require an explicit one-shot **stove loaded** state. A recurring daily availability window means only that the user can light the stove during those hours; it does not mean that wood is prepared every day. A recommendation is allowed only when the stove is loaded and its notification time falls inside an enabled availability window. `Lit now` consumes the loaded state. The user can also clear it manually. Readiness should expire conservatively rather than remain true indefinitely.
 
 The first stove model has a configured delay before useful heat begins, an initial room-heating rate, and a duration over which heat output declines linearly to zero. Later observations can learn the actual curve for each load size.
 
@@ -140,6 +151,7 @@ The Java foundation is `HeatingPlanSimulationService`. It is pure and determinis
 - useful heat-release duration;
 - initial room-heating rate and optional heat shares delivered to adjacent rooms;
 - enabled flag and notification availability window;
+- current one-shot loaded/readiness state and expiry;
 - learned parameters, sample count, and updated timestamp.
 
 Wood monetary cost is intentionally not stored or considered by the planner.
@@ -184,7 +196,7 @@ Do not overload `DeviceEntity.lastTelemetry` as historical storage. Zigbee tempe
 5. Push recommendation workflow with acknowledgement and actual lighting time.
 6. Learned per-room floor and per-load stove thermal parameters.
 7. Active floor control behind an explicit opt-in and conservative safety validation.
-8. Whole-site coordination with power limits, heat pumps, water heating, and other flexible loads.
+8. Whole-house coordination of the configured floor-heating zones and wood-stove heat influence.
 
 ## Acceptance criteria for active control
 

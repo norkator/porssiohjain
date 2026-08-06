@@ -31,6 +31,10 @@ public class HeatingPlanSimulationService {
         List<MarketPoint> market = request.market().stream()
                 .sorted(Comparator.comparing(MarketPoint::time))
                 .toList();
+        boolean plannerActive = market.stream()
+                .map(MarketPoint::outdoorTemperature)
+                .anyMatch(temperature -> temperature.compareTo(
+                        request.settings().plannerActivationOutdoorTemperature()) < 0);
         Duration step = request.settings().step();
         BigDecimal stepHours = BigDecimal.valueOf(step.toMinutes())
                 .divide(BigDecimal.valueOf(60), 8, RoundingMode.HALF_UP);
@@ -39,10 +43,11 @@ public class HeatingPlanSimulationService {
         List<SimulationPoint> points = new ArrayList<>();
         BigDecimal energyKwh = ZERO;
         BigDecimal energyCost = ZERO;
-        WoodStoveRecommendation woodRecommendation = planWoodStove(request, market);
+        WoodStoveRecommendation woodRecommendation = plannerActive ? planWoodStove(request, market) : null;
 
         for (MarketPoint point : market) {
-            OperatingDecision decision = decide(point, market, roomTemperature, request.settings(), woodRecommendation);
+            OperatingDecision decision = decide(point, market, roomTemperature, request.settings(), woodRecommendation,
+                    plannerActive);
             boolean heating = floorTemperature.compareTo(decision.floorSetpoint()) < 0;
             BigDecimal floorToRoom = request.model().floorToRoomRate()
                     .multiply(floorTemperature.subtract(roomTemperature));
@@ -78,18 +83,23 @@ public class HeatingPlanSimulationService {
                 List.copyOf(points),
                 energyKwh.setScale(3, RoundingMode.HALF_UP),
                 energyCost.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP),
-                woodRecommendation
+                woodRecommendation,
+                plannerActive,
+                plannerActive ? "Forecast is below the configured planner activation temperature"
+                        : "Heating optimization is inactive because the forecast stays above the configured activation temperature"
         );
     }
 
     private WoodStoveRecommendation planWoodStove(SimulationRequest request, List<MarketPoint> market) {
         WoodStoveSettings stove = request.woodStove();
-        if (stove == null || !stove.enabled()) {
+        if (stove == null || !stove.enabled() || !stove.loaded()) {
             return null;
         }
         MarketPoint expensiveStart = market.stream()
                 .filter(point -> point.priceCentsPerKwh()
                         .compareTo(request.settings().expensivePriceThreshold()) >= 0)
+                .filter(point -> point.outdoorTemperature()
+                        .compareTo(stove.woodRecommendationOutdoorTemperature()) < 0)
                 .findFirst()
                 .orElse(null);
         if (expensiveStart == null
@@ -98,6 +108,11 @@ public class HeatingPlanSimulationService {
         }
         Instant releaseStartsAt = expensiveStart.time();
         Instant notifyAt = releaseStartsAt.minus(stove.releaseDelay());
+        boolean userAvailable = stove.availability().stream()
+                .anyMatch(window -> !notifyAt.isBefore(window.from()) && !notifyAt.isAfter(window.to()));
+        if (!userAvailable) {
+            return null;
+        }
         return new WoodStoveRecommendation(
                 stove.loadName(), stove.woodAmount(), notifyAt, releaseStartsAt,
                 releaseStartsAt.plus(stove.releaseDuration()), stove.initialRoomHeatingRate(),
@@ -119,7 +134,11 @@ public class HeatingPlanSimulationService {
 
     private OperatingDecision decide(MarketPoint current, List<MarketPoint> market,
                                      BigDecimal roomTemperature, Settings settings,
-                                     WoodStoveRecommendation woodRecommendation) {
+                                     WoodStoveRecommendation woodRecommendation, boolean plannerActive) {
+        if (!plannerActive) {
+            return new OperatingDecision(settings.normalFloorTemperature(), OperatingMode.INACTIVE,
+                    "Forecast stays above the configured Heating Planner activation temperature");
+        }
         if (roomTemperature.compareTo(settings.maximumRoomTemperature()) >= 0) {
             return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,
                     "Room temperature is at the configured comfort maximum; suppress electric heating");
@@ -176,6 +195,9 @@ public class HeatingPlanSimulationService {
                 || request.woodStove().initialRoomHeatingRate().signum() < 0)) {
             throw new IllegalArgumentException("Wood-stove delay, duration, and heating rate must be valid");
         }
+        if (request.woodStove() != null && request.woodStove().availability() == null) {
+            throw new IllegalArgumentException("Wood-stove availability is required");
+        }
         if (request.model().heaterPowerKw().signum() < 0
                 || request.model().floorHeatingRate().signum() < 0
                 || request.model().floorToRoomRate().signum() < 0
@@ -205,7 +227,8 @@ public class HeatingPlanSimulationService {
             BigDecimal absoluteMaximumFloorTemperature,
             BigDecimal dischargeFloorSetpoint,
             BigDecimal minimumRoomTemperature,
-            BigDecimal maximumRoomTemperature
+            BigDecimal maximumRoomTemperature,
+            BigDecimal plannerActivationOutdoorTemperature
     ) {
     }
 
@@ -228,11 +251,20 @@ public class HeatingPlanSimulationService {
 
     public record WoodStoveSettings(
             boolean enabled,
+            boolean loaded,
             String loadName,
             BigDecimal woodAmount,
             Duration releaseDelay,
             Duration releaseDuration,
-            BigDecimal initialRoomHeatingRate
+            BigDecimal initialRoomHeatingRate,
+            BigDecimal woodRecommendationOutdoorTemperature,
+            List<StoveAvailability> availability
+    ) {
+    }
+
+    public record StoveAvailability(
+            Instant from,
+            Instant to
     ) {
     }
 
@@ -254,7 +286,9 @@ public class HeatingPlanSimulationService {
             List<SimulationPoint> points,
             BigDecimal energyKwh,
             BigDecimal estimatedCostEur,
-            WoodStoveRecommendation woodStoveRecommendation
+            WoodStoveRecommendation woodStoveRecommendation,
+            boolean plannerActive,
+            String plannerStatusReason
     ) {
     }
 
@@ -274,6 +308,7 @@ public class HeatingPlanSimulationService {
 
     public enum OperatingMode {
         NORMAL,
+        INACTIVE,
         PREHEAT,
         DISCHARGE,
         COMFORT_RECOVERY
