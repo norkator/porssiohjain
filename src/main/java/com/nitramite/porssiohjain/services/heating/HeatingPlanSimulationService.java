@@ -42,7 +42,7 @@ public class HeatingPlanSimulationService {
         WoodStoveRecommendation woodRecommendation = planWoodStove(request, market);
 
         for (MarketPoint point : market) {
-            OperatingDecision decision = decide(point, market, roomTemperature, request.settings());
+            OperatingDecision decision = decide(point, market, roomTemperature, request.settings(), woodRecommendation);
             boolean heating = floorTemperature.compareTo(decision.floorSetpoint()) < 0;
             BigDecimal floorToRoom = request.model().floorToRoomRate()
                     .multiply(floorTemperature.subtract(roomTemperature));
@@ -118,10 +118,19 @@ public class HeatingPlanSimulationService {
     }
 
     private OperatingDecision decide(MarketPoint current, List<MarketPoint> market,
-                                     BigDecimal roomTemperature, Settings settings) {
+                                     BigDecimal roomTemperature, Settings settings,
+                                     WoodStoveRecommendation woodRecommendation) {
+        if (roomTemperature.compareTo(settings.maximumRoomTemperature()) >= 0) {
+            return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,
+                    "Room temperature is at the configured comfort maximum; suppress electric heating");
+        }
         if (roomTemperature.compareTo(settings.minimumRoomTemperature()) < 0) {
             return new OperatingDecision(settings.normalFloorTemperature(), OperatingMode.COMFORT_RECOVERY,
                     "Room temperature is below the configured comfort minimum");
+        }
+        if (woodHeatRateAt(current.time(), woodRecommendation).signum() > 0) {
+            return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,
+                    "The wood stove is predicted to release heat; suppress electric floor heating");
         }
         if (current.priceCentsPerKwh().compareTo(settings.expensivePriceThreshold()) >= 0) {
             return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,

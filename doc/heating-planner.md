@@ -115,7 +115,7 @@ room change  = heat received from floor + wood-stove heat - heat lost to outdoor
 
 Parameters are deliberately expressed as rates rather than claiming a precise physical building model. They can initially be user-editable estimates and later be learned from observed heating cycles.
 
-The Java foundation is `ThermalStorageSimulationService`. It is pure and deterministic: a Vaadin view can submit a scenario and chart the returned snapshots without activating a physical device.
+The Java foundation is `HeatingPlanSimulationService`. It is pure and deterministic: a Vaadin view can submit a scenario and chart the returned snapshots without activating a physical device.
 
 ## Proposed persistence (monitoring stage)
 

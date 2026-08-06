@@ -130,5 +130,9 @@ class HeatingPlanSimulationServiceTest {
                 .isEqualTo(Instant.parse("2026-01-15T17:00:00Z"));
         assertThat(result.points()).extracting(HeatingPlanSimulationService.SimulationPoint::woodRoomHeatingRate)
                 .anyMatch(rate -> rate.signum() > 0);
+        assertThat(result.points().stream()
+                .filter(point -> point.woodRoomHeatingRate().signum() > 0)
+                .map(HeatingPlanSimulationService.SimulationPoint::reason))
+                .allMatch(reason -> reason.contains("wood stove"));
     }
 }
