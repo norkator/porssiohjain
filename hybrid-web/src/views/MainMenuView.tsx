@@ -308,7 +308,7 @@ export default function MainMenuView() {
         </div>
         <div>
           <h3 className="text-xl font-bold transition-colors duration-300 group-hover:text-primary">{tile.title}</h3>
-          <p className={`mt-2 text-sm leading-6 ${tile.hasError ? "text-on-error-container" : "text-on-surface-variant"}`}>
+          <p className={`text-sm ${tile.hasError ? "text-on-error-container" : "text-on-surface-variant"}`}>
             {tile.detail}
           </p>
         </div>
@@ -910,7 +910,7 @@ export default function MainMenuView() {
             <span className="h-1 w-8 rounded-full bg-primary" />
             {t("siteOwn")}
           </h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {siteOwnTiles.map((tile) => (
               tile.to ? (
                 <Link className={siteOwnTileClassName} key={tile.key} to={tile.to}>
