@@ -43,6 +43,7 @@ const SAVINGS_CHART_PADDING_TOP = 22;
 const SAVINGS_CHART_PADDING_BOTTOM = 38;
 const SAVINGS_CHART_Y_AXIS_STEPS = 4;
 const SAVINGS_CHART_LABEL_SIZE = 10;
+const ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller";
 
 type SiteOwnTile = {
   key: string;
@@ -260,6 +261,14 @@ export default function MainMenuView() {
     { key: "ownProduction", title: tileTitles.ownProduction, detail: ownProductionDetail, to: "/production-sources", icon: "P", hasError: Boolean(statsError) },
     { key: "powerLimits", title: tileTitles.powerLimits, detail: powerLimitsDetail, to: "/power-limits", icon: "L", hasError: Boolean(statsError) }
   ];
+  const handleOpenZigbeeUsbLab = () => {
+    if (session.source === "android") {
+      openNativeScreen("zigbeeUsb");
+      return;
+    }
+
+    window.open(ANDROID_APP_URL, "_blank", "noreferrer");
+  };
   const siteOwnTiles: SiteOwnTile[] = [
     {
       key: "accountSettings",
@@ -285,14 +294,14 @@ export default function MainMenuView() {
       icon: "E",
       hasError: contractsError
     },
-    ...(session.source === "android" || import.meta.env.DEV ? [{
+    {
       key: "zigbeeUsbLab",
       title: t("zigbeeUsbLabTitle"),
       detail: t("zigbeeUsbLabDescription"),
-      onClick: () => openNativeScreen("zigbeeUsb"),
+      onClick: handleOpenZigbeeUsbLab,
       icon: "Z",
       hasError: false
-    }] : [])
+    }
   ];
   const siteOwnTileClassName = "group relative overflow-hidden rounded-xl bg-surface-container-low p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98] sm:p-6";
   const renderSiteOwnTileContent = (tile: typeof siteOwnTiles[number]) => (
@@ -975,7 +984,7 @@ export default function MainMenuView() {
               </div>
               <a
                 className="transition-transform duration-300 hover:-translate-y-0.5"
-                href="https://play.google.com/store/apps/details?id=com.nitramite.energycontroller"
+                href={ANDROID_APP_URL}
                 rel="noreferrer"
                 target="_blank"
               >
