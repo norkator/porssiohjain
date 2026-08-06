@@ -1,4 +1,5 @@
 import ThermostatCurveDialog from "@/components/ThermostatCurveDialog";
+import AppDialog from "@/components/AppDialog";
 import { addControlThermostatLink, deleteControlThermostatLink, fetchControlThermostatLinks, updateControlThermostatLink, type ControlThermostatLink, type ControlThermostatLinkPayload } from "@/lib/controls";
 import { fetchDevices, type ApiDevice } from "@/lib/devices";
 import { useI18n } from "@/lib/i18n";
@@ -24,6 +25,7 @@ export default function ControlThermostatsCard({ controlId, isReadOnly }: { cont
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [curveOpen, setCurveOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,12 +43,24 @@ export default function ControlThermostatsCard({ controlId, isReadOnly }: { cont
     setMinTemperature(""); setMaxTemperature(""); setFallbackTemperature(""); setEstimatedPowerKw(""); setEnabled(true);
   };
 
+  const openCreateForm = () => {
+    reset();
+    setIsFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setIsFormOpen(false);
+    setCurveOpen(false);
+    reset();
+  };
+
   const edit = (link: ControlThermostatLink) => {
     setEditingId(link.id); setDeviceId(String(link.deviceId)); setChannel(String(link.thermostatChannel)); setCurveJson(link.curveJson);
     setMinTemperature(link.minTemperature === null ? "" : String(link.minTemperature));
     setMaxTemperature(link.maxTemperature === null ? "" : String(link.maxTemperature));
     setFallbackTemperature(link.fallbackTemperature === null ? "" : String(link.fallbackTemperature));
     setEstimatedPowerKw(link.estimatedPowerKw === null ? "" : String(link.estimatedPowerKw)); setEnabled(link.enabled);
+    setIsFormOpen(true);
   };
 
   const submit = async (event: FormEvent) => {
@@ -57,19 +71,22 @@ export default function ControlThermostatsCard({ controlId, isReadOnly }: { cont
     try {
       if (editingId === null) await addControlThermostatLink(controlId, payload);
       else await updateControlThermostatLink(editingId, payload);
-      setLinks(await fetchControlThermostatLinks(controlId)); reset();
+      setLinks(await fetchControlThermostatLinks(controlId)); closeForm();
     } catch (reason) { setError(reason instanceof Error ? reason.message : t("failedSaveThermostat")); }
     finally { setIsSaving(false); }
   };
 
   const remove = async (id: number) => {
     setError(null);
-    try { await deleteControlThermostatLink(id); setLinks((current) => current.filter((link) => link.id !== id)); if (editingId === id) reset(); }
+    try { await deleteControlThermostatLink(id); setLinks((current) => current.filter((link) => link.id !== id)); if (editingId === id) closeForm(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : t("failedRemoveThermostat")); }
     setDeletingId(null);
   };
 
   return <>
+    {!isReadOnly ? <div className="mb-4 flex justify-end">
+      <button className="primary-action px-5 py-3 text-base" onClick={openCreateForm} type="button">{t("linkThermostatDevice")}</button>
+    </div> : null}
     {links.length === 0 ? <p className="text-sm text-on-surface-variant">{t("noThermostatLinks")}</p> : null}
     <div className="space-y-3">
       {links.map((link) => <div className="rounded-xl bg-surface-container p-4" key={link.id}>
@@ -86,18 +103,26 @@ export default function ControlThermostatsCard({ controlId, isReadOnly }: { cont
         <pre className="mt-3 max-h-32 overflow-auto rounded-lg bg-surface-container-highest p-3 text-xs text-on-surface">{link.curveJson}</pre>
       </div>)}
     </div>
-    {!isReadOnly ? <form className="mt-6 space-y-4 border-t border-outline-variant/50 pt-6" onSubmit={submit}>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <label className="text-sm font-bold">{t("device")}<select className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-3 font-normal" onChange={(e) => setDeviceId(e.target.value)} value={deviceId}><option value="">{t("selectThermostatDevice")}</option>{devices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}</select></label>
-        <label className="text-sm font-bold">{common("channel")}<input className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-3 font-normal" min="0" onChange={(e) => setChannel(e.target.value)} step="1" type="number" value={channel} /></label>
-        {[[t("minTemperature"), minTemperature, setMinTemperature], [t("maxTemperature"), maxTemperature, setMaxTemperature], [t("fallbackTemperature"), fallbackTemperature, setFallbackTemperature], [t("estimatedKw"), estimatedPowerKw, setEstimatedPowerKw]].map(([label, value, setter]) => <label className="text-sm font-bold" key={String(label)}>{label as string}<input className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-3 font-normal" onChange={(e) => (setter as (value: string) => void)(e.target.value)} step="0.1" type="number" value={value as string} /></label>)}
-        <label className="flex items-center justify-between rounded-xl bg-surface-container p-4 text-sm font-bold">{common("enabled")}<input checked={enabled} onChange={(e) => setEnabled(e.target.checked)} type="checkbox" /></label>
-        <button className="secondary-action justify-center" onClick={() => setCurveOpen(true)} type="button">{t("editCurve")}</button>
-      </div>
-      <textarea className="min-h-40 w-full rounded-xl bg-surface-container-highest p-4 font-mono text-xs" onChange={(e) => setCurveJson(e.target.value)} value={curveJson} />
-      <div className="flex gap-3"><button className="primary-action disabled:opacity-50" disabled={isSaving || !deviceId} type="submit">{isSaving ? t("saving") : editingId === null ? t("linkThermostatDevice") : t("saveThermostatRule")}</button>{editingId !== null ? <button className="secondary-action" onClick={reset} type="button">{common("cancel")}</button> : null}</div>
-    </form> : null}
     {error ? <div className="mt-4 rounded-xl bg-error-container/50 p-4 text-sm text-on-error-container">{error}</div> : null}
+    {!isReadOnly ? <AppDialog
+      description={editingId === null ? t("thermostatCreateDialogDescription") : t("thermostatEditDialogDescription")}
+      isOpen={isFormOpen}
+      maxWidthClassName="max-w-4xl"
+      onClose={closeForm}
+      title={editingId === null ? t("thermostatCreateDialogTitle") : t("thermostatEditDialogTitle")}
+    >
+      <form className="space-y-4" onSubmit={submit}>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <label className="text-sm font-bold">{t("device")}<select className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-3 font-normal" onChange={(e) => setDeviceId(e.target.value)} value={deviceId}><option value="">{t("selectThermostatDevice")}</option>{devices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}</select></label>
+          <label className="text-sm font-bold">{common("channel")}<input className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-3 font-normal" min="0" onChange={(e) => setChannel(e.target.value)} step="1" type="number" value={channel} /></label>
+          {[[t("minTemperature"), minTemperature, setMinTemperature], [t("maxTemperature"), maxTemperature, setMaxTemperature], [t("fallbackTemperature"), fallbackTemperature, setFallbackTemperature], [t("estimatedKw"), estimatedPowerKw, setEstimatedPowerKw]].map(([label, value, setter]) => <label className="text-sm font-bold" key={String(label)}>{label as string}<input className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-3 font-normal" onChange={(e) => (setter as (value: string) => void)(e.target.value)} step="0.1" type="number" value={value as string} /></label>)}
+          <label className="flex items-center justify-between rounded-xl bg-surface-container p-4 text-sm font-bold">{common("enabled")}<input checked={enabled} onChange={(e) => setEnabled(e.target.checked)} type="checkbox" /></label>
+          <button className="secondary-action justify-center" onClick={() => setCurveOpen(true)} type="button">{t("editCurve")}</button>
+        </div>
+        <label className="block text-sm font-bold">{t("curveJson")}<textarea className="mt-2 min-h-40 w-full rounded-xl bg-surface-container-highest p-4 font-mono text-xs font-normal" onChange={(e) => setCurveJson(e.target.value)} value={curveJson} /></label>
+        <div className="flex flex-col gap-3 sm:flex-row"><button className="primary-action justify-center disabled:opacity-50" disabled={isSaving || !deviceId} type="submit">{isSaving ? t("saving") : editingId === null ? t("linkThermostatDevice") : t("saveThermostatRule")}</button><button className="secondary-action justify-center" onClick={closeForm} type="button">{common("cancel")}</button></div>
+      </form>
+    </AppDialog> : null}
     <ThermostatCurveDialog curveJson={curveJson} isOpen={curveOpen} labels={{ title: t("curveDialogTitle"), instructions: t("curveDialogInstructions"), addPoint: t("addPoint"), removePoint: t("removeSelectedPoint"), reset: t("resetCurve"), curveJson: t("curveJson"), invalidJson: t("invalidCurveJson"), priceAxis: t("priceAxis"), temperatureAxis: t("temperatureAxis"), cancel: common("cancel"), save: common("save") }} onClose={() => setCurveOpen(false)} onSave={(value) => { setCurveJson(value); setCurveOpen(false); }} />
   </>;
 }
