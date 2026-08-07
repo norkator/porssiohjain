@@ -289,6 +289,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             loadConfiguration(configurationService, account == null ? null : account.getId(), event.getValue(),
                     loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                     taxPercent, transferContract, roomRows, rooms, thermostats, transferContracts);
+            savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                    event.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                    taxPercent, transferContract);
             calculate.run();
         });
         updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, siteSelect.getValue());
@@ -635,6 +638,18 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private BigDecimal decimalOrDefault(Double value, String fallback) {
         return value == null ? new BigDecimal(fallback) : BigDecimal.valueOf(value);
+    }
+
+    private Optional<SiteEntity> preferredSite(List<SiteEntity> sites, Optional<Long> preferredSiteId) {
+        if (preferredSiteId.isPresent()) {
+            Optional<SiteEntity> preferred = sites.stream()
+                    .filter(site -> site.getId().equals(preferredSiteId.get()))
+                    .findFirst();
+            if (preferred.isPresent()) {
+                return preferred;
+            }
+        }
+        return sites.stream().filter(SiteEntity::getEnabled).findFirst();
     }
 
     private void savePlannerSettingsSilently(HeatingPlannerConfigurationService configurationService, Long accountId,
