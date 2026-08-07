@@ -139,7 +139,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
         Grid<RoomOverview> rooms = roomOverviewGrid(roomRows, thermostats);
         Button addRoom = new Button("Add room", VaadinIcon.PLUS.create(), event -> {
-            roomRows.add(new RoomOverview("New room", HeatSource.FLOOR_HEATING, null, "Temperature sensor type pending"));
+            roomRows.add(new RoomOverview("New room", HeatSource.FLOOR_HEATING, new BigDecimal("21.00"),
+                    null, "Temperature sensor type pending"));
             rooms.getDataProvider().refreshAll();
         });
         addRoom.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
@@ -230,6 +231,21 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             return heatSource;
         }).setHeader("Heat source").setFlexGrow(1);
         grid.addComponentColumn(row -> {
+            NumberField target = new NumberField();
+            target.setValue(row.targetRoomTemperature().doubleValue());
+            target.setMin(5);
+            target.setMax(35);
+            target.setStep(0.25);
+            target.setSuffixComponent(new Span("°C"));
+            target.setWidthFull();
+            target.addValueChangeListener(event -> {
+                if (event.getValue() != null) {
+                    row.setTargetRoomTemperature(BigDecimal.valueOf(event.getValue()));
+                }
+            });
+            return target;
+        }).setHeader("Comfort target").setFlexGrow(1);
+        grid.addComponentColumn(row -> {
             ComboBox<DeviceEntity> controller = new ComboBox<>();
             controller.setItems(thermostats);
             controller.setItemLabelGenerator(this::deviceLabel);
@@ -254,7 +270,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 roomRows.remove(row);
                 grid.getDataProvider().refreshAll();
             });
-            delete.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
+            delete.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
             delete.getElement().setAttribute("aria-label", "Delete room");
             return delete;
         }).setHeader("").setWidth("70px").setFlexGrow(0);
@@ -407,11 +423,16 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private List<RoomOverview> defaultRoomRows() {
         return new ArrayList<>(List.of(
-                new RoomOverview("Living room", HeatSource.WOOD_STOVE, null, "Temperature sensor type pending"),
-                new RoomOverview("Kitchen", HeatSource.FLOOR_HEATING, null, "Temperature sensor type pending"),
-                new RoomOverview("Shower", HeatSource.FLOOR_HEATING, null, "Temperature sensor type pending"),
-                new RoomOverview("Toilet", HeatSource.FLOOR_HEATING, null, "Temperature sensor type pending"),
-                new RoomOverview("Entrance", HeatSource.FLOOR_HEATING, null, "Temperature sensor type pending")
+                new RoomOverview("Living room", HeatSource.WOOD_STOVE, new BigDecimal("21.00"),
+                        null, "Temperature sensor type pending"),
+                new RoomOverview("Kitchen", HeatSource.FLOOR_HEATING, new BigDecimal("21.00"),
+                        null, "Temperature sensor type pending"),
+                new RoomOverview("Shower", HeatSource.FLOOR_HEATING, new BigDecimal("22.00"),
+                        null, "Temperature sensor type pending"),
+                new RoomOverview("Toilet", HeatSource.FLOOR_HEATING, new BigDecimal("21.00"),
+                        null, "Temperature sensor type pending"),
+                new RoomOverview("Entrance", HeatSource.FLOOR_HEATING, new BigDecimal("19.00"),
+                        null, "Temperature sensor type pending")
         ));
     }
 
@@ -494,12 +515,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private static final class RoomOverview {
         private String room;
         private HeatSource heatSource;
+        private BigDecimal targetRoomTemperature;
         private DeviceEntity controller;
         private String roomSensor;
 
-        private RoomOverview(String room, HeatSource heatSource, DeviceEntity controller, String roomSensor) {
+        private RoomOverview(String room, HeatSource heatSource, BigDecimal targetRoomTemperature,
+                             DeviceEntity controller, String roomSensor) {
             this.room = room;
             this.heatSource = heatSource;
+            this.targetRoomTemperature = targetRoomTemperature;
             this.controller = controller;
             this.roomSensor = roomSensor;
         }
@@ -518,6 +542,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
         private void setHeatSource(HeatSource heatSource) {
             this.heatSource = heatSource;
+        }
+
+        private BigDecimal targetRoomTemperature() {
+            return targetRoomTemperature;
+        }
+
+        private void setTargetRoomTemperature(BigDecimal targetRoomTemperature) {
+            this.targetRoomTemperature = targetRoomTemperature;
         }
 
         private DeviceEntity controller() {
