@@ -16,6 +16,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,6 +72,30 @@ public class HeatingPlannerSettingsEntity {
     private ElectricityContractEntity transferContract;
 
     @Builder.Default
+    @Column(name = "stove_loaded", nullable = false)
+    private boolean stoveLoaded = false;
+
+    @Builder.Default
+    @Column(name = "stove_available_from")
+    private LocalTime stoveAvailableFrom = LocalTime.of(6, 0);
+
+    @Builder.Default
+    @Column(name = "stove_available_to")
+    private LocalTime stoveAvailableTo = LocalTime.of(22, 0);
+
+    @Builder.Default
+    @Column(name = "wood_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal woodAmount = new BigDecimal("8.00");
+
+    @Builder.Default
+    @Column(name = "wood_release_delay_minutes", nullable = false)
+    private Integer woodReleaseDelayMinutes = 45;
+
+    @Builder.Default
+    @Column(name = "wood_release_duration_minutes", nullable = false)
+    private Integer woodReleaseDurationMinutes = 360;
+
+    @Builder.Default
     @Column(name = "cheap_price_threshold", nullable = false, precision = 10, scale = 4)
     private BigDecimal cheapPriceThreshold = new BigDecimal("5.0000");
 
@@ -118,6 +143,11 @@ public class HeatingPlannerSettingsEntity {
         if (plannerActiveBelowTemperature == null) plannerActiveBelowTemperature = new BigDecimal("5.00");
         if (woodRecommendationBelowTemperature == null) woodRecommendationBelowTemperature = new BigDecimal("0.00");
         if (taxPercent == null) taxPercent = new BigDecimal("25.50");
+        if (stoveAvailableFrom == null) stoveAvailableFrom = LocalTime.of(6, 0);
+        if (stoveAvailableTo == null) stoveAvailableTo = LocalTime.of(22, 0);
+        if (woodAmount == null) woodAmount = new BigDecimal("8.00");
+        if (woodReleaseDelayMinutes == null) woodReleaseDelayMinutes = 45;
+        if (woodReleaseDurationMinutes == null) woodReleaseDurationMinutes = 360;
         if (cheapPriceThreshold == null) cheapPriceThreshold = new BigDecimal("5.0000");
         if (expensivePriceThreshold == null) expensivePriceThreshold = new BigDecimal("20.0000");
         if (preheatLookAheadMinutes == null) preheatLookAheadMinutes = 360;

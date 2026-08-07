@@ -170,13 +170,20 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         NumberField releaseDuration = numberField("Heat release duration (hours)", 6, 0.25, 48);
         NumberField plannerWeatherThreshold = numberField("Planner active below (°C)", 5, -40, 20);
         NumberField woodWeatherThreshold = numberField("Recommend wood below (°C)", 0, -40, 20);
-        FormLayout stoveForm = new FormLayout(loaded, availableFrom, availableTo, woodAmount, releaseDelay,
-                releaseDuration, plannerWeatherThreshold, woodWeatherThreshold);
+        FormLayout stoveForm = new FormLayout(loaded, availableFrom, availableTo);
         stoveForm.setWidthFull();
         stoveForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("650px", 3));
-        Details stoveConfiguration = new Details("Wood stove availability and heat profile", stoveForm);
+        Details stoveConfiguration = new Details("Wood stove availability", stoveForm);
         stoveConfiguration.setWidthFull();
         stoveConfiguration.setOpened(false);
+        FormLayout stoveHeatProfileForm = new FormLayout(woodAmount, releaseDelay, releaseDuration,
+                plannerWeatherThreshold, woodWeatherThreshold);
+        stoveHeatProfileForm.setWidthFull();
+        stoveHeatProfileForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("650px", 3));
+        Details stoveHeatProfileConfiguration = new Details("Wood stove heat profile", stoveHeatProfileForm);
+        stoveHeatProfileConfiguration.setWidthFull();
+        stoveHeatProfileConfiguration.setOpened(false);
 
         Grid<RoomOverview> rooms = roomOverviewGrid(roomRows, thermostats);
         Button addRoom = new Button("Add room", VaadinIcon.PLUS.create(), event -> {
@@ -223,7 +230,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 decimalOrDefault(plannerWeatherThreshold.getValue(), "5.00"),
                                 decimalOrDefault(woodWeatherThreshold.getValue(), "0.00"),
                                 decimalOrDefault(taxPercent.getValue(), "25.50"),
-                                transferContract.getValue() == null ? null : transferContract.getValue().getId()
+                                transferContract.getValue() == null ? null : transferContract.getValue().getId(),
+                                loaded.getValue(),
+                                availableFrom.getValue(),
+                                availableTo.getValue(),
+                                decimalOrDefault(woodAmount.getValue(), "8.00"),
+                                minutesFromHours(releaseDelay.getValue(), 45),
+                                minutesFromHours(releaseDuration.getValue(), 360)
                         ),
                         roomRows.stream()
                                 .map(row -> new HeatingPlannerConfigurationService.RoomConfiguration(
@@ -251,7 +264,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             }
             try {
                 savePlannerSettings(configurationService, account.getId(), selectedSite, plannerEnabled,
-                        plannerWeatherThreshold, woodWeatherThreshold, taxPercent, transferContract);
+                        plannerWeatherThreshold, woodWeatherThreshold, taxPercent, transferContract,
+                        loaded, availableFrom, availableTo, woodAmount, releaseDelay, releaseDuration);
                 Notification.show(event.getValue() ? "Heating Planner enabled" : "Heating Planner disabled")
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             } catch (IllegalArgumentException ex) {
@@ -265,7 +279,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             if (!loadingConfiguration.get()) {
                 savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                        taxPercent, transferContract);
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
                 calculate.run();
             }
         });
@@ -273,7 +288,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             if (!loadingConfiguration.get()) {
                 savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                        taxPercent, transferContract);
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
                 calculate.run();
             }
         });
@@ -281,7 +297,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             if (!loadingConfiguration.get()) {
                 savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                        taxPercent, transferContract);
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
                 calculate.run();
             }
         });
@@ -289,7 +306,62 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             if (!loadingConfiguration.get()) {
                 savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                        taxPercent, transferContract);
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
+                calculate.run();
+            }
+        });
+        loaded.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
+                calculate.run();
+            }
+        });
+        availableFrom.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
+                calculate.run();
+            }
+        });
+        availableTo.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
+                calculate.run();
+            }
+        });
+        woodAmount.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
+                calculate.run();
+            }
+        });
+        releaseDelay.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
+                calculate.run();
+            }
+        });
+        releaseDuration.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration);
                 calculate.run();
             }
         });
@@ -298,20 +370,24 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             updateWeatherForecastChart(weatherForecastChartHost, event.getValue());
             loadConfiguration(configurationService, account == null ? null : account.getId(), event.getValue(),
                     loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                    taxPercent, transferContract, roomRows, rooms, thermostats, transferContracts);
+                    taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                    releaseDelay, releaseDuration, roomRows, rooms, thermostats, transferContracts);
             savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                     event.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                    taxPercent, transferContract);
+                    taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                    releaseDelay, releaseDuration);
             calculate.run();
         });
         updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, siteSelect.getValue());
         updateWeatherForecastChart(weatherForecastChartHost, siteSelect.getValue());
         loadConfiguration(configurationService, account == null ? null : account.getId(), siteSelect.getValue(),
                 loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                taxPercent, transferContract, roomRows, rooms, thermostats, transferContracts);
+                taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                releaseDelay, releaseDuration, roomRows, rooms, thermostats, transferContracts);
         calculate.run();
 
-        card.add(back, heading, summary, siteConfiguration, roomConfiguration, stoveConfiguration, recalculate, planHost);
+        card.add(back, heading, summary, siteConfiguration, roomConfiguration, stoveConfiguration,
+                stoveHeatProfileConfiguration, recalculate, planHost);
         add(card);
     }
 
@@ -526,9 +602,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 new BigDecimal("0.06"), new BigDecimal("0.012"), new BigDecimal("0.001"));
         List<HeatingPlanSimulationService.StoveAvailability> availability = List.of(
                 new HeatingPlanSimulationService.StoveAvailability(
-                        start.with(availableFrom).toInstant(), start.with(availableTo).toInstant()),
+                        start.with(timeOrDefault(availableFrom, LocalTime.of(6, 0))).toInstant(),
+                        start.with(timeOrDefault(availableTo, LocalTime.of(22, 0))).toInstant()),
                 new HeatingPlanSimulationService.StoveAvailability(
-                        start.plusDays(1).with(availableFrom).toInstant(), start.plusDays(1).with(availableTo).toInstant())
+                        start.plusDays(1).with(timeOrDefault(availableFrom, LocalTime.of(6, 0))).toInstant(),
+                        start.plusDays(1).with(timeOrDefault(availableTo, LocalTime.of(22, 0))).toInstant())
         );
         var stove = new HeatingPlanSimulationService.WoodStoveSettings(true, stoveLoaded, "Static wood load",
                 BigDecimal.valueOf(woodAmount), Duration.ofMinutes(Math.round(releaseDelayHours * 60)),
@@ -651,6 +729,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return value == null ? new BigDecimal(fallback) : BigDecimal.valueOf(value);
     }
 
+    private Integer minutesFromHours(Double value, int fallbackMinutes) {
+        return value == null ? fallbackMinutes : Math.toIntExact(Math.round(value * 60));
+    }
+
+    private LocalTime timeOrDefault(LocalTime value, LocalTime fallback) {
+        return value == null ? fallback : value;
+    }
+
     private Optional<SiteEntity> preferredSite(List<SiteEntity> sites, Optional<Long> preferredSiteId) {
         if (preferredSiteId.isPresent()) {
             Optional<SiteEntity> preferred = sites.stream()
@@ -667,13 +753,17 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                              SiteEntity site, Checkbox plannerEnabled,
                                              NumberField plannerWeatherThreshold, NumberField woodWeatherThreshold,
                                              NumberField taxPercent,
-                                             ComboBox<ElectricityContractEntity> transferContract) {
+                                             ComboBox<ElectricityContractEntity> transferContract,
+                                             Checkbox loaded, TimePicker availableFrom, TimePicker availableTo,
+                                             NumberField woodAmount, NumberField releaseDelay,
+                                             NumberField releaseDuration) {
         if (accountId == null || site == null) {
             return;
         }
         try {
             savePlannerSettings(configurationService, accountId, site, plannerEnabled, plannerWeatherThreshold,
-                    woodWeatherThreshold, taxPercent, transferContract);
+                    woodWeatherThreshold, taxPercent, transferContract, loaded, availableFrom, availableTo,
+                    woodAmount, releaseDelay, releaseDuration);
         } catch (IllegalArgumentException ex) {
             Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
@@ -683,21 +773,33 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                      SiteEntity site, Checkbox plannerEnabled,
                                      NumberField plannerWeatherThreshold, NumberField woodWeatherThreshold,
                                      NumberField taxPercent,
-                                     ComboBox<ElectricityContractEntity> transferContract) {
+                                     ComboBox<ElectricityContractEntity> transferContract,
+                                     Checkbox loaded, TimePicker availableFrom, TimePicker availableTo,
+                                     NumberField woodAmount, NumberField releaseDelay,
+                                     NumberField releaseDuration) {
         configurationService.saveSettings(accountId, site.getId(),
                 new HeatingPlannerConfigurationService.SettingsConfiguration(
                         plannerEnabled.getValue(),
                         decimalOrDefault(plannerWeatherThreshold.getValue(), "5.00"),
                         decimalOrDefault(woodWeatherThreshold.getValue(), "0.00"),
                         decimalOrDefault(taxPercent.getValue(), "25.50"),
-                        transferContract.getValue() == null ? null : transferContract.getValue().getId()
+                        transferContract.getValue() == null ? null : transferContract.getValue().getId(),
+                        loaded.getValue(),
+                        timeOrDefault(availableFrom.getValue(), LocalTime.of(6, 0)),
+                        timeOrDefault(availableTo.getValue(), LocalTime.of(22, 0)),
+                        decimalOrDefault(woodAmount.getValue(), "8.00"),
+                        minutesFromHours(releaseDelay.getValue(), 45),
+                        minutesFromHours(releaseDuration.getValue(), 360)
                 ));
     }
 
     private void loadConfiguration(HeatingPlannerConfigurationService configurationService, Long accountId, SiteEntity site,
                                    AtomicBoolean loadingConfiguration, Checkbox plannerEnabled, NumberField plannerWeatherThreshold,
                                    NumberField woodWeatherThreshold, NumberField taxPercent,
-                                   ComboBox<ElectricityContractEntity> transferContract, List<RoomOverview> roomRows,
+                                   ComboBox<ElectricityContractEntity> transferContract,
+                                   Checkbox loaded, TimePicker availableFrom, TimePicker availableTo,
+                                   NumberField woodAmount, NumberField releaseDelay, NumberField releaseDuration,
+                                   List<RoomOverview> roomRows,
                                    Grid<RoomOverview> rooms, List<DeviceEntity> thermostats,
                                    List<ElectricityContractEntity> transferContracts) {
         roomRows.clear();
@@ -714,6 +816,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             && contract.getId().equals(configuration.transferContractId()))
                     .findFirst()
                     .ifPresent(transferContract::setValue);
+            loaded.setValue(configuration.stoveLoaded());
+            availableFrom.setValue(timeOrDefault(configuration.stoveAvailableFrom(), LocalTime.of(6, 0)));
+            availableTo.setValue(timeOrDefault(configuration.stoveAvailableTo(), LocalTime.of(22, 0)));
+            woodAmount.setValue(configuration.woodAmount().doubleValue());
+            releaseDelay.setValue(configuration.woodReleaseDelayMinutes() / 60.0);
+            releaseDuration.setValue(configuration.woodReleaseDurationMinutes() / 60.0);
             configuration.rooms().stream()
                     .map(room -> new RoomOverview(
                             room.name(),
@@ -731,6 +839,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             plannerEnabled.setValue(false);
             taxPercent.setValue(25.5);
             transferContract.clear();
+            loaded.setValue(false);
+            availableFrom.setValue(LocalTime.of(6, 0));
+            availableTo.setValue(LocalTime.of(22, 0));
+            woodAmount.setValue(8.0);
+            releaseDelay.setValue(0.75);
+            releaseDuration.setValue(6.0);
         }
         loadingConfiguration.set(false);
         rooms.getDataProvider().refreshAll();

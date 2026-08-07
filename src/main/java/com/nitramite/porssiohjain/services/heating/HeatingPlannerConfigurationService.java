@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -61,7 +62,8 @@ public class HeatingPlannerConfigurationService {
         Optional<HeatingPlannerSettingsEntity> settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId);
         if (settings.isEmpty()) {
             return new Configuration(false, new BigDecimal("5.00"), new BigDecimal("0.00"),
-                    new BigDecimal("25.50"), null, List.of());
+                    new BigDecimal("25.50"), null, false, LocalTime.of(6, 0), LocalTime.of(22, 0),
+                    new BigDecimal("8.00"), 45, 360, List.of());
         }
         HeatingPlannerSettingsEntity settingsEntity = settings.get();
         List<RoomConfiguration> rooms = roomRepository.findBySettingsIdOrderBySortOrderAscIdAsc(settingsEntity.getId())
@@ -81,7 +83,10 @@ public class HeatingPlannerConfigurationService {
                 .toList();
         return new Configuration(settingsEntity.isEnabled(), settingsEntity.getPlannerActiveBelowTemperature(),
                 settingsEntity.getWoodRecommendationBelowTemperature(), settingsEntity.getTaxPercent(),
-                settingsEntity.getTransferContract() == null ? null : settingsEntity.getTransferContract().getId(), rooms);
+                settingsEntity.getTransferContract() == null ? null : settingsEntity.getTransferContract().getId(),
+                settingsEntity.isStoveLoaded(), settingsEntity.getStoveAvailableFrom(), settingsEntity.getStoveAvailableTo(),
+                settingsEntity.getWoodAmount(), settingsEntity.getWoodReleaseDelayMinutes(),
+                settingsEntity.getWoodReleaseDurationMinutes(), rooms);
     }
 
     @Transactional
@@ -98,6 +103,12 @@ public class HeatingPlannerConfigurationService {
         settings.setPlannerActiveBelowTemperature(settingsConfiguration.plannerActiveBelowTemperature());
         settings.setWoodRecommendationBelowTemperature(settingsConfiguration.woodRecommendationBelowTemperature());
         settings.setTaxPercent(settingsConfiguration.taxPercent());
+        settings.setStoveLoaded(settingsConfiguration.stoveLoaded());
+        settings.setStoveAvailableFrom(settingsConfiguration.stoveAvailableFrom());
+        settings.setStoveAvailableTo(settingsConfiguration.stoveAvailableTo());
+        settings.setWoodAmount(settingsConfiguration.woodAmount());
+        settings.setWoodReleaseDelayMinutes(settingsConfiguration.woodReleaseDelayMinutes());
+        settings.setWoodReleaseDurationMinutes(settingsConfiguration.woodReleaseDurationMinutes());
         ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
                 : electricityContractRepository.findByIdAndAccountId(settingsConfiguration.transferContractId(), accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Transfer contract not found"));
@@ -142,6 +153,12 @@ public class HeatingPlannerConfigurationService {
         settings.setPlannerActiveBelowTemperature(settingsConfiguration.plannerActiveBelowTemperature());
         settings.setWoodRecommendationBelowTemperature(settingsConfiguration.woodRecommendationBelowTemperature());
         settings.setTaxPercent(settingsConfiguration.taxPercent());
+        settings.setStoveLoaded(settingsConfiguration.stoveLoaded());
+        settings.setStoveAvailableFrom(settingsConfiguration.stoveAvailableFrom());
+        settings.setStoveAvailableTo(settingsConfiguration.stoveAvailableTo());
+        settings.setWoodAmount(settingsConfiguration.woodAmount());
+        settings.setWoodReleaseDelayMinutes(settingsConfiguration.woodReleaseDelayMinutes());
+        settings.setWoodReleaseDurationMinutes(settingsConfiguration.woodReleaseDurationMinutes());
         ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
                 : electricityContractRepository.findByIdAndAccountId(settingsConfiguration.transferContractId(), accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Transfer contract not found"));
@@ -195,6 +212,12 @@ public class HeatingPlannerConfigurationService {
             BigDecimal woodRecommendationBelowTemperature,
             BigDecimal taxPercent,
             Long transferContractId,
+            boolean stoveLoaded,
+            LocalTime stoveAvailableFrom,
+            LocalTime stoveAvailableTo,
+            BigDecimal woodAmount,
+            Integer woodReleaseDelayMinutes,
+            Integer woodReleaseDurationMinutes,
             List<RoomConfiguration> rooms
     ) {
     }
@@ -204,7 +227,13 @@ public class HeatingPlannerConfigurationService {
             BigDecimal plannerActiveBelowTemperature,
             BigDecimal woodRecommendationBelowTemperature,
             BigDecimal taxPercent,
-            Long transferContractId
+            Long transferContractId,
+            boolean stoveLoaded,
+            LocalTime stoveAvailableFrom,
+            LocalTime stoveAvailableTo,
+            BigDecimal woodAmount,
+            Integer woodReleaseDelayMinutes,
+            Integer woodReleaseDurationMinutes
     ) {
     }
 
