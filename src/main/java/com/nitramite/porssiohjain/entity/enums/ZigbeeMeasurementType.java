@@ -11,9 +11,9 @@
 
 package com.nitramite.porssiohjain.entity.enums;
 
-public enum DeviceType {
-    STANDARD,
-    HEAT_PUMP,
-    THERMOSTAT,
-    TEMPERATURE_SENSOR
+public enum ZigbeeMeasurementType {
+    TEMPERATURE,
+    HUMIDITY,
+    BATTERY_PERCENTAGE,
+    THERMOSTAT_SETPOINT
 }

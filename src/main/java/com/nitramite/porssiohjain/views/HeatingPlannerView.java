@@ -99,6 +99,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         List<DeviceEntity> thermostats = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId()).stream()
                 .filter(device -> device.getDeviceType() == DeviceType.THERMOSTAT)
                 .toList();
+        List<DeviceEntity> temperatureSensors = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId()).stream()
+                .filter(device -> device.getDeviceType() == DeviceType.TEMPERATURE_SENSOR)
+                .toList();
         List<ElectricityContractEntity> transferContracts = account == null ? List.of()
                 : contractRepository.findByAccountId(account.getId()).stream()
                 .filter(contract -> contract.getType() == ContractType.TRANSFER)
@@ -185,10 +188,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         stoveHeatProfileConfiguration.setWidthFull();
         stoveHeatProfileConfiguration.setOpened(false);
 
-        Grid<RoomOverview> rooms = roomOverviewGrid(roomRows, thermostats);
+        Grid<RoomOverview> rooms = roomOverviewGrid(roomRows, thermostats, temperatureSensors);
         Button addRoom = new Button("Add room", VaadinIcon.PLUS.create(), event -> {
             roomRows.add(new RoomOverview("New room", HeatingPlannerHeatSourceType.FLOOR_HEATING, new BigDecimal("21.00"),
-                    null, "Temperature sensor type pending"));
+                    null, null));
             rooms.getDataProvider().refreshAll();
         });
         addRoom.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
@@ -241,7 +244,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         roomRows.stream()
                                 .map(row -> new HeatingPlannerConfigurationService.RoomConfiguration(
                                         row.room(), row.heatSource(), row.targetRoomTemperature(),
-                                        row.controller() == null ? null : row.controller().getId()
+                                        row.controller() == null ? null : row.controller().getId(),
+                                        row.roomSensor() == null ? null : row.roomSensor().getId()
                                 ))
                                 .toList());
                 Notification.show("Heating Planner rooms saved").addThemeVariants(NotificationVariant.LUMO_SUCCESS);
@@ -371,7 +375,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             loadConfiguration(configurationService, account == null ? null : account.getId(), event.getValue(),
                     loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                     taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
-                    releaseDelay, releaseDuration, roomRows, rooms, thermostats, transferContracts);
+                    releaseDelay, releaseDuration, roomRows, rooms, thermostats, temperatureSensors, transferContracts);
             savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                     event.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                     taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
@@ -383,7 +387,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         loadConfiguration(configurationService, account == null ? null : account.getId(), siteSelect.getValue(),
                 loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                 taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
-                releaseDelay, releaseDuration, roomRows, rooms, thermostats, transferContracts);
+                releaseDelay, releaseDuration, roomRows, rooms, thermostats, temperatureSensors, transferContracts);
         calculate.run();
 
         card.add(back, heading, summary, siteConfiguration, roomConfiguration, stoveConfiguration,
@@ -426,7 +430,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return field;
     }
 
-    private Grid<RoomOverview> roomOverviewGrid(List<RoomOverview> roomRows, List<DeviceEntity> thermostats) {
+    private Grid<RoomOverview> roomOverviewGrid(List<RoomOverview> roomRows, List<DeviceEntity> thermostats,
+                                                List<DeviceEntity> temperatureSensors) {
         Grid<RoomOverview> grid = new Grid<>(RoomOverview.class, false);
         grid.setWidthFull();
         grid.addComponentColumn(row -> {
@@ -472,11 +477,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             return controller;
         }).setHeader("Controlling device").setFlexGrow(2);
         grid.addComponentColumn(row -> {
-            ComboBox<String> sensor = new ComboBox<>();
-            sensor.setItems("Temperature sensor type pending");
+            ComboBox<DeviceEntity> sensor = new ComboBox<>();
+            sensor.setItems(temperatureSensors);
+            sensor.setItemLabelGenerator(this::deviceLabel);
             sensor.setValue(row.roomSensor());
+            sensor.setPlaceholder("No room sensor");
+            sensor.setClearButtonVisible(true);
             sensor.setWidthFull();
-            sensor.setHelperText("Zigbee temperature sensor device type will be added later.");
             sensor.addValueChangeListener(event -> row.setRoomSensor(event.getValue()));
             return sensor;
         }).setHeader("Room sensor").setFlexGrow(2);
@@ -801,6 +808,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                    NumberField woodAmount, NumberField releaseDelay, NumberField releaseDuration,
                                    List<RoomOverview> roomRows,
                                    Grid<RoomOverview> rooms, List<DeviceEntity> thermostats,
+                                   List<DeviceEntity> temperatureSensors,
                                    List<ElectricityContractEntity> transferContracts) {
         roomRows.clear();
         loadingConfiguration.set(true);
@@ -832,7 +840,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                             && device.getId().equals(room.controllingDeviceId()))
                                     .findFirst()
                                     .orElse(null),
-                            "Temperature sensor type pending"
+                            temperatureSensors.stream()
+                                    .filter(device -> room.roomSensorDeviceId() != null
+                                            && device.getId().equals(room.roomSensorDeviceId()))
+                                    .findFirst()
+                                    .orElse(null)
                     ))
                     .forEach(roomRows::add);
         } else {
@@ -928,10 +940,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         private HeatingPlannerHeatSourceType heatSource;
         private BigDecimal targetRoomTemperature;
         private DeviceEntity controller;
-        private String roomSensor;
+        private DeviceEntity roomSensor;
 
         private RoomOverview(String room, HeatingPlannerHeatSourceType heatSource, BigDecimal targetRoomTemperature,
-                             DeviceEntity controller, String roomSensor) {
+                             DeviceEntity controller, DeviceEntity roomSensor) {
             this.room = room;
             this.heatSource = heatSource;
             this.targetRoomTemperature = targetRoomTemperature == null ? new BigDecimal("21.00") : targetRoomTemperature;
@@ -971,11 +983,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             this.controller = controller;
         }
 
-        private String roomSensor() {
+        private DeviceEntity roomSensor() {
             return roomSensor;
         }
 
-        private void setRoomSensor(String roomSensor) {
+        private void setRoomSensor(DeviceEntity roomSensor) {
             this.roomSensor = roomSensor;
         }
     }

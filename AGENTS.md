@@ -21,10 +21,12 @@ Current implementation:
 - `services/heating/HeatingPlanSimulationService.java` is a pure deterministic simulation/planning foundation.
 - `views/HeatingPlannerView.java` is a Vaadin prototype at `/heating-planner`.
 - `views/components/HeatingPlanChart.java` renders its ApexCharts visualization.
+- `entity/ZigbeeDeviceMeasurementEntity.java`, `entity/enums/ZigbeeMeasurementType.java`, and `entity/repository/ZigbeeDeviceMeasurementRepository.java` define normalized Zigbee measurement history for Heating Planner sensor use.
+- `services/heating/HeatingPlannerMeasurementService.java` exposes latest fresh/stale/missing room and floor temperature lookup.
 - `services/heating/HeatingPlanSimulationServiceTest.java` covers preheat, discharge, comfort, floor-limit, and wood-stove recommendation behaviour.
 - The authenticated home view links to the prototype.
 
-The current Heating Planner is deliberately mock-data and simulation-only. It must not send thermostat commands, persist room/device associations, or send wood-stove notifications yet. Do not present mock predictions as measured or active behaviour.
+The current Heating Planner is deliberately simulation-only. It must not send thermostat commands or send wood-stove notifications yet. Persisted settings, rooms, heat sources, and room sensor selections exist, but generated plans are not yet persisted as active control intent. Do not present predictions as measured or active behaviour.
 
 The product name is **Heating Planner**. Avoid using `Thermal Storage` as the feature name; thermal storage is an internal technique used by the planner.
 
@@ -46,10 +48,28 @@ Keep two separate configurable weather gates: a forecast temperature below which
 
 Before replacing mock data, first define normalized Zigbee temperature/humidity measurement history and persisted room-to-thermostat/sensor ownership. Do not use `DeviceEntity.lastTelemetry` as historical storage. Preserve the existing acknowledged/read-back Zigbee desired-state rules and the current thermostat price-curve controller as a fallback.
 
+Next Heating Planner steps:
+
+1. Wire `HeatingPlannerMeasurementService` into the planner calculation and UI evidence panel. Replace static `21 C` room temperature only when a selected room sensor has a fresh reading; clearly show fresh, stale, and missing states.
+2. Add explicit floor sensor selection per room/heat source. Do not silently treat room temperature as floor temperature. Missing or stale floor temperature must disable preheating.
+3. Generate one whole-house plan containing per-room plan points for today and tomorrow. Persist it into `heating_planner_plan` and `heating_planner_plan_point`, superseding older active/simulated plans.
+4. Keep the chart whole-house oriented, but add room filtering or room series visibility because each room has independent comfort targets, sensors, heat sources, and controller device.
+5. Add dry-run monitoring: compare predicted room/floor temperatures with measured values, record model error, and show warnings/fallbacks before any active control is allowed.
+6. Add the advisory wood-stove push workflow after persisted plans exist. Recommendations require the one-shot `stove_loaded` state, availability window, weather gate, and expensive-period reason. User actions should include `lit now`, `skip`, and actual lighting time; `lit now` consumes loaded state.
+7. Add active thermostat control last, behind an explicit opt-in separate from the master planner toggle. Enforce ownership, sensor freshness, floor safety limits, comfort minimum, command rate limits, desired-state expiry, Zigbee acknowledgement/readback, and fallback to the existing thermostat price-curve controller.
+
+Recent cross-repository gateway contract work:
+
+- Backend sync now accepts sensor telemetry fields `temperature`, `humidity`, `batteryPercentage`, and `measuredAt` in `ZigbeeGatewaySyncRequest.DeviceReport`.
+- Non-thermostat Zigbee reports with measurements are registered as `DeviceType.TEMPERATURE_SENSOR` and stored in `zigbee_device_measurement`.
+- The Android gateway repository at `/home/norkator/Documents/GitHub/energy-controller-android` was updated so `ZigbeeGatewayService` reads supported sensor profiles and includes those fields in cloud sync payloads.
+- Before further Android gateway changes, read `/home/norkator/Documents/GitHub/energy-controller-android/AGENTS.md`.
+
 Focused verification:
 
 ```sh
 ./gradlew compileJava test --tests com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationServiceTest
+./gradlew test --tests com.nitramite.porssiohjain.ZigbeeGatewaySyncServiceTest --tests com.nitramite.porssiohjain.services.heating.HeatingPlannerMeasurementServiceTest --tests com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationServiceTest
 ```
 
 The Android Zigbee gateway is maintained in the separate `energy-controller-android` repository. Read that repository's `AGENTS.md` before coordinating backend contracts with the native gateway.

@@ -19,6 +19,7 @@ import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerSettingsEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
@@ -77,7 +78,8 @@ public class HeatingPlannerConfigurationService {
                             source == null ? HeatingPlannerHeatSourceType.OTHER : source.getSourceType(),
                             room.getTargetRoomTemperature(),
                             source == null || source.getControllingDevice() == null
-                                    ? null : source.getControllingDevice().getId()
+                                    ? null : source.getControllingDevice().getId(),
+                            room.getRoomSensorDevice() == null ? null : room.getRoomSensorDevice().getId()
                     );
                 })
                 .toList();
@@ -192,6 +194,17 @@ public class HeatingPlannerConfigurationService {
             DeviceEntity controller = roomConfiguration.controllingDeviceId() == null ? null
                     : deviceRepository.findByIdAndAccount(roomConfiguration.controllingDeviceId(), account)
                     .orElseThrow(() -> new IllegalArgumentException("Selected controlling device not found"));
+            if (controller != null && controller.getDeviceType() != DeviceType.THERMOSTAT) {
+                throw new IllegalArgumentException("Selected controlling device is not a thermostat");
+            }
+            DeviceEntity roomSensor = roomConfiguration.roomSensorDeviceId() == null ? null
+                    : deviceRepository.findByIdAndAccount(roomConfiguration.roomSensorDeviceId(), account)
+                    .orElseThrow(() -> new IllegalArgumentException("Selected room sensor not found"));
+            if (roomSensor != null && roomSensor.getDeviceType() != DeviceType.TEMPERATURE_SENSOR) {
+                throw new IllegalArgumentException("Selected room sensor is not a temperature sensor");
+            }
+            room.setRoomSensorDevice(roomSensor);
+            room.setRoomSensorMeasurementKey(roomSensor == null ? null : HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY);
             room.getHeatSources().add(HeatingPlannerRoomHeatSourceEntity.builder()
                     .room(room)
                     .account(account)
@@ -241,7 +254,8 @@ public class HeatingPlannerConfigurationService {
             String name,
             HeatingPlannerHeatSourceType sourceType,
             BigDecimal targetRoomTemperature,
-            Long controllingDeviceId
+            Long controllingDeviceId,
+            Long roomSensorDeviceId
     ) {
     }
 }
