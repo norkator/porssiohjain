@@ -32,6 +32,8 @@ public class HeatingPlanChart extends Div {
         List<Double> setpoint = points.stream().map(point -> point.floorSetpoint().doubleValue()).toList();
         List<Double> price = points.stream().map(point -> point.priceCentsPerKwh().doubleValue()).toList();
         List<Double> wood = points.stream().map(point -> point.woodRoomHeatingRate().doubleValue()).toList();
+        AxisRange temperatureRange = paddedRange(1.0, room, floor, setpoint);
+        AxisRange priceRange = paddedRange(2.0, price, wood);
 
         getElement().executeJs("""
                 const options = {
@@ -45,8 +47,8 @@ public class HeatingPlanChart extends Div {
                   ],
                   xaxis: { categories: $0, title: { text: 'Local time' } },
                   yaxis: [
-                    { title: { text: 'Temperature °C' }, min: 15, max: 30 },
-                    { opposite: true, title: { text: 'Price c/kWh / wood effect' } }
+                    { title: { text: 'Temperature °C' }, min: $6, max: $7 },
+                    { opposite: true, title: { text: 'Price c/kWh / wood effect' }, min: $8, max: $9 }
                   ],
                   stroke: { width: [3, 3, 2, 0, 2], curve: 'smooth', dashArray: [0, 0, 5, 0, 0] },
                   colors: ['#2f80ed', '#eb5757', '#f2994a', '#9b51e0', '#27ae60'],
@@ -56,6 +58,31 @@ public class HeatingPlanChart extends Div {
                 };
                 this.chartInstance = new ApexCharts(this, options);
                 this.chartInstance.render();
-                """, labels, room, floor, setpoint, price, wood);
+                """, labels, room, floor, setpoint, price, wood, temperatureRange.min(), temperatureRange.max(),
+                priceRange.min(), priceRange.max());
+    }
+
+    @SafeVarargs
+    private final AxisRange paddedRange(double minimumPadding, List<Double>... series) {
+        double min = Double.POSITIVE_INFINITY;
+        double max = Double.NEGATIVE_INFINITY;
+        for (List<Double> values : series) {
+            for (Double value : values) {
+                if (value == null || value.isNaN() || value.isInfinite()) {
+                    continue;
+                }
+                min = Math.min(min, value);
+                max = Math.max(max, value);
+            }
+        }
+        if (!Double.isFinite(min) || !Double.isFinite(max)) {
+            return new AxisRange(0, 1);
+        }
+        double padding = Math.max(minimumPadding, (max - min) * 0.12);
+        return new AxisRange(Math.floor((min - padding) * 10.0) / 10.0,
+                Math.ceil((max + padding) * 10.0) / 10.0);
+    }
+
+    private record AxisRange(double min, double max) {
     }
 }
