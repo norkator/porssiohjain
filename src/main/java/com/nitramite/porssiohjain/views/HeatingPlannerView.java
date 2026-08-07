@@ -9,16 +9,22 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
+import com.nitramite.porssiohjain.entity.NordpoolEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
+import com.nitramite.porssiohjain.entity.enums.ContractType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
+import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerConfigurationService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
+import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import com.nitramite.porssiohjain.views.components.HeatingPlanChart;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -48,6 +54,7 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -56,10 +63,12 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @PageTitle("Pörssiohjain - Heating Planner")
 @Route("heating-planner")
@@ -70,13 +79,17 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
     private final AuthService authService;
     private final SiteWeatherRepository siteWeatherRepository;
+    private final NordpoolRepository nordpoolRepository;
 
     public HeatingPlannerView(AuthService authService, HeatingPlanSimulationService simulationService,
                               SiteRepository siteRepository, SiteWeatherRepository siteWeatherRepository,
                               DeviceRepository deviceRepository,
+                              NordpoolRepository nordpoolRepository,
+                              ElectricityContractRepository contractRepository,
                               HeatingPlannerConfigurationService configurationService) {
         this.authService = authService;
         this.siteWeatherRepository = siteWeatherRepository;
+        this.nordpoolRepository = nordpoolRepository;
         setSizeFull();
         setAlignItems(Alignment.CENTER);
 
@@ -85,7 +98,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         List<DeviceEntity> thermostats = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId()).stream()
                 .filter(device -> device.getDeviceType() == DeviceType.THERMOSTAT)
                 .toList();
+        List<ElectricityContractEntity> transferContracts = account == null ? List.of()
+                : contractRepository.findByAccountId(account.getId()).stream()
+                .filter(contract -> contract.getType() == ContractType.TRANSFER)
+                .toList();
         List<RoomOverview> roomRows = new ArrayList<>();
+        AtomicBoolean loadingConfiguration = new AtomicBoolean(false);
 
         VerticalLayout card = new VerticalLayout();
         card.addClassName("responsive-card");
@@ -111,8 +129,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         siteSelect.setItemLabelGenerator(site -> site.getName() + " · " + site.getTimezone());
         siteSelect.setWidthFull();
         siteSelect.setHelperText("Weather forecast comes from this site's configured weather place.");
-        sites.stream().filter(SiteEntity::getEnabled).findFirst().ifPresentOrElse(siteSelect::setValue,
-                () -> sites.stream().findFirst().ifPresent(siteSelect::setValue));
+        preferredSite(sites, account == null ? Optional.empty() : configurationService.preferredSiteId(account.getId()))
+                .ifPresentOrElse(siteSelect::setValue, () -> sites.stream().findFirst().ifPresent(siteSelect::setValue));
+        NumberField taxPercent = numberField("Market VAT (%)", 25.5, 0, 100);
+        ComboBox<ElectricityContractEntity> transferContract = new ComboBox<>("Transfer contract");
+        transferContract.setItems(transferContracts);
+        transferContract.setItemLabelGenerator(ElectricityContractEntity::getName);
+        transferContract.setClearButtonVisible(true);
+        transferContract.setWidthFull();
+        transferContract.setHelperText("Added to taxed Nordpool prices when calculating the plan.");
 
         Span siteWeatherStatus = new Span();
         Button configureSiteWeather = new Button("Set weather place in Sites", VaadinIcon.MAP_MARKER.create(),
@@ -121,7 +146,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         VerticalLayout siteWarnings = new VerticalLayout(siteWeatherStatus, configureSiteWeather);
         siteWarnings.setPadding(false);
         siteWarnings.setSpacing(false);
-        FormLayout siteForm = new FormLayout(siteSelect, siteWarnings);
+        FormLayout siteForm = new FormLayout(siteSelect, taxPercent, transferContract, siteWarnings);
         siteForm.setWidthFull();
         siteForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("650px", 2));
         Details siteConfiguration = new Details("Site and weather forecast", siteForm);
@@ -166,11 +191,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             planHost.removeAll();
             SiteEntity selectedSite = siteSelect.getValue();
             List<SiteWeatherEntity> forecast = forecastForHorizon(selectedSite);
-            var request = mockRequest(loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
+            MarketSeries marketSeries = marketSeries(account, selectedSite, decimalOrDefault(taxPercent.getValue(), "25.50"),
+                    transferContract.getValue(), forecast);
+            var request = simulationRequest(loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
                     woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
                     plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(), representativeTarget(roomRows),
-                    forecast);
-            planHost.add(planContent(simulationService.simulate(request), selectedSite, forecast));
+                    marketSeries.points());
+            planHost.add(planContent(simulationService.simulate(request), selectedSite, forecast, marketSeries));
         };
         Button recalculate = new Button("Recalculate mock plan", VaadinIcon.REFRESH.create(), event -> calculate.run());
         recalculate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -185,7 +212,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         new HeatingPlannerConfigurationService.SettingsConfiguration(
                                 plannerEnabled.getValue(),
                                 decimalOrDefault(plannerWeatherThreshold.getValue(), "5.00"),
-                                decimalOrDefault(woodWeatherThreshold.getValue(), "0.00")
+                                decimalOrDefault(woodWeatherThreshold.getValue(), "0.00"),
+                                decimalOrDefault(taxPercent.getValue(), "25.50"),
+                                transferContract.getValue() == null ? null : transferContract.getValue().getId()
                         ),
                         roomRows.stream()
                                 .map(row -> new HeatingPlannerConfigurationService.RoomConfiguration(
@@ -200,28 +229,84 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             }
         });
         saveConfiguration.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_PRIMARY);
-        HorizontalLayout planActions = new HorizontalLayout(saveConfiguration, recalculate);
-        planActions.setWidthFull();
+        roomConfigurationContent.add(saveConfiguration);
+        plannerEnabled.addValueChangeListener(event -> {
+            if (loadingConfiguration.get()) {
+                return;
+            }
+            SiteEntity selectedSite = siteSelect.getValue();
+            if (account == null || selectedSite == null) {
+                Notification.show("Select a site before changing Heating Planner status")
+                        .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                return;
+            }
+            try {
+                savePlannerSettings(configurationService, account.getId(), selectedSite, plannerEnabled,
+                        plannerWeatherThreshold, woodWeatherThreshold, taxPercent, transferContract);
+                Notification.show(event.getValue() ? "Heating Planner enabled" : "Heating Planner disabled")
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (IllegalArgumentException ex) {
+                Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
+                loadingConfiguration.set(true);
+                plannerEnabled.setValue(event.getOldValue());
+                loadingConfiguration.set(false);
+            }
+        });
+        plannerWeatherThreshold.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract);
+                calculate.run();
+            }
+        });
+        woodWeatherThreshold.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract);
+                calculate.run();
+            }
+        });
+        taxPercent.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract);
+                calculate.run();
+            }
+        });
+        transferContract.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract);
+                calculate.run();
+            }
+        });
         siteSelect.addValueChangeListener(event -> {
             updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, event.getValue());
             loadConfiguration(configurationService, account == null ? null : account.getId(), event.getValue(),
-                    plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold, roomRows, rooms, thermostats);
+                    loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                    taxPercent, transferContract, roomRows, rooms, thermostats, transferContracts);
             calculate.run();
         });
         updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, siteSelect.getValue());
         loadConfiguration(configurationService, account == null ? null : account.getId(), siteSelect.getValue(),
-                plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold, roomRows, rooms, thermostats);
+                loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                taxPercent, transferContract, roomRows, rooms, thermostats, transferContracts);
         calculate.run();
 
-        card.add(back, heading, summary, siteConfiguration, roomConfiguration, stoveConfiguration, planActions, planHost);
+        card.add(back, heading, summary, siteConfiguration, roomConfiguration, stoveConfiguration, recalculate, planHost);
         add(card);
     }
 
     private VerticalLayout planContent(HeatingPlanSimulationService.SimulationResult result, SiteEntity site,
-                                       List<SiteWeatherEntity> forecast) {
+                                       List<SiteWeatherEntity> forecast, MarketSeries marketSeries) {
         VerticalLayout plan = new VerticalLayout();
         plan.setPadding(false);
-        Details evidence = new Details("Inputs used to determine this plan", evidenceContent(result, site, forecast));
+        Details evidence = new Details("Inputs used to determine this plan",
+                evidenceContent(result, site, forecast, marketSeries));
         evidence.setOpened(false);
         LocalDate today = LocalDate.now(ZONE);
         Map<LocalDate, List<HeatingPlanSimulationService.SimulationPoint>> byDate = new LinkedHashMap<>();
@@ -384,7 +469,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private VerticalLayout evidenceContent(HeatingPlanSimulationService.SimulationResult result, SiteEntity site,
-                                           List<SiteWeatherEntity> forecast) {
+                                           List<SiteWeatherEntity> forecast, MarketSeries marketSeries) {
         VerticalLayout evidence = new VerticalLayout();
         evidence.setPadding(false);
         evidence.setSpacing(false);
@@ -396,10 +481,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 new Span("Planner status: " + (result.plannerActive() ? "active" : "inactive")
                         + " — " + result.plannerStatusReason()),
                 new Span("Site: " + siteText),
-                new Span("Market prices: mock hourly values for FI; cheap ≤ 5 c/kWh, expensive ≥ 20 c/kWh"),
+                new Span("Market prices: " + marketSeries.description()),
                 new Span("Weather: " + weatherText),
-                new Span("Latest sensors: floor 22.0 °C, room 21.0 °C, humidity 38% (mock, fresh)"),
-                new Span("Comfort: minimum 20.0 °C, target 21.0 °C, maximum 23.5 °C"),
+                new Span("Latest sensors: floor 22.0 °C, room 21.0 °C static placeholder, humidity 38% (mock, fresh)"),
+                new Span("Comfort: room targets come from the saved room configuration; calculation uses their current average until per-room plans are wired"),
                 new Span("Floor limits: normal 23.0 °C, preheat 27.0 °C, absolute maximum 29.0 °C"),
                 new Span("Wood load: Normal basket, 8 kg; useful heat after 45 min, declining over 6 h"),
                 new Span("Model: deterministic prototype v1; all thermal parameters are estimates"),
@@ -408,30 +493,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return evidence;
     }
 
-    private HeatingPlanSimulationService.SimulationRequest mockRequest(boolean stoveLoaded, LocalTime availableFrom,
-                                                                       LocalTime availableTo, Double woodAmount,
-                                                                       Double releaseDelayHours,
-                                                                       Double releaseDurationHours,
-                                                                       Double plannerWeatherThreshold,
-                                                                       Double woodWeatherThreshold,
-                                                                       BigDecimal targetRoomTemperature,
-                                                                       List<SiteWeatherEntity> forecast) {
+    private HeatingPlanSimulationService.SimulationRequest simulationRequest(boolean stoveLoaded, LocalTime availableFrom,
+                                                                             LocalTime availableTo, Double woodAmount,
+                                                                             Double releaseDelayHours,
+                                                                             Double releaseDurationHours,
+                                                                             Double plannerWeatherThreshold,
+                                                                             Double woodWeatherThreshold,
+                                                                             BigDecimal targetRoomTemperature,
+                                                                             List<HeatingPlanSimulationService.MarketPoint> market) {
         ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
-        List<HeatingPlanSimulationService.MarketPoint> market = new ArrayList<>();
-        for (int hour = 0; hour < 48; hour++) {
-            int localHour = start.plusHours(hour).getHour();
-            BigDecimal price = localHour >= 7 && localHour < 11 ? new BigDecimal("26.0")
-                    : localHour >= 17 && localHour < 21 ? new BigDecimal("31.0")
-                    : localHour >= 1 && localHour < 6 ? new BigDecimal("3.5") : new BigDecimal("11.0");
-            Instant time = start.plusHours(hour).toInstant();
-            Optional<SiteWeatherEntity> weather = nearestForecast(forecast, time);
-            BigDecimal outdoor = weather.map(SiteWeatherEntity::getTemperature)
-                    .orElseGet(() -> BigDecimal.valueOf(-12 + Math.min(localHour, 12) * 0.5));
-            BigDecimal wind = weather.map(SiteWeatherEntity::getWindSpeedMs)
-                    .orElse(localHour >= 12 ? new BigDecimal("6.0") : new BigDecimal("3.0"));
-            market.add(new HeatingPlanSimulationService.MarketPoint(start.plusHours(hour).toInstant(), price,
-                    outdoor, wind));
-        }
         BigDecimal target = targetRoomTemperature == null ? new BigDecimal("21.00") : targetRoomTemperature;
         var settings = new HeatingPlanSimulationService.Settings(Duration.ofHours(1), Duration.ofHours(6),
                 new BigDecimal("5"), new BigDecimal("20"), new BigDecimal("23"), new BigDecimal("27"),
@@ -454,6 +524,90 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 settings, model, market, stove);
     }
 
+    private MarketSeries marketSeries(com.nitramite.porssiohjain.entity.AccountEntity account, SiteEntity site,
+                                      BigDecimal taxPercent, ElectricityContractEntity transferContract,
+                                      List<SiteWeatherEntity> forecast) {
+        ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
+        ZonedDateTime end = start.plusDays(2);
+        if (account == null) {
+            return mockMarketSeries(start, forecast, "mock prices because account is unavailable");
+        }
+        String marketIndex = NordpoolMarket.normalize(account.getMarketIndexName());
+        List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(marketIndex, start.toInstant(), end.toInstant());
+        if (prices.isEmpty()) {
+            return mockMarketSeries(start, forecast, "mock prices because Nordpool rows are missing for " + marketIndex);
+        }
+        ZoneId zone = zoneForSite(site);
+        BigDecimal taxMultiplier = BigDecimal.ONE.add(taxPercent.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP));
+        List<HeatingPlanSimulationService.MarketPoint> points = prices.stream()
+                .sorted(Comparator.comparing(NordpoolEntity::getDeliveryStart))
+                .map(price -> {
+                    BigDecimal nordpoolWithTax = price.getPriceFi()
+                            .multiply(BigDecimal.valueOf(0.1))
+                            .multiply(taxMultiplier)
+                            .setScale(4, RoundingMode.HALF_UP);
+                    BigDecimal combinedPrice = nordpoolWithTax.add(resolveTransferPrice(transferContract,
+                            price.getDeliveryStart(), zone));
+                    WeatherValues weather = weatherAt(forecast, price.getDeliveryStart(), price.getDeliveryStart().atZone(zone).getHour());
+                    return new HeatingPlanSimulationService.MarketPoint(price.getDeliveryStart(), combinedPrice,
+                            weather.temperature(), weather.windSpeedMs());
+                })
+                .toList();
+        String transferText = transferContract == null ? "no transfer contract" : "transfer " + transferContract.getName();
+        return new MarketSeries(points, "Nordpool " + marketIndex + " with " + taxPercent + "% VAT and " + transferText
+                + " (" + points.size() + " rows)");
+    }
+
+    private MarketSeries mockMarketSeries(ZonedDateTime start, List<SiteWeatherEntity> forecast, String reason) {
+        List<HeatingPlanSimulationService.MarketPoint> market = new ArrayList<>();
+        for (int hour = 0; hour < 48; hour++) {
+            int localHour = start.plusHours(hour).getHour();
+            BigDecimal price = localHour >= 7 && localHour < 11 ? new BigDecimal("26.0")
+                    : localHour >= 17 && localHour < 21 ? new BigDecimal("31.0")
+                    : localHour >= 1 && localHour < 6 ? new BigDecimal("3.5") : new BigDecimal("11.0");
+            Instant time = start.plusHours(hour).toInstant();
+            WeatherValues weather = weatherAt(forecast, time, localHour);
+            market.add(new HeatingPlanSimulationService.MarketPoint(time, price, weather.temperature(), weather.windSpeedMs()));
+        }
+        return new MarketSeries(market, reason);
+    }
+
+    private WeatherValues weatherAt(List<SiteWeatherEntity> forecast, Instant time, int localHour) {
+        Optional<SiteWeatherEntity> weather = nearestForecast(forecast, time);
+        BigDecimal outdoor = weather.map(SiteWeatherEntity::getTemperature)
+                .orElseGet(() -> BigDecimal.valueOf(-12 + Math.min(localHour, 12) * 0.5));
+        BigDecimal wind = weather.map(SiteWeatherEntity::getWindSpeedMs)
+                .orElse(localHour >= 12 ? new BigDecimal("6.0") : new BigDecimal("3.0"));
+        return new WeatherValues(outdoor, wind);
+    }
+
+    private BigDecimal resolveTransferPrice(ElectricityContractEntity transferContract, Instant deliveryStart, ZoneId zone) {
+        if (transferContract == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal staticPrice = transferContract.getStaticPrice();
+        BigDecimal nightPrice = transferContract.getNightPrice();
+        BigDecimal dayPrice = transferContract.getDayPrice();
+        BigDecimal taxAmount = transferContract.getTaxAmount() != null ? transferContract.getTaxAmount() : BigDecimal.ZERO;
+        if (staticPrice != null && dayPrice == null && nightPrice == null) {
+            return staticPrice.add(taxAmount);
+        }
+        if (dayPrice != null || nightPrice != null) {
+            int hour = deliveryStart.atZone(zone).getHour();
+            boolean isNight = hour >= 22 || hour < 7;
+            BigDecimal basePrice = isNight ? nightPrice : dayPrice;
+            return basePrice != null ? basePrice.add(taxAmount) : BigDecimal.ZERO;
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private ZoneId zoneForSite(SiteEntity site) {
+        if (site == null || site.getTimezone() == null || site.getTimezone().isBlank()) {
+            return ZONE;
+        }
+        return ZoneId.of(site.getTimezone());
+    }
+
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         if (ViewAuthUtils.findAuthenticatedAccount(authService) == null) {
@@ -462,6 +616,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private record PlanAction(String time, String action, String reason) {
+    }
+
+    private record MarketSeries(List<HeatingPlanSimulationService.MarketPoint> points, String description) {
+    }
+
+    private record WeatherValues(BigDecimal temperature, BigDecimal windSpeedMs) {
     }
 
     private BigDecimal representativeTarget(List<RoomOverview> roomRows) {
@@ -477,16 +637,57 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return value == null ? new BigDecimal(fallback) : BigDecimal.valueOf(value);
     }
 
+    private void savePlannerSettingsSilently(HeatingPlannerConfigurationService configurationService, Long accountId,
+                                             SiteEntity site, Checkbox plannerEnabled,
+                                             NumberField plannerWeatherThreshold, NumberField woodWeatherThreshold,
+                                             NumberField taxPercent,
+                                             ComboBox<ElectricityContractEntity> transferContract) {
+        if (accountId == null || site == null) {
+            return;
+        }
+        try {
+            savePlannerSettings(configurationService, accountId, site, plannerEnabled, plannerWeatherThreshold,
+                    woodWeatherThreshold, taxPercent, transferContract);
+        } catch (IllegalArgumentException ex) {
+            Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    private void savePlannerSettings(HeatingPlannerConfigurationService configurationService, Long accountId,
+                                     SiteEntity site, Checkbox plannerEnabled,
+                                     NumberField plannerWeatherThreshold, NumberField woodWeatherThreshold,
+                                     NumberField taxPercent,
+                                     ComboBox<ElectricityContractEntity> transferContract) {
+        configurationService.saveSettings(accountId, site.getId(),
+                new HeatingPlannerConfigurationService.SettingsConfiguration(
+                        plannerEnabled.getValue(),
+                        decimalOrDefault(plannerWeatherThreshold.getValue(), "5.00"),
+                        decimalOrDefault(woodWeatherThreshold.getValue(), "0.00"),
+                        decimalOrDefault(taxPercent.getValue(), "25.50"),
+                        transferContract.getValue() == null ? null : transferContract.getValue().getId()
+                ));
+    }
+
     private void loadConfiguration(HeatingPlannerConfigurationService configurationService, Long accountId, SiteEntity site,
-                                   Checkbox plannerEnabled, NumberField plannerWeatherThreshold,
-                                   NumberField woodWeatherThreshold, List<RoomOverview> roomRows,
-                                   Grid<RoomOverview> rooms, List<DeviceEntity> thermostats) {
+                                   AtomicBoolean loadingConfiguration, Checkbox plannerEnabled, NumberField plannerWeatherThreshold,
+                                   NumberField woodWeatherThreshold, NumberField taxPercent,
+                                   ComboBox<ElectricityContractEntity> transferContract, List<RoomOverview> roomRows,
+                                   Grid<RoomOverview> rooms, List<DeviceEntity> thermostats,
+                                   List<ElectricityContractEntity> transferContracts) {
         roomRows.clear();
+        loadingConfiguration.set(true);
         if (accountId != null && site != null) {
             HeatingPlannerConfigurationService.Configuration configuration = configurationService.configuration(accountId, site.getId());
             plannerEnabled.setValue(configuration.enabled());
             plannerWeatherThreshold.setValue(configuration.plannerActiveBelowTemperature().doubleValue());
             woodWeatherThreshold.setValue(configuration.woodRecommendationBelowTemperature().doubleValue());
+            taxPercent.setValue(configuration.taxPercent().doubleValue());
+            transferContract.clear();
+            transferContracts.stream()
+                    .filter(contract -> configuration.transferContractId() != null
+                            && contract.getId().equals(configuration.transferContractId()))
+                    .findFirst()
+                    .ifPresent(transferContract::setValue);
             configuration.rooms().stream()
                     .map(room -> new RoomOverview(
                             room.name(),
@@ -502,7 +703,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     .forEach(roomRows::add);
         } else {
             plannerEnabled.setValue(false);
+            taxPercent.setValue(25.5);
+            transferContract.clear();
         }
+        loadingConfiguration.set(false);
         rooms.getDataProvider().refreshAll();
     }
 

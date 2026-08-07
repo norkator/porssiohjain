@@ -8,6 +8,8 @@ CREATE TABLE heating_planner_settings
     timezone                              VARCHAR(64)              NOT NULL DEFAULT 'Europe/Helsinki',
     planner_active_below_temperature      NUMERIC(10, 2)           NOT NULL DEFAULT 5.00,
     wood_recommendation_below_temperature NUMERIC(10, 2)           NOT NULL DEFAULT 0.00,
+    tax_percent                           NUMERIC(5, 2)            NOT NULL DEFAULT 25.50,
+    transfer_contract_id                  BIGINT                   REFERENCES electricity_contract (id) ON DELETE SET NULL,
     cheap_price_threshold                 NUMERIC(10, 4)           NOT NULL DEFAULT 5.0000,
     expensive_price_threshold             NUMERIC(10, 4)           NOT NULL DEFAULT 20.0000,
     preheat_look_ahead_minutes            INTEGER                  NOT NULL DEFAULT 360,
@@ -22,6 +24,8 @@ CREATE TABLE heating_planner_settings
 
 CREATE INDEX idx_heating_planner_settings_account ON heating_planner_settings (account_id);
 CREATE INDEX idx_heating_planner_settings_site ON heating_planner_settings (site_id);
+CREATE INDEX idx_heating_planner_settings_transfer_contract
+    ON heating_planner_settings (transfer_contract_id) WHERE transfer_contract_id IS NOT NULL;
 
 CREATE TABLE heating_planner_room
 (

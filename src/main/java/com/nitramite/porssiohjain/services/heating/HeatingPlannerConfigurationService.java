@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerSettingsEntity;
@@ -20,6 +21,7 @@ import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerRoomRepository;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerSettingsRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
@@ -40,14 +42,26 @@ public class HeatingPlannerConfigurationService {
     private final AccountRepository accountRepository;
     private final SiteRepository siteRepository;
     private final DeviceRepository deviceRepository;
+    private final ElectricityContractRepository electricityContractRepository;
     private final HeatingPlannerSettingsRepository settingsRepository;
     private final HeatingPlannerRoomRepository roomRepository;
+
+    @Transactional(readOnly = true)
+    public Optional<Long> preferredSiteId(Long accountId) {
+        List<HeatingPlannerSettingsEntity> settings = settingsRepository.findByAccountIdOrderByUpdatedAtDesc(accountId);
+        return settings.stream()
+                .filter(HeatingPlannerSettingsEntity::isEnabled)
+                .findFirst()
+                .or(() -> settings.stream().findFirst())
+                .map(settingsEntity -> settingsEntity.getSite().getId());
+    }
 
     @Transactional(readOnly = true)
     public Configuration configuration(Long accountId, Long siteId) {
         Optional<HeatingPlannerSettingsEntity> settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId);
         if (settings.isEmpty()) {
-            return new Configuration(false, new BigDecimal("5.00"), new BigDecimal("0.00"), List.of());
+            return new Configuration(false, new BigDecimal("5.00"), new BigDecimal("0.00"),
+                    new BigDecimal("25.50"), null, List.of());
         }
         HeatingPlannerSettingsEntity settingsEntity = settings.get();
         List<RoomConfiguration> rooms = roomRepository.findBySettingsIdOrderBySortOrderAscIdAsc(settingsEntity.getId())
@@ -66,11 +80,32 @@ public class HeatingPlannerConfigurationService {
                 })
                 .toList();
         return new Configuration(settingsEntity.isEnabled(), settingsEntity.getPlannerActiveBelowTemperature(),
-                settingsEntity.getWoodRecommendationBelowTemperature(), rooms);
+                settingsEntity.getWoodRecommendationBelowTemperature(), settingsEntity.getTaxPercent(),
+                settingsEntity.getTransferContract() == null ? null : settingsEntity.getTransferContract().getId(), rooms);
     }
 
     @Transactional
     public void setEnabled(Long accountId, Long siteId, boolean enabled) {
+        HeatingPlannerSettingsEntity settings = requireOrCreateSettings(accountId, siteId);
+        settings.setEnabled(enabled);
+        settingsRepository.save(settings);
+    }
+
+    @Transactional
+    public void saveSettings(Long accountId, Long siteId, SettingsConfiguration settingsConfiguration) {
+        HeatingPlannerSettingsEntity settings = requireOrCreateSettings(accountId, siteId);
+        settings.setEnabled(settingsConfiguration.enabled());
+        settings.setPlannerActiveBelowTemperature(settingsConfiguration.plannerActiveBelowTemperature());
+        settings.setWoodRecommendationBelowTemperature(settingsConfiguration.woodRecommendationBelowTemperature());
+        settings.setTaxPercent(settingsConfiguration.taxPercent());
+        ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
+                : electricityContractRepository.findByIdAndAccountId(settingsConfiguration.transferContractId(), accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Transfer contract not found"));
+        settings.setTransferContract(transferContract);
+        settingsRepository.save(settings);
+    }
+
+    private HeatingPlannerSettingsEntity requireOrCreateSettings(Long accountId, Long siteId) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found"));
         SiteEntity site = siteRepository.findByIdAndAccountId(siteId, accountId)
@@ -80,9 +115,8 @@ public class HeatingPlannerConfigurationService {
                         .account(account)
                         .site(site)
                         .build());
-        settings.setEnabled(enabled);
         settings.setTimezone(site.getTimezone());
-        settingsRepository.save(settings);
+        return settings;
     }
 
     @Transactional
@@ -101,19 +135,17 @@ public class HeatingPlannerConfigurationService {
                 throw new IllegalArgumentException("Room names must be unique");
             }
         }
-        AccountEntity account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
-        SiteEntity site = siteRepository.findByIdAndAccountId(siteId, accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Site not found"));
-        HeatingPlannerSettingsEntity settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId)
-                .orElseGet(() -> HeatingPlannerSettingsEntity.builder()
-                        .account(account)
-                        .site(site)
-                        .build());
+        HeatingPlannerSettingsEntity settings = requireOrCreateSettings(accountId, siteId);
+        AccountEntity account = settings.getAccount();
+        SiteEntity site = settings.getSite();
         settings.setEnabled(settingsConfiguration.enabled());
-        settings.setTimezone(site.getTimezone());
         settings.setPlannerActiveBelowTemperature(settingsConfiguration.plannerActiveBelowTemperature());
         settings.setWoodRecommendationBelowTemperature(settingsConfiguration.woodRecommendationBelowTemperature());
+        settings.setTaxPercent(settingsConfiguration.taxPercent());
+        ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
+                : electricityContractRepository.findByIdAndAccountId(settingsConfiguration.transferContractId(), accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Transfer contract not found"));
+        settings.setTransferContract(transferContract);
         settings = settingsRepository.save(settings);
 
         List<HeatingPlannerRoomEntity> existingRooms = roomRepository.findBySettingsIdOrderBySortOrderAscIdAsc(settings.getId());
@@ -161,6 +193,8 @@ public class HeatingPlannerConfigurationService {
             boolean enabled,
             BigDecimal plannerActiveBelowTemperature,
             BigDecimal woodRecommendationBelowTemperature,
+            BigDecimal taxPercent,
+            Long transferContractId,
             List<RoomConfiguration> rooms
     ) {
     }
@@ -168,7 +202,9 @@ public class HeatingPlannerConfigurationService {
     public record SettingsConfiguration(
             boolean enabled,
             BigDecimal plannerActiveBelowTemperature,
-            BigDecimal woodRecommendationBelowTemperature
+            BigDecimal woodRecommendationBelowTemperature,
+            BigDecimal taxPercent,
+            Long transferContractId
     ) {
     }
 

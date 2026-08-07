@@ -63,6 +63,14 @@ public class HeatingPlannerSettingsEntity {
     private BigDecimal woodRecommendationBelowTemperature = new BigDecimal("0.00");
 
     @Builder.Default
+    @Column(name = "tax_percent", nullable = false, precision = 5, scale = 2)
+    private BigDecimal taxPercent = new BigDecimal("25.50");
+
+    @ManyToOne
+    @JoinColumn(name = "transfer_contract_id")
+    private ElectricityContractEntity transferContract;
+
+    @Builder.Default
     @Column(name = "cheap_price_threshold", nullable = false, precision = 10, scale = 4)
     private BigDecimal cheapPriceThreshold = new BigDecimal("5.0000");
 
@@ -109,6 +117,7 @@ public class HeatingPlannerSettingsEntity {
         if (timezone == null || timezone.isBlank()) timezone = "Europe/Helsinki";
         if (plannerActiveBelowTemperature == null) plannerActiveBelowTemperature = new BigDecimal("5.00");
         if (woodRecommendationBelowTemperature == null) woodRecommendationBelowTemperature = new BigDecimal("0.00");
+        if (taxPercent == null) taxPercent = new BigDecimal("25.50");
         if (cheapPriceThreshold == null) cheapPriceThreshold = new BigDecimal("5.0000");
         if (expensivePriceThreshold == null) expensivePriceThreshold = new BigDecimal("20.0000");
         if (preheatLookAheadMinutes == null) preheatLookAheadMinutes = 360;
