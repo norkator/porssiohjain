@@ -86,6 +86,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         card.addClassName("responsive-card");
         card.setWidthFull();
         card.setMaxWidth("1200px");
+        card.setAlignItems(Alignment.STRETCH);
 
         Button back = new Button("Back", VaadinIcon.ARROW_LEFT.create(), e -> getUI()
                 .ifPresent(ui -> ui.navigate(HomeView.class)));
@@ -114,8 +115,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         siteWarnings.setPadding(false);
         siteWarnings.setSpacing(false);
         FormLayout siteForm = new FormLayout(siteSelect, siteWarnings);
+        siteForm.setWidthFull();
         siteForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("650px", 2));
         Details siteConfiguration = new Details("Site and weather forecast", siteForm);
+        siteConfiguration.setWidthFull();
         siteConfiguration.setOpened(true);
 
         Checkbox loaded = new Checkbox("Stove is loaded and ready", true);
@@ -128,8 +131,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         NumberField woodWeatherThreshold = numberField("Recommend wood below (°C)", 0, -40, 20);
         FormLayout stoveForm = new FormLayout(loaded, availableFrom, availableTo, woodAmount, releaseDelay,
                 releaseDuration, plannerWeatherThreshold, woodWeatherThreshold);
+        stoveForm.setWidthFull();
         stoveForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("650px", 3));
         Details stoveConfiguration = new Details("Wood stove availability and heat profile", stoveForm);
+        stoveConfiguration.setWidthFull();
         stoveConfiguration.setOpened(true);
 
         Grid<RoomOverview> rooms = roomOverviewGrid(roomRows, thermostats);
@@ -141,11 +146,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         VerticalLayout roomConfigurationContent = new VerticalLayout(rooms, addRoom);
         roomConfigurationContent.setPadding(false);
         roomConfigurationContent.setWidthFull();
+        roomConfigurationContent.setAlignItems(Alignment.STRETCH);
         Details roomConfiguration = new Details("Rooms and heat sources", roomConfigurationContent);
+        roomConfiguration.setWidthFull();
         roomConfiguration.setOpened(true);
 
         VerticalLayout planHost = new VerticalLayout();
         planHost.setPadding(false);
+        planHost.setWidthFull();
         Runnable calculate = () -> {
             planHost.removeAll();
             SiteEntity selectedSite = siteSelect.getValue();
