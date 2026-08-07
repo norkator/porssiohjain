@@ -589,9 +589,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private WeatherValues weatherAt(List<SiteWeatherEntity> forecast, Instant time, int localHour) {
         Optional<SiteWeatherEntity> weather = nearestForecast(forecast, time);
         BigDecimal outdoor = weather.map(SiteWeatherEntity::getTemperature)
-                .orElseGet(() -> BigDecimal.valueOf(-12 + Math.min(localHour, 12) * 0.5));
+                .orElse(BigDecimal.ZERO);
         BigDecimal wind = weather.map(SiteWeatherEntity::getWindSpeedMs)
-                .orElse(localHour >= 12 ? new BigDecimal("6.0") : new BigDecimal("3.0"));
+                .orElse(BigDecimal.ZERO);
         return new WeatherValues(outdoor, wind);
     }
 
