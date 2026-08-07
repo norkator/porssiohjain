@@ -12,10 +12,12 @@ import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerConfigurationService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
 import com.nitramite.porssiohjain.views.components.HeatingPlanChart;
 import com.vaadin.flow.component.button.Button;
@@ -31,6 +33,8 @@ import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
@@ -69,7 +73,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     public HeatingPlannerView(AuthService authService, HeatingPlanSimulationService simulationService,
                               SiteRepository siteRepository, SiteWeatherRepository siteWeatherRepository,
-                              DeviceRepository deviceRepository) {
+                              DeviceRepository deviceRepository,
+                              HeatingPlannerConfigurationService configurationService) {
         this.authService = authService;
         this.siteWeatherRepository = siteWeatherRepository;
         setSizeFull();
@@ -80,7 +85,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         List<DeviceEntity> thermostats = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId()).stream()
                 .filter(device -> device.getDeviceType() == DeviceType.THERMOSTAT)
                 .toList();
-        List<RoomOverview> roomRows = defaultRoomRows();
+        List<RoomOverview> roomRows = new ArrayList<>();
 
         VerticalLayout card = new VerticalLayout();
         card.addClassName("responsive-card");
@@ -92,9 +97,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .ifPresent(ui -> ui.navigate(HomeView.class)));
         H1 title = new H1("Heating Planner");
         title.getStyle().set("margin", "0");
+        Checkbox plannerEnabled = new Checkbox("Enabled", false);
+        plannerEnabled.setHelperText("Disabling keeps the room configuration but prevents planner use.");
         Span mockBadge = new Span("MOCK DATA · SIMULATION ONLY");
         mockBadge.getElement().getThemeList().add("badge warning");
-        HorizontalLayout heading = new HorizontalLayout(title, mockBadge);
+        HorizontalLayout heading = new HorizontalLayout(title, plannerEnabled, mockBadge);
         heading.setAlignItems(Alignment.CENTER);
 
         Paragraph summary = new Paragraph("Whole-house plan · charge floor heating when electricity is cheap and recommend wood before expensive periods");
@@ -119,7 +126,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         siteForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("650px", 2));
         Details siteConfiguration = new Details("Site and weather forecast", siteForm);
         siteConfiguration.setWidthFull();
-        siteConfiguration.setOpened(true);
+        siteConfiguration.setOpened(false);
 
         Checkbox loaded = new Checkbox("Stove is loaded and ready", true);
         TimePicker availableFrom = new TimePicker("Available to light from", LocalTime.of(6, 0));
@@ -135,11 +142,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         stoveForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("650px", 3));
         Details stoveConfiguration = new Details("Wood stove availability and heat profile", stoveForm);
         stoveConfiguration.setWidthFull();
-        stoveConfiguration.setOpened(true);
+        stoveConfiguration.setOpened(false);
 
         Grid<RoomOverview> rooms = roomOverviewGrid(roomRows, thermostats);
         Button addRoom = new Button("Add room", VaadinIcon.PLUS.create(), event -> {
-            roomRows.add(new RoomOverview("New room", HeatSource.FLOOR_HEATING, new BigDecimal("21.00"),
+            roomRows.add(new RoomOverview("New room", HeatingPlannerHeatSourceType.FLOOR_HEATING, new BigDecimal("21.00"),
                     null, "Temperature sensor type pending"));
             rooms.getDataProvider().refreshAll();
         });
@@ -150,7 +157,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         roomConfigurationContent.setAlignItems(Alignment.STRETCH);
         Details roomConfiguration = new Details("Rooms and heat sources", roomConfigurationContent);
         roomConfiguration.setWidthFull();
-        roomConfiguration.setOpened(true);
+        roomConfiguration.setOpened(false);
 
         VerticalLayout planHost = new VerticalLayout();
         planHost.setPadding(false);
@@ -161,19 +168,52 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             List<SiteWeatherEntity> forecast = forecastForHorizon(selectedSite);
             var request = mockRequest(loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
                     woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
-                    plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(), forecast);
+                    plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(), representativeTarget(roomRows),
+                    forecast);
             planHost.add(planContent(simulationService.simulate(request), selectedSite, forecast));
         };
         Button recalculate = new Button("Recalculate mock plan", VaadinIcon.REFRESH.create(), event -> calculate.run());
         recalculate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button saveConfiguration = new Button("Save rooms", VaadinIcon.CHECK.create(), event -> {
+            SiteEntity selectedSite = siteSelect.getValue();
+            if (account == null || selectedSite == null) {
+                Notification.show("Select a site before saving").addThemeVariants(NotificationVariant.LUMO_WARNING);
+                return;
+            }
+            try {
+                configurationService.save(account.getId(), selectedSite.getId(),
+                        new HeatingPlannerConfigurationService.SettingsConfiguration(
+                                plannerEnabled.getValue(),
+                                decimalOrDefault(plannerWeatherThreshold.getValue(), "5.00"),
+                                decimalOrDefault(woodWeatherThreshold.getValue(), "0.00")
+                        ),
+                        roomRows.stream()
+                                .map(row -> new HeatingPlannerConfigurationService.RoomConfiguration(
+                                        row.room(), row.heatSource(), row.targetRoomTemperature(),
+                                        row.controller() == null ? null : row.controller().getId()
+                                ))
+                                .toList());
+                Notification.show("Heating Planner rooms saved").addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                calculate.run();
+            } catch (IllegalArgumentException ex) {
+                Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveConfiguration.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_PRIMARY);
+        HorizontalLayout planActions = new HorizontalLayout(saveConfiguration, recalculate);
+        planActions.setWidthFull();
         siteSelect.addValueChangeListener(event -> {
             updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, event.getValue());
+            loadConfiguration(configurationService, account == null ? null : account.getId(), event.getValue(),
+                    plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold, roomRows, rooms, thermostats);
             calculate.run();
         });
         updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, siteSelect.getValue());
+        loadConfiguration(configurationService, account == null ? null : account.getId(), siteSelect.getValue(),
+                plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold, roomRows, rooms, thermostats);
         calculate.run();
 
-        card.add(back, heading, summary, siteConfiguration, roomConfiguration, stoveConfiguration, recalculate, planHost);
+        card.add(back, heading, summary, siteConfiguration, roomConfiguration, stoveConfiguration, planActions, planHost);
         add(card);
     }
 
@@ -182,7 +222,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         VerticalLayout plan = new VerticalLayout();
         plan.setPadding(false);
         Details evidence = new Details("Inputs used to determine this plan", evidenceContent(result, site, forecast));
-        evidence.setOpened(true);
+        evidence.setOpened(false);
         LocalDate today = LocalDate.now(ZONE);
         Map<LocalDate, List<HeatingPlanSimulationService.SimulationPoint>> byDate = new LinkedHashMap<>();
         result.points().forEach(point -> byDate.computeIfAbsent(point.time().atZone(ZONE).toLocalDate(), ignored -> new ArrayList<>()).add(point));
@@ -222,9 +262,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             return room;
         }).setHeader("Room").setFlexGrow(1);
         grid.addComponentColumn(row -> {
-            ComboBox<HeatSource> heatSource = new ComboBox<>();
-            heatSource.setItems(HeatSource.values());
-            heatSource.setItemLabelGenerator(HeatSource::label);
+            ComboBox<HeatingPlannerHeatSourceType> heatSource = new ComboBox<>();
+            heatSource.setItems(HeatingPlannerHeatSourceType.values());
+            heatSource.setItemLabelGenerator(HeatingPlannerHeatSourceType::label);
             heatSource.setValue(row.heatSource());
             heatSource.setWidthFull();
             heatSource.addValueChangeListener(event -> row.setHeatSource(event.getValue()));
@@ -374,6 +414,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                                                        Double releaseDurationHours,
                                                                        Double plannerWeatherThreshold,
                                                                        Double woodWeatherThreshold,
+                                                                       BigDecimal targetRoomTemperature,
                                                                        List<SiteWeatherEntity> forecast) {
         ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
         List<HeatingPlanSimulationService.MarketPoint> market = new ArrayList<>();
@@ -391,9 +432,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             market.add(new HeatingPlanSimulationService.MarketPoint(start.plusHours(hour).toInstant(), price,
                     outdoor, wind));
         }
+        BigDecimal target = targetRoomTemperature == null ? new BigDecimal("21.00") : targetRoomTemperature;
         var settings = new HeatingPlanSimulationService.Settings(Duration.ofHours(1), Duration.ofHours(6),
                 new BigDecimal("5"), new BigDecimal("20"), new BigDecimal("23"), new BigDecimal("27"),
-                new BigDecimal("29"), new BigDecimal("19"), new BigDecimal("20"), new BigDecimal("23.5"),
+                new BigDecimal("29"), new BigDecimal("19"), target.subtract(BigDecimal.ONE),
+                target.add(new BigDecimal("2.50")),
                 BigDecimal.valueOf(plannerWeatherThreshold));
         var model = new HeatingPlanSimulationService.ThermalModel(new BigDecimal("2"), new BigDecimal("0.8"),
                 new BigDecimal("0.06"), new BigDecimal("0.012"), new BigDecimal("0.001"));
@@ -421,19 +464,46 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private record PlanAction(String time, String action, String reason) {
     }
 
-    private List<RoomOverview> defaultRoomRows() {
-        return new ArrayList<>(List.of(
-                new RoomOverview("Living room", HeatSource.WOOD_STOVE, new BigDecimal("21.00"),
-                        null, "Temperature sensor type pending"),
-                new RoomOverview("Kitchen", HeatSource.FLOOR_HEATING, new BigDecimal("21.00"),
-                        null, "Temperature sensor type pending"),
-                new RoomOverview("Shower", HeatSource.FLOOR_HEATING, new BigDecimal("22.00"),
-                        null, "Temperature sensor type pending"),
-                new RoomOverview("Toilet", HeatSource.FLOOR_HEATING, new BigDecimal("21.00"),
-                        null, "Temperature sensor type pending"),
-                new RoomOverview("Entrance", HeatSource.FLOOR_HEATING, new BigDecimal("19.00"),
-                        null, "Temperature sensor type pending")
-        ));
+    private BigDecimal representativeTarget(List<RoomOverview> roomRows) {
+        return roomRows.stream()
+                .map(RoomOverview::targetRoomTemperature)
+                .filter(value -> value != null)
+                .reduce(BigDecimal::add)
+                .map(sum -> sum.divide(BigDecimal.valueOf(roomRows.size()), 2, java.math.RoundingMode.HALF_UP))
+                .orElse(new BigDecimal("21.00"));
+    }
+
+    private BigDecimal decimalOrDefault(Double value, String fallback) {
+        return value == null ? new BigDecimal(fallback) : BigDecimal.valueOf(value);
+    }
+
+    private void loadConfiguration(HeatingPlannerConfigurationService configurationService, Long accountId, SiteEntity site,
+                                   Checkbox plannerEnabled, NumberField plannerWeatherThreshold,
+                                   NumberField woodWeatherThreshold, List<RoomOverview> roomRows,
+                                   Grid<RoomOverview> rooms, List<DeviceEntity> thermostats) {
+        roomRows.clear();
+        if (accountId != null && site != null) {
+            HeatingPlannerConfigurationService.Configuration configuration = configurationService.configuration(accountId, site.getId());
+            plannerEnabled.setValue(configuration.enabled());
+            plannerWeatherThreshold.setValue(configuration.plannerActiveBelowTemperature().doubleValue());
+            woodWeatherThreshold.setValue(configuration.woodRecommendationBelowTemperature().doubleValue());
+            configuration.rooms().stream()
+                    .map(room -> new RoomOverview(
+                            room.name(),
+                            room.sourceType(),
+                            room.targetRoomTemperature(),
+                            thermostats.stream()
+                                    .filter(device -> room.controllingDeviceId() != null
+                                            && device.getId().equals(room.controllingDeviceId()))
+                                    .findFirst()
+                                    .orElse(null),
+                            "Temperature sensor type pending"
+                    ))
+                    .forEach(roomRows::add);
+        } else {
+            plannerEnabled.setValue(false);
+        }
+        rooms.getDataProvider().refreshAll();
     }
 
     private void updateSiteWeatherStatus(Span status, Button configureButton, SiteEntity site) {
@@ -495,35 +565,18 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return device.getDeviceName() + " · " + device.getDevicePlatform();
     }
 
-    private enum HeatSource {
-        FLOOR_HEATING("Floor heating"),
-        WOOD_STOVE("Wood stove"),
-        HEAT_PUMP_OBSERVED_ONLY("Heat pump (observed only)"),
-        OTHER("Other / not used");
-
-        private final String label;
-
-        HeatSource(String label) {
-            this.label = label;
-        }
-
-        private String label() {
-            return label;
-        }
-    }
-
     private static final class RoomOverview {
         private String room;
-        private HeatSource heatSource;
+        private HeatingPlannerHeatSourceType heatSource;
         private BigDecimal targetRoomTemperature;
         private DeviceEntity controller;
         private String roomSensor;
 
-        private RoomOverview(String room, HeatSource heatSource, BigDecimal targetRoomTemperature,
+        private RoomOverview(String room, HeatingPlannerHeatSourceType heatSource, BigDecimal targetRoomTemperature,
                              DeviceEntity controller, String roomSensor) {
             this.room = room;
             this.heatSource = heatSource;
-            this.targetRoomTemperature = targetRoomTemperature;
+            this.targetRoomTemperature = targetRoomTemperature == null ? new BigDecimal("21.00") : targetRoomTemperature;
             this.controller = controller;
             this.roomSensor = roomSensor;
         }
@@ -536,11 +589,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             this.room = room;
         }
 
-        private HeatSource heatSource() {
+        private HeatingPlannerHeatSourceType heatSource() {
             return heatSource;
         }
 
-        private void setHeatSource(HeatSource heatSource) {
+        private void setHeatSource(HeatingPlannerHeatSourceType heatSource) {
             this.heatSource = heatSource;
         }
 

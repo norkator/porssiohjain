@@ -3,7 +3,7 @@ CREATE TABLE heating_planner_settings
     id                                    BIGSERIAL PRIMARY KEY,
     account_id                            BIGINT                   NOT NULL REFERENCES account (id) ON DELETE CASCADE,
     site_id                               BIGINT                   NOT NULL REFERENCES site (id) ON DELETE CASCADE,
-    enabled                               BOOLEAN                  NOT NULL DEFAULT TRUE,
+    enabled                               BOOLEAN                  NOT NULL DEFAULT FALSE,
     active_control_enabled                BOOLEAN                  NOT NULL DEFAULT FALSE,
     timezone                              VARCHAR(64)              NOT NULL DEFAULT 'Europe/Helsinki',
     planner_active_below_temperature      NUMERIC(10, 2)           NOT NULL DEFAULT 5.00,

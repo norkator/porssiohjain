@@ -44,7 +44,7 @@ public class HeatingPlannerSettingsEntity {
 
     @Builder.Default
     @Column(nullable = false)
-    private boolean enabled = true;
+    private boolean enabled = false;
 
     @Builder.Default
     @Column(name = "active_control_enabled", nullable = false)
