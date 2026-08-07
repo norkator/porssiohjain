@@ -26,6 +26,7 @@ import com.nitramite.porssiohjain.services.heating.HeatingPlannerConfigurationSe
 import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
 import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import com.nitramite.porssiohjain.views.components.HeatingPlanChart;
+import com.nitramite.porssiohjain.views.components.SiteWeatherForecastChart;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -149,7 +150,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         FormLayout siteForm = new FormLayout(siteSelect, taxPercent, transferContract, siteWarnings);
         siteForm.setWidthFull();
         siteForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("650px", 2));
-        Details siteConfiguration = new Details("Site and weather forecast", siteForm);
+        VerticalLayout siteConfigurationContent = new VerticalLayout();
+        siteConfigurationContent.setPadding(false);
+        siteConfigurationContent.setWidthFull();
+        siteConfigurationContent.setAlignItems(Alignment.STRETCH);
+        VerticalLayout weatherForecastChartHost = new VerticalLayout();
+        weatherForecastChartHost.setPadding(false);
+        weatherForecastChartHost.setWidthFull();
+        siteConfigurationContent.add(siteForm, weatherForecastChartHost);
+        Details siteConfiguration = new Details("Site and weather forecast", siteConfigurationContent);
         siteConfiguration.setWidthFull();
         siteConfiguration.setOpened(false);
 
@@ -286,6 +295,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         siteSelect.addValueChangeListener(event -> {
             updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, event.getValue());
+            updateWeatherForecastChart(weatherForecastChartHost, event.getValue());
             loadConfiguration(configurationService, account == null ? null : account.getId(), event.getValue(),
                     loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                     taxPercent, transferContract, roomRows, rooms, thermostats, transferContracts);
@@ -295,6 +305,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             calculate.run();
         });
         updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, siteSelect.getValue());
+        updateWeatherForecastChart(weatherForecastChartHost, siteSelect.getValue());
         loadConfiguration(configurationService, account == null ? null : account.getId(), siteSelect.getValue(),
                 loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                 taxPercent, transferContract, roomRows, rooms, thermostats, transferContracts);
@@ -748,6 +759,20 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
         return siteWeatherRepository.findBySiteAndForecastTimeBetweenOrderByForecastTimeAsc(
                 site, start.toInstant(), start.plusDays(2).toInstant());
+    }
+
+    private void updateWeatherForecastChart(VerticalLayout host, SiteEntity site) {
+        host.removeAll();
+        if (site == null) {
+            host.add(new Paragraph("Select a site to inspect its weather forecast."));
+            return;
+        }
+        List<SiteWeatherEntity> forecast = forecastForHorizon(site);
+        if (forecast.isEmpty()) {
+            host.add(new Paragraph("No stored weather forecast rows for today and tomorrow."));
+            return;
+        }
+        host.add(new H3("Weather forecast"), new SiteWeatherForecastChart(forecast, zoneForSite(site)));
     }
 
     private Optional<SiteWeatherEntity> nearestForecast(List<SiteWeatherEntity> forecast, Instant time) {
