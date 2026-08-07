@@ -21,5 +21,7 @@ public interface HeatingPlannerSettingsRepository extends JpaRepository<HeatingP
 
     List<HeatingPlannerSettingsEntity> findByAccountIdOrderByIdAsc(Long accountId);
 
+    List<HeatingPlannerSettingsEntity> findByAccountIdOrderByUpdatedAtDesc(Long accountId);
+
     Optional<HeatingPlannerSettingsEntity> findByAccountIdAndSiteId(Long accountId, Long siteId);
 }
