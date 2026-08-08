@@ -12,6 +12,8 @@
 package com.nitramite.porssiohjain;
 
 import com.nitramite.porssiohjain.entity.*;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.ZigbeeGatewaySyncService;
 import com.nitramite.porssiohjain.services.ZigbeeGatewayConnectivityService;
@@ -36,6 +38,7 @@ class ZigbeeGatewaySyncServiceTest {
     @Mock AccountRepository accounts;
     @Mock DeviceRepository devices;
     @Mock ZigbeeGatewayDeviceRepository links;
+    @Mock ZigbeeDeviceMeasurementRepository measurements;
     @Mock ZigbeeGatewayConnectivityService connectivityService;
     @Mock DeviceOfflineNotificationService deviceOfflineNotificationService;
     ZigbeeGatewaySyncService service;
@@ -44,7 +47,7 @@ class ZigbeeGatewaySyncServiceTest {
 
     @BeforeEach void setUp() {
         service = new ZigbeeGatewaySyncService(
-                accounts, devices, links, connectivityService, deviceOfflineNotificationService);
+                accounts, devices, links, measurements, connectivityService, deviceOfflineNotificationService);
         account = new AccountEntity(); account.setId(7L);
         gateway = UUID.randomUUID();
         when(accounts.findById(7L)).thenReturn(Optional.of(account));
@@ -62,10 +65,46 @@ class ZigbeeGatewaySyncServiceTest {
         DeviceEntity registered = captured.getAllValues().getLast();
         assertEquals(account, registered.getAccount());
         assertEquals("ANDROID_ZIGBEE", registered.getDevicePlatform().name());
+        assertEquals(DeviceType.THERMOSTAT, registered.getDeviceType());
         assertTrue(registered.isApiOnline());
         assertNotNull(registered.getLastCommunication());
         verify(deviceOfflineNotificationService).sendIfDeviceCameOnline(
                 eq(registered), eq(false), eq(false), eq("API"), eq(registered.getLastCommunication()));
+    }
+
+    @Test void sensorSyncRegistersTemperatureSensorAndStoresMeasurements() {
+        when(links.findByGatewayIdAndZigbeeIeee(gateway, "00158d000abc1234")).thenReturn(Optional.empty());
+        when(devices.save(any())).thenAnswer(call -> { DeviceEntity d = call.getArgument(0); d.setId(12L); return d; });
+        when(links.save(any())).thenAnswer(call -> call.getArgument(0));
+        ZigbeeGatewaySyncRequest.DeviceReport report = new ZigbeeGatewaySyncRequest.DeviceReport();
+        report.setZigbeeIeee("0x00158D000ABC1234");
+        report.setProfile("TS0201");
+        report.setCustomName("Bedroom sensor");
+        report.setTemperature(new BigDecimal("21.75"));
+        report.setHumidity(new BigDecimal("38.50"));
+        Instant measuredAt = Instant.now().minusSeconds(30);
+        report.setMeasuredAt(measuredAt);
+        ZigbeeGatewaySyncRequest request = new ZigbeeGatewaySyncRequest();
+        request.setGatewayId(gateway);
+        request.setDevices(List.of(report));
+
+        var response = service.sync(7L, gateway, request);
+
+        assertTrue(response.getDevices().isEmpty());
+        ArgumentCaptor<DeviceEntity> deviceCaptor = ArgumentCaptor.forClass(DeviceEntity.class);
+        verify(devices, times(2)).save(deviceCaptor.capture());
+        DeviceEntity registered = deviceCaptor.getAllValues().getLast();
+        assertEquals(DeviceType.TEMPERATURE_SENSOR, registered.getDeviceType());
+        assertEquals("Bedroom sensor", registered.getDeviceName());
+        ArgumentCaptor<ZigbeeDeviceMeasurementEntity> measurementCaptor =
+                ArgumentCaptor.forClass(ZigbeeDeviceMeasurementEntity.class);
+        verify(measurements, times(2)).save(measurementCaptor.capture());
+        List<ZigbeeDeviceMeasurementEntity> saved = measurementCaptor.getAllValues();
+        assertEquals(ZigbeeMeasurementType.TEMPERATURE, saved.get(0).getMeasurementType());
+        assertEquals(new BigDecimal("21.75"), saved.get(0).getValue());
+        assertEquals(measuredAt, saved.get(0).getMeasuredAt());
+        assertEquals(ZigbeeMeasurementType.HUMIDITY, saved.get(1).getMeasurementType());
+        assertEquals(new BigDecimal("38.50"), saved.get(1).getValue());
     }
 
     @Test void thermostatReportMarksExistingDeviceApiOnline() {

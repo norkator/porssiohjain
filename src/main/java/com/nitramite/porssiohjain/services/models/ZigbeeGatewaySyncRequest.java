@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.services.models;
 
 import lombok.Data;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,9 +29,12 @@ public class ZigbeeGatewaySyncRequest {
         private String profile;
         private long lastAppliedVersion;
         private BigDecimal temperature;
+        private BigDecimal humidity;
+        private BigDecimal batteryPercentage;
         private BigDecimal setpoint;
         private String mode;
         private Boolean success;
         private String error;
+        private Instant measuredAt;
     }
 }

@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
 
@@ -30,10 +31,11 @@ import java.util.*;
 @Transactional
 public class ZigbeeGatewaySyncService {
     public static final int POLL_SECONDS = 300;
-    private static final String SUPPORTED_PROFILE = "schneider_wde002497";
+    private static final String THERMOSTAT_PROFILE = "schneider_wde002497";
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
     private final ZigbeeGatewayDeviceRepository zigbeeRepository;
+    private final ZigbeeDeviceMeasurementRepository measurementRepository;
     private final ZigbeeGatewayConnectivityService connectivityService;
     private final DeviceOfflineNotificationService deviceOfflineNotificationService;
 
@@ -48,12 +50,15 @@ public class ZigbeeGatewaySyncService {
         List<ZigbeeGatewaySyncResponse.DeviceCommand> commands = new ArrayList<>();
         for (ZigbeeGatewaySyncRequest.DeviceReport report : Optional.ofNullable(request.getDevices()).orElse(List.of())) {
             String ieee = normalizeIeee(report.getZigbeeIeee());
-            if (!SUPPORTED_PROFILE.equals(report.getProfile())) throw badRequest("Unsupported Zigbee thermostat profile");
+            String profile = normalizeProfile(report.getProfile());
+            if (!isSupportedProfile(profile, report)) throw badRequest("Unsupported Zigbee profile");
             ZigbeeGatewayDeviceEntity link = zigbeeRepository.findByGatewayIdAndZigbeeIeee(pathGatewayId, ieee)
                     .map(existing -> requireOwner(existing, accountId))
                     .orElseGet(() -> register(account, pathGatewayId, ieee, report));
             updateReport(link, report, now);
-            if (link.getDesiredVersion() > link.getAppliedVersion()
+            saveMeasurements(link, report, now);
+            if (isThermostatProfile(link.getProfile())
+                    && link.getDesiredVersion() > link.getAppliedVersion()
                     && link.getDesiredExpiresAt() != null && link.getDesiredExpiresAt().isAfter(now)) {
                 commands.add(ZigbeeGatewaySyncResponse.DeviceCommand.builder()
                         .zigbeeIeee(ieee).version(link.getDesiredVersion())
@@ -67,34 +72,46 @@ public class ZigbeeGatewaySyncService {
     private ZigbeeGatewayDeviceEntity register(AccountEntity account, UUID gatewayId, String ieee,
             ZigbeeGatewaySyncRequest.DeviceReport report) {
         String name = cleanName(report.getCustomName());
+        String profile = normalizeProfile(report.getProfile());
+        boolean thermostat = isThermostatProfile(profile);
         DeviceEntity device = DeviceEntity.builder()
-                .deviceType(DeviceType.THERMOSTAT).devicePlatform(DevicePlatform.ANDROID_ZIGBEE)
-                .mqttDeviceProfile(MqttDeviceProfile.GENERIC_THERMOSTAT).enabled(true)
-                .deviceName(name.isBlank() ? "Zigbee thermostat " + ieee.substring(8) : name)
+                .deviceType(thermostat ? DeviceType.THERMOSTAT : DeviceType.TEMPERATURE_SENSOR)
+                .devicePlatform(DevicePlatform.ANDROID_ZIGBEE)
+                .mqttDeviceProfile(thermostat ? MqttDeviceProfile.GENERIC_THERMOSTAT : MqttDeviceProfile.GENERIC_RELAY)
+                .enabled(true)
+                .deviceName(name.isBlank()
+                        ? (thermostat ? "Zigbee thermostat " : "Zigbee temperature sensor ") + ieee.substring(8)
+                        : name)
                 .timezone("Europe/Helsinki").account(account).build();
         device = deviceRepository.save(device);
         return zigbeeRepository.save(ZigbeeGatewayDeviceEntity.builder()
                 .account(account).device(device).gatewayId(gatewayId).zigbeeIeee(ieee)
-                .profile(report.getProfile()).customName(name).build());
+                .profile(profile).customName(name).build());
     }
 
     private void updateReport(ZigbeeGatewayDeviceEntity link, ZigbeeGatewaySyncRequest.DeviceReport report, Instant now) {
-        if (report.getLastAppliedVersion() < link.getAppliedVersion()
-                || report.getLastAppliedVersion() > link.getDesiredVersion()) {
-            throw badRequest("Invalid applied Zigbee command version");
+        if (isThermostatProfile(link.getProfile())) {
+            if (report.getLastAppliedVersion() < link.getAppliedVersion()
+                    || report.getLastAppliedVersion() > link.getDesiredVersion()) {
+                throw badRequest("Invalid applied Zigbee command version");
+            }
+        } else if (report.getLastAppliedVersion() != 0) {
+            throw badRequest("Sensor reports must not acknowledge thermostat command versions");
         }
         link.setCustomName(cleanName(report.getCustomName()));
         link.setLastSeen(now);
         link.setReportedTemperature(report.getTemperature());
         link.setReportedSetpoint(report.getSetpoint());
         link.setReportedMode(normalizeMode(report.getMode(), true));
-        if (Boolean.TRUE.equals(report.getSuccess()) && report.getLastAppliedVersion() > link.getAppliedVersion()) {
+        if (isThermostatProfile(link.getProfile())
+                && Boolean.TRUE.equals(report.getSuccess()) && report.getLastAppliedVersion() > link.getAppliedVersion()) {
             link.setAppliedVersion(report.getLastAppliedVersion());
             link.setLastError(null);
         } else if (Boolean.FALSE.equals(report.getSuccess())) {
             link.setLastError(truncate(report.getError(), 512));
         }
-        if (reportedStateDrifted(link) && link.getAppliedVersion() >= link.getDesiredVersion()) {
+        if (isThermostatProfile(link.getProfile())
+                && reportedStateDrifted(link) && link.getAppliedVersion() >= link.getDesiredVersion()) {
             link.setDesiredVersion(link.getDesiredVersion() + 1);
             link.setDesiredAt(now);
             link.setLastError("Reported thermostat state drifted from desired cloud state");
@@ -114,6 +131,35 @@ public class ZigbeeGatewaySyncService {
                 "API",
                 now
         );
+    }
+
+    private void saveMeasurements(ZigbeeGatewayDeviceEntity link, ZigbeeGatewaySyncRequest.DeviceReport report, Instant now) {
+        Instant measuredAt = report.getMeasuredAt() == null ? now : report.getMeasuredAt();
+        saveMeasurement(link, ZigbeeMeasurementType.TEMPERATURE, "temperature", report.getTemperature(), measuredAt, now);
+        saveMeasurement(link, ZigbeeMeasurementType.HUMIDITY, "humidity", report.getHumidity(), measuredAt, now);
+        saveMeasurement(link, ZigbeeMeasurementType.BATTERY_PERCENTAGE, "batteryPercentage", report.getBatteryPercentage(), measuredAt, now);
+        if (isThermostatProfile(link.getProfile())) {
+            saveMeasurement(link, ZigbeeMeasurementType.THERMOSTAT_SETPOINT, "setpoint", report.getSetpoint(), measuredAt, now);
+        }
+    }
+
+    private void saveMeasurement(ZigbeeGatewayDeviceEntity link, ZigbeeMeasurementType type, String key,
+                                 BigDecimal value, Instant measuredAt, Instant receivedAt) {
+        if (value == null) {
+            return;
+        }
+        measurementRepository.save(ZigbeeDeviceMeasurementEntity.builder()
+                .account(link.getAccount())
+                .device(link.getDevice())
+                .gatewayId(link.getGatewayId())
+                .zigbeeIeee(link.getZigbeeIeee())
+                .profile(link.getProfile())
+                .measurementType(type)
+                .measurementKey(key)
+                .value(value)
+                .measuredAt(measuredAt)
+                .receivedAt(receivedAt)
+                .build());
     }
 
     private boolean reportedStateDrifted(ZigbeeGatewayDeviceEntity link) {
@@ -138,6 +184,22 @@ public class ZigbeeGatewaySyncService {
         if (normalized.startsWith("0x")) normalized = normalized.substring(2);
         if (!normalized.matches("[0-9a-f]{16}")) throw badRequest("Invalid Zigbee IEEE address");
         return normalized;
+    }
+
+    private static String normalizeProfile(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean isSupportedProfile(String profile, ZigbeeGatewaySyncRequest.DeviceReport report) {
+        return isThermostatProfile(profile) || hasSensorMeasurement(report);
+    }
+
+    private static boolean isThermostatProfile(String profile) {
+        return THERMOSTAT_PROFILE.equals(profile);
+    }
+
+    private static boolean hasSensorMeasurement(ZigbeeGatewaySyncRequest.DeviceReport report) {
+        return report.getTemperature() != null || report.getHumidity() != null || report.getBatteryPercentage() != null;
     }
 
     static String normalizeMode(String value, boolean nullable) {

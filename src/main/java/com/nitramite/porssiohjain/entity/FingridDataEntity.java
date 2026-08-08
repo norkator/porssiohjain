@@ -37,7 +37,7 @@ public class FingridDataEntity {
     @Column(name = "end_time", nullable = false)
     private Instant endTime;
 
-    @Column(name = "value", precision = 14, scale = 4, nullable = false)
+    @Column(name = "\"value\"", precision = 14, scale = 4, nullable = false)
     private BigDecimal value;
 
 }
