@@ -15,6 +15,9 @@ import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -33,4 +36,9 @@ public interface ZigbeeDeviceMeasurementRepository extends JpaRepository<ZigbeeD
             Long accountId,
             Instant measuredAfter
     );
+
+    @Modifying
+    @Transactional
+    @Query("delete from ZigbeeDeviceMeasurementEntity m where m.measuredAt < :cutoff")
+    int deleteOlderThan(Instant cutoff);
 }

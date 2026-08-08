@@ -60,7 +60,7 @@ public class ZigbeeDeviceMeasurementEntity {
     @Column(name = "measurement_key", nullable = false, length = 64)
     private String measurementKey;
 
-    @Column(nullable = false, precision = 10, scale = 3)
+    @Column(name = "\"value\"", nullable = false, precision = 10, scale = 3)
     private BigDecimal value;
 
     @Column(name = "measured_at", nullable = false)
