@@ -13,6 +13,7 @@ import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
 import com.nitramite.porssiohjain.entity.NordpoolEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
+import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ContractType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
@@ -21,6 +22,7 @@ import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepositor
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
+import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerConfigurationService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
@@ -87,7 +89,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                               DeviceRepository deviceRepository,
                               NordpoolRepository nordpoolRepository,
                               ElectricityContractRepository contractRepository,
-                              HeatingPlannerConfigurationService configurationService) {
+                              HeatingPlannerConfigurationService configurationService,
+                              ZigbeeDeviceMeasurementRepository measurementRepository) {
         this.authService = authService;
         this.siteWeatherRepository = siteWeatherRepository;
         this.nordpoolRepository = nordpoolRepository;
@@ -202,6 +205,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         Details roomConfiguration = new Details("Rooms and heat sources", roomConfigurationContent);
         roomConfiguration.setWidthFull();
         roomConfiguration.setOpened(false);
+        Details recentMeasurements = recentMeasurementsDetails(account == null ? null : account.getId(), measurementRepository);
 
         VerticalLayout planHost = new VerticalLayout();
         planHost.setPadding(false);
@@ -390,9 +394,88 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 releaseDelay, releaseDuration, roomRows, rooms, thermostats, temperatureSensors, transferContracts);
         calculate.run();
 
-        card.add(back, heading, summary, siteConfiguration, roomConfiguration, stoveConfiguration,
+        card.add(back, heading, summary, siteConfiguration, roomConfiguration, recentMeasurements, stoveConfiguration,
                 stoveHeatProfileConfiguration, recalculate, planHost);
         add(card);
+    }
+
+    private Details recentMeasurementsDetails(Long accountId, ZigbeeDeviceMeasurementRepository measurementRepository) {
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+        content.setWidthFull();
+        content.setAlignItems(Alignment.STRETCH);
+
+        Span status = new Span();
+        Grid<RecentMeasurementRow> grid = new Grid<>(RecentMeasurementRow.class, false);
+        grid.setWidthFull();
+        grid.addColumn(RecentMeasurementRow::measuredAt)
+                .setHeader("Measured")
+                .setWidth("170px")
+                .setFlexGrow(0);
+        grid.addColumn(RecentMeasurementRow::receivedAt)
+                .setHeader("Received")
+                .setWidth("170px")
+                .setFlexGrow(0);
+        grid.addComponentColumn(row -> wrappingCell(row.device()))
+                .setHeader("Device")
+                .setFlexGrow(2);
+        grid.addColumn(RecentMeasurementRow::zigbeeIeee)
+                .setHeader("IEEE")
+                .setWidth("160px")
+                .setFlexGrow(0);
+        grid.addColumn(RecentMeasurementRow::profile)
+                .setHeader("Profile")
+                .setFlexGrow(1);
+        grid.addColumn(RecentMeasurementRow::type)
+                .setHeader("Type")
+                .setWidth("170px")
+                .setFlexGrow(0);
+        grid.addColumn(RecentMeasurementRow::value)
+                .setHeader("Value")
+                .setWidth("110px")
+                .setFlexGrow(0);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
+        grid.setAllRowsVisible(true);
+
+        Runnable refresh = () -> {
+            if (accountId == null) {
+                grid.setItems(List.of());
+                status.setText("Sign in to see received Zigbee sensor readings.");
+                return;
+            }
+            Instant after = Instant.now().minus(Duration.ofHours(12));
+            List<RecentMeasurementRow> rows = measurementRepository
+                    .findTop500ByAccountIdAndMeasuredAtAfterOrderByMeasuredAtDescIdDesc(accountId, after)
+                    .stream()
+                    .map(this::recentMeasurementRow)
+                    .toList();
+            grid.setItems(rows);
+            status.setText("Showing " + rows.size() + " newest rows measured during the past 12 hours"
+                    + (rows.size() == 500 ? " (limited to 500)." : "."));
+        };
+        Button refreshButton = new Button("Refresh readings", VaadinIcon.REFRESH.create(), event -> refresh.run());
+        refreshButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        refresh.run();
+
+        content.add(status, refreshButton, grid);
+        Details details = new Details("Recent Zigbee sensor readings", content);
+        details.setWidthFull();
+        details.setOpened(false);
+        return details;
+    }
+
+    private RecentMeasurementRow recentMeasurementRow(ZigbeeDeviceMeasurementEntity measurement) {
+        DeviceEntity device = measurement.getDevice();
+        String deviceName = device == null ? "-" : deviceLabel(device);
+        return new RecentMeasurementRow(
+                formatInstant(measurement.getMeasuredAt()),
+                formatInstant(measurement.getReceivedAt()),
+                deviceName,
+                measurement.getZigbeeIeee(),
+                measurement.getProfile(),
+                measurement.getMeasurementType() + " · " + measurement.getMeasurementKey(),
+                measurement.getValue().stripTrailingZeros().toPlainString()
+        );
     }
 
     private VerticalLayout planContent(HeatingPlanSimulationService.SimulationResult result, SiteEntity site,
@@ -723,6 +806,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private record WeatherValues(BigDecimal temperature, BigDecimal windSpeedMs) {
     }
 
+    private record RecentMeasurementRow(String measuredAt, String receivedAt, String device, String zigbeeIeee,
+                                        String profile, String type, String value) {
+    }
+
     private BigDecimal representativeTarget(List<RoomOverview> roomRows) {
         return roomRows.stream()
                 .map(RoomOverview::targetRoomTemperature)
@@ -926,6 +1013,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private boolean hasWeatherPlace(SiteEntity site) {
         return site.getWeatherPlace() != null && !site.getWeatherPlace().isBlank();
+    }
+
+    private String formatInstant(Instant instant) {
+        if (instant == null) {
+            return "-";
+        }
+        return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZONE).format(instant);
     }
 
     private String deviceLabel(DeviceEntity device) {

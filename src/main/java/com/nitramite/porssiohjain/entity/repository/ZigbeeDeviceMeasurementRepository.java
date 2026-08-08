@@ -13,8 +13,11 @@ package com.nitramite.porssiohjain.entity.repository;
 
 import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 public interface ZigbeeDeviceMeasurementRepository extends JpaRepository<ZigbeeDeviceMeasurementEntity, Long> {
@@ -23,5 +26,11 @@ public interface ZigbeeDeviceMeasurementRepository extends JpaRepository<ZigbeeD
             Long deviceId,
             ZigbeeMeasurementType measurementType,
             String measurementKey
+    );
+
+    @EntityGraph(attributePaths = "device")
+    List<ZigbeeDeviceMeasurementEntity> findTop500ByAccountIdAndMeasuredAtAfterOrderByMeasuredAtDescIdDesc(
+            Long accountId,
+            Instant measuredAfter
     );
 }
