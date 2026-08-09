@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ContractType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
+import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
 import com.nitramite.porssiohjain.entity.repository.NordpoolRepository;
@@ -34,6 +35,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.details.Details;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
@@ -124,12 +126,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         title.getStyle().set("margin", "0");
         Checkbox plannerEnabled = new Checkbox("Enabled", false);
         plannerEnabled.setHelperText("Disabling keeps the room configuration but prevents planner use.");
-        Span mockBadge = new Span("MOCK DATA · SIMULATION ONLY");
+        Span mockBadge = new Span("REAL DATA · SIMULATION ONLY");
         mockBadge.getElement().getThemeList().add("badge warning");
         HorizontalLayout heading = new HorizontalLayout(title, plannerEnabled, mockBadge);
         heading.setAlignItems(Alignment.CENTER);
 
-        Paragraph summary = new Paragraph("Whole-house plan · charge floor heating when electricity is cheap and recommend wood before expensive periods");
+        Paragraph summary = new Paragraph("Whole-house plan · charge floor heating when electricity is cheap and recommend wood burning before expensive periods");
 
         ComboBox<SiteEntity> siteSelect = new ComboBox<>("Site");
         siteSelect.setItems(sites);
@@ -436,6 +438,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .setFlexGrow(0);
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
         grid.setAllRowsVisible(true);
+        grid.addItemClickListener(event -> openMeasurementHistoryDialog(
+                accountId, event.getItem(), measurementRepository));
 
         Runnable refresh = () -> {
             if (accountId == null) {
@@ -445,13 +449,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             }
             Instant after = Instant.now().minus(Duration.ofHours(12));
             List<RecentMeasurementRow> rows = measurementRepository
-                    .findTop500ByAccountIdAndMeasuredAtAfterOrderByMeasuredAtDescIdDesc(accountId, after)
+                    .findLatestDistinctMeasurements(accountId, after)
                     .stream()
                     .map(this::recentMeasurementRow)
                     .toList();
             grid.setItems(rows);
-            status.setText("Showing " + rows.size() + " newest rows measured during the past 12 hours"
-                    + (rows.size() == 500 ? " (limited to 500)." : "."));
+            status.setText("Showing the latest value for " + rows.size()
+                    + " distinct IEEE address and measurement type combinations from the past 12 hours. Click a row for history.");
         };
         Button refreshButton = new Button("Refresh readings", VaadinIcon.REFRESH.create(), event -> refresh.run());
         refreshButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
@@ -474,8 +478,37 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 measurement.getZigbeeIeee(),
                 measurement.getProfile(),
                 measurement.getMeasurementType() + " · " + measurement.getMeasurementKey(),
-                measurement.getValue().stripTrailingZeros().toPlainString()
+                measurement.getValue().stripTrailingZeros().toPlainString(),
+                measurement.getMeasurementType(),
+                measurement.getMeasurementKey()
         );
+    }
+
+    private void openMeasurementHistoryDialog(Long accountId, RecentMeasurementRow selected,
+                                              ZigbeeDeviceMeasurementRepository measurementRepository) {
+        if (accountId == null || selected == null) {
+            return;
+        }
+        List<RecentMeasurementRow> history = measurementRepository
+                .findTop500ByAccountIdAndZigbeeIeeeAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
+                        accountId, selected.zigbeeIeee(), selected.measurementType(), selected.measurementKey())
+                .stream()
+                .map(this::recentMeasurementRow)
+                .toList();
+        Grid<RecentMeasurementRow> historyGrid = new Grid<>(RecentMeasurementRow.class, false);
+        historyGrid.addColumn(RecentMeasurementRow::measuredAt).setHeader("Measured").setFlexGrow(1);
+        historyGrid.addColumn(RecentMeasurementRow::receivedAt).setHeader("Received").setFlexGrow(1);
+        historyGrid.addColumn(RecentMeasurementRow::value).setHeader("Value").setWidth("120px").setFlexGrow(0);
+        historyGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+        historyGrid.setItems(history);
+        historyGrid.setHeight("60vh");
+
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(selected.zigbeeIeee() + " · " + selected.type());
+        dialog.setWidth("min(900px, 95vw)");
+        dialog.add(new Paragraph("Newest " + history.size() + " history values (limited to 500)."), historyGrid);
+        dialog.getFooter().add(new Button("Close", event -> dialog.close()));
+        dialog.open();
     }
 
     private VerticalLayout planContent(HeatingPlanSimulationService.SimulationResult result, SiteEntity site,
@@ -807,7 +840,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private record RecentMeasurementRow(String measuredAt, String receivedAt, String device, String zigbeeIeee,
-                                        String profile, String type, String value) {
+                                        String profile, String type, String value,
+                                        ZigbeeMeasurementType measurementType, String measurementKey) {
     }
 
     private BigDecimal representativeTarget(List<RoomOverview> roomRows) {

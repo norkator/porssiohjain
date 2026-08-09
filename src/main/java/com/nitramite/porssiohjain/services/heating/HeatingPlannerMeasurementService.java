@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
+import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
 import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
@@ -48,6 +49,14 @@ public class HeatingPlannerMeasurementService {
             return LatestMeasurement.missing();
         }
         var device = floor ? room.getFloorSensorDevice() : room.getRoomSensorDevice();
+        if (!floor && device == null) {
+            device = room.getHeatSources().stream()
+                    .filter(HeatingPlannerRoomHeatSourceEntity::isEnabled)
+                    .map(HeatingPlannerRoomHeatSourceEntity::getControllingDevice)
+                    .filter(candidate -> candidate != null && candidate.getDeviceType() == com.nitramite.porssiohjain.entity.enums.DeviceType.THERMOSTAT)
+                    .findFirst()
+                    .orElse(null);
+        }
         String key = floor ? room.getFloorSensorMeasurementKey() : room.getRoomSensorMeasurementKey();
         if (device == null) {
             return LatestMeasurement.missing();

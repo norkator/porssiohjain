@@ -13,6 +13,8 @@ package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
+import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
@@ -78,6 +80,31 @@ class HeatingPlannerMeasurementServiceTest {
 
         assertEquals(HeatingPlannerMeasurementService.Freshness.MISSING, latest.freshness());
         assertNull(latest.value());
+    }
+
+    @Test void usesControllingThermostatActualTemperatureWhenRoomSensorIsNotConfigured() {
+        HeatingPlannerMeasurementService service = new HeatingPlannerMeasurementService(measurements);
+        DeviceEntity thermostat = new DeviceEntity();
+        thermostat.setId(22L);
+        thermostat.setDeviceType(DeviceType.THERMOSTAT);
+        HeatingPlannerRoomEntity room = new HeatingPlannerRoomEntity();
+        room.getHeatSources().add(HeatingPlannerRoomHeatSourceEntity.builder()
+                .enabled(true)
+                .controllingDevice(thermostat)
+                .build());
+        Instant now = Instant.parse("2026-01-01T12:00:00Z");
+        when(measurements.findFirstByDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
+                22L, ZigbeeMeasurementType.TEMPERATURE, "temperature"))
+                .thenReturn(Optional.of(ZigbeeDeviceMeasurementEntity.builder()
+                        .value(new BigDecimal("20.75"))
+                        .measuredAt(now.minusSeconds(60))
+                        .build()));
+
+        HeatingPlannerMeasurementService.LatestMeasurement latest =
+                service.latestFreshRoomTemperature(room, now);
+
+        assertEquals(new BigDecimal("20.75"), latest.value());
+        assertEquals(HeatingPlannerMeasurementService.Freshness.FRESH, latest.freshness());
     }
 
     private HeatingPlannerRoomEntity room(Long deviceId) {
