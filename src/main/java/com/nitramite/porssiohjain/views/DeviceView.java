@@ -185,6 +185,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case STANDARD -> t("device.type.standard");
             case HEAT_PUMP -> t("device.type.heatPump");
             case THERMOSTAT -> t("device.type.thermostat");
+            case TEMPERATURE_SENSOR -> "Temperature sensor";
         });
         deviceTypeCombo.setValue(DeviceType.STANDARD);
         deviceTypeCombo.setHelperText(t("device.type.helper"));
@@ -290,6 +291,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 case STANDARD -> t("device.type.standard");
                 case HEAT_PUMP -> t("device.type.heatPump");
                 case THERMOSTAT -> t("device.type.thermostat");
+                case TEMPERATURE_SENSOR -> "Temperature sensor";
             };
         }).setHeader(t("device.grid.type")).setAutoWidth(true);
         deviceGrid.addColumn(device -> formatDevicePlatform(device.getDevicePlatform()))

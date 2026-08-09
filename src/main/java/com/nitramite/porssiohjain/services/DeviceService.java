@@ -481,7 +481,7 @@ public class DeviceService {
         }
         long offlineSeconds = switch (device.getDeviceType()) {
             case HEAT_PUMP -> HEAT_PUMP_API_OFFLINE_SECONDS;
-            case STANDARD, THERMOSTAT -> STANDARD_API_OFFLINE_SECONDS;
+            case STANDARD, THERMOSTAT, TEMPERATURE_SENSOR -> STANDARD_API_OFFLINE_SECONDS;
         };
         return lastCommunication.isBefore(now.minusSeconds(offlineSeconds));
     }

@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.scheduled;
 
 import com.nitramite.porssiohjain.mqtt.MqttReconnectService;
+import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.fingrid.FingridDataService;
 import com.nitramite.porssiohjain.services.models.NordpoolResponse;
@@ -24,6 +25,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Locale;
 
 @Slf4j
@@ -52,6 +54,7 @@ public class Scheduler {
     private final HeatPumpOnlineCheckService heatPumpOnlineCheckService;
     private final MqttRelayTestService mqttRelayTestService;
     private final ZigbeeGatewayConnectivityService zigbeeGatewayConnectivityService;
+    private final ZigbeeDeviceMeasurementRepository zigbeeDeviceMeasurementRepository;
 
     private boolean firstRun = true;
 
@@ -77,7 +80,8 @@ public class Scheduler {
             MarketNotificationService marketNotificationService,
             HeatPumpOnlineCheckService heatPumpOnlineCheckService,
             MqttRelayTestService mqttRelayTestService,
-            ZigbeeGatewayConnectivityService zigbeeGatewayConnectivityService
+            ZigbeeGatewayConnectivityService zigbeeGatewayConnectivityService,
+            ZigbeeDeviceMeasurementRepository zigbeeDeviceMeasurementRepository
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
         this.controlSchedulerService = controlSchedulerService;
@@ -100,6 +104,7 @@ public class Scheduler {
         this.heatPumpOnlineCheckService = heatPumpOnlineCheckService;
         this.mqttRelayTestService = mqttRelayTestService;
         this.zigbeeGatewayConnectivityService = zigbeeGatewayConnectivityService;
+        this.zigbeeDeviceMeasurementRepository = zigbeeDeviceMeasurementRepository;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
             nordpoolDataPortalService.fetchData(Day.TODAY);
@@ -229,6 +234,10 @@ public class Scheduler {
         pricePredictionDataService.deleteOldData();
         siteWeatherService.deleteOldSiteWeatherData();
         authService.deleteExpiredTokens();
+        int deletedMeasurements = zigbeeDeviceMeasurementRepository.deleteOlderThan(
+                ZonedDateTime.now(ZoneId.of("Europe/Helsinki")).minusMonths(1).toInstant()
+        );
+        log.info("Deleted {} old Zigbee measurement rows", deletedMeasurements);
     }
 
     @Scheduled(fixedDelayString = "${solarman.poll-interval}")

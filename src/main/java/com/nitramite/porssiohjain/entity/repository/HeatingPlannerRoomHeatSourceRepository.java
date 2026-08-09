@@ -9,11 +9,14 @@
  * See LICENSE for details.
  */
 
-package com.nitramite.porssiohjain.entity.enums;
+package com.nitramite.porssiohjain.entity.repository;
 
-public enum DeviceType {
-    STANDARD,
-    HEAT_PUMP,
-    THERMOSTAT,
-    TEMPERATURE_SENSOR
+import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface HeatingPlannerRoomHeatSourceRepository extends JpaRepository<HeatingPlannerRoomHeatSourceEntity, Long> {
+
+    List<HeatingPlannerRoomHeatSourceEntity> findByRoomIdOrderBySortOrderAscIdAsc(Long roomId);
 }

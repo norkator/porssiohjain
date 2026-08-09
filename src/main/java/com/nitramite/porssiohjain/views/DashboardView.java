@@ -251,7 +251,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         Duration diff = Duration.between(lastCommunication, Instant.now());
         Duration threshold = switch (deviceType) {
             case HEAT_PUMP -> HEAT_PUMP_ONLINE_THRESHOLD;
-            case STANDARD, THERMOSTAT -> STANDARD_ONLINE_THRESHOLD;
+            case STANDARD, THERMOSTAT, TEMPERATURE_SENSOR -> STANDARD_ONLINE_THRESHOLD;
         };
         return diff.compareTo(threshold) < 0;
     }
