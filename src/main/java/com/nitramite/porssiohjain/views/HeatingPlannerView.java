@@ -26,6 +26,7 @@ import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerConfigurationService;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerPlanService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
 import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import com.nitramite.porssiohjain.views.components.HeatingPlanChart;
@@ -92,6 +93,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                               NordpoolRepository nordpoolRepository,
                               ElectricityContractRepository contractRepository,
                               HeatingPlannerConfigurationService configurationService,
+                              HeatingPlannerPlanService planService,
                               ZigbeeDeviceMeasurementRepository measurementRepository) {
         this.authService = authService;
         this.siteWeatherRepository = siteWeatherRepository;
@@ -218,11 +220,28 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             List<SiteWeatherEntity> forecast = forecastForHorizon(selectedSite);
             MarketSeries marketSeries = marketSeries(account, selectedSite, decimalOrDefault(taxPercent.getValue(), "25.50"),
                     transferContract.getValue(), forecast);
-            var request = simulationRequest(loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
-                    woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
-                    plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(), representativeTarget(roomRows),
-                    marketSeries.points());
-            planHost.add(planContent(simulationService.simulate(request), selectedSite, forecast, marketSeries));
+            List<RoomPlan> roomPlans = roomRows.stream()
+                    .map(room -> new RoomPlan(room.room(), room.heatSource(), room.controller(),
+                            simulationService.simulate(simulationRequest(
+                                    loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
+                                    woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
+                                    plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(),
+                                    room.targetRoomTemperature(), marketSeries.points()))))
+                    .toList();
+            if (roomPlans.isEmpty()) {
+                roomPlans = List.of(new RoomPlan("Unconfigured house", HeatingPlannerHeatSourceType.OTHER, null,
+                        simulationService.simulate(simulationRequest(
+                                loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
+                                woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
+                                plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(),
+                                new BigDecimal("21.00"), marketSeries.points()))));
+            }
+            if (account != null && selectedSite != null) {
+                Map<String, HeatingPlanSimulationService.SimulationResult> resultsByRoom = new LinkedHashMap<>();
+                roomPlans.forEach(roomPlan -> resultsByRoom.put(roomPlan.room(), roomPlan.result()));
+                planService.persistSimulatedPlan(account.getId(), selectedSite.getId(), resultsByRoom);
+            }
+            planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries));
         };
         Button recalculate = new Button("Recalculate mock plan", VaadinIcon.REFRESH.create(), event -> calculate.run());
         recalculate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -511,18 +530,17 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         dialog.open();
     }
 
-    private VerticalLayout planContent(HeatingPlanSimulationService.SimulationResult result, SiteEntity site,
+    private VerticalLayout planContent(List<RoomPlan> roomPlans, SiteEntity site,
                                        List<SiteWeatherEntity> forecast, MarketSeries marketSeries) {
         VerticalLayout plan = new VerticalLayout();
         plan.setPadding(false);
+        HeatingPlanSimulationService.SimulationResult result = roomPlans.getFirst().result();
         Details evidence = new Details("Inputs used to determine this plan",
-                evidenceContent(result, site, forecast, marketSeries));
+                evidenceContent(roomPlans, site, forecast, marketSeries));
         evidence.setOpened(false);
         LocalDate today = LocalDate.now(ZONE);
-        Map<LocalDate, List<HeatingPlanSimulationService.SimulationPoint>> byDate = new LinkedHashMap<>();
-        result.points().forEach(point -> byDate.computeIfAbsent(point.time().atZone(ZONE).toLocalDate(), ignored -> new ArrayList<>()).add(point));
-        VerticalLayout todayContent = dayContent(byDate.getOrDefault(today, List.of()), result, true);
-        VerticalLayout tomorrowContent = dayContent(byDate.getOrDefault(today.plusDays(1), List.of()), result, false);
+        VerticalLayout todayContent = dayContent(roomPlans, today, true);
+        VerticalLayout tomorrowContent = dayContent(roomPlans, today.plusDays(1), false);
         Tab todayTab = new Tab("Today");
         Tab tomorrowTab = new Tab("Tomorrow");
         Tabs tabs = new Tabs(todayTab, tomorrowTab);
@@ -618,15 +636,48 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return grid;
     }
 
-    private VerticalLayout dayContent(List<HeatingPlanSimulationService.SimulationPoint> points,
-                                      HeatingPlanSimulationService.SimulationResult result, boolean today) {
+    private VerticalLayout dayContent(List<RoomPlan> roomPlans, LocalDate date, boolean today) {
         VerticalLayout content = new VerticalLayout();
         content.setPadding(false);
-        if (points.isEmpty()) {
+        List<RoomDayPlan> plans = roomPlans.stream()
+                .map(plan -> new RoomDayPlan(plan, plan.result().points().stream()
+                        .filter(point -> point.time().atZone(ZONE).toLocalDate().equals(date))
+                        .toList()))
+                .filter(plan -> !plan.points().isEmpty())
+                .toList();
+        if (plans.isEmpty()) {
             content.add(new Paragraph("Plan unavailable."));
             return content;
         }
-        content.add(new HeatingPlanChart(points, ZONE));
+        ComboBox<RoomDayPlan> roomFilter = new ComboBox<>("Room plan");
+        roomFilter.setItems(plans);
+        roomFilter.setItemLabelGenerator(plan -> plan.roomPlan().room());
+        roomFilter.setValue(plans.getFirst());
+        roomFilter.setWidthFull();
+        VerticalLayout selectedRoomPlan = new VerticalLayout();
+        selectedRoomPlan.setPadding(false);
+        selectedRoomPlan.setWidthFull();
+        Runnable renderSelectedRoom = () -> {
+            selectedRoomPlan.removeAll();
+            RoomDayPlan selected = roomFilter.getValue();
+            if (selected != null) {
+                selectedRoomPlan.add(new HeatingPlanChart(selected.points(), ZONE),
+                        plannedActions(selected.points(), selected.roomPlan().result(), today));
+            }
+        };
+        roomFilter.addValueChangeListener(event -> renderSelectedRoom.run());
+        renderSelectedRoom.run();
+        content.add(roomFilter, selectedRoomPlan);
+        if (today) {
+            content.add(currentCommandPreview(roomPlans), woodBurningPreview(roomPlans));
+        }
+        return content;
+    }
+
+    private VerticalLayout plannedActions(List<HeatingPlanSimulationService.SimulationPoint> points,
+                                          HeatingPlanSimulationService.SimulationResult result, boolean today) {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
         Grid<PlanAction> actions = new Grid<>(PlanAction.class, false);
         actions.addColumn(PlanAction::time)
                 .setHeader("Time")
@@ -641,8 +692,72 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         actions.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
         actions.setAllRowsVisible(true);
         actions.setItems(actions(points, result.woodStoveRecommendation(), today));
-        content.add(new H3("Planned actions"), actions);
-        return content;
+        section.add(new H3("Planned actions"), actions);
+        return section;
+    }
+
+    private VerticalLayout currentCommandPreview(List<RoomPlan> roomPlans) {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        Grid<CurrentCommandPreview> grid = new Grid<>(CurrentCommandPreview.class, false);
+        grid.addColumn(CurrentCommandPreview::room).setHeader("Room").setFlexGrow(1);
+        grid.addComponentColumn(row -> wrappingCell(row.thermostat())).setHeader("Thermostat").setFlexGrow(2);
+        grid.addColumn(CurrentCommandPreview::command).setHeader("Would command now").setFlexGrow(1);
+        grid.addComponentColumn(row -> wrappingCell(row.reason())).setHeader("Why").setFlexGrow(3);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
+        Instant now = Instant.now();
+        List<CurrentCommandPreview> previews = roomPlans.stream()
+                .map(plan -> currentCommand(plan, now))
+                .toList();
+        grid.setItems(previews);
+        grid.setAllRowsVisible(true);
+        Span warning = new Span("SIMULATION ONLY — these thermostat commands are not sent.");
+        warning.getElement().getThemeList().add("badge warning");
+        section.add(new H3("Current simulated thermostat commands"), warning, grid);
+        return section;
+    }
+
+    private CurrentCommandPreview currentCommand(RoomPlan plan, Instant now) {
+        if (plan.sourceType() != HeatingPlannerHeatSourceType.FLOOR_HEATING) {
+            return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "No command",
+                    "The configured heat source is not controllable floor heating.");
+        }
+        if (plan.controller() == null) {
+            return new CurrentCommandPreview(plan.room(), "Not configured", "No command",
+                    "No controlling thermostat is selected for this room.");
+        }
+        HeatingPlanSimulationService.SimulationPoint point = plan.result().points().stream()
+                .filter(candidate -> !candidate.time().isAfter(now))
+                .reduce((left, right) -> right)
+                .orElseGet(() -> plan.result().points().stream().findFirst().orElse(null));
+        if (point == null) {
+            return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "No command", "No plan point is available.");
+        }
+        return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()),
+                point.floorSetpoint() + " °C", point.reason());
+    }
+
+    private VerticalLayout woodBurningPreview(List<RoomPlan> roomPlans) {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        HeatingPlanSimulationService.WoodStoveRecommendation wood = roomPlans.stream()
+                .map(RoomPlan::result)
+                .map(HeatingPlanSimulationService.SimulationResult::woodStoveRecommendation)
+                .filter(java.util.Objects::nonNull)
+                .min(Comparator.comparing(HeatingPlanSimulationService.WoodStoveRecommendation::notifyAt))
+                .orElse(null);
+        H3 heading = new H3("Simulated wood-burning call");
+        if (wood == null) {
+            section.add(heading, new Paragraph("No wood-burning call is required by the current simulation. The stove must be loaded, the weather gate and expensive-period conditions must match, and the call time must be inside the availability window."));
+        } else {
+            section.add(heading,
+                    new Span("Would call at: " + formatInstant(wood.notifyAt())),
+                    new Span("Light: " + wood.loadName() + " (" + wood.woodAmount() + " kg)"),
+                    new Span("Useful heat expected: " + formatInstant(wood.releaseStartsAt()) + " – " + formatInstant(wood.releaseEndsAt())),
+                    new Span("Reason: " + wood.reason()),
+                    new Span("SIMULATION ONLY — no push notification is sent."));
+        }
+        return section;
     }
 
     private Span wrappingCell(String text) {
@@ -681,8 +796,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return actions;
     }
 
-    private VerticalLayout evidenceContent(HeatingPlanSimulationService.SimulationResult result, SiteEntity site,
+    private VerticalLayout evidenceContent(List<RoomPlan> roomPlans, SiteEntity site,
                                            List<SiteWeatherEntity> forecast, MarketSeries marketSeries) {
+        HeatingPlanSimulationService.SimulationResult result = roomPlans.getFirst().result();
         VerticalLayout evidence = new VerticalLayout();
         evidence.setPadding(false);
         evidence.setSpacing(false);
@@ -697,7 +813,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 new Span("Market prices: " + marketSeries.description()),
                 new Span("Weather: " + weatherText),
                 new Span("Latest sensors: floor 22.0 °C, room 21.0 °C static placeholder, humidity 38% (mock, fresh)"),
-                new Span("Comfort: room targets come from the saved room configuration; calculation uses their current average until per-room plans are wired"),
+                new Span("Comfort: independent plan points generated for " + roomPlans.size() + " configured room(s) using each room's comfort target"),
                 new Span("Floor limits: normal 23.0 °C, preheat 27.0 °C, absolute maximum 29.0 °C"),
                 new Span("Wood load: Normal basket, 8 kg; useful heat after 45 min, declining over 6 h"),
                 new Span("Model: deterministic prototype v1; all thermal parameters are estimates"),
@@ -833,6 +949,16 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private record PlanAction(String time, String action, String reason) {
     }
 
+    private record RoomPlan(String room, HeatingPlannerHeatSourceType sourceType, DeviceEntity controller,
+                            HeatingPlanSimulationService.SimulationResult result) {
+    }
+
+    private record RoomDayPlan(RoomPlan roomPlan, List<HeatingPlanSimulationService.SimulationPoint> points) {
+    }
+
+    private record CurrentCommandPreview(String room, String thermostat, String command, String reason) {
+    }
+
     private record MarketSeries(List<HeatingPlanSimulationService.MarketPoint> points, String description) {
     }
 
@@ -842,15 +968,6 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private record RecentMeasurementRow(String measuredAt, String receivedAt, String device, String zigbeeIeee,
                                         String profile, String type, String value,
                                         ZigbeeMeasurementType measurementType, String measurementKey) {
-    }
-
-    private BigDecimal representativeTarget(List<RoomOverview> roomRows) {
-        return roomRows.stream()
-                .map(RoomOverview::targetRoomTemperature)
-                .filter(value -> value != null)
-                .reduce(BigDecimal::add)
-                .map(sum -> sum.divide(BigDecimal.valueOf(roomRows.size()), 2, java.math.RoundingMode.HALF_UP))
-                .orElse(new BigDecimal("21.00"));
     }
 
     private BigDecimal decimalOrDefault(Double value, String fallback) {
