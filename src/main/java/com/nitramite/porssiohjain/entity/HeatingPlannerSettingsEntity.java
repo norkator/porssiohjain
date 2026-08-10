@@ -111,6 +111,15 @@ public class HeatingPlannerSettingsEntity {
     @Column(name = "model_version", nullable = false, length = 64)
     private String modelVersion = "deterministic-v1";
 
+    @Column(name = "last_automatic_plan_at")
+    private Instant lastAutomaticPlanAt;
+
+    @Column(name = "last_automatic_activation_at")
+    private Instant lastAutomaticActivationAt;
+
+    @Column(name = "last_automation_error", length = 1024)
+    private String lastAutomationError;
+
     @Builder.Default
     @OneToMany(mappedBy = "settings", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<HeatingPlannerRoomEntity> rooms = new ArrayList<>();

@@ -35,10 +35,13 @@ import java.util.Optional;
 public class HeatingPlannerGatewayCommandService {
 
     private static final Duration POINT_LOOKBACK = Duration.ofHours(2);
+    private static final Duration MAXIMUM_POINT_AGE = Duration.ofMinutes(75);
+    private static final Duration MINIMUM_COMMAND_INTERVAL = Duration.ofMinutes(5);
 
     private final HeatingPlannerRoomHeatSourceRepository heatSourceRepository;
     private final HeatingPlannerPlanRepository planRepository;
     private final HeatingPlannerPlanPointRepository pointRepository;
+    private final HeatingPlannerMeasurementService measurementService;
 
     @Transactional(readOnly = true)
     public Optional<PlannerGatewayCommand> currentCommand(ZigbeeGatewayDeviceEntity link, Instant now) {
@@ -52,13 +55,27 @@ public class HeatingPlannerGatewayCommandService {
                 .filter(source -> source.getRoom().getSettings() != null && source.getRoom().getSettings().isEnabled())
                 .filter(source -> source.getRoom().getSettings().isActiveControlEnabled())
                 .filter(source -> source.getAccount() != null && source.getAccount().getId().equals(link.getAccount().getId()))
+                .filter(source -> measurementService.latestFreshRoomTemperature(source.getRoom(), now).fresh())
+                .filter(source -> measurementService.latestFreshFloorTemperature(source.getRoom(), now).fresh())
                 .flatMap(source -> currentPoint(source.getRoom(), now)
-                        .map(point -> new PlannerGatewayCommand(
-                                point.getPlannedFloorSetpoint(),
-                                "HEAT",
-                                point.getReason()))
+                        .filter(point -> !point.getPlannedTime().isBefore(now.minus(MAXIMUM_POINT_AGE)))
+                        .filter(point -> commandChangeAllowed(link, point.getPlannedFloorSetpoint(), now))
+                        .map(point -> new PlannerGatewayCommand(point.getPlannedFloorSetpoint(), "HEAT",
+                                point.getReason(), minimum(now.plus(Duration.ofMinutes(30)),
+                                point.getPlan().getHorizonEnd())))
                         .stream())
                 .findFirst();
+    }
+
+    private boolean commandChangeAllowed(ZigbeeGatewayDeviceEntity link, BigDecimal target, Instant now) {
+        boolean changesPlannerCommand = "HEATING_PLANNER".equals(link.getDesiredSource())
+                && link.getDesiredTemperature() != null && target.compareTo(link.getDesiredTemperature()) != 0;
+        return !changesPlannerCommand || link.getDesiredAt() == null
+                || !link.getDesiredAt().isAfter(now.minus(MINIMUM_COMMAND_INTERVAL));
+    }
+
+    private Instant minimum(Instant first, Instant second) {
+        return first.isBefore(second) ? first : second;
     }
 
     private Optional<HeatingPlannerPlanPointEntity> currentPoint(HeatingPlannerRoomEntity room, Instant now) {
@@ -84,7 +101,8 @@ public class HeatingPlannerGatewayCommandService {
     public record PlannerGatewayCommand(
             BigDecimal targetTemperature,
             String mode,
-            String reason
+            String reason,
+            Instant expiresAt
     ) {
     }
 }

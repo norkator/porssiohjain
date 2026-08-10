@@ -28,6 +28,7 @@ import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerConfigurationService;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerActiveControlService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerMeasurementService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerPlanService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerThermalModelService;
@@ -99,6 +100,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                               HeatingPlannerConfigurationService configurationService,
                               HeatingPlannerMeasurementService measurementService,
                               HeatingPlannerThermalModelService thermalModelService,
+                              HeatingPlannerActiveControlService activeControlService,
                               HeatingPlannerPlanService planService,
                               ZigbeeDeviceMeasurementRepository measurementRepository) {
         this.authService = authService;
@@ -221,6 +223,17 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         VerticalLayout planHost = new VerticalLayout();
         planHost.setPadding(false);
         planHost.setWidthFull();
+        Span activeControlStatus = new Span();
+        Button enableActiveControl = new Button("Enable active thermostat control", VaadinIcon.POWER_OFF.create());
+        Button disableActiveControl = new Button("Disable active control", VaadinIcon.CLOSE_CIRCLE.create());
+        enableActiveControl.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+        disableActiveControl.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        HorizontalLayout activeControlActions = new HorizontalLayout(enableActiveControl, disableActiveControl);
+        activeControlActions.setWrap(true);
+        VerticalLayout activeControlPanel = new VerticalLayout(new H3("Active thermostat control"),
+                activeControlStatus, activeControlActions);
+        activeControlPanel.setPadding(false);
+        activeControlPanel.setSpacing(false);
         Runnable calculate = () -> {
             planHost.removeAll();
             SiteEntity selectedSite = siteSelect.getValue();
@@ -297,10 +310,54 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 }
             }
             planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries));
+            refreshActiveControlState(activeControlService, account == null ? null : account.getId(), selectedSite,
+                    activeControlStatus, enableActiveControl, disableActiveControl);
         };
         Button recalculate = new Button("Recalculate plan", VaadinIcon.REFRESH.create(), event -> calculate.run());
         recalculate.setWidthFull();
         recalculate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        enableActiveControl.addClickListener(event -> {
+            SiteEntity selectedSite = siteSelect.getValue();
+            if (account == null || selectedSite == null) return;
+            var readiness = activeControlService.readiness(account.getId(), selectedSite.getId(), Instant.now());
+            if (!readiness.ready()) {
+                showActiveControlIssues(readiness.issues());
+                return;
+            }
+            Dialog confirmation = new Dialog();
+            confirmation.setHeaderTitle("Enable active thermostat control?");
+            VerticalLayout content = new VerticalLayout(
+                    new Paragraph("Heating Planner will send the active plan's floor setpoints to the selected Zigbee thermostats."),
+                    new Span("Plan: " + readiness.candidatePlanVersion()),
+                    new Span("Fresh room and floor sensors, learned-model confidence, gateway state, acknowledgement, and plan coverage have been verified."));
+            content.setPadding(false);
+            Button confirm = new Button("Enable control", click -> {
+                try {
+                    activeControlService.activate(account.getId(), selectedSite.getId(), Instant.now());
+                    confirmation.close();
+                    Notification.show("Active thermostat control enabled")
+                            .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    refreshActiveControlState(activeControlService, account.getId(), selectedSite,
+                            activeControlStatus, enableActiveControl, disableActiveControl);
+                } catch (IllegalStateException ex) {
+                    confirmation.close();
+                    Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
+            });
+            confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+            confirmation.add(content);
+            confirmation.getFooter().add(new Button("Cancel", click -> confirmation.close()), confirm);
+            confirmation.open();
+        });
+        disableActiveControl.addClickListener(event -> {
+            SiteEntity selectedSite = siteSelect.getValue();
+            if (account == null || selectedSite == null) return;
+            activeControlService.disable(account.getId(), selectedSite.getId(), Instant.now());
+            Notification.show("Active control disabled; Heating Planner commands were expired")
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            refreshActiveControlState(activeControlService, account.getId(), selectedSite,
+                    activeControlStatus, enableActiveControl, disableActiveControl);
+        });
         Button saveConfiguration = new Button("Save rooms", VaadinIcon.CHECK.create(), event -> {
             SiteEntity selectedSite = siteSelect.getValue();
             if (account == null || selectedSite == null) {
@@ -354,8 +411,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 savePlannerSettings(configurationService, account.getId(), selectedSite, plannerEnabled,
                         plannerWeatherThreshold, woodWeatherThreshold, taxPercent, transferContract,
                         loaded, availableFrom, availableTo, woodAmount, releaseDelay, releaseDuration);
+                if (!event.getValue()) {
+                    activeControlService.disable(account.getId(), selectedSite.getId(), Instant.now());
+                }
                 Notification.show(event.getValue() ? "Heating Planner enabled" : "Heating Planner disabled")
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                refreshActiveControlState(activeControlService, account.getId(), selectedSite,
+                        activeControlStatus, enableActiveControl, disableActiveControl);
             } catch (IllegalArgumentException ex) {
                 Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
                 loadingConfiguration.set(true);
@@ -476,7 +538,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 transferContracts);
         calculate.run();
 
-        card.add(back, heading, summary, siteConfiguration, roomConfiguration, recentMeasurements, stoveConfiguration,
+        card.add(back, heading, summary, activeControlPanel, siteConfiguration, roomConfiguration, recentMeasurements, stoveConfiguration,
                 stoveHeatProfileConfiguration, recalculate, planHost);
         add(card);
     }
@@ -623,6 +685,45 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         field.setMax(max);
         field.setStep(0.25);
         return field;
+    }
+
+    private void refreshActiveControlState(HeatingPlannerActiveControlService service, Long accountId, SiteEntity site,
+                                           Span status, Button enable, Button disable) {
+        if (accountId == null || site == null) {
+            status.setText("Select a site to check active-control readiness.");
+            enable.setEnabled(false);
+            disable.setEnabled(false);
+            return;
+        }
+        var readiness = service.readiness(accountId, site.getId(), Instant.now());
+        if (readiness.active()) {
+            status.setText("ACTIVE — automatic recalculation runs every 15 minutes"
+                    + (readiness.lastAutomaticActivationAt() == null ? ""
+                    : "; last automatic activation " + formatInstant(readiness.lastAutomaticActivationAt()))
+                    + (readiness.lastAutomationError() == null ? ""
+                    : "; latest automation warning: " + readiness.lastAutomationError()));
+            status.getElement().getThemeList().add("badge success");
+        } else if (readiness.ready()) {
+            status.setText("Ready — all activation checks pass. Review and explicitly enable control when desired.");
+            status.getElement().getThemeList().add("badge contrast");
+        } else {
+            status.setText("Not ready — " + String.join("; ", readiness.issues()));
+            status.getElement().getThemeList().add("badge warning");
+        }
+        enable.setText(readiness.active() ? "Activate latest recalculated plan" : "Enable active thermostat control");
+        enable.setEnabled(readiness.ready());
+        disable.setEnabled(readiness.active());
+    }
+
+    private void showActiveControlIssues(List<String> issues) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Active control is not ready");
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+        issues.forEach(issue -> content.add(new Span("• " + issue)));
+        dialog.add(content);
+        dialog.getFooter().add(new Button("Close", event -> dialog.close()));
+        dialog.open();
     }
 
     private Grid<RoomOverview> roomOverviewGrid(List<RoomOverview> roomRows, List<DeviceEntity> thermostats,
@@ -809,9 +910,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .toList();
         grid.setItems(previews);
         grid.setAllRowsVisible(true);
-        Span warning = new Span("Heating Planner setpoints have priority for Zigbee thermostats when the planner is active. When inactive, the Control feature setpoint remains the fallback.");
+        Span warning = new Span("Preview only unless the Active thermostat control panel says ACTIVE. Active commands have priority; expired or disabled planner control leaves the existing Control feature as fallback.");
         warning.getElement().getThemeList().add("badge warning");
-        section.add(new H3("Current Heating Planner thermostat setpoints"), warning, grid);
+        section.add(new H3("Current planned thermostat setpoints"), warning, grid);
         return section;
     }
 

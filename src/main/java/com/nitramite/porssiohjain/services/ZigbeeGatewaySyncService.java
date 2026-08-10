@@ -87,7 +87,8 @@ public class ZigbeeGatewaySyncService {
                 link.setDesiredAt(now);
                 link.setLastError(null);
             }
-            link.setDesiredExpiresAt(now.plus(Duration.ofMinutes(30)));
+            link.setDesiredSource("HEATING_PLANNER");
+            link.setDesiredExpiresAt(command.expiresAt());
             zigbeeRepository.save(link);
         });
     }

@@ -67,6 +67,9 @@ public class ZigbeeGatewayDeviceEntity {
     @Column(name = "desired_expires_at")
     private Instant desiredExpiresAt;
 
+    @Column(name = "desired_source", length = 32)
+    private String desiredSource;
+
     @Column(name = "applied_version", nullable = false)
     @Builder.Default
     private long appliedVersion = 0;

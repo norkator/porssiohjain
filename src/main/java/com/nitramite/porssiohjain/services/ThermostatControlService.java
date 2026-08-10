@@ -140,6 +140,7 @@ public class ThermostatControlService {
             link.setDesiredMode("HEAT");
             link.setDesiredAt(now);
         }
+        link.setDesiredSource("THERMOSTAT_CONTROL");
         link.setDesiredExpiresAt(now.plus(Duration.ofMinutes(30)));
         zigbeeGatewayDeviceRepository.save(link);
         log.info("Stored Android Zigbee desired state deviceId={}, version={}, targetTemperature={}",

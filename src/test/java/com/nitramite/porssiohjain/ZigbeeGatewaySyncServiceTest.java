@@ -149,7 +149,8 @@ class ZigbeeGatewaySyncServiceTest {
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb")).thenReturn(Optional.of(link));
         when(heatingPlannerGatewayCommandService.currentCommand(eq(link), any()))
                 .thenReturn(Optional.of(new HeatingPlannerGatewayCommandService.PlannerGatewayCommand(
-                        new BigDecimal("23.00"), "HEAT", "Heating Planner active")));
+                        new BigDecimal("23.00"), "HEAT", "Heating Planner active",
+                        Instant.now().plusSeconds(1800))));
 
         var response = service.sync(7L, gateway, request(4, true));
 
