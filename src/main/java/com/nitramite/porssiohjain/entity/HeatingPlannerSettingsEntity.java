@@ -104,10 +104,6 @@ public class HeatingPlannerSettingsEntity {
     private BigDecimal expensivePriceThreshold = new BigDecimal("20.0000");
 
     @Builder.Default
-    @Column(name = "preheat_look_ahead_minutes", nullable = false)
-    private Integer preheatLookAheadMinutes = 360;
-
-    @Builder.Default
     @Column(name = "simulation_step_minutes", nullable = false)
     private Integer simulationStepMinutes = 15;
 
@@ -150,7 +146,6 @@ public class HeatingPlannerSettingsEntity {
         if (woodReleaseDurationMinutes == null) woodReleaseDurationMinutes = 360;
         if (cheapPriceThreshold == null) cheapPriceThreshold = new BigDecimal("5.0000");
         if (expensivePriceThreshold == null) expensivePriceThreshold = new BigDecimal("20.0000");
-        if (preheatLookAheadMinutes == null) preheatLookAheadMinutes = 360;
         if (simulationStepMinutes == null) simulationStepMinutes = 15;
         if (modelVersion == null || modelVersion.isBlank()) modelVersion = "deterministic-v1";
     }

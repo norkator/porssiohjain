@@ -97,7 +97,7 @@ Use a today-and-tomorrow horizon in the site's timezone with 15-minute simulatio
 - the user changes room settings;
 - a site power limit constrains heating.
 
-The first deterministic planner identifies expensive periods and eligible cheap periods immediately before them. During eligible cheap periods it raises the floor setpoint, up to the configured preheat maximum. During expensive periods it lowers the setpoint so that stored heat is used. Room comfort and floor safety override price optimization.
+The deterministic planner identifies expensive periods across the complete today-and-tomorrow horizon. For each expensive block it estimates forecast room heat loss from the indoor/outdoor temperature difference and wind, converts the required reserve into floor-heating steps, and selects sufficient preceding cheap points. It prefers lower prices and uses later points as the tie-breaker to reduce storage loss. There is no fixed preheat look-ahead. During selected cheap periods it raises the floor setpoint up to the configured preheat maximum. During expensive periods it lowers the setpoint so that stored heat is used. Room comfort, measurement freshness, and floor safety override price optimization.
 
 If a wood-stove load is configured and an expensive period has forecast heating demand, the planner works backwards from the desired heat-release start:
 
@@ -124,7 +124,9 @@ floor change = heater gain - heat transferred from floor to room
 room change  = heat received from floor + wood-stove heat - heat lost to outdoors and wind
 ```
 
-Parameters are deliberately expressed as rates rather than claiming a precise physical building model. They can initially be user-editable estimates and later be learned from observed heating cycles.
+Parameters are deliberately expressed as rates rather than claiming a precise physical building model. Configured conservative floor-heating and floor-to-room rates remain in use until actual heater-demand telemetry is available. The planner learns per-room outdoor and wind cooling rates from trustworthy falling-temperature intervals aligned with persisted site weather. It requires a minimum sample count, records confidence and training time, clamps learned rates to conservative physical ranges, and blends them with configured defaults according to confidence. Warming intervals are not used to infer electric heater gain because sunlight, residual floor heat, a heat pump, cooking, or a wood stove could otherwise be misattributed to floor heating.
+
+Preheating requires a fresh explicitly selected floor sensor. Price-driven discharge requires a fresh room sensor. Missing or stale inputs leave optimization inactive for the affected decision and preserve the existing controller as fallback.
 
 The Java foundation is `HeatingPlanSimulationService`. It is pure and deterministic: a Vaadin view can submit a scenario and chart the returned snapshots without activating a physical device.
 

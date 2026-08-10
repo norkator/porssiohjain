@@ -31,6 +31,9 @@ public interface ZigbeeDeviceMeasurementRepository extends JpaRepository<ZigbeeD
             String measurementKey
     );
 
+    List<ZigbeeDeviceMeasurementEntity> findTop1000ByDeviceIdAndMeasurementTypeAndMeasurementKeyAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
+            Long deviceId, ZigbeeMeasurementType measurementType, String measurementKey, Instant from, Instant to);
+
     @EntityGraph(attributePaths = "device")
     List<ZigbeeDeviceMeasurementEntity> findTop500ByAccountIdAndMeasuredAtAfterOrderByMeasuredAtDescIdDesc(
             Long accountId,

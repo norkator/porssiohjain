@@ -55,7 +55,7 @@ class HeatingPlanSimulationServiceTest {
         var original = request(List.of(point(start, "24.0")));
         var request = new HeatingPlanSimulationService.SimulationRequest(
                 new BigDecimal("22.0"), new BigDecimal("19.5"),
-                original.settings(), original.model(), original.market(), null);
+                original.settings(), original.model(), original.market(), null, true, true);
 
         var point = service.simulate(request).points().getFirst();
 
@@ -68,7 +68,7 @@ class HeatingPlanSimulationServiceTest {
         var settings = settings(new BigDecimal("30.0"), new BigDecimal("28.0"));
         var request = new HeatingPlanSimulationService.SimulationRequest(
                 new BigDecimal("22.0"), new BigDecimal("21.0"), settings, model(),
-                List.of(point(Instant.parse("2026-01-15T00:00:00Z"), "3.0")), null);
+                List.of(point(Instant.parse("2026-01-15T00:00:00Z"), "3.0")), null, true, true);
 
         assertThatThrownBy(() -> service.simulate(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -79,13 +79,13 @@ class HeatingPlanSimulationServiceTest {
             List<HeatingPlanSimulationService.MarketPoint> market) {
         return new HeatingPlanSimulationService.SimulationRequest(
                 new BigDecimal("22.0"), new BigDecimal("21.0"),
-                settings(new BigDecimal("27.0"), new BigDecimal("29.0")), model(), market, null);
+                settings(new BigDecimal("27.0"), new BigDecimal("29.0")), model(), market, null, true, true);
     }
 
     private HeatingPlanSimulationService.Settings settings(BigDecimal preheatMaximum,
                                                                BigDecimal absoluteMaximum) {
         return new HeatingPlanSimulationService.Settings(
-                Duration.ofMinutes(15), Duration.ofHours(2),
+                Duration.ofMinutes(15),
                 new BigDecimal("5.0"), new BigDecimal("20.0"),
                 new BigDecimal("23.0"), preheatMaximum, absoluteMaximum,
                 new BigDecimal("19.0"), new BigDecimal("20.0"), new BigDecimal("23.5"),
@@ -122,7 +122,7 @@ class HeatingPlanSimulationServiceTest {
         );
         var request = new HeatingPlanSimulationService.SimulationRequest(
                 base.initialFloorTemperature(), base.initialRoomTemperature(), base.settings(),
-                base.model(), base.market(), stove
+                base.model(), base.market(), stove, true, true
         );
 
         var result = service.simulate(request);
@@ -152,7 +152,7 @@ class HeatingPlanSimulationServiceTest {
         );
         var request = new HeatingPlanSimulationService.SimulationRequest(
                 base.initialFloorTemperature(), base.initialRoomTemperature(), base.settings(),
-                base.model(), base.market(), stove
+                base.model(), base.market(), stove, true, true
         );
 
         assertThat(service.simulate(request).woodStoveRecommendation()).isNull();
@@ -171,5 +171,57 @@ class HeatingPlanSimulationServiceTest {
         assertThat(result.woodStoveRecommendation()).isNull();
         assertThat(result.points().getFirst().mode())
                 .isEqualTo(HeatingPlanSimulationService.OperatingMode.INACTIVE);
+    }
+
+    @Test
+    void plansPreheatAcrossTheWholeHorizonWithoutAFixedLookAhead() {
+        Instant start = Instant.parse("2026-01-15T00:00:00Z");
+        var request = request(List.of(
+                point(start, "3.0"),
+                point(start.plus(Duration.ofHours(1)), "8.0"),
+                point(start.plus(Duration.ofHours(2)), "8.0"),
+                point(start.plus(Duration.ofHours(3)), "8.0"),
+                point(start.plus(Duration.ofHours(4)), "24.0")
+        ));
+
+        var result = service.simulate(request);
+
+        assertThat(result.points().getFirst().mode())
+                .isEqualTo(HeatingPlanSimulationService.OperatingMode.PREHEAT);
+        assertThat(result.points().getLast().mode())
+                .isEqualTo(HeatingPlanSimulationService.OperatingMode.DISCHARGE);
+    }
+
+    @Test
+    void staleFloorMeasurementDisablesPreheating() {
+        Instant start = Instant.parse("2026-01-15T00:00:00Z");
+        var original = request(List.of(point(start, "3.0"), point(start.plus(Duration.ofHours(4)), "24.0")));
+        var request = new HeatingPlanSimulationService.SimulationRequest(
+                original.initialFloorTemperature(), original.initialRoomTemperature(), original.settings(),
+                original.model(), original.market(), null, false, true);
+
+        assertThat(service.simulate(request).points())
+                .extracting(HeatingPlanSimulationService.SimulationPoint::mode)
+                .doesNotContain(HeatingPlanSimulationService.OperatingMode.PREHEAT);
+    }
+
+    @Test
+    void staleRoomMeasurementDisablesPriceOptimization() {
+        Instant start = Instant.parse("2026-01-15T00:00:00Z");
+        var original = request(List.of(point(start, "24.0")));
+        var staleSettings = new HeatingPlanSimulationService.Settings(
+                original.settings().step(), original.settings().cheapPriceThreshold(),
+                original.settings().expensivePriceThreshold(), original.settings().normalFloorTemperature(),
+                original.settings().maximumPreheatFloorTemperature(), original.settings().absoluteMaximumFloorTemperature(),
+                original.settings().dischargeFloorSetpoint(), original.settings().minimumRoomTemperature(),
+                original.settings().maximumRoomTemperature(), original.settings().plannerActivationOutdoorTemperature());
+        var request = new HeatingPlanSimulationService.SimulationRequest(
+                original.initialFloorTemperature(), original.initialRoomTemperature(), staleSettings,
+                original.model(), original.market(), null, true, false);
+
+        var point = service.simulate(request).points().getFirst();
+
+        assertThat(point.mode()).isEqualTo(HeatingPlanSimulationService.OperatingMode.INACTIVE);
+        assertThat(point.reason()).contains("missing or stale");
     }
 }

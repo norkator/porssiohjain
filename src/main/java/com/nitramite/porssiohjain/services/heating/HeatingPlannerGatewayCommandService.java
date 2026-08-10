@@ -50,6 +50,7 @@ public class HeatingPlannerGatewayCommandService {
                 .filter(source -> source.getSourceType() == HeatingPlannerHeatSourceType.FLOOR_HEATING)
                 .filter(source -> source.getRoom() != null && source.getRoom().isEnabled())
                 .filter(source -> source.getRoom().getSettings() != null && source.getRoom().getSettings().isEnabled())
+                .filter(source -> source.getRoom().getSettings().isActiveControlEnabled())
                 .filter(source -> source.getAccount() != null && source.getAccount().getId().equals(link.getAccount().getId()))
                 .flatMap(source -> currentPoint(source.getRoom(), now)
                         .map(point -> new PlannerGatewayCommand(
@@ -76,8 +77,7 @@ public class HeatingPlannerGatewayCommandService {
                         room.getAccount().getId(), room.getSite().getId())
                 .stream()
                 .filter(plan -> plan.getSettings().getId().equals(room.getSettings().getId()))
-                .filter(plan -> plan.getStatus() == HeatingPlannerPlanStatus.ACTIVE
-                        || plan.getStatus() == HeatingPlannerPlanStatus.SIMULATED)
+                .filter(plan -> plan.getStatus() == HeatingPlannerPlanStatus.ACTIVE)
                 .findFirst();
     }
 

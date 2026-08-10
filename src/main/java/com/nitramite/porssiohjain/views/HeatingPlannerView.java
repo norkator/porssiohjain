@@ -30,6 +30,7 @@ import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerConfigurationService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerMeasurementService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerPlanService;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerThermalModelService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
 import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import com.nitramite.porssiohjain.views.components.HeatingPlanChart;
@@ -97,6 +98,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                               ElectricityContractRepository contractRepository,
                               HeatingPlannerConfigurationService configurationService,
                               HeatingPlannerMeasurementService measurementService,
+                              HeatingPlannerThermalModelService thermalModelService,
                               HeatingPlannerPlanService planService,
                               ZigbeeDeviceMeasurementRepository measurementRepository) {
         this.authService = authService;
@@ -113,6 +115,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         List<DeviceEntity> temperatureSensors = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId()).stream()
                 .filter(device -> device.getDeviceType() == DeviceType.TEMPERATURE_SENSOR)
                 .toList();
+        List<DeviceEntity> floorSensors = java.util.stream.Stream.concat(thermostats.stream(), temperatureSensors.stream())
+                .distinct().toList();
         List<ElectricityContractEntity> transferContracts = account == null ? List.of()
                 : contractRepository.findByAccountId(account.getId()).stream()
                 .filter(contract -> contract.getType() == ContractType.TRANSFER)
@@ -197,11 +201,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         stoveHeatProfileConfiguration.setWidthFull();
         stoveHeatProfileConfiguration.setOpened(false);
 
-        Grid<RoomOverview> rooms = roomOverviewGrid(roomRows, thermostats, temperatureSensors);
+        Grid<RoomOverview> rooms = roomOverviewGrid(roomRows, thermostats, temperatureSensors, floorSensors);
         Button addRoom = new Button("Add room", VaadinIcon.PLUS.create(), event -> {
             roomRows.add(new RoomOverview("New room", HeatingPlannerHeatSourceType.FLOOR_HEATING, new BigDecimal("21.00"),
                     new BigDecimal("23.00"), new BigDecimal("27.00"), new BigDecimal("29.00"),
-                    new BigDecimal("19.00"), null, null));
+                    new BigDecimal("19.00"), null, null, null));
             rooms.getDataProvider().refreshAll();
         });
         addRoom.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
@@ -228,12 +232,23 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     .map(room -> {
                         MeasurementInputs measurements = measurementInputs(room, measurementService, calculationTime);
                         try {
+                            HeatingPlanSimulationService.ThermalModel model = defaultThermalModel();
+                            String modelEvidence = "configured conservative thermal defaults";
+                            if (account != null && selectedSite != null) {
+                                var resolution = thermalModelService.learnAndResolve(account.getId(), selectedSite.getId(),
+                                        room.room(), model, calculationTime);
+                                model = resolution.model();
+                                modelEvidence = resolution.learned()
+                                        ? "observed cooling model, " + resolution.sampleCount() + " samples, confidence "
+                                        + resolution.confidence().movePointRight(2).setScale(0, RoundingMode.HALF_UP) + "%"
+                                        : resolution.reason();
+                            }
                             return new RoomPlan(room.room(), room.heatSource(), room.controller(),
                                     measurements.roomTemperature(), measurements.floorTemperature(),
                                     measurements.roomMeasurement(), measurements.floorMeasurement(),
                                     room.targetRoomTemperature(), room.normalFloorTemperature(),
                                     room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
-                                    room.dischargeFloorSetpoint(),
+                                    room.dischargeFloorSetpoint(), modelEvidence,
                                     simulationService.simulate(simulationRequest(
                                             loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
                                             woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
@@ -241,7 +256,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                             measurements.floorTemperature(), measurements.roomTemperature(),
                                             room.targetRoomTemperature(), room.normalFloorTemperature(),
                                             room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
-                                            room.dischargeFloorSetpoint(), marketSeries.points())),
+                                            room.dischargeFloorSetpoint(), marketSeries.points(), model,
+                                            measurements.roomMeasurement().fresh(), measurements.floorMeasurement().fresh())),
                                     null);
                         } catch (IllegalArgumentException ex) {
                             return new RoomPlan(room.room(), room.heatSource(), room.controller(),
@@ -249,7 +265,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                     measurements.roomMeasurement(), measurements.floorMeasurement(),
                                     room.targetRoomTemperature(), room.normalFloorTemperature(),
                                     room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
-                                    room.dischargeFloorSetpoint(),
+                                    room.dischargeFloorSetpoint(), "Model unavailable because plan inputs are invalid",
                                     null, ex.getMessage());
                         }
                     })
@@ -260,14 +276,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
                         new BigDecimal("21.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
-                        new BigDecimal("29.00"), new BigDecimal("19.00"),
+                        new BigDecimal("29.00"), new BigDecimal("19.00"), "Configured fallback thermal model",
                         simulationService.simulate(simulationRequest(
                                 loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
                                 woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
                                 plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(),
                                 new BigDecimal("22.00"), new BigDecimal("21.00"),
                                 new BigDecimal("21.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
-                                new BigDecimal("29.00"), new BigDecimal("19.00"), marketSeries.points())),
+                                new BigDecimal("29.00"), new BigDecimal("19.00"), marketSeries.points(),
+                                defaultThermalModel(), false, false)),
                         null));
             }
             if (account != null && selectedSite != null) {
@@ -311,7 +328,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                         row.normalFloorTemperature(), row.maximumPreheatFloorTemperature(),
                                         row.absoluteMaximumFloorTemperature(), row.dischargeFloorSetpoint(),
                                         row.controller() == null ? null : row.controller().getId(),
-                                        row.roomSensor() == null ? null : row.roomSensor().getId()
+                                        row.roomSensor() == null ? null : row.roomSensor().getId(),
+                                        row.floorSensor() == null ? null : row.floorSensor().getId()
                                 ))
                                 .toList());
                 Notification.show("Heating Planner rooms saved").addThemeVariants(NotificationVariant.LUMO_SUCCESS);
@@ -441,7 +459,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             loadConfiguration(configurationService, account == null ? null : account.getId(), event.getValue(),
                     loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                     taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
-                    releaseDelay, releaseDuration, roomRows, rooms, thermostats, temperatureSensors, transferContracts);
+                    releaseDelay, releaseDuration, roomRows, rooms, thermostats, temperatureSensors, floorSensors,
+                    transferContracts);
             savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                     event.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                     taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
@@ -453,7 +472,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         loadConfiguration(configurationService, account == null ? null : account.getId(), siteSelect.getValue(),
                 loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                 taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
-                releaseDelay, releaseDuration, roomRows, rooms, thermostats, temperatureSensors, transferContracts);
+                releaseDelay, releaseDuration, roomRows, rooms, thermostats, temperatureSensors, floorSensors,
+                transferContracts);
         calculate.run();
 
         card.add(back, heading, summary, siteConfiguration, roomConfiguration, recentMeasurements, stoveConfiguration,
@@ -606,7 +626,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private Grid<RoomOverview> roomOverviewGrid(List<RoomOverview> roomRows, List<DeviceEntity> thermostats,
-                                                List<DeviceEntity> temperatureSensors) {
+                                                List<DeviceEntity> temperatureSensors,
+                                                List<DeviceEntity> floorSensors) {
         Grid<RoomOverview> grid = new Grid<>(RoomOverview.class, false);
         grid.setWidthFull();
         grid.addComponentColumn(row -> {
@@ -665,6 +686,17 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             sensor.addValueChangeListener(event -> row.setRoomSensor(event.getValue()));
             return sensor;
         }).setHeader("Room sensor").setFlexGrow(2);
+        grid.addComponentColumn(row -> {
+            ComboBox<DeviceEntity> sensor = new ComboBox<>();
+            sensor.setItems(floorSensors);
+            sensor.setItemLabelGenerator(this::deviceLabel);
+            sensor.setValue(row.floorSensor());
+            sensor.setPlaceholder("Required for preheating");
+            sensor.setClearButtonVisible(true);
+            sensor.setWidthFull();
+            sensor.addValueChangeListener(event -> row.setFloorSensor(event.getValue()));
+            return sensor;
+        }).setHeader("Floor sensor").setFlexGrow(2);
         grid.addComponentColumn(row -> {
             Button delete = new Button(VaadinIcon.TRASH.create(), event -> {
                 roomRows.remove(row);
@@ -895,7 +927,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 new Span("Comfort: independent plan points generated for " + roomPlans.size() + " configured room(s) using each room's comfort target"),
                 new Span("Floor limits: each room uses its configured normal, preheat maximum, absolute maximum, and discharge setpoint"),
                 new Span("Wood load: Normal basket, 8 kg; useful heat after 45 min, declining over 6 h"),
-                new Span("Model: deterministic planner v1; thermal response parameters are estimates"),
+                new Span("Thermal models: " + roomPlans.stream()
+                        .map(room -> room.room() + " — " + room.modelEvidence())
+                        .collect(java.util.stream.Collectors.joining("; "))),
                 new Span(energySummary(roomPlans))
         );
         return evidence;
@@ -992,7 +1026,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                                                              BigDecimal maximumPreheatFloorTemperature,
                                                                              BigDecimal absoluteMaximumFloorTemperature,
                                                                              BigDecimal dischargeFloorSetpoint,
-                                                                             List<HeatingPlanSimulationService.MarketPoint> market) {
+                                                                             List<HeatingPlanSimulationService.MarketPoint> market,
+                                                                             HeatingPlanSimulationService.ThermalModel model,
+                                                                             boolean roomMeasurementFresh,
+                                                                             boolean floorMeasurementFresh) {
         ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
         BigDecimal initialFloor = initialFloorTemperature == null ? new BigDecimal("22.00") : initialFloorTemperature;
         BigDecimal initialRoom = initialRoomTemperature == null ? new BigDecimal("21.00") : initialRoomTemperature;
@@ -1003,13 +1040,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         BigDecimal absoluteMaximumFloor = absoluteMaximumFloorTemperature == null
                 ? new BigDecimal("29.00") : absoluteMaximumFloorTemperature;
         BigDecimal dischargeFloor = dischargeFloorSetpoint == null ? new BigDecimal("19.00") : dischargeFloorSetpoint;
-        var settings = new HeatingPlanSimulationService.Settings(Duration.ofHours(1), Duration.ofHours(6),
+        var settings = new HeatingPlanSimulationService.Settings(Duration.ofHours(1),
                 new BigDecimal("5"), new BigDecimal("20"), normalFloor, maximumPreheatFloor,
                 absoluteMaximumFloor, dischargeFloor, target.subtract(BigDecimal.ONE),
                 target.add(new BigDecimal("2.50")),
                 BigDecimal.valueOf(plannerWeatherThreshold));
-        var model = new HeatingPlanSimulationService.ThermalModel(new BigDecimal("2"), new BigDecimal("0.8"),
-                new BigDecimal("0.06"), new BigDecimal("0.012"), new BigDecimal("0.001"));
         List<HeatingPlanSimulationService.StoveAvailability> availability = List.of(
                 new HeatingPlanSimulationService.StoveAvailability(
                         start.with(timeOrDefault(availableFrom, LocalTime.of(6, 0))).toInstant(),
@@ -1023,7 +1058,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 Duration.ofMinutes(Math.round(releaseDurationHours * 60)), new BigDecimal("0.35"),
                 BigDecimal.valueOf(woodWeatherThreshold), availability);
         return new HeatingPlanSimulationService.SimulationRequest(initialFloor, initialRoom,
-                settings, model, market, stove);
+                settings, model, market, stove, floorMeasurementFresh, roomMeasurementFresh);
+    }
+
+    private HeatingPlanSimulationService.ThermalModel defaultThermalModel() {
+        return new HeatingPlanSimulationService.ThermalModel(new BigDecimal("2"), new BigDecimal("0.8"),
+                new BigDecimal("0.06"), new BigDecimal("0.012"), new BigDecimal("0.001"));
     }
 
     private MeasurementInputs measurementInputs(RoomOverview room, HeatingPlannerMeasurementService measurementService,
@@ -1032,6 +1072,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         measurementRoom.setRoomSensorDevice(room.roomSensor());
         measurementRoom.setRoomSensorMeasurementKey(room.roomSensor() == null
                 ? null : HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY);
+        measurementRoom.setFloorSensorDevice(room.floorSensor());
+        measurementRoom.setFloorSensorMeasurementKey(room.floorSensor() == null
+                ? null : HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY);
         measurementRoom.getHeatSources().add(HeatingPlannerRoomHeatSourceEntity.builder()
                 .enabled(true)
                 .controllingDevice(room.controller())
@@ -1039,14 +1082,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         HeatingPlannerMeasurementService.LatestMeasurement roomMeasurement =
                 measurementService.latestFreshRoomTemperature(measurementRoom, now);
         HeatingPlannerMeasurementService.LatestMeasurement floorMeasurement;
-        if (room.roomSensor() == null && room.controller() != null) {
-            HeatingPlannerRoomEntity floorMeasurementRoom = new HeatingPlannerRoomEntity();
-            floorMeasurementRoom.setFloorSensorDevice(room.controller());
-            floorMeasurementRoom.setFloorSensorMeasurementKey(HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY);
-            floorMeasurement = measurementService.latestFreshFloorTemperature(floorMeasurementRoom, now);
-        } else {
-            floorMeasurement = HeatingPlannerMeasurementService.LatestMeasurement.missing();
-        }
+        floorMeasurement = measurementService.latestFreshFloorTemperature(measurementRoom, now);
         BigDecimal roomTemperature = roomMeasurement.fresh() ? roomMeasurement.value() : new BigDecimal("21.00");
         BigDecimal floorTemperature = floorMeasurement.fresh() ? floorMeasurement.value() : new BigDecimal("22.00");
         return new MeasurementInputs(roomTemperature, floorTemperature, roomMeasurement, floorMeasurement);
@@ -1173,6 +1209,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             BigDecimal maximumPreheatFloorTemperature,
                             BigDecimal absoluteMaximumFloorTemperature,
                             BigDecimal dischargeFloorSetpoint,
+                            String modelEvidence,
                             HeatingPlanSimulationService.SimulationResult result,
                             String planError) {
     }
@@ -1283,6 +1320,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                    List<RoomOverview> roomRows,
                                    Grid<RoomOverview> rooms, List<DeviceEntity> thermostats,
                                    List<DeviceEntity> temperatureSensors,
+                                   List<DeviceEntity> floorSensors,
                                    List<ElectricityContractEntity> transferContracts) {
         roomRows.clear();
         loadingConfiguration.set(true);
@@ -1322,7 +1360,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                     .filter(device -> room.roomSensorDeviceId() != null
                                             && device.getId().equals(room.roomSensorDeviceId()))
                                     .findFirst()
-                                    .orElse(null)
+                                    .orElse(null),
+                            floorSensors.stream()
+                                    .filter(device -> room.floorSensorDeviceId() != null
+                                            && device.getId().equals(room.floorSensorDeviceId()))
+                                    .findFirst().orElse(null)
                     ))
                     .forEach(roomRows::add);
         } else {
@@ -1433,11 +1475,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         private BigDecimal dischargeFloorSetpoint;
         private DeviceEntity controller;
         private DeviceEntity roomSensor;
+        private DeviceEntity floorSensor;
 
         private RoomOverview(String room, HeatingPlannerHeatSourceType heatSource, BigDecimal targetRoomTemperature,
                              BigDecimal normalFloorTemperature, BigDecimal maximumPreheatFloorTemperature,
                              BigDecimal absoluteMaximumFloorTemperature, BigDecimal dischargeFloorSetpoint,
-                             DeviceEntity controller, DeviceEntity roomSensor) {
+                             DeviceEntity controller, DeviceEntity roomSensor, DeviceEntity floorSensor) {
             this.room = room;
             this.heatSource = heatSource;
             this.targetRoomTemperature = targetRoomTemperature == null ? new BigDecimal("21.00") : targetRoomTemperature;
@@ -1446,6 +1489,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             deriveHiddenFloorSetpoints();
             this.controller = controller;
             this.roomSensor = roomSensor;
+            this.floorSensor = floorSensor;
         }
 
         private String room() {
@@ -1535,6 +1579,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
         private void setRoomSensor(DeviceEntity roomSensor) {
             this.roomSensor = roomSensor;
+        }
+
+        private DeviceEntity floorSensor() {
+            return floorSensor;
+        }
+
+        private void setFloorSensor(DeviceEntity floorSensor) {
+            this.floorSensor = floorSensor;
         }
     }
 }

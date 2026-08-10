@@ -115,6 +115,17 @@ public class HeatingPlannerRoomEntity {
     private boolean modelParametersLearned = false;
 
     @Builder.Default
+    @Column(name = "model_sample_count", nullable = false)
+    private Integer modelSampleCount = 0;
+
+    @Builder.Default
+    @Column(name = "model_confidence", nullable = false, precision = 5, scale = 4)
+    private BigDecimal modelConfidence = BigDecimal.ZERO;
+
+    @Column(name = "model_trained_at")
+    private Instant modelTrainedAt;
+
+    @Builder.Default
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 0;
 
@@ -150,5 +161,7 @@ public class HeatingPlannerRoomEntity {
         if (minimumRoomTemperature == null) minimumRoomTemperature = new BigDecimal("20.00");
         if (targetRoomTemperature == null) targetRoomTemperature = new BigDecimal("21.00");
         if (maximumRoomTemperature == null) maximumRoomTemperature = new BigDecimal("23.50");
+        if (modelSampleCount == null) modelSampleCount = 0;
+        if (modelConfidence == null) modelConfidence = BigDecimal.ZERO;
     }
 }

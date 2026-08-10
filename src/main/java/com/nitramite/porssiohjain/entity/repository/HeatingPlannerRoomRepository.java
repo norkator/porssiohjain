@@ -22,4 +22,6 @@ public interface HeatingPlannerRoomRepository extends JpaRepository<HeatingPlann
     List<HeatingPlannerRoomEntity> findBySettingsIdOrderBySortOrderAscIdAsc(Long settingsId);
 
     Optional<HeatingPlannerRoomEntity> findByIdAndAccountId(Long id, Long accountId);
+
+    Optional<HeatingPlannerRoomEntity> findByAccountIdAndSiteIdAndNameIgnoreCase(Long accountId, Long siteId, String name);
 }

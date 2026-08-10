@@ -19,7 +19,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class HeatingPlanSimulationService {
@@ -44,10 +46,11 @@ public class HeatingPlanSimulationService {
         BigDecimal energyKwh = ZERO;
         BigDecimal energyCost = ZERO;
         WoodStoveRecommendation woodRecommendation = plannerActive ? planWoodStove(request, market) : null;
+        Set<Instant> preheatTimes = plannerActive ? planPreheatTimes(request, market) : Set.of();
 
         for (MarketPoint point : market) {
-            OperatingDecision decision = decide(point, market, roomTemperature, request.settings(), woodRecommendation,
-                    plannerActive);
+            OperatingDecision decision = decide(point, roomTemperature, request.settings(), woodRecommendation,
+                    plannerActive, preheatTimes, request.roomMeasurementFresh());
             boolean heating = floorTemperature.compareTo(decision.floorSetpoint()) < 0;
             BigDecimal floorToRoom = request.model().floorToRoomRate()
                     .multiply(floorTemperature.subtract(roomTemperature));
@@ -88,6 +91,65 @@ public class HeatingPlanSimulationService {
                 plannerActive ? "Forecast is below the configured planner activation temperature"
                         : "Heating optimization is inactive because the forecast stays above the configured activation temperature"
         );
+    }
+
+    /**
+     * Plans charging over the complete supplied horizon. The amount of charging is derived from forecast heat loss
+     * during each expensive block and the configured floor response; it is deliberately not bounded by an arbitrary
+     * look-ahead duration. Cheapest eligible points are preferred, with later points winning equal-price ties so less
+     * stored heat is lost before it is needed.
+     */
+    private Set<Instant> planPreheatTimes(SimulationRequest request, List<MarketPoint> market) {
+        if (!request.floorMeasurementFresh()) {
+            return Set.of();
+        }
+        Settings settings = request.settings();
+        ThermalModel model = request.model();
+        BigDecimal stepHours = BigDecimal.valueOf(settings.step().toMinutes())
+                .divide(BigDecimal.valueOf(60), 8, RoundingMode.HALF_UP);
+        BigDecimal usableFloorRise = settings.maximumPreheatFloorTemperature()
+                .subtract(request.initialFloorTemperature()).max(ZERO);
+        BigDecimal gainPerStep = model.floorHeatingRate().multiply(stepHours);
+        if (usableFloorRise.signum() <= 0 || gainPerStep.signum() <= 0) {
+            return Set.of();
+        }
+
+        Set<Instant> selected = new HashSet<>();
+        int index = 0;
+        while (index < market.size()) {
+            if (!isExpensive(market.get(index), settings)) {
+                index++;
+                continue;
+            }
+            int blockStart = index;
+            BigDecimal forecastLoss = ZERO;
+            while (index < market.size() && isExpensive(market.get(index), settings)) {
+                MarketPoint point = market.get(index++);
+                BigDecimal outdoorLoss = model.roomOutdoorLossRate()
+                        .multiply(settings.minimumRoomTemperature().subtract(point.outdoorTemperature()).max(ZERO));
+                BigDecimal windLoss = model.windLossRate().multiply(point.windSpeedMs().max(ZERO));
+                forecastLoss = forecastLoss.add(outdoorLoss.add(windLoss).multiply(stepHours));
+            }
+
+            // Only the reserve that the floor can safely hold is useful. Convert that reserve to heater-on steps.
+            BigDecimal requiredFloorRise = forecastLoss
+                    .divide(model.floorToRoomRate().max(new BigDecimal("0.000001")), 8, RoundingMode.HALF_UP)
+                    .min(usableFloorRise);
+            int requiredSteps = requiredFloorRise.divide(gainPerStep, 0, RoundingMode.CEILING).intValue();
+            List<MarketPoint> candidates = market.subList(0, blockStart).stream()
+                    .filter(candidate -> candidate.priceCentsPerKwh().compareTo(settings.cheapPriceThreshold()) <= 0)
+                    .filter(candidate -> !selected.contains(candidate.time()))
+                    .sorted(Comparator.comparing(MarketPoint::priceCentsPerKwh)
+                            .thenComparing(MarketPoint::time, Comparator.reverseOrder()))
+                    .limit(requiredSteps)
+                    .toList();
+            candidates.forEach(candidate -> selected.add(candidate.time()));
+        }
+        return Set.copyOf(selected);
+    }
+
+    private boolean isExpensive(MarketPoint point, Settings settings) {
+        return point.priceCentsPerKwh().compareTo(settings.expensivePriceThreshold()) >= 0;
     }
 
     private WoodStoveRecommendation planWoodStove(SimulationRequest request, List<MarketPoint> market) {
@@ -132,12 +194,16 @@ public class HeatingPlanSimulationService {
                 .divide(BigDecimal.valueOf(totalSeconds), 8, RoundingMode.HALF_UP);
     }
 
-    private OperatingDecision decide(MarketPoint current, List<MarketPoint> market,
-                                     BigDecimal roomTemperature, Settings settings,
-                                     WoodStoveRecommendation woodRecommendation, boolean plannerActive) {
+    private OperatingDecision decide(MarketPoint current, BigDecimal roomTemperature, Settings settings,
+                                     WoodStoveRecommendation woodRecommendation, boolean plannerActive,
+                                     Set<Instant> preheatTimes, boolean roomMeasurementFresh) {
         if (!plannerActive) {
             return new OperatingDecision(settings.normalFloorTemperature(), OperatingMode.INACTIVE,
                     "Forecast stays above the configured Heating Planner activation temperature");
+        }
+        if (!roomMeasurementFresh) {
+            return new OperatingDecision(settings.normalFloorTemperature(), OperatingMode.INACTIVE,
+                    "Room measurement is missing or stale; keep optimization inactive and use the existing controller fallback");
         }
         if (roomTemperature.compareTo(settings.maximumRoomTemperature()) >= 0) {
             return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,
@@ -155,15 +221,9 @@ public class HeatingPlanSimulationService {
             return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,
                     "Electricity price is in the expensive range; use stored floor heat");
         }
-        boolean expensivePeriodAhead = market.stream()
-                .filter(candidate -> candidate.time().isAfter(current.time()))
-                .filter(candidate -> !candidate.time().isAfter(current.time().plus(settings.preheatLookAhead())))
-                .anyMatch(candidate -> candidate.priceCentsPerKwh()
-                        .compareTo(settings.expensivePriceThreshold()) >= 0);
-        if (expensivePeriodAhead
-                && current.priceCentsPerKwh().compareTo(settings.cheapPriceThreshold()) <= 0) {
+        if (preheatTimes.contains(current.time())) {
             return new OperatingDecision(settings.maximumPreheatFloorTemperature(), OperatingMode.PREHEAT,
-                    "Cheap electricity precedes an expensive period; store heat in the floor");
+                    "Selected from the full forecast horizon to store enough cheap heat for a later expensive period");
         }
         return new OperatingDecision(settings.normalFloorTemperature(), OperatingMode.NORMAL,
                 "Maintain the normal floor temperature");
@@ -213,13 +273,14 @@ public class HeatingPlanSimulationService {
             Settings settings,
             ThermalModel model,
             List<MarketPoint> market,
-            WoodStoveSettings woodStove
+            WoodStoveSettings woodStove,
+            boolean floorMeasurementFresh,
+            boolean roomMeasurementFresh
     ) {
     }
 
     public record Settings(
             Duration step,
-            Duration preheatLookAhead,
             BigDecimal cheapPriceThreshold,
             BigDecimal expensivePriceThreshold,
             BigDecimal normalFloorTemperature,

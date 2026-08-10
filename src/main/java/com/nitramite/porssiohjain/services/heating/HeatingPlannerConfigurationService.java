@@ -33,6 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -83,7 +86,8 @@ public class HeatingPlannerConfigurationService {
                             room.getDischargeFloorSetpoint(),
                             source == null || source.getControllingDevice() == null
                                     ? null : source.getControllingDevice().getId(),
-                            room.getRoomSensorDevice() == null ? null : room.getRoomSensorDevice().getId()
+                            room.getRoomSensorDevice() == null ? null : room.getRoomSensorDevice().getId(),
+                            room.getFloorSensorDevice() == null ? null : room.getFloorSensorDevice().getId()
                     );
                 })
                 .toList();
@@ -172,8 +176,8 @@ public class HeatingPlannerConfigurationService {
         settings = settingsRepository.save(settings);
 
         List<HeatingPlannerRoomEntity> existingRooms = roomRepository.findBySettingsIdOrderBySortOrderAscIdAsc(settings.getId());
-        roomRepository.deleteAll(existingRooms);
-        roomRepository.flush();
+        Map<String, HeatingPlannerRoomEntity> existingByName = new HashMap<>();
+        existingRooms.forEach(room -> existingByName.put(room.getName().toLowerCase(Locale.ROOT), room));
 
         int sortOrder = 0;
         for (RoomConfiguration roomConfiguration : rooms) {
@@ -193,20 +197,19 @@ public class HeatingPlannerConfigurationService {
                     ? new BigDecimal("19.00") : roomConfiguration.dischargeFloorSetpoint();
             HeatingPlannerHeatSourceType sourceType = roomConfiguration.sourceType() == null
                     ? HeatingPlannerHeatSourceType.OTHER : roomConfiguration.sourceType();
-            HeatingPlannerRoomEntity room = HeatingPlannerRoomEntity.builder()
-                    .settings(settings)
-                    .account(account)
-                    .site(site)
-                    .name(roomName)
-                    .targetRoomTemperature(target)
-                    .normalFloorTemperature(normalFloor)
-                    .maximumPreheatFloorTemperature(maximumPreheatFloor)
-                    .absoluteMaximumFloorTemperature(absoluteMaximumFloor)
-                    .dischargeFloorSetpoint(dischargeFloor)
-                    .minimumRoomTemperature(target.subtract(BigDecimal.ONE))
-                    .maximumRoomTemperature(target.add(new BigDecimal("2.50")))
-                    .sortOrder(sortOrder)
-                    .build();
+            HeatingPlannerRoomEntity room = existingByName.remove(roomName.toLowerCase(Locale.ROOT));
+            if (room == null) {
+                room = HeatingPlannerRoomEntity.builder().settings(settings).account(account).site(site).build();
+            }
+            room.setName(roomName);
+            room.setTargetRoomTemperature(target);
+            room.setNormalFloorTemperature(normalFloor);
+            room.setMaximumPreheatFloorTemperature(maximumPreheatFloor);
+            room.setAbsoluteMaximumFloorTemperature(absoluteMaximumFloor);
+            room.setDischargeFloorSetpoint(dischargeFloor);
+            room.setMinimumRoomTemperature(target.subtract(BigDecimal.ONE));
+            room.setMaximumRoomTemperature(target.add(new BigDecimal("2.50")));
+            room.setSortOrder(sortOrder);
             DeviceEntity controller = roomConfiguration.controllingDeviceId() == null ? null
                     : deviceRepository.findByIdAndAccount(roomConfiguration.controllingDeviceId(), account)
                     .orElseThrow(() -> new IllegalArgumentException("Selected controlling device not found"));
@@ -221,18 +224,28 @@ public class HeatingPlannerConfigurationService {
             }
             room.setRoomSensorDevice(roomSensor);
             room.setRoomSensorMeasurementKey(roomSensor == null ? null : HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY);
-            room.getHeatSources().add(HeatingPlannerRoomHeatSourceEntity.builder()
-                    .room(room)
-                    .account(account)
-                    .site(site)
-                    .name(sourceType.label())
-                    .sourceType(sourceType)
-                    .controllingDevice(controller)
-                    .sortOrder(0)
-                    .build());
+            DeviceEntity floorSensor = roomConfiguration.floorSensorDeviceId() == null ? null
+                    : deviceRepository.findByIdAndAccount(roomConfiguration.floorSensorDeviceId(), account)
+                    .orElseThrow(() -> new IllegalArgumentException("Selected floor sensor not found"));
+            if (floorSensor != null && floorSensor.getDeviceType() != DeviceType.TEMPERATURE_SENSOR
+                    && floorSensor.getDeviceType() != DeviceType.THERMOSTAT) {
+                throw new IllegalArgumentException("Selected floor sensor must report temperature");
+            }
+            room.setFloorSensorDevice(floorSensor);
+            room.setFloorSensorMeasurementKey(floorSensor == null ? null : HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY);
+            HeatingPlannerRoomHeatSourceEntity heatSource = room.getHeatSources().stream().findFirst().orElse(null);
+            if (heatSource == null) {
+                heatSource = HeatingPlannerRoomHeatSourceEntity.builder()
+                        .room(room).account(account).site(site).sortOrder(0).build();
+                room.getHeatSources().add(heatSource);
+            }
+            heatSource.setName(sourceType.label());
+            heatSource.setSourceType(sourceType);
+            heatSource.setControllingDevice(controller);
             roomRepository.save(room);
             sortOrder++;
         }
+        roomRepository.deleteAll(existingByName.values());
     }
 
     public record Configuration(
@@ -275,7 +288,8 @@ public class HeatingPlannerConfigurationService {
             BigDecimal absoluteMaximumFloorTemperature,
             BigDecimal dischargeFloorSetpoint,
             Long controllingDeviceId,
-            Long roomSensorDeviceId
+            Long roomSensorDeviceId,
+            Long floorSensorDeviceId
     ) {
     }
 }
