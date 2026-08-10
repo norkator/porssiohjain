@@ -233,6 +233,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             return new RoomPlan(room.room(), room.heatSource(), room.controller(),
                                     measurements.roomTemperature(), measurements.floorTemperature(),
                                     measurements.roomMeasurement(), measurements.floorMeasurement(),
+                                    room.targetRoomTemperature(), room.normalFloorTemperature(),
+                                    room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
+                                    room.dischargeFloorSetpoint(),
                                     simulationService.simulate(simulationRequest(
                                             loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
                                             woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
@@ -246,6 +249,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             return new RoomPlan(room.room(), room.heatSource(), room.controller(),
                                     measurements.roomTemperature(), measurements.floorTemperature(),
                                     measurements.roomMeasurement(), measurements.floorMeasurement(),
+                                    room.targetRoomTemperature(), room.normalFloorTemperature(),
+                                    room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
+                                    room.dischargeFloorSetpoint(),
                                     null, ex.getMessage());
                         }
                     })
@@ -255,6 +261,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         new BigDecimal("21.00"), new BigDecimal("22.00"),
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
+                        new BigDecimal("21.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
+                        new BigDecimal("29.00"), new BigDecimal("19.00"),
                         simulationService.simulate(simulationRequest(
                                 loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
                                 woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
@@ -276,6 +284,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries));
         };
         Button recalculate = new Button("Recalculate dry-run plan", VaadinIcon.REFRESH.create(), event -> calculate.run());
+        recalculate.setWidthFull();
         recalculate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button saveConfiguration = new Button("Save rooms", VaadinIcon.CHECK.create(), event -> {
             SiteEntity selectedSite = siteSelect.getValue();
@@ -571,6 +580,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         Details evidence = new Details("Inputs used to determine this plan",
                 evidenceContent(roomPlans, site, forecast, marketSeries));
         evidence.setOpened(false);
+        Details calculationBreakdown = roomCalculationBreakdown(roomPlans);
         LocalDate today = LocalDate.now(ZONE);
         VerticalLayout todayContent = dayContent(roomPlans, today, true);
         VerticalLayout tomorrowContent = dayContent(roomPlans, today.plusDays(1), false);
@@ -584,7 +594,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             todayContent.setVisible(showToday);
             tomorrowContent.setVisible(!showToday);
         });
-        plan.add(evidence, tabs, todayContent, tomorrowContent);
+        plan.add(evidence, calculationBreakdown, tabs, todayContent, tomorrowContent);
         return plan;
     }
 
@@ -787,10 +797,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             return new CurrentCommandPreview(plan.room(), "Not configured", "No command",
                     "No controlling thermostat is selected for this room.");
         }
-        HeatingPlanSimulationService.SimulationPoint point = plan.result().points().stream()
-                .filter(candidate -> !candidate.time().isAfter(now))
-                .reduce((left, right) -> right)
-                .orElseGet(() -> plan.result().points().stream().findFirst().orElse(null));
+        HeatingPlanSimulationService.SimulationPoint point = currentPoint(plan.result(), now);
         if (point == null) {
             return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "No command", "No plan point is available.");
         }
@@ -800,6 +807,17 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         }
         return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()),
                 point.floorSetpoint() + " °C", point.reason());
+    }
+
+    private HeatingPlanSimulationService.SimulationPoint currentPoint(HeatingPlanSimulationService.SimulationResult result,
+                                                                      Instant now) {
+        if (result == null) {
+            return null;
+        }
+        return result.points().stream()
+                .filter(candidate -> !candidate.time().isAfter(now))
+                .reduce((left, right) -> right)
+                .orElseGet(() -> result.points().stream().findFirst().orElse(null));
     }
 
     private VerticalLayout woodBurningPreview(List<RoomPlan> roomPlans) {
@@ -883,6 +901,51 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 new Span(energySummary(roomPlans))
         );
         return evidence;
+    }
+
+    private Details roomCalculationBreakdown(List<RoomPlan> roomPlans) {
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+        content.setWidthFull();
+        content.add(new Span("Derived values: normal floor = comfort target + 2 °C; discharge = comfort target - 2 °C; absolute maximum = preheat maximum + 2 °C. Comfort guard range is target - 1 °C to target + 2.5 °C."));
+
+        Grid<RoomCalculationRow> grid = new Grid<>(RoomCalculationRow.class, false);
+        grid.setWidthFull();
+        grid.addColumn(RoomCalculationRow::room).setHeader("Room").setFlexGrow(1);
+        grid.addComponentColumn(row -> wrappingCell(row.startingState())).setHeader("Starting state").setFlexGrow(2);
+        grid.addComponentColumn(row -> wrappingCell(row.limits())).setHeader("Setpoints and limits").setFlexGrow(2);
+        grid.addComponentColumn(row -> wrappingCell(row.currentDecision())).setHeader("Current decision").setFlexGrow(2);
+        grid.addComponentColumn(row -> wrappingCell(row.reason())).setHeader("Why").setFlexGrow(3);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
+        grid.setAllRowsVisible(true);
+        grid.setItems(roomPlans.stream().map(this::roomCalculationRow).toList());
+        content.add(grid);
+
+        Details details = new Details("Per-room calculation breakdown", content);
+        details.setWidthFull();
+        details.setOpened(false);
+        return details;
+    }
+
+    private RoomCalculationRow roomCalculationRow(RoomPlan plan) {
+        String startingState = "room " + measurementText(plan.roomMeasurement(), plan.initialRoomTemperature())
+                + "; floor " + measurementText(plan.floorMeasurement(), plan.initialFloorTemperature());
+        String limits = "comfort " + plan.targetRoomTemperature() + " °C, comfort guard "
+                + plan.targetRoomTemperature().subtract(BigDecimal.ONE) + "..." + plan.targetRoomTemperature().add(new BigDecimal("2.50"))
+                + " °C; normal floor " + plan.normalFloorTemperature() + " °C, preheat max "
+                + plan.maximumPreheatFloorTemperature() + " °C, absolute max "
+                + plan.absoluteMaximumFloorTemperature() + " °C, discharge "
+                + plan.dischargeFloorSetpoint() + " °C";
+        if (plan.result() == null) {
+            return new RoomCalculationRow(plan.room(), startingState, limits, "No dry-run point", plan.planError());
+        }
+        HeatingPlanSimulationService.SimulationPoint point = currentPoint(plan.result(), Instant.now());
+        if (point == null) {
+            return new RoomCalculationRow(plan.room(), startingState, limits, "No dry-run point", "No plan point is available.");
+        }
+        String decision = point.mode() + ": floor setpoint " + point.floorSetpoint() + " °C, heating "
+                + (point.heating() ? "on" : "off");
+        return new RoomCalculationRow(plan.room(), startingState, limits, decision, point.reason());
     }
 
     private String plannerStatusText(List<RoomPlan> roomPlans) {
@@ -1107,6 +1170,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             BigDecimal initialFloorTemperature,
                             HeatingPlannerMeasurementService.LatestMeasurement roomMeasurement,
                             HeatingPlannerMeasurementService.LatestMeasurement floorMeasurement,
+                            BigDecimal targetRoomTemperature,
+                            BigDecimal normalFloorTemperature,
+                            BigDecimal maximumPreheatFloorTemperature,
+                            BigDecimal absoluteMaximumFloorTemperature,
+                            BigDecimal dischargeFloorSetpoint,
                             HeatingPlanSimulationService.SimulationResult result,
                             String planError) {
     }
@@ -1115,6 +1183,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private record CurrentCommandPreview(String room, String thermostat, String command, String reason) {
+    }
+
+    private record RoomCalculationRow(String room, String startingState, String limits,
+                                      String currentDecision, String reason) {
     }
 
     private record MarketSeries(List<HeatingPlanSimulationService.MarketPoint> points, String description) {

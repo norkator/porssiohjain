@@ -9,12 +9,14 @@
 package com.nitramite.porssiohjain.views.components;
 
 import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.html.Div;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@JsModule("./js/apexcharts.min.js")
 public class HeatingPlanChart extends Div {
 
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
@@ -50,7 +52,11 @@ public class HeatingPlanChart extends Div {
                   xaxis: { categories: $0, title: { text: 'Local time' } },
                   yaxis: [
                     { title: { text: 'Temperature °C' }, min: $7, max: $8 },
-                    { opposite: true, title: { text: 'Price c/kWh / wood effect' }, min: $9, max: $10 }
+                    { show: false, min: $7, max: $8 },
+                    { show: false, min: $7, max: $8 },
+                    { opposite: true, title: { text: 'Price c/kWh / wood effect' }, min: $9, max: $10 },
+                    { show: false, min: $9, max: $10 },
+                    { show: false, min: $7, max: $8 }
                   ],
                   stroke: { width: [3, 3, 2, 0, 2, 2], curve: 'smooth', dashArray: [0, 0, 5, 0, 0, 4] },
                   colors: ['#2f80ed', '#eb5757', '#f2994a', '#9b51e0', '#27ae60', '#00a3a3'],
