@@ -132,9 +132,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         title.getStyle().set("margin", "0");
         Checkbox plannerEnabled = new Checkbox("Enabled", false);
         plannerEnabled.setHelperText("Disabling keeps the room configuration but prevents planner use.");
-        Span dryRunBadge = new Span("REAL DATA · DRY RUN");
-        dryRunBadge.getElement().getThemeList().add("badge warning");
-        HorizontalLayout heading = new HorizontalLayout(title, plannerEnabled, dryRunBadge);
+        HorizontalLayout heading = new HorizontalLayout(title, plannerEnabled);
         heading.setAlignItems(Alignment.CENTER);
 
         Paragraph summary = new Paragraph("Whole-house plan · charge floor heating when electricity is cheap and recommend wood burning before expensive periods");
@@ -283,7 +281,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             }
             planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries));
         };
-        Button recalculate = new Button("Recalculate dry-run plan", VaadinIcon.REFRESH.create(), event -> calculate.run());
+        Button recalculate = new Button("Recalculate plan", VaadinIcon.REFRESH.create(), event -> calculate.run());
         recalculate.setWidthFull();
         recalculate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button saveConfiguration = new Button("Save rooms", VaadinIcon.CHECK.create(), event -> {
@@ -779,9 +777,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .toList();
         grid.setItems(previews);
         grid.setAllRowsVisible(true);
-        Span warning = new Span("DRY RUN — these thermostat commands are calculated but not sent.");
+        Span warning = new Span("Heating Planner setpoints have priority for Zigbee thermostats when the planner is active. When inactive, the Control feature setpoint remains the fallback.");
         warning.getElement().getThemeList().add("badge warning");
-        section.add(new H3("Current simulated thermostat commands"), warning, grid);
+        section.add(new H3("Current Heating Planner thermostat setpoints"), warning, grid);
         return section;
     }
 
@@ -831,14 +829,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .orElse(null);
         H3 heading = new H3("Simulated wood-burning call");
         if (wood == null) {
-            section.add(heading, new Paragraph("No wood-burning call is required by the current simulation. The stove must be loaded, the weather gate and expensive-period conditions must match, and the call time must be inside the availability window."));
+            section.add(heading, new Paragraph("No wood-burning call is required by the current plan. The stove must be loaded, the weather gate and expensive-period conditions must match, and the call time must be inside the availability window."));
         } else {
             section.add(heading,
                     new Span("Would call at: " + formatInstant(wood.notifyAt())),
                     new Span("Light: " + wood.loadName() + " (" + wood.woodAmount() + " kg)"),
                     new Span("Useful heat expected: " + formatInstant(wood.releaseStartsAt()) + " – " + formatInstant(wood.releaseEndsAt())),
                     new Span("Reason: " + wood.reason()),
-                    new Span("DRY RUN — no push notification is sent."));
+                    new Span("Wood-stove push notifications are not enabled yet."));
         }
         return section;
     }
@@ -897,7 +895,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 new Span("Comfort: independent plan points generated for " + roomPlans.size() + " configured room(s) using each room's comfort target"),
                 new Span("Floor limits: each room uses its configured normal, preheat maximum, absolute maximum, and discharge setpoint"),
                 new Span("Wood load: Normal basket, 8 kg; useful heat after 45 min, declining over 6 h"),
-                new Span("Model: deterministic dry-run v1; thermal response parameters are estimates"),
+                new Span("Model: deterministic planner v1; thermal response parameters are estimates"),
                 new Span(energySummary(roomPlans))
         );
         return evidence;
@@ -937,11 +935,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 + plan.absoluteMaximumFloorTemperature() + " °C, discharge "
                 + plan.dischargeFloorSetpoint() + " °C";
         if (plan.result() == null) {
-            return new RoomCalculationRow(plan.room(), startingState, limits, "No dry-run point", plan.planError());
+            return new RoomCalculationRow(plan.room(), startingState, limits, "No plan point", plan.planError());
         }
         HeatingPlanSimulationService.SimulationPoint point = currentPoint(plan.result(), Instant.now());
         if (point == null) {
-            return new RoomCalculationRow(plan.room(), startingState, limits, "No dry-run point", "No plan point is available.");
+            return new RoomCalculationRow(plan.room(), startingState, limits, "No plan point", "No plan point is available.");
         }
         String decision = point.mode() + ": floor setpoint " + point.floorSetpoint() + " °C, heating "
                 + (point.heating() ? "on" : "off");
@@ -1390,7 +1388,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private String forecastSummary(List<SiteWeatherEntity> forecast) {
         if (forecast.isEmpty()) {
-            return "No stored forecast rows for today and tomorrow yet; dry run falls back to generated weather.";
+            return "No stored forecast rows for today and tomorrow yet; planner falls back to generated weather.";
         }
         BigDecimal min = forecast.stream().map(SiteWeatherEntity::getTemperature).filter(value -> value != null)
                 .min(BigDecimal::compareTo).orElse(null);

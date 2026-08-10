@@ -19,4 +19,6 @@ import java.util.List;
 public interface HeatingPlannerRoomHeatSourceRepository extends JpaRepository<HeatingPlannerRoomHeatSourceEntity, Long> {
 
     List<HeatingPlannerRoomHeatSourceEntity> findByRoomIdOrderBySortOrderAscIdAsc(Long roomId);
+
+    List<HeatingPlannerRoomHeatSourceEntity> findByControllingDeviceIdAndEnabledTrueOrderByIdAsc(Long deviceId);
 }

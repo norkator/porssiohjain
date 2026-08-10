@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.*;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerGatewayCommandService;
 import com.nitramite.porssiohjain.services.ZigbeeGatewaySyncService;
 import com.nitramite.porssiohjain.services.ZigbeeGatewayConnectivityService;
 import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
@@ -41,16 +42,20 @@ class ZigbeeGatewaySyncServiceTest {
     @Mock ZigbeeDeviceMeasurementRepository measurements;
     @Mock ZigbeeGatewayConnectivityService connectivityService;
     @Mock DeviceOfflineNotificationService deviceOfflineNotificationService;
+    @Mock HeatingPlannerGatewayCommandService heatingPlannerGatewayCommandService;
     ZigbeeGatewaySyncService service;
     AccountEntity account;
     UUID gateway;
 
     @BeforeEach void setUp() {
         service = new ZigbeeGatewaySyncService(
-                accounts, devices, links, measurements, connectivityService, deviceOfflineNotificationService);
+                accounts, devices, links, measurements, connectivityService, deviceOfflineNotificationService,
+                heatingPlannerGatewayCommandService);
         account = new AccountEntity(); account.setId(7L);
         gateway = UUID.randomUUID();
         when(accounts.findById(7L)).thenReturn(Optional.of(account));
+        lenient().when(heatingPlannerGatewayCommandService.currentCommand(any(), any()))
+                .thenReturn(Optional.empty());
     }
 
     @Test void firstSyncRegistersAccountOwnedThermostat() {
@@ -134,6 +139,25 @@ class ZigbeeGatewaySyncServiceTest {
         service.sync(7L, gateway, request(3, true));
         assertEquals(3, link.getAppliedVersion());
         assertTrue(service.sync(7L, gateway, request(3, true)).getDevices().isEmpty());
+    }
+
+    @Test void heatingPlannerCommandOverridesExistingControlDesiredState() {
+        ZigbeeGatewayDeviceEntity link = link(account, 4, 4);
+        link.setDesiredTemperature(new BigDecimal("19.00"));
+        link.setDesiredMode("HEAT");
+        link.setDesiredExpiresAt(Instant.now().plusSeconds(600));
+        when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb")).thenReturn(Optional.of(link));
+        when(heatingPlannerGatewayCommandService.currentCommand(eq(link), any()))
+                .thenReturn(Optional.of(new HeatingPlannerGatewayCommandService.PlannerGatewayCommand(
+                        new BigDecimal("23.00"), "HEAT", "Heating Planner active")));
+
+        var response = service.sync(7L, gateway, request(4, true));
+
+        assertEquals(5, response.getDevices().getFirst().getVersion());
+        assertEquals(new BigDecimal("23.00"), response.getDevices().getFirst().getTargetTemperature());
+        assertEquals(new BigDecimal("23.00"), link.getDesiredTemperature());
+        assertEquals("HEAT", link.getDesiredMode());
+        assertTrue(link.getDesiredExpiresAt().isAfter(Instant.now()));
     }
 
     @Test void resendsDesiredVersionWhenReportedSetpointDriftsAfterManualChange() {

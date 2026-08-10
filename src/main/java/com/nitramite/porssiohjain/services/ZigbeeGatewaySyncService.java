@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.*;
 import com.nitramite.porssiohjain.entity.repository.*;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerGatewayCommandService;
 import com.nitramite.porssiohjain.services.models.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class ZigbeeGatewaySyncService {
     private final ZigbeeDeviceMeasurementRepository measurementRepository;
     private final ZigbeeGatewayConnectivityService connectivityService;
     private final DeviceOfflineNotificationService deviceOfflineNotificationService;
+    private final HeatingPlannerGatewayCommandService heatingPlannerGatewayCommandService;
 
     public ZigbeeGatewaySyncResponse sync(Long accountId, UUID pathGatewayId, ZigbeeGatewaySyncRequest request) {
         if (request == null || request.getGatewayId() == null || !pathGatewayId.equals(request.getGatewayId())) {
@@ -57,6 +59,7 @@ public class ZigbeeGatewaySyncService {
                     .orElseGet(() -> register(account, pathGatewayId, ieee, report));
             updateReport(link, report, now);
             saveMeasurements(link, report, now);
+            applyHeatingPlannerPriority(link, now);
             if (isThermostatProfile(link.getProfile())
                     && link.getDesiredVersion() > link.getAppliedVersion()
                     && link.getDesiredExpiresAt() != null && link.getDesiredExpiresAt().isAfter(now)) {
@@ -67,6 +70,26 @@ public class ZigbeeGatewaySyncService {
             }
         }
         return ZigbeeGatewaySyncResponse.builder().pollAfterSeconds(POLL_SECONDS).devices(commands).build();
+    }
+
+    private void applyHeatingPlannerPriority(ZigbeeGatewayDeviceEntity link, Instant now) {
+        if (!isThermostatProfile(link.getProfile())) {
+            return;
+        }
+        heatingPlannerGatewayCommandService.currentCommand(link, now).ifPresent(command -> {
+            boolean changed = link.getDesiredTemperature() == null
+                    || command.targetTemperature().compareTo(link.getDesiredTemperature()) != 0
+                    || !command.mode().equals(link.getDesiredMode());
+            if (changed) {
+                link.setDesiredVersion(link.getDesiredVersion() + 1);
+                link.setDesiredTemperature(command.targetTemperature());
+                link.setDesiredMode(command.mode());
+                link.setDesiredAt(now);
+                link.setLastError(null);
+            }
+            link.setDesiredExpiresAt(now.plus(Duration.ofMinutes(30)));
+            zigbeeRepository.save(link);
+        });
     }
 
     private ZigbeeGatewayDeviceEntity register(AccountEntity account, UUID gatewayId, String ieee,

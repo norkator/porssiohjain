@@ -28,4 +28,7 @@ public interface HeatingPlannerPlanPointRepository extends JpaRepository<Heating
             Long accountId, Long siteId, HeatingPlannerPlanPointStatus status, Instant start, Instant end);
 
     List<HeatingPlannerPlanPointEntity> findByPlanVersion(UUID planVersion);
+
+    List<HeatingPlannerPlanPointEntity> findByPlanVersionAndRoomIdAndPlannedTimeBetweenOrderByPlannedTimeAsc(
+            UUID planVersion, Long roomId, Instant start, Instant end);
 }
