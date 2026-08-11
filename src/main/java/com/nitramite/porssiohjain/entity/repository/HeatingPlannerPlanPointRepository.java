@@ -13,7 +13,11 @@ package com.nitramite.porssiohjain.entity.repository;
 
 import com.nitramite.porssiohjain.entity.HeatingPlannerPlanPointEntity;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanPointStatus;
+import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
@@ -31,4 +35,16 @@ public interface HeatingPlannerPlanPointRepository extends JpaRepository<Heating
 
     List<HeatingPlannerPlanPointEntity> findByPlanVersionAndRoomIdAndPlannedTimeBetweenOrderByPlannedTimeAsc(
             UUID planVersion, Long roomId, Instant start, Instant end);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            delete from HeatingPlannerPlanPointEntity point
+            where point.plan.id in (
+                select plan.id from HeatingPlannerPlanEntity plan
+                where plan.horizonEnd < :cutoff
+                  and plan.status <> :preservedStatus
+            )
+            """)
+    int deleteByPlanEndedBeforeAndPlanStatusNot(@Param("cutoff") Instant cutoff,
+                                                @Param("preservedStatus") HeatingPlannerPlanStatus preservedStatus);
 }

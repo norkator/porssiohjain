@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -33,6 +34,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class HeatingPlannerPlanService {
+    static final Duration OLD_PLAN_RETENTION = Duration.ofDays(14);
 
     private final HeatingPlannerSettingsRepository settingsRepository;
     private final HeatingPlannerRoomRepository roomRepository;
@@ -104,6 +106,17 @@ public class HeatingPlannerPlanService {
         return true;
     }
 
+    @Transactional
+    public CleanupResult cleanupOldPlans(Instant now) {
+        Instant cutoff = now.minus(OLD_PLAN_RETENTION);
+        HeatingPlannerPlanStatus preservedStatus = HeatingPlannerPlanStatus.ACTIVE;
+        int recommendationsDeleted = woodRecommendationRepository
+                .deleteByPlanEndedBeforeAndPlanStatusNot(cutoff, preservedStatus);
+        int pointsDeleted = pointRepository.deleteByPlanEndedBeforeAndPlanStatusNot(cutoff, preservedStatus);
+        int plansDeleted = planRepository.deleteEndedBeforeAndStatusNot(cutoff, preservedStatus);
+        return new CleanupResult(cutoff, plansDeleted, pointsDeleted, recommendationsDeleted);
+    }
+
     private void persistWoodRecommendation(HeatingPlannerPlanEntity plan, HeatingPlannerSettingsEntity settings,
                                            Map<String, HeatingPlannerRoomEntity> rooms,
                                            Map<String, HeatingPlanSimulationService.SimulationResult> resultsByRoomName) {
@@ -138,5 +151,8 @@ public class HeatingPlannerPlanService {
         entity.setReason(recommendation.reason());
         entity.setStatus(HeatingPlannerWoodRecommendationStatus.PENDING);
         woodRecommendationRepository.save(entity);
+    }
+
+    public record CleanupResult(Instant cutoff, int plansDeleted, int pointsDeleted, int recommendationsDeleted) {
     }
 }
