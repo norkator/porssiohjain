@@ -1063,8 +1063,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         new EvidenceValue("Release duration", durationDisplay(inputs.releaseDurationHours())),
                         new EvidenceValue("Initial room-heating rate", "0.35 °C/h")
                 )),
-                evidenceSection("Thermal Models", modelEvidenceGrid(roomPlans)),
-                evidenceSection("Estimate", evidenceGrid(new EvidenceValue("Electric use", energySummary(roomPlans))))
+                evidenceSection("Thermal Models", modelEvidenceGrid(roomPlans))
         );
         return evidence;
     }
@@ -1224,23 +1223,6 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return (first.plannerActive() ? "active" : "inactive") + " — " + first.plannerStatusReason();
     }
 
-    private String energySummary(List<RoomPlan> roomPlans) {
-        List<HeatingPlanSimulationService.SimulationResult> results = roomPlans.stream()
-                .map(RoomPlan::result)
-                .filter(java.util.Objects::nonNull)
-                .toList();
-        if (results.isEmpty()) {
-            return "Estimated electric use unavailable until room settings are valid.";
-        }
-        BigDecimal energyKwh = results.stream()
-                .map(HeatingPlanSimulationService.SimulationResult::energyKwh)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal estimatedCostEur = results.stream()
-                .map(HeatingPlanSimulationService.SimulationResult::estimatedCostEur)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        return "Estimated electric use: " + energyKwh + " kWh; cost: " + estimatedCostEur + " €";
-    }
-
     private HeatingPlanSimulationService.SimulationRequest simulationRequest(boolean stoveLoaded, LocalTime availableFrom,
                                                                              LocalTime availableTo, Double woodAmount,
                                                                              Double releaseDelayHours,
@@ -1336,8 +1318,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private String thermalModelEvidence(String source, HeatingPlanSimulationService.ThermalModel model) {
-        return source + " [heater " + model.heaterPowerKw() + " kW, floor heating "
-                + model.floorHeatingRate() + " °C/h, floor-to-room " + model.floorToRoomRate()
+        return source + " [floor heating " + model.floorHeatingRate()
+                + " °C/h, floor-to-room " + model.floorToRoomRate()
                 + " °C/h, outdoor loss " + model.roomOutdoorLossRate()
                 + ", wind loss " + model.windLossRate() + "]";
     }
