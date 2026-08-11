@@ -256,6 +256,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                         + resolution.confidence().movePointRight(2).setScale(0, RoundingMode.HALF_UP) + "%"
                                         : resolution.reason();
                             }
+                            modelEvidence = thermalModelEvidence(modelEvidence, model);
                             return new RoomPlan(room.room(), room.heatSource(), room.controller(),
                                     measurements.roomTemperature(), measurements.floorTemperature(),
                                     measurements.roomMeasurement(), measurements.floorMeasurement(),
@@ -289,7 +290,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
                         new BigDecimal("21.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
-                        new BigDecimal("29.00"), new BigDecimal("19.00"), "Configured fallback thermal model",
+                        new BigDecimal("29.00"), new BigDecimal("19.00"),
+                        thermalModelEvidence("Configured fallback thermal model", defaultThermalModel()),
                         simulationService.simulate(simulationRequest(
                                 loaded.getValue(), availableFrom.getValue(), availableTo.getValue(),
                                 woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
@@ -309,8 +311,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     planService.persistSimulatedPlan(account.getId(), selectedSite.getId(), resultsByRoom);
                 }
             }
-            planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries,
-                    woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue()));
+            PlanEvidenceInputs evidenceInputs = new PlanEvidenceInputs(calculationTime,
+                    plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(), loaded.getValue(),
+                    availableFrom.getValue(), availableTo.getValue(), woodAmount.getValue(),
+                    releaseDelay.getValue(), releaseDuration.getValue());
+            planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries, evidenceInputs));
             refreshActiveControlState(activeControlService, account == null ? null : account.getId(), selectedSite,
                     activeControlStatus, enableActiveControl, disableActiveControl);
         };
@@ -656,12 +661,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private VerticalLayout planContent(List<RoomPlan> roomPlans, SiteEntity site,
                                        List<SiteWeatherEntity> forecast, MarketSeries marketSeries,
-                                       Double woodAmount, Double releaseDelayHours, Double releaseDurationHours) {
+                                       PlanEvidenceInputs inputs) {
         VerticalLayout plan = new VerticalLayout();
         plan.setPadding(false);
         Details evidence = new Details("Inputs used to determine this plan",
-                evidenceContent(roomPlans, site, forecast, marketSeries,
-                        woodAmount, releaseDelayHours, releaseDurationHours));
+                evidenceContent(roomPlans, site, forecast, marketSeries, inputs));
         evidence.setOpened(false);
         Details calculationBreakdown = roomCalculationBreakdown(roomPlans);
         LocalDate today = LocalDate.now(ZONE);
@@ -1015,26 +1019,35 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private VerticalLayout evidenceContent(List<RoomPlan> roomPlans, SiteEntity site,
                                            List<SiteWeatherEntity> forecast, MarketSeries marketSeries,
-                                           Double woodAmount, Double releaseDelayHours,
-                                           Double releaseDurationHours) {
+                                           PlanEvidenceInputs inputs) {
         VerticalLayout evidence = new VerticalLayout();
         evidence.setPadding(false);
         evidence.setSpacing(false);
         String siteText = site == null ? "not selected" : site.getName() + " (" + site.getTimezone() + ")";
         String weatherText = site == null ? "no site selected"
-                : hasWeatherPlace(site) ? forecastSummary(forecast) : "site has no weather place configured";
+                : hasWeatherPlace(site) ? forecastSummary(forecast)
+                : "site has no weather place configured; simulation uses the explicit fallback of 0 °C outdoor temperature and 0 m/s wind";
         evidence.add(
-                new Span("Plan generated: " + ZonedDateTime.now(ZONE).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))),
+                new Span("Plan generated: " + DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                        .withZone(zoneForSite(site)).format(inputs.calculatedAt())),
                 new Span("Planner status: " + plannerStatusText(roomPlans)),
                 new Span("Site: " + siteText),
                 new Span("Market prices: " + marketSeries.description()),
                 new Span("Weather: " + weatherText),
                 new Span("Latest sensors: " + sensorEvidence(roomPlans)),
-                new Span("Comfort: independent plan points generated for " + roomPlans.size() + " configured room(s) using each room's comfort target"),
-                new Span("Floor limits: each room uses its configured normal, preheat maximum, absolute maximum, and discharge setpoint"),
-                new Span("Wood load: Static wood load, " + decimalDisplay(woodAmount) + " kg; useful heat after "
-                        + durationDisplay(releaseDelayHours) + ", declining over "
-                        + durationDisplay(releaseDurationHours)),
+                new Span("Weather gates: planner active below " + decimalDisplay(inputs.plannerWeatherThreshold())
+                        + " °C; recommend wood below " + decimalDisplay(inputs.woodWeatherThreshold()) + " °C"),
+                new Span("Price rules: cheap at or below 5 c/kWh; expensive at or above 20 c/kWh; 1 h simulation step"),
+                new Span("Comfort and floor limits: " + roomPlans.stream()
+                        .map(this::roomLimitEvidence)
+                        .collect(java.util.stream.Collectors.joining("; "))),
+                new Span("Wood stove: " + (inputs.stoveLoaded() ? "loaded and ready" : "not loaded")
+                        + "; available " + timeOrDefault(inputs.availableFrom(), LocalTime.of(6, 0))
+                        + "–" + timeOrDefault(inputs.availableTo(), LocalTime.of(22, 0))
+                        + "; load " + decimalDisplay(inputs.woodAmount()) + " kg; useful heat after "
+                        + durationDisplay(inputs.releaseDelayHours()) + ", declining over "
+                        + durationDisplay(inputs.releaseDurationHours())
+                        + "; initial room-heating rate 0.35 °C/h"),
                 new Span("Thermal models: " + roomPlans.stream()
                         .map(room -> room.room() + " — " + room.modelEvidence())
                         .collect(java.util.stream.Collectors.joining("; "))),
@@ -1047,7 +1060,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         VerticalLayout content = new VerticalLayout();
         content.setPadding(false);
         content.setWidthFull();
-        content.add(new Span("Derived values: normal floor = comfort target + 2 °C; discharge = comfort target - 2 °C; absolute maximum = preheat maximum + 2 °C. Comfort guard range is target - 1 °C to target + 2.5 °C."));
+        content.add(new Span("The exact configured comfort and floor limits used for each room are shown below. The simulation comfort guard is target - 1 °C to target + 2.5 °C."));
 
         Grid<RoomCalculationRow> grid = new Grid<>(RoomCalculationRow.class, false);
         grid.setWidthFull();
@@ -1203,6 +1216,23 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .collect(java.util.stream.Collectors.joining("; "));
     }
 
+    private String roomLimitEvidence(RoomPlan plan) {
+        return plan.room() + " target " + plan.targetRoomTemperature() + " °C, comfort guard "
+                + plan.targetRoomTemperature().subtract(BigDecimal.ONE) + "…"
+                + plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C, floor normal "
+                + plan.normalFloorTemperature() + " °C, preheat max "
+                + plan.maximumPreheatFloorTemperature() + " °C, absolute max "
+                + plan.absoluteMaximumFloorTemperature() + " °C, discharge "
+                + plan.dischargeFloorSetpoint() + " °C";
+    }
+
+    private String thermalModelEvidence(String source, HeatingPlanSimulationService.ThermalModel model) {
+        return source + " [heater " + model.heaterPowerKw() + " kW, floor heating "
+                + model.floorHeatingRate() + " °C/h, floor-to-room " + model.floorToRoomRate()
+                + " °C/h, outdoor loss " + model.roomOutdoorLossRate()
+                + ", wind loss " + model.windLossRate() + "]";
+    }
+
     private String measurementText(HeatingPlannerMeasurementService.LatestMeasurement measurement, BigDecimal fallback) {
         if (measurement.fresh()) {
             return measurement.value() + " °C fresh at " + formatInstant(measurement.measuredAt());
@@ -1348,6 +1378,19 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             BigDecimal floorTemperature,
             HeatingPlannerMeasurementService.LatestMeasurement roomMeasurement,
             HeatingPlannerMeasurementService.LatestMeasurement floorMeasurement
+    ) {
+    }
+
+    private record PlanEvidenceInputs(
+            Instant calculatedAt,
+            Double plannerWeatherThreshold,
+            Double woodWeatherThreshold,
+            boolean stoveLoaded,
+            LocalTime availableFrom,
+            LocalTime availableTo,
+            Double woodAmount,
+            Double releaseDelayHours,
+            Double releaseDurationHours
     ) {
     }
 
@@ -1554,7 +1597,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private String forecastSummary(List<SiteWeatherEntity> forecast) {
         if (forecast.isEmpty()) {
-            return "No stored forecast rows for today and tomorrow yet; planner falls back to generated weather.";
+            return "No stored forecast rows for today and tomorrow; simulation uses the explicit fallback of 0 °C outdoor temperature and 0 m/s wind.";
         }
         BigDecimal min = forecast.stream().map(SiteWeatherEntity::getTemperature).filter(value -> value != null)
                 .min(BigDecimal::compareTo).orElse(null);
