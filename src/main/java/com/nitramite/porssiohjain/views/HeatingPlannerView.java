@@ -980,7 +980,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     new Span("Light: " + wood.loadName() + " (" + wood.woodAmount() + " kg)"),
                     new Span("Useful heat expected: " + formatInstant(wood.releaseStartsAt()) + " – " + formatInstant(wood.releaseEndsAt())),
                     new Span("Reason: " + wood.reason()),
-                    new Span("Wood-stove push notifications are not enabled yet."));
+                    new Span("A push notification will be sent at the call time if Heating Planner remains enabled, the stove is still marked loaded, and the time is inside your availability window."));
         }
         return section;
     }

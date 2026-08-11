@@ -11,17 +11,22 @@ package com.nitramite.porssiohjain.services.heating;
 import com.nitramite.porssiohjain.entity.HeatingPlannerPlanEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerPlanPointEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
+import com.nitramite.porssiohjain.entity.HeatingPlannerSettingsEntity;
+import com.nitramite.porssiohjain.entity.HeatingPlannerWoodRecommendationEntity;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanPointStatus;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanStatus;
+import com.nitramite.porssiohjain.entity.enums.HeatingPlannerWoodRecommendationStatus;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerPlanPointRepository;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerPlanRepository;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerRoomRepository;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerSettingsRepository;
+import com.nitramite.porssiohjain.entity.repository.HeatingPlannerWoodRecommendationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -33,6 +38,7 @@ public class HeatingPlannerPlanService {
     private final HeatingPlannerRoomRepository roomRepository;
     private final HeatingPlannerPlanRepository planRepository;
     private final HeatingPlannerPlanPointRepository pointRepository;
+    private final HeatingPlannerWoodRecommendationRepository woodRecommendationRepository;
 
     @Transactional
     public boolean persistSimulatedPlan(Long accountId, Long siteId,
@@ -60,6 +66,11 @@ public class HeatingPlannerPlanService {
             var oldPoints = pointRepository.findByPlanVersion(previous.getPlanVersion());
             oldPoints.forEach(point -> point.setStatus(HeatingPlannerPlanPointStatus.SUPERSEDED));
             pointRepository.saveAll(oldPoints);
+            var oldRecommendations = woodRecommendationRepository.findByPlanIdAndStatus(
+                    previous.getId(), HeatingPlannerWoodRecommendationStatus.PENDING);
+            oldRecommendations.forEach(recommendation ->
+                    recommendation.setStatus(HeatingPlannerWoodRecommendationStatus.SUPERSEDED));
+            woodRecommendationRepository.saveAll(oldRecommendations);
         }
 
         Instant horizonStart = resultsByRoomName.values().stream()
@@ -89,6 +100,43 @@ public class HeatingPlannerPlanService {
                     .status(HeatingPlannerPlanPointStatus.SIMULATED).build()));
         });
         planRepository.save(plan);
+        persistWoodRecommendation(plan, settings, rooms, resultsByRoomName);
         return true;
+    }
+
+    private void persistWoodRecommendation(HeatingPlannerPlanEntity plan, HeatingPlannerSettingsEntity settings,
+                                           Map<String, HeatingPlannerRoomEntity> rooms,
+                                           Map<String, HeatingPlanSimulationService.SimulationResult> resultsByRoomName) {
+        var selected = resultsByRoomName.entrySet().stream()
+                .filter(entry -> entry.getValue().plannerActive())
+                .filter(entry -> entry.getValue().woodStoveRecommendation() != null)
+                .min(Comparator.comparing(entry -> entry.getValue().woodStoveRecommendation().notifyAt()))
+                .orElse(null);
+        if (selected == null) return;
+
+        HeatingPlanSimulationService.WoodStoveRecommendation recommendation =
+                selected.getValue().woodStoveRecommendation();
+        HeatingPlannerWoodRecommendationEntity entity = woodRecommendationRepository
+                .findBySettingsIdAndReleaseStartsAt(settings.getId(), recommendation.releaseStartsAt())
+                .orElseGet(HeatingPlannerWoodRecommendationEntity::new);
+        if (entity.getId() != null && entity.getStatus() != HeatingPlannerWoodRecommendationStatus.PENDING
+                && entity.getStatus() != HeatingPlannerWoodRecommendationStatus.SUPERSEDED) {
+            return;
+        }
+        entity.setSettings(settings);
+        entity.setPlan(plan);
+        entity.setRoom(rooms.get(selected.getKey()));
+        entity.setAccount(settings.getAccount());
+        entity.setSite(settings.getSite());
+        entity.setPlanVersion(plan.getPlanVersion());
+        entity.setLoadName(recommendation.loadName());
+        entity.setWoodAmount(recommendation.woodAmount());
+        entity.setNotifyAt(recommendation.notifyAt());
+        entity.setReleaseStartsAt(recommendation.releaseStartsAt());
+        entity.setReleaseEndsAt(recommendation.releaseEndsAt());
+        entity.setInitialRoomHeatingRate(recommendation.initialRoomHeatingRate());
+        entity.setReason(recommendation.reason());
+        entity.setStatus(HeatingPlannerWoodRecommendationStatus.PENDING);
+        woodRecommendationRepository.save(entity);
     }
 }

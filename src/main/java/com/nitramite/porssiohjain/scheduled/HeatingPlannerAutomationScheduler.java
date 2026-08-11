@@ -5,6 +5,7 @@
 package com.nitramite.porssiohjain.scheduled;
 
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerAutomationService;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerWoodNotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -17,9 +18,15 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class HeatingPlannerAutomationScheduler {
     private final HeatingPlannerAutomationService automationService;
+    private final HeatingPlannerWoodNotificationService woodNotificationService;
 
     @Scheduled(cron = "20 2/15 * * * *", zone = "Europe/Helsinki")
     public void recalculateEnabledHeatingPlanners() {
         automationService.runEnabledPlanners(Instant.now());
+    }
+
+    @Scheduled(cron = "10 0/1 * * * *", zone = "Europe/Helsinki")
+    public void sendDueWoodRecommendations() {
+        woodNotificationService.sendDueNotifications();
     }
 }

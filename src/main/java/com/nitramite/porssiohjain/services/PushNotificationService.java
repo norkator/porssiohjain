@@ -25,6 +25,7 @@ import com.nitramite.porssiohjain.entity.PowerLimitNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import com.nitramite.porssiohjain.entity.PushNotificationTokenEntity;
+import com.nitramite.porssiohjain.entity.HeatingPlannerWoodRecommendationEntity;
 import com.nitramite.porssiohjain.entity.repository.PushNotificationTokenRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -253,6 +254,34 @@ public class PushNotificationService {
         String body = messageSource.getMessage(
                 "push.zigbeeGateway.online.body", new Object[]{gatewayId}, locale);
         Map<String, String> data = zigbeeGatewayData("ZIGBEE_GATEWAY_ONLINE", gatewayId, detectedAt);
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
+    public boolean sendHeatingPlannerWoodRecommendation(
+            AccountEntity account,
+            HeatingPlannerWoodRecommendationEntity recommendation,
+            ZonedDateTime notifyAt,
+            ZonedDateTime releaseStartsAt,
+            ZonedDateTime releaseEndsAt,
+            Locale locale) {
+        String title = messageSource.getMessage("push.heatingPlanner.wood.title", null, locale);
+        String body = messageSource.getMessage("push.heatingPlanner.wood.body", new Object[]{
+                recommendation.getWoodAmount().stripTrailingZeros().toPlainString(),
+                recommendation.getRoom().getName(),
+                releaseStartsAt.format(DateTimeFormatter.ofPattern("HH:mm")),
+                releaseEndsAt.format(DateTimeFormatter.ofPattern("HH:mm"))
+        }, locale);
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "HEATING_PLANNER_WOOD_RECOMMENDATION");
+        data.put("recommendationId", String.valueOf(recommendation.getId()));
+        data.put("siteId", String.valueOf(recommendation.getSite().getId()));
+        data.put("roomId", String.valueOf(recommendation.getRoom().getId()));
+        data.put("roomName", recommendation.getRoom().getName());
+        data.put("woodAmount", recommendation.getWoodAmount().toPlainString());
+        data.put("notifyAt", notifyAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        data.put("releaseStartsAt", releaseStartsAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        data.put("releaseEndsAt", releaseEndsAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        data.put("reason", recommendation.getReason());
         return sendToAccount(account.getId(), title, body, data);
     }
 
