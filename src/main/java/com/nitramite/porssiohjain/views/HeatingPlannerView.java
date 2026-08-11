@@ -309,7 +309,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     planService.persistSimulatedPlan(account.getId(), selectedSite.getId(), resultsByRoom);
                 }
             }
-            planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries));
+            planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries,
+                    woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue()));
             refreshActiveControlState(activeControlService, account == null ? null : account.getId(), selectedSite,
                     activeControlStatus, enableActiveControl, disableActiveControl);
         };
@@ -654,11 +655,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private VerticalLayout planContent(List<RoomPlan> roomPlans, SiteEntity site,
-                                       List<SiteWeatherEntity> forecast, MarketSeries marketSeries) {
+                                       List<SiteWeatherEntity> forecast, MarketSeries marketSeries,
+                                       Double woodAmount, Double releaseDelayHours, Double releaseDurationHours) {
         VerticalLayout plan = new VerticalLayout();
         plan.setPadding(false);
         Details evidence = new Details("Inputs used to determine this plan",
-                evidenceContent(roomPlans, site, forecast, marketSeries));
+                evidenceContent(roomPlans, site, forecast, marketSeries,
+                        woodAmount, releaseDelayHours, releaseDurationHours));
         evidence.setOpened(false);
         Details calculationBreakdown = roomCalculationBreakdown(roomPlans);
         LocalDate today = LocalDate.now(ZONE);
@@ -1011,7 +1014,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private VerticalLayout evidenceContent(List<RoomPlan> roomPlans, SiteEntity site,
-                                           List<SiteWeatherEntity> forecast, MarketSeries marketSeries) {
+                                           List<SiteWeatherEntity> forecast, MarketSeries marketSeries,
+                                           Double woodAmount, Double releaseDelayHours,
+                                           Double releaseDurationHours) {
         VerticalLayout evidence = new VerticalLayout();
         evidence.setPadding(false);
         evidence.setSpacing(false);
@@ -1027,7 +1032,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 new Span("Latest sensors: " + sensorEvidence(roomPlans)),
                 new Span("Comfort: independent plan points generated for " + roomPlans.size() + " configured room(s) using each room's comfort target"),
                 new Span("Floor limits: each room uses its configured normal, preheat maximum, absolute maximum, and discharge setpoint"),
-                new Span("Wood load: Normal basket, 8 kg; useful heat after 45 min, declining over 6 h"),
+                new Span("Wood load: Static wood load, " + decimalDisplay(woodAmount) + " kg; useful heat after "
+                        + durationDisplay(releaseDelayHours) + ", declining over "
+                        + durationDisplay(releaseDurationHours)),
                 new Span("Thermal models: " + roomPlans.stream()
                         .map(room -> room.room() + " — " + room.modelEvidence())
                         .collect(java.util.stream.Collectors.joining("; "))),
@@ -1350,6 +1357,22 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private Integer minutesFromHours(Double value, int fallbackMinutes) {
         return value == null ? fallbackMinutes : Math.toIntExact(Math.round(value * 60));
+    }
+
+    private String decimalDisplay(Double value) {
+        return BigDecimal.valueOf(value == null ? 8.0 : value).stripTrailingZeros().toPlainString();
+    }
+
+    private String durationDisplay(Double hours) {
+        int minutes = minutesFromHours(hours, 0);
+        if (minutes < 60) {
+            return minutes + " min";
+        }
+        int wholeHours = minutes / 60;
+        int remainingMinutes = minutes % 60;
+        return remainingMinutes == 0
+                ? wholeHours + " h"
+                : wholeHours + " h " + remainingMinutes + " min";
     }
 
     private LocalTime timeOrDefault(LocalTime value, LocalTime fallback) {
