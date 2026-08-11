@@ -72,6 +72,9 @@ class HeatingPlannerAutomationServiceTest {
         when(thermalModelService.learnAndResolve(eq(7L), eq(8L), eq("Kitchen"), any(), eq(now)))
                 .thenReturn(new HeatingPlannerThermalModelService.ModelResolution(model, true, 96,
                         new BigDecimal("0.8"), "learned"));
+        when(simulationService.calculateDynamicPriceThresholds(anyList())).thenReturn(
+                new HeatingPlanSimulationService.PriceThresholds(
+                        new BigDecimal("8.75"), new BigDecimal("16.25")));
         when(simulationService.simulate(any())).thenReturn(simulation);
         when(planService.persistSimulatedPlan(eq(7L), eq(8L), anyMap())).thenReturn(true);
         when(activeControlService.readiness(7L, 8L, now)).thenReturn(
@@ -82,6 +85,7 @@ class HeatingPlannerAutomationServiceTest {
         assertThat(settings.getLastAutomaticPlanAt()).isEqualTo(now);
         assertThat(settings.getLastAutomaticActivationAt()).isEqualTo(now);
         assertThat(settings.getLastAutomationError()).isNull();
+        verify(simulationService).calculateDynamicPriceThresholds(anyList());
         verify(activeControlService).activate(7L, 8L, now);
     }
 

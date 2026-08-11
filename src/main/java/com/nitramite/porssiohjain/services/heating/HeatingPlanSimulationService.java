@@ -27,6 +27,43 @@ import java.util.Set;
 public class HeatingPlanSimulationService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final BigDecimal PRICE_THRESHOLD_MINIMUM_GAP = new BigDecimal("0.0001");
+
+    /**
+     * Uses the lower and upper quartiles of the complete planning horizon. This adapts cheap and expensive
+     * classification to the site's actual tax-and-transfer-inclusive prices instead of fixed cent values.
+     */
+    public PriceThresholds calculateDynamicPriceThresholds(List<MarketPoint> market) {
+        if (market == null || market.isEmpty()) {
+            throw new IllegalArgumentException("Market points are required to calculate dynamic price thresholds");
+        }
+        List<BigDecimal> prices = market.stream()
+                .map(MarketPoint::priceCentsPerKwh)
+                .sorted()
+                .toList();
+        BigDecimal cheap = percentile(prices, new BigDecimal("0.25"));
+        BigDecimal expensive = percentile(prices, new BigDecimal("0.75"));
+        if (expensive.compareTo(cheap) <= 0) {
+            expensive = cheap.add(PRICE_THRESHOLD_MINIMUM_GAP);
+        }
+        return new PriceThresholds(cheap, expensive);
+    }
+
+    private BigDecimal percentile(List<BigDecimal> sorted, BigDecimal percentile) {
+        if (sorted.size() == 1) {
+            return sorted.getFirst();
+        }
+        BigDecimal position = BigDecimal.valueOf(sorted.size() - 1).multiply(percentile);
+        int lowerIndex = position.setScale(0, RoundingMode.FLOOR).intValueExact();
+        int upperIndex = position.setScale(0, RoundingMode.CEILING).intValueExact();
+        BigDecimal lower = sorted.get(lowerIndex);
+        if (lowerIndex == upperIndex) {
+            return lower;
+        }
+        BigDecimal fraction = position.subtract(BigDecimal.valueOf(lowerIndex));
+        return lower.add(sorted.get(upperIndex).subtract(lower).multiply(fraction))
+                .setScale(4, RoundingMode.HALF_UP);
+    }
 
     public SimulationResult simulate(SimulationRequest request) {
         validate(request);
@@ -308,6 +345,9 @@ public class HeatingPlanSimulationService {
             BigDecimal outdoorTemperature,
             BigDecimal windSpeedMs
     ) {
+    }
+
+    public record PriceThresholds(BigDecimal cheapPriceThreshold, BigDecimal expensivePriceThreshold) {
     }
 
     public record WoodStoveSettings(

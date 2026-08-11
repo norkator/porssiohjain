@@ -26,6 +26,33 @@ class HeatingPlanSimulationServiceTest {
     private final HeatingPlanSimulationService service = new HeatingPlanSimulationService();
 
     @Test
+    void calculatesPriceLimitsFromLowerAndUpperQuartiles() {
+        Instant start = Instant.parse("2026-01-15T00:00:00Z");
+        var market = List.of(
+                point(start, "1.0"), point(start.plusSeconds(1), "3.0"),
+                point(start.plusSeconds(2), "7.0"), point(start.plusSeconds(3), "11.0"),
+                point(start.plusSeconds(4), "18.0"), point(start.plusSeconds(5), "25.0"),
+                point(start.plusSeconds(6), "30.0"), point(start.plusSeconds(7), "40.0")
+        );
+
+        var thresholds = service.calculateDynamicPriceThresholds(market);
+
+        assertThat(thresholds.cheapPriceThreshold()).isEqualByComparingTo("6.0");
+        assertThat(thresholds.expensivePriceThreshold()).isEqualByComparingTo("26.25");
+    }
+
+    @Test
+    void flatPriceHorizonDoesNotClassifyEveryPointAsBothCheapAndExpensive() {
+        Instant start = Instant.parse("2026-01-15T00:00:00Z");
+
+        var thresholds = service.calculateDynamicPriceThresholds(List.of(
+                point(start, "10.0"), point(start.plusSeconds(1), "10.0")));
+
+        assertThat(thresholds.cheapPriceThreshold()).isEqualByComparingTo("10.0");
+        assertThat(thresholds.expensivePriceThreshold()).isGreaterThan(new BigDecimal("10.0"));
+    }
+
+    @Test
     void preheatsBeforeExpensivePeriodAndDischargesDuringIt() {
         Instant start = Instant.parse("2026-01-15T00:00:00Z");
         var request = request(List.of(

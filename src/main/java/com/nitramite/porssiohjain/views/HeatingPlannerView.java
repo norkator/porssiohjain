@@ -240,6 +240,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             List<SiteWeatherEntity> forecast = forecastForHorizon(selectedSite);
             MarketSeries marketSeries = marketSeries(account, selectedSite, decimalOrDefault(taxPercent.getValue(), "25.50"),
                     transferContract.getValue(), forecast);
+            HeatingPlanSimulationService.PriceThresholds priceThresholds =
+                    simulationService.calculateDynamicPriceThresholds(marketSeries.points());
             Instant calculationTime = Instant.now();
             List<RoomPlan> roomPlans = roomRows.stream()
                     .map(room -> {
@@ -271,7 +273,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                             room.targetRoomTemperature(), room.normalFloorTemperature(),
                                             room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
                                             room.dischargeFloorSetpoint(), marketSeries.points(), model,
-                                            measurements.roomMeasurement().fresh(), measurements.floorMeasurement().fresh())),
+                                            measurements.roomMeasurement().fresh(), measurements.floorMeasurement().fresh(),
+                                            priceThresholds)),
                                     null);
                         } catch (IllegalArgumentException ex) {
                             return new RoomPlan(room.room(), room.heatSource(), room.controller(),
@@ -299,7 +302,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 new BigDecimal("22.00"), new BigDecimal("21.00"),
                                 new BigDecimal("21.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
                                 new BigDecimal("29.00"), new BigDecimal("19.00"), marketSeries.points(),
-                                defaultThermalModel(), false, false)),
+                                defaultThermalModel(), false, false, priceThresholds)),
                         null));
             }
             if (account != null && selectedSite != null) {
@@ -314,7 +317,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             PlanEvidenceInputs evidenceInputs = new PlanEvidenceInputs(calculationTime,
                     plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(), loaded.getValue(),
                     availableFrom.getValue(), availableTo.getValue(), woodAmount.getValue(),
-                    releaseDelay.getValue(), releaseDuration.getValue());
+                    releaseDelay.getValue(), releaseDuration.getValue(), priceThresholds.cheapPriceThreshold(),
+                    priceThresholds.expensivePriceThreshold());
             planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries, evidenceInputs));
             refreshActiveControlState(activeControlService, account == null ? null : account.getId(), selectedSite,
                     activeControlStatus, enableActiveControl, disableActiveControl);
@@ -1037,7 +1041,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 new Span("Latest sensors: " + sensorEvidence(roomPlans)),
                 new Span("Weather gates: planner active below " + decimalDisplay(inputs.plannerWeatherThreshold())
                         + " °C; recommend wood below " + decimalDisplay(inputs.woodWeatherThreshold()) + " °C"),
-                new Span("Price rules: cheap at or below 5 c/kWh; expensive at or above 20 c/kWh; 1 h simulation step"),
+                new Span("Dynamic price limits: cheap at or below "
+                        + priceDisplay(inputs.cheapPriceThreshold()) + " c/kWh (lower quartile); expensive at or above "
+                        + priceDisplay(inputs.expensivePriceThreshold()) + " c/kWh (upper quartile); calculated from "
+                        + marketSeries.points().size() + " today-and-tomorrow combined-price points; 1 h simulation step"),
                 new Span("Comfort and floor limits: " + roomPlans.stream()
                         .map(this::roomLimitEvidence)
                         .collect(java.util.stream.Collectors.joining("; "))),
@@ -1150,7 +1157,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                                                              List<HeatingPlanSimulationService.MarketPoint> market,
                                                                              HeatingPlanSimulationService.ThermalModel model,
                                                                              boolean roomMeasurementFresh,
-                                                                             boolean floorMeasurementFresh) {
+                                                                             boolean floorMeasurementFresh,
+                                                                             HeatingPlanSimulationService.PriceThresholds priceThresholds) {
         ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
         BigDecimal initialFloor = initialFloorTemperature == null ? new BigDecimal("22.00") : initialFloorTemperature;
         BigDecimal initialRoom = initialRoomTemperature == null ? new BigDecimal("21.00") : initialRoomTemperature;
@@ -1162,7 +1170,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 ? new BigDecimal("29.00") : absoluteMaximumFloorTemperature;
         BigDecimal dischargeFloor = dischargeFloorSetpoint == null ? new BigDecimal("19.00") : dischargeFloorSetpoint;
         var settings = new HeatingPlanSimulationService.Settings(Duration.ofHours(1),
-                new BigDecimal("5"), new BigDecimal("20"), normalFloor, maximumPreheatFloor,
+                priceThresholds.cheapPriceThreshold(), priceThresholds.expensivePriceThreshold(),
+                normalFloor, maximumPreheatFloor,
                 absoluteMaximumFloor, dischargeFloor, target.subtract(BigDecimal.ONE),
                 target.add(new BigDecimal("2.50")),
                 BigDecimal.valueOf(plannerWeatherThreshold));
@@ -1390,7 +1399,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             LocalTime availableTo,
             Double woodAmount,
             Double releaseDelayHours,
-            Double releaseDurationHours
+            Double releaseDurationHours,
+            BigDecimal cheapPriceThreshold,
+            BigDecimal expensivePriceThreshold
     ) {
     }
 
@@ -1404,6 +1415,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private String decimalDisplay(Double value) {
         return BigDecimal.valueOf(value == null ? 8.0 : value).stripTrailingZeros().toPlainString();
+    }
+
+    private String priceDisplay(BigDecimal value) {
+        return value.setScale(4, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
     }
 
     private String durationDisplay(Double hours) {
