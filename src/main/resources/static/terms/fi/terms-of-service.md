@@ -14,17 +14,14 @@ mukaisesti.
 
 ## Palvelun saatavuus
 
-- Palvelu tarjotaan sellaisenaan ilman mitään takuuta käyttöajasta, keskeytyksettömästä saatavuudesta, vakaudesta tai
-  jatkuvasta käytettävyydestä.
+- Palvelu tarjotaan sellaisenaan ilman mitään takuuta käyttöajasta, keskeytyksettömästä saatavuudesta, vakaudesta tai jatkuvasta käytettävyydestä.
 - Ominaisuuksia voidaan muuttaa, päivittää tai poistaa ajan myötä.
 - Tässä vaiheessa palvelulle ei anneta mitään palvelutasolupausta, käyttöaikalupausta tai saatavuustakuuta.
 
 ## Automaatiovastuu
 
-- Olet vastuussa kaikkien määrittämiesi automaatioiden, ohjaussääntöjen ja laiteintegraatioiden tarkistamisesta ja
-  validoimisesta.
-- Pörssiohjain ei vastaa vahingoista, kustannuksista tai menetyksistä, jotka johtuvat virheellisistä
-  automaatioasetuksista, laitteiden toiminnasta tai kolmannen osapuolen integraatioista.
+- Olet vastuussa kaikkien määrittämiesi automaatioiden, ohjaussääntöjen ja laiteintegraatioiden tarkistamisesta ja validoimisesta.
+- Pörssiohjain ei vastaa vahingoista, kustannuksista tai menetyksistä, jotka johtuvat virheellisistä automaatioasetuksista, laitteiden toiminnasta tai kolmannen osapuolen integraatioista.
 - Käytät palvelua, kaikkia automaatioita ja kaikkia niihin liittyviä laiteohjauksia täysin omalla vastuullasi.
 
 ## Päivitykset

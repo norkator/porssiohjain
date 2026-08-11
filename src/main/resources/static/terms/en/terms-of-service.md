@@ -14,16 +14,14 @@ laws.
 
 ## Service Availability
 
-- The service is provided as is, with no guarantees of uptime, uninterrupted availability, stability, or continued
-  access.
+- The service is provided as is, with no guarantees of uptime, uninterrupted availability, stability, or continued access.
 - Features may change, be updated, or be removed over time.
 - No service-level commitment, uptime promise, or availability guarantee is provided at this stage.
 
 ## Automation Responsibility
 
 - You are responsible for reviewing and validating any automations, control rules, or device integrations you configure.
-- Pörssiohjain is not responsible for damage, cost, or loss caused by incorrect automation settings, device behavior, or
-  third-party integrations.
+- Pörssiohjain is not responsible for damage, cost, or loss caused by incorrect automation settings, device behavior, or third-party integrations.
 - You use the service, all automations, and all related device controls entirely at your own risk.
 
 ## Updates
