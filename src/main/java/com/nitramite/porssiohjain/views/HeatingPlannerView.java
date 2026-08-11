@@ -39,6 +39,7 @@ import com.nitramite.porssiohjain.views.components.SiteWeatherForecastChart;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -1026,41 +1027,140 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                            PlanEvidenceInputs inputs) {
         VerticalLayout evidence = new VerticalLayout();
         evidence.setPadding(false);
-        evidence.setSpacing(false);
+        evidence.setSpacing(true);
+        evidence.setWidthFull();
         String siteText = site == null ? "not selected" : site.getName() + " (" + site.getTimezone() + ")";
         String weatherText = site == null ? "no site selected"
                 : hasWeatherPlace(site) ? forecastSummary(forecast)
                 : "site has no weather place configured; simulation uses the explicit fallback of 0 °C outdoor temperature and 0 m/s wind";
         evidence.add(
-                new Span("Plan generated: " + DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-                        .withZone(zoneForSite(site)).format(inputs.calculatedAt())),
-                new Span("Planner status: " + plannerStatusText(roomPlans)),
-                new Span("Site: " + siteText),
-                new Span("Market prices: " + marketSeries.description()),
-                new Span("Weather: " + weatherText),
-                new Span("Latest sensors: " + sensorEvidence(roomPlans)),
-                new Span("Weather gates: planner active below " + decimalDisplay(inputs.plannerWeatherThreshold())
-                        + " °C; recommend wood below " + decimalDisplay(inputs.woodWeatherThreshold()) + " °C"),
-                new Span("Dynamic price limits: cheap at or below "
-                        + priceDisplay(inputs.cheapPriceThreshold()) + " c/kWh (lower quartile); expensive at or above "
-                        + priceDisplay(inputs.expensivePriceThreshold()) + " c/kWh (upper quartile); calculated from "
-                        + marketSeries.points().size() + " today-and-tomorrow combined-price points; 1 h simulation step"),
-                new Span("Comfort and floor limits: " + roomPlans.stream()
-                        .map(this::roomLimitEvidence)
-                        .collect(java.util.stream.Collectors.joining("; "))),
-                new Span("Wood stove: " + (inputs.stoveLoaded() ? "loaded and ready" : "not loaded")
-                        + "; available " + timeOrDefault(inputs.availableFrom(), LocalTime.of(6, 0))
-                        + "–" + timeOrDefault(inputs.availableTo(), LocalTime.of(22, 0))
-                        + "; load " + decimalDisplay(inputs.woodAmount()) + " kg; useful heat after "
-                        + durationDisplay(inputs.releaseDelayHours()) + ", declining over "
-                        + durationDisplay(inputs.releaseDurationHours())
-                        + "; initial room-heating rate 0.35 °C/h"),
-                new Span("Thermal models: " + roomPlans.stream()
-                        .map(room -> room.room() + " — " + room.modelEvidence())
-                        .collect(java.util.stream.Collectors.joining("; "))),
-                new Span(energySummary(roomPlans))
+                evidenceSection("Overview", evidenceGrid(
+                        new EvidenceValue("Generated", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                                .withZone(zoneForSite(site)).format(inputs.calculatedAt())),
+                        new EvidenceValue("Planner status", plannerStatusText(roomPlans)),
+                        new EvidenceValue("Site", siteText),
+                        new EvidenceValue("Weather", weatherText)
+                )),
+                evidenceSection("Prices and gates", evidenceGrid(
+                        new EvidenceValue("Market prices", marketSeries.description()),
+                        new EvidenceValue("Cheap limit", "≤ " + priceDisplay(inputs.cheapPriceThreshold())
+                                + " c/kWh, lower quartile"),
+                        new EvidenceValue("Expensive limit", "≥ " + priceDisplay(inputs.expensivePriceThreshold())
+                                + " c/kWh, upper quartile"),
+                        new EvidenceValue("Price sample", marketSeries.points().size()
+                                + " today-and-tomorrow combined-price points, 1 h simulation step"),
+                        new EvidenceValue("Planner active below", decimalDisplay(inputs.plannerWeatherThreshold()) + " °C"),
+                        new EvidenceValue("Recommend wood below", decimalDisplay(inputs.woodWeatherThreshold()) + " °C")
+                )),
+                evidenceSection("Latest Sensors", sensorEvidenceGrid(roomPlans)),
+                evidenceSection("Room Limits", roomLimitEvidenceGrid(roomPlans)),
+                evidenceSection("Wood Stove", evidenceGrid(
+                        new EvidenceValue("State", inputs.stoveLoaded() ? "loaded and ready" : "not loaded"),
+                        new EvidenceValue("Availability", timeOrDefault(inputs.availableFrom(), LocalTime.of(6, 0))
+                                + "–" + timeOrDefault(inputs.availableTo(), LocalTime.of(22, 0))),
+                        new EvidenceValue("Load", decimalDisplay(inputs.woodAmount()) + " kg"),
+                        new EvidenceValue("Useful heat starts after", durationDisplay(inputs.releaseDelayHours())),
+                        new EvidenceValue("Release duration", durationDisplay(inputs.releaseDurationHours())),
+                        new EvidenceValue("Initial room-heating rate", "0.35 °C/h")
+                )),
+                evidenceSection("Thermal Models", modelEvidenceGrid(roomPlans)),
+                evidenceSection("Estimate", evidenceGrid(new EvidenceValue("Electric use", energySummary(roomPlans))))
         );
         return evidence;
+    }
+
+    private VerticalLayout evidenceSection(String title, Component content) {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(false);
+        section.setWidthFull();
+        section.getStyle()
+                .set("border-top", "1px solid var(--lumo-contrast-10pct)")
+                .set("padding-top", "var(--lumo-space-m)");
+        H3 heading = new H3(title);
+        heading.getStyle()
+                .set("font-size", "var(--lumo-font-size-m)")
+                .set("margin", "0 0 var(--lumo-space-s) 0");
+        section.add(heading, content);
+        return section;
+    }
+
+    private FormLayout evidenceGrid(EvidenceValue... values) {
+        FormLayout grid = new FormLayout();
+        grid.setWidthFull();
+        grid.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("650px", 2),
+                new FormLayout.ResponsiveStep("1000px", 3));
+        for (EvidenceValue value : values) {
+            grid.add(evidenceValue(value.label(), value.value()));
+        }
+        return grid;
+    }
+
+    private VerticalLayout evidenceValue(String label, String value) {
+        VerticalLayout item = new VerticalLayout();
+        item.setPadding(false);
+        item.setSpacing(false);
+        item.setWidthFull();
+        Span labelText = new Span(label);
+        labelText.getStyle()
+                .set("font-size", "var(--lumo-font-size-xs)")
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-weight", "600");
+        Span valueText = wrappingCell(value);
+        valueText.getStyle().set("font-weight", "500");
+        item.add(labelText, valueText);
+        return item;
+    }
+
+    private Grid<RoomSensorEvidenceRow> sensorEvidenceGrid(List<RoomPlan> roomPlans) {
+        Grid<RoomSensorEvidenceRow> grid = new Grid<>(RoomSensorEvidenceRow.class, false);
+        grid.setWidthFull();
+        grid.addColumn(RoomSensorEvidenceRow::room).setHeader("Room").setFlexGrow(1);
+        grid.addComponentColumn(row -> wrappingCell(row.roomTemperature())).setHeader("Room temperature").setFlexGrow(2);
+        grid.addComponentColumn(row -> wrappingCell(row.floorTemperature())).setHeader("Floor temperature").setFlexGrow(2);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
+        grid.setAllRowsVisible(true);
+        grid.setItems(roomPlans.stream()
+                .map(plan -> new RoomSensorEvidenceRow(plan.room(),
+                        measurementText(plan.roomMeasurement(), plan.initialRoomTemperature()),
+                        measurementText(plan.floorMeasurement(), plan.initialFloorTemperature())))
+                .toList());
+        return grid;
+    }
+
+    private Grid<RoomLimitEvidenceRow> roomLimitEvidenceGrid(List<RoomPlan> roomPlans) {
+        Grid<RoomLimitEvidenceRow> grid = new Grid<>(RoomLimitEvidenceRow.class, false);
+        grid.setWidthFull();
+        grid.addColumn(RoomLimitEvidenceRow::room).setHeader("Room").setFlexGrow(1);
+        grid.addComponentColumn(row -> wrappingCell(row.comfort())).setHeader("Comfort").setFlexGrow(2);
+        grid.addComponentColumn(row -> wrappingCell(row.floor())).setHeader("Floor").setFlexGrow(3);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
+        grid.setAllRowsVisible(true);
+        grid.setItems(roomPlans.stream()
+                .map(plan -> new RoomLimitEvidenceRow(plan.room(),
+                        "target " + plan.targetRoomTemperature() + " °C, guard "
+                                + plan.targetRoomTemperature().subtract(BigDecimal.ONE) + "..."
+                                + plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C",
+                        "normal " + plan.normalFloorTemperature() + " °C, preheat max "
+                                + plan.maximumPreheatFloorTemperature() + " °C, absolute max "
+                                + plan.absoluteMaximumFloorTemperature() + " °C, discharge "
+                                + plan.dischargeFloorSetpoint() + " °C"))
+                .toList());
+        return grid;
+    }
+
+    private Grid<RoomModelEvidenceRow> modelEvidenceGrid(List<RoomPlan> roomPlans) {
+        Grid<RoomModelEvidenceRow> grid = new Grid<>(RoomModelEvidenceRow.class, false);
+        grid.setWidthFull();
+        grid.addColumn(RoomModelEvidenceRow::room).setHeader("Room").setFlexGrow(1);
+        grid.addComponentColumn(row -> wrappingCell(row.model())).setHeader("Model").setFlexGrow(4);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
+        grid.setAllRowsVisible(true);
+        grid.setItems(roomPlans.stream()
+                .map(plan -> new RoomModelEvidenceRow(plan.room(), plan.modelEvidence()))
+                .toList());
+        return grid;
     }
 
     private Details roomCalculationBreakdown(List<RoomPlan> roomPlans) {
@@ -1369,6 +1469,18 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private record RoomCalculationRow(String room, String startingState, String limits,
                                       String currentDecision, String reason) {
+    }
+
+    private record EvidenceValue(String label, String value) {
+    }
+
+    private record RoomSensorEvidenceRow(String room, String roomTemperature, String floorTemperature) {
+    }
+
+    private record RoomLimitEvidenceRow(String room, String comfort, String floor) {
+    }
+
+    private record RoomModelEvidenceRow(String room, String model) {
     }
 
     private record MarketSeries(List<HeatingPlanSimulationService.MarketPoint> points, String description) {
