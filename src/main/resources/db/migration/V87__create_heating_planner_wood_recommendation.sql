@@ -21,10 +21,10 @@ CREATE TABLE heating_planner_wood_recommendation
     CONSTRAINT uk_heating_planner_wood_recommendation_event UNIQUE (settings_id, release_starts_at),
     CONSTRAINT chk_heating_planner_wood_recommendation_status CHECK (
         status IN ('PENDING', 'SENT', 'SUPERSEDED', 'EXPIRED', 'LIT', 'SKIPPED')
-    ),
+        ),
     CONSTRAINT chk_heating_planner_wood_recommendation_times CHECK (
         notify_at <= release_starts_at AND release_starts_at < release_ends_at
-    )
+        )
 );
 
 CREATE INDEX idx_heating_planner_wood_recommendation_due
