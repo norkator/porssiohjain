@@ -128,6 +128,21 @@ public class HeatingPlannerActiveControlService {
     }
 
     @Transactional
+    public boolean activateLatestRecalculatedPlanIfOptedIn(Long accountId, Long siteId, Instant now) {
+        var settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId).orElse(null);
+        if (settings == null || !settings.isActiveControlEnabled()) {
+            return false;
+        }
+        Readiness readiness = readiness(accountId, siteId, now);
+        if (!readiness.ready()) {
+            throw new IllegalStateException("The recalculated plan could not be activated automatically: "
+                    + String.join("; ", readiness.issues()));
+        }
+        activate(accountId, siteId, now);
+        return true;
+    }
+
+    @Transactional
     public void disable(Long accountId, Long siteId, Instant now) {
         var settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId).orElse(null);
         if (settings == null) return;

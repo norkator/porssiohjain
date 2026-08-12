@@ -27,6 +27,7 @@ import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerConfigurationService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerActiveControlService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerMeasurementService;
@@ -90,10 +91,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private static final ZoneId ZONE = ZoneId.of("Europe/Helsinki");
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
     private final AuthService authService;
+    private final I18nService i18n;
     private final SiteWeatherRepository siteWeatherRepository;
     private final NordpoolRepository nordpoolRepository;
 
-    public HeatingPlannerView(AuthService authService, HeatingPlanSimulationService simulationService,
+    public HeatingPlannerView(AuthService authService, I18nService i18n,
+                              HeatingPlanSimulationService simulationService,
                               SiteRepository siteRepository, SiteWeatherRepository siteWeatherRepository,
                               DeviceRepository deviceRepository,
                               NordpoolRepository nordpoolRepository,
@@ -105,6 +108,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                               HeatingPlannerPlanService planService,
                               ZigbeeDeviceMeasurementRepository measurementRepository) {
         this.authService = authService;
+        this.i18n = i18n;
         this.siteWeatherRepository = siteWeatherRepository;
         this.nordpoolRepository = nordpoolRepository;
         setSizeFull();
@@ -312,7 +316,16 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         .filter(roomPlan -> roomPlan.result() != null)
                         .forEach(roomPlan -> resultsByRoom.put(roomPlan.room(), roomPlan.result()));
                 if (!resultsByRoom.isEmpty()) {
-                    planService.persistSimulatedPlan(account.getId(), selectedSite.getId(), resultsByRoom);
+                    boolean persisted = planService.persistSimulatedPlan(
+                            account.getId(), selectedSite.getId(), resultsByRoom);
+                    if (persisted) {
+                        try {
+                            activeControlService.activateLatestRecalculatedPlanIfOptedIn(
+                                    account.getId(), selectedSite.getId(), calculationTime);
+                        } catch (IllegalStateException ex) {
+                            Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                        }
+                    }
                 }
             }
             PlanEvidenceInputs evidenceInputs = new PlanEvidenceInputs(calculationTime,
@@ -882,7 +895,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             selectedRoomPlan.removeAll();
             RoomDayPlan selected = roomFilter.getValue();
             if (selected != null) {
-                selectedRoomPlan.add(new HeatingPlanChart(selected.points(), ZONE),
+                selectedRoomPlan.add(new HeatingPlanChart(selected.points(), ZONE,
+                                i18n.t("heatingPlanner.chart.now"), Instant.now()),
                         plannedActions(selected.points(), selected.roomPlan().result(), today));
             }
         };

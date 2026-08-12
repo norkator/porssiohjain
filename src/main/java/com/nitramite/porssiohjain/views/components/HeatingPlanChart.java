@@ -12,8 +12,11 @@ import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
 import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.html.Div;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 
 @JsModule("./js/apexcharts.min.js")
@@ -21,7 +24,8 @@ public class HeatingPlanChart extends Div {
 
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
-    public HeatingPlanChart(List<HeatingPlanSimulationService.SimulationPoint> points, ZoneId zone) {
+    public HeatingPlanChart(List<HeatingPlanSimulationService.SimulationPoint> points, ZoneId zone,
+                            String nowLabel, Instant now) {
         setWidthFull();
         setHeight("390px");
         getStyle().set("position", "relative");
@@ -35,10 +39,24 @@ public class HeatingPlanChart extends Div {
         List<Double> outdoor = points.stream().map(point -> point.outdoorTemperature().doubleValue()).toList();
         List<Double> price = points.stream().map(point -> point.priceCentsPerKwh().doubleValue()).toList();
         List<Double> wood = points.stream().map(point -> point.woodRoomHeatingRate().doubleValue()).toList();
+        String closestNowLabel = points.stream()
+                .min(Comparator.comparing(point -> Duration.between(point.time(), now).abs()))
+                .map(point -> TIME_FORMAT.format(point.time().atZone(zone)))
+                .orElse("");
+        boolean showNow = !points.isEmpty()
+                && !now.isBefore(points.getFirst().time())
+                && !now.isAfter(points.getLast().time());
         AxisRange temperatureRange = paddedRange(1.0, room, floor, setpoint, outdoor);
         AxisRange priceRange = paddedRange(2.0, price, wood);
 
         getElement().executeJs("""
+                const annotations = $13 ? {
+                  xaxis: [{
+                    x: $12,
+                    borderColor: '#00E396',
+                    label: { style: { color: '#fff', background: '#00E396' }, text: $11 }
+                  }]
+                } : {};
                 const options = {
                   chart: { height: 380, type: 'line', toolbar: { show: true }, animations: { enabled: false } },
                   series: [
@@ -62,12 +80,13 @@ public class HeatingPlanChart extends Div {
                   colors: ['#2f80ed', '#eb5757', '#f2994a', '#9b51e0', '#27ae60', '#00a3a3'],
                   fill: { opacity: [1, 1, 1, 0.25, 0.15, 1] },
                   tooltip: { shared: true },
-                  legend: { position: 'top' }
+                  legend: { position: 'top' },
+                  annotations: annotations
                 };
                 this.chartInstance = new ApexCharts(this, options);
                 this.chartInstance.render();
                 """, labels, room, floor, setpoint, price, wood, outdoor, temperatureRange.min(), temperatureRange.max(),
-                priceRange.min(), priceRange.max());
+                priceRange.min(), priceRange.max(), nowLabel, closestNowLabel, showNow);
     }
 
     @SafeVarargs

@@ -96,6 +96,27 @@ class HeatingPlannerActiveControlServiceTest {
     }
 
     @Test
+    void automaticallyPromotesRecalculatedPlanWhenControlIsAlreadyOptedIn() {
+        settings.setActiveControlEnabled(true);
+
+        assertThat(service.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now)).isTrue();
+
+        assertThat(plan.getStatus()).isEqualTo(HeatingPlannerPlanStatus.ACTIVE);
+        assertThat(point.getStatus()).isEqualTo(HeatingPlannerPlanPointStatus.ACTIVE);
+        assertThat(settings.isActiveControlEnabled()).isTrue();
+    }
+
+    @Test
+    void leavesRecalculatedPlanSimulatedAfterControlWasDisabled() {
+        settings.setActiveControlEnabled(false);
+
+        assertThat(service.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now)).isFalse();
+
+        assertThat(plan.getStatus()).isEqualTo(HeatingPlannerPlanStatus.SIMULATED);
+        verify(planRepository, never()).save(any());
+    }
+
+    @Test
     void refusesActivationWhenFloorMeasurementIsStale() {
         when(measurementService.latestFreshFloorTemperature(room, now))
                 .thenReturn(HeatingPlannerMeasurementService.LatestMeasurement.missing());

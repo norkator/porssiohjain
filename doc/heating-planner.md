@@ -2,7 +2,7 @@
 
 ## Status
 
-Design specification, live planning, and explicit opt-in active control. Sensor freshness, safety limits, Zigbee acknowledgement/readback, command expiry/rate limiting, and fallback behaviour are enforced in software. Site-specific floor limits and the learned thermal model still require careful real-building validation by the operator.
+Design specification, live planning, and explicit opt-in active control. The thermostat's configured internal floor-temperature limit remains authoritative and is enforced by the thermostat independently of Heating Planner. The planner adds configurable planning bounds, sensor-freshness checks, Zigbee acknowledgement/readback, command expiry/rate limiting, and fallback behaviour.
 
 ## Goal
 
@@ -80,7 +80,7 @@ Both comparisons are strict `below` comparisons. The view must show the configur
 
 Floor and room measurements are not interchangeable:
 
-- floor temperature estimates stored thermal energy and enforces the floor safety limit;
+- floor temperature estimates stored thermal energy and keeps planning within the configured planner bound;
 - room temperature protects occupant comfort;
 - room humidity is monitoring context and may later identify shower/drying periods, but does not directly request heating in the first version;
 - outdoor temperature and wind forecast estimate future heat loss.
@@ -97,7 +97,7 @@ Use a today-and-tomorrow horizon in the site's timezone with 15-minute simulatio
 - the user changes room settings;
 - a site power limit constrains heating.
 
-The deterministic planner identifies expensive periods across the complete today-and-tomorrow horizon. For each expensive block it estimates forecast room heat loss from the indoor/outdoor temperature difference and wind, converts the required reserve into floor-heating steps, and selects sufficient preceding cheap points. It prefers lower prices and uses later points as the tie-breaker to reduce storage loss. There is no fixed preheat look-ahead. During selected cheap periods it raises the floor setpoint up to the configured preheat maximum. During expensive periods it lowers the setpoint so that stored heat is used. Room comfort, measurement freshness, and floor safety override price optimization.
+The deterministic planner identifies expensive periods across the complete today-and-tomorrow horizon. For each expensive block it estimates forecast room heat loss from the indoor/outdoor temperature difference and wind, converts the required reserve into floor-heating steps, and selects sufficient preceding cheap points. It prefers lower prices and uses later points as the tie-breaker to reduce storage loss. There is no fixed preheat look-ahead. During selected cheap periods it raises the floor setpoint up to the configured preheat maximum. During expensive periods it lowers the setpoint so that stored heat is used. Room comfort, measurement freshness, and configured planner bounds override price optimization.
 
 If a wood-stove load is configured and an expensive period has forecast heating demand, the planner works backwards from the desired heat-release start:
 
@@ -176,7 +176,9 @@ Wood monetary cost is intentionally not stored or considered by the planner.
 
 Do not overload `DeviceEntity.lastTelemetry` as historical storage. Zigbee temperature/humidity reporting needs a normalized measurement/history contract before monitoring is enabled.
 
-## Safety and fail-safe rules
+## Device limits and fail-safe behaviour
+
+Heating Planner does not replace or bypass the thermostat's configured internal floor-temperature limit. That device-level limit is the primary protection and remains effective independently of cloud planning. The planner's floor-temperature fields are additional optimization bounds used to decide when and how much to preheat.
 
 - The configured preheat maximum can never exceed the absolute floor maximum.
 - Missing or stale floor temperature disables preheating.
@@ -187,7 +189,7 @@ Do not overload `DeviceEntity.lastTelemetry` as historical storage. Zigbee tempe
 - Wood-stove actions always remain advisory and human-operated. The service does not ignite a fire or control combustion air or dampers.
 - Stove temperature monitoring does not replace certified independent smoke and carbon-monoxide alarms.
 - Cloud or gateway failure leaves the last verified local setting; it must not invent a new fallback command.
-- Surface-material and construction limits are user/site-specific. The service must not advertise one universal safe floor temperature.
+- Planner bounds should be configured consistently with the thermostat installation; Heating Planner does not invent or advertise a universal device limit.
 
 ## Active-control activation
 
@@ -207,7 +209,7 @@ At command time the same room and floor freshness checks are repeated. Plan poin
 4. Persisted room configuration and planned-versus-actual monitoring.
 5. Push recommendation workflow with acknowledgement and actual lighting time.
 6. Learned per-room floor and per-load stove thermal parameters.
-7. Active floor control behind an explicit opt-in and conservative safety validation.
+7. Active floor control behind an explicit opt-in.
 8. Whole-house coordination of the configured floor-heating zones and wood-stove heat influence.
 
 ## Acceptance criteria for active control

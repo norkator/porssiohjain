@@ -14,19 +14,21 @@ Preserve unrelated worktree changes. Use the existing Java, Spring, Vaadin, repo
 
 ## Heating Planner handoff
 
-Read `doc/heating-planner.md` before changing the Heating Planner. It is the authoritative feature specification and contains the staged persistence, safety, telemetry, push-notification, and active-control design.
+Read `doc/heating-planner.md` before changing the Heating Planner. It is the authoritative feature specification and contains the persistence, thermostat-limit, telemetry, push-notification, and active-control design.
 
 Current implementation:
 
-- `services/heating/HeatingPlanSimulationService.java` is a pure deterministic simulation/planning foundation.
-- `views/HeatingPlannerView.java` is a Vaadin prototype at `/heating-planner`.
+- `services/heating/HeatingPlanSimulationService.java` is the pure deterministic simulation/planning foundation.
+- `views/HeatingPlannerView.java` provides configuration, planning, evidence, and active-control opt-in at `/heating-planner`.
 - `views/components/HeatingPlanChart.java` renders its ApexCharts visualization.
 - `entity/ZigbeeDeviceMeasurementEntity.java`, `entity/enums/ZigbeeMeasurementType.java`, and `entity/repository/ZigbeeDeviceMeasurementRepository.java` define normalized Zigbee measurement history for Heating Planner sensor use.
 - `services/heating/HeatingPlannerMeasurementService.java` exposes latest fresh/stale/missing room and floor temperature lookup.
 - `services/heating/HeatingPlanSimulationServiceTest.java` covers preheat, discharge, comfort, floor-limit, and wood-stove recommendation behaviour.
-- The authenticated home view links to the prototype.
+- Persisted plans, automatic replanning, wood-stove advisory notifications, and explicit opt-in thermostat control are implemented.
 
-The current Heating Planner is deliberately simulation-only. It must not send thermostat commands or send wood-stove notifications yet. Persisted settings, rooms, heat sources, and room sensor selections exist, but generated plans are not yet persisted as active control intent. Do not present predictions as measured or active behaviour.
+Heating Planner predictions must still be presented as predictions rather than measurements. Active plan state and acknowledged/read-back thermostat state must be shown distinctly.
+
+The thermostat's configured internal floor-temperature limit is authoritative and remains enforced by the thermostat independently of Heating Planner. Planner floor-temperature bounds and freshness checks are additional optimization guardrails; documentation should not imply that Heating Planner is the thermostat's only protection against excessive floor temperature.
 
 The product name is **Heating Planner**. Avoid using `Thermal Storage` as the feature name; thermal storage is an internal technique used by the planner.
 
@@ -42,7 +44,7 @@ The intended user-visible scope is the plan for today and tomorrow, plus the exa
 
 Heat-pump optimization is explicitly outside this feature's scope. Existing heat pumps control themselves. Their effect is observed indirectly through room-temperature measurements and may reduce the need for floor preheating or a wood recommendation; Heating Planner must not issue heat-pump commands.
 
-Wood cost is intentionally outside the model. Stove operation must remain human-controlled. Floor heating must be suppressed when predicted stove heat covers the room, subject to comfort recovery and safety limits.
+Wood cost is intentionally outside the model. Stove operation must remain human-controlled. Floor heating must be suppressed when predicted stove heat covers the room, subject to comfort recovery and configured planner bounds.
 
 Keep two separate configurable weather gates: a forecast temperature below which Heating Planner becomes active (for example +5 °C), and a forecast temperature below which wood may be recommended for the relevant expensive period (for example 0 °C). The UI must explain when either gate suppresses planning.
 
@@ -56,7 +58,7 @@ Next Heating Planner steps:
 4. Keep the chart whole-house oriented, but add room filtering or room series visibility because each room has independent comfort targets, sensors, heat sources, and controller device.
 5. Add dry-run monitoring: compare predicted room/floor temperatures with measured values, record model error, and show warnings/fallbacks before any active control is allowed.
 6. Add the advisory wood-stove push workflow after persisted plans exist. Recommendations require the one-shot `stove_loaded` state, availability window, weather gate, and expensive-period reason. User actions should include `lit now`, `skip`, and actual lighting time; `lit now` consumes loaded state.
-7. Add active thermostat control last, behind an explicit opt-in separate from the master planner toggle. Enforce ownership, sensor freshness, floor safety limits, comfort minimum, command rate limits, desired-state expiry, Zigbee acknowledgement/readback, and fallback to the existing thermostat price-curve controller.
+7. Active thermostat control uses an explicit opt-in separate from the master planner toggle. Preserve ownership, sensor freshness, planner temperature bounds, comfort minimum, command rate limits, desired-state expiry, Zigbee acknowledgement/readback, and fallback to the existing thermostat price-curve controller.
 
 Recent cross-repository gateway contract work:
 
