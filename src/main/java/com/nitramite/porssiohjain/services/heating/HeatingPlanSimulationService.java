@@ -34,15 +34,27 @@ public class HeatingPlanSimulationService {
      * classification to the site's actual tax-and-transfer-inclusive prices instead of fixed cent values.
      */
     public PriceThresholds calculateDynamicPriceThresholds(List<MarketPoint> market) {
+        return calculateDynamicPriceThresholds(market, new BigDecimal("0.25"), new BigDecimal("0.75"));
+    }
+
+    public PriceThresholds calculateDynamicPriceThresholds(List<MarketPoint> market,
+                                                           BigDecimal cheapPricePercentile,
+                                                           BigDecimal expensivePricePercentile) {
         if (market == null || market.isEmpty()) {
             throw new IllegalArgumentException("Market points are required to calculate dynamic price thresholds");
+        }
+        if (cheapPricePercentile == null || expensivePricePercentile == null
+                || cheapPricePercentile.compareTo(ZERO) < 0
+                || expensivePricePercentile.compareTo(BigDecimal.ONE) > 0
+                || cheapPricePercentile.compareTo(expensivePricePercentile) >= 0) {
+            throw new IllegalArgumentException("Price percentiles must be between 0 and 1, and cheap must be below expensive");
         }
         List<BigDecimal> prices = market.stream()
                 .map(MarketPoint::priceCentsPerKwh)
                 .sorted()
                 .toList();
-        BigDecimal cheap = percentile(prices, new BigDecimal("0.25"));
-        BigDecimal expensive = percentile(prices, new BigDecimal("0.75"));
+        BigDecimal cheap = percentile(prices, cheapPricePercentile);
+        BigDecimal expensive = percentile(prices, expensivePricePercentile);
         if (expensive.compareTo(cheap) <= 0) {
             expensive = cheap.add(PRICE_THRESHOLD_MINIMUM_GAP);
         }

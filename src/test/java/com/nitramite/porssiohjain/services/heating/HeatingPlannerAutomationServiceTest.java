@@ -72,7 +72,10 @@ class HeatingPlannerAutomationServiceTest {
         when(thermalModelService.learnAndResolve(eq(7L), eq(8L), eq("Kitchen"), any(), eq(now)))
                 .thenReturn(new HeatingPlannerThermalModelService.ModelResolution(model, true, 96,
                         new BigDecimal("0.8"), "learned"));
-        when(simulationService.calculateDynamicPriceThresholds(anyList())).thenReturn(
+        settings.setCheapPricePercentile(new BigDecimal("0.3000"));
+        settings.setExpensivePricePercentile(new BigDecimal("0.6500"));
+        when(simulationService.calculateDynamicPriceThresholds(anyList(), eq(new BigDecimal("0.3000")),
+                eq(new BigDecimal("0.6500")))).thenReturn(
                 new HeatingPlanSimulationService.PriceThresholds(
                         new BigDecimal("8.75"), new BigDecimal("16.25")));
         when(simulationService.simulate(any())).thenReturn(simulation);
@@ -84,7 +87,8 @@ class HeatingPlannerAutomationServiceTest {
         assertThat(settings.getLastAutomaticPlanAt()).isEqualTo(now);
         assertThat(settings.getLastAutomaticActivationAt()).isEqualTo(now);
         assertThat(settings.getLastAutomationError()).isNull();
-        verify(simulationService).calculateDynamicPriceThresholds(anyList());
+        verify(simulationService).calculateDynamicPriceThresholds(anyList(), eq(new BigDecimal("0.3000")),
+                eq(new BigDecimal("0.6500")));
         verify(activeControlService).activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now);
     }
 

@@ -53,6 +53,23 @@ class HeatingPlanSimulationServiceTest {
     }
 
     @Test
+    void calculatesPriceLimitsFromConfiguredPercentiles() {
+        Instant start = Instant.parse("2026-01-15T00:00:00Z");
+        var market = List.of(
+                point(start, "1.0"), point(start.plusSeconds(1), "3.0"),
+                point(start.plusSeconds(2), "7.0"), point(start.plusSeconds(3), "11.0"),
+                point(start.plusSeconds(4), "18.0"), point(start.plusSeconds(5), "25.0"),
+                point(start.plusSeconds(6), "30.0"), point(start.plusSeconds(7), "40.0")
+        );
+
+        var thresholds = service.calculateDynamicPriceThresholds(
+                market, new BigDecimal("0.30"), new BigDecimal("0.75"));
+
+        assertThat(thresholds.cheapPriceThreshold()).isEqualByComparingTo("7.4");
+        assertThat(thresholds.expensivePriceThreshold()).isEqualByComparingTo("26.25");
+    }
+
+    @Test
     void preheatsBeforeExpensivePeriodAndDischargesDuringIt() {
         Instant start = Instant.parse("2026-01-15T00:00:00Z");
         var request = request(List.of(

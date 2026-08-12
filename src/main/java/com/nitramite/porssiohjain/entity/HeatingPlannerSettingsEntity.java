@@ -104,6 +104,14 @@ public class HeatingPlannerSettingsEntity {
     private BigDecimal expensivePriceThreshold = new BigDecimal("20.0000");
 
     @Builder.Default
+    @Column(name = "cheap_price_percentile", nullable = false, precision = 5, scale = 4)
+    private BigDecimal cheapPricePercentile = new BigDecimal("0.2500");
+
+    @Builder.Default
+    @Column(name = "expensive_price_percentile", nullable = false, precision = 5, scale = 4)
+    private BigDecimal expensivePricePercentile = new BigDecimal("0.7500");
+
+    @Builder.Default
     @Column(name = "simulation_step_minutes", nullable = false)
     private Integer simulationStepMinutes = 15;
 
@@ -155,6 +163,8 @@ public class HeatingPlannerSettingsEntity {
         if (woodReleaseDurationMinutes == null) woodReleaseDurationMinutes = 360;
         if (cheapPriceThreshold == null) cheapPriceThreshold = new BigDecimal("5.0000");
         if (expensivePriceThreshold == null) expensivePriceThreshold = new BigDecimal("20.0000");
+        if (cheapPricePercentile == null) cheapPricePercentile = new BigDecimal("0.2500");
+        if (expensivePricePercentile == null) expensivePricePercentile = new BigDecimal("0.7500");
         if (simulationStepMinutes == null) simulationStepMinutes = 15;
         if (modelVersion == null || modelVersion.isBlank()) modelVersion = "deterministic-v1";
     }

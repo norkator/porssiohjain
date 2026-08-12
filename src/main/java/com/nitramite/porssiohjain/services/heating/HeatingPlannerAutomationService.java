@@ -141,7 +141,8 @@ public class HeatingPlannerAutomationService {
                                                                     boolean floorFresh, boolean roomFresh,
                                                                     ZonedDateTime horizonStart) {
         HeatingPlanSimulationService.PriceThresholds priceThresholds =
-                simulationService.calculateDynamicPriceThresholds(market);
+                simulationService.calculateDynamicPriceThresholds(
+                        market, settings.getCheapPricePercentile(), settings.getExpensivePricePercentile());
         var simulationSettings = new HeatingPlanSimulationService.Settings(
                 Duration.ofMinutes(settings.getSimulationStepMinutes()), priceThresholds.cheapPriceThreshold(),
                 priceThresholds.expensivePriceThreshold(), room.getNormalFloorTemperature(),

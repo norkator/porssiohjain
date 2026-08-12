@@ -67,7 +67,8 @@ public class HeatingPlannerConfigurationService {
         if (settings.isEmpty()) {
             return new Configuration(false, new BigDecimal("5.00"), new BigDecimal("0.00"),
                     new BigDecimal("25.50"), null, false, LocalTime.of(6, 0), LocalTime.of(22, 0),
-                    new BigDecimal("8.00"), 45, 360, List.of());
+                    new BigDecimal("8.00"), 45, 360, new BigDecimal("0.2500"),
+                    new BigDecimal("0.7500"), List.of());
         }
         HeatingPlannerSettingsEntity settingsEntity = settings.get();
         List<RoomConfiguration> rooms = roomRepository.findBySettingsIdOrderBySortOrderAscIdAsc(settingsEntity.getId())
@@ -96,7 +97,8 @@ public class HeatingPlannerConfigurationService {
                 settingsEntity.getTransferContract() == null ? null : settingsEntity.getTransferContract().getId(),
                 settingsEntity.isStoveLoaded(), settingsEntity.getStoveAvailableFrom(), settingsEntity.getStoveAvailableTo(),
                 settingsEntity.getWoodAmount(), settingsEntity.getWoodReleaseDelayMinutes(),
-                settingsEntity.getWoodReleaseDurationMinutes(), rooms);
+                settingsEntity.getWoodReleaseDurationMinutes(), settingsEntity.getCheapPricePercentile(),
+                settingsEntity.getExpensivePricePercentile(), rooms);
     }
 
     @Transactional
@@ -108,6 +110,7 @@ public class HeatingPlannerConfigurationService {
 
     @Transactional
     public void saveSettings(Long accountId, Long siteId, SettingsConfiguration settingsConfiguration) {
+        validatePricePercentiles(settingsConfiguration);
         HeatingPlannerSettingsEntity settings = requireOrCreateSettings(accountId, siteId);
         settings.setEnabled(settingsConfiguration.enabled());
         settings.setPlannerActiveBelowTemperature(settingsConfiguration.plannerActiveBelowTemperature());
@@ -119,6 +122,8 @@ public class HeatingPlannerConfigurationService {
         settings.setWoodAmount(settingsConfiguration.woodAmount());
         settings.setWoodReleaseDelayMinutes(settingsConfiguration.woodReleaseDelayMinutes());
         settings.setWoodReleaseDurationMinutes(settingsConfiguration.woodReleaseDurationMinutes());
+        settings.setCheapPricePercentile(settingsConfiguration.cheapPricePercentile());
+        settings.setExpensivePricePercentile(settingsConfiguration.expensivePricePercentile());
         ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
                 : electricityContractRepository.findByIdAndAccountId(settingsConfiguration.transferContractId(), accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Transfer contract not found"));
@@ -143,6 +148,7 @@ public class HeatingPlannerConfigurationService {
     @Transactional
     public void save(Long accountId, Long siteId, SettingsConfiguration settingsConfiguration,
                      List<RoomConfiguration> rooms) {
+        validatePricePercentiles(settingsConfiguration);
         if (rooms == null || rooms.isEmpty()) {
             throw new IllegalArgumentException("Add at least one room before saving");
         }
@@ -169,6 +175,8 @@ public class HeatingPlannerConfigurationService {
         settings.setWoodAmount(settingsConfiguration.woodAmount());
         settings.setWoodReleaseDelayMinutes(settingsConfiguration.woodReleaseDelayMinutes());
         settings.setWoodReleaseDurationMinutes(settingsConfiguration.woodReleaseDurationMinutes());
+        settings.setCheapPricePercentile(settingsConfiguration.cheapPricePercentile());
+        settings.setExpensivePricePercentile(settingsConfiguration.expensivePricePercentile());
         ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
                 : electricityContractRepository.findByIdAndAccountId(settingsConfiguration.transferContractId(), accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Transfer contract not found"));
@@ -248,6 +256,17 @@ public class HeatingPlannerConfigurationService {
         roomRepository.deleteAll(existingByName.values());
     }
 
+    private void validatePricePercentiles(SettingsConfiguration settingsConfiguration) {
+        BigDecimal cheap = settingsConfiguration.cheapPricePercentile();
+        BigDecimal expensive = settingsConfiguration.expensivePricePercentile();
+        if (cheap == null || expensive == null
+                || cheap.compareTo(BigDecimal.ZERO) < 0
+                || expensive.compareTo(BigDecimal.ONE) > 0
+                || cheap.compareTo(expensive) >= 0) {
+            throw new IllegalArgumentException("Cheap price percentile must be below expensive price percentile");
+        }
+    }
+
     public record Configuration(
             boolean enabled,
             BigDecimal plannerActiveBelowTemperature,
@@ -260,6 +279,8 @@ public class HeatingPlannerConfigurationService {
             BigDecimal woodAmount,
             Integer woodReleaseDelayMinutes,
             Integer woodReleaseDurationMinutes,
+            BigDecimal cheapPricePercentile,
+            BigDecimal expensivePricePercentile,
             List<RoomConfiguration> rooms
     ) {
     }
@@ -275,7 +296,9 @@ public class HeatingPlannerConfigurationService {
             LocalTime stoveAvailableTo,
             BigDecimal woodAmount,
             Integer woodReleaseDelayMinutes,
-            Integer woodReleaseDurationMinutes
+            Integer woodReleaseDurationMinutes,
+            BigDecimal cheapPricePercentile,
+            BigDecimal expensivePricePercentile
     ) {
     }
 
