@@ -66,7 +66,7 @@ class HeatingPlannerActiveControlServiceTest {
                 .planVersion(plan.getPlanVersion()).plannedTime(now).operatingMode(HeatingPlanSimulationService.OperatingMode.NORMAL)
                 .reason("test").build();
         gatewayLink = ZigbeeGatewayDeviceEntity.builder().device(controller).account(account).lastSeen(now.minusSeconds(60))
-                .desiredVersion(4).appliedVersion(4).reportedSetpoint(new BigDecimal("21.0")).reportedMode("HEAT").build();
+                .desiredVersion(4).reportedSetpoint(new BigDecimal("21.0")).reportedMode("HEAT").build();
 
         lenient().when(settingsRepository.findByAccountIdAndSiteId(7L, 8L)).thenReturn(Optional.of(settings));
         lenient().when(roomRepository.findBySettingsIdOrderBySortOrderAscIdAsc(1L)).thenReturn(List.of(room));
@@ -130,25 +130,21 @@ class HeatingPlannerActiveControlServiceTest {
     @Test
     void pendingThermostatCommandDoesNotBlockActivation() {
         gatewayLink.setDesiredVersion(5);
-        gatewayLink.setAppliedVersion(4);
         gatewayLink.setDesiredExpiresAt(now.plusSeconds(300));
 
         var readiness = service.readiness(7L, 8L, now);
 
         assertThat(readiness.ready()).isTrue();
-        assertThat(readiness.issues()).doesNotContain("Kitchen: thermostat has an unacknowledged command");
     }
 
     @Test
     void expiredPendingThermostatCommandDoesNotBlockActivation() {
         gatewayLink.setDesiredVersion(5);
-        gatewayLink.setAppliedVersion(4);
         gatewayLink.setDesiredExpiresAt(now.minusSeconds(1));
 
         var readiness = service.readiness(7L, 8L, now);
 
         assertThat(readiness.ready()).isTrue();
-        assertThat(readiness.issues()).doesNotContain("Kitchen: thermostat has an unacknowledged command");
     }
 
     @Test
@@ -172,7 +168,7 @@ class HeatingPlannerActiveControlServiceTest {
                 .room(shower).account(settings.getAccount()).site(settings.getSite()).planVersion(plan.getPlanVersion())
                 .plannedTime(now).operatingMode(HeatingPlanSimulationService.OperatingMode.NORMAL).reason("test").build();
         ZigbeeGatewayDeviceEntity showerLink = ZigbeeGatewayDeviceEntity.builder().device(showerController)
-                .account(settings.getAccount()).lastSeen(now.minusSeconds(60)).desiredVersion(1).appliedVersion(1)
+                .account(settings.getAccount()).lastSeen(now.minusSeconds(60)).desiredVersion(1)
                 .reportedSetpoint(new BigDecimal("21.0")).reportedMode("HEAT").desiredSource("HEATING_PLANNER")
                 .desiredExpiresAt(now.plusSeconds(1800)).build();
         var fresh = new HeatingPlannerMeasurementService.LatestMeasurement(new BigDecimal("21"), now,

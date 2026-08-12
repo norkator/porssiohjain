@@ -116,7 +116,7 @@ class ZigbeeGatewaySyncServiceTest {
         DeviceEntity device = DeviceEntity.builder()
                 .id(11L).account(account).deviceName("Hall thermostat").timezone("Europe/Helsinki")
                 .apiOnline(false).mqttOnline(false).build();
-        ZigbeeGatewayDeviceEntity link = link(account, 0, 0);
+        ZigbeeGatewayDeviceEntity link = link(account, 0);
         link.setDevice(device);
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb"))
                 .thenReturn(Optional.of(link));
@@ -131,18 +131,17 @@ class ZigbeeGatewaySyncServiceTest {
     }
 
     @Test void repeatsDesiredStateOnEveryPollWhileNotExpired() {
-        ZigbeeGatewayDeviceEntity link = link(account, 3, 0);
+        ZigbeeGatewayDeviceEntity link = link(account, 3);
         link.setDesiredTemperature(new BigDecimal("20.50")); link.setDesiredMode("HEAT");
         link.setDesiredExpiresAt(Instant.now().plusSeconds(600));
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb")).thenReturn(Optional.of(link));
         assertEquals(3, service.sync(7L, gateway, request(null)).getDevices().getFirst().getVersion());
         service.sync(7L, gateway, request(true));
-        assertEquals(0, link.getAppliedVersion());
         assertEquals(3, service.sync(7L, gateway, request(true)).getDevices().getFirst().getVersion());
     }
 
     @Test void keepsPublishingHeatingPlannerDesiredStateAfterAppliedReport() {
-        ZigbeeGatewayDeviceEntity link = link(account, 3, 3);
+        ZigbeeGatewayDeviceEntity link = link(account, 3);
         link.setDesiredTemperature(new BigDecimal("22.50"));
         link.setDesiredMode("HEAT");
         link.setDesiredSource("HEATING_PLANNER");
@@ -157,7 +156,7 @@ class ZigbeeGatewaySyncServiceTest {
     }
 
     @Test void heatingPlannerCommandOverridesExistingControlDesiredState() {
-        ZigbeeGatewayDeviceEntity link = link(account, 4, 4);
+        ZigbeeGatewayDeviceEntity link = link(account, 4);
         link.setDesiredTemperature(new BigDecimal("19.00"));
         link.setDesiredMode("HEAT");
         link.setDesiredExpiresAt(Instant.now().plusSeconds(600));
@@ -177,7 +176,7 @@ class ZigbeeGatewaySyncServiceTest {
     }
 
     @Test void resendsDesiredStateWhenReportedSetpointDiffersAfterManualChange() {
-        ZigbeeGatewayDeviceEntity link = link(account, 4, 4);
+        ZigbeeGatewayDeviceEntity link = link(account, 4);
         link.setDesiredTemperature(new BigDecimal("19.00")); link.setDesiredMode("HEAT");
         link.setDesiredExpiresAt(Instant.now().plusSeconds(600));
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb")).thenReturn(Optional.of(link));
@@ -190,29 +189,28 @@ class ZigbeeGatewaySyncServiceTest {
 
         assertEquals(4, response.getDevices().getFirst().getVersion());
         assertEquals(4, link.getDesiredVersion());
-        assertEquals(4, link.getAppliedVersion());
     }
 
     @Test void rejectsCrossAccountGatewayLink() {
         AccountEntity other = new AccountEntity(); other.setId(8L);
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb"))
-                .thenReturn(Optional.of(link(other, 0, 0)));
+                .thenReturn(Optional.of(link(other, 0)));
         assertThrows(ResponseStatusException.class, () -> service.sync(7L, gateway, request(null)));
     }
 
     @Test void ignoresReportedAppliedVersionAndRejectsMismatchedGateway() {
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb"))
-                .thenReturn(Optional.of(link(account, 2, 0)));
+                .thenReturn(Optional.of(link(account, 2)));
         assertDoesNotThrow(() -> service.sync(7L, gateway, request(true)));
         assertThrows(ResponseStatusException.class, () -> service.sync(7L, UUID.randomUUID(), request(null)));
     }
 
-    private ZigbeeGatewayDeviceEntity link(AccountEntity owner, long desired, long applied) {
+    private ZigbeeGatewayDeviceEntity link(AccountEntity owner, long desired) {
         DeviceEntity device = DeviceEntity.builder()
                 .id(11L).account(owner).deviceName("Thermostat").timezone("Europe/Helsinki").build();
         return ZigbeeGatewayDeviceEntity.builder().account(owner).device(device).gatewayId(gateway)
                 .zigbeeIeee("8c6fb9fffe2d5cdb").profile("schneider_wde002497")
-                .desiredVersion(desired).appliedVersion(applied).build();
+                .desiredVersion(desired).build();
     }
 
     private ZigbeeGatewaySyncRequest request(Boolean success) {
