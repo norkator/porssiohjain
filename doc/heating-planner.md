@@ -2,7 +2,7 @@
 
 ## Status
 
-Design specification, live planning, and explicit opt-in active control. The thermostat's configured internal floor-temperature limit remains authoritative and is enforced by the thermostat independently of Heating Planner. The planner adds configurable planning bounds, sensor-freshness checks, Zigbee acknowledgement/readback, command expiry/rate limiting, and fallback behaviour.
+Design specification, live planning, and explicit opt-in active control. The thermostat's configured internal floor-temperature limit remains authoritative and is enforced by the thermostat independently of Heating Planner. The planner adds configurable planning bounds, sensor-freshness checks, latest-plan command publishing for Zigbee gateways, command expiry/rate limiting, and fallback behaviour.
 
 ## Goal
 
@@ -185,7 +185,7 @@ Heating Planner does not replace or bypass the thermostat's configured internal 
 - Missing or stale room temperature disables price-driven discharge and returns to the existing safe thermostat behaviour.
 - The comfort minimum overrides an expensive-price instruction.
 - Limit setpoint steps and command frequency.
-- A plan is advisory until a Zigbee write is acknowledged and read back.
+- Heating Planner publishes the latest active plan command to the Zigbee gateway while the command remains valid.
 - Wood-stove actions always remain advisory and human-operated. The service does not ignite a fire or control combustion air or dampers.
 - Stove temperature monitoring does not replace certified independent smoke and carbon-monoxide alarms.
 - Cloud or gateway failure leaves the last verified local setting; it must not invent a new fallback command.
@@ -193,13 +193,13 @@ Heating Planner does not replace or bypass the thermostat's configured internal 
 
 ## Active-control activation
 
-Active thermostat control is separate from the Heating Planner master switch. The user must explicitly activate a freshly recalculated plan from the Heating Planner view. Each enabled floor-heating room is independently eligible for active control when it has an owned Zigbee thermostat, explicit fresh room and floor sensors, readable and recently reported thermostat state, no unacknowledged command, plan points, and a learned cooling model with at least 25% confidence. Activation requires at least one eligible room; ineligible rooms are visibly excluded and remain on the existing fallback controller. The simulated candidate must be no more than 30 minutes old and cover the current time.
+Active thermostat control is separate from the Heating Planner master switch. The user must explicitly activate a freshly recalculated plan from the Heating Planner view. Each enabled floor-heating room is independently eligible for active control when it has an owned Zigbee thermostat, explicit fresh room and floor sensors, readable and recently reported thermostat state, plan points, and a learned cooling model with at least 25% confidence. Activation requires at least one eligible room; ineligible rooms are visibly excluded and remain on the existing fallback controller. The simulated candidate must be no more than 30 minutes old and cover the current time.
 
 Activation atomically supersedes the previous active plan, promotes the selected plan and only eligible rooms' points to `ACTIVE`, expires Heating Planner desired states for excluded rooms, and enables the site's active-control flag. This confirmation is the one-time active-control opt-in. After opt-in, a background job recalculates every enabled site every 15 minutes from current prices, forecast, measurements, settings, and learned room models. A valid replacement with at least one eligible room is automatically promoted and supersedes the previous active plan; the user does not repeatedly confirm routine replans.
 
-Automation status is persisted on the site settings: last successful automatic plan time, last automatic activation time, and the latest error or rejected-activation reason. Missing prices/weather or invalid plan coverage prevent automatic activation for the site. Stale sensors, low model confidence, and gateway/readback problems exclude the affected room; activation is rejected when no room remains eligible. If replanning continues to fail, the active command path stops accepting plan points older than 75 minutes and desired commands expire, allowing fallback control to resume.
+Automation status is persisted on the site settings: last successful automatic plan time, last automatic activation time, and the latest error or rejected-activation reason. Missing prices/weather or invalid plan coverage prevent automatic activation for the site. Stale sensors, low model confidence, and stale or unreadable gateway reports exclude the affected room; activation is rejected when no room remains eligible. If replanning continues to fail, the active command path stops accepting plan points older than 75 minutes and desired commands expire, allowing fallback control to resume.
 
-At command time the same room and floor freshness checks are repeated. Plan points older than 75 minutes are rejected, changed Heating Planner setpoints are limited to one per five minutes, and desired commands expire after at most 30 minutes or at the plan horizon end. Existing Zigbee desired-state versioning, gateway acknowledgement, and thermostat readback remain authoritative. Disabling active control, or disabling the master planner switch, supersedes active plans and immediately expires desired states marked as originating from Heating Planner; the existing thermostat controller can then resume as fallback.
+At command time the same room and floor freshness checks are repeated. Plan points older than 75 minutes are rejected, changed Heating Planner setpoints are limited to one per five minutes, and desired commands expire after at most 30 minutes or at the plan horizon end. While Heating Planner is active, gateway polls receive the latest valid Heating Planner desired state whenever one is available. Disabling active control, or disabling the master planner switch, supersedes active plans and immediately expires desired states marked as originating from Heating Planner; the existing thermostat controller can then resume as fallback.
 
 ## Delivery sequence
 
@@ -216,7 +216,7 @@ At command time the same room and floor freshness checks are repeated. Plan poin
 
 - Ownership isolation is tested for every linked device and site.
 - Floor and room sensor freshness is visible and enforced.
-- Every command has a reason, plan version, expiry, acknowledgement, and readback.
+- Every command has a reason, plan version, and expiry.
 - Simulation error and comfort violations are measurable.
 - The existing price-curve controller remains an available fallback.
 - A dry-run period can run for at least one week without issuing commands.

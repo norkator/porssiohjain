@@ -60,9 +60,7 @@ public class ZigbeeGatewaySyncService {
             updateReport(link, report, now);
             saveMeasurements(link, report, now);
             applyHeatingPlannerPriority(link, now);
-            if (isThermostatProfile(link.getProfile())
-                    && link.getDesiredVersion() > link.getAppliedVersion()
-                    && link.getDesiredExpiresAt() != null && link.getDesiredExpiresAt().isAfter(now)) {
+            if (shouldSendDesiredState(link, now)) {
                 commands.add(ZigbeeGatewaySyncResponse.DeviceCommand.builder()
                         .zigbeeIeee(ieee).version(link.getDesiredVersion())
                         .targetTemperature(link.getDesiredTemperature()).mode(link.getDesiredMode())
@@ -93,6 +91,14 @@ public class ZigbeeGatewaySyncService {
         });
     }
 
+    private boolean shouldSendDesiredState(ZigbeeGatewayDeviceEntity link, Instant now) {
+        if (!isThermostatProfile(link.getProfile())
+                || link.getDesiredExpiresAt() == null || !link.getDesiredExpiresAt().isAfter(now)) {
+            return false;
+        }
+        return link.getDesiredTemperature() != null && link.getDesiredMode() != null;
+    }
+
     private ZigbeeGatewayDeviceEntity register(AccountEntity account, UUID gatewayId, String ieee,
             ZigbeeGatewaySyncRequest.DeviceReport report) {
         String name = cleanName(report.getCustomName());
@@ -114,31 +120,15 @@ public class ZigbeeGatewaySyncService {
     }
 
     private void updateReport(ZigbeeGatewayDeviceEntity link, ZigbeeGatewaySyncRequest.DeviceReport report, Instant now) {
-        if (isThermostatProfile(link.getProfile())) {
-            if (report.getLastAppliedVersion() < link.getAppliedVersion()
-                    || report.getLastAppliedVersion() > link.getDesiredVersion()) {
-                throw badRequest("Invalid applied Zigbee command version");
-            }
-        } else if (report.getLastAppliedVersion() != 0) {
-            throw badRequest("Sensor reports must not acknowledge thermostat command versions");
-        }
         link.setCustomName(cleanName(report.getCustomName()));
         link.setLastSeen(now);
         link.setReportedTemperature(report.getTemperature());
         link.setReportedSetpoint(report.getSetpoint());
         link.setReportedMode(normalizeMode(report.getMode(), true));
-        if (isThermostatProfile(link.getProfile())
-                && Boolean.TRUE.equals(report.getSuccess()) && report.getLastAppliedVersion() > link.getAppliedVersion()) {
-            link.setAppliedVersion(report.getLastAppliedVersion());
+        if (Boolean.TRUE.equals(report.getSuccess())) {
             link.setLastError(null);
         } else if (Boolean.FALSE.equals(report.getSuccess())) {
             link.setLastError(truncate(report.getError(), 512));
-        }
-        if (isThermostatProfile(link.getProfile())
-                && reportedStateDrifted(link) && link.getAppliedVersion() >= link.getDesiredVersion()) {
-            link.setDesiredVersion(link.getDesiredVersion() + 1);
-            link.setDesiredAt(now);
-            link.setLastError("Reported thermostat state drifted from desired cloud state");
         }
         zigbeeRepository.save(link);
 
@@ -184,16 +174,6 @@ public class ZigbeeGatewaySyncService {
                 .measuredAt(measuredAt)
                 .receivedAt(receivedAt)
                 .build());
-    }
-
-    private boolean reportedStateDrifted(ZigbeeGatewayDeviceEntity link) {
-        if (link.getDesiredVersion() <= 0 || link.getDesiredTemperature() == null || link.getDesiredMode() == null) {
-            return false;
-        }
-        boolean setpointDrifted = link.getReportedSetpoint() != null
-                && link.getReportedSetpoint().compareTo(link.getDesiredTemperature()) != 0;
-        boolean modeDrifted = link.getReportedMode() != null && !link.getReportedMode().equals(link.getDesiredMode());
-        return setpointDrifted || modeDrifted;
     }
 
     private ZigbeeGatewayDeviceEntity requireOwner(ZigbeeGatewayDeviceEntity link, Long accountId) {

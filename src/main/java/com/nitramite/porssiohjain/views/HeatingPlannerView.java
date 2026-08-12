@@ -354,8 +354,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     new Paragraph("Heating Planner will send the active plan's floor setpoints to the selected Zigbee thermostats."),
                     new Span("Plan: " + readiness.candidatePlanVersion()),
                     new Span(readiness.issues().isEmpty()
-                            ? "Fresh room and floor sensors, learned-model confidence, gateway state, acknowledgement, and plan coverage have been verified."
-                            : "Only rooms passing sensor, model, gateway, acknowledgement, and plan checks will be controlled. Excluded rooms remain on fallback: "
+                            ? "Fresh room and floor sensors, learned-model confidence, gateway state, and plan coverage have been verified."
+                            : "Only rooms passing sensor, model, gateway, and plan checks will be controlled. Excluded rooms remain on fallback: "
                             + String.join("; ", readiness.issues())));
             content.setPadding(false);
             Button confirm = new Button("Enable control", click -> {

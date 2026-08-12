@@ -70,10 +70,6 @@ public class ZigbeeGatewayDeviceEntity {
     @Column(name = "desired_source", length = 32)
     private String desiredSource;
 
-    @Column(name = "applied_version", nullable = false)
-    @Builder.Default
-    private long appliedVersion = 0;
-
     @Column(name = "reported_temperature", precision = 10, scale = 2)
     private BigDecimal reportedTemperature;
 
