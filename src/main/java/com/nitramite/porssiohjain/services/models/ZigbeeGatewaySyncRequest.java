@@ -27,7 +27,6 @@ public class ZigbeeGatewaySyncRequest {
         private String zigbeeIeee;
         private String customName;
         private String profile;
-        private long lastAppliedVersion;
         private BigDecimal temperature;
         private BigDecimal humidity;
         private BigDecimal batteryPercentage;

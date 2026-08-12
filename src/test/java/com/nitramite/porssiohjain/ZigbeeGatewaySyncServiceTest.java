@@ -62,7 +62,7 @@ class ZigbeeGatewaySyncServiceTest {
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb")).thenReturn(Optional.empty());
         when(devices.save(any())).thenAnswer(call -> { DeviceEntity d = call.getArgument(0); d.setId(11L); return d; });
         when(links.save(any())).thenAnswer(call -> call.getArgument(0));
-        var response = service.sync(7L, gateway, request(0, null));
+        var response = service.sync(7L, gateway, request(null));
         assertTrue(response.getDevices().isEmpty());
         verify(connectivityService).recordHeartbeat(eq(account), eq(gateway), any());
         ArgumentCaptor<DeviceEntity> captured = ArgumentCaptor.forClass(DeviceEntity.class);
@@ -121,7 +121,7 @@ class ZigbeeGatewaySyncServiceTest {
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb"))
                 .thenReturn(Optional.of(link));
 
-        service.sync(7L, gateway, request(0, null));
+        service.sync(7L, gateway, request(null));
 
         assertTrue(device.isApiOnline());
         assertNotNull(device.getLastCommunication());
@@ -130,15 +130,30 @@ class ZigbeeGatewaySyncServiceTest {
                 eq(device), eq(false), eq(false), eq("API"), eq(device.getLastCommunication()));
     }
 
-    @Test void repeatsDesiredVersionUntilSuccessfulAcknowledgement() {
+    @Test void repeatsDesiredStateOnEveryPollWhileNotExpired() {
         ZigbeeGatewayDeviceEntity link = link(account, 3, 0);
         link.setDesiredTemperature(new BigDecimal("20.50")); link.setDesiredMode("HEAT");
         link.setDesiredExpiresAt(Instant.now().plusSeconds(600));
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb")).thenReturn(Optional.of(link));
-        assertEquals(3, service.sync(7L, gateway, request(0, null)).getDevices().getFirst().getVersion());
-        service.sync(7L, gateway, request(3, true));
-        assertEquals(3, link.getAppliedVersion());
-        assertTrue(service.sync(7L, gateway, request(3, true)).getDevices().isEmpty());
+        assertEquals(3, service.sync(7L, gateway, request(null)).getDevices().getFirst().getVersion());
+        service.sync(7L, gateway, request(true));
+        assertEquals(0, link.getAppliedVersion());
+        assertEquals(3, service.sync(7L, gateway, request(true)).getDevices().getFirst().getVersion());
+    }
+
+    @Test void keepsPublishingHeatingPlannerDesiredStateAfterAppliedReport() {
+        ZigbeeGatewayDeviceEntity link = link(account, 3, 3);
+        link.setDesiredTemperature(new BigDecimal("22.50"));
+        link.setDesiredMode("HEAT");
+        link.setDesiredSource("HEATING_PLANNER");
+        link.setDesiredExpiresAt(Instant.now().plusSeconds(600));
+        when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb")).thenReturn(Optional.of(link));
+
+        var response = service.sync(7L, gateway, request(true));
+
+        assertEquals(3, response.getDevices().getFirst().getVersion());
+        assertEquals(new BigDecimal("22.50"), response.getDevices().getFirst().getTargetTemperature());
+        assertEquals("HEAT", response.getDevices().getFirst().getMode());
     }
 
     @Test void heatingPlannerCommandOverridesExistingControlDesiredState() {
@@ -152,7 +167,7 @@ class ZigbeeGatewaySyncServiceTest {
                         new BigDecimal("23.00"), "HEAT", "Heating Planner active",
                         Instant.now().plusSeconds(1800))));
 
-        var response = service.sync(7L, gateway, request(4, true));
+        var response = service.sync(7L, gateway, request(true));
 
         assertEquals(5, response.getDevices().getFirst().getVersion());
         assertEquals(new BigDecimal("23.00"), response.getDevices().getFirst().getTargetTemperature());
@@ -161,20 +176,20 @@ class ZigbeeGatewaySyncServiceTest {
         assertTrue(link.getDesiredExpiresAt().isAfter(Instant.now()));
     }
 
-    @Test void resendsDesiredVersionWhenReportedSetpointDriftsAfterManualChange() {
+    @Test void resendsDesiredStateWhenReportedSetpointDiffersAfterManualChange() {
         ZigbeeGatewayDeviceEntity link = link(account, 4, 4);
         link.setDesiredTemperature(new BigDecimal("19.00")); link.setDesiredMode("HEAT");
         link.setDesiredExpiresAt(Instant.now().plusSeconds(600));
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb")).thenReturn(Optional.of(link));
 
-        ZigbeeGatewaySyncRequest request = request(4, true);
+        ZigbeeGatewaySyncRequest request = request(true);
         request.getDevices().getFirst().setSetpoint(new BigDecimal("10.00"));
         request.getDevices().getFirst().setMode("HEAT");
 
         var response = service.sync(7L, gateway, request);
 
-        assertEquals(5, response.getDevices().getFirst().getVersion());
-        assertEquals(5, link.getDesiredVersion());
+        assertEquals(4, response.getDevices().getFirst().getVersion());
+        assertEquals(4, link.getDesiredVersion());
         assertEquals(4, link.getAppliedVersion());
     }
 
@@ -182,14 +197,14 @@ class ZigbeeGatewaySyncServiceTest {
         AccountEntity other = new AccountEntity(); other.setId(8L);
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb"))
                 .thenReturn(Optional.of(link(other, 0, 0)));
-        assertThrows(ResponseStatusException.class, () -> service.sync(7L, gateway, request(0, null)));
+        assertThrows(ResponseStatusException.class, () -> service.sync(7L, gateway, request(null)));
     }
 
-    @Test void rejectsVersionBeyondDesiredAndMismatchedGateway() {
+    @Test void ignoresReportedAppliedVersionAndRejectsMismatchedGateway() {
         when(links.findByGatewayIdAndZigbeeIeee(gateway, "8c6fb9fffe2d5cdb"))
                 .thenReturn(Optional.of(link(account, 2, 0)));
-        assertThrows(ResponseStatusException.class, () -> service.sync(7L, gateway, request(3, true)));
-        assertThrows(ResponseStatusException.class, () -> service.sync(7L, UUID.randomUUID(), request(0, null)));
+        assertDoesNotThrow(() -> service.sync(7L, gateway, request(true)));
+        assertThrows(ResponseStatusException.class, () -> service.sync(7L, UUID.randomUUID(), request(null)));
     }
 
     private ZigbeeGatewayDeviceEntity link(AccountEntity owner, long desired, long applied) {
@@ -200,10 +215,10 @@ class ZigbeeGatewaySyncServiceTest {
                 .desiredVersion(desired).appliedVersion(applied).build();
     }
 
-    private ZigbeeGatewaySyncRequest request(long version, Boolean success) {
+    private ZigbeeGatewaySyncRequest request(Boolean success) {
         ZigbeeGatewaySyncRequest.DeviceReport report = new ZigbeeGatewaySyncRequest.DeviceReport();
         report.setZigbeeIeee("0x8C6FB9FFFE2D5CDB"); report.setProfile("schneider_wde002497");
-        report.setLastAppliedVersion(version); report.setSuccess(success);
+        report.setSuccess(success);
         ZigbeeGatewaySyncRequest request = new ZigbeeGatewaySyncRequest();
         request.setGatewayId(gateway); request.setDevices(List.of(report)); return request;
     }

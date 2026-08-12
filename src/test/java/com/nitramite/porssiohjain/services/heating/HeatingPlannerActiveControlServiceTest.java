@@ -128,19 +128,19 @@ class HeatingPlannerActiveControlServiceTest {
     }
 
     @Test
-    void refusesActivationWhileThermostatCommandIsStillAwaitingAcknowledgement() {
+    void pendingThermostatCommandDoesNotBlockActivation() {
         gatewayLink.setDesiredVersion(5);
         gatewayLink.setAppliedVersion(4);
         gatewayLink.setDesiredExpiresAt(now.plusSeconds(300));
 
         var readiness = service.readiness(7L, 8L, now);
 
-        assertThat(readiness.ready()).isFalse();
-        assertThat(readiness.issues()).contains("Kitchen: thermostat has an unacknowledged command");
+        assertThat(readiness.ready()).isTrue();
+        assertThat(readiness.issues()).doesNotContain("Kitchen: thermostat has an unacknowledged command");
     }
 
     @Test
-    void expiredUnacknowledgedCommandDoesNotPermanentlyBlockActivation() {
+    void expiredPendingThermostatCommandDoesNotBlockActivation() {
         gatewayLink.setDesiredVersion(5);
         gatewayLink.setAppliedVersion(4);
         gatewayLink.setDesiredExpiresAt(now.minusSeconds(1));
