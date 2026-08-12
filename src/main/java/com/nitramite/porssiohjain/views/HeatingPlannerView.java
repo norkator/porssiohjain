@@ -1074,6 +1074,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         new EvidenceValue("Price sample", marketSeries.points().size()
                                 + " today-and-tomorrow combined-price points, 1 h simulation step"),
                         new EvidenceValue("Planner active below", decimalDisplay(inputs.plannerWeatherThreshold()) + " °C"),
+                        new EvidenceValue("Planner gate", plannerGateText(marketSeries.points(),
+                                inputs.plannerWeatherThreshold())),
                         new EvidenceValue("Recommend wood below", decimalDisplay(inputs.woodWeatherThreshold()) + " °C")
                 )),
                 evidenceSection("Latest Sensors", sensorEvidenceGrid(roomPlans)),
@@ -1243,8 +1245,43 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     .findFirst()
                     .orElse("no valid room plan");
         }
-        HeatingPlanSimulationService.SimulationResult first = results.getFirst();
-        return (first.plannerActive() ? "active" : "inactive") + " — " + first.plannerStatusReason();
+        long activeCount = results.stream().filter(HeatingPlanSimulationService.SimulationResult::plannerActive).count();
+        String reason = results.stream()
+                .map(HeatingPlanSimulationService.SimulationResult::plannerStatusReason)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse("no planner status reason");
+        if (activeCount == results.size()) {
+            return "active — " + reason;
+        }
+        if (activeCount == 0) {
+            return "inactive — " + reason + "; existing heating controls keep priority";
+        }
+        return "partially active — " + activeCount + " of " + results.size()
+                + " room plans pass the planner activation gate";
+    }
+
+    private String plannerGateText(List<HeatingPlanSimulationService.MarketPoint> market,
+                                   Double plannerWeatherThreshold) {
+        if (market == null || market.isEmpty()) {
+            return "inactive — no forecast points are available for the today-and-tomorrow horizon";
+        }
+        BigDecimal threshold = BigDecimal.valueOf(plannerWeatherThreshold == null ? 5.0 : plannerWeatherThreshold);
+        BigDecimal coldest = market.stream()
+                .map(HeatingPlanSimulationService.MarketPoint::outdoorTemperature)
+                .filter(java.util.Objects::nonNull)
+                .min(BigDecimal::compareTo)
+                .orElse(null);
+        if (coldest == null) {
+            return "inactive — no outdoor-temperature forecast value is available";
+        }
+        if (coldest.compareTo(threshold) < 0) {
+            return "active — coldest forecast " + decimalDisplay(coldest.doubleValue())
+                    + " °C is below " + decimalDisplay(threshold.doubleValue()) + " °C";
+        }
+        return "inactive — coldest forecast " + decimalDisplay(coldest.doubleValue())
+                + " °C is not below " + decimalDisplay(threshold.doubleValue())
+                + " °C, so existing heating controls keep priority";
     }
 
     private HeatingPlanSimulationService.SimulationRequest simulationRequest(boolean stoveLoaded, LocalTime availableFrom,

@@ -128,6 +128,17 @@ class HeatingPlannerActiveControlServiceTest {
     }
 
     @Test
+    void refusesActivationWhenLatestPlanIsWeatherGateInactive() {
+        point.setOperatingMode(HeatingPlanSimulationService.OperatingMode.INACTIVE);
+        point.setReason("Forecast stays above the configured Heating Planner activation temperature");
+
+        var readiness = service.readiness(7L, 8L, now);
+
+        assertThat(readiness.ready()).isFalse();
+        assertThat(readiness.issues()).anyMatch(issue -> issue.contains("forecast stays above"));
+    }
+
+    @Test
     void pendingThermostatCommandDoesNotBlockActivation() {
         gatewayLink.setDesiredVersion(5);
         gatewayLink.setDesiredExpiresAt(now.plusSeconds(300));

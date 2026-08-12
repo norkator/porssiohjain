@@ -82,6 +82,13 @@ public class HeatingPlannerActiveControlService {
                     readyRoomIds.remove(room.getId());
                 }
             }
+            boolean hasPlannerAction = points.stream()
+                    .filter(point -> point.getRoom() != null)
+                    .filter(point -> readyRoomIds.contains(point.getRoom().getId()))
+                    .anyMatch(point -> point.getOperatingMode() != HeatingPlanSimulationService.OperatingMode.INACTIVE);
+            if (!readyRoomIds.isEmpty() && !hasPlannerAction) {
+                blockingIssues.add("Heating Planner is inactive for the latest plan; the forecast stays above the configured activation temperature");
+            }
         }
         if (readyRoomIds.isEmpty() && !controlledRooms.isEmpty())
             blockingIssues.add("No floor-heating room currently passes all active-control checks");
