@@ -174,7 +174,8 @@ public class HeatingPlannerActiveControlService {
             gatewayDeviceRepository.findByDeviceId(source.getControllingDevice().getId()).ifPresentOrElse(link -> {
                 if (link.getLastSeen() == null || link.getLastSeen().isBefore(now.minus(GATEWAY_FRESHNESS)))
                     issues.add(prefix + "thermostat gateway report is stale");
-                if (link.getDesiredVersion() > link.getAppliedVersion())
+                if (link.getDesiredVersion() > link.getAppliedVersion()
+                        && link.getDesiredExpiresAt() != null && link.getDesiredExpiresAt().isAfter(now))
                     issues.add(prefix + "thermostat has an unacknowledged command");
                 if (link.getReportedSetpoint() == null || link.getReportedMode() == null)
                     issues.add(prefix + "thermostat has not reported readable state");

@@ -128,6 +128,30 @@ class HeatingPlannerActiveControlServiceTest {
     }
 
     @Test
+    void refusesActivationWhileThermostatCommandIsStillAwaitingAcknowledgement() {
+        gatewayLink.setDesiredVersion(5);
+        gatewayLink.setAppliedVersion(4);
+        gatewayLink.setDesiredExpiresAt(now.plusSeconds(300));
+
+        var readiness = service.readiness(7L, 8L, now);
+
+        assertThat(readiness.ready()).isFalse();
+        assertThat(readiness.issues()).contains("Kitchen: thermostat has an unacknowledged command");
+    }
+
+    @Test
+    void expiredUnacknowledgedCommandDoesNotPermanentlyBlockActivation() {
+        gatewayLink.setDesiredVersion(5);
+        gatewayLink.setAppliedVersion(4);
+        gatewayLink.setDesiredExpiresAt(now.minusSeconds(1));
+
+        var readiness = service.readiness(7L, 8L, now);
+
+        assertThat(readiness.ready()).isTrue();
+        assertThat(readiness.issues()).doesNotContain("Kitchen: thermostat has an unacknowledged command");
+    }
+
+    @Test
     void activatesReadyRoomAndLeavesLowConfidenceRoomOnFallback() {
         DeviceEntity showerController = DeviceEntity.builder().id(40L).account(settings.getAccount())
                 .deviceType(DeviceType.THERMOSTAT).build();
