@@ -77,8 +77,7 @@ class HeatingPlannerAutomationServiceTest {
                         new BigDecimal("8.75"), new BigDecimal("16.25")));
         when(simulationService.simulate(any())).thenReturn(simulation);
         when(planService.persistSimulatedPlan(eq(7L), eq(8L), anyMap())).thenReturn(true);
-        when(activeControlService.readiness(7L, 8L, now)).thenReturn(
-                new HeatingPlannerActiveControlService.Readiness(true, true, List.of(), "version", null, null, null));
+        when(activeControlService.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now)).thenReturn(true);
 
         service.generateAndMaybeActivate(settings, now);
 
@@ -86,7 +85,7 @@ class HeatingPlannerAutomationServiceTest {
         assertThat(settings.getLastAutomaticActivationAt()).isEqualTo(now);
         assertThat(settings.getLastAutomationError()).isNull();
         verify(simulationService).calculateDynamicPriceThresholds(anyList());
-        verify(activeControlService).activate(7L, 8L, now);
+        verify(activeControlService).activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now);
     }
 
     private NordpoolEntity price(Instant start, Instant end, String value) {

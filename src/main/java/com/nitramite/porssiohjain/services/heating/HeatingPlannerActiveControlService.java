@@ -7,6 +7,7 @@ package com.nitramite.porssiohjain.services.heating;
 import com.nitramite.porssiohjain.entity.HeatingPlannerPlanEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
+import com.nitramite.porssiohjain.entity.HeatingPlannerSettingsEntity;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanPointStatus;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanStatus;
@@ -85,7 +86,8 @@ public class HeatingPlannerActiveControlService {
             boolean hasPlannerAction = points.stream()
                     .filter(point -> point.getRoom() != null)
                     .filter(point -> readyRoomIds.contains(point.getRoom().getId()))
-                    .anyMatch(point -> point.getOperatingMode() != HeatingPlanSimulationService.OperatingMode.INACTIVE);
+                    .anyMatch(point -> point.getOperatingMode() != null
+                            && point.getOperatingMode() != HeatingPlanSimulationService.OperatingMode.INACTIVE);
             if (!readyRoomIds.isEmpty() && !hasPlannerAction) {
                 blockingIssues.add("Heating Planner is inactive for the latest plan; the forecast stays above the configured activation temperature");
             }
@@ -142,6 +144,10 @@ public class HeatingPlannerActiveControlService {
         }
         Readiness readiness = readiness(accountId, siteId, now);
         if (!readiness.ready()) {
+            if (readiness.issues().stream().anyMatch(issue -> issue.contains("Heating Planner is inactive"))) {
+                suspendActivePlans(settings, now);
+                return false;
+            }
             throw new IllegalStateException("The recalculated plan could not be activated automatically: "
                     + String.join("; ", readiness.issues()));
         }
@@ -167,6 +173,16 @@ public class HeatingPlannerActiveControlService {
                         gatewayDeviceRepository.save(link);
                     }
                 }));
+    }
+
+    private void suspendActivePlans(HeatingPlannerSettingsEntity settings, Instant now) {
+        for (HeatingPlannerPlanEntity active : planRepository
+                .findBySettingsIdAndStatusOrderByCreatedAtDesc(settings.getId(), HeatingPlannerPlanStatus.ACTIVE)) {
+            supersede(active, now);
+        }
+        roomRepository.findBySettingsIdOrderBySortOrderAscIdAsc(settings.getId()).stream()
+                .filter(HeatingPlannerRoomEntity::isEnabled)
+                .forEach(room -> expirePlannerDesiredStates(room, now));
     }
 
     private void validateRoom(HeatingPlannerRoomEntity room, Instant now, List<String> issues) {

@@ -107,6 +107,35 @@ class HeatingPlannerActiveControlServiceTest {
     }
 
     @Test
+    void suspendsPreviousActivePlanWhenOptedInRecalculationIsWeatherGateInactive() {
+        settings.setActiveControlEnabled(true);
+        point.setOperatingMode(HeatingPlanSimulationService.OperatingMode.INACTIVE);
+        point.setReason("Forecast stays above the configured Heating Planner activation temperature");
+        HeatingPlannerPlanEntity activePlan = HeatingPlannerPlanEntity.builder().id(40L).settings(settings)
+                .account(settings.getAccount()).site(settings.getSite())
+                .horizonStart(now.minusSeconds(3600)).horizonEnd(now.plusSeconds(3600))
+                .triggerReason("previous").status(HeatingPlannerPlanStatus.ACTIVE).build();
+        HeatingPlannerPlanPointEntity activePoint = HeatingPlannerPlanPointEntity.builder().id(41L)
+                .plan(activePlan).room(room).account(settings.getAccount()).site(settings.getSite())
+                .planVersion(activePlan.getPlanVersion()).plannedTime(now)
+                .status(HeatingPlannerPlanPointStatus.ACTIVE).build();
+        gatewayLink.setDesiredSource("HEATING_PLANNER");
+        gatewayLink.setDesiredExpiresAt(now.plusSeconds(1800));
+        when(planRepository.findBySettingsIdAndStatusOrderByCreatedAtDesc(1L, HeatingPlannerPlanStatus.ACTIVE))
+                .thenReturn(List.of(activePlan));
+        when(pointRepository.findByPlanVersion(activePlan.getPlanVersion())).thenReturn(List.of(activePoint));
+
+        assertThat(service.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now)).isFalse();
+
+        assertThat(plan.getStatus()).isEqualTo(HeatingPlannerPlanStatus.SIMULATED);
+        assertThat(activePlan.getStatus()).isEqualTo(HeatingPlannerPlanStatus.SUPERSEDED);
+        assertThat(activePoint.getStatus()).isEqualTo(HeatingPlannerPlanPointStatus.SUPERSEDED);
+        assertThat(gatewayLink.getDesiredExpiresAt()).isEqualTo(now);
+        assertThat(settings.isActiveControlEnabled()).isTrue();
+        verify(gatewayRepository).save(gatewayLink);
+    }
+
+    @Test
     void leavesRecalculatedPlanSimulatedAfterControlWasDisabled() {
         settings.setActiveControlEnabled(false);
 

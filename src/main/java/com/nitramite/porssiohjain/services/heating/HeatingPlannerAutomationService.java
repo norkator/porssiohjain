@@ -96,14 +96,21 @@ public class HeatingPlannerAutomationService {
         settings.setLastAutomationError(null);
         settingsRepository.save(settings);
         if (settings.isActiveControlEnabled()) {
-            var readiness = activeControlService.readiness(settings.getAccount().getId(), settings.getSite().getId(), now);
-            if (readiness.ready()) {
-                activeControlService.activate(settings.getAccount().getId(), settings.getSite().getId(), now);
-                settings.setLastAutomaticActivationAt(now);
-                settings.setLastAutomationError(null);
-            } else {
+            try {
+                boolean activated = activeControlService.activateLatestRecalculatedPlanIfOptedIn(
+                        settings.getAccount().getId(), settings.getSite().getId(), now);
+                if (activated) {
+                    settings.setLastAutomaticActivationAt(now);
+                    settings.setLastAutomationError(null);
+                } else {
+                    var readiness = activeControlService.readiness(settings.getAccount().getId(),
+                            settings.getSite().getId(), now);
+                    settings.setLastAutomationError("Plan generated but Heating Planner is currently inactive: "
+                            + String.join("; ", readiness.issues()));
+                }
+            } catch (IllegalStateException ex) {
                 settings.setLastAutomationError("Plan generated but automatic activation was rejected: "
-                        + String.join("; ", readiness.issues()));
+                        + ex.getMessage());
             }
             settingsRepository.save(settings);
         }

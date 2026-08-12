@@ -724,7 +724,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             return;
         }
         var readiness = service.readiness(accountId, site.getId(), Instant.now());
-        if (readiness.active()) {
+        boolean plannerInactive = readiness.issues().stream()
+                .anyMatch(issue -> issue.contains("Heating Planner is inactive"));
+        if (readiness.active() && plannerInactive) {
+            status.setText("Opted in, currently inactive — the latest plan is weather-gated off, so existing heating controls keep priority. "
+                    + String.join("; ", readiness.issues()));
+            status.getElement().getThemeList().add("badge contrast");
+        } else if (readiness.active()) {
             String excludedRooms = readiness.issues().stream()
                     .filter(issue -> issue.contains(":"))
                     .collect(java.util.stream.Collectors.joining("; "));
