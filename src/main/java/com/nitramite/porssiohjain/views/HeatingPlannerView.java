@@ -156,6 +156,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         preferredSite(sites, account == null ? Optional.empty() : configurationService.preferredSiteId(account.getId()))
                 .ifPresentOrElse(siteSelect::setValue, () -> sites.stream().findFirst().ifPresent(siteSelect::setValue));
         NumberField taxPercent = numberField("Market VAT (%)", 25.5, 0, 100);
+        NumberField cheapPricePercentile = numberField("Cheap price percentile", 0.25, 0, 0.95);
+        cheapPricePercentile.setStep(0.05);
+        cheapPricePercentile.setHelperText("0.25 means prices at or below the lower quartile are eligible for preheating.");
+        NumberField expensivePricePercentile = numberField("Expensive price percentile", 0.75, 0.05, 1);
+        expensivePricePercentile.setStep(0.05);
+        expensivePricePercentile.setHelperText("Lower this, for example to 0.60, to avoid heating during more high-price hours.");
         ComboBox<ElectricityContractEntity> transferContract = new ComboBox<>("Transfer contract");
         transferContract.setItems(transferContracts);
         transferContract.setItemLabelGenerator(ElectricityContractEntity::getName);
@@ -491,15 +497,6 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 calculate.run();
             }
         });
-        transferContract.addValueChangeListener(event -> {
-            if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
-                        releaseDelay, releaseDuration, cheapPricePercentile, expensivePricePercentile);
-                calculate.run();
-            }
-        });
         cheapPricePercentile.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
                 savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
@@ -510,6 +507,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             }
         });
         expensivePricePercentile.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration, cheapPricePercentile, expensivePricePercentile);
+                calculate.run();
+            }
+        });
+        transferContract.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
                 savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
