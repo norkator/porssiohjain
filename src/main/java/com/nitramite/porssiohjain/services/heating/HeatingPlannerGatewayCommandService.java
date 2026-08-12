@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
 import com.nitramite.porssiohjain.entity.ZigbeeGatewayDeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
+import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanPointStatus;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanStatus;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerPlanPointRepository;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerPlanRepository;
@@ -84,6 +85,7 @@ public class HeatingPlannerGatewayCommandService {
                         .findByPlanVersionAndRoomIdAndPlannedTimeBetweenOrderByPlannedTimeAsc(
                                 plan.getPlanVersion(), room.getId(), now.minus(POINT_LOOKBACK), now)
                         .stream()
+                        .filter(point -> point.getStatus() == HeatingPlannerPlanPointStatus.ACTIVE)
                         .filter(point -> point.getPlannedFloorSetpoint() != null)
                         .filter(point -> point.getOperatingMode() != HeatingPlanSimulationService.OperatingMode.INACTIVE)
                         .reduce((left, right) -> right));

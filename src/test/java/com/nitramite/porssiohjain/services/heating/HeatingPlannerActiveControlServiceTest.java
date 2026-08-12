@@ -107,6 +107,50 @@ class HeatingPlannerActiveControlServiceTest {
     }
 
     @Test
+    void activatesReadyRoomAndLeavesLowConfidenceRoomOnFallback() {
+        DeviceEntity showerController = DeviceEntity.builder().id(40L).account(settings.getAccount())
+                .deviceType(DeviceType.THERMOSTAT).build();
+        DeviceEntity showerRoomSensor = DeviceEntity.builder().id(41L).account(settings.getAccount())
+                .deviceType(DeviceType.TEMPERATURE_SENSOR).build();
+        DeviceEntity showerFloorSensor = DeviceEntity.builder().id(42L).account(settings.getAccount())
+                .deviceType(DeviceType.TEMPERATURE_SENSOR).build();
+        HeatingPlannerRoomEntity shower = HeatingPlannerRoomEntity.builder().id(12L).settings(settings)
+                .account(settings.getAccount()).site(settings.getSite()).name("Shower")
+                .roomSensorDevice(showerRoomSensor).floorSensorDevice(showerFloorSensor)
+                .modelParametersLearned(true).modelConfidence(new BigDecimal("0.2000")).build();
+        HeatingPlannerRoomHeatSourceEntity showerSource = HeatingPlannerRoomHeatSourceEntity.builder().id(13L)
+                .room(shower).account(settings.getAccount()).site(settings.getSite())
+                .sourceType(HeatingPlannerHeatSourceType.FLOOR_HEATING).controllingDevice(showerController)
+                .enabled(true).build();
+        shower.getHeatSources().add(showerSource);
+        HeatingPlannerPlanPointEntity showerPoint = HeatingPlannerPlanPointEntity.builder().id(32L).plan(plan)
+                .room(shower).account(settings.getAccount()).site(settings.getSite()).planVersion(plan.getPlanVersion())
+                .plannedTime(now).operatingMode(HeatingPlanSimulationService.OperatingMode.NORMAL).reason("test").build();
+        ZigbeeGatewayDeviceEntity showerLink = ZigbeeGatewayDeviceEntity.builder().device(showerController)
+                .account(settings.getAccount()).lastSeen(now.minusSeconds(60)).desiredVersion(1).appliedVersion(1)
+                .reportedSetpoint(new BigDecimal("21.0")).reportedMode("HEAT").desiredSource("HEATING_PLANNER")
+                .desiredExpiresAt(now.plusSeconds(1800)).build();
+        var fresh = new HeatingPlannerMeasurementService.LatestMeasurement(new BigDecimal("21"), now,
+                HeatingPlannerMeasurementService.Freshness.FRESH);
+        when(roomRepository.findBySettingsIdOrderBySortOrderAscIdAsc(1L)).thenReturn(List.of(room, shower));
+        when(pointRepository.findByPlanVersion(plan.getPlanVersion())).thenReturn(List.of(point, showerPoint));
+        when(gatewayRepository.findByDeviceId(40L)).thenReturn(Optional.of(showerLink));
+        when(measurementService.latestFreshRoomTemperature(shower, now)).thenReturn(fresh);
+        when(measurementService.latestFreshFloorTemperature(shower, now)).thenReturn(fresh);
+
+        var readiness = service.readiness(7L, 8L, now);
+        assertThat(readiness.ready()).isTrue();
+        assertThat(readiness.issues()).contains("Shower: learned model confidence must be at least 25%");
+
+        service.activate(7L, 8L, now);
+
+        assertThat(point.getStatus()).isEqualTo(HeatingPlannerPlanPointStatus.ACTIVE);
+        assertThat(showerPoint.getStatus()).isEqualTo(HeatingPlannerPlanPointStatus.SIMULATED);
+        assertThat(showerLink.getDesiredExpiresAt()).isEqualTo(now);
+        verify(gatewayRepository).save(showerLink);
+    }
+
+    @Test
     void disableExpiresPlannerDesiredStateAndSupersedesActivePlan() {
         settings.setActiveControlEnabled(true);
         plan.setStatus(HeatingPlannerPlanStatus.ACTIVE);

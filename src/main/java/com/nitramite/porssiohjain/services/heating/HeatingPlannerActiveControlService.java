@@ -23,7 +23,9 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -46,31 +48,45 @@ public class HeatingPlannerActiveControlService {
         if (settings == null) return new Readiness(false, false, List.of("Heating Planner settings have not been saved"),
                 null, null, null, null);
         List<String> issues = new ArrayList<>();
-        if (!settings.isEnabled()) issues.add("Heating Planner master switch is disabled");
+        List<String> blockingIssues = new ArrayList<>();
+        if (!settings.isEnabled()) blockingIssues.add("Heating Planner master switch is disabled");
 
         List<HeatingPlannerRoomEntity> controlledRooms = roomRepository
                 .findBySettingsIdOrderBySortOrderAscIdAsc(settings.getId()).stream()
                 .filter(HeatingPlannerRoomEntity::isEnabled)
                 .filter(this::hasEnabledFloorHeating)
                 .toList();
-        if (controlledRooms.isEmpty()) issues.add("No enabled floor-heating room is configured");
-        for (HeatingPlannerRoomEntity room : controlledRooms) validateRoom(room, now, issues);
+        if (controlledRooms.isEmpty()) blockingIssues.add("No enabled floor-heating room is configured");
+        Set<Long> readyRoomIds = new HashSet<>();
+        for (HeatingPlannerRoomEntity room : controlledRooms) {
+            List<String> roomIssues = new ArrayList<>();
+            validateRoom(room, now, roomIssues);
+            if (roomIssues.isEmpty()) readyRoomIds.add(room.getId());
+            else issues.addAll(roomIssues);
+        }
 
         HeatingPlannerPlanEntity candidate = latestSimulatedPlan(settings.getId());
         if (candidate == null) {
-            issues.add("Recalculate a plan before enabling active control");
+            blockingIssues.add("Recalculate a plan before enabling active control");
         } else {
             if (candidate.getCreatedAt() == null || candidate.getCreatedAt().isBefore(now.minus(MAXIMUM_PLAN_AGE)))
-                issues.add("The latest plan is older than 30 minutes; recalculate it");
+                blockingIssues.add("The latest plan is older than 30 minutes; recalculate it");
             if (candidate.getHorizonStart().isAfter(now) || !candidate.getHorizonEnd().isAfter(now))
-                issues.add("The latest plan does not cover the current time");
+                blockingIssues.add("The latest plan does not cover the current time");
+            var points = pointRepository.findByPlanVersion(candidate.getPlanVersion());
             for (HeatingPlannerRoomEntity room : controlledRooms) {
-                boolean hasPoints = pointRepository.findByPlanVersion(candidate.getPlanVersion()).stream()
+                boolean hasPoints = points.stream()
                         .anyMatch(point -> point.getRoom().getId().equals(room.getId()));
-                if (!hasPoints) issues.add(room.getName() + ": latest plan has no room points");
+                if (!hasPoints) {
+                    issues.add(room.getName() + ": latest plan has no room points");
+                    readyRoomIds.remove(room.getId());
+                }
             }
         }
-        return new Readiness(issues.isEmpty(), settings.isActiveControlEnabled(), List.copyOf(issues),
+        if (readyRoomIds.isEmpty() && !controlledRooms.isEmpty())
+            blockingIssues.add("No floor-heating room currently passes all active-control checks");
+        issues.addAll(0, blockingIssues);
+        return new Readiness(blockingIssues.isEmpty(), settings.isActiveControlEnabled(), List.copyOf(issues),
                 candidate == null ? null : candidate.getPlanVersion().toString(), settings.getLastAutomaticPlanAt(),
                 settings.getLastAutomaticActivationAt(), settings.getLastAutomationError());
     }
@@ -81,17 +97,34 @@ public class HeatingPlannerActiveControlService {
         if (!readiness.ready()) throw new IllegalStateException(String.join("; ", readiness.issues()));
         var settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId).orElseThrow();
         HeatingPlannerPlanEntity candidate = latestSimulatedPlan(settings.getId());
+        List<HeatingPlannerRoomEntity> controlledRooms = roomRepository
+                .findBySettingsIdOrderBySortOrderAscIdAsc(settings.getId()).stream()
+                .filter(HeatingPlannerRoomEntity::isEnabled)
+                .filter(this::hasEnabledFloorHeating)
+                .toList();
+        Set<Long> readyRoomIds = controlledRooms.stream()
+                .filter(room -> {
+                    List<String> roomIssues = new ArrayList<>();
+                    validateRoom(room, now, roomIssues);
+                    return roomIssues.isEmpty();
+                })
+                .map(HeatingPlannerRoomEntity::getId)
+                .collect(java.util.stream.Collectors.toSet());
         for (HeatingPlannerPlanEntity active : planRepository
                 .findBySettingsIdAndStatusOrderByCreatedAtDesc(settings.getId(), HeatingPlannerPlanStatus.ACTIVE)) {
             supersede(active, now);
         }
         candidate.setStatus(HeatingPlannerPlanStatus.ACTIVE);
         var points = pointRepository.findByPlanVersion(candidate.getPlanVersion());
-        points.forEach(point -> point.setStatus(HeatingPlannerPlanPointStatus.ACTIVE));
+        points.forEach(point -> point.setStatus(readyRoomIds.contains(point.getRoom().getId())
+                ? HeatingPlannerPlanPointStatus.ACTIVE : HeatingPlannerPlanPointStatus.SIMULATED));
         pointRepository.saveAll(points);
         planRepository.save(candidate);
         settings.setActiveControlEnabled(true);
         settingsRepository.save(settings);
+        controlledRooms.stream()
+                .filter(room -> !readyRoomIds.contains(room.getId()))
+                .forEach(room -> expirePlannerDesiredStates(room, now));
     }
 
     @Transactional
@@ -146,6 +179,20 @@ public class HeatingPlannerActiveControlService {
     private boolean hasEnabledFloorHeating(HeatingPlannerRoomEntity room) {
         return room.getHeatSources().stream().anyMatch(source -> source.isEnabled()
                 && source.getSourceType() == HeatingPlannerHeatSourceType.FLOOR_HEATING);
+    }
+
+    private void expirePlannerDesiredStates(HeatingPlannerRoomEntity room, Instant now) {
+        room.getHeatSources().stream()
+                .filter(HeatingPlannerRoomHeatSourceEntity::isEnabled)
+                .filter(source -> source.getSourceType() == HeatingPlannerHeatSourceType.FLOOR_HEATING)
+                .map(HeatingPlannerRoomHeatSourceEntity::getControllingDevice)
+                .filter(device -> device != null)
+                .forEach(device -> gatewayDeviceRepository.findByDeviceId(device.getId()).ifPresent(link -> {
+                    if ("HEATING_PLANNER".equals(link.getDesiredSource())) {
+                        link.setDesiredExpiresAt(now);
+                        gatewayDeviceRepository.save(link);
+                    }
+                }));
     }
 
     private HeatingPlannerPlanEntity latestSimulatedPlan(Long settingsId) {

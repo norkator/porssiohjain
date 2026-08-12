@@ -6,6 +6,7 @@ package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
+import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanPointStatus;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanStatus;
 import com.nitramite.porssiohjain.entity.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +54,7 @@ class HeatingPlannerGatewayCommandServiceTest {
         point = HeatingPlannerPlanPointEntity.builder().plan(plan).room(room).account(account).site(site)
                 .planVersion(plan.getPlanVersion()).plannedTime(now.minusSeconds(60))
                 .plannedFloorSetpoint(new BigDecimal("25.0"))
+                .status(HeatingPlannerPlanPointStatus.ACTIVE)
                 .operatingMode(HeatingPlanSimulationService.OperatingMode.PREHEAT).reason("cheap period").build();
         link = ZigbeeGatewayDeviceEntity.builder().account(account).device(controller).build();
         lenient().when(sourceRepository.findByControllingDeviceIdAndEnabledTrueOrderByIdAsc(20L)).thenReturn(List.of(source));
@@ -78,6 +80,13 @@ class HeatingPlannerGatewayCommandServiceTest {
     void suppressesCommandWhenRoomMeasurementIsStale() {
         when(measurementService.latestFreshRoomTemperature(room, now))
                 .thenReturn(HeatingPlannerMeasurementService.LatestMeasurement.missing());
+
+        assertThat(service.currentCommand(link, now)).isEmpty();
+    }
+
+    @Test
+    void suppressesCommandForExcludedRoomWithSimulatedPoints() {
+        point.setStatus(HeatingPlannerPlanPointStatus.SIMULATED);
 
         assertThat(service.currentCommand(link, now)).isEmpty();
     }

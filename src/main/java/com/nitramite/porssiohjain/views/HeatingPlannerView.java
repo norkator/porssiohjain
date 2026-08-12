@@ -340,7 +340,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             VerticalLayout content = new VerticalLayout(
                     new Paragraph("Heating Planner will send the active plan's floor setpoints to the selected Zigbee thermostats."),
                     new Span("Plan: " + readiness.candidatePlanVersion()),
-                    new Span("Fresh room and floor sensors, learned-model confidence, gateway state, acknowledgement, and plan coverage have been verified."));
+                    new Span(readiness.issues().isEmpty()
+                            ? "Fresh room and floor sensors, learned-model confidence, gateway state, acknowledgement, and plan coverage have been verified."
+                            : "Only rooms passing sensor, model, gateway, acknowledgement, and plan checks will be controlled. Excluded rooms remain on fallback: "
+                            + String.join("; ", readiness.issues())));
             content.setPadding(false);
             Button confirm = new Button("Enable control", click -> {
                 try {
@@ -709,14 +712,21 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         }
         var readiness = service.readiness(accountId, site.getId(), Instant.now());
         if (readiness.active()) {
+            String excludedRooms = readiness.issues().stream()
+                    .filter(issue -> issue.contains(":"))
+                    .collect(java.util.stream.Collectors.joining("; "));
             status.setText("ACTIVE — automatic recalculation runs every 15 minutes"
                     + (readiness.lastAutomaticActivationAt() == null ? ""
                     : "; last automatic activation " + formatInstant(readiness.lastAutomaticActivationAt()))
                     + (readiness.lastAutomationError() == null ? ""
-                    : "; latest automation warning: " + readiness.lastAutomationError()));
+                    : "; latest automation warning: " + readiness.lastAutomationError())
+                    + (excludedRooms.isEmpty() ? "" : "; excluded rooms remain on fallback: " + excludedRooms));
             status.getElement().getThemeList().add("badge success");
         } else if (readiness.ready()) {
-            status.setText("Ready — all activation checks pass. Review and explicitly enable control when desired.");
+            status.setText(readiness.issues().isEmpty()
+                    ? "Ready — all activation checks pass. Review and explicitly enable control when desired."
+                    : "Partially ready — ready rooms can use active control; excluded rooms remain on fallback. "
+                    + String.join("; ", readiness.issues()));
             status.getElement().getThemeList().add("badge contrast");
         } else {
             status.setText("Not ready — " + String.join("; ", readiness.issues()));
