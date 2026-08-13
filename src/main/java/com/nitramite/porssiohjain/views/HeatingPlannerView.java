@@ -147,6 +147,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         heading.setAlignItems(Alignment.CENTER);
 
         Paragraph summary = new Paragraph("Whole-house plan · charge floor heating when electricity is cheap and recommend wood burning before expensive periods");
+        Span plannerWeatherGateStatus = new Span("Select a site to check the planner weather gate.");
+        VerticalLayout plannerWeatherGatePanel = new VerticalLayout(new H3("Planner weather gate"), plannerWeatherGateStatus);
+        plannerWeatherGatePanel.setPadding(false);
+        plannerWeatherGatePanel.setSpacing(false);
+        plannerWeatherGatePanel.setWidthFull();
+        plannerWeatherGatePanel.getStyle().set("margin", "var(--lumo-space-s) 0 var(--lumo-space-m) 0");
 
         ComboBox<SiteEntity> siteSelect = new ComboBox<>("Site");
         siteSelect.setItems(sites);
@@ -252,6 +258,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             List<SiteWeatherEntity> forecast = forecastForHorizon(selectedSite);
             MarketSeries marketSeries = marketSeries(account, selectedSite, decimalOrDefault(taxPercent.getValue(), "25.50"),
                     transferContract.getValue(), forecast);
+            refreshPlannerWeatherGateStatus(plannerWeatherGateStatus, marketSeries.points(),
+                    plannerWeatherThreshold.getValue());
             HeatingPlanSimulationService.PriceThresholds priceThresholds;
             try {
                 priceThresholds = simulationService.calculateDynamicPriceThresholds(marketSeries.points(),
@@ -601,7 +609,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 thermostats, temperatureSensors, floorSensors, transferContracts);
         calculate.run();
 
-        card.add(back, heading, summary, activeControlPanel, siteConfiguration, roomConfiguration, recentMeasurements, stoveConfiguration,
+        card.add(back, heading, summary, plannerWeatherGatePanel, activeControlPanel, siteConfiguration, roomConfiguration, recentMeasurements, stoveConfiguration,
                 stoveHeatProfileConfiguration, recalculate, planHost);
         add(card);
     }
@@ -1324,6 +1332,40 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return "inactive — coldest forecast " + decimalDisplay(coldest.doubleValue())
                 + " °C is not below " + decimalDisplay(threshold.doubleValue())
                 + " °C, so existing heating controls keep priority";
+    }
+
+    private void refreshPlannerWeatherGateStatus(Span status, List<HeatingPlanSimulationService.MarketPoint> market,
+                                                 Double plannerWeatherThreshold) {
+        status.getElement().getThemeList().clear();
+        status.getStyle()
+                .set("display", "inline-block")
+                .set("white-space", "normal")
+                .set("overflow-wrap", "anywhere");
+        if (market == null || market.isEmpty()) {
+            status.setText("WEATHER GATE OFF — no today-and-tomorrow forecast points are available.");
+            status.getElement().getThemeList().add("badge warning");
+            return;
+        }
+        BigDecimal threshold = BigDecimal.valueOf(plannerWeatherThreshold == null ? 5.0 : plannerWeatherThreshold);
+        BigDecimal coldest = market.stream()
+                .map(HeatingPlanSimulationService.MarketPoint::outdoorTemperature)
+                .filter(java.util.Objects::nonNull)
+                .min(BigDecimal::compareTo)
+                .orElse(null);
+        if (coldest == null) {
+            status.setText("WEATHER GATE OFF — no outdoor-temperature forecast value is available.");
+            status.getElement().getThemeList().add("badge warning");
+            return;
+        }
+        if (coldest.compareTo(threshold) < 0) {
+            status.setText("WEATHER GATE ACTIVE — forecast " + decimalDisplay(coldest.doubleValue())
+                    + " °C is below configured " + decimalDisplay(threshold.doubleValue()) + " °C.");
+            status.getElement().getThemeList().add("badge success");
+            return;
+        }
+        status.setText("WEATHER GATE OFF — forecast " + decimalDisplay(coldest.doubleValue())
+                + " °C is not below configured " + decimalDisplay(threshold.doubleValue()) + " °C.");
+        status.getElement().getThemeList().add("badge warning");
     }
 
     private HeatingPlanSimulationService.SimulationRequest simulationRequest(boolean stoveLoaded, LocalTime availableFrom,
