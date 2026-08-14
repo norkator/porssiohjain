@@ -16,6 +16,7 @@ import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.PushNotificationTokenRepository;
 import com.nitramite.porssiohjain.entity.repository.TokenRepository;
+import com.nitramite.porssiohjain.entity.repository.ZigbeeGatewayStatusRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class AdminAccountService {
     private final DeviceRepository deviceRepository;
     private final PushNotificationTokenRepository pushNotificationTokenRepository;
     private final TokenRepository tokenRepository;
+    private final ZigbeeGatewayStatusRepository zigbeeGatewayStatusRepository;
 
     @Transactional(readOnly = true)
     public Optional<Instant> getLastActivity(Long accountId) {
@@ -43,6 +45,7 @@ public class AdminAccountService {
         return Stream.of(
                         Optional.ofNullable(account.getUpdatedAt()),
                         deviceRepository.findLatestLastCommunicationByAccountId(accountId),
+                        zigbeeGatewayStatusRepository.findLatestLastSeenByAccountId(accountId),
                         pushNotificationTokenRepository.findLatestLastSeenAtByAccountId(accountId),
                         tokenRepository.findLatestExpiresAtByAccountId(accountId)
                 )
