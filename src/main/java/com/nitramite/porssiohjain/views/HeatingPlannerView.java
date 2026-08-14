@@ -256,9 +256,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             planHost.removeAll();
             SiteEntity selectedSite = siteSelect.getValue();
             List<SiteWeatherEntity> forecast = forecastForHorizon(selectedSite);
-            Instant calculationTime = Instant.now();
             MarketSeries marketSeries = marketSeries(account, selectedSite, decimalOrDefault(taxPercent.getValue(), "25.50"),
-                    transferContract.getValue(), forecast, calculationTime);
+                    transferContract.getValue(), forecast);
             refreshPlannerWeatherGateStatus(plannerWeatherGateStatus, marketSeries.points(),
                     plannerWeatherThreshold.getValue());
             HeatingPlanSimulationService.PriceThresholds priceThresholds;
@@ -270,6 +269,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 planHost.add(new Paragraph(ex.getMessage()));
                 return;
             }
+            Instant calculationTime = Instant.now();
             List<RoomPlan> roomPlans = roomRows.stream()
                     .map(room -> {
                         MeasurementInputs measurements = measurementInputs(room, measurementService, calculationTime);
@@ -1481,22 +1481,20 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private MarketSeries marketSeries(com.nitramite.porssiohjain.entity.AccountEntity account, SiteEntity site,
                                       BigDecimal taxPercent, ElectricityContractEntity transferContract,
-                                      List<SiteWeatherEntity> forecast, Instant now) {
+                                      List<SiteWeatherEntity> forecast) {
         ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
         ZonedDateTime end = start.plusDays(2);
         if (account == null) {
-            return fallbackMarketSeries(start, forecast, "fallback prices because account is unavailable", now);
+            return fallbackMarketSeries(start, forecast, "fallback prices because account is unavailable");
         }
         String marketIndex = NordpoolMarket.normalize(account.getMarketIndexName());
         List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(marketIndex, start.toInstant(), end.toInstant());
         if (prices.isEmpty()) {
-            return fallbackMarketSeries(start, forecast,
-                    "fallback prices because Nordpool rows are missing for " + marketIndex, now);
+            return fallbackMarketSeries(start, forecast, "fallback prices because Nordpool rows are missing for " + marketIndex);
         }
         ZoneId zone = zoneForSite(site);
         BigDecimal taxMultiplier = BigDecimal.ONE.add(taxPercent.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP));
         List<HeatingPlanSimulationService.MarketPoint> points = prices.stream()
-                .filter(price -> price.getDeliveryEnd().isAfter(now))
                 .sorted(Comparator.comparing(NordpoolEntity::getDeliveryStart))
                 .map(price -> {
                     BigDecimal nordpoolWithTax = price.getPriceFi()
@@ -1515,8 +1513,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 + " (" + points.size() + " rows)");
     }
 
-    private MarketSeries fallbackMarketSeries(ZonedDateTime start, List<SiteWeatherEntity> forecast, String reason,
-                                              Instant now) {
+    private MarketSeries fallbackMarketSeries(ZonedDateTime start, List<SiteWeatherEntity> forecast, String reason) {
         List<HeatingPlanSimulationService.MarketPoint> market = new ArrayList<>();
         for (int hour = 0; hour < 48; hour++) {
             int localHour = start.plusHours(hour).getHour();
@@ -1524,9 +1521,6 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     : localHour >= 17 && localHour < 21 ? new BigDecimal("31.0")
                     : localHour >= 1 && localHour < 6 ? new BigDecimal("3.5") : new BigDecimal("11.0");
             Instant time = start.plusHours(hour).toInstant();
-            if (!time.plus(Duration.ofHours(1)).isAfter(now)) {
-                continue;
-            }
             WeatherValues weather = weatherAt(forecast, time, localHour);
             market.add(new HeatingPlanSimulationService.MarketPoint(time, price, weather.temperature(), weather.windSpeedMs()));
         }
