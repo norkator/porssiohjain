@@ -28,6 +28,7 @@ import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.PushNotificationService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerConfigurationService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerActiveControlService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerMeasurementService;
@@ -79,6 +80,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -106,6 +108,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                               HeatingPlannerThermalModelService thermalModelService,
                               HeatingPlannerActiveControlService activeControlService,
                               HeatingPlannerPlanService planService,
+                              PushNotificationService pushNotificationService,
                               ZigbeeDeviceMeasurementRepository measurementRepository) {
         this.authService = authService;
         this.i18n = i18n;
@@ -206,6 +209,40 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         NumberField releaseDuration = numberField("Heat release duration (hours)", 6, 0.25, 48);
         NumberField plannerWeatherThreshold = numberField("Planner active below (°C)", 5, -40, 40);
         NumberField woodWeatherThreshold = numberField("Recommend wood below (°C)", 0, -40, 40);
+        Button testWoodNotification = new Button("Send test wood-stove notification", VaadinIcon.BELL.create());
+        testWoodNotification.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        testWoodNotification.getElement().setAttribute("title",
+                "Sends the real wood-burning command notification to your registered devices without changing a plan.");
+        testWoodNotification.addClickListener(event -> {
+            SiteEntity selectedSite = siteSelect.getValue();
+            if (account == null || selectedSite == null) {
+                showError("Select a site before sending a test notification.");
+                return;
+            }
+            String roomName = roomRows.stream()
+                    .filter(room -> room.heatSource() == HeatingPlannerHeatSourceType.WOOD_STOVE)
+                    .map(RoomOverview::room)
+                    .filter(name -> name != null && !name.isBlank())
+                    .findFirst().orElse("Living room");
+            ZoneId zone = selectedSite.getTimezone() == null || selectedSite.getTimezone().isBlank()
+                    ? ZONE : ZoneId.of(selectedSite.getTimezone());
+            ZonedDateTime notifyAt = ZonedDateTime.now(zone);
+            long delayMinutes = Math.round(valueOrDefault(releaseDelay.getValue(), 0.75) * 60);
+            long durationMinutes = Math.round(valueOrDefault(releaseDuration.getValue(), 6.0) * 60);
+            ZonedDateTime releaseStartsAt = notifyAt.plusMinutes(delayMinutes);
+            Locale locale = account.getLocale() == null || account.getLocale().isBlank()
+                    ? Locale.ENGLISH : Locale.of(account.getLocale());
+            boolean sent = pushNotificationService.sendHeatingPlannerWoodRecommendationTest(
+                    account, selectedSite.getId(), roomName,
+                    decimalOrDefault(woodAmount.getValue(), "8.00"), notifyAt,
+                    releaseStartsAt, releaseStartsAt.plusMinutes(durationMinutes), locale);
+            if (sent) {
+                Notification.show("Test wood-stove notification sent.", 4000, Notification.Position.BOTTOM_CENTER)
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } else {
+                showError("Test notification could not be sent. Check push notification setup and registered devices.");
+            }
+        });
         FormLayout stoveForm = new FormLayout(loaded, availableFrom, availableTo);
         stoveForm.setWidthFull();
         stoveForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("650px", 3));
@@ -213,7 +250,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         stoveConfiguration.setWidthFull();
         stoveConfiguration.setOpened(false);
         FormLayout stoveHeatProfileForm = new FormLayout(woodAmount, releaseDelay, releaseDuration,
-                plannerWeatherThreshold, woodWeatherThreshold);
+                plannerWeatherThreshold, woodWeatherThreshold, testWoodNotification);
         stoveHeatProfileForm.setWidthFull();
         stoveHeatProfileForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("650px", 3));
@@ -679,6 +716,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         details.setWidthFull();
         details.setOpened(false);
         return details;
+    }
+
+    private void showError(String message) {
+        Notification.show(message, 5000, Notification.Position.BOTTOM_CENTER)
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    private double valueOrDefault(Double value, double fallback) {
+        return value == null ? fallback : value;
     }
 
     private RecentMeasurementRow recentMeasurementRow(ZigbeeDeviceMeasurementEntity measurement) {

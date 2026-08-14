@@ -203,4 +203,32 @@ class PushNotificationServiceTest {
         );
         assertEquals("Own production is high", dataCaptor.getValue().get("description"));
     }
+
+    @Test
+    void heatingPlannerWoodTestUsesCommandPayloadWithoutRealRecommendation() {
+        PushNotificationService service = spy(new PushNotificationService(messageSource, pushNotificationTokenRepository));
+        AccountEntity account = new AccountEntity();
+        account.setId(7L);
+        ZonedDateTime notifyAt = ZonedDateTime.parse("2026-01-15T16:15:00+02:00");
+        ZonedDateTime startsAt = notifyAt.plusMinutes(45);
+        ZonedDateTime endsAt = startsAt.plusHours(6);
+        when(messageSource.getMessage(eq("push.heatingPlanner.wood.title"), any(), eq(Locale.ENGLISH)))
+                .thenReturn("Time to light the wood stove");
+        when(messageSource.getMessage(eq("push.heatingPlanner.wood.body"), any(), eq(Locale.ENGLISH)))
+                .thenReturn("Test body");
+        doReturn(true).when(service).sendToAccount(eq(7L), any(), any(), any());
+
+        service.sendHeatingPlannerWoodRecommendationTest(account, 8L, "Living room",
+                new BigDecimal("8.00"), notifyAt, startsAt, endsAt, Locale.ENGLISH);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(service).sendToAccount(eq(7L), eq("Time to light the wood stove"), eq("Test body"), dataCaptor.capture());
+        Map<String, String> data = dataCaptor.getValue();
+        assertEquals("HEATING_PLANNER_WOOD_RECOMMENDATION", data.get("type"));
+        assertEquals("-1", data.get("recommendationId"));
+        assertEquals("true", data.get("test"));
+        assertEquals("Living room", data.get("roomName"));
+        assertEquals("8.00", data.get("woodAmount"));
+    }
 }

@@ -285,6 +285,37 @@ public class PushNotificationService {
         return sendToAccount(account.getId(), title, body, data);
     }
 
+    public boolean sendHeatingPlannerWoodRecommendationTest(
+            AccountEntity account,
+            Long siteId,
+            String roomName,
+            BigDecimal woodAmount,
+            ZonedDateTime notifyAt,
+            ZonedDateTime releaseStartsAt,
+            ZonedDateTime releaseEndsAt,
+            Locale locale) {
+        String title = messageSource.getMessage("push.heatingPlanner.wood.title", null, locale);
+        String body = messageSource.getMessage("push.heatingPlanner.wood.body", new Object[]{
+                woodAmount.stripTrailingZeros().toPlainString(),
+                roomName,
+                releaseStartsAt.format(DateTimeFormatter.ofPattern("HH:mm")),
+                releaseEndsAt.format(DateTimeFormatter.ofPattern("HH:mm"))
+        }, locale);
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "HEATING_PLANNER_WOOD_RECOMMENDATION");
+        data.put("recommendationId", "-1");
+        data.put("siteId", String.valueOf(siteId));
+        data.put("roomId", "-1");
+        data.put("roomName", roomName);
+        data.put("woodAmount", woodAmount.toPlainString());
+        data.put("notifyAt", notifyAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        data.put("releaseStartsAt", releaseStartsAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        data.put("releaseEndsAt", releaseEndsAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        data.put("reason", "Test notification from Heating Planner");
+        data.put("test", "true");
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
     private Map<String, String> zigbeeGatewayData(String type, UUID gatewayId, Instant detectedAt) {
         Map<String, String> data = new LinkedHashMap<>();
         data.put("type", type);
