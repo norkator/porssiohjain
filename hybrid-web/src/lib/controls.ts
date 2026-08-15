@@ -229,6 +229,25 @@ export async function addControlDeviceLink(controlId: number, payload: ControlDe
   return response.json() as Promise<ControlDeviceLink>;
 }
 
+export async function updateControlDeviceLink(linkId: number, payload: ControlDeviceLinkPayload) {
+  const params = new URLSearchParams();
+  params.set("deviceId", String(payload.deviceId));
+  params.set("deviceChannel", String(payload.deviceChannel));
+  if (payload.estimatedPowerKw !== null) {
+    params.set("estimatedPowerKw", String(payload.estimatedPowerKw));
+  }
+
+  const response = await apiFetch(`/control/update/device/${linkId}?${params.toString()}`, {
+    method: "PUT"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<ControlDeviceLink>;
+}
+
 export async function fetchControlHeatPumpLinks(controlId: number) {
   return apiGetJson<ControlHeatPumpLink[]>(`/api/controls/${controlId}/links/heat-pumps`);
 }
