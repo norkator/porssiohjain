@@ -124,6 +124,7 @@ export default function MainMenuView() {
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+  const [isSavingsDialogOpen, setIsSavingsDialogOpen] = useState(false);
   const [monthlySavings, setMonthlySavings] = useState<ControlSavings[]>([]);
   const [savingsError, setSavingsError] = useState(false);
   const [sitesError, setSitesError] = useState(false);
@@ -271,6 +272,36 @@ export default function MainMenuView() {
 
     window.open(ANDROID_APP_URL, "_blank", "noreferrer");
   };
+  const productionUtilizationRatio = totalProductionPeakKw > 0
+    ? Math.min(totalProductionKw / totalProductionPeakKw, 1)
+    : totalProductionKw > 0
+      ? 1
+      : 0;
+  const productionBarWidth = `${productionUtilizationRatio * 100}%`;
+  const consumptionLabel = isStatsLoading ? "--" : formatKw(totalConsumptionKw);
+  const productionLabel = isStatsLoading ? "--" : formatKw(totalProductionKw, true);
+  const productionPeakLabel = isStatsLoading ? "--" : formatKw(totalProductionPeakKw);
+  const netPowerKw = totalProductionKw - totalConsumptionKw;
+  const showAndroidAppLink = session.source !== "android";
+  const currentMonthSavings = monthlySavings.length > 0 ? monthlySavings[monthlySavings.length - 1] : undefined;
+  const hasSavingsData = monthlySavings.some((saving) => saving.scheduleEntryCount > 0 && saving.controlsWithEstimatedPowerCount > 0 && saving.estimatedUsageKwh > 0);
+  const showSavingsEmptyState = !hasSavingsData;
+  const savingsSummaryText = currentMonthSavings && currentMonthSavings.scheduleEntryCount > 0 && currentMonthSavings.controlsWithEstimatedPowerCount > 0
+    ? t("summarySavings", { savings: currentMonthSavings.estimatedSavingsEur.toFixed(2) })
+    : t("summarySavingsUnavailable");
+  const savingsTileDetail = savingsError
+    ? t("savingsUnavailable")
+    : currentMonthSavings && currentMonthSavings.scheduleEntryCount > 0 && currentMonthSavings.controlsWithEstimatedPowerCount > 0
+      ? t("savingsTileDetail", { savings: currentMonthSavings.estimatedSavingsEur.toFixed(2) })
+      : t("savingsEmptyShort");
+  const monthlySavingsValues = monthlySavings.map((saving) => Math.max(saving.estimatedSavingsEur, 0));
+  const maxMonthlySavings = Math.max(...monthlySavingsValues, 0);
+  const savingsChartMaxValue = maxMonthlySavings > 0 ? maxMonthlySavings * 1.15 : 1;
+  const savingsLinePath = buildSavingsLinePath(monthlySavingsValues, savingsChartMaxValue);
+  const savingsAreaPath = buildSavingsAreaPath(monthlySavingsValues, savingsChartMaxValue);
+  const savingsYAxisValues = Array.from({ length: SAVINGS_CHART_Y_AXIS_STEPS + 1 }, (_, index) =>
+    savingsChartMaxValue - (savingsChartMaxValue * index) / SAVINGS_CHART_Y_AXIS_STEPS
+  );
   const siteOwnTiles: SiteOwnTile[] = [
     {
       key: "accountSettings",
@@ -295,6 +326,14 @@ export default function MainMenuView() {
       to: "/electricity-contracts",
       icon: "E",
       hasError: contractsError
+    },
+    {
+      key: "savings",
+      title: tileTitles.savings,
+      detail: savingsTileDetail,
+      onClick: () => setIsSavingsDialogOpen(true),
+      icon: "€",
+      hasError: savingsError
     },
     {
       key: "zigbeeUsbLab",
@@ -325,31 +364,6 @@ export default function MainMenuView() {
         </div>
       </div>
     </>
-  );
-  const productionUtilizationRatio = totalProductionPeakKw > 0
-    ? Math.min(totalProductionKw / totalProductionPeakKw, 1)
-    : totalProductionKw > 0
-      ? 1
-      : 0;
-  const productionBarWidth = `${productionUtilizationRatio * 100}%`;
-  const consumptionLabel = isStatsLoading ? "--" : formatKw(totalConsumptionKw);
-  const productionLabel = isStatsLoading ? "--" : formatKw(totalProductionKw, true);
-  const productionPeakLabel = isStatsLoading ? "--" : formatKw(totalProductionPeakKw);
-  const netPowerKw = totalProductionKw - totalConsumptionKw;
-  const showAndroidAppLink = session.source !== "android";
-  const currentMonthSavings = monthlySavings.length > 0 ? monthlySavings[monthlySavings.length - 1] : undefined;
-  const hasSavingsData = monthlySavings.some((saving) => saving.scheduleEntryCount > 0 && saving.controlsWithEstimatedPowerCount > 0 && saving.estimatedUsageKwh > 0);
-  const showSavingsEmptyState = !hasSavingsData;
-  const savingsSummaryText = currentMonthSavings && currentMonthSavings.scheduleEntryCount > 0 && currentMonthSavings.controlsWithEstimatedPowerCount > 0
-    ? t("summarySavings", { savings: currentMonthSavings.estimatedSavingsEur.toFixed(2) })
-    : t("summarySavingsUnavailable");
-  const monthlySavingsValues = monthlySavings.map((saving) => Math.max(saving.estimatedSavingsEur, 0));
-  const maxMonthlySavings = Math.max(...monthlySavingsValues, 0);
-  const savingsChartMaxValue = maxMonthlySavings > 0 ? maxMonthlySavings * 1.15 : 1;
-  const savingsLinePath = buildSavingsLinePath(monthlySavingsValues, savingsChartMaxValue);
-  const savingsAreaPath = buildSavingsAreaPath(monthlySavingsValues, savingsChartMaxValue);
-  const savingsYAxisValues = Array.from({ length: SAVINGS_CHART_Y_AXIS_STEPS + 1 }, (_, index) =>
-    savingsChartMaxValue - (savingsChartMaxValue * index) / SAVINGS_CHART_Y_AXIS_STEPS
   );
   const summaryText = (isLoading && isStatsLoading)
     ? t("summaryLoading")
@@ -767,130 +781,6 @@ export default function MainMenuView() {
           <NordpoolTodayChartCard />
         </section>
 
-        {!savingsError ? (
-          <section className="mb-12">
-            <div className="app-card p-4 sm:p-6">
-              <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("savingsEyebrow")}</p>
-                  <h2 className="font-headline text-3xl font-black tracking-tight text-on-surface">{t("savingsTitle")}</h2>
-                </div>
-                {currentMonthSavings ? (
-                  <div className="text-left sm:text-right">
-                    <p className="text-3xl font-black text-on-surface">{currentMonthSavings.estimatedSavingsEur.toFixed(2)} €</p>
-                    <p className="text-xs text-on-surface-variant">{t("savingsThisMonth")}</p>
-                  </div>
-                ) : null}
-              </div>
-
-              {showSavingsEmptyState ? (
-                <p className="rounded-lg bg-surface-container-high px-4 py-3 text-sm text-on-surface-variant">
-                  {t("savingsEmpty")}
-                </p>
-              ) : (
-                <div
-                  className="relative rounded-2xl p-2 sm:p-3"
-                  style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
-                >
-                  <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
-                    <svg
-                      aria-label={t("savingsTitle")}
-                      className="h-auto min-w-[34rem] aspect-[72/17] w-[34rem] sm:min-w-0 sm:w-full"
-                      role="img"
-                      viewBox={`0 0 ${SAVINGS_CHART_WIDTH} ${SAVINGS_CHART_HEIGHT}`}
-                    >
-                      <defs>
-                        <linearGradient id="monthly-savings-fill" x1="0" x2="0" y1="0" y2="1">
-                          <stop offset="0%" stopColor="rgb(var(--color-secondary) / 0.3)" />
-                          <stop offset="100%" stopColor="rgb(var(--color-secondary) / 0.04)" />
-                        </linearGradient>
-                      </defs>
-
-                      <rect
-                        fill="rgb(var(--chart-plot-background))"
-                        height={SAVINGS_CHART_HEIGHT - SAVINGS_CHART_PADDING_TOP - SAVINGS_CHART_PADDING_BOTTOM}
-                        rx="18"
-                        width={SAVINGS_CHART_WIDTH - SAVINGS_CHART_PADDING_LEFT - SAVINGS_CHART_PADDING_RIGHT}
-                        x={SAVINGS_CHART_PADDING_LEFT}
-                        y={SAVINGS_CHART_PADDING_TOP}
-                      />
-
-                      {savingsYAxisValues.map((value, index) => {
-                        const y = SAVINGS_CHART_PADDING_TOP
-                          + ((SAVINGS_CHART_HEIGHT - SAVINGS_CHART_PADDING_TOP - SAVINGS_CHART_PADDING_BOTTOM) * index) / SAVINGS_CHART_Y_AXIS_STEPS;
-
-                        return (
-                          <g key={value}>
-                            <line
-                              stroke="rgb(var(--color-outline-variant) / 0.6)"
-                              strokeDasharray="6 8"
-                              strokeWidth="1"
-                              x1={SAVINGS_CHART_PADDING_LEFT}
-                              x2={SAVINGS_CHART_WIDTH - SAVINGS_CHART_PADDING_RIGHT}
-                              y1={y}
-                              y2={y}
-                            />
-                            <text fill="rgb(var(--color-on-surface-variant))" fontSize={SAVINGS_CHART_LABEL_SIZE} textAnchor="end" x={SAVINGS_CHART_PADDING_LEFT - 8} y={y + 3}>
-                              {formatSavingsAmount(value)}
-                            </text>
-                          </g>
-                        );
-                      })}
-
-                      {monthlySavings.map((saving, index) => {
-                        const point = getSavingsChartPoint(monthlySavingsValues[index], index, monthlySavingsValues.length, savingsChartMaxValue);
-                        const month = new Date(saving.from).toLocaleDateString(locale, { month: "short" });
-
-                        return (
-                          <text
-                            fill="rgb(var(--color-on-surface-variant))"
-                            fontSize={SAVINGS_CHART_LABEL_SIZE}
-                            key={saving.from}
-                            textAnchor={index === monthlySavings.length - 1 ? "end" : index === 0 ? "start" : "middle"}
-                            x={point.x}
-                            y={SAVINGS_CHART_HEIGHT - 14}
-                          >
-                            {month}
-                          </text>
-                        );
-                      })}
-
-                      <path d={savingsAreaPath} fill="url(#monthly-savings-fill)" />
-                      <path d={savingsLinePath} fill="none" stroke="rgb(var(--color-primary))" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
-
-                      {monthlySavings.map((saving, index) => {
-                        const positiveSavings = monthlySavingsValues[index];
-                        const point = getSavingsChartPoint(positiveSavings, index, monthlySavingsValues.length, savingsChartMaxValue);
-
-                        return (
-                          <g key={`${saving.from}-point`}>
-                            <circle
-                              cx={point.x}
-                              cy={point.y}
-                              fill="rgb(var(--color-secondary-container))"
-                              r="4"
-                              stroke="rgb(var(--color-primary))"
-                              strokeWidth="2"
-                            />
-                            <title>{`${positiveSavings.toFixed(2)} €`}</title>
-                          </g>
-                        );
-                      })}
-                    </svg>
-                  </div>
-                </div>
-              )}
-
-              <p className="mt-5 text-xs leading-5 text-on-surface-variant">
-                {t("savingsBasis", {
-                  controls: currentMonthSavings?.controlsWithEstimatedPowerCount ?? 0,
-                  total: currentMonthSavings?.controlCount ?? 0
-                })}
-              </p>
-            </div>
-          </section>
-        ) : null}
-
         <section className="mb-12">
           <div className="app-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div>
@@ -921,7 +811,7 @@ export default function MainMenuView() {
             <span className="h-1 w-8 rounded-full bg-primary" />
             {t("siteOwn")}
           </h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
             {siteOwnTiles.map((tile) => (
               tile.to ? (
                 <Link className={siteOwnTileClassName} key={tile.key} to={tile.to}>
@@ -1006,6 +896,131 @@ export default function MainMenuView() {
           {feedbackMessage}
         </div>
       ) : null}
+
+      <AppDialog
+        description={t("savingsBasis", {
+          controls: currentMonthSavings?.controlsWithEstimatedPowerCount ?? 0,
+          total: currentMonthSavings?.controlCount ?? 0
+        })}
+        isOpen={isSavingsDialogOpen}
+        maxWidthClassName="max-w-5xl"
+        onClose={() => setIsSavingsDialogOpen(false)}
+        title={t("savingsTitle")}
+      >
+        <div className="space-y-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("savingsEyebrow")}</p>
+            {currentMonthSavings ? (
+              <div className="text-left sm:text-right">
+                <p className="text-3xl font-black text-on-surface">{currentMonthSavings.estimatedSavingsEur.toFixed(2)} €</p>
+                <p className="text-xs text-on-surface-variant">{t("savingsThisMonth")}</p>
+              </div>
+            ) : null}
+          </div>
+
+          {savingsError ? (
+            <p className="rounded-lg bg-error-container/50 px-4 py-3 text-sm text-on-error-container">
+              {t("savingsUnavailable")}
+            </p>
+          ) : showSavingsEmptyState ? (
+            <p className="rounded-lg bg-surface-container-high px-4 py-3 text-sm text-on-surface-variant">
+              {t("savingsEmpty")}
+            </p>
+          ) : (
+            <div
+              className="relative rounded-2xl p-2 sm:p-3"
+              style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
+            >
+              <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
+                <svg
+                  aria-label={t("savingsTitle")}
+                  className="h-auto min-w-[34rem] aspect-[72/17] w-[34rem] sm:min-w-0 sm:w-full"
+                  role="img"
+                  viewBox={`0 0 ${SAVINGS_CHART_WIDTH} ${SAVINGS_CHART_HEIGHT}`}
+                >
+                  <defs>
+                    <linearGradient id="monthly-savings-dialog-fill" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="rgb(var(--color-secondary) / 0.3)" />
+                      <stop offset="100%" stopColor="rgb(var(--color-secondary) / 0.04)" />
+                    </linearGradient>
+                  </defs>
+
+                  <rect
+                    fill="rgb(var(--chart-plot-background))"
+                    height={SAVINGS_CHART_HEIGHT - SAVINGS_CHART_PADDING_TOP - SAVINGS_CHART_PADDING_BOTTOM}
+                    rx="18"
+                    width={SAVINGS_CHART_WIDTH - SAVINGS_CHART_PADDING_LEFT - SAVINGS_CHART_PADDING_RIGHT}
+                    x={SAVINGS_CHART_PADDING_LEFT}
+                    y={SAVINGS_CHART_PADDING_TOP}
+                  />
+
+                  {savingsYAxisValues.map((value, index) => {
+                    const y = SAVINGS_CHART_PADDING_TOP
+                      + ((SAVINGS_CHART_HEIGHT - SAVINGS_CHART_PADDING_TOP - SAVINGS_CHART_PADDING_BOTTOM) * index) / SAVINGS_CHART_Y_AXIS_STEPS;
+
+                    return (
+                      <g key={value}>
+                        <line
+                          stroke="rgb(var(--color-outline-variant) / 0.6)"
+                          strokeDasharray="6 8"
+                          strokeWidth="1"
+                          x1={SAVINGS_CHART_PADDING_LEFT}
+                          x2={SAVINGS_CHART_WIDTH - SAVINGS_CHART_PADDING_RIGHT}
+                          y1={y}
+                          y2={y}
+                        />
+                        <text fill="rgb(var(--color-on-surface-variant))" fontSize={SAVINGS_CHART_LABEL_SIZE} textAnchor="end" x={SAVINGS_CHART_PADDING_LEFT - 8} y={y + 3}>
+                          {formatSavingsAmount(value)}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {monthlySavings.map((saving, index) => {
+                    const point = getSavingsChartPoint(monthlySavingsValues[index], index, monthlySavingsValues.length, savingsChartMaxValue);
+                    const month = new Date(saving.from).toLocaleDateString(locale, { month: "short" });
+
+                    return (
+                      <text
+                        fill="rgb(var(--color-on-surface-variant))"
+                        fontSize={SAVINGS_CHART_LABEL_SIZE}
+                        key={saving.from}
+                        textAnchor={index === monthlySavings.length - 1 ? "end" : index === 0 ? "start" : "middle"}
+                        x={point.x}
+                        y={SAVINGS_CHART_HEIGHT - 14}
+                      >
+                        {month}
+                      </text>
+                    );
+                  })}
+
+                  <path d={savingsAreaPath} fill="url(#monthly-savings-dialog-fill)" />
+                  <path d={savingsLinePath} fill="none" stroke="rgb(var(--color-primary))" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
+
+                  {monthlySavings.map((saving, index) => {
+                    const positiveSavings = monthlySavingsValues[index];
+                    const point = getSavingsChartPoint(positiveSavings, index, monthlySavingsValues.length, savingsChartMaxValue);
+
+                    return (
+                      <g key={`${saving.from}-point`}>
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          fill="rgb(var(--color-secondary-container))"
+                          r="4"
+                          stroke="rgb(var(--color-primary))"
+                          strokeWidth="2"
+                        />
+                        <title>{`${positiveSavings.toFixed(2)} €`}</title>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+            </div>
+          )}
+        </div>
+      </AppDialog>
 
       <AppDialog
         description={t("feedbackDescription")}
