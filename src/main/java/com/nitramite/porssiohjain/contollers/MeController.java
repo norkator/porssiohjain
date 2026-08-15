@@ -142,10 +142,10 @@ public class MeController {
     public ResponseEntity<byte[]> exportMe() {
         Long accountId = authContext.getAccountId();
         byte[] export = accountDataExportService.exportAccountData(accountId);
-        String filename = "porssiohjain-account-" + accountService.getUuidById(accountId) + "-export.json";
+        String filename = "porssiohjain-account-" + accountService.getUuidById(accountId) + "-export.zip";
 
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_JSON)
+                .contentType(MediaType.parseMediaType("application/zip"))
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(filename)
                         .build()

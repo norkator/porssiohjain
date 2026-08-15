@@ -307,7 +307,7 @@
     "passwordFailed": "Password change failed",
     "exportEyebrow": "Data export",
     "exportTitle": "Download stored information",
-    "exportDescription": "Download a JSON file containing your account and related stored data.",
+    "exportDescription": "Download a ZIP file containing your account and related stored data.",
     "exportButton": "Download data",
     "exportDownloading": "Preparing download...",
     "exportFailed": "Failed to download account data.",

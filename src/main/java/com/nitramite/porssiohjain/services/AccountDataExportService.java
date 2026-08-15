@@ -11,16 +11,22 @@
 
 package com.nitramite.porssiohjain.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.DeviceAcCommandLogEntity;
+import com.nitramite.porssiohjain.entity.HeatingPlannerPlanPointEntity;
+import com.nitramite.porssiohjain.entity.PowerLimitHistoryEntity;
+import com.nitramite.porssiohjain.entity.ProductionHistoryEntity;
+import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PersistenceUnitUtil;
 import jakarta.persistence.metamodel.EntityType;
+import jakarta.persistence.metamodel.IdentifiableType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +35,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -37,18 +45,29 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 @RequiredArgsConstructor
 public class AccountDataExportService {
+
+    private static final int ID_BATCH_SIZE = 500;
+    private static final Set<Class<?>> HIGH_VOLUME_ENTITY_CLASSES = Set.of(
+            DeviceAcCommandLogEntity.class,
+            HeatingPlannerPlanPointEntity.class,
+            PowerLimitHistoryEntity.class,
+            ProductionHistoryEntity.class,
+            ZigbeeDeviceMeasurementEntity.class
+    );
 
     private final EntityManager entityManager;
     private final EntityManagerFactory entityManagerFactory;
@@ -62,36 +81,33 @@ public class AccountDataExportService {
                 .toList();
         Set<Class<?>> exportableEntityClasses = findExportableEntityClasses(entityTypes);
 
-        Map<Class<?>, List<Object>> entityRows = new LinkedHashMap<>();
         Map<Class<?>, Set<Object>> ownedIds = new LinkedHashMap<>();
         for (EntityType<?> entityType : entityTypes) {
             if (!exportableEntityClasses.contains(entityType.getJavaType())) {
                 continue;
             }
-            List<Object> rows = entityManager.createQuery(
-                            "select e from " + entityType.getName() + " e",
-                            Object.class
-                    )
-                    .getResultList();
-            entityRows.put(entityType.getJavaType(), rows);
+            if (isHighVolumeEntity(entityType.getJavaType())) {
+                continue;
+            }
             ownedIds.put(entityType.getJavaType(), new LinkedHashSet<>());
         }
+        ownedIds.computeIfAbsent(AccountEntity.class, ignored -> new LinkedHashSet<>()).add(accountId);
 
         boolean changed;
         do {
             changed = false;
-            for (Map.Entry<Class<?>, List<Object>> entry : entityRows.entrySet()) {
-                Class<?> entityClass = entry.getKey();
-                Set<Object> includedIds = ownedIds.get(entityClass);
-                for (Object row : entry.getValue()) {
-                    Object rowId = persistenceUnitUtil.getIdentifier(row);
-                    if (rowId == null || includedIds.contains(rowId)) {
-                        continue;
-                    }
-                    if (belongsToAccount(row, entityClass, accountId, ownedIds, persistenceUnitUtil)) {
-                        includedIds.add(rowId);
-                        changed = true;
-                    }
+            for (EntityType<?> entityType : entityTypes) {
+                Class<?> entityClass = entityType.getJavaType();
+                if (!exportableEntityClasses.contains(entityClass)) {
+                    continue;
+                }
+                if (isHighVolumeEntity(entityClass)) {
+                    continue;
+                }
+
+                Set<Object> discoveredIds = findOwnedIds(entityType, accountId, ownedIds);
+                if (ownedIds.get(entityClass).addAll(discoveredIds)) {
+                    changed = true;
                 }
             }
         } while (changed);
@@ -100,73 +116,50 @@ public class AccountDataExportService {
         export.put("schemaVersion", 1);
         export.put("generatedAt", Instant.now());
         export.put("accountId", accountId);
-        export.put("tables", buildTables(entityRows, ownedIds, persistenceUnitUtil));
+        export.put("tables", buildTables(entityTypes, ownedIds, persistenceUnitUtil));
+        export.put("omittedHighVolumeTables", buildHighVolumeTableSummaries(entityTypes, exportableEntityClasses, accountId));
 
         try {
-            return objectMapper.writerWithDefaultPrettyPrinter()
-                    .writeValueAsString(export)
-                    .getBytes(StandardCharsets.UTF_8);
-        } catch (JsonProcessingException ex) {
+            return buildZipExport(export);
+        } catch (IOException ex) {
             throw new IllegalStateException("Failed to serialize account data export", ex);
         }
     }
 
-    private boolean belongsToAccount(
-            Object row,
-            Class<?> entityClass,
-            Long accountId,
-            Map<Class<?>, Set<Object>> ownedIds,
-            PersistenceUnitUtil persistenceUnitUtil
-    ) {
-        if (AccountEntity.class.equals(entityClass)) {
-            return Objects.equals(persistenceUnitUtil.getIdentifier(row), accountId);
+    private byte[] buildZipExport(Map<String, Object> export) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            zip.putNextEntry(new ZipEntry("README.txt"));
+            zip.write("""
+                    Pörssiohjain account data export
+
+                    account-data.json contains account settings, devices, controls, planner settings, and other account-owned configuration data.
+                    Some high-volume time-series data is summarized in omittedHighVolumeTables with row counts and time ranges instead of being included row by row.
+                    This export is intended for reviewing the personal information and configuration data stored for your account.
+                    """.getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+
+            zip.putNextEntry(new ZipEntry("account-data.json"));
+            zip.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(export));
+            zip.closeEntry();
         }
-
-        for (Field field : getFields(entityClass)) {
-            if (Modifier.isStatic(field.getModifiers())) {
-                continue;
-            }
-
-            Object value = readField(field, row);
-            if (value == null) {
-                continue;
-            }
-
-            if (AccountEntity.class.isAssignableFrom(field.getType())) {
-                return Objects.equals(persistenceUnitUtil.getIdentifier(value), accountId);
-            }
-
-            if (isAccountIdField(field) && Objects.equals(value, accountId)) {
-                return true;
-            }
-
-            if (isEntityReference(field) && isOwnedReference(field.getType(), value, ownedIds, persistenceUnitUtil)) {
-                return true;
-            }
-
-            if (isForeignKeyToOwnedEntity(field, value, ownedIds)) {
-                return true;
-            }
-        }
-
-        return false;
+        return output.toByteArray();
     }
 
     private List<Map<String, Object>> buildTables(
-            Map<Class<?>, List<Object>> entityRows,
+            List<EntityType<?>> entityTypes,
             Map<Class<?>, Set<Object>> ownedIds,
             PersistenceUnitUtil persistenceUnitUtil
     ) {
         List<Map<String, Object>> tables = new ArrayList<>();
-        for (Map.Entry<Class<?>, List<Object>> entry : entityRows.entrySet()) {
-            Class<?> entityClass = entry.getKey();
+        for (EntityType<?> entityType : entityTypes) {
+            Class<?> entityClass = entityType.getJavaType();
             Set<Object> ids = ownedIds.get(entityClass);
             if (ids == null || ids.isEmpty()) {
                 continue;
             }
 
-            List<Map<String, Object>> rows = entry.getValue().stream()
-                    .filter(row -> ids.contains(persistenceUnitUtil.getIdentifier(row)))
+            List<Map<String, Object>> rows = findRowsByIds(entityType, ids).stream()
                     .sorted(Comparator.comparing(row -> String.valueOf(persistenceUnitUtil.getIdentifier(row))))
                     .map(row -> serializeEntity(row, entityClass, persistenceUnitUtil))
                     .toList();
@@ -178,6 +171,171 @@ public class AccountDataExportService {
             tables.add(table);
         }
         return tables;
+    }
+
+    private List<Map<String, Object>> buildHighVolumeTableSummaries(
+            List<EntityType<?>> entityTypes,
+            Set<Class<?>> exportableEntityClasses,
+            Long accountId
+    ) {
+        List<Map<String, Object>> summaries = new ArrayList<>();
+        for (EntityType<?> entityType : entityTypes) {
+            Class<?> entityClass = entityType.getJavaType();
+            if (!exportableEntityClasses.contains(entityClass) || !isHighVolumeEntity(entityClass)) {
+                continue;
+            }
+
+            String accountPredicate = accountPredicate(entityClass);
+            if (accountPredicate == null) {
+                continue;
+            }
+
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("entity", entityClass.getSimpleName());
+            summary.put("reason", "High-volume time-series data is omitted from account information export to avoid excessive memory and file size.");
+            summary.put("rowCount", countRows(entityType, accountPredicate, accountId));
+
+            String timeField = summaryTimeField(entityClass);
+            if (timeField != null) {
+                Object[] range = timeRange(entityType, accountPredicate, accountId, timeField);
+                summary.put("earliest", range[0]);
+                summary.put("latest", range[1]);
+            }
+
+            summaries.add(summary);
+        }
+        return summaries;
+    }
+
+    private long countRows(EntityType<?> entityType, String accountPredicate, Long accountId) {
+        return entityManager.createQuery(
+                        "select count(e) from " + entityType.getName() + " e where " + accountPredicate,
+                        Long.class
+                )
+                .setParameter("accountId", accountId)
+                .getSingleResult();
+    }
+
+    private Object[] timeRange(EntityType<?> entityType, String accountPredicate, Long accountId, String timeField) {
+        Object[] result = entityManager.createQuery(
+                        "select min(e." + timeField + "), max(e." + timeField + ") from "
+                                + entityType.getName() + " e where " + accountPredicate,
+                        Object[].class
+                )
+                .setParameter("accountId", accountId)
+                .getSingleResult();
+        return result != null ? result : new Object[]{null, null};
+    }
+
+    private Set<Object> findOwnedIds(
+            EntityType<?> entityType,
+            Long accountId,
+            Map<Class<?>, Set<Object>> ownedIds
+    ) {
+        String idFieldName = getIdFieldName(entityType);
+        if (idFieldName == null) {
+            return Set.of();
+        }
+
+        Set<Object> ids = new LinkedHashSet<>();
+        Class<?> entityClass = entityType.getJavaType();
+        for (Field field : getFields(entityClass)) {
+            if (Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+
+            if (AccountEntity.class.isAssignableFrom(field.getType())) {
+                ids.addAll(findIdsByQuery(entityType, idFieldName, "e." + field.getName() + ".id = :accountId",
+                        Map.of("accountId", accountId)));
+                continue;
+            }
+
+            if (isAccountIdField(field)) {
+                ids.addAll(findIdsByQuery(entityType, idFieldName, "e." + field.getName() + " = :accountId",
+                        Map.of("accountId", accountId)));
+                continue;
+            }
+
+            if (isEntityReference(field)) {
+                Set<Object> referenceIds = ownedIds.get(field.getType());
+                if (referenceIds != null && !referenceIds.isEmpty()) {
+                    ids.addAll(findIdsByInBatches(entityType, idFieldName, "e." + field.getName() + ".id", referenceIds));
+                }
+                continue;
+            }
+
+            Set<Object> foreignKeyIds = ownedForeignKeyIds(field, ownedIds);
+            if (!foreignKeyIds.isEmpty()) {
+                ids.addAll(findIdsByInBatches(entityType, idFieldName, "e." + field.getName(), foreignKeyIds));
+            }
+        }
+        return ids;
+    }
+
+    private List<Object> findIdsByQuery(
+            EntityType<?> entityType,
+            String idFieldName,
+            String whereClause,
+            Map<String, Object> parameters
+    ) {
+        var query = entityManager.createQuery(
+                "select distinct e." + idFieldName + " from " + entityType.getName() + " e where " + whereClause,
+                Object.class
+        );
+        parameters.forEach(query::setParameter);
+        return query.getResultList();
+    }
+
+    private List<Object> findIdsByInBatches(
+            EntityType<?> entityType,
+            String idFieldName,
+            String expression,
+            Set<Object> candidateIds
+    ) {
+        List<Object> ids = new ArrayList<>();
+        List<Object> candidates = new ArrayList<>(candidateIds);
+        for (int start = 0; start < candidates.size(); start += ID_BATCH_SIZE) {
+            List<Object> batch = candidates.subList(start, Math.min(start + ID_BATCH_SIZE, candidates.size()));
+            ids.addAll(findIdsByQuery(entityType, idFieldName, expression + " in :ids", Map.of("ids", batch)));
+        }
+        return ids;
+    }
+
+    private List<Object> findRowsByIds(EntityType<?> entityType, Set<Object> ids) {
+        String idFieldName = getIdFieldName(entityType);
+        if (idFieldName == null) {
+            return List.of();
+        }
+
+        List<Object> rows = new ArrayList<>();
+        List<Object> idList = new ArrayList<>(ids);
+        for (int start = 0; start < idList.size(); start += ID_BATCH_SIZE) {
+            List<Object> batch = idList.subList(start, Math.min(start + ID_BATCH_SIZE, idList.size()));
+            rows.addAll(entityManager.createQuery(
+                            "select e from " + entityType.getName() + " e where e." + idFieldName + " in :ids",
+                            Object.class
+                    )
+                    .setParameter("ids", batch)
+                    .getResultList());
+        }
+        return rows;
+    }
+
+    private String getIdFieldName(EntityType<?> entityType) {
+        if (entityType instanceof IdentifiableType<?> identifiableType && identifiableType.hasSingleIdAttribute()) {
+            Class<?> idType = identifiableType.getIdType() != null
+                    ? identifiableType.getIdType().getJavaType()
+                    : null;
+            if (idType != null) {
+                return identifiableType.getId(idType).getName();
+            }
+        }
+
+        return getFields(entityType.getJavaType()).stream()
+                .filter(field -> field.isAnnotationPresent(Id.class))
+                .map(Field::getName)
+                .findFirst()
+                .orElse(null);
     }
 
     private Set<Class<?>> findExportableEntityClasses(List<EntityType<?>> entityTypes) {
@@ -239,6 +397,10 @@ public class AccountDataExportService {
     }
 
     private Object serializeValue(Field field, Object value, PersistenceUnitUtil persistenceUnitUtil) {
+        if (value instanceof Collection<?> || value instanceof Map<?, ?>) {
+            return "collection exported through related entity rows";
+        }
+
         if (value == null || isSimpleValue(value)) {
             return value;
         }
@@ -262,35 +424,6 @@ public class AccountDataExportService {
         }
     }
 
-    private boolean isOwnedReference(
-            Class<?> referenceType,
-            Object value,
-            Map<Class<?>, Set<Object>> ownedIds,
-            PersistenceUnitUtil persistenceUnitUtil
-    ) {
-        Set<Object> ids = ownedIds.get(referenceType);
-        return ids != null && ids.contains(persistenceUnitUtil.getIdentifier(value));
-    }
-
-    private boolean isForeignKeyToOwnedEntity(Field field, Object value, Map<Class<?>, Set<Object>> ownedIds) {
-        if (!(value instanceof Long id) || !field.getName().endsWith("Id")) {
-            return false;
-        }
-
-        String prefix = field.getName().substring(0, field.getName().length() - 2);
-        if (prefix.isBlank() || prefix.toLowerCase().contains("account")) {
-            return false;
-        }
-
-        String normalizedPrefix = prefix.toLowerCase();
-        return ownedIds.entrySet().stream().anyMatch(entry -> {
-            String normalizedEntityName = entry.getKey().getSimpleName()
-                    .replace("Entity", "")
-                    .toLowerCase();
-            return normalizedEntityName.equals(normalizedPrefix) && entry.getValue().contains(id);
-        });
-    }
-
     private boolean isForeignKeyToExportableEntity(Field field, Set<Class<?>> exportable) {
         if (!Long.class.equals(field.getType()) || !field.getName().endsWith("Id")) {
             return false;
@@ -305,6 +438,66 @@ public class AccountDataExportService {
         return exportable.stream()
                 .map(entityClass -> entityClass.getSimpleName().replace("Entity", "").toLowerCase())
                 .anyMatch(normalizedPrefix::equals);
+    }
+
+    private Set<Object> ownedForeignKeyIds(Field field, Map<Class<?>, Set<Object>> ownedIds) {
+        if (!Long.class.equals(field.getType()) || !field.getName().endsWith("Id")) {
+            return Set.of();
+        }
+
+        String prefix = field.getName().substring(0, field.getName().length() - 2);
+        if (prefix.isBlank() || prefix.toLowerCase().contains("account")) {
+            return Set.of();
+        }
+
+        String normalizedPrefix = prefix.toLowerCase();
+        return ownedIds.entrySet().stream()
+                .filter(entry -> {
+                    String normalizedEntityName = entry.getKey().getSimpleName()
+                            .replace("Entity", "")
+                            .toLowerCase();
+                    return normalizedEntityName.equals(normalizedPrefix);
+                })
+                .findFirst()
+                .map(Map.Entry::getValue)
+                .orElse(Set.of());
+    }
+
+    private boolean isHighVolumeEntity(Class<?> entityClass) {
+        return HIGH_VOLUME_ENTITY_CLASSES.contains(entityClass);
+    }
+
+    private String accountPredicate(Class<?> entityClass) {
+        for (Field field : getFields(entityClass)) {
+            if (Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            if (AccountEntity.class.isAssignableFrom(field.getType())) {
+                return "e." + field.getName() + ".id = :accountId";
+            }
+            if (isAccountIdField(field)) {
+                return "e." + field.getName() + " = :accountId";
+            }
+        }
+        return null;
+    }
+
+    private String summaryTimeField(Class<?> entityClass) {
+        if (hasField(entityClass, "measuredAt")) {
+            return "measuredAt";
+        }
+        if (hasField(entityClass, "plannedTime")) {
+            return "plannedTime";
+        }
+        if (hasField(entityClass, "createdAt")) {
+            return "createdAt";
+        }
+        return null;
+    }
+
+    private boolean hasField(Class<?> entityClass, String fieldName) {
+        return getFields(entityClass).stream()
+                .anyMatch(field -> field.getName().equals(fieldName));
     }
 
     private boolean isAccountIdField(Field field) {

@@ -117,7 +117,7 @@ export async function downloadAccountExport() {
   const blob = await response.blob();
   const disposition = response.headers.get("Content-Disposition") ?? "";
   const filenameMatch = /filename="?([^"]+)"?/i.exec(disposition);
-  const filename = filenameMatch?.[1] ?? "porssiohjain-account-export.json";
+  const filename = filenameMatch?.[1] ?? "porssiohjain-account-export.zip";
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

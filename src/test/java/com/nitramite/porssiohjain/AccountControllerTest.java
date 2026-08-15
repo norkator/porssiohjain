@@ -14,7 +14,12 @@ package com.nitramite.porssiohjain;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
+import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
+import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
@@ -30,9 +35,13 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.zip.ZipInputStream;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -61,6 +70,12 @@ class AccountControllerTest {
 
     @Autowired
     private AccountRepository accountRepository;
+
+    @Autowired
+    private DeviceRepository deviceRepository;
+
+    @Autowired
+    private ZigbeeDeviceMeasurementRepository zigbeeDeviceMeasurementRepository;
 
     @Autowired
     private AccountService accountService;
@@ -320,18 +335,24 @@ class AccountControllerTest {
     @DisplayName("Should download authenticated account data export")
     void shouldDownloadAccountDataExport() throws Exception {
         AccountEntity created = accountService.createAccount("70.70.70.70", true);
+        AccountEntity other = accountService.createAccount("70.70.70.72", true);
+        DeviceEntity ownDevice = deviceRepository.save(exportTestDevice(created, "Export own device"));
+        DeviceEntity otherDevice = deviceRepository.save(exportTestDevice(other, "Export other device"));
+        zigbeeDeviceMeasurementRepository.save(exportTestMeasurement(created, ownDevice));
+        zigbeeDeviceMeasurementRepository.save(exportTestMeasurement(other, otherDevice));
         String token = authService.login("70.70.70.71", created.getUuid(), created.getSecret()).getToken();
 
-        String content = mockMvc.perform(get("/me/export")
+        byte[] content = mockMvc.perform(get("/me/export")
                         .header("Authorization", token))
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(content().contentTypeCompatibleWith("application/zip"))
                 .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("attachment")))
+                .andExpect(header().string("Content-Disposition", org.hamcrest.Matchers.containsString("-export.zip")))
                 .andReturn()
                 .getResponse()
-                .getContentAsString();
+                .getContentAsByteArray();
 
-        JsonNode export = objectMapper.readTree(content);
+        JsonNode export = objectMapper.readTree(readZipEntry(content, "account-data.json"));
         assertThat(export.get("schemaVersion").asInt()).isEqualTo(1);
         assertThat(export.get("accountId").asLong()).isEqualTo(created.getId());
 
@@ -340,6 +361,82 @@ class AccountControllerTest {
                 .findFirst()
                 .orElseThrow();
         assertThat(accountRows.asText()).isEqualTo("AccountEntity");
+
+        JsonNode deviceTable = findTable(export, "DeviceEntity");
+        assertThat(deviceTable.get("rows").findValues("id").stream().map(JsonNode::asLong).toList())
+                .contains(ownDevice.getId())
+                .doesNotContain(otherDevice.getId());
+
+        assertThat(hasTable(export, "ZigbeeDeviceMeasurementEntity")).isFalse();
+        JsonNode measurementSummary = findOmittedHighVolumeTable(export, "ZigbeeDeviceMeasurementEntity");
+        assertThat(measurementSummary.get("rowCount").asLong()).isEqualTo(1L);
+        assertThat(measurementSummary.get("reason").asText()).contains("High-volume");
+    }
+
+    private DeviceEntity exportTestDevice(AccountEntity account, String name) {
+        return DeviceEntity.builder()
+                .account(account)
+                .deviceName(name)
+                .timezone("Europe/Helsinki")
+                .apiOnline(false)
+                .mqttOnline(false)
+                .build();
+    }
+
+    private ZigbeeDeviceMeasurementEntity exportTestMeasurement(AccountEntity account, DeviceEntity device) {
+        Instant measuredAt = Instant.parse("2026-08-15T10:00:00Z");
+        return ZigbeeDeviceMeasurementEntity.builder()
+                .account(account)
+                .device(device)
+                .gatewayId(UUID.randomUUID())
+                .zigbeeIeee(UUID.randomUUID().toString().replace("-", "").substring(0, 16))
+                .profile("temperature-sensor")
+                .measurementType(ZigbeeMeasurementType.TEMPERATURE)
+                .measurementKey("temperature")
+                .value(BigDecimal.valueOf(21.5))
+                .measuredAt(measuredAt)
+                .receivedAt(measuredAt)
+                .build();
+    }
+
+    private JsonNode findTable(JsonNode export, String entityName) {
+        for (JsonNode table : export.get("tables")) {
+            if (entityName.equals(table.get("entity").asText())) {
+                return table;
+            }
+        }
+        throw new AssertionError("Missing export table " + entityName);
+    }
+
+    private boolean hasTable(JsonNode export, String entityName) {
+        for (JsonNode table : export.get("tables")) {
+            if (entityName.equals(table.get("entity").asText())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private JsonNode findOmittedHighVolumeTable(JsonNode export, String entityName) {
+        for (JsonNode table : export.get("omittedHighVolumeTables")) {
+            if (entityName.equals(table.get("entity").asText())) {
+                return table;
+            }
+        }
+        throw new AssertionError("Missing high-volume export summary " + entityName);
+    }
+
+    private byte[] readZipEntry(byte[] zipBytes, String entryName) throws IOException {
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+            var entry = zip.getNextEntry();
+            while (entry != null) {
+                if (entryName.equals(entry.getName())) {
+                    return zip.readAllBytes();
+                }
+                entry = zip.getNextEntry();
+            }
+        }
+        throw new AssertionError("Missing ZIP entry " + entryName);
     }
 
 }

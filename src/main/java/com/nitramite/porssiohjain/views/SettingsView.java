@@ -39,6 +39,7 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
@@ -320,24 +321,69 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         Paragraph description = new Paragraph(t("settings.export.description"));
         description.getStyle().set("margin", "0");
 
-        String filename = "porssiohjain-account-" + accountService.getUuidById(accountId) + "-export.json";
+        String filename = "porssiohjain-account-" + accountService.getUuidById(accountId) + "-export.zip";
         DownloadHandler downloadHandler = DownloadHandler.fromInputStream(event -> {
             byte[] export = accountDataExportService.exportAccountData(accountId);
             return new DownloadResponse(
                     new ByteArrayInputStream(export),
                     filename,
-                    "application/json",
+                    "application/zip",
                     export.length
             );
         });
 
         Anchor downloadLink = new Anchor(downloadHandler, AttachmentType.DOWNLOAD, "");
+        downloadLink.getElement().setAttribute("download", filename);
 
         Button downloadButton = new Button(t("settings.export.button"));
         downloadButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         downloadLink.add(downloadButton);
 
-        section.add(title, description, downloadLink);
+        ProgressBar preparingIndicator = new ProgressBar();
+        preparingIndicator.setIndeterminate(true);
+        preparingIndicator.setVisible(false);
+        preparingIndicator.setWidth("160px");
+        preparingIndicator.getElement().setAttribute("data-export-progress", "true");
+
+        Span preparingText = new Span(t("settings.export.preparing"));
+        preparingText.setVisible(false);
+        preparingText.getElement().setAttribute("data-export-status", "true");
+
+        downloadLink.getElement().executeJs("""
+                const link = this;
+                const section = link.parentElement;
+                const button = link.querySelector('vaadin-button');
+                const status = section.querySelector('[data-export-status]');
+                const progress = section.querySelector('[data-export-progress]');
+                link.addEventListener('click', () => {
+                    if (button) {
+                        button.disabled = true;
+                    }
+                    if (status) {
+                        status.hidden = false;
+                    }
+                    if (progress) {
+                        progress.hidden = false;
+                    }
+                    window.setTimeout(() => {
+                        if (button) {
+                            button.disabled = false;
+                        }
+                        if (status) {
+                            status.hidden = true;
+                        }
+                        if (progress) {
+                            progress.hidden = true;
+                        }
+                    }, 120000);
+                });
+                """);
+
+        HorizontalLayout downloadRow = new HorizontalLayout(downloadLink, preparingIndicator, preparingText);
+        downloadRow.setAlignItems(Alignment.CENTER);
+        downloadRow.setSpacing(true);
+
+        section.add(title, description, downloadRow);
         return section;
     }
 
