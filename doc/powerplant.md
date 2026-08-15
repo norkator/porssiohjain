@@ -9,20 +9,24 @@ Current implementation:
 - `views/PowerplantView.java` provides the board at `/powerplant`.
 - `entity/PowerplantElementEntity.java`, `entity/enums/PowerplantElementType.java`, and `entity/repository/PowerplantElementRepository.java` persist board elements.
 - `entity/PowerplantRuleEntity.java`, `entity/enums/PowerplantComparisonType.java`, and `entity/repository/PowerplantRuleRepository.java` persist measurement-to-device rules.
+- `entity/PowerplantSettingsEntity.java` and `entity/repository/PowerplantSettingsRepository.java` persist account-level board settings.
 - `services/PowerplantService.java` owns validation, mapping, position updates, deletion, and device-control command dispatch.
 - `services/models/PowerplantElementResponse.java` is the UI/service response model.
 - `services/models/PowerplantMeasurementOptionResponse.java` describes selectable latest Zigbee measurements for indicator binding.
 - `services/models/PowerplantRuleResponse.java` is the rule UI/service response model.
+- `services/models/PowerplantSettingsResponse.java` is the board settings response model.
 - `src/main/resources/db/migration/V91__create_powerplant_element.sql` creates `powerplant_element`.
 - `src/main/resources/db/migration/V92__add_powerplant_measurement_binding.sql` adds indicator measurement binding fields.
 - `src/main/resources/db/migration/V93__create_powerplant_rule.sql` creates `powerplant_rule`.
+- `src/main/resources/db/migration/V94__add_powerplant_rule_control_point.sql` adds draggable connector control points.
+- `src/main/resources/db/migration/V95__create_powerplant_settings.sql` creates account-level board settings.
 - `HomeView.java` includes the Powerplant menu item.
 - Powerplant styles live in `src/main/frontend/themes/my-theme/styles.css`.
 - English/Finnish translations use the `powerplant.*` and `home.powerplant` keys.
 
 ## User-visible scope
 
-The view is intended to behave like a small control-room panel where the user can place elements freely on a grid. Elements are added from a dialog, dragged on the board, edited, and deleted.
+The view is intended to behave like a small control-room panel where the user can place elements freely on a grid. Elements are added from a dialog, dragged on the board, edited, and deleted. Board width and height are saved per account in `powerplant_settings`.
 
 Supported first-version element types:
 

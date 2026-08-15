@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.PowerplantElementEntity;
 import com.nitramite.porssiohjain.entity.PowerplantRuleEntity;
+import com.nitramite.porssiohjain.entity.PowerplantSettingsEntity;
 import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
@@ -25,11 +26,13 @@ import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerplantElementRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerplantRuleRepository;
+import com.nitramite.porssiohjain.entity.repository.PowerplantSettingsRepository;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerplantElementResponse;
 import com.nitramite.porssiohjain.services.models.PowerplantMeasurementOptionResponse;
 import com.nitramite.porssiohjain.services.models.PowerplantRuleResponse;
+import com.nitramite.porssiohjain.services.models.PowerplantSettingsResponse;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,6 +50,10 @@ public class PowerplantService {
 
     private static final int MIN_CHANNEL = 0;
     private static final int MAX_CHANNEL = 3;
+    private static final int MIN_BOARD_WIDTH = 800;
+    private static final int MIN_BOARD_HEIGHT = 500;
+    private static final int MAX_BOARD_WIDTH = 4000;
+    private static final int MAX_BOARD_HEIGHT = 2400;
     private static final Duration MEASUREMENT_SELECTOR_LOOKBACK = Duration.ofDays(30);
     private static final Duration MEASUREMENT_FRESHNESS = Duration.ofMinutes(60);
 
@@ -54,6 +61,7 @@ public class PowerplantService {
     private final DeviceRepository deviceRepository;
     private final PowerplantElementRepository powerplantElementRepository;
     private final PowerplantRuleRepository powerplantRuleRepository;
+    private final PowerplantSettingsRepository powerplantSettingsRepository;
     private final ZigbeeDeviceMeasurementRepository measurementRepository;
     private final DemoAccountGuard demoAccountGuard;
     private final ControlService controlService;
@@ -72,6 +80,30 @@ public class PowerplantService {
         return powerplantRuleRepository.findByAccountIdOrderByIdAsc(accountId).stream()
                 .map(this::mapRule)
                 .toList();
+    }
+
+    @Transactional
+    public PowerplantSettingsResponse getOrCreateSettings(Long accountId) {
+        AccountEntity account = validateAccount(accountId);
+        PowerplantSettingsEntity settings = powerplantSettingsRepository.findByAccountId(accountId)
+                .orElseGet(() -> powerplantSettingsRepository.save(PowerplantSettingsEntity.builder()
+                        .account(account)
+                        .boardWidth(1600)
+                        .boardHeight(900)
+                        .build()));
+        return mapSettings(settings);
+    }
+
+    @Transactional
+    public PowerplantSettingsResponse saveSettings(Long accountId, int boardWidth, int boardHeight) {
+        demoAccountGuard.assertWritable(accountId);
+        AccountEntity account = validateAccount(accountId);
+        PowerplantSettingsEntity settings = powerplantSettingsRepository.findByAccountId(accountId)
+                .orElseGet(() -> PowerplantSettingsEntity.builder().account(account).build());
+        settings.setAccount(account);
+        settings.setBoardWidth(clamp(boardWidth, MIN_BOARD_WIDTH, MAX_BOARD_WIDTH));
+        settings.setBoardHeight(clamp(boardHeight, MIN_BOARD_HEIGHT, MAX_BOARD_HEIGHT));
+        return mapSettings(powerplantSettingsRepository.save(settings));
     }
 
     @Transactional(readOnly = true)
@@ -504,6 +536,17 @@ public class PowerplantService {
             case BATTERY_PERCENTAGE -> "batteryPercentage";
             case THERMOSTAT_SETPOINT -> "setpoint";
         };
+    }
+
+    private PowerplantSettingsResponse mapSettings(PowerplantSettingsEntity entity) {
+        return PowerplantSettingsResponse.builder()
+                .boardWidth(entity.getBoardWidth())
+                .boardHeight(entity.getBoardHeight())
+                .build();
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.min(Math.max(value, min), max);
     }
 
     private DeviceResponse mapDevice(DeviceEntity device) {

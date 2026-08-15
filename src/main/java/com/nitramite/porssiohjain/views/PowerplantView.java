@@ -25,6 +25,7 @@ import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerplantElementResponse;
 import com.nitramite.porssiohjain.services.models.PowerplantMeasurementOptionResponse;
 import com.nitramite.porssiohjain.services.models.PowerplantRuleResponse;
+import com.nitramite.porssiohjain.services.models.PowerplantSettingsResponse;
 import com.vaadin.flow.component.ClientCallable;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
@@ -145,6 +146,13 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
             return;
         }
         accountId = account.getId();
+
+        PowerplantSettingsResponse settings = powerplantService.getOrCreateSettings(accountId);
+        boardWidth = clamp(settings.getBoardWidth(), MIN_BOARD_WIDTH, MAX_BOARD_WIDTH, BOARD_WIDTH);
+        boardHeight = clamp(settings.getBoardHeight(), MIN_BOARD_HEIGHT, MAX_BOARD_HEIGHT, BOARD_HEIGHT);
+        boardWidthField.setValue(boardWidth);
+        boardHeightField.setValue(boardHeight);
+        applyBoardSize();
 
         standardDevices = deviceService.listDevices(accountId, accountId).stream()
                 .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
@@ -929,10 +937,15 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         applyBoardSizeButton.addClickListener(event -> {
             boardWidth = clamp(boardWidthField.getValue(), MIN_BOARD_WIDTH, MAX_BOARD_WIDTH, BOARD_WIDTH);
             boardHeight = clamp(boardHeightField.getValue(), MIN_BOARD_HEIGHT, MAX_BOARD_HEIGHT, BOARD_HEIGHT);
+            PowerplantSettingsResponse saved = powerplantService.saveSettings(accountId, boardWidth, boardHeight);
+            boardWidth = clamp(saved.getBoardWidth(), MIN_BOARD_WIDTH, MAX_BOARD_WIDTH, BOARD_WIDTH);
+            boardHeight = clamp(saved.getBoardHeight(), MIN_BOARD_HEIGHT, MAX_BOARD_HEIGHT, BOARD_HEIGHT);
             boardWidthField.setValue(boardWidth);
             boardHeightField.setValue(boardHeight);
             applyBoardSize();
             renderBoard();
+            Notification.show(t("powerplant.notification.settingsSaved"))
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
     }
 
