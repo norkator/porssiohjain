@@ -55,6 +55,7 @@ public class Scheduler {
     private final MarketNotificationService marketNotificationService;
     private final HeatPumpOnlineCheckService heatPumpOnlineCheckService;
     private final MqttRelayTestService mqttRelayTestService;
+    private final PowerplantService powerplantService;
     private final ZigbeeGatewayConnectivityService zigbeeGatewayConnectivityService;
     private final ControlTableRepository controlTableRepository;
     private final ZigbeeDeviceMeasurementRepository zigbeeDeviceMeasurementRepository;
@@ -83,6 +84,7 @@ public class Scheduler {
             MarketNotificationService marketNotificationService,
             HeatPumpOnlineCheckService heatPumpOnlineCheckService,
             MqttRelayTestService mqttRelayTestService,
+            PowerplantService powerplantService,
             ZigbeeGatewayConnectivityService zigbeeGatewayConnectivityService,
             ControlTableRepository controlTableRepository,
             ZigbeeDeviceMeasurementRepository zigbeeDeviceMeasurementRepository
@@ -107,6 +109,7 @@ public class Scheduler {
         this.marketNotificationService = marketNotificationService;
         this.heatPumpOnlineCheckService = heatPumpOnlineCheckService;
         this.mqttRelayTestService = mqttRelayTestService;
+        this.powerplantService = powerplantService;
         this.zigbeeGatewayConnectivityService = zigbeeGatewayConnectivityService;
         this.controlTableRepository = controlTableRepository;
         this.zigbeeDeviceMeasurementRepository = zigbeeDeviceMeasurementRepository;
@@ -279,6 +282,14 @@ public class Scheduler {
     @Scheduled(fixedDelayString = "5s")
     public void mqttRelayTests() {
         mqttRelayTestService.runDueTests();
+    }
+
+    @Scheduled(fixedDelayString = "${powerplant.rule-evaluation-interval:1m}")
+    public void powerplantRules() {
+        int commands = powerplantService.evaluateEnabledRules();
+        if (commands > 0) {
+            log.info("Powerplant rules sent {} command(s)", commands);
+        }
     }
 
     @Scheduled(cron = "15 0/1 * * * *", zone = "Europe/Helsinki")

@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.entity;
 
 import com.nitramite.porssiohjain.entity.enums.PowerplantElementType;
+import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -57,6 +58,13 @@ public class PowerplantElementEntity {
 
     @Column(name = "device_channel")
     private Integer deviceChannel;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "measurement_type", length = 32)
+    private ZigbeeMeasurementType measurementType;
+
+    @Column(name = "measurement_key", length = 64)
+    private String measurementKey;
 
     @Column(name = "canvas_x", nullable = false)
     private Integer canvasX;

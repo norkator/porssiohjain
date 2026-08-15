@@ -221,6 +221,35 @@ vaadin-button[theme~="large"] {
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
+.powerplant-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.powerplant-rule-line {
+    stroke: #f2c94c;
+    stroke-width: 3;
+}
+
+.powerplant-rule-line.disabled {
+    stroke: #75807a;
+    stroke-dasharray: 8 6;
+}
+
+.powerplant-rule-label {
+    fill: #f8e18a;
+    font-size: 13px;
+    font-family: Tahoma, sans-serif;
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: #101513;
+    stroke-width: 4px;
+    stroke-linejoin: round;
+}
+
 .powerplant-element {
     position: absolute;
     display: flex;
@@ -270,7 +299,7 @@ vaadin-button[theme~="large"] {
 
 .powerplant-element-body {
     min-height: 36px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .powerplant-indicator-value {
@@ -287,6 +316,14 @@ vaadin-button[theme~="large"] {
     font-size: 0.82rem;
 }
 
+.powerplant-measurement-fresh {
+    color: #145f36;
+}
+
+.powerplant-measurement-stale {
+    color: #8a5a00;
+}
+
 .powerplant-device-control {
     gap: 6px;
 }
@@ -298,6 +335,10 @@ vaadin-button[theme~="large"] {
 .powerplant-element-actions {
     margin-top: auto;
     justify-content: flex-end;
+}
+
+.powerplant-rule-section {
+    padding-top: 8px;
 }
 
 @media (max-width: 768px) {

@@ -11,7 +11,6 @@
 
 package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.enums.PowerplantElementType;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,23 +24,13 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PowerplantElementResponse {
-    private Long id;
-    private String name;
-    private PowerplantElementType elementType;
-    private String iconName;
-    private BigDecimal displayValue;
-    private String displayUnit;
+public class PowerplantMeasurementOptionResponse {
     private DeviceResponse device;
-    private Integer deviceChannel;
     private ZigbeeMeasurementType measurementType;
     private String measurementKey;
-    private BigDecimal latestMeasurementValue;
-    private Instant latestMeasuredAt;
-    private Instant latestReceivedAt;
-    private boolean latestMeasurementFresh;
-    private Integer canvasX;
-    private Integer canvasY;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private String zigbeeIeee;
+    private String profile;
+    private BigDecimal value;
+    private Instant measuredAt;
+    private Instant receivedAt;
 }

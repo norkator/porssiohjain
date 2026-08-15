@@ -11,8 +11,8 @@
 
 package com.nitramite.porssiohjain.services.models;
 
-import com.nitramite.porssiohjain.entity.enums.PowerplantElementType;
-import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
+import com.nitramite.porssiohjain.entity.enums.PowerplantComparisonType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,23 +25,20 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PowerplantElementResponse {
+public class PowerplantRuleResponse {
     private Long id;
-    private String name;
-    private PowerplantElementType elementType;
-    private String iconName;
-    private BigDecimal displayValue;
-    private String displayUnit;
-    private DeviceResponse device;
-    private Integer deviceChannel;
-    private ZigbeeMeasurementType measurementType;
-    private String measurementKey;
-    private BigDecimal latestMeasurementValue;
-    private Instant latestMeasuredAt;
-    private Instant latestReceivedAt;
-    private boolean latestMeasurementFresh;
-    private Integer canvasX;
-    private Integer canvasY;
+    private PowerplantElementResponse sourceElement;
+    private PowerplantElementResponse targetElement;
+    private PowerplantComparisonType comparisonType;
+    private BigDecimal thresholdValue;
+    private BigDecimal hysteresisValue;
+    private ControlAction targetAction;
+    private boolean enabled;
+    private Integer cooldownSeconds;
+    private Boolean lastConditionMatched;
+    private Instant lastCommandSentAt;
+    private Instant lastEvaluatedAt;
+    private String lastSkipReason;
     private Instant createdAt;
     private Instant updatedAt;
 }

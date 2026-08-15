@@ -12,22 +12,30 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.PowerplantComparisonType;
 import com.nitramite.porssiohjain.entity.enums.PowerplantElementType;
+import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.PowerplantService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.PowerplantElementResponse;
+import com.nitramite.porssiohjain.services.models.PowerplantMeasurementOptionResponse;
+import com.nitramite.porssiohjain.services.models.PowerplantRuleResponse;
 import com.vaadin.flow.component.ClientCallable;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
@@ -42,6 +50,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.dom.Element;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
@@ -52,9 +61,17 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @PageTitle("Pörssiohjain - Powerplant")
 @Route("powerplant")
@@ -68,7 +85,6 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
     private static final int MAX_BOARD_WIDTH = 4000;
     private static final int MAX_BOARD_HEIGHT = 2400;
     private static final int ELEMENT_WIDTH = 210;
-    private static final int ELEMENT_HEIGHT = 118;
 
     private final AuthService authService;
     private final DeviceService deviceService;
@@ -80,12 +96,15 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
     private final IntegerField boardWidthField = new IntegerField();
     private final IntegerField boardHeightField = new IntegerField();
     private final Button applyBoardSizeButton = new Button();
+    private final Grid<PowerplantRuleResponse> ruleGrid = new Grid<>(PowerplantRuleResponse.class, false);
 
     private Long accountId;
     private int boardWidth = BOARD_WIDTH;
     private int boardHeight = BOARD_HEIGHT;
     private List<DeviceResponse> standardDevices = List.of();
+    private List<PowerplantMeasurementOptionResponse> measurementOptions = List.of();
     private List<PowerplantElementResponse> elements = List.of();
+    private List<PowerplantRuleResponse> rules = List.of();
 
     @Autowired
     public PowerplantView(
@@ -131,6 +150,7 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
                 .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
                 .sorted(Comparator.comparing(DeviceResponse::getDeviceName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
+        measurementOptions = powerplantService.getMeasurementOptions(accountId);
 
         renderView();
         reloadData();
@@ -157,6 +177,18 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
                 event -> openElementDialog(null));
         addElement.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
+        Button addRule = new Button(t("powerplant.button.addRule"), VaadinIcon.CONNECT.create(),
+                event -> openRuleDialog(null));
+        addRule.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+
+        Button evaluateRules = new Button(t("powerplant.button.evaluateRules"), VaadinIcon.PLAY.create(), event -> {
+            int sent = powerplantService.evaluateEnabledRules();
+            Notification.show(t("powerplant.notification.rulesEvaluated", sent))
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            reloadData();
+        });
+        evaluateRules.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
         VerticalLayout canvasPanel = new VerticalLayout();
         canvasPanel.setPadding(false);
         canvasPanel.setSpacing(true);
@@ -166,11 +198,11 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         Paragraph hint = new Paragraph(t("powerplant.canvas.hint"));
         hint.getStyle().set("margin", "0");
 
-        HorizontalLayout toolbar = new HorizontalLayout(addElement, boardWidthField, boardHeightField, applyBoardSizeButton);
+        HorizontalLayout toolbar = new HorizontalLayout(addElement, addRule, evaluateRules, boardWidthField, boardHeightField, applyBoardSizeButton);
         toolbar.setAlignItems(Alignment.END);
         toolbar.setWrap(true);
 
-        canvasPanel.add(toolbar, hint, boardScroller);
+        canvasPanel.add(toolbar, hint, boardScroller, createRuleList());
         canvasPanel.setFlexGrow(1, boardScroller);
 
         card.add(title, intro, canvasPanel);
@@ -179,11 +211,28 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
 
     private void reloadData() {
         elements = powerplantService.getElements(accountId);
+        rules = powerplantService.getRules(accountId);
+        ruleGrid.setItems(rules);
         renderBoard();
     }
 
     private void renderBoard() {
         board.removeAll();
+
+        Element svg = new Element("svg");
+        svg.setAttribute("viewBox", "0 0 " + boardWidth + " " + boardHeight);
+        svg.setAttribute("class", "powerplant-svg");
+        board.getElement().appendChild(svg);
+
+        Map<Long, PowerplantElementResponse> elementById = elements.stream()
+                .collect(Collectors.toMap(PowerplantElementResponse::getId, Function.identity()));
+        for (PowerplantRuleResponse rule : rules) {
+            PowerplantElementResponse source = elementById.get(rule.getSourceElement().getId());
+            PowerplantElementResponse target = elementById.get(rule.getTargetElement().getId());
+            if (source != null && target != null) {
+                appendRuleLine(svg, source, target, rule);
+            }
+        }
 
         for (PowerplantElementResponse element : elements) {
             Div elementCard = new Div();
@@ -193,7 +242,7 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
                     .set("left", element.getCanvasX() + "px")
                     .set("top", element.getCanvasY() + "px")
                     .set("width", ELEMENT_WIDTH + "px")
-                    .set("height", ELEMENT_HEIGHT + "px");
+                    .set("min-height", "118px");
 
             HorizontalLayout header = new HorizontalLayout(createElementIcon(element.getIconName()), new Span(element.getName()));
             header.addClassName("powerplant-element-header");
@@ -213,7 +262,7 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
             Button edit = new Button(VaadinIcon.EDIT.create(), event -> openElementDialog(element));
             edit.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
 
-            Button delete = new Button(VaadinIcon.TRASH.create(), event -> deleteElement(element));
+            Button delete = new Button(VaadinIcon.TRASH.create(), event -> openDeleteElementDialog(element));
             delete.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
 
             actions.add(edit, delete);
@@ -221,6 +270,71 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
             board.add(elementCard);
             enableDrag(elementCard, element);
         }
+    }
+
+    private Component createRuleList() {
+        ruleGrid.removeAllColumns();
+        ruleGrid.addColumn(rule -> rule.getSourceElement().getName())
+                .setHeader(t("powerplant.rule.source"))
+                .setAutoWidth(true);
+        ruleGrid.addColumn(this::ruleLabel)
+                .setHeader(t("powerplant.rule.condition"))
+                .setAutoWidth(true)
+                .setFlexGrow(1);
+        ruleGrid.addColumn(rule -> rule.getTargetElement().getName())
+                .setHeader(t("powerplant.rule.target"))
+                .setAutoWidth(true);
+        ruleGrid.addColumn(rule -> rule.isEnabled() ? t("common.yes") : t("common.no"))
+                .setHeader(t("powerplant.rule.enabled"))
+                .setAutoWidth(true);
+        ruleGrid.addColumn(rule -> rule.getLastSkipReason() != null ? rule.getLastSkipReason() : "")
+                .setHeader(t("powerplant.rule.lastStatus"))
+                .setAutoWidth(true)
+                .setFlexGrow(1);
+        ruleGrid.addComponentColumn(rule -> {
+            Button edit = new Button(VaadinIcon.EDIT.create(), event -> openRuleDialog(rule));
+            edit.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+            Button delete = new Button(VaadinIcon.TRASH.create(), event -> openDeleteRuleDialog(rule));
+            delete.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
+            HorizontalLayout actions = new HorizontalLayout(edit, delete);
+            actions.setPadding(false);
+            actions.setSpacing(true);
+            return actions;
+        }).setHeader(t("controlTable.grid.actions"));
+        ruleGrid.setItems(rules);
+        ruleGrid.setAllRowsVisible(true);
+        ruleGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+
+        H2 title = new H2(t("powerplant.rule.listTitle"));
+        title.getStyle().set("font-size", "1.1rem").set("margin", "0");
+        VerticalLayout section = new VerticalLayout(title, ruleGrid);
+        section.addClassName("powerplant-rule-section");
+        section.setPadding(false);
+        section.setSpacing(true);
+        section.setWidthFull();
+        return section;
+    }
+
+    private void appendRuleLine(Element svg, PowerplantElementResponse source, PowerplantElementResponse target, PowerplantRuleResponse rule) {
+        int x1 = source.getCanvasX() + ELEMENT_WIDTH;
+        int y1 = source.getCanvasY() + 58;
+        int x2 = target.getCanvasX();
+        int y2 = target.getCanvasY() + 58;
+
+        Element line = new Element("line");
+        line.setAttribute("x1", String.valueOf(x1));
+        line.setAttribute("y1", String.valueOf(y1));
+        line.setAttribute("x2", String.valueOf(x2));
+        line.setAttribute("y2", String.valueOf(y2));
+        line.setAttribute("class", rule.isEnabled() ? "powerplant-rule-line" : "powerplant-rule-line disabled");
+        svg.appendChild(line);
+
+        Element text = new Element("text");
+        text.setAttribute("x", String.valueOf((x1 + x2) / 2));
+        text.setAttribute("y", String.valueOf(((y1 + y2) / 2) - 8));
+        text.setAttribute("class", "powerplant-rule-label");
+        text.setText(ruleLabel(rule));
+        svg.appendChild(text);
     }
 
     private Component createElementBody(PowerplantElementResponse element) {
@@ -234,9 +348,23 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
     }
 
     private Component createIndicatorBody(PowerplantElementResponse element) {
+        VerticalLayout body = new VerticalLayout();
+        body.setPadding(false);
+        body.setSpacing(false);
+
         Span value = new Span(formatValue(element));
         value.addClassName("powerplant-indicator-value");
-        return value;
+        body.add(value);
+
+        if (element.getMeasurementType() != null) {
+            Span meta = new Span(formatMeasurementMeta(element));
+            meta.addClassName("powerplant-element-meta");
+            meta.addClassName(element.isLatestMeasurementFresh()
+                    ? "powerplant-measurement-fresh"
+                    : "powerplant-measurement-stale");
+            body.add(meta);
+        }
+        return body;
     }
 
     private Component createDeviceControlBody(PowerplantElementResponse element) {
@@ -321,8 +449,10 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
                   if (!dragging) {
                     return;
                   }
-                  const nextLeft = clamp(originLeft + (event.clientX - startX), 0, $0);
-                  const nextTop = clamp(originTop + (event.clientY - startY), 0, $1);
+                  const maxLeft = Math.max(0, $0 - element.offsetWidth);
+                  const maxTop = Math.max(0, $1 - element.offsetHeight);
+                  const nextLeft = clamp(originLeft + (event.clientX - startX), 0, maxLeft);
+                  const nextTop = clamp(originTop + (event.clientY - startY), 0, maxTop);
                   element.style.left = `${nextLeft}px`;
                   element.style.top = `${nextTop}px`;
                 });
@@ -338,7 +468,7 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
                 };
                 element.addEventListener('pointerup', finish);
                 element.addEventListener('pointercancel', finish);
-                """, boardWidth - ELEMENT_WIDTH, boardHeight - ELEMENT_HEIGHT, element.getId(), getElement());
+                """, boardWidth, boardHeight, element.getId(), getElement());
     }
 
     @ClientCallable
@@ -368,6 +498,14 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         iconCombo.setRenderer(new ComponentRenderer<>(this::createIconOption));
         iconCombo.setValue(selected != null ? selectedIcon(selected.getIconName()) : VaadinIcon.FIRE);
         iconCombo.setWidthFull();
+
+        ComboBox<PowerplantMeasurementOptionResponse> measurementCombo = new ComboBox<>(t("powerplant.field.measurement"));
+        List<PowerplantMeasurementOptionResponse> dialogMeasurementOptions = measurementOptionsFor(selected);
+        measurementCombo.setItems(dialogMeasurementOptions);
+        measurementCombo.setItemLabelGenerator(this::measurementOptionLabel);
+        measurementCombo.setRenderer(new ComponentRenderer<>(this::createMeasurementOption));
+        measurementCombo.setWidthFull();
+        findSelectedMeasurementOption(selected, dialogMeasurementOptions).ifPresent(measurementCombo::setValue);
 
         NumberField valueField = new NumberField(t("powerplant.field.value"));
         valueField.setWidthFull();
@@ -407,7 +545,13 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         yField.setWidthFull();
         yField.setValue(selected != null ? selected.getCanvasY() : nextDefaultY());
 
-        FormLayout form = new FormLayout(nameField, typeCombo, iconCombo, valueField, unitField, deviceCombo, channelField, xField, yField);
+        measurementCombo.addValueChangeListener(event -> {
+            if (event.getValue() != null && (unitField.getValue() == null || unitField.getValue().isBlank())) {
+                unitField.setValue(defaultUnit(event.getValue().getMeasurementType()));
+            }
+        });
+
+        FormLayout form = new FormLayout(nameField, typeCombo, iconCombo, measurementCombo, valueField, unitField, deviceCombo, channelField, xField, yField);
         form.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("420px", 2)
@@ -418,6 +562,7 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
             boolean indicator = typeCombo.getValue() == PowerplantElementType.INDICATOR;
             boolean label = typeCombo.getValue() == PowerplantElementType.LABEL;
             valueField.setVisible(indicator);
+            measurementCombo.setVisible(indicator);
             unitField.setVisible(indicator || label);
             deviceCombo.setVisible(deviceControl);
             channelField.setVisible(deviceControl);
@@ -428,6 +573,7 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         Button save = new Button(t("common.save"), event -> {
             try {
                 Double rawValue = valueField.getValue();
+                PowerplantMeasurementOptionResponse selectedMeasurement = measurementCombo.getValue();
                 PowerplantElementResponse saved = powerplantService.saveElement(
                         accountId,
                         selected != null ? selected.getId() : null,
@@ -436,8 +582,12 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
                         iconCombo.getValue() != null ? iconCombo.getValue().name() : VaadinIcon.COG.name(),
                         rawValue != null ? BigDecimal.valueOf(rawValue) : null,
                         unitField.getValue(),
-                        deviceCombo.getValue() != null ? deviceCombo.getValue().getId() : null,
+                        typeCombo.getValue() == PowerplantElementType.DEVICE_CONTROL && deviceCombo.getValue() != null
+                                ? deviceCombo.getValue().getId()
+                                : selectedMeasurement != null ? selectedMeasurement.getDevice().getId() : null,
                         channelField.getValue(),
+                        selectedMeasurement != null ? selectedMeasurement.getMeasurementType() : null,
+                        selectedMeasurement != null ? selectedMeasurement.getMeasurementKey() : null,
                         xField.getValue() != null ? xField.getValue() : nextDefaultX(),
                         yField.getValue() != null ? yField.getValue() : nextDefaultY()
                 );
@@ -458,6 +608,109 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         dialog.open();
     }
 
+    private void openRuleDialog(PowerplantRuleResponse selected) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(selected == null ? t("powerplant.rule.addTitle") : t("powerplant.rule.editTitle"));
+        dialog.setWidth("680px");
+
+        List<PowerplantElementResponse> indicatorElements = elements.stream()
+                .filter(element -> element.getElementType() == PowerplantElementType.INDICATOR
+                        && element.getDevice() != null
+                        && element.getMeasurementType() != null)
+                .toList();
+        List<PowerplantElementResponse> deviceControlElements = elements.stream()
+                .filter(element -> element.getElementType() == PowerplantElementType.DEVICE_CONTROL
+                        && element.getDevice() != null)
+                .toList();
+
+        ComboBox<PowerplantElementResponse> sourceCombo = new ComboBox<>(t("powerplant.rule.source"));
+        sourceCombo.setItems(indicatorElements);
+        sourceCombo.setItemLabelGenerator(PowerplantElementResponse::getName);
+        sourceCombo.setWidthFull();
+        if (selected != null) {
+            indicatorElements.stream()
+                    .filter(element -> element.getId().equals(selected.getSourceElement().getId()))
+                    .findFirst()
+                    .ifPresent(sourceCombo::setValue);
+        }
+
+        ComboBox<PowerplantElementResponse> targetCombo = new ComboBox<>(t("powerplant.rule.target"));
+        targetCombo.setItems(deviceControlElements);
+        targetCombo.setItemLabelGenerator(PowerplantElementResponse::getName);
+        targetCombo.setWidthFull();
+        if (selected != null) {
+            deviceControlElements.stream()
+                    .filter(element -> element.getId().equals(selected.getTargetElement().getId()))
+                    .findFirst()
+                    .ifPresent(targetCombo::setValue);
+        }
+
+        ComboBox<PowerplantComparisonType> comparisonCombo = new ComboBox<>(t("powerplant.rule.comparison"));
+        comparisonCombo.setItems(PowerplantComparisonType.values());
+        comparisonCombo.setItemLabelGenerator(this::comparisonLabel);
+        comparisonCombo.setValue(selected != null ? selected.getComparisonType() : PowerplantComparisonType.LESS_THAN);
+        comparisonCombo.setWidthFull();
+
+        NumberField thresholdField = new NumberField(t("powerplant.rule.threshold"));
+        thresholdField.setWidthFull();
+        thresholdField.setValue(selected != null && selected.getThresholdValue() != null ? selected.getThresholdValue().doubleValue() : null);
+
+        NumberField hysteresisField = new NumberField(t("powerplant.rule.hysteresis"));
+        hysteresisField.setWidthFull();
+        hysteresisField.setValue(selected != null && selected.getHysteresisValue() != null ? selected.getHysteresisValue().doubleValue() : null);
+
+        ComboBox<ControlAction> actionCombo = new ComboBox<>(t("powerplant.rule.action"));
+        actionCombo.setItems(ControlAction.TURN_ON, ControlAction.TURN_OFF);
+        actionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
+        actionCombo.setValue(selected != null ? selected.getTargetAction() : ControlAction.TURN_ON);
+        actionCombo.setWidthFull();
+
+        IntegerField cooldownField = new IntegerField(t("powerplant.rule.cooldown"));
+        cooldownField.setMin(0);
+        cooldownField.setStepButtonsVisible(true);
+        cooldownField.setValue(selected != null && selected.getCooldownSeconds() != null ? selected.getCooldownSeconds() : 300);
+        cooldownField.setWidthFull();
+
+        Checkbox enabledCheckbox = new Checkbox(t("powerplant.rule.enabled"));
+        enabledCheckbox.setValue(selected == null || selected.isEnabled());
+
+        FormLayout form = new FormLayout(sourceCombo, targetCombo, comparisonCombo, thresholdField,
+                hysteresisField, actionCombo, cooldownField, enabledCheckbox);
+        form.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("420px", 2)
+        );
+
+        Button save = new Button(t("common.save"), event -> {
+            try {
+                PowerplantRuleResponse saved = powerplantService.saveRule(
+                        accountId,
+                        selected != null ? selected.getId() : null,
+                        sourceCombo.getValue() != null ? sourceCombo.getValue().getId() : null,
+                        targetCombo.getValue() != null ? targetCombo.getValue().getId() : null,
+                        comparisonCombo.getValue(),
+                        thresholdField.getValue() != null ? BigDecimal.valueOf(thresholdField.getValue()) : null,
+                        hysteresisField.getValue() != null ? BigDecimal.valueOf(hysteresisField.getValue()) : null,
+                        actionCombo.getValue(),
+                        enabledCheckbox.getValue(),
+                        cooldownField.getValue()
+                );
+                Notification.show(t("powerplant.notification.ruleSaved", saved.getId()))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                dialog.close();
+                reloadData();
+            } catch (Exception ex) {
+                showError(t("powerplant.notification.failed", ex.getMessage()));
+            }
+        });
+        save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Button cancel = new Button(t("common.cancel"), event -> dialog.close());
+        dialog.add(form);
+        dialog.getFooter().add(cancel, save);
+        dialog.open();
+    }
+
     private Component createIconOption(VaadinIcon icon) {
         Icon preview = icon.create();
         preview.getStyle()
@@ -471,6 +724,58 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         option.setSpacing(true);
         option.setAlignItems(Alignment.CENTER);
         return option;
+    }
+
+    private Component createMeasurementOption(PowerplantMeasurementOptionResponse option) {
+        VerticalLayout row = new VerticalLayout();
+        row.setPadding(false);
+        row.setSpacing(false);
+
+        Span title = new Span(measurementOptionLabel(option));
+        title.getStyle().set("font-weight", "600");
+        Span detail = new Span(formatMeasurementValue(option.getValue(), option.getMeasurementType())
+                + " / " + formatInstant(option.getMeasuredAt()));
+        detail.getStyle()
+                .set("font-size", "0.82rem")
+                .set("color", "var(--lumo-secondary-text-color)");
+
+        row.add(title, detail);
+        return row;
+    }
+
+    private List<PowerplantMeasurementOptionResponse> measurementOptionsFor(PowerplantElementResponse selected) {
+        measurementOptions = powerplantService.getMeasurementOptions(accountId);
+        List<PowerplantMeasurementOptionResponse> options = new ArrayList<>(measurementOptions);
+        if (selected != null
+                && selected.getDevice() != null
+                && selected.getMeasurementType() != null
+                && selected.getMeasurementKey() != null
+                && findSelectedMeasurementOption(selected, options).isEmpty()) {
+            options.add(PowerplantMeasurementOptionResponse.builder()
+                    .device(selected.getDevice())
+                    .measurementType(selected.getMeasurementType())
+                    .measurementKey(selected.getMeasurementKey())
+                    .value(selected.getLatestMeasurementValue())
+                    .measuredAt(selected.getLatestMeasuredAt())
+                    .receivedAt(selected.getLatestReceivedAt())
+                    .build());
+        }
+        return options;
+    }
+
+    private java.util.Optional<PowerplantMeasurementOptionResponse> findSelectedMeasurementOption(
+            PowerplantElementResponse selected,
+            List<PowerplantMeasurementOptionResponse> options
+    ) {
+        if (selected == null || selected.getDevice() == null || selected.getMeasurementType() == null) {
+            return java.util.Optional.empty();
+        }
+        return options.stream()
+                .filter(option -> option.getDevice() != null
+                        && Objects.equals(option.getDevice().getId(), selected.getDevice().getId())
+                        && option.getMeasurementType() == selected.getMeasurementType()
+                        && Objects.equals(option.getMeasurementKey(), selected.getMeasurementKey()))
+                .findFirst();
     }
 
     private void configureBoardSizeControls() {
@@ -537,6 +842,47 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         }
     }
 
+    private void openDeleteElementDialog(PowerplantElementResponse element) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("delete.confirmTitle"));
+        dialog.add(t("delete.confirmDescription"));
+
+        Button cancelButton = new Button(t("common.cancel"), event -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button deleteButton = new Button(t("button.delete"), event -> {
+            dialog.close();
+            deleteElement(element);
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+
+        dialog.getFooter().add(cancelButton, deleteButton);
+        dialog.open();
+    }
+
+    private void openDeleteRuleDialog(PowerplantRuleResponse rule) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("delete.confirmTitle"));
+        dialog.add(t("delete.confirmDescription"));
+
+        Button cancelButton = new Button(t("common.cancel"), event -> dialog.close());
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button deleteButton = new Button(t("button.delete"), event -> {
+            try {
+                powerplantService.deleteRule(accountId, rule.getId());
+                dialog.close();
+                reloadData();
+            } catch (Exception ex) {
+                showError(t("powerplant.notification.failed", ex.getMessage()));
+            }
+        });
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
+
+        dialog.getFooter().add(cancelButton, deleteButton);
+        dialog.open();
+    }
+
     private void deleteElement(PowerplantElementResponse element) {
         try {
             powerplantService.deleteElement(accountId, element.getId());
@@ -559,10 +905,76 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
     }
 
     private String formatValue(PowerplantElementResponse element) {
-        String value = element.getDisplayValue() != null
-                ? element.getDisplayValue().stripTrailingZeros().toPlainString()
+        BigDecimal sourceValue = element.getLatestMeasurementValue() != null
+                ? element.getLatestMeasurementValue()
+                : element.getDisplayValue();
+        String value = sourceValue != null
+                ? sourceValue.stripTrailingZeros().toPlainString()
                 : "--";
-        return element.getDisplayUnit() != null ? value + " " + element.getDisplayUnit() : value;
+        String unit = element.getDisplayUnit();
+        if ((unit == null || unit.isBlank()) && element.getMeasurementType() != null) {
+            unit = defaultUnit(element.getMeasurementType());
+        }
+        return unit != null && !unit.isBlank() ? value + " " + unit : value;
+    }
+
+    private String formatMeasurementMeta(PowerplantElementResponse element) {
+        String status = element.isLatestMeasurementFresh()
+                ? t("powerplant.measurement.fresh")
+                : t("powerplant.measurement.stale");
+        return status + " / " + formatInstant(element.getLatestMeasuredAt());
+    }
+
+    private String formatMeasurementValue(BigDecimal value, ZigbeeMeasurementType type) {
+        String numeric = value != null ? value.stripTrailingZeros().toPlainString() : "--";
+        return numeric + " " + defaultUnit(type);
+    }
+
+    private String ruleLabel(PowerplantRuleResponse rule) {
+        return comparisonLabel(rule.getComparisonType())
+                + " " + rule.getThresholdValue().stripTrailingZeros().toPlainString()
+                + " -> " + t("controlAction." + rule.getTargetAction().name());
+    }
+
+    private String comparisonLabel(PowerplantComparisonType type) {
+        return switch (type) {
+            case LESS_THAN -> "<";
+            case LESS_THAN_OR_EQUAL -> "<=";
+            case GREATER_THAN -> ">";
+            case GREATER_THAN_OR_EQUAL -> ">=";
+            case EQUAL -> "=";
+        };
+    }
+
+    private String measurementOptionLabel(PowerplantMeasurementOptionResponse option) {
+        if (option == null) {
+            return "";
+        }
+        String deviceName = option.getDevice() != null ? option.getDevice().getDeviceName() : t("powerplant.device.notLinked");
+        return deviceName + " / " + t("powerplant.measurement.type." + option.getMeasurementType().name());
+    }
+
+    private String defaultUnit(ZigbeeMeasurementType type) {
+        if (type == null) {
+            return "";
+        }
+        return switch (type) {
+            case TEMPERATURE, THERMOSTAT_SETPOINT -> "°C";
+            case HUMIDITY, BATTERY_PERCENTAGE -> "%";
+        };
+    }
+
+    private String formatInstant(java.time.Instant instant) {
+        if (instant == null) {
+            return t("powerplant.measurement.missing");
+        }
+        ZoneId zone = UI.getCurrent() != null && UI.getCurrent().getLocale() != null
+                ? ZoneId.systemDefault()
+                : ZoneId.systemDefault();
+        return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
+                .withLocale(UI.getCurrent().getLocale())
+                .withZone(zone)
+                .format(instant);
     }
 
     private int nextDefaultX() {
