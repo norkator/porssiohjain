@@ -37,8 +37,10 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -46,10 +48,13 @@ public class ControlSavingsService {
 
     private static final String BASELINE_METHOD = "same_energy_at_same_day_weighted_average_price";
     private static final BigDecimal SNT_PER_EUR = BigDecimal.valueOf(100);
+    private static final Duration CACHE_TTL = Duration.ofMinutes(15);
+    private static final int MAX_CACHE_ENTRIES = 512;
 
     private final ControlRepository controlRepository;
     private final ControlTableRepository controlTableRepository;
     private final NordpoolRepository nordpoolRepository;
+    private final Map<SavingsCacheKey, SavingsCacheEntry> savingsCache = new ConcurrentHashMap<>();
 
     @Transactional
     public ControlSavingsSummaryResponse getCurrentMonthSavings(Long accountId, String timezone) {
@@ -69,7 +74,25 @@ public class ControlSavingsService {
         ZoneId zone = resolveZone(accountId, timezone);
         Instant effectiveFrom = from != null ? from : YearMonth.now(zone).atDay(1).atStartOfDay(zone).toInstant();
         Instant effectiveTo = to != null ? to : Instant.now();
+        SavingsCacheKey cacheKey = new SavingsCacheKey(accountId, effectiveFrom, effectiveTo, zone.getId());
+        Instant now = Instant.now();
+        SavingsCacheEntry cached = savingsCache.get(cacheKey);
+        if (cached != null && cached.expiresAt().isAfter(now)) {
+            return cached.response();
+        }
 
+        ControlSavingsSummaryResponse response = calculateSavings(accountId, effectiveFrom, effectiveTo, zone);
+        cleanupSavingsCache(now);
+        savingsCache.put(cacheKey, new SavingsCacheEntry(response, now.plus(CACHE_TTL)));
+        return response;
+    }
+
+    private ControlSavingsSummaryResponse calculateSavings(
+            Long accountId,
+            Instant effectiveFrom,
+            Instant effectiveTo,
+            ZoneId zone
+    ) {
         List<ControlEntity> controls = controlRepository.findByAccountId(accountId);
         List<ControlSavingsResponse> controlResponses = new ArrayList<>();
         BigDecimal totalEstimatedPowerKw = BigDecimal.ZERO;
@@ -109,6 +132,24 @@ public class ControlSavingsService {
                 .scheduleEntryCount(totalScheduleEntries)
                 .controls(controlResponses)
                 .build();
+    }
+
+    private void cleanupSavingsCache(Instant now) {
+        if (savingsCache.size() < MAX_CACHE_ENTRIES) {
+            return;
+        }
+
+        Iterator<Map.Entry<SavingsCacheKey, SavingsCacheEntry>> iterator = savingsCache.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<SavingsCacheKey, SavingsCacheEntry> entry = iterator.next();
+            if (!entry.getValue().expiresAt().isAfter(now)) {
+                iterator.remove();
+            }
+        }
+
+        if (savingsCache.size() >= MAX_CACHE_ENTRIES) {
+            savingsCache.clear();
+        }
     }
 
     private ControlSavingsResponse calculateForControl(
@@ -264,5 +305,11 @@ public class ControlSavingsService {
     }
 
     private record EstimatedPower(BigDecimal totalKw, int loadCount) {
+    }
+
+    private record SavingsCacheKey(Long accountId, Instant from, Instant to, String timezone) {
+    }
+
+    private record SavingsCacheEntry(ControlSavingsSummaryResponse response, Instant expiresAt) {
     }
 }

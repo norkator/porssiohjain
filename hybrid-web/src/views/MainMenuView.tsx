@@ -14,7 +14,7 @@ import NordpoolTodayChartCard from "@/components/NordpoolTodayChartCard";
 import AppDialog from "@/components/AppDialog";
 import { fetchSites } from "@/lib/automation-resources";
 import { fetchMe } from "@/lib/account";
-import { fetchControlSavings, type ControlSavings } from "@/lib/dashboard";
+import { fetchCachedControlSavings, type ControlSavings } from "@/lib/dashboard";
 import { fetchElectricityContracts } from "@/lib/electricity-contracts";
 import { sendFeedback } from "@/lib/feedback";
 import { Link, useNavigate } from "react-router-dom";
@@ -226,10 +226,12 @@ export default function MainMenuView() {
   useEffect(() => {
     let active = true;
     const now = new Date();
+    const currentHour = new Date(now);
+    currentHour.setMinutes(0, 0, 0);
     const monthRanges = Array.from({ length: 6 }, (_, index) => {
       const monthStart = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
       const monthEnd = index === 5
-        ? now
+        ? currentHour
         : new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
 
       return {
@@ -238,7 +240,7 @@ export default function MainMenuView() {
       };
     });
 
-    Promise.all(monthRanges.map((range) => fetchControlSavings({ from: range.from, to: range.to })))
+    Promise.all(monthRanges.map((range) => fetchCachedControlSavings({ from: range.from, to: range.to })))
       .then((savings) => {
         if (!active) return;
         setMonthlySavings(savings);
