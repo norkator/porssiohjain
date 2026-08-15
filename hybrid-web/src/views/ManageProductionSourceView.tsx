@@ -11,6 +11,7 @@
 
 import PageHeader from "@/components/PageHeader";
 import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
+import AppDialog from "@/components/AppDialog";
 import ProductionHistoryChartCard from "@/components/ProductionHistoryChartCard";
 import TimeInput from "@/components/TimeInput";
 import {
@@ -95,6 +96,7 @@ export default function ManageProductionSourceView() {
   const [heatPumpComparisonType, setHeatPumpComparisonType] = useState<ComparisonType>("GREATER_THAN");
   const [heatPumpAction, setHeatPumpAction] = useState<ControlAction>("TURN_ON");
   const [editingHeatPumpLinkId, setEditingHeatPumpLinkId] = useState<number | null>(null);
+  const [isHeatPumpRuleDialogOpen, setIsHeatPumpRuleDialogOpen] = useState(false);
   const [deleteHeatPumpConfirmId, setDeleteHeatPumpConfirmId] = useState<number | null>(null);
   const [isDeletingHeatPumpId, setIsDeletingHeatPumpId] = useState<number | null>(null);
   const [isHeatPumpStateDialogOpen, setIsHeatPumpStateDialogOpen] = useState(false);
@@ -237,6 +239,7 @@ export default function ManageProductionSourceView() {
       }
       setHeatPumpLinks(await fetchProductionSourceHeatPumpLinks(sourceId));
       resetHeatPumpForm();
+      setIsHeatPumpRuleDialogOpen(false);
     } catch (linkError) {
       setError(linkError instanceof Error ? linkError.message : editingHeatPumpLinkId === null ? t("failedLinkHeatPump") : t("failedUpdateHeatPumpRule"));
     }
@@ -278,6 +281,14 @@ export default function ManageProductionSourceView() {
     setHeatPumpTriggerKw(String(link.triggerKw));
     setHeatPumpComparisonType(link.comparisonType);
     setHeatPumpAction(link.controlAction);
+    setIsHeatPumpRuleDialogOpen(true);
+  };
+
+  const handleOpenNewHeatPumpLinkDialog = () => {
+    resetHeatPumpForm();
+    setActiveRuleTab("HEAT_PUMP");
+    setDeleteHeatPumpConfirmId(null);
+    setIsHeatPumpRuleDialogOpen(true);
   };
 
   const handleDeleteHeatPumpLink = async (linkId: number) => {
@@ -598,31 +609,9 @@ export default function ManageProductionSourceView() {
                   ) : (
                     <>
                       {renderHeatPumpRuleList()}
-                      <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleAddHeatPumpLink}>
-                        <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedHeatPumpDeviceId(event.target.value)} value={selectedHeatPumpDeviceId}>
-                          <option value="">{t("selectHeatPumpDevice")}</option>
-                          {heatPumpDevices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}
-                        </select>
-                        <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId} onClick={handleOpenHeatPumpStateDialog} type="button">{t("queryEditState")}</button>
-                        <textarea
-                          className="min-h-40 rounded-xl bg-surface-container-highest px-4 py-3 font-mono text-xs outline-none md:col-span-2"
-                          onChange={(event) => setHeatPumpStateHex(event.target.value)}
-                          placeholder={t("statePlaceholder")}
-                          value={heatPumpStateHex}
-                        />
-                        <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpComparisonType(event.target.value as ComparisonType)} value={heatPumpComparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
-                        <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpAction(event.target.value as ControlAction)} value={heatPumpAction}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
-                        <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpTriggerKw(event.target.value)} step="0.1" type="number" value={heatPumpTriggerKw} />
-                        <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">{t("heatPumpRuleHelp")}</div>
-                        {editingHeatPumpLinkId === null ? (
-                          <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId || !heatPumpStateHex.trim()} type="submit">{t("addHeatPumpRule")}</button>
-                        ) : (
-                          <div className="grid grid-cols-2 gap-3">
-                            <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId || !heatPumpStateHex.trim()} type="submit">{t("saveHeatPumpRule")}</button>
-                            <button className="secondary-action justify-center" onClick={resetHeatPumpForm} type="button">{common("cancel")}</button>
-                          </div>
-                        )}
-                      </form>
+                      {!source.shared ? (
+                        <button className="secondary-action mt-6 w-full justify-center" onClick={handleOpenNewHeatPumpLinkDialog} type="button">{t("addHeatPumpRule")}</button>
+                      ) : null}
                     </>
                   )}
                 </section>
@@ -705,6 +694,40 @@ export default function ManageProductionSourceView() {
           </div>
         ) : null}
       </main>
+
+      <AppDialog
+        description={t("heatPumpRuleHelp")}
+        isOpen={isHeatPumpRuleDialogOpen}
+        onClose={() => {
+          resetHeatPumpForm();
+          setIsHeatPumpRuleDialogOpen(false);
+        }}
+        title={editingHeatPumpLinkId === null ? t("addHeatPumpRule") : t("saveHeatPumpRule")}
+      >
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleAddHeatPumpLink}>
+          <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedHeatPumpDeviceId(event.target.value)} value={selectedHeatPumpDeviceId}>
+            <option value="">{t("selectHeatPumpDevice")}</option>
+            {heatPumpDevices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}
+          </select>
+          <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId} onClick={handleOpenHeatPumpStateDialog} type="button">{t("queryEditState")}</button>
+          <textarea
+            className="min-h-40 rounded-xl bg-surface-container-highest px-4 py-3 font-mono text-xs outline-none md:col-span-2"
+            onChange={(event) => setHeatPumpStateHex(event.target.value)}
+            placeholder={t("statePlaceholder")}
+            value={heatPumpStateHex}
+          />
+          <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpComparisonType(event.target.value as ComparisonType)} value={heatPumpComparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+          <select className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpAction(event.target.value as ControlAction)} value={heatPumpAction}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select>
+          <input className="rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpTriggerKw(event.target.value)} step="0.1" type="number" value={heatPumpTriggerKw} />
+          <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
+            <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId || !heatPumpStateHex.trim()} type="submit">{editingHeatPumpLinkId === null ? t("addHeatPumpRule") : t("saveHeatPumpRule")}</button>
+            <button className="secondary-action justify-center" onClick={() => {
+              resetHeatPumpForm();
+              setIsHeatPumpRuleDialogOpen(false);
+            }} type="button">{common("cancel")}</button>
+          </div>
+        </form>
+      </AppDialog>
 
       <HeatPumpStateDialog
         acType={heatPumpDialogAcType}

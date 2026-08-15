@@ -11,6 +11,7 @@
 
 import PageHeader from "@/components/PageHeader";
 import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
+import AppDialog from "@/components/AppDialog";
 import {
   addWeatherControlDeviceLink,
   addWeatherControlHeatPumpLink,
@@ -81,6 +82,7 @@ export default function ManageWeatherControlView() {
   const [controlAction, setControlAction] = useState<ControlAction>("TURN_ON");
   const [priorityRule, setPriorityRule] = useState(false);
   const [editingLinkId, setEditingLinkId] = useState<number | null>(null);
+  const [isDeviceRuleDialogOpen, setIsDeviceRuleDialogOpen] = useState(false);
   const [deleteLinkConfirmId, setDeleteLinkConfirmId] = useState<number | null>(null);
   const [isDeletingLinkId, setIsDeletingLinkId] = useState<number | null>(null);
 
@@ -90,6 +92,7 @@ export default function ManageWeatherControlView() {
   const [heatPumpComparisonType, setHeatPumpComparisonType] = useState<ComparisonType>("GREATER_THAN");
   const [heatPumpThresholdValue, setHeatPumpThresholdValue] = useState("0");
   const [editingHeatPumpLinkId, setEditingHeatPumpLinkId] = useState<number | null>(null);
+  const [isHeatPumpRuleDialogOpen, setIsHeatPumpRuleDialogOpen] = useState(false);
   const [deleteHeatPumpConfirmId, setDeleteHeatPumpConfirmId] = useState<number | null>(null);
   const [isDeletingHeatPumpId, setIsDeletingHeatPumpId] = useState<number | null>(null);
   const [isHeatPumpStateDialogOpen, setIsHeatPumpStateDialogOpen] = useState(false);
@@ -214,6 +217,7 @@ export default function ManageWeatherControlView() {
       }
       setStandardLinks(await fetchWeatherControlDeviceLinks(weatherControlId));
       resetLinkForm();
+      setIsDeviceRuleDialogOpen(false);
     } catch (linkError) {
       setError(linkError instanceof Error ? linkError.message : editingLinkId === null ? t("failedLinkDevice") : t("failedUpdateDeviceRule"));
     }
@@ -240,9 +244,24 @@ export default function ManageWeatherControlView() {
       }
       setHeatPumpLinks(await fetchWeatherControlHeatPumpLinks(weatherControlId));
       resetHeatPumpForm();
+      setIsHeatPumpRuleDialogOpen(false);
     } catch (linkError) {
       setError(linkError instanceof Error ? linkError.message : editingHeatPumpLinkId === null ? t("failedLinkHeatPump") : t("failedUpdateHeatPumpRule"));
     }
+  };
+
+  const handleOpenNewLinkDialog = () => {
+    resetLinkForm();
+    setActiveRuleTab("STANDARD");
+    setDeleteLinkConfirmId(null);
+    setIsDeviceRuleDialogOpen(true);
+  };
+
+  const handleOpenNewHeatPumpLinkDialog = () => {
+    resetHeatPumpForm();
+    setActiveRuleTab("HEAT_PUMP");
+    setDeleteHeatPumpConfirmId(null);
+    setIsHeatPumpRuleDialogOpen(true);
   };
 
   const handleEditLink = (link: WeatherControlDeviceLink) => {
@@ -256,6 +275,7 @@ export default function ManageWeatherControlView() {
     setThresholdValue(String(link.thresholdValue));
     setControlAction(link.controlAction);
     setPriorityRule(link.priorityRule);
+    setIsDeviceRuleDialogOpen(true);
   };
 
   const handleEditHeatPumpLink = (link: WeatherControlHeatPumpLink) => {
@@ -267,6 +287,7 @@ export default function ManageWeatherControlView() {
     setHeatPumpWeatherMetric(link.weatherMetric);
     setHeatPumpComparisonType(link.comparisonType);
     setHeatPumpThresholdValue(String(link.thresholdValue));
+    setIsHeatPumpRuleDialogOpen(true);
   };
 
   const handleDeleteLink = async (linkId: number) => {
@@ -492,57 +513,16 @@ export default function ManageWeatherControlView() {
                 {activeRuleTab === "STANDARD" ? (
                   <>
                     {renderStandardRuleList()}
-                    <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleAddLink}>
-                      <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedDeviceId(event.target.value)} value={selectedDeviceId}>
-                        <option value="">{common("selectStandardDevice")}</option>
-                        {standardDevices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}
-                      </select>
-                      <input className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" min="0" onChange={(event) => setDeviceChannel(event.target.value)} type="number" value={deviceChannel} />
-                      <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setWeatherMetric(event.target.value as WeatherMetricType)} value={weatherMetric}>{WEATHER_METRICS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
-                      <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setComparisonType(event.target.value as ComparisonType)} value={comparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
-                      <input className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setThresholdValue(event.target.value)} step="0.1" type="number" value={thresholdValue} />
-                      <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setControlAction(event.target.value as ControlAction)} value={controlAction}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
-                      <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">{t("priorityRule")}</span><input checked={priorityRule} onChange={(event) => setPriorityRule(event.target.checked)} type="checkbox" /></label>
-                      {editingLinkId === null ? (
-                        <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">{common("addDeviceRule")}</button>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-3">
-                          <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">{t("saveDeviceRule")}</button>
-                          <button className="secondary-action justify-center" onClick={resetLinkForm} type="button">{common("cancel")}</button>
-                        </div>
-                      )}
-                    </form>
+                    {!control.shared ? (
+                      <button className="secondary-action mt-6 w-full justify-center" onClick={handleOpenNewLinkDialog} type="button">{common("addDeviceRule")}</button>
+                    ) : null}
                   </>
                 ) : (
                   <>
                     {renderHeatPumpRuleList()}
-                    <form className="mt-6 grid gap-4 border-t border-outline-variant/50 pt-6 md:grid-cols-2" onSubmit={handleAddHeatPumpLink}>
-                      <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedHeatPumpDeviceId(event.target.value)} value={selectedHeatPumpDeviceId}>
-                        <option value="">{t("selectHeatPumpDevice")}</option>
-                        {heatPumpDevices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}
-                      </select>
-                      <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId} onClick={handleOpenHeatPumpStateDialog} type="button">{t("queryEditState")}</button>
-                      <textarea
-                        className="min-h-40 w-full rounded-xl bg-surface-container-highest px-4 py-3 font-mono text-xs outline-none md:col-span-2"
-                        onChange={(event) => setHeatPumpStateHex(event.target.value)}
-                        placeholder={t("statePlaceholder")}
-                        value={heatPumpStateHex}
-                      />
-                      <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpWeatherMetric(event.target.value as WeatherMetricType)} value={heatPumpWeatherMetric}>{WEATHER_METRICS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
-                      <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpComparisonType(event.target.value as ComparisonType)} value={heatPumpComparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
-                      <input className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpThresholdValue(event.target.value)} step="0.1" type="number" value={heatPumpThresholdValue} />
-                      <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant">
-                        {t("heatPumpRuleHelp")}
-                      </div>
-                      {editingHeatPumpLinkId === null ? (
-                        <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId || !heatPumpStateHex.trim()} type="submit">{t("addHeatPumpRule")}</button>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-3">
-                          <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId || !heatPumpStateHex.trim()} type="submit">{t("saveHeatPumpRule")}</button>
-                          <button className="secondary-action justify-center" onClick={resetHeatPumpForm} type="button">{common("cancel")}</button>
-                        </div>
-                      )}
-                    </form>
+                    {!control.shared ? (
+                      <button className="secondary-action mt-6 w-full justify-center" onClick={handleOpenNewHeatPumpLinkDialog} type="button">{t("addHeatPumpRule")}</button>
+                    ) : null}
                   </>
                 )}
               </section>
@@ -632,6 +612,70 @@ export default function ManageWeatherControlView() {
           </section>
         ) : null}
       </main>
+
+      <AppDialog
+        description={t("description")}
+        isOpen={isDeviceRuleDialogOpen}
+        onClose={() => {
+          resetLinkForm();
+          setIsDeviceRuleDialogOpen(false);
+        }}
+        title={editingLinkId === null ? common("addDeviceRule") : t("saveDeviceRule")}
+      >
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleAddLink}>
+          <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedDeviceId(event.target.value)} value={selectedDeviceId}>
+            <option value="">{common("selectStandardDevice")}</option>
+            {standardDevices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}
+          </select>
+          <input className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" min="0" onChange={(event) => setDeviceChannel(event.target.value)} type="number" value={deviceChannel} />
+          <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setWeatherMetric(event.target.value as WeatherMetricType)} value={weatherMetric}>{WEATHER_METRICS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
+          <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setComparisonType(event.target.value as ComparisonType)} value={comparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
+          <input className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setThresholdValue(event.target.value)} step="0.1" type="number" value={thresholdValue} />
+          <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setControlAction(event.target.value as ControlAction)} value={controlAction}>{CONTROL_ACTIONS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
+          <label className="flex items-center justify-between rounded-xl bg-surface-container p-4 md:col-span-2"><span className="font-headline text-sm font-bold">{t("priorityRule")}</span><input checked={priorityRule} onChange={(event) => setPriorityRule(event.target.checked)} type="checkbox" /></label>
+          <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
+            <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedDeviceId} type="submit">{editingLinkId === null ? common("addDeviceRule") : t("saveDeviceRule")}</button>
+            <button className="secondary-action justify-center" onClick={() => {
+              resetLinkForm();
+              setIsDeviceRuleDialogOpen(false);
+            }} type="button">{common("cancel")}</button>
+          </div>
+        </form>
+      </AppDialog>
+
+      <AppDialog
+        description={t("heatPumpRuleHelp")}
+        isOpen={isHeatPumpRuleDialogOpen}
+        onClose={() => {
+          resetHeatPumpForm();
+          setIsHeatPumpRuleDialogOpen(false);
+        }}
+        title={editingHeatPumpLinkId === null ? t("addHeatPumpRule") : t("saveHeatPumpRule")}
+      >
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleAddHeatPumpLink}>
+          <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setSelectedHeatPumpDeviceId(event.target.value)} value={selectedHeatPumpDeviceId}>
+            <option value="">{t("selectHeatPumpDevice")}</option>
+            {heatPumpDevices.map((device) => <option key={device.id} value={device.id}>{device.deviceName}</option>)}
+          </select>
+          <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId} onClick={handleOpenHeatPumpStateDialog} type="button">{t("queryEditState")}</button>
+          <textarea
+            className="min-h-40 w-full rounded-xl bg-surface-container-highest px-4 py-3 font-mono text-xs outline-none md:col-span-2"
+            onChange={(event) => setHeatPumpStateHex(event.target.value)}
+            placeholder={t("statePlaceholder")}
+            value={heatPumpStateHex}
+          />
+          <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpWeatherMetric(event.target.value as WeatherMetricType)} value={heatPumpWeatherMetric}>{WEATHER_METRICS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
+          <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpComparisonType(event.target.value as ComparisonType)} value={heatPumpComparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
+          <input className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpThresholdValue(event.target.value)} step="0.1" type="number" value={heatPumpThresholdValue} />
+          <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
+            <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId || !heatPumpStateHex.trim()} type="submit">{editingHeatPumpLinkId === null ? t("addHeatPumpRule") : t("saveHeatPumpRule")}</button>
+            <button className="secondary-action justify-center" onClick={() => {
+              resetHeatPumpForm();
+              setIsHeatPumpRuleDialogOpen(false);
+            }} type="button">{common("cancel")}</button>
+          </div>
+        </form>
+      </AppDialog>
 
       <HeatPumpStateDialog
         acType={heatPumpDialogAcType}
