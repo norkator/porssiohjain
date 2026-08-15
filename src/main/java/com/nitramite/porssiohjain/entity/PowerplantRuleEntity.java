@@ -78,6 +78,12 @@ public class PowerplantRuleEntity {
     @Column(name = "last_skip_reason", length = 256)
     private String lastSkipReason;
 
+    @Column(name = "control_point_x")
+    private Integer controlPointX;
+
+    @Column(name = "control_point_y")
+    private Integer controlPointY;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

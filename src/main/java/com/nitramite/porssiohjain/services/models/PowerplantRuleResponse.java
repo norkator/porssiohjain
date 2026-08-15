@@ -39,6 +39,8 @@ public class PowerplantRuleResponse {
     private Instant lastCommandSentAt;
     private Instant lastEvaluatedAt;
     private String lastSkipReason;
+    private Integer controlPointX;
+    private Integer controlPointY;
     private Instant createdAt;
     private Instant updatedAt;
 }

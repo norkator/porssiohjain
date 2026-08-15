@@ -237,6 +237,16 @@ public class PowerplantService {
     }
 
     @Transactional
+    public void updateRuleControlPoint(Long accountId, Long ruleId, int controlPointX, int controlPointY) {
+        demoAccountGuard.assertWritable(accountId);
+        PowerplantRuleEntity entity = powerplantRuleRepository.findByIdAndAccountId(ruleId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Powerplant rule not found: " + ruleId));
+        entity.setControlPointX(Math.max(0, controlPointX));
+        entity.setControlPointY(Math.max(0, controlPointY));
+        powerplantRuleRepository.save(entity);
+    }
+
+    @Transactional
     public int evaluateEnabledRules() {
         Instant now = Instant.now();
         int sent = 0;
@@ -433,6 +443,8 @@ public class PowerplantService {
                 .lastCommandSentAt(entity.getLastCommandSentAt())
                 .lastEvaluatedAt(entity.getLastEvaluatedAt())
                 .lastSkipReason(entity.getLastSkipReason())
+                .controlPointX(entity.getControlPointX())
+                .controlPointY(entity.getControlPointY())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

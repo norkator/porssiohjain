@@ -226,11 +226,16 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
 
         Map<Long, PowerplantElementResponse> elementById = elements.stream()
                 .collect(Collectors.toMap(PowerplantElementResponse::getId, Function.identity()));
+        Map<String, List<PowerplantRuleResponse>> rulesByEndpoint = rules.stream()
+                .collect(Collectors.groupingBy(rule -> rule.getSourceElement().getId() + "->" + rule.getTargetElement().getId()));
         for (PowerplantRuleResponse rule : rules) {
             PowerplantElementResponse source = elementById.get(rule.getSourceElement().getId());
             PowerplantElementResponse target = elementById.get(rule.getTargetElement().getId());
             if (source != null && target != null) {
-                appendRuleLine(svg, source, target, rule);
+                List<PowerplantRuleResponse> parallelRules = rulesByEndpoint.get(rule.getSourceElement().getId() + "->" + rule.getTargetElement().getId());
+                int ruleIndex = parallelRules != null ? parallelRules.indexOf(rule) : 0;
+                int ruleCount = parallelRules != null ? parallelRules.size() : 1;
+                appendRulePath(svg, source, target, rule, ruleIndex, ruleCount);
             }
         }
 
@@ -315,26 +320,144 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         return section;
     }
 
-    private void appendRuleLine(Element svg, PowerplantElementResponse source, PowerplantElementResponse target, PowerplantRuleResponse rule) {
+    private void appendRulePath(
+            Element svg,
+            PowerplantElementResponse source,
+            PowerplantElementResponse target,
+            PowerplantRuleResponse rule,
+            int ruleIndex,
+            int ruleCount
+    ) {
         int x1 = source.getCanvasX() + ELEMENT_WIDTH;
         int y1 = source.getCanvasY() + 58;
         int x2 = target.getCanvasX();
         int y2 = target.getCanvasY() + 58;
+        int handleX = rule.getControlPointX() != null ? rule.getControlPointX() : defaultRuleControlX(x1, y1, x2, y2, ruleIndex, ruleCount);
+        int handleY = rule.getControlPointY() != null ? rule.getControlPointY() : defaultRuleControlY(x1, y1, x2, y2, ruleIndex, ruleCount);
+        int controlX = bezierControlX(x1, x2, handleX);
+        int controlY = bezierControlY(y1, y2, handleY);
 
-        Element line = new Element("line");
-        line.setAttribute("x1", String.valueOf(x1));
-        line.setAttribute("y1", String.valueOf(y1));
-        line.setAttribute("x2", String.valueOf(x2));
-        line.setAttribute("y2", String.valueOf(y2));
-        line.setAttribute("class", rule.isEnabled() ? "powerplant-rule-line" : "powerplant-rule-line disabled");
-        svg.appendChild(line);
+        Element path = new Element("path");
+        path.setAttribute("d", "M " + x1 + " " + y1 + " Q " + controlX + " " + controlY + " " + x2 + " " + y2);
+        path.setAttribute("class", rule.isEnabled() ? "powerplant-rule-line" : "powerplant-rule-line disabled");
+        svg.appendChild(path);
 
         Element text = new Element("text");
-        text.setAttribute("x", String.valueOf((x1 + x2) / 2));
-        text.setAttribute("y", String.valueOf(((y1 + y2) / 2) - 8));
+        text.setAttribute("x", String.valueOf(handleX));
+        text.setAttribute("y", String.valueOf(handleY - 12));
         text.setAttribute("class", "powerplant-rule-label");
         text.setText(ruleLabel(rule));
         svg.appendChild(text);
+
+        Element handle = new Element("circle");
+        handle.setAttribute("cx", String.valueOf(handleX));
+        handle.setAttribute("cy", String.valueOf(handleY));
+        handle.setAttribute("r", "8");
+        handle.setAttribute("class", "powerplant-rule-handle");
+        svg.appendChild(handle);
+        enableRuleControlPointDrag(handle, path, text, rule, x1, y1, x2, y2);
+    }
+
+    private int defaultRuleControlX(int x1, int y1, int x2, int y2, int ruleIndex, int ruleCount) {
+        return clamp((x1 + x2) / 2 + perpendicularOffsetX(x1, y1, x2, y2, ruleIndex, ruleCount), 0, boardWidth, (x1 + x2) / 2);
+    }
+
+    private int defaultRuleControlY(int x1, int y1, int x2, int y2, int ruleIndex, int ruleCount) {
+        return clamp((y1 + y2) / 2 + perpendicularOffsetY(x1, y1, x2, y2, ruleIndex, ruleCount), 0, boardHeight, (y1 + y2) / 2);
+    }
+
+    private int bezierControlX(int x1, int x2, int handleX) {
+        return (2 * handleX) - ((x1 + x2) / 2);
+    }
+
+    private int bezierControlY(int y1, int y2, int handleY) {
+        return (2 * handleY) - ((y1 + y2) / 2);
+    }
+
+    private int perpendicularOffsetX(int x1, int y1, int x2, int y2, int ruleIndex, int ruleCount) {
+        double length = Math.max(1.0, Math.hypot(x2 - x1, y2 - y1));
+        double normalX = -(double) (y2 - y1) / length;
+        return (int) Math.round(normalX * parallelRuleOffset(ruleIndex, ruleCount));
+    }
+
+    private int perpendicularOffsetY(int x1, int y1, int x2, int y2, int ruleIndex, int ruleCount) {
+        double length = Math.max(1.0, Math.hypot(x2 - x1, y2 - y1));
+        double normalY = (double) (x2 - x1) / length;
+        return (int) Math.round(normalY * parallelRuleOffset(ruleIndex, ruleCount));
+    }
+
+    private int parallelRuleOffset(int ruleIndex, int ruleCount) {
+        if (ruleCount <= 1) {
+            return 0;
+        }
+        return (int) Math.round((ruleIndex - ((ruleCount - 1) / 2.0)) * 48.0);
+    }
+
+    private void enableRuleControlPointDrag(
+            Element handle,
+            Element path,
+            Element text,
+            PowerplantRuleResponse rule,
+            int x1,
+            int y1,
+            int x2,
+            int y2
+    ) {
+        handle.executeJs("""
+                const handle = this;
+                const path = $0;
+                const label = $1;
+                const svg = handle.ownerSVGElement;
+                const viewElement = $6;
+                if (handle.__powerplantRuleDragBound) {
+                  return;
+                }
+                handle.__powerplantRuleDragBound = true;
+                handle.style.touchAction = 'none';
+                let dragging = false;
+                const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+                const toSvgPoint = event => {
+                  const point = svg.createSVGPoint();
+                  point.x = event.clientX;
+                  point.y = event.clientY;
+                  return point.matrixTransform(svg.getScreenCTM().inverse());
+                };
+                const moveControl = point => {
+                  const cx = clamp(Math.round(point.x), 0, $2);
+                  const cy = clamp(Math.round(point.y), 0, $3);
+                  const controlX = (2 * cx) - (($4 + $7) / 2);
+                  const controlY = (2 * cy) - (($5 + $8) / 2);
+                  handle.setAttribute('cx', cx);
+                  handle.setAttribute('cy', cy);
+                  path.setAttribute('d', `M ${$4} ${$5} Q ${controlX} ${controlY} ${$7} ${$8}`);
+                  label.setAttribute('x', cx);
+                  label.setAttribute('y', cy - 12);
+                  return {cx, cy};
+                };
+                handle.addEventListener('pointerdown', event => {
+                  dragging = true;
+                  handle.setPointerCapture(event.pointerId);
+                  event.preventDefault();
+                  event.stopPropagation();
+                });
+                handle.addEventListener('pointermove', event => {
+                  if (!dragging) {
+                    return;
+                  }
+                  moveControl(toSvgPoint(event));
+                });
+                const finish = event => {
+                  if (!dragging) {
+                    return;
+                  }
+                  dragging = false;
+                  const point = moveControl(toSvgPoint(event));
+                  handle.releasePointerCapture?.(event.pointerId);
+                  viewElement.$server.updateRuleControlPoint($9, point.cx, point.cy);
+                };
+                handle.addEventListener('pointerup', finish);
+                handle.addEventListener('pointercancel', finish);
+                """, path, text, boardWidth, boardHeight, x1, y1, getElement(), x2, y2, rule.getId());
     }
 
     private Component createElementBody(PowerplantElementResponse element) {
@@ -474,6 +597,12 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
     @ClientCallable
     private void updateElementPosition(Long elementId, Integer x, Integer y) {
         powerplantService.updateElementPosition(accountId, elementId, x != null ? x : 0, y != null ? y : 0);
+        reloadData();
+    }
+
+    @ClientCallable
+    private void updateRuleControlPoint(Long ruleId, Integer x, Integer y) {
+        powerplantService.updateRuleControlPoint(accountId, ruleId, x != null ? x : 0, y != null ? y : 0);
         reloadData();
     }
 

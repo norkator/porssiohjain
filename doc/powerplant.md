@@ -47,10 +47,13 @@ Rules support:
 - enabled flag;
 - cooldown seconds;
 - last evaluated time, last command time, last matched state, and last skip reason.
+- optional SVG curve control point for the connector line.
 
 The evaluator sends a command only when the condition transitions from not matched to matched. While the condition remains matched, it records `Condition already matched` and does not repeatedly send commands. Hysteresis keeps the matched state active until the value moves beyond the reset band. For example, `< 55 C` with hysteresis `5` becomes matched below `55 C` and resets only after the value rises above `60 C`.
 
 Rules are evaluated by `Scheduler.powerplantRules()` every `${powerplant.rule-evaluation-interval:1m}` and can also be run manually from the view with **Evaluate rules**.
+
+The board renders rule connectors as quadratic SVG curves. Multiple rules between the same source and target are automatically spaced apart. Each connector has a small draggable handle at the curve control point; moving it stores `control_point_x` and `control_point_y` on `powerplant_rule`.
 
 ## Important constraints
 
