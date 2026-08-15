@@ -9,6 +9,10 @@ const DEFAULT_CURVE = JSON.stringify([{ price: 0, temperature: 22 }, { price: 10
 
 function optionalNumber(value: string) { return value === "" ? null : Number(value); }
 
+function compareByName(left: string | null | undefined, right: string | null | undefined) {
+  return (left ?? "").localeCompare(right ?? "", undefined, { sensitivity: "base" });
+}
+
 export default function ControlThermostatsCard({ controlId, isReadOnly }: { controlId: number; isReadOnly: boolean }) {
   const { t } = useI18n("manageControl");
   const common = useI18n("common").t;
@@ -28,6 +32,11 @@ export default function ControlThermostatsCard({ controlId, isReadOnly }: { cont
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [curveOpen, setCurveOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const sortedLinks = [...links].sort((left, right) =>
+    compareByName(left.device.deviceName, right.device.deviceName)
+    || left.thermostatChannel - right.thermostatChannel
+    || left.id - right.id
+  );
 
   useEffect(() => {
     Promise.all([fetchControlThermostatLinks(controlId), fetchDevices()])
@@ -89,7 +98,7 @@ export default function ControlThermostatsCard({ controlId, isReadOnly }: { cont
     </div> : null}
     {links.length === 0 ? <p className="text-sm text-on-surface-variant">{t("noThermostatLinks")}</p> : null}
     <div className="space-y-3">
-      {links.map((link) => <div className="rounded-xl bg-surface-container p-4" key={link.id}>
+      {sortedLinks.map((link) => <div className="rounded-xl bg-surface-container p-4" key={link.id}>
         <div className="flex items-start justify-between gap-3">
           <div><p className="font-headline font-bold text-on-surface">{link.device.deviceName}</p><p className="text-sm text-on-surface-variant">{common("channel")} {link.thermostatChannel} · {link.enabled ? common("enabled") : common("disabled")}</p></div>
           {!isReadOnly ? <div className="flex gap-2">

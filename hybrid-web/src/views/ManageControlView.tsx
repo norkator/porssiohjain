@@ -55,6 +55,10 @@ function toNumber(value: string, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function compareByName(left: string | null | undefined, right: string | null | undefined) {
+  return (left ?? "").localeCompare(right ?? "", undefined, { sensitivity: "base" });
+}
+
 export default function ManageControlView() {
   const { t, group } = useI18n("manageControl");
   const common = useI18n("common").t;
@@ -121,7 +125,17 @@ export default function ManageControlView() {
   const [heatPumpDialogAcType, setHeatPumpDialogAcType] = useState<AcType>("NONE");
   const timezoneIsValid = availableTimezones.includes(timezone);
   const canSave = name.trim().length > 0 && timezoneIsValid && !control?.shared && !isSaving && !isDeleting;
-  const standardLinks = deviceLinks.filter((link) => link.device.deviceType === "STANDARD");
+  const standardLinks = deviceLinks
+    .filter((link) => link.device.deviceType === "STANDARD")
+    .sort((left, right) =>
+      compareByName(left.device.deviceName, right.device.deviceName)
+      || left.deviceChannel - right.deviceChannel
+      || left.id - right.id
+    );
+  const sortedHeatPumpLinks = [...heatPumpLinks].sort((left, right) =>
+    compareByName(left.device.deviceName, right.device.deviceName)
+    || left.id - right.id
+  );
   const linkedDeviceKeys = new Set(
     standardLinks
       .filter((link) => link.id !== editingDeviceLinkId)
@@ -726,7 +740,7 @@ export default function ManageControlView() {
             <section className="app-card p-4 sm:p-6">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="font-headline text-xl font-bold text-on-surface">{t("controlLinks")}</h2>
-                <span className="chip bg-surface-container-highest text-primary-container">{standardLinks.length + heatPumpLinks.length}</span>
+                <span className="chip bg-surface-container-highest text-primary-container">{standardLinks.length + sortedHeatPumpLinks.length}</span>
               </div>
 
               <div className="mb-6 flex flex-wrap gap-2 rounded-2xl bg-surface-container p-2">
@@ -852,12 +866,12 @@ export default function ManageControlView() {
                     <p className="text-sm text-on-surface-variant">{t("loadingHeatPumpLinks")}</p>
                   ) : null}
 
-                  {!isLoadingLinks && heatPumpLinks.length === 0 ? (
+                  {!isLoadingLinks && sortedHeatPumpLinks.length === 0 ? (
                     <p className="text-sm text-on-surface-variant">{t("noHeatPumpLinks")}</p>
                   ) : null}
 
                   <div className="space-y-3">
-                    {heatPumpLinks.map((link) => (
+                    {sortedHeatPumpLinks.map((link) => (
                       <div className="rounded-xl bg-surface-container p-4" key={link.id}>
                         <div className="flex items-start justify-between gap-3">
                           <div>

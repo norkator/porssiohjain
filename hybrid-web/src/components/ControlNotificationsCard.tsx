@@ -101,6 +101,10 @@ function formatCheapestHours(value: number | null, t: ReturnType<typeof useI18n<
   return t("cheapestWindow", { hours: value });
 }
 
+function compareByName(left: string | null | undefined, right: string | null | undefined) {
+  return (left ?? "").localeCompare(right ?? "", undefined, { sensitivity: "base" });
+}
+
 export default function ControlNotificationsCard({
   controlId,
   isReadOnly,
@@ -119,6 +123,10 @@ export default function ControlNotificationsCard({
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
+  const sortedNotifications = [...notifications].sort((left, right) =>
+    compareByName(left.name, right.name)
+    || left.id - right.id
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -245,7 +253,7 @@ export default function ControlNotificationsCard({
         ) : null}
 
         <div className="space-y-4">
-          {notifications.map((notification) => (
+          {sortedNotifications.map((notification) => (
             <article className="rounded-2xl bg-surface-container p-5" key={notification.id}>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-3">
