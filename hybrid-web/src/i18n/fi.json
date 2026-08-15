@@ -141,7 +141,7 @@
     "loadingContracts": "Ladataan sopimuksia...",
     "contractSyncUnavailable": "Sopimusten synkronointi ei ole saatavilla",
     "contractsConfigured": "{count} sopimusta",
-    "weatherThresholdAutomation": "Säähän perustuva automaatio",
+    "weatherThresholdAutomation": "Sääautomaatio",
     "summaryLoading": "Ladataan laitteiden tilaa ja reaaliaikaista tehodataa.",
     "summaryUnavailable": "Reaaliaikainen näkymä ei ole nyt saatavilla. Tarkista paikallinen API-yhteys ja token-asetukset.",
     "summaryStatsUnavailable": "Laitelistassa {onlineCount}/{totalCount} laitetta on verkossa. Reaaliaikaiset tehotilastot eivät ole nyt saatavilla.",

@@ -141,7 +141,7 @@
     "loadingContracts": "Loading contracts...",
     "contractSyncUnavailable": "Contract sync unavailable",
     "contractsConfigured": "{count} Contracts",
-    "weatherThresholdAutomation": "Weather threshold automation",
+    "weatherThresholdAutomation": "Weather automation",
     "summaryLoading": "Loading your current device status and live power data.",
     "summaryUnavailable": "Live dashboard data is currently unavailable. Check the local API connection and token configuration.",
     "summaryStatsUnavailable": "Device inventory shows {onlineCount} of {totalCount} devices online. Live power stats are currently unavailable.",

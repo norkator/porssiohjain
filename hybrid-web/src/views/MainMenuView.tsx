@@ -44,6 +44,7 @@ const SAVINGS_CHART_PADDING_BOTTOM = 38;
 const SAVINGS_CHART_Y_AXIS_STEPS = 4;
 const SAVINGS_CHART_LABEL_SIZE = 10;
 const ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller";
+const MAIN_MENU_SCROLL_STORAGE_KEY = "porssiohjain.mainMenu.scrollY";
 
 type SiteOwnTile = {
   key: string;
@@ -172,6 +173,25 @@ export default function MainMenuView() {
     : contractsCount === null
       ? t("loadingContracts")
       : t("contractsConfigured", { count: contractsCount });
+
+  useEffect(() => {
+    const savedScrollY = Number(window.sessionStorage.getItem(MAIN_MENU_SCROLL_STORAGE_KEY));
+    if (Number.isFinite(savedScrollY) && savedScrollY > 0) {
+      window.requestAnimationFrame(() => window.scrollTo({ top: savedScrollY, behavior: "auto" }));
+    }
+
+    const saveScrollPosition = () => {
+      window.sessionStorage.setItem(MAIN_MENU_SCROLL_STORAGE_KEY, String(window.scrollY));
+    };
+
+    window.addEventListener("pagehide", saveScrollPosition);
+    window.addEventListener("beforeunload", saveScrollPosition);
+    return () => {
+      saveScrollPosition();
+      window.removeEventListener("pagehide", saveScrollPosition);
+      window.removeEventListener("beforeunload", saveScrollPosition);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
