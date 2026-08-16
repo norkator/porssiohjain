@@ -126,6 +126,9 @@ public class HomeView extends VerticalLayout {
         Button loadSheddingButton = new Button(t("home.loadShedding"), e -> UI.getCurrent().navigate(LoadSheddingView.class));
         loadSheddingButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
+        Button powerplantButton = new Button(t("home.powerplant"), e -> UI.getCurrent().navigate(PowerplantView.class));
+        powerplantButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+
         Button dashboardButton = new Button(t("home.dashboard"), e -> UI.getCurrent().navigate(DashboardView.class));
         dashboardButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
@@ -159,7 +162,7 @@ public class HomeView extends VerticalLayout {
         stopImpersonatingButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
 
         Stream.of(
-                loginButton, createAccountButton, documentationButton, devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, loadSheddingButton, myProductionButton, powerLimitsButton,
+                loginButton, createAccountButton, documentationButton, devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, loadSheddingButton, powerplantButton, myProductionButton, powerLimitsButton,
                 dashboardButton, settingsButton, adminButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
@@ -195,6 +198,7 @@ public class HomeView extends VerticalLayout {
             configureActionButton(myProductionButton, VaadinIcon.LIGHTBULB);
             configureActionButton(powerLimitsButton, VaadinIcon.FLASH);
             configureActionButton(loadSheddingButton, VaadinIcon.WARNING);
+            configureActionButton(powerplantButton, VaadinIcon.DASHBOARD);
             configureActionButton(dashboardButton, VaadinIcon.DASHBOARD);
             configureActionButton(settingsButton, VaadinIcon.COG);
             configureActionButton(documentationButton, VaadinIcon.BOOK);
@@ -210,7 +214,7 @@ public class HomeView extends VerticalLayout {
             actionGrid.getStyle().set("gap", "0.75rem");
 
             Stream.of(
-                    devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, myProductionButton, powerLimitsButton, loadSheddingButton,
+                    devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, myProductionButton, powerLimitsButton, loadSheddingButton, powerplantButton,
                     dashboardButton, settingsButton, documentationButton
             ).forEach(actionGrid::add);
             if (admin) {

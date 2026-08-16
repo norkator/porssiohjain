@@ -12,6 +12,10 @@ Use the repository Gradle wrapper with Java 21, for example:
 
 Preserve unrelated worktree changes. Use the existing Java, Spring, Vaadin, repository, translation, and Flyway conventions.
 
+## Powerplant handoff
+
+Read `doc/powerplant.md` before changing the Powerplant feature. It documents the current free-form control-room board, persisted element model, Vaadin icon selection, direct STANDARD relay command support, and the distinction between configured indicator values and live telemetry.
+
 ## Heating Planner handoff
 
 Read `doc/heating-planner.md` before changing the Heating Planner. It is the authoritative feature specification and contains the persistence, thermostat-limit, telemetry, push-notification, and active-control design.
