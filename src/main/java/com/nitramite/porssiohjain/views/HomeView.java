@@ -97,9 +97,6 @@ public class HomeView extends VerticalLayout {
         Button createAccountButton = new Button(t("home.createAccount"), e -> UI.getCurrent().navigate(CreateAccountView.class));
         createAccountButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
 
-        Button documentationButton = new Button(t("home.documentation"), e -> UI.getCurrent().navigate(DocumentationView.class));
-        documentationButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-
         Button mobileAppButton = new Button(t("home.mobileApp"), e ->
                 UI.getCurrent().getPage().open("https://mobile.porssiohjain.fi/", "_blank")
         );
@@ -162,7 +159,7 @@ public class HomeView extends VerticalLayout {
         stopImpersonatingButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
 
         Stream.of(
-                loginButton, createAccountButton, documentationButton, devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, loadSheddingButton, powerplantButton, myProductionButton, powerLimitsButton,
+                loginButton, createAccountButton, devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, loadSheddingButton, powerplantButton, myProductionButton, powerLimitsButton,
                 dashboardButton, settingsButton, adminButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
@@ -201,7 +198,6 @@ public class HomeView extends VerticalLayout {
             configureActionButton(powerplantButton, VaadinIcon.DASHBOARD);
             configureActionButton(dashboardButton, VaadinIcon.DASHBOARD);
             configureActionButton(settingsButton, VaadinIcon.COG);
-            configureActionButton(documentationButton, VaadinIcon.BOOK);
             configureActionButton(logoutButton, VaadinIcon.SIGN_OUT);
             configureActionButton(adminButton, VaadinIcon.SHIELD);
             configureActionButton(stopImpersonatingButton, VaadinIcon.CLOSE_CIRCLE);
@@ -215,7 +211,7 @@ public class HomeView extends VerticalLayout {
 
             Stream.of(
                     devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, myProductionButton, powerLimitsButton, loadSheddingButton, powerplantButton,
-                    dashboardButton, settingsButton, documentationButton
+                    dashboardButton, settingsButton
             ).forEach(actionGrid::add);
             if (admin) {
                 actionGrid.add(adminButton);
@@ -234,7 +230,7 @@ public class HomeView extends VerticalLayout {
                 contentBox.add(stopImpersonatingButton);
             }
         } else {
-            contentBox.add(loginButton, createAccountButton, mobileAppButton, googlePlayBadgeLink, documentationButton);
+            contentBox.add(loginButton, createAccountButton, mobileAppButton, googlePlayBadgeLink);
         }
 
         Paragraph docLink = new Paragraph(t("home.licenseText") + " ");
