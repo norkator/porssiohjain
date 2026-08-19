@@ -352,12 +352,13 @@ export default function NordpoolTodayChartCard() {
                 {t("nordpoolDescription", { day: activePriceDayLabel, timezone: activeChart.timezone })}
               </p>
             </div>
-
-            <div className="rounded-2xl bg-surface-container p-4">
-              <p className="metric-label mb-1">{activeDay === "today" ? t("current") : t("firstInterval")}</p>
-              <p className="font-headline text-3xl font-black text-primary">{formatNordpoolPrice(activeChart.current)}</p>
-              <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
-            </div>
+            <button
+              className="secondary-action justify-center px-4 py-2 text-sm"
+              onClick={() => setIsNotificationDialogOpen(true)}
+              type="button"
+            >
+              {t("marketNotifications")}
+            </button>
           </div>
 
           <div className="mb-4">
@@ -403,17 +404,15 @@ export default function NordpoolTodayChartCard() {
             <span className="rounded-full bg-surface-container px-3 py-2">
               {t("range", { min: formatNordpoolPrice(activeChart.min), max: formatNordpoolPrice(activeChart.max) })}
             </span>
-            <button
-              className="secondary-action justify-center px-4 py-2 text-xs"
-              onClick={() => setIsNotificationDialogOpen(true)}
-              type="button"
-            >
-              {t("marketNotifications")}
-            </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-1">
+          <div className="rounded-3xl bg-surface-container-low p-4">
+            <p className="metric-label mb-2">{activeDay === "today" ? t("current") : t("firstInterval")}</p>
+            <p className="font-headline text-2xl font-black text-primary">{formatNordpoolPrice(activeChart.current)}</p>
+            <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
+          </div>
           <div className="rounded-3xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("minimum")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.min)}</p>
@@ -428,11 +427,6 @@ export default function NordpoolTodayChartCard() {
             <p className="metric-label mb-2">{t("maximum")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.max)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
-          </div>
-          <div className="market-stat-accent p-4">
-            <p className="metric-label mb-2 text-primary-fixed">{t("dataPoints")}</p>
-            <p className="font-headline text-2xl font-black">{activeChart.points.length}</p>
-            <p className="text-xs text-primary-fixed">{t("dayIntervals", { day: activePriceDayLabel })}</p>
           </div>
         </div>
       </div>
