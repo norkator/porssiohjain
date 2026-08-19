@@ -385,14 +385,14 @@ vaadin-button[theme~="large"] {
 }
 
 .solar-angle-azimuth-visual {
-    max-width: 340px;
+    max-width: 560px;
     aspect-ratio: 1 / 1;
-    flex: 0 1 340px;
+    flex: 1 1 420px;
 }
 
 .solar-angle-tilt-visual {
-    max-width: 680px;
-    aspect-ratio: 3 / 2;
+    max-width: 560px;
+    aspect-ratio: 21 / 11;
     flex: 1 1 420px;
 }
 
@@ -400,6 +400,40 @@ vaadin-button[theme~="large"] {
     display: block;
     width: 100%;
     height: 100%;
+}
+
+.solar-angle-api-panel {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #fff;
+    box-shadow: inset -1px -1px #808080, inset 1px 1px #fff;
+    background: #fffff4;
+    box-sizing: border-box;
+}
+
+.solar-angle-api-panel h3 {
+    margin-top: 0;
+}
+
+.solar-angle-api-path {
+    display: block;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.solar-angle-api-json {
+    width: 100%;
+    max-height: 65vh;
+    overflow: auto;
+    margin: 0;
+    padding: 12px;
+    background: #111;
+    color: #f7f7f7;
+    box-sizing: border-box;
+    white-space: pre-wrap;
 }
 
 .solar-sky {

@@ -11,6 +11,8 @@
 
 package com.nitramite.porssiohjain.views;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -19,10 +21,12 @@ import com.nitramite.porssiohjain.services.solar.SolarAnglePlannerService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Pre;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -40,6 +44,8 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -66,17 +72,21 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
     private final Span targetSummary;
     private final Span sunSummary;
     private final Span apiSummary;
+    private final Span apiPath;
+    private final ObjectMapper objectMapper;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z");
 
     @Autowired
     public SolarAnglePlannerView(
             AuthService authService,
             I18nService i18n,
-            SolarAnglePlannerService solarAnglePlannerService
+            SolarAnglePlannerService solarAnglePlannerService,
+            ObjectMapper objectMapper
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.solarAnglePlannerService = solarAnglePlannerService;
+        this.objectMapper = objectMapper;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -108,6 +118,8 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
         targetSummary = createMetric();
         sunSummary = createMetric();
         apiSummary = createMetric();
+        apiPath = new Span();
+        apiPath.addClassName("solar-angle-api-path");
 
         setSizeFull();
         setAlignItems(Alignment.CENTER);
@@ -115,7 +127,7 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
 
         VerticalLayout card = new VerticalLayout();
         card.setWidthFull();
-        card.setMaxWidth("1120px");
+        card.setMaxWidth("none");
         card.setPadding(true);
         card.setSpacing(true);
         card.setAlignItems(Alignment.STRETCH);
@@ -126,9 +138,11 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
 
         Button calculateButton = new Button(t("solarAngle.button.calculate"), event -> updateRecommendation());
         calculateButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button apiJsonButton = new Button(t("solarAngle.button.showApiJson"), event -> showApiResponseJson());
+        apiJsonButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         Button backButton = new Button(t("solarAngle.button.back"), event -> UI.getCurrent().navigate(HomeView.class));
         backButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        HorizontalLayout actions = new HorizontalLayout(calculateButton, backButton);
+        HorizontalLayout actions = new HorizontalLayout(calculateButton, apiJsonButton, backButton);
         actions.setPadding(false);
         actions.setSpacing(true);
 
@@ -160,14 +174,23 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("520px", 2)
         );
+        addApiPathRefreshListeners();
 
-        VerticalLayout panel = new VerticalLayout(new H3(t("solarAngle.inputs.title")), form, actions);
+        VerticalLayout panel = new VerticalLayout(new H3(t("solarAngle.inputs.title")), form, createApiPanel(), actions);
         panel.setPadding(false);
         panel.setSpacing(true);
         panel.setWidth("340px");
         panel.getStyle()
                 .set("max-width", "100%")
                 .set("flex", "0 0 340px");
+        return panel;
+    }
+
+    private Div createApiPanel() {
+        updateApiPath();
+        Div panel = new Div();
+        panel.addClassName("solar-angle-api-panel");
+        panel.add(new H3(t("solarAngle.api.title")), apiPath);
         return panel;
     }
 
@@ -192,19 +215,57 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
 
     private void updateRecommendation() {
         try {
-            ZoneId.of(timezoneField.getValue());
-            SolarAngleRecommendationResponse recommendation = solarAnglePlannerService.calculateRecommendation(
-                    valueOrDefault(latitudeField, 60.1699),
-                    valueOrDefault(longitudeField, 24.9384),
-                    timezoneField.getValue(),
-                    valueOrDefault(currentTiltField, 35.0),
-                    valueOrDefault(currentAzimuthField, 180.0),
-                    valueOrDefault(toleranceField, 2.0)
-            );
+            SolarAngleRecommendationResponse recommendation = calculateCurrentRecommendation();
             renderVisual(recommendation);
             updateMetrics(recommendation);
+            updateApiPath();
         } catch (DateTimeException | IllegalArgumentException exception) {
             Notification notification = Notification.show(t("solarAngle.notification.invalidInput", exception.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    private SolarAngleRecommendationResponse calculateCurrentRecommendation() {
+        ZoneId.of(timezoneField.getValue());
+        return solarAnglePlannerService.calculateRecommendation(
+                valueOrDefault(latitudeField, 60.1699),
+                valueOrDefault(longitudeField, 24.9384),
+                timezoneField.getValue(),
+                valueOrDefault(currentTiltField, 35.0),
+                valueOrDefault(currentAzimuthField, 180.0),
+                valueOrDefault(toleranceField, 2.0)
+        );
+    }
+
+    private void showApiResponseJson() {
+        try {
+            SolarAngleRecommendationResponse recommendation = calculateCurrentRecommendation();
+            String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(recommendation);
+
+            Dialog dialog = new Dialog();
+            dialog.setHeaderTitle(t("solarAngle.api.dialogTitle"));
+            dialog.setWidth("min(760px, 95vw)");
+
+            Span endpoint = new Span(buildApiPath());
+            endpoint.addClassName("solar-angle-api-path");
+            Pre jsonPre = new Pre(json);
+            jsonPre.addClassName("solar-angle-api-json");
+
+            Button close = new Button(t("solarAngle.button.closeJson"), event -> dialog.close());
+            close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+            VerticalLayout content = new VerticalLayout(endpoint, jsonPre);
+            content.setPadding(false);
+            content.setSpacing(true);
+            content.setWidthFull();
+            dialog.add(content);
+            dialog.getFooter().add(close);
+            dialog.open();
+        } catch (DateTimeException | IllegalArgumentException exception) {
+            Notification notification = Notification.show(t("solarAngle.notification.invalidInput", exception.getMessage()));
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        } catch (JsonProcessingException exception) {
+            Notification notification = Notification.show(t("solarAngle.notification.jsonFailed", exception.getMessage()));
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
@@ -282,16 +343,17 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
         double currentPanelRotation = -currentTilt;
         double targetPanelRotation = -targetTilt;
         double sunX = 210.0 + (Math.cos(Math.toRadians(180.0 - recommendation.getSunElevation())) * 120.0);
-        double sunY = 230.0 - (Math.sin(Math.toRadians(recommendation.getSunElevation())) * 135.0);
+        double horizonY = 178.0;
+        double sunY = horizonY - (Math.sin(Math.toRadians(recommendation.getSunElevation())) * 110.0);
         String daylightClass = recommendation.isSunVisible() ? "sun-visible" : "sun-hidden";
         String svg = """
-                <svg viewBox="0 0 420 280" role="img" aria-label="%s">
-                    <rect x="0" y="0" width="420" height="280" class="solar-sky"/>
-                    <line x1="36" y1="230" x2="384" y2="230" class="solar-horizon"/>
-                    <path d="M 60 230 Q 210 42 360 230" class="solar-arc"/>
+                <svg viewBox="0 0 420 220" role="img" aria-label="%s">
+                    <rect x="0" y="0" width="420" height="220" class="solar-sky"/>
+                    <line x1="36" y1="178" x2="384" y2="178" class="solar-horizon"/>
+                    <path d="M 60 178 Q 210 32 360 178" class="solar-arc"/>
                     <circle cx="%.1f" cy="%.1f" r="18" class="solar-sun %s"/>
-                    <g transform="translate(210 230)">
-                        <line x1="0" y1="0" x2="0" y2="-96" class="solar-target-line" transform="rotate(%.1f)"/>
+                    <g transform="translate(210 178)">
+                        <line x1="0" y1="0" x2="0" y2="-86" class="solar-target-line" transform="rotate(%.1f)"/>
                         <g transform="rotate(%.1f)">
                             <rect x="-76" y="-10" width="152" height="20" class="solar-target-panel"/>
                         </g>
@@ -304,11 +366,11 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
                             <line x1="54" y1="-14" x2="54" y2="14" class="solar-panel-grid"/>
                             <line x1="-82" y1="0" x2="82" y2="0" class="solar-panel-grid"/>
                         </g>
-                        <line x1="0" y1="0" x2="0" y2="36" class="solar-mast"/>
+                        <line x1="0" y1="0" x2="0" y2="28" class="solar-mast"/>
                         <circle cx="0" cy="0" r="7" class="solar-pivot"/>
                     </g>
-                    <text x="28" y="252" class="solar-label">%s %.1f°</text>
-                    <text x="250" y="252" class="solar-label">%s %.1f°</text>
+                    <text x="28" y="204" class="solar-label">%s %.1f°</text>
+                    <text x="250" y="204" class="solar-label">%s %.1f°</text>
                 </svg>
                 """.formatted(
                 t("solarAngle.visual.tiltAria"),
@@ -338,6 +400,29 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
         Span span = new Span();
         span.addClassNames("solar-angle-metric", LumoUtility.FontSize.SMALL);
         return span;
+    }
+
+    private void addApiPathRefreshListeners() {
+        latitudeField.addValueChangeListener(event -> updateApiPath());
+        longitudeField.addValueChangeListener(event -> updateApiPath());
+        timezoneField.addValueChangeListener(event -> updateApiPath());
+        currentTiltField.addValueChangeListener(event -> updateApiPath());
+        currentAzimuthField.addValueChangeListener(event -> updateApiPath());
+        toleranceField.addValueChangeListener(event -> updateApiPath());
+    }
+
+    private void updateApiPath() {
+        apiPath.setText(buildApiPath());
+    }
+
+    private String buildApiPath() {
+        return "/api/solar-angle-planner/recommendation"
+                + "?latitude=" + valueOrDefault(latitudeField, 60.1699)
+                + "&longitude=" + valueOrDefault(longitudeField, 24.9384)
+                + "&timezone=" + URLEncoder.encode(timezoneField.getValue(), StandardCharsets.UTF_8)
+                + "&currentTilt=" + valueOrDefault(currentTiltField, 35.0)
+                + "&currentAzimuth=" + valueOrDefault(currentAzimuthField, 180.0)
+                + "&toleranceDegrees=" + valueOrDefault(toleranceField, 2.0);
     }
 
     private double valueOrDefault(NumberField field, double defaultValue) {
