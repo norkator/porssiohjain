@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 import { getCurrentTimezone } from "@/lib/add-device-flow";
-import { fetchNordpoolTodayChart, fetchNordpoolTomorrowChart, type NordpoolTodayChart } from "@/lib/nordpool";
+import { fetchCachedNordpoolTodayChart, fetchCachedNordpoolTomorrowChart, type NordpoolTodayChart } from "@/lib/nordpool";
 
 type UseNordpoolTodayChartState = {
   chart: NordpoolTodayChart | null;
@@ -34,8 +34,8 @@ export function useNordpoolTodayChart() {
 
     async function loadChart() {
       try {
-        const chart = await fetchNordpoolTodayChart(timezone);
-        const tomorrowChart = await fetchNordpoolTomorrowChart(timezone).catch(() => null);
+        const chart = await fetchCachedNordpoolTodayChart(timezone);
+        const tomorrowChart = await fetchCachedNordpoolTomorrowChart(timezone).catch(() => null);
 
         if (!isActive) {
           return;

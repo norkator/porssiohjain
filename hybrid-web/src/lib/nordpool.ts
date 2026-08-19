@@ -12,6 +12,9 @@
 import { apiFetch, apiGetJson } from "@/lib/api";
 import { getCurrentIntlLocales } from "@/lib/i18n";
 
+const NORDPOOL_CHART_CACHE_PREFIX = "porssiohjain.nordpoolChart.";
+const NORDPOOL_CHART_CACHE_TTL_MS = 15 * 60 * 1000;
+
 export type NordpoolTodayChartPoint = {
   timestamp: string;
   price: number;
@@ -67,6 +70,14 @@ export async function fetchNordpoolTomorrowChart(timezone: string) {
   return fetchNordpoolChart("/nordpool/tomorrow-chart", timezone);
 }
 
+export async function fetchCachedNordpoolTodayChart(timezone: string) {
+  return fetchCachedNordpoolChart("today", "/nordpool/today-chart", timezone);
+}
+
+export async function fetchCachedNordpoolTomorrowChart(timezone: string) {
+  return fetchCachedNordpoolChart("tomorrow", "/nordpool/tomorrow-chart", timezone);
+}
+
 async function fetchNordpoolChart(path: string, timezone: string) {
   const params = new URLSearchParams();
 
@@ -77,6 +88,35 @@ async function fetchNordpoolChart(path: string, timezone: string) {
   const suffix = params.toString();
 
   return apiGetJson<NordpoolTodayChart>(`${path}${suffix ? `?${suffix}` : ""}`);
+}
+
+async function fetchCachedNordpoolChart(day: "today" | "tomorrow", path: string, timezone: string) {
+  const cacheKey = `${NORDPOOL_CHART_CACHE_PREFIX}${day}.${timezone}`;
+  const now = Date.now();
+
+  try {
+    const cached = window.sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached) as { expiresAt: number; value: NordpoolTodayChart };
+      if (parsed.expiresAt > now) {
+        return parsed.value;
+      }
+      window.sessionStorage.removeItem(cacheKey);
+    }
+  } catch {
+    // Ignore storage failures; the API remains the source of truth.
+  }
+
+  const value = await fetchNordpoolChart(path, timezone);
+  try {
+    window.sessionStorage.setItem(cacheKey, JSON.stringify({
+      expiresAt: now + NORDPOOL_CHART_CACHE_TTL_MS,
+      value
+    }));
+  } catch {
+    // Ignore quota and private-mode storage failures.
+  }
+  return value;
 }
 
 async function sendMarketNotification<T>(path: string, payload: unknown, method = "POST") {

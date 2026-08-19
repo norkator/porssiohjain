@@ -605,6 +605,28 @@ public class EmailService {
         }
     }
 
+    public void sendWindNotificationEmail(String recipientEmail, String name, String description,
+                                          String rule, BigDecimal observed, BigDecimal threshold,
+                                          BigDecimal todayAverage, BigDecimal tomorrowAverage,
+                                          ZonedDateTime detectedAt) {
+        try {
+            String safeName = escapeHtml(name);
+            String safeDescription = description == null || description.isBlank() ? "-" : escapeHtml(description);
+            String html = """
+                    <div style="font-family:Arial,sans-serif;color:#333"><h2 style="color:#00677d">%s</h2>
+                    <p>%s</p><p><b>Rule:</b> %s</p><p><b>Observed:</b> %s</p><p><b>Threshold:</b> %s</p>
+                    <p><b>Today average:</b> %s MW</p><p><b>Tomorrow average:</b> %s MW</p><p>%s</p></div>
+                    """.formatted(safeName, safeDescription, rule, observed.stripTrailingZeros().toPlainString(),
+                    threshold.stripTrailingZeros().toPlainString(), todayAverage == null ? "-" : todayAverage.stripTrailingZeros().toPlainString(),
+                    tomorrowAverage.stripTrailingZeros().toPlainString(), detectedAt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm z")));
+            CreateEmailResponse data = new Resend(resentApiKey).emails().send(CreateEmailOptions.builder()
+                    .from(from).to(recipientEmail).subject(safeName).html(html).build());
+            log.info("Wind notification email sent with Resend id {}", data.getId());
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to send wind notification email", e);
+        }
+    }
+
     public void sendFeedbackEmail(
             String feedback,
             String contactEmail
