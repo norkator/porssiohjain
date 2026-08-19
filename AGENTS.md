@@ -16,6 +16,28 @@ Preserve unrelated worktree changes. Use the existing Java, Spring, Vaadin, repo
 
 Read `doc/powerplant.md` before changing the Powerplant feature. It documents the current free-form control-room board, persisted element model, Vaadin icon selection, direct STANDARD relay command support, and the distinction between configured indicator values and live telemetry.
 
+## Solar panels handoff
+
+The solar panel angle feature is currently an advisory/manual planning tool with a device polling API, not a persisted automation system.
+
+Current implementation:
+
+- `services/solar/SolarAnglePlannerService.java` calculates sun elevation/azimuth, target tilt/azimuth, movement deltas, directions, tolerance handling, daylight state, and next suggested check time.
+- `services/models/SolarAngleRecommendationResponse.java` is the shared response model used by both Vaadin and REST.
+- `views/SolarAnglePlannerView.java` provides the Vaadin view at `/solar-angle-planner`.
+- `contollers/SolarAnglePlannerController.java` exposes `GET /api/solar-angle-planner/recommendation` for devices that periodically ask for movement guidance.
+
+The Finnish visible feature name is **Aurinkopaneelit**. Keep shorter navigation labels preferred over long names such as `Aurinkopaneelin kulmasuunnittelu`.
+
+The Vaadin view intentionally separates the two physical angles:
+
+- top-down azimuth view: a 360-degree dial with current direction, target direction, sun marker, and cardinal/degree labels;
+- side-view tilt view: current panel tilt and target panel tilt only.
+
+Keep the form as a narrow left column and the visualizations as the wider right-side content on desktop, wrapping naturally on mobile.
+
+For future automation, keep motor safety, calibration, limit switches, and physical movement execution on the device side. The backend should provide target angle and movement direction recommendations; it should not assume the panel can move safely unless a later persisted device capability model explicitly supports that.
+
 ## Heating Planner handoff
 
 Read `doc/heating-planner.md` before changing the Heating Planner. It is the authoritative feature specification and contains the persistence, thermostat-limit, telemetry, push-notification, and active-control design.

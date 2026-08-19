@@ -126,6 +126,9 @@ public class HomeView extends VerticalLayout {
         Button powerplantButton = new Button(t("home.powerplant"), e -> UI.getCurrent().navigate(PowerplantView.class));
         powerplantButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 
+        Button solarAnglePlannerButton = new Button(t("home.solarAnglePlanner"), e -> UI.getCurrent().navigate(SolarAnglePlannerView.class));
+        solarAnglePlannerButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+
         Button dashboardButton = new Button(t("home.dashboard"), e -> UI.getCurrent().navigate(DashboardView.class));
         dashboardButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
@@ -159,7 +162,7 @@ public class HomeView extends VerticalLayout {
         stopImpersonatingButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
 
         Stream.of(
-                loginButton, createAccountButton, devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, loadSheddingButton, powerplantButton, myProductionButton, powerLimitsButton,
+                loginButton, createAccountButton, devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, loadSheddingButton, powerplantButton, solarAnglePlannerButton, myProductionButton, powerLimitsButton,
                 dashboardButton, settingsButton, adminButton, logoutButton
         ).forEach(btn -> {
             btn.getStyle().set("transition", "transform 0.1s ease-in-out");
@@ -196,6 +199,7 @@ public class HomeView extends VerticalLayout {
             configureActionButton(powerLimitsButton, VaadinIcon.FLASH);
             configureActionButton(loadSheddingButton, VaadinIcon.WARNING);
             configureActionButton(powerplantButton, VaadinIcon.DASHBOARD);
+            configureActionButton(solarAnglePlannerButton, VaadinIcon.LIGHTBULB);
             configureActionButton(dashboardButton, VaadinIcon.DASHBOARD);
             configureActionButton(settingsButton, VaadinIcon.COG);
             configureActionButton(logoutButton, VaadinIcon.SIGN_OUT);
@@ -210,7 +214,7 @@ public class HomeView extends VerticalLayout {
             actionGrid.getStyle().set("gap", "0.75rem");
 
             Stream.of(
-                    devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, myProductionButton, powerLimitsButton, loadSheddingButton, powerplantButton,
+                    devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, myProductionButton, powerLimitsButton, loadSheddingButton, powerplantButton, solarAnglePlannerButton,
                     dashboardButton, settingsButton
             ).forEach(actionGrid::add);
             if (admin) {
