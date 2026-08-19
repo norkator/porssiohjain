@@ -812,17 +812,20 @@
   "windNotifications": {
     "eyebrow": "Tuulivoimaennuste",
     "title": "Tuuli-ilmoitukset",
-    "description": "Ilmoitus lähetetään enintään kerran päivässä, kun huomisen ennusteen päiväkeskiarvo täyttää säännön.",
+    "description": "Ilmoitus lähetetään enintään kerran päivässä, kun huomisen tuulivoimaennuste täyttää säännön.",
     "empty": "Tuuli-ilmoituksia ei ole vielä määritetty.",
     "add": "Lisää sääntö",
     "edit": "Muokkaa sääntöä",
     "name": "Ilmoituksen nimi",
     "descriptionLabel": "Kuvaus",
     "dropRule": "Huomisen keskiarvon pudotus",
-    "averageRule": "Huomisen keskiarvo alle rajan",
+    "highAverageRule": "Paljon tuulivoimaa huomenna",
+    "lowAverageRule": "Vähän tuulivoimaa huomenna",
     "percentThreshold": "Pudotus vähintään (%)",
-    "mwThreshold": "Keskiarvo alle (MW)",
+    "mwAboveThreshold": "Keskiarvo vähintään (MW)",
+    "mwBelowThreshold": "Keskiarvo alle (MW)",
     "TOMORROW_DROP_PERCENT": "Huomisen keskiarvo putoaa vähintään {threshold} % tästä päivästä",
+    "TOMORROW_AVERAGE_ABOVE": "Huomisen keskiarvo on vähintään {threshold} MW",
     "TOMORROW_AVERAGE_BELOW": "Huomisen keskiarvo on alle {threshold} MW"
   },
   "marketNotifications": {

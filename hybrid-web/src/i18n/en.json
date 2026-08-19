@@ -812,17 +812,20 @@
   "windNotifications": {
     "eyebrow": "Wind power forecast",
     "title": "Wind notifications",
-    "description": "A notification is sent at most once per day when tomorrow's forecast daily average matches a rule.",
+    "description": "A notification is sent at most once per day when tomorrow's wind-power forecast matches a rule.",
     "empty": "No wind notifications configured yet.",
     "add": "Add rule",
     "edit": "Edit rule",
     "name": "Notification name",
     "descriptionLabel": "Description",
     "dropRule": "Tomorrow average drop",
-    "averageRule": "Tomorrow average below threshold",
+    "highAverageRule": "High wind power tomorrow",
+    "lowAverageRule": "Low wind power tomorrow",
     "percentThreshold": "Drop at least (%)",
-    "mwThreshold": "Average below (MW)",
+    "mwAboveThreshold": "Average at least (MW)",
+    "mwBelowThreshold": "Average below (MW)",
     "TOMORROW_DROP_PERCENT": "Tomorrow's average drops at least {threshold}% from today",
+    "TOMORROW_AVERAGE_ABOVE": "Tomorrow's average is at least {threshold} MW",
     "TOMORROW_AVERAGE_BELOW": "Tomorrow's average is below {threshold} MW"
   },
   "marketNotifications": {

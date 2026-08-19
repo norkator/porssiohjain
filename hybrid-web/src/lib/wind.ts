@@ -1,6 +1,6 @@
 import { apiFetch, apiGetJson } from "@/lib/api";
 
-export type WindRuleType = "TOMORROW_AVERAGE_BELOW" | "TOMORROW_DROP_PERCENT";
+export type WindRuleType = "TOMORROW_AVERAGE_ABOVE" | "TOMORROW_AVERAGE_BELOW" | "TOMORROW_DROP_PERCENT";
 export type WindForecast = { timezone: string; todayAverage: number | null; tomorrowAverage: number | null; tomorrowDropPercent: number | null; points: { startTime: string; endTime: string; megawatts: number }[] };
 export type WindNotification = { id: number; name: string; description: string | null; ruleType: WindRuleType; threshold: number; timezone: string; enabled: boolean; lastSentAt: string | null };
 export type WindNotificationPayload = Omit<WindNotification, "id" | "lastSentAt">;

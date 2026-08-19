@@ -49,10 +49,8 @@ public class WindNotificationService {
         if (e.getLastSentAt() != null && e.getLastSentAt().atZone(zone).toLocalDate().equals(date)) return;
         WindForecastChartResponse chart = fingridService.getWindForecastChart(zone.getId());
         if (chart.getTomorrowAverage() == null) return;
-        BigDecimal observed = e.getRuleType() == WindNotificationRuleType.TOMORROW_AVERAGE_BELOW
-                ? chart.getTomorrowAverage() : chart.getTomorrowDropPercent();
-        if (observed == null || observed.compareTo(e.getThreshold()) < 0 && e.getRuleType() == WindNotificationRuleType.TOMORROW_DROP_PERCENT
-                || observed.compareTo(e.getThreshold()) >= 0 && e.getRuleType() == WindNotificationRuleType.TOMORROW_AVERAGE_BELOW) return;
+        BigDecimal observed = observedValue(e.getRuleType(), chart);
+        if (observed == null || !matchesRule(e.getRuleType(), observed, e.getThreshold())) return;
         AccountEntity account = e.getAccount(); Locale locale = Locale.forLanguageTag(account.getLocale() == null ? "en" : account.getLocale());
         boolean sent = false;
         if (account.isEmailNotificationsEnabled() && account.getEmail() != null && !account.getEmail().isBlank()
@@ -71,6 +69,18 @@ public class WindNotificationService {
         if (r.getRuleType() == null || r.getThreshold() == null || !Double.isFinite(r.getThreshold()) || r.getThreshold() < 0)
             throw new IllegalArgumentException("Valid rule and non-negative threshold are required");
         zone(r.getTimezone());
+    }
+    private BigDecimal observedValue(WindNotificationRuleType ruleType, WindForecastChartResponse chart) {
+        return switch (ruleType) {
+            case TOMORROW_AVERAGE_BELOW, TOMORROW_AVERAGE_ABOVE -> chart.getTomorrowAverage();
+            case TOMORROW_DROP_PERCENT -> chart.getTomorrowDropPercent();
+        };
+    }
+    private boolean matchesRule(WindNotificationRuleType ruleType, BigDecimal observed, BigDecimal threshold) {
+        return switch (ruleType) {
+            case TOMORROW_AVERAGE_BELOW -> observed.compareTo(threshold) < 0;
+            case TOMORROW_AVERAGE_ABOVE, TOMORROW_DROP_PERCENT -> observed.compareTo(threshold) >= 0;
+        };
     }
     private ZoneId zone(String value) { return ZoneId.of(value == null || value.isBlank() ? ZoneId.systemDefault().getId() : value.trim()); }
     private String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
