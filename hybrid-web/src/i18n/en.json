@@ -95,6 +95,7 @@
     "statsSyncUnavailable": "Stats sync unavailable.",
     "controlCenter": "Control Center",
     "marketWatch": "Market Watch",
+    "windForecast": "Wind power forecast",
     "siteOwn": "Site & Account",
     "accountSectionEyebrow": "Account",
     "accountSettingsTitle": "Account settings",
@@ -794,6 +795,35 @@
     "average24h": "24h Average",
     "kwVisibleRange": "kW across the visible range",
     "marketNotifications": "Notifications"
+  },
+  "windForecast": {
+    "eyebrow": "Fingrid forecast",
+    "title": "Wind power production forecast",
+    "description": "Forecast Finnish wind-power production in megawatts for {timezone}. These are estimates, not local wind-speed measurements.",
+    "loading": "Loading wind power forecast...",
+    "failed": "Failed to load wind power forecast",
+    "empty": "No forecast data is available.",
+    "aria": "Wind power production forecast chart",
+    "notifications": "Wind notifications",
+    "todayAverage": "Today's average",
+    "tomorrowAverage": "Tomorrow's average",
+    "drop": "Change: drop"
+  },
+  "windNotifications": {
+    "eyebrow": "Wind power forecast",
+    "title": "Wind notifications",
+    "description": "A notification is sent at most once per day when tomorrow's forecast daily average matches a rule.",
+    "empty": "No wind notifications configured yet.",
+    "add": "Add rule",
+    "edit": "Edit rule",
+    "name": "Notification name",
+    "descriptionLabel": "Description",
+    "dropRule": "Tomorrow average drop",
+    "averageRule": "Tomorrow average below threshold",
+    "percentThreshold": "Drop at least (%)",
+    "mwThreshold": "Average below (MW)",
+    "TOMORROW_DROP_PERCENT": "Tomorrow's average drops at least {threshold}% from today",
+    "TOMORROW_AVERAGE_BELOW": "Tomorrow's average is below {threshold} MW"
   },
   "marketNotifications": {
     "eyebrow": "Market Watch",

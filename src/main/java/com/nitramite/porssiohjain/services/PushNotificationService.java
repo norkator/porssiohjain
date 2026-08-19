@@ -20,6 +20,7 @@ import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.MarketNotificationEntity;
+import com.nitramite.porssiohjain.entity.WindNotificationEntity;
 import com.nitramite.porssiohjain.entity.PowerLimitEntity;
 import com.nitramite.porssiohjain.entity.PowerLimitNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionNotificationEntity;
@@ -191,6 +192,21 @@ public class PushNotificationService {
         data.put("thresholdPrice", notification.getThresholdPrice().toPlainString());
         data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         return sendToAccount(account.getId(), title, body, data);
+    }
+
+    public boolean sendWindNotification(AccountEntity account, WindNotificationEntity notification,
+                                         BigDecimal observedValue, BigDecimal todayAverage,
+                                         BigDecimal tomorrowAverage, ZonedDateTime detectedAt) {
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "WIND_FORECAST_NOTIFICATION");
+        data.put("notificationId", String.valueOf(notification.getId()));
+        data.put("ruleType", notification.getRuleType().name());
+        data.put("observedValue", observedValue.toPlainString());
+        data.put("todayAverageMw", todayAverage == null ? "" : todayAverage.toPlainString());
+        data.put("tomorrowAverageMw", tomorrowAverage.toPlainString());
+        data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        return sendToAccount(account.getId(), notification.getName(),
+                notification.getDescription() == null ? "" : notification.getDescription(), data);
     }
 
     public boolean sendDeviceOfflineNotification(

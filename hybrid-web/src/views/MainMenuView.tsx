@@ -11,6 +11,7 @@
 
 import PageHeader from "@/components/PageHeader";
 import NordpoolTodayChartCard from "@/components/NordpoolTodayChartCard";
+import WindForecastCard from "@/components/WindForecastCard";
 import AppDialog from "@/components/AppDialog";
 import { fetchSites } from "@/lib/automation-resources";
 import { fetchMe } from "@/lib/account";
@@ -799,6 +800,11 @@ export default function MainMenuView() {
             {t("marketWatch")}
           </h2>
           <NordpoolTodayChartCard />
+        </section>
+
+        <section className="mb-12">
+          <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold"><span className="h-1 w-8 rounded-full bg-primary" />{t("windForecast")}</h2>
+          <WindForecastCard />
         </section>
 
         <section className="mb-12">

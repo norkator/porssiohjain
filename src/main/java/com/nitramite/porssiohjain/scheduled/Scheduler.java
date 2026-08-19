@@ -53,6 +53,7 @@ public class Scheduler {
     private final ProductionNotificationService productionNotificationService;
     private final PowerLimitNotificationService powerLimitNotificationService;
     private final MarketNotificationService marketNotificationService;
+    private final WindNotificationService windNotificationService;
     private final HeatPumpOnlineCheckService heatPumpOnlineCheckService;
     private final MqttRelayTestService mqttRelayTestService;
     private final PowerplantService powerplantService;
@@ -82,6 +83,7 @@ public class Scheduler {
             ProductionNotificationService productionNotificationService,
             PowerLimitNotificationService powerLimitNotificationService,
             MarketNotificationService marketNotificationService,
+            WindNotificationService windNotificationService,
             HeatPumpOnlineCheckService heatPumpOnlineCheckService,
             MqttRelayTestService mqttRelayTestService,
             PowerplantService powerplantService,
@@ -107,6 +109,7 @@ public class Scheduler {
         this.productionNotificationService = productionNotificationService;
         this.powerLimitNotificationService = powerLimitNotificationService;
         this.marketNotificationService = marketNotificationService;
+        this.windNotificationService = windNotificationService;
         this.heatPumpOnlineCheckService = heatPumpOnlineCheckService;
         this.mqttRelayTestService = mqttRelayTestService;
         this.powerplantService = powerplantService;
@@ -311,6 +314,9 @@ public class Scheduler {
     public void marketNotifications() {
         marketNotificationService.sendDueNotifications();
     }
+
+    @Scheduled(cron = "0 5 * * * *", zone = "Europe/Helsinki")
+    public void windNotifications() { windNotificationService.sendDueNotifications(); }
 
     @Scheduled(fixedDelayString = "${heatpump.control-interval}")
     public void scheduledHeatPumpControls() {
