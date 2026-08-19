@@ -6,7 +6,7 @@ export type WindNotification = { id: number; name: string; description: string |
 export type WindNotificationPayload = Omit<WindNotification, "id" | "lastSentAt">;
 export const fetchWindForecast = (timezone: string) => apiGetJson<WindForecast>(`/fingrid/wind-forecast?timezone=${encodeURIComponent(timezone)}`);
 export const fetchWindNotifications = () => apiGetJson<WindNotification[]>("/api/wind-notifications");
-async function send<T>(path: string, method: string, payload?: unknown) { const response = await apiFetch(path, { method, body: payload ? JSON.stringify(payload) : undefined, headers: { "Content-Type": "application/json" } }); if (!response.ok) throw new Error(`Request failed with status ${response.status}`); return response.status === 204 ? undefined as T : response.json() as Promise<T>; }
+async function send<T>(path: string, method: string, payload?: unknown) { const response = await apiFetch(path, { method, body: payload ? JSON.stringify(payload) : undefined, headers: { "Content-Type": "application/json" } }); if (!response.ok) throw new Error(`Request failed with status ${response.status}`); const text = await response.text(); return text ? JSON.parse(text) as T : undefined as T; }
 export const createWindNotification = (payload: WindNotificationPayload) => send<WindNotification>("/api/wind-notifications", "POST", payload);
 export const updateWindNotification = (id: number, payload: WindNotificationPayload) => send<WindNotification>(`/api/wind-notifications/${id}`, "PUT", payload);
 export const deleteWindNotification = (id: number) => send<void>(`/api/wind-notifications/${id}`, "DELETE");

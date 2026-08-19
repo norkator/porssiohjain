@@ -800,6 +800,8 @@
     "eyebrow": "Fingrid-ennuste",
     "title": "Tuulivoiman tuotantoennuste",
     "description": "Suomen tuulivoimatuotannon ennuste megawatteina aikavyöhykkeellä {timezone}. Arvot ovat ennusteita, eivät paikallista tuulennopeutta.",
+    "expandedTitle": "Tuulivoimaennusteen tarkastelu",
+    "expandedDescription": "Tarkastele Suomen tuulivoimatuotannon ennustetta suuremmassa kaaviossa aikavyöhykkeellä {timezone}.",
     "loading": "Ladataan tuulivoimaennustetta...",
     "failed": "Tuulivoimaennusteen lataus epäonnistui",
     "empty": "Ennustetietoja ei ole saatavilla.",

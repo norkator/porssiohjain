@@ -800,6 +800,8 @@
     "eyebrow": "Fingrid forecast",
     "title": "Wind power production forecast",
     "description": "Forecast Finnish wind-power production in megawatts for {timezone}. These are estimates, not local wind-speed measurements.",
+    "expandedTitle": "Wind forecast detail",
+    "expandedDescription": "Inspect the Finnish wind-power production forecast with a larger chart in {timezone}.",
     "loading": "Loading wind power forecast...",
     "failed": "Failed to load wind power forecast",
     "empty": "No forecast data is available.",
