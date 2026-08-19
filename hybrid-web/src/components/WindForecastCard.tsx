@@ -3,7 +3,7 @@ import AppDialog from "@/components/AppDialog";
 import { getCurrentTimezone } from "@/lib/add-device-flow";
 import { useI18n } from "@/lib/i18n";
 import { formatNordpoolTime } from "@/lib/nordpool";
-import { createWindNotification, deleteWindNotification, fetchWindForecast, fetchWindNotifications, updateWindNotification, type WindForecast, type WindNotification, type WindRuleType } from "@/lib/wind";
+import { createWindNotification, deleteWindNotification, fetchCachedWindForecast, fetchWindNotifications, updateWindNotification, type WindForecast, type WindNotification, type WindRuleType } from "@/lib/wind";
 
 const CHART_WIDTH = 960;
 const COMPACT_CHART_HEIGHT = 240;
@@ -222,7 +222,7 @@ function WindChartSurface({ chartHeight, data, onActivate, onSelectedPointChange
 export default function WindForecastCard() {
   const { t } = useI18n("windForecast"); const timezone=getCurrentTimezone();
   const [data,setData]=useState<WindForecast|null>(null), [error,setError]=useState<string|null>(null), [open,setOpen]=useState(false), [chartOpen,setChartOpen]=useState(false), [selectedPointIndex,setSelectedPointIndex]=useState<number|null>(null);
-  useEffect(()=>{ fetchWindForecast(timezone).then(setData).catch(e=>setError(e instanceof Error?e.message:String(e))); },[timezone]);
+  useEffect(()=>{ fetchCachedWindForecast(timezone).then(setData).catch(e=>setError(e instanceof Error?e.message:String(e))); },[timezone]);
   if(error) return <div className="app-card p-6 text-on-error-container">{t("failed")}: {error}</div>;
   if(!data) return <div className="app-card p-6 text-on-surface-variant">{t("loading")}</div>;
   const values=data.points.map(p=>p.megawatts);
