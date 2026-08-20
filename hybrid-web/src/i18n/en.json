@@ -4,6 +4,8 @@
     "title": "Login",
     "uuidLabel": "UUID",
     "secretLabel": "Secret",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "loginFailed": "Login failed: {error}",
     "genericLoginFailed": "Login failed.",
     "loggingIn": "Logging in...",

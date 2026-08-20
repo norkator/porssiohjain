@@ -28,6 +28,7 @@ export default function LoginView() {
   const common = useI18n("common").t;
   const [uuid, setUuid] = useState("");
   const [secret, setSecret] = useState("");
+  const [isSecretVisible, setIsSecretVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedLocale, setSelectedLocale] = useState<SupportedLocale>(getCurrentLocale());
@@ -208,17 +209,41 @@ export default function LoginView() {
             />
           </label>
 
-          <label className="block">
-            <span className="mb-2 block font-label text-sm font-bold text-on-surface-variant">{t("secretLabel")}</span>
-            <input
-              autoComplete="current-password"
-              className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 font-mono text-sm outline-none transition-colors focus:border-primary"
-              onChange={(event) => setSecret(event.target.value)}
-              required
-              type="password"
-              value={secret}
-            />
-          </label>
+          <div>
+            <label className="mb-2 block font-label text-sm font-bold text-on-surface-variant" htmlFor="login-secret">
+              {t("secretLabel")}
+            </label>
+            <div className="relative">
+              <input
+                autoComplete="current-password"
+                className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest py-3 pl-4 pr-12 font-mono text-sm outline-none transition-colors focus:border-primary"
+                id="login-secret"
+                onChange={(event) => setSecret(event.target.value)}
+                required
+                type={isSecretVisible ? "text" : "password"}
+                value={secret}
+              />
+              <button
+                aria-label={t(isSecretVisible ? "hidePassword" : "showPassword")}
+                aria-pressed={isSecretVisible}
+                className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-on-surface-variant transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-primary"
+                onClick={() => setIsSecretVisible((visible) => !visible)}
+                title={t(isSecretVisible ? "hidePassword" : "showPassword")}
+                type="button"
+              >
+                {isSecretVisible ? (
+                  <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <path d="m3 3 18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 4.2A10.8 10.8 0 0 1 12 4c5.5 0 9 5.4 9 5.4a12.7 12.7 0 0 1-2.1 2.8M6.6 6.6A14.3 14.3 0 0 0 3 9.4S6.5 14.8 12 14.8c1 0 1.9-.2 2.7-.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+                  </svg>
+                ) : (
+                  <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <path d="M3 12s3.5-5.4 9-5.4 9 5.4 9 5.4-3.5 5.4-9 5.4S3 12 3 12Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" />
+                    <circle cx="12" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.8" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
 
           {error ? (
             <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">

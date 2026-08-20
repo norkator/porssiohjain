@@ -4,6 +4,8 @@
     "title": "Kirjaudu",
     "uuidLabel": "UUID",
     "secretLabel": "Salainen avain",
+    "showPassword": "Näytä salasana",
+    "hidePassword": "Piilota salasana",
     "loginFailed": "Kirjautuminen epäonnistui: {error}",
     "genericLoginFailed": "Kirjautuminen epäonnistui.",
     "loggingIn": "Kirjaudutaan...",
