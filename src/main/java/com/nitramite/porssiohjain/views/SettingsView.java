@@ -60,6 +60,7 @@ import java.util.Optional;
 public class SettingsView extends VerticalLayout implements BeforeEnterObserver {
 
     private static final String ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller";
+    private static final String BUSINESS_SALES_EMAIL = "nitramite@outlook.com";
 
     private final AuthService authService;
     private final I18nService i18n;
@@ -560,65 +561,184 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         };
     }
 
+    private String getTierName(AccountTier tier) {
+        return switch (tier) {
+            case FREE -> t("settings.account.freeName");
+            case PRO -> t("settings.account.proName");
+            case BUSINESS -> t("settings.account.businessName");
+        };
+    }
+
     private Component createSubscriptionCard(AccountTier tier) {
         VerticalLayout card = new VerticalLayout();
         card.setPadding(true);
-        card.setSpacing(false);
-        card.setWidth("min(320px, 100%)");
+        card.setSpacing(true);
+        card.setWidthFull();
         card.getStyle()
-                .set("border-radius", "14px")
-                .set("box-shadow", "0 6px 18px rgba(0,0,0,0.08)")
+                .set("flex", "1 1 420px")
+                .set("min-width", "min(100%, 300px)")
+                .set("box-shadow", "0 8px 24px rgba(0,0,0,0.10)")
                 .set("border", "1px solid var(--lumo-contrast-10pct)")
                 .set("background", "var(--lumo-base-color)");
-        H4 tierTitle = new H4(tier.name());
+
+        VerticalLayout currentPlan = new VerticalLayout();
+        currentPlan.setPadding(true);
+        currentPlan.setSpacing(false);
+        currentPlan.setWidthFull();
+        currentPlan.getStyle()
+                .set("box-sizing", "border-box")
+                .set("background", "linear-gradient(135deg, #005f73 0%, #0a9396 100%)")
+                .set("color", "white");
+
+        Span currentPlanEyebrow = new Span(t("settings.account.currentPlanEyebrow"));
+        currentPlanEyebrow.getStyle()
+                .set("font-size", "0.75rem")
+                .set("font-weight", "700")
+                .set("letter-spacing", "0.12em")
+                .set("text-transform", "uppercase")
+                .set("color", "rgba(255,255,255,0.78)");
+        H4 tierTitle = new H4(getTierName(tier));
         tierTitle.getStyle()
                 .set("margin", "0")
-                .set("font-weight", "700");
+                .set("font-size", "1.65rem")
+                .set("font-weight", "800")
+                .set("color", "white");
         Span description = new Span(getTierDescription(tier));
         description.getStyle()
+                .set("color", "rgba(255,255,255,0.82)")
+                .set("font-size", "0.9rem")
+                .set("margin-top", "4px");
+        Span badge = new Span(t("settings.account.active"));
+        badge.getStyle()
+                .set("padding", "4px 10px")
+                .set("font-size", "0.75rem")
+                .set("font-weight", "700")
+                .set("letter-spacing", "0.08em")
+                .set("text-transform", "uppercase")
+                .set("color", "white")
+                .set("background", "rgba(0,0,0,0.24)");
+
+        HorizontalLayout currentPlanHeader = new HorizontalLayout(tierTitle, badge);
+        currentPlanHeader.setWidthFull();
+        currentPlanHeader.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        currentPlanHeader.setAlignItems(Alignment.CENTER);
+        currentPlan.add(currentPlanEyebrow, currentPlanHeader, description);
+
+        H4 subscriptionTitle = new H4(t("settings.account.subscription"));
+        subscriptionTitle.getStyle().set("margin", "var(--lumo-space-s) 0 0");
+        Span subscriptionDescription = new Span(t("settings.account.subscriptionDescription"));
+        subscriptionDescription.getStyle()
                 .set("color", "var(--lumo-secondary-text-color)")
                 .set("font-size", "0.9rem");
-        Span badge = new Span("ACTIVE");
-        badge.getStyle()
-                .set("padding", "3px 10px")
-                .set("border-radius", "10px")
-                .set("font-size", "0.75rem")
-                .set("font-weight", "600")
-                .set("color", "white");
-        switch (tier) {
-            case FREE -> badge.getStyle().set("background", "#6c757d");
-            case PRO -> badge.getStyle().set("background", "#0d6efd");
-            case BUSINESS -> badge.getStyle().set("background", "#198754");
-        }
-        Span managePlanHelp = new Span(t("settings.account.managePlanAndroidApp"));
-        managePlanHelp.getStyle()
-                .set("color", "var(--lumo-secondary-text-color)")
-                .set("font-size", "0.85rem")
-                .set("margin-top", "12px");
 
-        Button manageButton = new Button(t("settings.account.managePlan"));
-        manageButton.getStyle()
-                .set("margin-top", "8px");
-        Anchor managePlanLink = new Anchor(ANDROID_APP_URL);
-        managePlanLink.setTarget("_blank");
-        managePlanLink.getElement().setAttribute("rel", "noopener noreferrer");
-        managePlanLink.add(manageButton);
+        Component proOption = createPlanOption(tier, AccountTier.PRO);
+        Component businessOption = createPlanOption(tier, AccountTier.BUSINESS);
 
-        HorizontalLayout header = new HorizontalLayout(tierTitle, badge);
-        header.setWidthFull();
-        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
-        header.setAlignItems(Alignment.CENTER);
-        card.add(header, description, managePlanHelp, managePlanLink);
+        card.add(currentPlan, subscriptionTitle, subscriptionDescription, proOption, businessOption);
         return card;
+    }
+
+    private Component createPlanOption(AccountTier currentTier, AccountTier optionTier) {
+        VerticalLayout option = new VerticalLayout();
+        option.setPadding(true);
+        option.setSpacing(false);
+        option.setWidthFull();
+        option.getStyle()
+                .set("box-sizing", "border-box")
+                .set("border", "1px solid var(--lumo-contrast-20pct)")
+                .set("background", "var(--lumo-contrast-5pct)");
+
+        boolean current = currentTier == optionTier;
+        Button action = new Button(current
+                ? t("settings.account.currentPlan")
+                : t("settings.account.subscribe", getTierName(optionTier)));
+        action.setWidthFull();
+        action.setEnabled(!current);
+
+        Span help = new Span(t(optionTier == AccountTier.PRO
+                ? "settings.account.proPurchaseHelp"
+                : "settings.account.businessContactHelp"));
+        help.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("font-size", "0.8rem")
+                .set("margin-top", "4px");
+
+        if (!current && optionTier == AccountTier.PRO) {
+            Anchor playStoreLink = new Anchor(ANDROID_APP_URL);
+            playStoreLink.setTarget("_blank");
+            playStoreLink.getElement().setAttribute("rel", "noopener noreferrer");
+            playStoreLink.getStyle().set("display", "block").set("width", "100%");
+            playStoreLink.add(action);
+            option.add(playStoreLink, help);
+        } else {
+            if (!current && optionTier == AccountTier.BUSINESS) {
+                action.addClickListener(event -> openBusinessSalesDialog());
+            }
+            option.add(action, help);
+        }
+
+        return option;
+    }
+
+    private void openBusinessSalesDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("settings.account.businessDialogTitle"));
+        dialog.setCloseOnEsc(true);
+        dialog.setCloseOnOutsideClick(true);
+        dialog.setWidth("min(640px, 95vw)");
+
+        Paragraph description = new Paragraph(t("settings.account.businessDialogDescription"));
+        description.getStyle().set("margin", "0");
+
+        Paragraph contactIntro = new Paragraph(t("settings.account.businessDialogContactIntro"));
+        contactIntro.getStyle().set("margin", "0");
+
+        Anchor emailLink = new Anchor("mailto:" + BUSINESS_SALES_EMAIL, BUSINESS_SALES_EMAIL);
+        emailLink.getStyle()
+                .set("font-size", "var(--lumo-font-size-l)")
+                .set("font-weight", "700");
+
+        Span includeIntro = new Span(t("settings.account.businessDialogIncludeIntro"));
+        includeIntro.getStyle().set("font-weight", "700");
+
+        VerticalLayout requestedInformation = new VerticalLayout(
+                new Span("• " + t("settings.account.businessDialogRequirements")),
+                new Span("• " + t("settings.account.businessDialogUseCase")),
+                new Span("• " + t("settings.account.businessDialogCustomerInfo"))
+        );
+        requestedInformation.setPadding(false);
+        requestedInformation.setSpacing(false);
+
+        Button closeButton = new Button(t("settings.account.businessDialogClose"), event -> dialog.close());
+        closeButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        HorizontalLayout actions = new HorizontalLayout(closeButton);
+        actions.setWidthFull();
+        actions.setJustifyContentMode(JustifyContentMode.END);
+
+        VerticalLayout content = new VerticalLayout(
+                description,
+                contactIntro,
+                emailLink,
+                includeIntro,
+                requestedInformation,
+                actions
+        );
+        content.setPadding(false);
+        content.setSpacing(true);
+        content.setWidthFull();
+        dialog.add(content);
+        dialog.open();
     }
 
     private Component createLimitsCard() {
         VerticalLayout card = new VerticalLayout();
         card.setPadding(true);
         card.setSpacing(false);
-        card.setWidth("min(320px, 100%)");
+        card.setWidthFull();
         card.getStyle()
-                .set("border-radius", "14px")
+                .set("flex", "1 1 280px")
+                .set("min-width", "min(100%, 260px)")
                 .set("border", "1px solid var(--lumo-contrast-10pct)")
                 .set("background", "var(--lumo-contrast-5pct)");
 
@@ -636,22 +756,6 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
     private String formatLimit(Integer limit) {
         return limit != null ? limit.toString() : t("settings.account.unlimited");
-    }
-
-    private Component createTierBadge(AccountTier tier) {
-        Span badge = new Span(tier.name());
-        badge.getStyle()
-                .set("padding", "4px 10px")
-                .set("border-radius", "12px")
-                .set("font-weight", "600")
-                .set("font-size", "0.8rem")
-                .set("color", "white");
-        switch (tier) {
-            case FREE -> badge.getStyle().set("background", "#6c757d");
-            case PRO -> badge.getStyle().set("background", "#0d6efd");
-            case BUSINESS -> badge.getStyle().set("background", "#198754");
-        }
-        return badge;
     }
 
     private Component createNotificationSection() {
