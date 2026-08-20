@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import AppDialog from "@/components/AppDialog";
 import PageHeader from "@/components/PageHeader";
 import { changePassword, deleteMe, downloadAccountExport, fetchMe, updateMe, type AccountTier } from "@/lib/account";
 import { logoutNative, showNativeToast, startGooglePlaySubscriptionPurchase } from "@/lib/android-bridge";
@@ -20,6 +21,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller";
+const BUSINESS_SALES_EMAIL = "nitramite@outlook.com";
 
 function getTierTone(tier: AccountTier) {
   switch (tier) {
@@ -40,6 +42,7 @@ export default function AccountSettingsView() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isBusinessDialogOpen, setIsBusinessDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isDownloadingExport, setIsDownloadingExport] = useState(false);
@@ -332,12 +335,19 @@ export default function AccountSettingsView() {
                         className="w-full rounded-2xl border border-outline-variant bg-surface-container-highest px-4 py-4 text-left text-sm transition-colors hover:border-primary hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={isDemoAccount || isCurrentTier}
                         key={product.productId}
-                        onClick={() => handleStartSubscription(product.productId)}
+                        onClick={() => {
+                          if (product.tier === "BUSINESS") {
+                            setIsBusinessDialogOpen(true);
+                            return;
+                          }
+
+                          handleStartSubscription(product.productId);
+                        }}
                         type="button"
                       >
                         <span className="block font-headline font-bold text-on-surface">{t("billingSubscribe", { tier: tierLabels[product.tier] })}</span>
                         <span className="mt-1 block text-xs text-on-surface-variant">
-                          {isCurrentTier ? t("billingCurrentPlan") : t("billingNativeFlow")}
+                          {isCurrentTier ? t("billingCurrentPlan") : product.tier === "BUSINESS" ? t("billingBusinessContact") : t("billingNativeFlow")}
                         </span>
                       </button>
                     );
@@ -666,6 +676,33 @@ export default function AccountSettingsView() {
           </div>
         ) : null}
       </main>
+
+      <AppDialog
+        description={t("businessDialogDescription")}
+        eyebrow={t("businessDialogEyebrow")}
+        isOpen={isBusinessDialogOpen}
+        maxWidthClassName="max-w-2xl"
+        onClose={() => setIsBusinessDialogOpen(false)}
+        title={t("businessDialogTitle")}
+      >
+        <div className="space-y-5 text-sm leading-6 text-on-surface-variant">
+          <p>{t("businessDialogContactIntro")}</p>
+          <a
+            className="inline-flex font-headline text-lg font-bold text-primary underline underline-offset-4"
+            href={`mailto:${BUSINESS_SALES_EMAIL}?subject=${encodeURIComponent(t("businessDialogEmailSubject"))}`}
+          >
+            {BUSINESS_SALES_EMAIL}
+          </a>
+          <div>
+            <p className="font-semibold text-on-surface">{t("businessDialogIncludeIntro")}</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>{t("businessDialogRequirements")}</li>
+              <li>{t("businessDialogUseCase")}</li>
+              <li>{t("businessDialogCustomerInfo")}</li>
+            </ul>
+          </div>
+        </div>
+      </AppDialog>
 
       {isDeleteDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
