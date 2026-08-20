@@ -197,6 +197,18 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         });
         evaluateRules.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
+        Button rearmRules = new Button(t("powerplant.button.rearmRules"), VaadinIcon.REFRESH.create(), event -> {
+            try {
+                int rearmed = powerplantService.rearmAllRules(accountId);
+                Notification.show(t("powerplant.notification.rulesRearmed", rearmed))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                reloadData();
+            } catch (Exception ex) {
+                showError(t("powerplant.notification.failed", ex.getMessage()));
+            }
+        });
+        rearmRules.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
         VerticalLayout canvasPanel = new VerticalLayout();
         canvasPanel.setPadding(false);
         canvasPanel.setSpacing(true);
@@ -206,7 +218,8 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         Paragraph hint = new Paragraph(t("powerplant.canvas.hint"));
         hint.getStyle().set("margin", "0");
 
-        HorizontalLayout toolbar = new HorizontalLayout(addElement, addRule, evaluateRules, boardWidthField, boardHeightField, applyBoardSizeButton);
+        HorizontalLayout toolbar = new HorizontalLayout(addElement, addRule, evaluateRules, rearmRules,
+                boardWidthField, boardHeightField, applyBoardSizeButton);
         toolbar.setAlignItems(Alignment.END);
         toolbar.setWrap(true);
 

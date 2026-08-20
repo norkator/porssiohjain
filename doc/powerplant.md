@@ -57,6 +57,8 @@ The evaluator sends a command only when the condition transitions from not match
 
 Rules are evaluated by `Scheduler.powerplantRules()` every `${powerplant.rule-evaluation-interval:1m}` and can also be run manually from the view with **Evaluate rules**.
 
+Changing a rule, its source measurement binding, or its target device/channel re-arms the affected rule. Failed commands and cooldown skips do not consume the unmatched-to-matched transition. The view also provides **Re-arm rules** to manually re-arm every Powerplant rule for the current account; existing cooldown timestamps are preserved.
+
 The board renders rule connectors as quadratic SVG curves. Multiple rules between the same source and target are automatically spaced apart. Each connector has a small draggable handle at the curve control point; moving it stores `control_point_x` and `control_point_y` on `powerplant_rule`.
 
 ## Important constraints

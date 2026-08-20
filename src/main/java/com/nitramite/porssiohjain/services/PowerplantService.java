@@ -42,6 +42,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -173,6 +174,14 @@ public class PowerplantService {
                 ? powerplantElementRepository.findByIdAndAccountId(elementId, accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Powerplant element not found: " + elementId))
                 : new PowerplantElementEntity();
+        boolean ruleEndpointChanged = elementId != null && ruleEndpointChanged(
+                entity,
+                elementType,
+                device,
+                deviceChannel,
+                measurementType,
+                measurementKey
+        );
 
         entity.setAccount(account);
         entity.setName(name.strip());
@@ -187,7 +196,11 @@ public class PowerplantService {
         entity.setCanvasX(Math.max(0, canvasX));
         entity.setCanvasY(Math.max(0, canvasY));
 
-        return mapElement(powerplantElementRepository.save(entity));
+        PowerplantElementEntity saved = powerplantElementRepository.save(entity);
+        if (ruleEndpointChanged) {
+            rearmRulesForElement(saved);
+        }
+        return mapElement(saved);
     }
 
     @Transactional
@@ -256,8 +269,18 @@ public class PowerplantService {
         entity.setTargetAction(targetAction);
         entity.setEnabled(enabled);
         entity.setCooldownSeconds(cooldownSeconds != null ? Math.max(0, cooldownSeconds) : 300);
+        rearmRule(entity);
 
         return mapRule(powerplantRuleRepository.save(entity));
+    }
+
+    @Transactional
+    public int rearmAllRules(Long accountId) {
+        demoAccountGuard.assertWritable(accountId);
+        validateAccount(accountId);
+        List<PowerplantRuleEntity> rules = powerplantRuleRepository.findByAccountIdOrderByIdAsc(accountId);
+        rules.forEach(this::rearmRule);
+        return rules.size();
     }
 
     @Transactional
@@ -368,8 +391,8 @@ public class PowerplantService {
 
             boolean previouslyMatched = Boolean.TRUE.equals(rule.getLastConditionMatched());
             boolean matched = conditionMatches(rule, latest.getValue(), previouslyMatched);
-            rule.setLastConditionMatched(matched);
             if (!matched) {
+                rule.setLastConditionMatched(false);
                 rule.setLastSkipReason("Condition does not match");
                 return false;
             }
@@ -391,6 +414,7 @@ public class PowerplantService {
                     target.getDeviceChannel(),
                     rule.getTargetAction() == ControlAction.TURN_ON
             );
+            rule.setLastConditionMatched(true);
             rule.setLastCommandSentAt(now);
             rule.setLastSkipReason(null);
             return true;
@@ -402,6 +426,33 @@ public class PowerplantService {
 
     private void markSkipped(PowerplantRuleEntity rule, String reason) {
         rule.setLastSkipReason(reason != null && reason.length() > 256 ? reason.substring(0, 256) : reason);
+    }
+
+    private void rearmRulesForElement(PowerplantElementEntity element) {
+        powerplantRuleRepository.findBySourceElement(element).forEach(this::rearmRule);
+        powerplantRuleRepository.findByTargetElement(element).forEach(this::rearmRule);
+    }
+
+    private void rearmRule(PowerplantRuleEntity rule) {
+        rule.setLastConditionMatched(null);
+        rule.setLastSkipReason(null);
+    }
+
+    private boolean ruleEndpointChanged(
+            PowerplantElementEntity current,
+            PowerplantElementType newType,
+            DeviceEntity newDevice,
+            Integer newDeviceChannel,
+            ZigbeeMeasurementType newMeasurementType,
+            String newMeasurementKey
+    ) {
+        Long currentDeviceId = current.getDevice() != null ? current.getDevice().getId() : null;
+        Long newDeviceId = newDevice != null ? newDevice.getId() : null;
+        return current.getElementType() != newType
+                || !Objects.equals(currentDeviceId, newDeviceId)
+                || !Objects.equals(current.getDeviceChannel(), newDeviceChannel)
+                || current.getMeasurementType() != newMeasurementType
+                || !Objects.equals(current.getMeasurementKey(), newMeasurementKey);
     }
 
     private boolean conditionMatches(PowerplantRuleEntity rule, BigDecimal value, boolean previouslyMatched) {
