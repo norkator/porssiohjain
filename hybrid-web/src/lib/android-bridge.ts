@@ -9,6 +9,8 @@
  * See LICENSE for details.
  */
 
+import { clearApplicationSessionStorage } from "@/lib/session-storage";
+
 export type BootstrapData = {
   appName?: string;
   baseUrl?: string;
@@ -103,5 +105,6 @@ export function setNativeTheme(theme: "light" | "dark") {
 }
 
 export function logoutNative() {
+  clearApplicationSessionStorage();
   getAndroidBridge()?.logout?.();
 }

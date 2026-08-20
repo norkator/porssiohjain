@@ -10,6 +10,7 @@
  */
 
 import { getAndroidBridge, getBootstrapData, type BootstrapData } from "@/lib/android-bridge";
+import { clearApplicationSessionStorage } from "@/lib/session-storage";
 
 const DEV_SESSION_STORAGE_KEY = "energy-controller.dev-session";
 let sessionExpiredHandled = false;
@@ -147,6 +148,8 @@ export function clearDevSessionOverride() {
 export function clearBrowserSession() {
   const session = getSessionData();
 
+  clearApplicationSessionStorage();
+
   if (session.refreshToken && session.baseUrl) {
     void fetch(new URL("/account/logout", session.baseUrl), {
       body: JSON.stringify({ refreshToken: session.refreshToken }),
@@ -169,6 +172,7 @@ export function handleUnauthorizedSession() {
   sessionExpiredHandled = true;
 
   const session = getSessionData();
+  clearApplicationSessionStorage();
 
   if (session.source === "android") {
     const bridge = getAndroidBridge();
