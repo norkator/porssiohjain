@@ -44,7 +44,18 @@ public interface ControlTableRepository extends JpaRepository<ControlTableEntity
 
     void deleteByControlAndStartTimeBetween(ControlEntity control, Instant startTime, Instant endTime);
 
+    void deleteByControlAndStartTimeGreaterThanEqualAndStartTimeLessThan(
+            ControlEntity control,
+            Instant startTime,
+            Instant endTime
+    );
+
     List<ControlTableEntity> findByControlIdAndStartTimeAfterOrderByStartTimeAsc(Long controlId, Instant startTime);
+
+    List<ControlTableEntity> findByControlIdAndStartTimeGreaterThanEqualOrderByStartTimeAsc(
+            Long controlId,
+            Instant startTime
+    );
 
     List<ControlTableEntity> findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
             Long controlId, Status status, Instant startTime
