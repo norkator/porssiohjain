@@ -142,66 +142,32 @@ public class ControlSchedulerService {
                 Map<LocalDate, List<NordpoolEntity>> pricesByDay = prices.stream().collect(Collectors.groupingBy(
                         p -> p.getDeliveryStart().atZone(controlZone).toLocalDate()
                 ));
-                int tomorrowSurplusMinutes = calculateTomorrowSurplusMinutes(
-                        controlMode,
-                        alwaysOnBelowMinPrice,
-                        pricesByDay.getOrDefault(today.plusDays(1), List.of()),
-                        combinedPriceByPeriod,
-                        minPriceSnt,
-                        dailyOnMinutes,
-                        today.plusDays(1),
-                        controlZone
-                );
-                for (LocalDate date : List.of(today, today.plusDays(1))) {
-                    List<NordpoolEntity> dailyPrices = pricesByDay.getOrDefault(date, List.of());
-                    int accumulatedMinutes = 0;
-                    List<NordpoolEntity> alwaysOnPeriods = Collections.emptyList();
-                    if (alwaysOnBelowMinPrice) {
-                        alwaysOnPeriods = dailyPrices.stream()
-                                .filter(p -> combinedPriceByPeriod.get(p.getDeliveryStart()).compareTo(minPriceSnt) <= 0)
-                                .sorted(Comparator.comparing(p -> combinedPriceByPeriod.get(p.getDeliveryStart())))
-                                .toList();
-                        for (NordpoolEntity priceEntry : alwaysOnPeriods) {
-                            BigDecimal combinedPrice = combinedPriceByPeriod.get(priceEntry.getDeliveryStart());
-                            int minutesToUse = usablePeriodMinutes(priceEntry);
-                            if (minutesToUse <= 0) continue;
-                            Instant end = priceEntry.getDeliveryStart().plus(Duration.ofMinutes(minutesToUse));
-                            controlTableRepository.save(ControlTableEntity.builder()
-                                    .control(control)
-                                    .startTime(priceEntry.getDeliveryStart())
-                                    .endTime(end)
-                                    .priceSnt(combinedPrice)
-                                    .status(Status.FINAL)
-                                    .build());
-                            accumulatedMinutes += minutesToUse;
-                        }
-                    }
-                    int requiredMinutes = date.equals(today)
-                            ? Math.max(0, dailyOnMinutes - tomorrowSurplusMinutes)
-                            : dailyOnMinutes;
-                    if (accumulatedMinutes >= requiredMinutes) continue;
-                    Set<NordpoolEntity> alwaysOnSet = new HashSet<>(alwaysOnPeriods);
-                    List<NordpoolEntity> eligiblePrices = dailyPrices.stream()
-                            .filter(p -> !alwaysOnSet.contains(p))
-                            .filter(p -> combinedPriceByPeriod.get(p.getDeliveryStart()).compareTo(maxPriceSnt) <= 0)
-                            .sorted(Comparator.comparing(p -> combinedPriceByPeriod.get(p.getDeliveryStart())))
-                            .toList();
-                    for (NordpoolEntity priceEntry : eligiblePrices) {
-                        if (accumulatedMinutes >= requiredMinutes) break;
-                        BigDecimal combinedPrice = combinedPriceByPeriod.get(priceEntry.getDeliveryStart());
-                        int minutesLeft = requiredMinutes - accumulatedMinutes;
-                        int minutesToUse = Math.min(usablePeriodMinutes(priceEntry), minutesLeft);
-                        minutesToUse = Math.floorDiv(minutesToUse, 15) * 15;
-                        if (minutesToUse <= 0) continue;
-                        Instant end = priceEntry.getDeliveryStart().plus(Duration.ofMinutes(minutesToUse));
-                        controlTableRepository.save(ControlTableEntity.builder()
-                                .control(control)
-                                .startTime(priceEntry.getDeliveryStart())
-                                .endTime(end)
-                                .priceSnt(combinedPrice)
-                                .status(Status.FINAL)
-                                .build());
-                        accumulatedMinutes += minutesToUse;
+                List<NordpoolEntity> tomorrowPrices = pricesByDay.getOrDefault(today.plusDays(1), List.of());
+                boolean canRedistributeAcrossDays = controlMode == ControlMode.CHEAPEST_HOURS_TOMORROW_AWARE
+                        && coversCompleteLocalDay(tomorrowPrices, today.plusDays(1), controlZone);
+
+                if (canRedistributeAcrossDays) {
+                    scheduleTomorrowAwarePeriods(
+                            control,
+                            pricesByDay.getOrDefault(today, List.of()),
+                            tomorrowPrices,
+                            dailyOnMinutes,
+                            maxPriceSnt,
+                            minPriceSnt,
+                            alwaysOnBelowMinPrice,
+                            combinedPriceByPeriod
+                    );
+                } else {
+                    for (LocalDate date : List.of(today, today.plusDays(1))) {
+                        scheduleCheapestPeriods(
+                                control,
+                                pricesByDay.getOrDefault(date, List.of()),
+                                dailyOnMinutes,
+                                maxPriceSnt,
+                                minPriceSnt,
+                                alwaysOnBelowMinPrice,
+                                combinedPriceByPeriod
+                        );
                     }
                 }
             } else if (controlMode.equals(ControlMode.MANUAL)) {
@@ -221,27 +187,188 @@ public class ControlSchedulerService {
         }
     }
 
-    private int calculateTomorrowSurplusMinutes(
-            ControlMode controlMode,
-            boolean alwaysOnBelowMinPrice,
-            List<NordpoolEntity> tomorrowPrices,
-            Map<Instant, BigDecimal> combinedPriceByPeriod,
+    private void scheduleCheapestPeriods(
+            ControlEntity control,
+            List<NordpoolEntity> prices,
+            int requiredMinutes,
+            BigDecimal maxPriceSnt,
             BigDecimal minPriceSnt,
-            int dailyOnMinutes,
-            LocalDate tomorrow,
-            ZoneId controlZone
+            boolean alwaysOnBelowMinPrice,
+            Map<Instant, BigDecimal> combinedPriceByPeriod
     ) {
-        if (controlMode != ControlMode.CHEAPEST_HOURS_TOMORROW_AWARE
-                || !alwaysOnBelowMinPrice
-                || !coversCompleteLocalDay(tomorrowPrices, tomorrow, controlZone)) {
-            return 0;
-        }
+        Map<NordpoolEntity, Integer> selectedMinutes = selectCheapestBasePeriods(
+                prices,
+                requiredMinutes,
+                maxPriceSnt,
+                combinedPriceByPeriod
+        );
+        addAlwaysOnPeriods(
+                selectedMinutes,
+                prices,
+                minPriceSnt,
+                alwaysOnBelowMinPrice,
+                combinedPriceByPeriod
+        );
+        saveSelectedPeriods(control, selectedMinutes, combinedPriceByPeriod);
+    }
 
-        int guaranteedMinutes = tomorrowPrices.stream()
+    private void scheduleTomorrowAwarePeriods(
+            ControlEntity control,
+            List<NordpoolEntity> todayPrices,
+            List<NordpoolEntity> tomorrowPrices,
+            int dailyOnMinutes,
+            BigDecimal maxPriceSnt,
+            BigDecimal minPriceSnt,
+            boolean alwaysOnBelowMinPrice,
+            Map<Instant, BigDecimal> combinedPriceByPeriod
+    ) {
+        Map<NordpoolEntity, Integer> selectedToday = selectCheapestBasePeriods(
+                todayPrices,
+                dailyOnMinutes,
+                maxPriceSnt,
+                combinedPriceByPeriod
+        );
+        Map<NordpoolEntity, Integer> selectedTomorrow = selectCheapestBasePeriods(
+                tomorrowPrices,
+                dailyOnMinutes,
+                maxPriceSnt,
+                combinedPriceByPeriod
+        );
+
+        moveExpensiveTodayMinutesToCheaperTomorrowPeriods(
+                selectedToday,
+                selectedTomorrow,
+                tomorrowPrices,
+                maxPriceSnt,
+                combinedPriceByPeriod
+        );
+
+        Map<NordpoolEntity, Integer> selectedMinutes = new HashMap<>(selectedToday);
+        selectedTomorrow.forEach((price, minutes) -> selectedMinutes.merge(price, minutes, Math::max));
+        List<NordpoolEntity> horizonPrices = new ArrayList<>(todayPrices);
+        horizonPrices.addAll(tomorrowPrices);
+        addAlwaysOnPeriods(
+                selectedMinutes,
+                horizonPrices,
+                minPriceSnt,
+                alwaysOnBelowMinPrice,
+                combinedPriceByPeriod
+        );
+        saveSelectedPeriods(control, selectedMinutes, combinedPriceByPeriod);
+    }
+
+    private Map<NordpoolEntity, Integer> selectCheapestBasePeriods(
+            List<NordpoolEntity> prices,
+            int requiredMinutes,
+            BigDecimal maxPriceSnt,
+            Map<Instant, BigDecimal> combinedPriceByPeriod
+    ) {
+        Comparator<NordpoolEntity> byPriceThenTime = Comparator
+                .comparing((NordpoolEntity price) -> combinedPriceByPeriod.get(price.getDeliveryStart()))
+                .thenComparing(NordpoolEntity::getDeliveryStart);
+        Map<NordpoolEntity, Integer> selectedMinutes = new HashMap<>();
+        int accumulatedMinutes = 0;
+
+        for (NordpoolEntity price : prices.stream()
+                .filter(p -> combinedPriceByPeriod.get(p.getDeliveryStart()).compareTo(maxPriceSnt) <= 0)
+                .sorted(byPriceThenTime)
+                .toList()) {
+            if (accumulatedMinutes >= requiredMinutes) break;
+            int minutesLeft = requiredMinutes - accumulatedMinutes;
+            int minutesToUse = Math.min(usablePeriodMinutes(price), minutesLeft);
+            minutesToUse = Math.floorDiv(minutesToUse, 15) * 15;
+            if (minutesToUse <= 0) continue;
+            selectedMinutes.put(price, minutesToUse);
+            accumulatedMinutes += minutesToUse;
+        }
+        return selectedMinutes;
+    }
+
+    private void moveExpensiveTodayMinutesToCheaperTomorrowPeriods(
+            Map<NordpoolEntity, Integer> selectedToday,
+            Map<NordpoolEntity, Integer> selectedTomorrow,
+            List<NordpoolEntity> tomorrowPrices,
+            BigDecimal maxPriceSnt,
+            Map<Instant, BigDecimal> combinedPriceByPeriod
+    ) {
+        List<NordpoolEntity> selectedTodayByHighestPrice = selectedToday.keySet().stream()
+                .sorted(Comparator
+                        .comparing((NordpoolEntity price) -> combinedPriceByPeriod.get(price.getDeliveryStart()))
+                        .reversed()
+                        .thenComparing(NordpoolEntity::getDeliveryStart, Comparator.reverseOrder()))
+                .toList();
+        List<NordpoolEntity> tomorrowCandidates = tomorrowPrices.stream()
+                .filter(price -> combinedPriceByPeriod.get(price.getDeliveryStart()).compareTo(maxPriceSnt) <= 0)
+                .filter(price -> selectedTomorrow.getOrDefault(price, 0) < usablePeriodMinutes(price))
+                .sorted(Comparator
+                        .comparing((NordpoolEntity price) -> combinedPriceByPeriod.get(price.getDeliveryStart()))
+                        .thenComparing(NordpoolEntity::getDeliveryStart))
+                .toList();
+
+        int todayIndex = 0;
+        for (NordpoolEntity tomorrowCandidate : tomorrowCandidates) {
+            int tomorrowCapacity = usablePeriodMinutes(tomorrowCandidate)
+                    - selectedTomorrow.getOrDefault(tomorrowCandidate, 0);
+            while (tomorrowCapacity >= 15 && todayIndex < selectedTodayByHighestPrice.size()) {
+                NordpoolEntity todaySelection = selectedTodayByHighestPrice.get(todayIndex);
+                int selectedTodayMinutes = selectedToday.getOrDefault(todaySelection, 0);
+                if (selectedTodayMinutes < 15) {
+                    todayIndex++;
+                    continue;
+                }
+                BigDecimal tomorrowPrice = combinedPriceByPeriod.get(tomorrowCandidate.getDeliveryStart());
+                BigDecimal todayPrice = combinedPriceByPeriod.get(todaySelection.getDeliveryStart());
+                if (tomorrowPrice.compareTo(todayPrice) >= 0) return;
+
+                int minutesToMove = Math.floorDiv(
+                        Math.min(tomorrowCapacity, selectedTodayMinutes),
+                        15
+                ) * 15;
+                selectedToday.put(todaySelection, selectedTodayMinutes - minutesToMove);
+                selectedTomorrow.merge(tomorrowCandidate, minutesToMove, Integer::sum);
+                tomorrowCapacity -= minutesToMove;
+                if (selectedToday.get(todaySelection) < 15) todayIndex++;
+            }
+        }
+    }
+
+    private void addAlwaysOnPeriods(
+            Map<NordpoolEntity, Integer> selectedMinutes,
+            List<NordpoolEntity> prices,
+            BigDecimal minPriceSnt,
+            boolean alwaysOnBelowMinPrice,
+            Map<Instant, BigDecimal> combinedPriceByPeriod
+    ) {
+        if (!alwaysOnBelowMinPrice) return;
+        prices.stream()
                 .filter(p -> combinedPriceByPeriod.get(p.getDeliveryStart()).compareTo(minPriceSnt) <= 0)
-                .mapToInt(this::usablePeriodMinutes)
-                .sum();
-        return Math.max(0, guaranteedMinutes - dailyOnMinutes);
+                .forEach(price -> selectedMinutes.merge(
+                        price,
+                        usablePeriodMinutes(price),
+                        Math::max
+                ));
+    }
+
+    private void saveSelectedPeriods(
+            ControlEntity control,
+            Map<NordpoolEntity, Integer> selectedMinutes,
+            Map<Instant, BigDecimal> combinedPriceByPeriod
+    ) {
+        selectedMinutes.entrySet().stream()
+                .filter(entry -> entry.getValue() > 0)
+                .sorted(Map.Entry.comparingByKey(Comparator.comparing(NordpoolEntity::getDeliveryStart)))
+                .forEach(entry -> {
+                    NordpoolEntity price = entry.getKey();
+                    BigDecimal combinedPrice = combinedPriceByPeriod.get(price.getDeliveryStart());
+                    Instant end = price.getDeliveryStart().plus(Duration.ofMinutes(entry.getValue()));
+                    controlTableRepository.save(ControlTableEntity.builder()
+                            .control(control)
+                            .startTime(price.getDeliveryStart())
+                            .endTime(end)
+                            .priceSnt(combinedPrice)
+                            .status(Status.FINAL)
+                            .build());
+                });
     }
 
     private boolean coversCompleteLocalDay(

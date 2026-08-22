@@ -14,14 +14,15 @@ Preserve unrelated worktree changes. Use the existing Java, Spring, Vaadin, repo
 
 ## Control Table handoff
 
-`ControlSchedulerService` generates persisted `FINAL` control-table rows for price-based controls. `CHEAPEST_HOURS` retains its strict per-local-calendar-day quota. `CHEAPEST_HOURS_TOMORROW_AWARE` may reduce today's quota only from tomorrow's guaranteed below-minimum-price surplus:
+`ControlSchedulerService` generates persisted `FINAL` control-table rows for price-based controls. `CHEAPEST_HOURS` retains its strict per-local-calendar-day quota. When complete tomorrow prices are available, `CHEAPEST_HOURS_TOMORROW_AWARE` treats today and tomorrow as one price horizon with this base budget:
 
 ```text
-tomorrow surplus = max(0, tomorrow below-min minutes - daily on minutes)
-today requirement = max(0, daily on minutes - tomorrow surplus)
+two-day base minutes = daily on minutes * 2
 ```
 
-Tomorrow-aware borrowing requires `alwaysOnBelowMinPrice` and complete, gap-free tomorrow prices. If either condition is absent, use the strict daily calculation. Tomorrow's first `dailyOnMinutes` belong to tomorrow and must not be double-counted as today's surplus. Existing `CHEAPEST_HOURS` semantics must not change when extending the flexible mode.
+First select each day's own cheapest `dailyOnMinutes`. Then replace the most expensive selected today minutes with additional, unselected tomorrow capacity only while that tomorrow capacity is strictly cheaper. The mode may make today shorter and tomorrow longer, but it must not move tomorrow's base quota into today when today is cheaper. Break equal-price ties by earlier timestamp so shifted capacity occurs as early as possible and equal prices do not unnecessarily move today into tomorrow. If tomorrow prices are incomplete, use the strict daily calculation. Existing `CHEAPEST_HOURS` semantics must not change.
+
+`alwaysOnBelowMinPrice` is independent of tomorrow-aware redistribution. After selecting the base minutes, union every period at or below `minPriceSnt` into the schedule. These periods may extend runtime beyond the base budget. Tomorrow-aware redistribution must work even when `alwaysOnBelowMinPrice` is disabled.
 
 The scheduler ranks and thresholds with the combined control price from `ControlPriceService`: Nord Pool price with the control tax plus the applicable static or day/night transfer price. A chart's Nord Pool series alone may therefore differ from the price used for scheduling.
 
