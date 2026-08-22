@@ -81,7 +81,7 @@ class ControlSchedulerServiceTest {
     }
 
     @Test
-    void movesTheTwoDayBaseQuotaToTomorrowWhenTomorrowIsCheaper() {
+    void keepsElapsedTodayQuotaWhenTomorrowIsCheaper() {
         control.setAlwaysOnBelowMinPrice(false);
         List<NordpoolEntity> prices = new ArrayList<>();
         prices.addAll(pricesForDay(TODAY, ignored -> "20"));
@@ -95,9 +95,8 @@ class ControlSchedulerServiceTest {
 
         List<ControlTableEntity> saved = savedEntries();
         assertThat(saved).hasSize(32);
-        assertThat(saved).allMatch(entry -> localDate(entry).equals(TODAY.plusDays(1)));
-        assertThat(saved.getFirst().getStartTime().atZone(CONTROL_ZONE).getHour()).isZero();
-        assertThat(saved.getLast().getEndTime().atZone(CONTROL_ZONE).getHour()).isEqualTo(8);
+        assertThat(saved.stream().filter(entry -> localDate(entry).equals(TODAY))).hasSize(16);
+        assertThat(saved.stream().filter(entry -> localDate(entry).equals(TODAY.plusDays(1)))).hasSize(16);
     }
 
     @Test
@@ -119,24 +118,36 @@ class ControlSchedulerServiceTest {
     }
 
     @Test
-    void movesOnlyMinutesForWhichTomorrowHasCheaperCapacity() {
+    void movesOnlyFutureTodayMinutesForWhichTomorrowHasCheaperCapacity() {
+        control.setAlwaysOnBelowMinPrice(false);
+        Instant recalculationTime = NOW.plus(Duration.ofMinutes(7));
         List<NordpoolEntity> prices = new ArrayList<>();
-        prices.addAll(pricesForDay(TODAY, index -> index == 89 ? "90" : "20"));
-        prices.addAll(pricesForDay(TODAY.plusDays(1), index -> index < 20 ? "1" : "20"));
+        prices.addAll(pricesForDay(TODAY, index -> {
+            if (index < 8) return "10";
+            if (index == 60 || index >= 80 && index < 87) return "20";
+            return "101";
+        }));
+        prices.addAll(pricesForDay(TODAY.plusDays(1), index -> {
+            if (index < 16) return "1";
+            if (index < 24) return "5";
+            return "101";
+        }));
         when(nordpoolRepository
                 .findByMarketIndexNameAndDeliveryStartGreaterThanEqualAndDeliveryStartLessThan(
                         eq("FI"), any(), any()))
                 .thenReturn(prices);
 
-        service.generateForControl(2L, NOW);
+        service.generateForControl(2L, recalculationTime);
 
         List<ControlTableEntity> saved = savedEntries();
         List<ControlTableEntity> savedToday = saved.stream()
                 .filter(entry -> localDate(entry).equals(TODAY))
                 .toList();
-        assertThat(savedToday).hasSize(12);
-        assertThat(savedToday).noneMatch(entry -> entry.getPriceSnt().compareTo(new BigDecimal("90")) == 0);
-        assertThat(saved.stream().filter(entry -> localDate(entry).equals(TODAY.plusDays(1)))).hasSize(20);
+        assertThat(savedToday).hasSize(9);
+        assertThat(savedToday).allMatch(entry -> entry.getStartTime().isBefore(recalculationTime));
+        assertThat(savedToday).anyMatch(entry -> entry.getStartTime().equals(NOW)
+                && entry.getEndTime().isAfter(recalculationTime));
+        assertThat(saved.stream().filter(entry -> localDate(entry).equals(TODAY.plusDays(1)))).hasSize(23);
     }
 
     @Test
@@ -152,8 +163,9 @@ class ControlSchedulerServiceTest {
         service.generateForControl(2L, NOW);
 
         List<ControlTableEntity> saved = savedEntries();
-        assertThat(saved).hasSize(96);
-        assertThat(saved).allMatch(entry -> localDate(entry).equals(TODAY.plusDays(1)));
+        assertThat(saved).hasSize(112);
+        assertThat(saved.stream().filter(entry -> localDate(entry).equals(TODAY))).hasSize(16);
+        assertThat(saved.stream().filter(entry -> localDate(entry).equals(TODAY.plusDays(1)))).hasSize(96);
     }
 
     @Test

@@ -155,7 +155,8 @@ public class ControlSchedulerService {
                             maxPriceSnt,
                             minPriceSnt,
                             alwaysOnBelowMinPrice,
-                            combinedPriceByPeriod
+                            combinedPriceByPeriod,
+                            now
                     );
                 } else {
                     for (LocalDate date : List.of(today, today.plusDays(1))) {
@@ -220,7 +221,8 @@ public class ControlSchedulerService {
             BigDecimal maxPriceSnt,
             BigDecimal minPriceSnt,
             boolean alwaysOnBelowMinPrice,
-            Map<Instant, BigDecimal> combinedPriceByPeriod
+            Map<Instant, BigDecimal> combinedPriceByPeriod,
+            Instant now
     ) {
         Map<NordpoolEntity, Integer> selectedToday = selectCheapestBasePeriods(
                 todayPrices,
@@ -240,7 +242,8 @@ public class ControlSchedulerService {
                 selectedTomorrow,
                 tomorrowPrices,
                 maxPriceSnt,
-                combinedPriceByPeriod
+                combinedPriceByPeriod,
+                now
         );
 
         Map<NordpoolEntity, Integer> selectedMinutes = new HashMap<>(selectedToday);
@@ -289,9 +292,11 @@ public class ControlSchedulerService {
             Map<NordpoolEntity, Integer> selectedTomorrow,
             List<NordpoolEntity> tomorrowPrices,
             BigDecimal maxPriceSnt,
-            Map<Instant, BigDecimal> combinedPriceByPeriod
+            Map<Instant, BigDecimal> combinedPriceByPeriod,
+            Instant now
     ) {
         List<NordpoolEntity> selectedTodayByHighestPrice = selectedToday.keySet().stream()
+                .filter(price -> !price.getDeliveryStart().isBefore(now))
                 .sorted(Comparator
                         .comparing((NordpoolEntity price) -> combinedPriceByPeriod.get(price.getDeliveryStart()))
                         .reversed()
