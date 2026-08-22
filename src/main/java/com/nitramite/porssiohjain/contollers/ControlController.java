@@ -81,6 +81,7 @@ public class ControlController {
                 accountId,
                 id,
                 request.getName(),
+                request.getTimezone(),
                 request.getMaxPriceSnt(),
                 request.getMinPriceSnt(),
                 request.getDailyOnMinutes(),

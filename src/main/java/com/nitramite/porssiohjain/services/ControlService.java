@@ -96,7 +96,7 @@ public class ControlService {
 
     public ControlEntity updateControl(
             Long accountId,
-            Long controlId, String name, BigDecimal maxPriceSnt, BigDecimal minPriceSnt,
+            Long controlId, String name, String timezone, BigDecimal maxPriceSnt, BigDecimal minPriceSnt,
             Integer dailyOnMinutes, BigDecimal taxPercent, ControlMode mode, Boolean manualOn,
             Boolean alwaysOnBelowMinPrice, Long energyContractId, Long transferContractId,
             Long siteId
@@ -118,11 +118,15 @@ public class ControlService {
                         "Transfer contract not found or does not belong to account"));
 
         if (control.getAccount().getId().equals(accountId)) {
+            String resolvedTimezone = timezone == null || timezone.isBlank()
+                    ? control.getTimezone()
+                    : ZoneId.of(timezone).getId();
             SiteEntity site = siteId == null
                     ? null
                     : siteRepository.findByIdAndAccountId(siteId, accountId)
                     .orElseThrow(() -> new EntityNotFoundException("Site not found or does not belong to account"));
             control.setName(name);
+            control.setTimezone(resolvedTimezone);
             control.setMaxPriceSnt(maxPriceSnt);
             control.setMinPriceSnt(minPriceSnt);
             control.setDailyOnMinutes(dailyOnMinutes);
@@ -839,7 +843,7 @@ public class ControlService {
 
             if (mode.equals(ControlMode.MANUAL)) {
                 channelMap.put(cd.getDeviceChannel(), control.isManualOn() ? 1 : 0);
-            } else if (mode.equals(ControlMode.CHEAPEST_HOURS) || mode.equals(ControlMode.BELOW_MAX_PRICE)) {
+            } else if (mode.usesGeneratedControlTable()) {
                 ZonedDateTime nowInControlZone = nowUtc.atZone(controlZone);
 
                 Optional<ControlTableEntity> activeControlTable = controlTableRepository

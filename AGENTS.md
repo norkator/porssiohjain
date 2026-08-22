@@ -12,6 +12,31 @@ Use the repository Gradle wrapper with Java 21, for example:
 
 Preserve unrelated worktree changes. Use the existing Java, Spring, Vaadin, repository, translation, and Flyway conventions.
 
+## Control Table handoff
+
+`ControlSchedulerService` generates persisted `FINAL` control-table rows for price-based controls. `CHEAPEST_HOURS` retains its strict per-local-calendar-day quota. `CHEAPEST_HOURS_TOMORROW_AWARE` may reduce today's quota only from tomorrow's guaranteed below-minimum-price surplus:
+
+```text
+tomorrow surplus = max(0, tomorrow below-min minutes - daily on minutes)
+today requirement = max(0, daily on minutes - tomorrow surplus)
+```
+
+Tomorrow-aware borrowing requires `alwaysOnBelowMinPrice` and complete, gap-free tomorrow prices. If either condition is absent, use the strict daily calculation. Tomorrow's first `dailyOnMinutes` belong to tomorrow and must not be double-counted as today's surplus. Existing `CHEAPEST_HOURS` semantics must not change when extending the flexible mode.
+
+The scheduler ranks and thresholds with the combined control price from `ControlPriceService`: Nord Pool price with the control tax plus the applicable static or day/night transfer price. A chart's Nord Pool series alone may therefore differ from the price used for scheduling.
+
+All scheduler, repository, REST chart, and Vaadin chart day boundaries must use the control's configured `ZoneId`. Use local dates converted with `date.atStartOfDay(zone).toInstant()` and half-open ranges such as `[todayStart, tomorrowStart)`. Do not use `Instant.truncatedTo(DAYS)`, UTC midnight, or fixed 24-hour additions for control days. This is required for non-UTC zones and 23/25-hour DST days; Helsinki midnight is 21:00 UTC in summer and 22:00 UTC in winter. Include control-table rows starting exactly at local midnight.
+
+Nord Pool `deliveryStart` and `deliveryEnd` values are authoritative instants and may cross UTC dates for a local market day. Query them using the converted local-day boundaries; do not manually add or subtract the timezone offset from stored timestamps.
+
+`ControlTableView` exposes the control timezone. Saving control settings must persist the timezone, regenerate the control table, and rerender charts. Keep today and tomorrow price queries aligned with the same control-local boundaries used by the scheduler.
+
+Focused verification:
+
+```sh
+./gradlew test --tests com.nitramite.porssiohjain.services.ControlSchedulerServiceTest --tests com.nitramite.porssiohjain.services.NordpoolServiceTest --tests com.nitramite.porssiohjain.ControlServiceTest
+```
+
 ## Powerplant handoff
 
 Read `doc/powerplant.md` before changing the Powerplant feature. It documents the current free-form control-room board, persisted element model, Vaadin icon selection, direct STANDARD relay command support, and the distinction between configured indicator values and live telemetry.

@@ -43,12 +43,26 @@ public class NordpoolService {
     public List<NordpoolPriceResponse> getNordpoolPricesForControl(
             Long controlId, Instant startDate, Instant endDate
     ) {
+        return getNordpoolPricesForControl(controlId, startDate, endDate, Instant.now());
+    }
+
+    List<NordpoolPriceResponse> getNordpoolPricesForControl(
+            Long controlId,
+            Instant startDate,
+            Instant endDate,
+            Instant now
+    ) {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found: " + controlId));
 
-        Instant now = Instant.now();
-        Instant start = startDate != null ? startDate : now.truncatedTo(ChronoUnit.DAYS);
-        Instant end = endDate != null ? endDate : start.plus(2, ChronoUnit.DAYS).minusNanos(1);
+        ZoneId controlZone = ZoneId.of(control.getTimezone());
+        LocalDate today = now.atZone(controlZone).toLocalDate();
+        Instant start = startDate != null
+                ? startDate
+                : today.atStartOfDay(controlZone).toInstant();
+        Instant end = endDate != null
+                ? endDate
+                : today.plusDays(2).atStartOfDay(controlZone).toInstant().minusNanos(1);
 
         String marketIndexName = NordpoolMarket.normalize(control.getAccount().getMarketIndexName());
         List<NordpoolEntity> prices = nordpoolRepository.findPricesBetween(marketIndexName, start, end);

@@ -53,11 +53,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
@@ -114,13 +114,6 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private Button thermostatSaveButton;
     private Button thermostatCancelButton;
     private ControlThermostatResponse selectedThermostatLink;
-
-    private final Instant dateNow = Instant.now();
-    private final Instant startOfDay = dateNow.truncatedTo(ChronoUnit.DAYS);
-    private final Instant endOfDay = startOfDay.plus(1, ChronoUnit.DAYS).minusNanos(1);
-    private final Instant startOfTomorrow = dateNow.truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS);
-    private final Instant endOfDayTomorrow = startOfTomorrow.plus(1, ChronoUnit.DAYS).minusNanos(1);
-
 
     @Autowired
     public ControlTableView(
@@ -219,6 +212,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         TextField controlNameField = new TextField(t("controlTable.field.name"));
         controlNameField.setValue(control.getName());
 
+        ComboBox<String> timezoneField = new ComboBox<>(t("controlTable.field.timezone"));
+        timezoneField.setItems(ZoneId.getAvailableZoneIds().stream().sorted().toList());
+        timezoneField.setValue(control.getTimezone());
+        timezoneField.setWidthFull();
+
         NumberField maxPriceField = new NumberField(t("controlTable.field.maxPrice"));
         maxPriceField.setValue(control.getMaxPriceSnt().doubleValue());
 
@@ -233,6 +231,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         ComboBox<ControlMode> modeCombo = new ComboBox<>(t("controlTable.field.mode"));
         modeCombo.setItems(ControlMode.values());
+        modeCombo.setItemLabelGenerator(mode -> t("control.mode." + mode.name()));
         modeCombo.setValue(control.getMode());
         modeCombo.setWidthFull();
 
@@ -300,6 +299,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         Button saveButton = new Button(t("controlTable.button.save"), e -> {
             try {
                 control.setName(controlNameField.getValue());
+                control.setTimezone(timezoneField.getValue());
                 control.setMaxPriceSnt(BigDecimal.valueOf(maxPriceField.getValue()));
                 control.setMinPriceSnt(BigDecimal.valueOf(minPriceField.getValue()));
                 control.setDailyOnMinutes(dailyMinutes.getValue().intValue());
@@ -321,6 +321,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         accountId,
                         controlId,
                         control.getName(),
+                        control.getTimezone(),
                         control.getMaxPriceSnt(),
                         control.getMinPriceSnt(),
                         control.getDailyOnMinutes(),
@@ -332,11 +333,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                         transferId,
                         siteId
                 );
+                controlSchedulerService.generateForControl(controlId);
 
                 Notification notification = Notification.show(t("controlTable.notification.saved"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
                 loadControl();
+                renderView();
             } catch (Exception ex) {
                 Notification notification = Notification.show(t("controlTable.notification.failedSave", ex.getMessage()));
                 notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -353,6 +356,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         formLayout.add(
                 controlNameField,
+                timezoneField,
                 modeCombo,
                 maxPriceField,
                 minPriceField,
@@ -371,7 +375,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             ControlMode mode = modeCombo.getValue();
 
             boolean isBelowMax = mode == ControlMode.BELOW_MAX_PRICE;
-            boolean isCheapest = mode == ControlMode.CHEAPEST_HOURS;
+            boolean isCheapest = mode != null && mode.isCheapestHours();
             boolean isManual = mode == ControlMode.MANUAL;
 
             maxPriceField.setEnabled(!isManual);
@@ -1345,11 +1349,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         Button recalcButton = new Button(t("controlTable.button.recalculate"), e -> {
             controlSchedulerService.generateForControl(controlId);
             List<ControlTableResponse> controlTableResponses = controlSchedulerService.findByControlId(controlId);
+            ControlChartRange chartRange = controlChartRange();
             List<NordpoolPriceResponse> nordpoolPriceResponsesToday = nordpoolService.getNordpoolPricesForControl(
-                    controlId, startOfDay, endOfDay
+                    controlId, chartRange.todayStart(), chartRange.tomorrowStart().minusNanos(1)
             );
             List<NordpoolPriceResponse> nordpoolPriceResponsesTomorrow = nordpoolService.getNordpoolPricesForControl(
-                    controlId, startOfTomorrow, endOfDayTomorrow
+                    controlId, chartRange.tomorrowStart(), chartRange.dayAfterTomorrowStart().minusNanos(1)
             );
             refreshControlTable();
             controlTableGrid.setItems(controlTableResponses);
@@ -1360,11 +1365,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
 
         List<ControlTableResponse> controlTableResponses = controlSchedulerService.findByControlId(controlId);
+        ControlChartRange chartRange = controlChartRange();
         List<NordpoolPriceResponse> nordpoolPriceResponsesToday = nordpoolService.getNordpoolPricesForControl(
-                controlId, startOfDay, endOfDay
+                controlId, chartRange.todayStart(), chartRange.tomorrowStart().minusNanos(1)
         );
         List<NordpoolPriceResponse> nordpoolPriceResponsesTomorrow = nordpoolService.getNordpoolPricesForControl(
-                controlId, startOfTomorrow, endOfDayTomorrow
+                controlId, chartRange.tomorrowStart(), chartRange.dayAfterTomorrowStart().minusNanos(1)
         );
 
         refreshControlTable();
@@ -1643,6 +1649,23 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         } catch (Exception ignored) {
         }
         return ZonedDateTime.ofInstant(instant, zone).format(formatter);
+    }
+
+    private ControlChartRange controlChartRange() {
+        ZoneId zone = ZoneId.of(control.getTimezone());
+        LocalDate today = LocalDate.now(zone);
+        return new ControlChartRange(
+                today.atStartOfDay(zone).toInstant(),
+                today.plusDays(1).atStartOfDay(zone).toInstant(),
+                today.plusDays(2).atStartOfDay(zone).toInstant()
+        );
+    }
+
+    private record ControlChartRange(
+            Instant todayStart,
+            Instant tomorrowStart,
+            Instant dayAfterTomorrowStart
+    ) {
     }
 
     private String formatCheapestHours(BigDecimal cheapestHours) {

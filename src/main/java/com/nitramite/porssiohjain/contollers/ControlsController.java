@@ -80,6 +80,7 @@ public class ControlsController {
                 accountId,
                 controlId,
                 request.getName(),
+                request.getTimezone(),
                 request.getMaxPriceSnt(),
                 request.getMinPriceSnt(),
                 request.getDailyOnMinutes(),
