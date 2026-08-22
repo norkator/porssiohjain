@@ -13,7 +13,12 @@ import { apiFetch, apiGetJson } from "@/lib/api";
 import { type ApiDevice } from "@/lib/devices";
 import { getCommonTranslation, getCurrentIntlLocales } from "@/lib/i18n";
 
-export type ControlMode = "BELOW_MAX_PRICE" | "CHEAPEST_HOURS" | "MANUAL" | "SCHEDULED";
+export type ControlMode =
+  | "BELOW_MAX_PRICE"
+  | "CHEAPEST_HOURS"
+  | "CHEAPEST_HOURS_TOMORROW_AWARE"
+  | "MANUAL"
+  | "SCHEDULED";
 
 export type ApiControl = {
   id: number;
@@ -153,7 +158,13 @@ export type ControlNotificationPayload = {
   sendEarlierMinutes: number;
 };
 
-export const CONTROL_MODES: ControlMode[] = ["BELOW_MAX_PRICE", "CHEAPEST_HOURS", "MANUAL", "SCHEDULED"];
+export const CONTROL_MODES: ControlMode[] = [
+  "BELOW_MAX_PRICE",
+  "CHEAPEST_HOURS",
+  "CHEAPEST_HOURS_TOMORROW_AWARE",
+  "MANUAL",
+  "SCHEDULED"
+];
 
 export async function fetchControls() {
   return apiGetJson<ApiControl[]>("/api/controls");
@@ -385,6 +396,8 @@ export function formatControlMode(mode: ControlMode) {
       return "Below Max Price";
     case "CHEAPEST_HOURS":
       return "Cheapest Hours";
+    case "CHEAPEST_HOURS_TOMORROW_AWARE":
+      return "Cheapest Hours (Tomorrow-aware)";
     case "MANUAL":
       return "Manual";
     case "SCHEDULED":
@@ -421,6 +434,7 @@ export function getControlAccent(control: ApiControl) {
     case "MANUAL":
       return control.manualOn ? "border-primary" : "border-outline";
     case "CHEAPEST_HOURS":
+    case "CHEAPEST_HOURS_TOMORROW_AWARE":
       return "border-primary-container";
     case "SCHEDULED":
       return "border-secondary";

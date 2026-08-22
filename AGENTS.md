@@ -32,6 +32,8 @@ Nord Pool `deliveryStart` and `deliveryEnd` values are authoritative instants an
 
 `ControlTableView` exposes the control timezone. Saving control settings must persist the timezone, regenerate the control table, and rerender charts. Keep today and tomorrow price queries aligned with the same control-local boundaries used by the scheduler.
 
+Control modes are also modeled in the React client under `hybrid-web`. When adding or renaming a backend `ControlMode`, update the React `ControlMode` union, `CONTROL_MODES` selector list, readable formatter, mode-specific presentation, and English/Finnish translations so create, manage, and list views can handle the persisted value.
+
 Focused verification:
 
 ```sh

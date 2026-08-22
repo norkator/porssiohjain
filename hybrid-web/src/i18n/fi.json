@@ -1091,6 +1091,7 @@
     "modes": {
       "BELOW_MAX_PRICE": "Alle maksimihinnan",
       "CHEAPEST_HOURS": "Halvimmat tunnit",
+      "CHEAPEST_HOURS_TOMORROW_AWARE": "Halvimmat tunnit (huomioi huomisen)",
       "MANUAL": "Käsiohjaus"
     },
     "actions": {
