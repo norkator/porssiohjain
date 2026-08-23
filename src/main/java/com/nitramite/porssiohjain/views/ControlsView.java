@@ -160,6 +160,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         taxPercentField.setWidthFull();
 
         modeField.setItems(ControlMode.values());
+        modeField.setItemLabelGenerator(mode -> t("control.mode." + mode.name()));
         modeField.setValue(ControlMode.BELOW_MAX_PRICE);
         modeField.setWidthFull();
 
@@ -172,6 +173,8 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         modeField.addValueChangeListener(e -> {
             ControlMode selected = e.getValue();
             manualOnToggle.setEnabled(selected == ControlMode.MANUAL);
+            boolean isCheapest = selected != null && selected.isCheapestHours();
+            alwaysOnBelowMinPriceToggle.setEnabled(isCheapest);
             if (selected != ControlMode.MANUAL) {
                 manualOnToggle.setValue(false);
             }
@@ -225,7 +228,9 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         controlsGrid.addColumn(ControlResponse::getMaxPriceSnt).setHeader(t("control.grid.maxPrice")).setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getDailyOnMinutes).setHeader(t("control.grid.dailyMinutes")).setAutoWidth(true);
         controlsGrid.addColumn(ControlResponse::getTimezone).setHeader(t("control.grid.timezone")).setAutoWidth(true);
-        controlsGrid.addColumn(ControlResponse::getMode).setHeader(t("control.grid.mode")).setAutoWidth(true);
+        controlsGrid.addColumn(control -> t("control.mode." + control.getMode().name()))
+                .setHeader(t("control.grid.mode"))
+                .setAutoWidth(true);
         controlsGrid.addColumn(control -> {
             ZoneId zone = ZoneId.of(control.getTimezone());
             return ZonedDateTime.ofInstant(control.getCreatedAt(), zone).format(formatter);
@@ -262,7 +267,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
             String name = nameField.getValue();
             String timezone = timezoneField.getValue();
             BigDecimal maxPrice = BigDecimal.valueOf(maxPriceField.getValue());
-            BigDecimal minPrice = BigDecimal.valueOf(maxPriceField.getValue());
+            BigDecimal minPrice = BigDecimal.valueOf(minPriceField.getValue());
             Integer dailyMinutes = dailyMinutesField.getValue();
             BigDecimal taxPercent = BigDecimal.valueOf(taxPercentField.getValue());
             ControlMode mode = modeField.getValue();

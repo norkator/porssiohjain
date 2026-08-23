@@ -250,7 +250,7 @@ public class HeatPumpControlService {
             return control.isManualOn();
         }
 
-        if (control.getMode() != ControlMode.CHEAPEST_HOURS && control.getMode() != ControlMode.BELOW_MAX_PRICE) {
+        if (!control.getMode().usesGeneratedControlTable()) {
             return false;
         }
 

@@ -109,7 +109,7 @@ partition "Base Controls: getBaseControlsForDevice(device, nowUtc)" {
     if (Control mode == MANUAL?) then (yes)
       :set channel -> manualOn ? 1 : 0;
     else (no)
-      if (Control mode == CHEAPEST_HOURS\nor BELOW_MAX_PRICE?) then (yes)
+      if (Control mode uses a\ngenerated control table?) then (yes)
         :Find FINAL ControlTableEntity rows\nstarting after nowUtc - 30 min;
         :Convert row start/end to control.timezone;
         if (now in any control table window?) then (yes)

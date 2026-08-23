@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 @Data
 public class UpdateControlRequest {
     private String name;
+    private String timezone;
     private BigDecimal maxPriceSnt;
     private BigDecimal minPriceSnt;
     private Integer dailyOnMinutes;

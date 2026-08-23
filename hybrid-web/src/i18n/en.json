@@ -1091,6 +1091,7 @@
     "modes": {
       "BELOW_MAX_PRICE": "Below Max Price",
       "CHEAPEST_HOURS": "Cheapest Hours",
+      "CHEAPEST_HOURS_TOMORROW_AWARE": "Cheapest Hours (Tomorrow-aware)",
       "MANUAL": "Manual"
     },
     "actions": {

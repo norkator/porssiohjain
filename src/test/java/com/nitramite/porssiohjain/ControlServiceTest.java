@@ -216,6 +216,39 @@ class ControlServiceTest {
     }
 
     @Test
+    void updateControlPersistsSelectedTimezone() {
+        AccountEntity account = new AccountEntity();
+        account.setId(1L);
+        ControlEntity control = new ControlEntity();
+        control.setId(2L);
+        control.setAccount(account);
+        control.setTimezone("UTC");
+
+        when(controlRepository.findById(2L)).thenReturn(Optional.of(control));
+        when(controlRepository.save(control)).thenReturn(control);
+
+        ControlEntity updated = controlService.updateControl(
+                1L,
+                2L,
+                "Water heater",
+                "Europe/Helsinki",
+                new BigDecimal("100"),
+                new BigDecimal("6.4"),
+                240,
+                new BigDecimal("25.5"),
+                ControlMode.CHEAPEST_HOURS_TOMORROW_AWARE,
+                false,
+                true,
+                null,
+                null,
+                null
+        );
+
+        assertEquals("Europe/Helsinki", updated.getTimezone());
+        verify(controlRepository).save(control);
+    }
+
+    @Test
     void weatherPriorityRuleOverridesControlRuleForStandardDevice() {
         UUID deviceUuid = UUID.randomUUID();
         DeviceEntity device = new DeviceEntity();
