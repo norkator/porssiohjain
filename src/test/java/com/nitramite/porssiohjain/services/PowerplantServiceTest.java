@@ -27,6 +27,7 @@ import com.nitramite.porssiohjain.entity.repository.PowerplantElementRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerplantRuleRepository;
 import com.nitramite.porssiohjain.entity.repository.PowerplantSettingsRepository;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -101,6 +103,16 @@ class PowerplantServiceTest {
         assertNull(rule.getLastSkipReason());
         verify(controlService, org.mockito.Mockito.times(2))
                 .sendDebugMqttRelayCommand(1L, 20L, 1, true);
+    }
+
+    @Test
+    void debugRelayCommandDoesNotJoinPowerplantRuleTransaction() throws NoSuchMethodException {
+        Transactional transactional = ControlService.class
+                .getMethod("sendDebugMqttRelayCommand", Long.class, Long.class, int.class, boolean.class)
+                .getAnnotation(Transactional.class);
+
+        assertNotNull(transactional);
+        assertEquals(Transactional.TxType.NOT_SUPPORTED, transactional.value());
     }
 
     @Test

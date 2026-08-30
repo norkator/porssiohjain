@@ -1257,6 +1257,7 @@ public class ControlService {
     private record MqttControlCommand(String uuid, Integer channel, boolean on, DevicePlatform platform) {
     }
 
+    @Transactional(Transactional.TxType.NOT_SUPPORTED)
     public void sendDebugMqttRelayCommand(Long accountId, Long deviceId, int channel, boolean on) {
         demoAccountGuard.assertWritable(accountId);
         if (channel < 0 || channel > 3) {
