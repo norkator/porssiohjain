@@ -24,9 +24,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -35,7 +39,10 @@ public class ToshibaLoginService {
 
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String LOGIN_URL = "https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login";
+    private static final Duration TOKEN_REUSE_SKEW = Duration.ofMinutes(5);
+    private static final Duration DEFAULT_RATE_LIMIT_COOLDOWN = Duration.ofSeconds(65);
     private final DeviceAcDataRepository deviceAcDataRepository;
+    private final Map<String, LoginState> loginStates = new ConcurrentHashMap<>();
 
     @Data
     @Builder
@@ -47,6 +54,44 @@ public class ToshibaLoginService {
     @Transactional
     public AcLoginResponse login(
             DeviceAcDataEntity acData
+    ) {
+        return loginInternal(acData, false);
+    }
+
+    @Transactional
+    public AcLoginResponse refreshLogin(
+            DeviceAcDataEntity acData
+    ) {
+        return loginInternal(acData, true);
+    }
+
+    private AcLoginResponse loginInternal(
+            DeviceAcDataEntity acData,
+            boolean forceRefresh
+    ) {
+        String loginKey = loginKey(acData);
+        LoginState loginState = loginStates.computeIfAbsent(loginKey, ignored -> new LoginState());
+        synchronized (loginState) {
+            if (!forceRefresh && hasReusableToken(acData)) {
+                return success(acData.getAcAccessToken());
+            }
+            if (hasReusableCachedToken(acData, loginState, forceRefresh)) {
+                acData.setAcAccessToken(loginState.accessToken);
+                acData.setAcConsumerId(loginState.consumerId);
+                acData.setAcTokenExpiresAt(loginState.expiresAt);
+                return success(loginState.accessToken);
+            }
+            if (loginState.rateLimitedUntil != null && Instant.now().isBefore(loginState.rateLimitedUntil)) {
+                log.warn("Skipping Toshiba login because previous login was rate-limited until {}", loginState.rateLimitedUntil);
+                return failed();
+            }
+            return performLogin(acData, loginState);
+        }
+    }
+
+    private AcLoginResponse performLogin(
+            DeviceAcDataEntity acData,
+            LoginState loginState
     ) {
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -73,24 +118,74 @@ public class ToshibaLoginService {
                 acData.setAcConsumerId(resObj.getConsumerId());
                 // Returns weird expiration values
                 acData.setAcTokenExpiresAt(Instant.now().plusSeconds(resObj.getExpires_in()));
+                loginState.accessToken = resObj.getAccess_token();
+                loginState.consumerId = resObj.getConsumerId();
+                loginState.expiresAt = acData.getAcTokenExpiresAt();
+                loginState.rateLimitedUntil = null;
                 if (acData.getId() != null) {
                     deviceAcDataRepository.save(acData);
                 }
 
-                return AcLoginResponse.builder()
-                        .success(true)
-                        .accessToken(resObj.getAccess_token())
-                        .build();
+                return success(resObj.getAccess_token());
             } else {
                 log.error("Toshiba login failed: {}", response != null ? response.getMessage() : "Empty response");
             }
+        } catch (HttpClientErrorException.TooManyRequests e) {
+            loginState.rateLimitedUntil = Instant.now().plus(DEFAULT_RATE_LIMIT_COOLDOWN);
+            log.warn("Toshiba login rate-limited, suppressing new login attempts until {}", loginState.rateLimitedUntil);
         } catch (Exception e) {
             log.error("Error during Toshiba login", e);
         }
+        return failed();
+    }
+
+    private boolean hasReusableToken(DeviceAcDataEntity acData) {
+        return acData.getAcAccessToken() != null
+                && !acData.getAcAccessToken().isBlank()
+                && isUsableExpiry(acData.getAcTokenExpiresAt());
+    }
+
+    private boolean hasReusableCachedToken(
+            DeviceAcDataEntity acData,
+            LoginState loginState,
+            boolean forceRefresh
+    ) {
+        if (loginState.accessToken == null || loginState.accessToken.isBlank() || !isUsableExpiry(loginState.expiresAt)) {
+            return false;
+        }
+        return !forceRefresh || !loginState.accessToken.equals(acData.getAcAccessToken());
+    }
+
+    private boolean isUsableExpiry(Instant expiresAt) {
+        return expiresAt != null && expiresAt.isAfter(Instant.now().plus(TOKEN_REUSE_SKEW));
+    }
+
+    private String loginKey(DeviceAcDataEntity acData) {
+        if (acData.getAcUsername() == null || acData.getAcUsername().isBlank()) {
+            return String.valueOf(acData.getId());
+        }
+        return acData.getAcUsername().trim().toLowerCase();
+    }
+
+    private AcLoginResponse success(String accessToken) {
+        return AcLoginResponse.builder()
+                .success(true)
+                .accessToken(accessToken)
+                .build();
+    }
+
+    private AcLoginResponse failed() {
         return AcLoginResponse.builder()
                 .success(false)
                 .accessToken(null)
                 .build();
+    }
+
+    private static class LoginState {
+        private String accessToken;
+        private String consumerId;
+        private Instant expiresAt;
+        private Instant rateLimitedUntil;
     }
 
 }

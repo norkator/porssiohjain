@@ -104,7 +104,7 @@ public class ToshibaAcStateService {
     ) {
         if (retryOnAuthorizationFailure) {
             log.info("Toshiba AC state query returned {}, attempting re-login", statusCode);
-            AcLoginResponse acLoginResponse = toshibaLoginService.login(acData);
+            AcLoginResponse acLoginResponse = toshibaLoginService.refreshLogin(acData);
             if (acLoginResponse.isSuccess()) {
                 acData.setAcAccessToken(acLoginResponse.getAccessToken());
                 waitBeforeRetry();
