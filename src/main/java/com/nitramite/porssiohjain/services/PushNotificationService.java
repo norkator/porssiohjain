@@ -355,6 +355,18 @@ public class PushNotificationService {
         return sendToAdminAccounts(title, body, data);
     }
 
+    public boolean sendSystemErrorAdminNotification(String context, Throwable error) {
+        String errorMessage = error == null ? "" : error.toString();
+        String title = "System error";
+        String body = context + ": " + errorMessage;
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "SYSTEM_ERROR");
+        data.put("context", context);
+        data.put("error", errorMessage);
+        data.put("detectedAt", Instant.now().toString());
+        return sendToAdminAccounts(title, body, data);
+    }
+
     @Transactional
     public boolean sendToAdminAccounts(String title, String body, Map<String, String> data) {
         List<PushNotificationTokenEntity> tokens = pushNotificationTokenRepository

@@ -44,6 +44,7 @@ public class Scheduler {
     private final PricePredictionDataService pricePredictionDataService;
     private final SiteWeatherService siteWeatherService;
     private final EmailService emailService;
+    private final PushNotificationService pushNotificationService;
     private final AuthService authService;
     private final DeviceService deviceService;
     private final ControlService controlService;
@@ -73,6 +74,7 @@ public class Scheduler {
             PricePredictionDataService pricePredictionDataService,
             SiteWeatherService siteWeatherService,
             EmailService emailService,
+            PushNotificationService pushNotificationService,
             AuthService authService,
             MqttReconnectService mqttReconnectService,
             DeviceService deviceService,
@@ -100,6 +102,7 @@ public class Scheduler {
         this.pricePredictionDataService = pricePredictionDataService;
         this.siteWeatherService = siteWeatherService;
         this.emailService = emailService;
+        this.pushNotificationService = pushNotificationService;
         this.authService = authService;
         this.deviceService = deviceService;
         this.controlService = controlService;
@@ -151,7 +154,7 @@ public class Scheduler {
         } catch (Exception e) {
             String msg = "Error fetching Nordpool data (4h interval)";
             log.error(msg, e);
-            this.emailService.sendSystemErrorEmail(msg + e, Locale.getDefault());
+            this.pushNotificationService.sendSystemErrorAdminNotification(msg, e);
         }
     }
 
@@ -176,7 +179,7 @@ public class Scheduler {
         } catch (Exception e) {
             String msg = "Error fetching Nordpool data";
             log.error(msg, e);
-            this.emailService.sendSystemErrorEmail(msg + e, Locale.getDefault());
+            this.pushNotificationService.sendSystemErrorAdminNotification(msg, e);
         }
     }
 

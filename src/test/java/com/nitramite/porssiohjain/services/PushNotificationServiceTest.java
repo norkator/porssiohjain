@@ -86,6 +86,29 @@ class PushNotificationServiceTest {
     }
 
     @Test
+    void systemErrorAdminPushUsesErrorDetails() {
+        PushNotificationService pushNotificationService = spy(new PushNotificationService(
+                messageSource,
+                pushNotificationTokenRepository
+        ));
+        RuntimeException error = new RuntimeException("Nordpool returned 520");
+        doReturn(true).when(pushNotificationService).sendToAdminAccounts(any(), any(), any());
+
+        pushNotificationService.sendSystemErrorAdminNotification("Error fetching Nordpool data", error);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(pushNotificationService).sendToAdminAccounts(
+                eq("System error"),
+                eq("Error fetching Nordpool data: java.lang.RuntimeException: Nordpool returned 520"),
+                dataCaptor.capture()
+        );
+        assertEquals("SYSTEM_ERROR", dataCaptor.getValue().get("type"));
+        assertEquals("Error fetching Nordpool data", dataCaptor.getValue().get("context"));
+        assertEquals("java.lang.RuntimeException: Nordpool returned 520", dataCaptor.getValue().get("error"));
+    }
+
+    @Test
     void controlNotificationPushUsesNotificationNameAndDescription() {
         PushNotificationService pushNotificationService = spy(new PushNotificationService(
                 messageSource,
