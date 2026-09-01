@@ -120,6 +120,7 @@ export default function MainMenuView() {
   const [sitesCount, setSitesCount] = useState<number | null>(null);
   const [contractsCount, setContractsCount] = useState<number | null>(null);
   const [accountEmail, setAccountEmail] = useState("");
+  const [accountMarketIndexName, setAccountMarketIndexName] = useState<string | null>(null);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackContactEmail, setFeedbackContactEmail] = useState("");
@@ -202,11 +203,13 @@ export default function MainMenuView() {
         if (!active) return;
         setIsDemoAccount(account.demo);
         setAccountEmail(account.email ?? "");
+        setAccountMarketIndexName((account.marketIndexName || "FI").trim().toUpperCase());
         setFeedbackContactEmail((current) => current || account.email || "");
       })
       .catch(() => {
         if (!active) return;
         setIsDemoAccount(false);
+        setAccountMarketIndexName(null);
       });
 
     fetchSites()
@@ -304,6 +307,7 @@ export default function MainMenuView() {
   const productionPeakLabel = isStatsLoading ? "--" : formatKw(totalProductionPeakKw);
   const netPowerKw = totalProductionKw - totalConsumptionKw;
   const showAndroidAppLink = session.source !== "android";
+  const showWindForecast = import.meta.env.DEV && accountMarketIndexName === "FI";
   const currentMonthSavings = monthlySavings.length > 0 ? monthlySavings[monthlySavings.length - 1] : undefined;
   const hasSavingsData = monthlySavings.some((saving) => saving.scheduleEntryCount > 0 && saving.controlsWithEstimatedPowerCount > 0 && saving.estimatedUsageKwh > 0);
   const showSavingsEmptyState = !hasSavingsData;
@@ -802,10 +806,12 @@ export default function MainMenuView() {
           <NordpoolTodayChartCard />
         </section>
 
-        <section className="mb-12">
-          <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold"><span className="h-1 w-8 rounded-full bg-primary" />{t("windForecast")}</h2>
-          <WindForecastCard />
-        </section>
+        {showWindForecast ? (
+          <section className="mb-12">
+            <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold"><span className="h-1 w-8 rounded-full bg-primary" />{t("windForecast")}</h2>
+            <WindForecastCard />
+          </section>
+        ) : null}
 
         <section className="mb-12">
           <div className="app-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
