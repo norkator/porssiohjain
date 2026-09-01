@@ -307,7 +307,7 @@ export default function MainMenuView() {
   const productionPeakLabel = isStatsLoading ? "--" : formatKw(totalProductionPeakKw);
   const netPowerKw = totalProductionKw - totalConsumptionKw;
   const showAndroidAppLink = session.source !== "android";
-  const showWindForecast = import.meta.env.DEV && accountMarketIndexName === "FI";
+  const showWindForecast = accountMarketIndexName === "FI";
   const currentMonthSavings = monthlySavings.length > 0 ? monthlySavings[monthlySavings.length - 1] : undefined;
   const hasSavingsData = monthlySavings.some((saving) => saving.scheduleEntryCount > 0 && saving.controlsWithEstimatedPowerCount > 0 && saving.estimatedUsageKwh > 0);
   const showSavingsEmptyState = !hasSavingsData;
