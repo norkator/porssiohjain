@@ -39,7 +39,7 @@ public class AccountLimitService {
     private static final int BUSINESS_DEVICE_LIMIT = 99;
     private static final int FREE_WEEKLY_EMAIL_NOTIFICATION_LIMIT = 3;
     private static final int PAID_WEEKLY_EMAIL_NOTIFICATION_LIMIT = 100;
-    private static final int FREE_WEEKLY_PUSH_NOTIFICATION_LIMIT = 10;
+    private static final int FREE_WEEKLY_PUSH_NOTIFICATION_LIMIT = 50;
     private static final int PAID_WEEKLY_PUSH_NOTIFICATION_LIMIT = 200;
 
     private final AccountRepository accountRepository;
