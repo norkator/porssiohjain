@@ -66,3 +66,9 @@ dependencyManagement {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+tasks.named('processResources') {
+    from('devices/shelly/script.js') {
+        into 'devices/shelly'
+    }
+}

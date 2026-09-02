@@ -65,8 +65,11 @@ import com.vaadin.flow.server.streams.DownloadHandler;
 import com.vaadin.flow.server.streams.DownloadResponse;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -112,6 +115,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final Button selectAcDeviceButton;
     private final Button showAcCommandLogButton;
     private final Button showControlsJsonButton;
+    private final Button showMqttControlScriptButton;
     private final Button mqttRelayDebugButton;
     private final Button allowMqttPasswordChangeButton;
     private final Span mqttPasswordChangeStatus;
@@ -130,6 +134,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int COMMAND_LOG_PREVIEW_LENGTH = 120;
+    private static final String MQTT_CONTROL_SCRIPT_TEMPLATE = "devices/shelly/script.js";
 
     private DeviceResponse selectedDevice;
     private String pendingAcDeviceId;
@@ -226,6 +231,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         showControlsJsonButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         showControlsJsonButton.addClickListener(e -> openControlsJsonDialog());
         showControlsJsonButton.setVisible(false);
+
+        showMqttControlScriptButton = new Button(t("device.mqttScript.button"));
+        showMqttControlScriptButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        showMqttControlScriptButton.addClickListener(e -> openMqttControlScriptDialog());
+        showMqttControlScriptButton.setVisible(false);
 
         mqttRelayDebugButton = new Button(t("device.mqttDebug.button"));
         mqttRelayDebugButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
@@ -396,6 +406,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 }
                 updateAcCommandLogButton();
                 updateControlsJsonButton();
+                updateMqttControlScriptButton();
                 updateMqttRelayDebugButton();
                 updateMqttPasswordChangeAction();
                 saveButton.setText(t("device.button.update"));
@@ -448,6 +459,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 selectAcDeviceButton,
                 showAcCommandLogButton,
                 showControlsJsonButton,
+                showMqttControlScriptButton,
                 mqttRelayDebugButton,
                 allowMqttPasswordChangeButton,
                 mqttPasswordChangeStatus,
@@ -476,6 +488,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             updateSelectAcDeviceButton();
             updateAcCommandLogButton();
             updateControlsJsonButton();
+            updateMqttControlScriptButton();
             updateMqttRelayDebugButton();
             updateMqttPasswordChangeAction();
             updateSaveButtonState();
@@ -899,6 +912,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         updateSelectAcDeviceButton();
         updateAcCommandLogButton();
         updateControlsJsonButton();
+        updateMqttControlScriptButton();
         updateMqttRelayDebugButton();
         updateMqttPasswordChangeAction();
         saveButton.setText(t("device.button.add"));
@@ -981,6 +995,13 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 && (selectedDevice.getDeviceType() == DeviceType.STANDARD
                 || selectedDevice.getDeviceType() == DeviceType.THERMOSTAT);
         showControlsJsonButton.setVisible(visible);
+    }
+
+    private void updateMqttControlScriptButton() {
+        boolean visible = selectedDevice != null
+                && selectedDevice.getDeviceType() == DeviceType.STANDARD
+                && selectedDevice.getDevicePlatform() == DevicePlatform.GENERIC_MQTT;
+        showMqttControlScriptButton.setVisible(visible);
     }
 
     private void updateMqttRelayDebugButton() {
@@ -1218,6 +1239,70 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             Notification.show(t("device.notification.failed", e.getMessage()))
                     .addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void openMqttControlScriptDialog() {
+        if (selectedDevice == null
+                || selectedDevice.getDeviceType() != DeviceType.STANDARD
+                || selectedDevice.getDevicePlatform() != DevicePlatform.GENERIC_MQTT) {
+            return;
+        }
+
+        try {
+            String script = buildMqttControlScript(selectedDevice);
+
+            Dialog dialog = new Dialog();
+            dialog.setHeaderTitle(t("device.mqttScript.dialog.title", selectedDevice.getDeviceName()));
+            dialog.setWidth("min(1000px, 95vw)");
+            dialog.setHeight("min(760px, 90vh)");
+
+            VerticalLayout content = new VerticalLayout();
+            content.setPadding(false);
+            content.setSpacing(true);
+            content.setSizeFull();
+
+            Span description = new Span(t("device.mqttScript.dialog.description"));
+            description.getStyle().set("color", "var(--lumo-secondary-text-color)");
+
+            TextArea scriptArea = new TextArea(t("device.mqttScript.dialog.label"));
+            scriptArea.setReadOnly(true);
+            scriptArea.setWidthFull();
+            scriptArea.setHeightFull();
+            scriptArea.setValue(script);
+
+            content.add(description, scriptArea);
+            content.setFlexGrow(1, scriptArea);
+
+            Button copyButton = new Button(t("device.mqttScript.copy"), VaadinIcon.COPY.create(), event -> copyToClipboard(script, t("device.mqttScript.copied")));
+            copyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            Button closeButton = new Button(t("common.cancel"), event -> dialog.close());
+            dialog.getFooter().add(closeButton, copyButton);
+            dialog.add(content);
+            dialog.open();
+        } catch (Exception e) {
+            Notification.show(t("device.notification.failed", e.getMessage()))
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+
+    private String buildMqttControlScript(DeviceResponse device) throws IOException {
+        ClassPathResource resource = new ClassPathResource(MQTT_CONTROL_SCRIPT_TEMPLATE);
+        String template;
+        try (var inputStream = resource.getInputStream()) {
+            template = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        return template.replaceFirst(
+                "(?m)^const DEVICE_UUID = '.*';$",
+                "const DEVICE_UUID = '" + device.getUuid() + "';"
+        );
+    }
+
+    private void copyToClipboard(String value, String successMessage) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        UI.getCurrent().getPage().executeJs("navigator.clipboard.writeText($0)", value);
+        Notification.show(successMessage).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
     }
 
     private void openMqttRelayDebugDialog() {
