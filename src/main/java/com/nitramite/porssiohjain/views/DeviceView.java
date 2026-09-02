@@ -102,10 +102,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final ComboBox<DeviceType> deviceTypeCombo;
     private final ComboBox<DevicePlatform> devicePlatformCombo;
     private final Checkbox enabledField;
-    private final FormLayout mqttCredentialsForm;
-    private final TextField deviceUuidField;
-    private final TextField mqttUsernameField;
-    private final TextField mqttPasswordField;
 
     private FormLayout heatPumpForm;
     private TextField hpNameField;
@@ -113,12 +109,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private TextField acUsernameField;
     private PasswordField acPasswordField;
     private final Button selectAcDeviceButton;
-    private final Button showAcCommandLogButton;
-    private final Button showControlsJsonButton;
-    private final Button showMqttControlScriptButton;
-    private final Button mqttRelayDebugButton;
-    private final Button allowMqttPasswordChangeButton;
-    private final Span mqttPasswordChangeStatus;
     private final Anchor userCaDownloadLink;
     private final Span userCaStatus;
 
@@ -180,10 +170,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceTypeCombo = new ComboBox<>(t("device.grid.type"));
         devicePlatformCombo = new ComboBox<>(t("device.field.platform"));
         enabledField = new Checkbox(t("device.field.enabled"));
-        mqttCredentialsForm = new FormLayout();
-        deviceUuidField = createCopyableReadOnlyField(t("device.grid.uuid"));
-        mqttUsernameField = createCopyableReadOnlyField(t("device.grid.mqttUsername"));
-        mqttPasswordField = createCopyableReadOnlyField(t("device.grid.mqttPassword"));
         enabledField.setValue(true);
         deviceTypeCombo.setItems(DeviceType.values());
         deviceTypeCombo.setItemLabelGenerator(type -> switch (type) {
@@ -201,7 +187,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         devicePlatformCombo.setValue(DevicePlatform.GENERIC_MQTT);
         devicePlatformCombo.setHelperText(t("device.platform.helper"));
 
-        saveButton = new Button(t("device.button.save"));
+        saveButton = new Button(t("device.button.add"));
         limitInfo = new Span();
         limitInfo.getStyle()
                 .set("color", "var(--lumo-secondary-text-color)")
@@ -221,37 +207,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         selectAcDeviceButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         selectAcDeviceButton.addClickListener(e -> openAcDeviceSelectionDialog());
         selectAcDeviceButton.setVisible(false);
-
-        showAcCommandLogButton = new Button(t("device.hp.commandLogButton"));
-        showAcCommandLogButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        showAcCommandLogButton.addClickListener(e -> openAcCommandLogDialog());
-        showAcCommandLogButton.setVisible(false);
-
-        showControlsJsonButton = new Button(t("device.controls.button"));
-        showControlsJsonButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        showControlsJsonButton.addClickListener(e -> openControlsJsonDialog());
-        showControlsJsonButton.setVisible(false);
-
-        showMqttControlScriptButton = new Button(t("device.mqttScript.button"));
-        showMqttControlScriptButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        showMqttControlScriptButton.addClickListener(e -> openMqttControlScriptDialog());
-        showMqttControlScriptButton.setVisible(false);
-
-        mqttRelayDebugButton = new Button(t("device.mqttDebug.button"));
-        mqttRelayDebugButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-        mqttRelayDebugButton.addClickListener(e -> openMqttRelayDebugDialog());
-        mqttRelayDebugButton.setVisible(false);
-
-        allowMqttPasswordChangeButton = new Button(t("device.mqttPasswordChange.button"));
-        allowMqttPasswordChangeButton.addThemeVariants(ButtonVariant.LUMO_WARNING);
-        allowMqttPasswordChangeButton.addClickListener(e -> openAllowMqttPasswordChangeDialog());
-        allowMqttPasswordChangeButton.setVisible(false);
-
-        mqttPasswordChangeStatus = new Span();
-        mqttPasswordChangeStatus.getStyle()
-                .set("color", "var(--lumo-secondary-text-color)")
-                .set("font-size", "0.9rem");
-        mqttPasswordChangeStatus.setVisible(false);
 
         userCaDownloadLink = new Anchor(
                 DownloadHandler.fromInputStream(event -> {
@@ -296,19 +251,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         deviceGrid.addComponentColumn(device -> {
                     Button manageButton = new Button(t("device.button.manage"), event -> openDeviceManageDialog(device));
-                    manageButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+                    manageButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST, ButtonVariant.LUMO_SMALL);
 
                     HorizontalLayout rowActions = new HorizontalLayout(manageButton);
                     rowActions.setPadding(false);
                     rowActions.setSpacing(true);
                     rowActions.setAlignItems(Alignment.CENTER);
-
-                    if (!device.getShared()) {
-                        Button deleteButton = new Button(VaadinIcon.TRASH.create(), event -> openDeleteDeviceDialog(device));
-                        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
-                        deleteButton.getElement().setAttribute("aria-label", t("button.delete"));
-                        rowActions.add(deleteButton);
-                    }
 
                     return rowActions;
                 })
@@ -389,46 +337,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceGrid.setHeight("min(560px, 60vh)");
         deviceGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 
-        deviceGrid.asSingleSelect().addValueChangeListener(event -> {
-            selectedDevice = event.getValue();
-            if (selectedDevice != null) {
-                nameField.setValue(selectedDevice.getDeviceName());
-                timezoneCombo.setValue(selectedDevice.getTimezone());
-                deviceTypeCombo.setValue(selectedDevice.getDeviceType());
-                devicePlatformCombo.setValue(selectedDevice.getDevicePlatform() != null
-                        ? selectedDevice.getDevicePlatform()
-                        : DevicePlatform.GENERIC_MQTT);
-                enabledField.setValue(selectedDevice.getEnabled() == null || selectedDevice.getEnabled());
-                updateMqttCredentialsFields();
-                if (selectedDevice.getDeviceType() == DeviceType.HEAT_PUMP) {
-                    hpNameField.setValue(selectedDevice.getHpName() != null ? selectedDevice.getHpName() : "");
-                    acTypeCombo.setValue(selectedDevice.getAcType() != null ? selectedDevice.getAcType() : AcType.NONE);
-                    acUsernameField.setValue(selectedDevice.getAcUsername() != null ? selectedDevice.getAcUsername() : "");
-                    acPasswordField.setValue(selectedDevice.getAcPassword() != null ? selectedDevice.getAcPassword() : "");
-                    pendingAcDeviceId = selectedDevice.getAcDeviceId();
-                    pendingBuildingId = selectedDevice.getBuildingId();
-                    updateSelectAcDeviceButton();
-                } else {
-                    hpNameField.clear();
-                    acTypeCombo.setValue(AcType.NONE);
-                    acUsernameField.clear();
-                    acPasswordField.clear();
-                    pendingAcDeviceId = null;
-                    pendingBuildingId = null;
-                    updateSelectAcDeviceButton();
-                }
-                updateAcCommandLogButton();
-                updateControlsJsonButton();
-                updateMqttControlScriptButton();
-                updateMqttRelayDebugButton();
-                updateMqttPasswordChangeAction();
-                saveButton.setText(t("device.button.update"));
-            } else {
-                clearForm();
-            }
-            updateLimitInfo();
-        });
-
         timezoneCombo.setItems(ZoneId.getAvailableZoneIds());
         timezoneCombo.setWidth("250px");
         timezoneCombo.setValue(ZoneId.systemDefault().getId());
@@ -458,36 +366,16 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 new FormLayout.ResponsiveStep("600px", 5)
         );
 
-        mqttCredentialsForm.setWidthFull();
-        mqttCredentialsForm.add(deviceUuidField, mqttUsernameField, mqttPasswordField);
-        mqttCredentialsForm.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 3)
-        );
-        mqttCredentialsForm.setVisible(false);
-
         heatPumpForm.setVisible(false);
 
-        VerticalLayout actions = new VerticalLayout(
-                selectAcDeviceButton,
-                showAcCommandLogButton,
-                showControlsJsonButton,
-                showMqttControlScriptButton,
-                mqttRelayDebugButton,
-                allowMqttPasswordChangeButton,
-                mqttPasswordChangeStatus,
-                limitInfo,
-                saveButton
-        );
+        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, limitInfo, saveButton);
         actions.setPadding(false);
         actions.setSpacing(true);
         actions.setAlignItems(Alignment.START);
 
-        VerticalLayout certificateSection = createCertificateSection();
         VerticalLayout claimProvisionedSection = createClaimProvisionedDeviceSection();
 
-        card.add(title, deviceGrid, formLayout, mqttCredentialsForm, heatPumpForm, actions, Divider.createDivider(), claimProvisionedSection,
-                Divider.createDivider(), certificateSection);
+        card.add(title, deviceGrid, formLayout, heatPumpForm, actions, Divider.createDivider(), claimProvisionedSection);
         add(card);
 
         deviceTypeCombo.addValueChangeListener(event -> {
@@ -499,11 +387,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 pendingBuildingId = null;
             }
             updateSelectAcDeviceButton();
-            updateAcCommandLogButton();
-            updateControlsJsonButton();
-            updateMqttControlScriptButton();
-            updateMqttRelayDebugButton();
-            updateMqttPasswordChangeAction();
             updateSaveButtonState();
         });
 
@@ -744,21 +627,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 }
             }
 
-            if (selectedDevice != null) {
-                deviceService.updateDevice(
-                        accountId, selectedDevice.getId(), deviceName, timezone, deviceType, devicePlatform, enabled,
-                        hpName, acType, acUsername, acPassword, pendingAcDeviceId, pendingBuildingId
-                );
-                Notification notification = Notification.show(t("device.notification.updated"));
-                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            } else {
-                deviceService.createDevice(
-                        authAccountId, accountId, deviceName, timezone, deviceType, devicePlatform, enabled,
-                        hpName, acType, acUsername, acPassword, pendingAcDeviceId, pendingBuildingId
-                );
-                Notification notification = Notification.show(t("device.notification.created"));
-                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            }
+            deviceService.createDevice(
+                    authAccountId, accountId, deviceName, timezone, deviceType, devicePlatform, enabled,
+                    hpName, acType, acUsername, acPassword, pendingAcDeviceId, pendingBuildingId
+            );
+            Notification notification = Notification.show(t("device.notification.created"));
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
             clearForm();
             loadDevices();
@@ -847,12 +721,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(t("device.manage.dialog.title", device.getDeviceName()));
-        dialog.setWidth("min(560px, 95vw)");
+        dialog.setWidth("min(1200px, 96vw)");
+        dialog.setHeight("min(860px, 94vh)");
 
         VerticalLayout content = new VerticalLayout();
-        content.setPadding(false);
         content.setSpacing(true);
+        content.setPadding(false);
         content.setWidthFull();
+        content.getStyle().set("overflow", "auto");
 
         Span meta = new Span(t(
                 "device.manage.dialog.meta",
@@ -864,77 +740,239 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 .set("overflow-wrap", "anywhere");
         content.add(meta);
 
+        boolean shared = Boolean.TRUE.equals(device.getShared());
+
+        TextField dialogNameField = new TextField(t("device.field.name"));
+        dialogNameField.setValue(device.getDeviceName() != null ? device.getDeviceName() : "");
+        dialogNameField.setReadOnly(shared);
+
+        ComboBox<String> dialogTimezoneCombo = new ComboBox<>(t("device.field.timezone"));
+        dialogTimezoneCombo.setItems(ZoneId.getAvailableZoneIds());
+        dialogTimezoneCombo.setValue(device.getTimezone());
+        dialogTimezoneCombo.setReadOnly(shared);
+
+        ComboBox<DeviceType> dialogDeviceTypeCombo = new ComboBox<>(t("device.grid.type"));
+        dialogDeviceTypeCombo.setItems(DeviceType.values());
+        dialogDeviceTypeCombo.setItemLabelGenerator(type -> switch (type) {
+            case STANDARD -> t("device.type.standard");
+            case HEAT_PUMP -> t("device.type.heatPump");
+            case THERMOSTAT -> t("device.type.thermostat");
+            case TEMPERATURE_SENSOR -> "Temperature sensor";
+        });
+        dialogDeviceTypeCombo.setValue(device.getDeviceType());
+        dialogDeviceTypeCombo.setReadOnly(shared);
+
+        ComboBox<DevicePlatform> dialogDevicePlatformCombo = new ComboBox<>(t("device.field.platform"));
+        dialogDevicePlatformCombo.setItems(DevicePlatform.values());
+        dialogDevicePlatformCombo.setItemLabelGenerator(this::formatDevicePlatform);
+        dialogDevicePlatformCombo.setValue(device.getDevicePlatform() != null ? device.getDevicePlatform() : DevicePlatform.GENERIC_MQTT);
+        dialogDevicePlatformCombo.setReadOnly(shared);
+
+        Checkbox dialogEnabledField = new Checkbox(t("device.field.enabled"));
+        dialogEnabledField.setValue(device.getEnabled() == null || device.getEnabled());
+        dialogEnabledField.setReadOnly(shared);
+
+        FormLayout editForm = new FormLayout(dialogNameField, dialogTimezoneCombo, dialogDeviceTypeCombo, dialogDevicePlatformCombo, dialogEnabledField);
+        editForm.setWidthFull();
+        editForm.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("720px", 2),
+                new FormLayout.ResponsiveStep("1024px", 4)
+        );
+        content.add(editForm);
+
+        FormLayout dialogMqttCredentialsForm = new FormLayout(
+                createDialogCopyableReadOnlyField(t("device.grid.uuid"), device.getUuid() != null ? device.getUuid().toString() : ""),
+                createDialogCopyableReadOnlyField(t("device.grid.mqttUsername"), device.getMqttUsername() != null ? device.getMqttUsername() : ""),
+                createDialogCopyableReadOnlyField(t("device.grid.mqttPassword"), device.getMqttPassword() != null ? device.getMqttPassword() : "")
+        );
+        dialogMqttCredentialsForm.setWidthFull();
+        dialogMqttCredentialsForm.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("720px", 3)
+        );
+        content.add(Divider.createDivider(), new H2(t("device.manage.mqttTitle")), dialogMqttCredentialsForm);
+
+        TextField dialogHpNameField = new TextField(t("device.hp.name"));
+        dialogHpNameField.setValue(device.getHpName() != null ? device.getHpName() : "");
+        dialogHpNameField.setReadOnly(shared);
+
+        ComboBox<AcType> dialogAcTypeCombo = new ComboBox<>(t("device.hp.acType"));
+        dialogAcTypeCombo.setItems(AcType.values());
+        dialogAcTypeCombo.setItemLabelGenerator(type -> switch (type) {
+            case NONE -> t("acType.none");
+            case TOSHIBA -> t("acType.toshiba");
+            case MITSUBISHI -> t("acType.mitsubishi");
+        });
+        dialogAcTypeCombo.setValue(device.getAcType() != null ? device.getAcType() : AcType.NONE);
+        dialogAcTypeCombo.setReadOnly(shared);
+
+        TextField dialogAcUsernameField = new TextField(t("device.hp.username"));
+        dialogAcUsernameField.setValue(device.getAcUsername() != null ? device.getAcUsername() : "");
+        dialogAcUsernameField.setReadOnly(shared);
+
+        PasswordField dialogAcPasswordField = new PasswordField(t("device.hp.password"));
+        dialogAcPasswordField.setValue(device.getAcPassword() != null ? device.getAcPassword() : "");
+        dialogAcPasswordField.setReadOnly(shared);
+
+        TextField dialogAcDeviceIdField = new TextField(t("device.grid.acDeviceId"));
+        dialogAcDeviceIdField.setValue(device.getAcDeviceId() != null ? device.getAcDeviceId() : "");
+        dialogAcDeviceIdField.setReadOnly(shared);
+
+        TextField dialogBuildingIdField = new TextField(t("device.hp.buildingId"));
+        dialogBuildingIdField.setValue(device.getBuildingId() != null ? device.getBuildingId() : "");
+        dialogBuildingIdField.setReadOnly(shared);
+
+        FormLayout dialogHeatPumpForm = new FormLayout(
+                dialogHpNameField,
+                dialogAcTypeCombo,
+                dialogAcUsernameField,
+                dialogAcPasswordField,
+                dialogAcDeviceIdField,
+                dialogBuildingIdField
+        );
+        dialogHeatPumpForm.setWidthFull();
+        dialogHeatPumpForm.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("720px", 2),
+                new FormLayout.ResponsiveStep("1024px", 3)
+        );
+        dialogHeatPumpForm.setVisible(device.getDeviceType() == DeviceType.HEAT_PUMP);
+        content.add(dialogHeatPumpForm);
+
+        dialogDeviceTypeCombo.addValueChangeListener(event ->
+                dialogHeatPumpForm.setVisible(event.getValue() == DeviceType.HEAT_PUMP));
+
+        VerticalLayout toolActions = new VerticalLayout();
+        toolActions.setPadding(false);
+        toolActions.setSpacing(true);
+        toolActions.setWidthFull();
+
         if (device.getDeviceType() == DeviceType.STANDARD || device.getDeviceType() == DeviceType.THERMOSTAT) {
-            content.add(createDialogActionButton(
+            toolActions.add(createDialogActionButton(
                     t("device.controls.button"),
                     VaadinIcon.CODE,
-                    dialog,
                     this::openControlsJsonDialog
             ));
         }
 
         if (device.getDeviceType() == DeviceType.STANDARD && device.getDevicePlatform() == DevicePlatform.GENERIC_MQTT) {
-            content.add(createDialogActionButton(
+            toolActions.add(createDialogActionButton(
                     t("device.mqttScript.button"),
                     VaadinIcon.FILE_CODE,
-                    dialog,
                     this::openMqttControlScriptDialog
             ));
         }
 
-        if (device.getDeviceType() == DeviceType.STANDARD && Boolean.TRUE.equals(device.getMqttOnline()) && !Boolean.TRUE.equals(device.getShared())) {
-            content.add(createDialogActionButton(
+        if (device.getDeviceType() == DeviceType.STANDARD && Boolean.TRUE.equals(device.getMqttOnline()) && !shared) {
+            toolActions.add(createDialogActionButton(
                     t("device.mqttDebug.button"),
                     VaadinIcon.TOOLS,
-                    dialog,
                     this::openMqttRelayDebugDialog
             ));
         }
 
-        if (device.getDeviceType() == DeviceType.HEAT_PUMP && !Boolean.TRUE.equals(device.getShared())) {
-            content.add(createDialogActionButton(
+        if (device.getDeviceType() == DeviceType.HEAT_PUMP && !shared) {
+            toolActions.add(createDialogActionButton(
                     t("device.hp.commandLogButton"),
                     VaadinIcon.LIST,
-                    dialog,
                     this::openAcCommandLogDialog
             ));
         }
 
-        if (!Boolean.TRUE.equals(device.getShared())) {
-            content.add(createDialogActionButton(
+        if (!shared) {
+            toolActions.add(createDialogActionButton(
                     t("device.mqttPasswordChange.button"),
                     VaadinIcon.KEY,
-                    dialog,
                     this::openAllowMqttPasswordChangeDialog
             ));
-
-            Button deleteButton = createDialogActionButton(
-                    t("button.delete"),
-                    VaadinIcon.TRASH,
-                    dialog,
-                    () -> openDeleteDeviceDialog(device)
-            );
-            deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-            content.add(deleteButton);
         }
 
+        if (toolActions.getComponentCount() > 0 || device.getDeviceType() == DeviceType.STANDARD) {
+            content.add(Divider.createDivider(), new H2(t("device.manage.toolsTitle")), toolActions);
+        }
+
+        if (device.getDeviceType() == DeviceType.STANDARD) {
+            content.add(Divider.createDivider(), createCertificateSection());
+        }
+
+        Button deleteButton = new Button(t("button.delete"), VaadinIcon.TRASH.create(), event -> openDeleteDeviceDialog(device, dialog));
+        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        deleteButton.setVisible(!shared);
+
+        Button saveDialogButton = new Button(t("controlTable.button.save"), VaadinIcon.CHECK.create(), event -> {
+            try {
+                AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+                if (currentAccount == null) {
+                    return;
+                }
+
+                DeviceType dialogDeviceType = dialogDeviceTypeCombo.getValue();
+                if (dialogNameField.getValue() == null || dialogNameField.getValue().isBlank()) {
+                    Notification.show(t("device.notification.nameEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    return;
+                }
+                if (dialogTimezoneCombo.getValue() == null || dialogTimezoneCombo.getValue().isBlank()) {
+                    Notification.show(t("device.notification.timezoneEmpty")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                    return;
+                }
+                deviceService.updateDevice(
+                        currentAccount.getId(),
+                        device.getId(),
+                        dialogNameField.getValue(),
+                        dialogTimezoneCombo.getValue(),
+                        dialogDeviceType,
+                        dialogDevicePlatformCombo.getValue(),
+                        dialogEnabledField.getValue(),
+                        dialogHpNameField.getValue(),
+                        dialogAcTypeCombo.getValue(),
+                        dialogAcUsernameField.getValue(),
+                        dialogAcPasswordField.getValue(),
+                        dialogAcDeviceIdField.getValue(),
+                        dialogBuildingIdField.getValue()
+                );
+                Notification.show(t("device.notification.updated")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                dialog.close();
+                selectedDevice = null;
+                loadDevices();
+            } catch (Exception e) {
+                Notification.show(t("device.notification.failed", e.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveDialogButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        saveDialogButton.setVisible(!shared);
+
         Button closeButton = new Button(t("common.cancel"), event -> dialog.close());
-        dialog.getFooter().add(closeButton);
+        dialog.getFooter().add(deleteButton, closeButton, saveDialogButton);
         dialog.add(content);
         dialog.open();
     }
 
-    private Button createDialogActionButton(String text, VaadinIcon icon, Dialog dialog, Runnable action) {
-        Button button = new Button(text, icon.create(), event -> {
-            dialog.close();
-            action.run();
-        });
+    private TextField createDialogCopyableReadOnlyField(String label, String value) {
+        TextField field = new TextField(label);
+        field.setValue(value != null ? value : "");
+        field.setReadOnly(true);
+        field.setWidthFull();
+        Button copyButton = new Button(VaadinIcon.COPY.create(), event -> copyToClipboard(field.getValue(), t("device.manage.valueCopied")));
+        copyButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        copyButton.getElement().setAttribute("aria-label", "Copy " + label);
+        field.setSuffixComponent(copyButton);
+        return field;
+    }
+
+    private Button createDialogActionButton(String text, VaadinIcon icon, Runnable action) {
+        Button button = new Button(text, icon.create(), event -> action.run());
         button.setWidthFull();
         button.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         return button;
     }
 
     private void openDeleteDeviceDialog(DeviceResponse device) {
+        openDeleteDeviceDialog(device, null);
+    }
+
+    private void openDeleteDeviceDialog(DeviceResponse device, Dialog parentDialog) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(t("delete.confirmTitle"));
         dialog.add(t("delete.confirmDescription"));
@@ -948,6 +986,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 }
                 deviceService.deleteDevice(currentAccount.getId(), device.getId());
                 dialog.close();
+                if (parentDialog != null) {
+                    parentDialog.close();
+                }
                 if (selectedDevice != null && selectedDevice.getId().equals(device.getId())) {
                     clearForm();
                 }
@@ -984,7 +1025,6 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     return;
                 }
                 selectedDevice = deviceService.allowNextMqttPasswordChange(currentAccount.getId(), selectedDevice.getId());
-                updateMqttPasswordChangeAction();
                 loadDevices();
                 Notification.show(t("device.mqttPasswordChange.notification.enabled"))
                         .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
@@ -1014,69 +1054,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         acTypeCombo.setValue(AcType.NONE);
         acUsernameField.clear();
         acPasswordField.clear();
-        clearMqttCredentialsFields();
         updateSelectAcDeviceButton();
-        updateAcCommandLogButton();
-        updateControlsJsonButton();
-        updateMqttControlScriptButton();
-        updateMqttRelayDebugButton();
-        updateMqttPasswordChangeAction();
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
         updateLimitInfo();
-    }
-
-    private void updateMqttCredentialsFields() {
-        if (selectedDevice == null) {
-            clearMqttCredentialsFields();
-            return;
-        }
-        deviceUuidField.setValue(selectedDevice.getUuid() != null ? selectedDevice.getUuid().toString() : "");
-        mqttUsernameField.setValue(selectedDevice.getMqttUsername() != null ? selectedDevice.getMqttUsername() : "");
-        mqttPasswordField.setValue(selectedDevice.getMqttPassword() != null ? selectedDevice.getMqttPassword() : "");
-        mqttCredentialsForm.setVisible(true);
-    }
-
-    private void clearMqttCredentialsFields() {
-        deviceUuidField.clear();
-        mqttUsernameField.clear();
-        mqttPasswordField.clear();
-        mqttCredentialsForm.setVisible(false);
-    }
-
-    private TextField createCopyableReadOnlyField(String label) {
-        TextField field = new TextField(label);
-        field.setReadOnly(true);
-        field.setWidthFull();
-        field.getElement().setAttribute("readonly", "true");
-        Button copyButton = new Button(VaadinIcon.COPY.create(), event -> copyToClipboard(field));
-        copyButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-        copyButton.getElement().setAttribute("aria-label", "Copy " + label);
-        field.setSuffixComponent(copyButton);
-        return field;
-    }
-
-    private void copyToClipboard(TextField field) {
-        String value = field.getValue();
-        if (value == null || value.isBlank()) {
-            return;
-        }
-        UI.getCurrent().getPage().executeJs("navigator.clipboard.writeText($0)", value);
-        Notification.show(labelForCopiedValue(field) + " copied")
-                .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-    }
-
-    private String labelForCopiedValue(TextField field) {
-        if (field == deviceUuidField) {
-            return "UUID";
-        }
-        if (field == mqttUsernameField) {
-            return "MQTT username";
-        }
-        if (field == mqttPasswordField) {
-            return "MQTT password";
-        }
-        return "Value";
     }
 
     private void updateSelectAcDeviceButton() {
@@ -1089,59 +1070,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         }
     }
 
-    private void updateAcCommandLogButton() {
-        boolean visible = selectedDevice != null
-                && !Boolean.TRUE.equals(selectedDevice.getShared())
-                && deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
-        showAcCommandLogButton.setVisible(visible);
-    }
-
-    private void updateControlsJsonButton() {
-        boolean visible = selectedDevice != null
-                && (selectedDevice.getDeviceType() == DeviceType.STANDARD
-                || selectedDevice.getDeviceType() == DeviceType.THERMOSTAT);
-        showControlsJsonButton.setVisible(visible);
-    }
-
-    private void updateMqttControlScriptButton() {
-        boolean visible = selectedDevice != null
-                && selectedDevice.getDeviceType() == DeviceType.STANDARD
-                && selectedDevice.getDevicePlatform() == DevicePlatform.GENERIC_MQTT;
-        showMqttControlScriptButton.setVisible(visible);
-    }
-
-    private void updateMqttRelayDebugButton() {
-        boolean visible = selectedDevice != null
-                && !Boolean.TRUE.equals(selectedDevice.getShared())
-                && selectedDevice.getDeviceType() == DeviceType.STANDARD
-                && Boolean.TRUE.equals(selectedDevice.getMqttOnline());
-        mqttRelayDebugButton.setVisible(visible);
-    }
-
-    private void updateMqttPasswordChangeAction() {
-        boolean visible = selectedDevice != null && !Boolean.TRUE.equals(selectedDevice.getShared());
-        allowMqttPasswordChangeButton.setVisible(visible);
-
-        boolean active = visible
-                && Boolean.TRUE.equals(selectedDevice.getMqttPasswordChangeAllowed())
-                && selectedDevice.getMqttPasswordChangeAllowedUntil() != null
-                && selectedDevice.getMqttPasswordChangeAllowedUntil().isAfter(Instant.now());
-        mqttPasswordChangeStatus.setVisible(active);
-        if (active) {
-            ZoneId zone = ZoneId.of(selectedDevice.getTimezone());
-            mqttPasswordChangeStatus.setText(t(
-                    "device.mqttPasswordChange.status",
-                    ZonedDateTime.ofInstant(selectedDevice.getMqttPasswordChangeAllowedUntil(), zone).format(formatter)
-            ));
-        } else {
-            mqttPasswordChangeStatus.setText("");
-        }
-    }
 
     private void updateSaveButtonState() {
-        boolean creatingHeatPump = selectedDevice == null && deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
+        boolean creatingHeatPump = deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
         boolean hasAcSelection = pendingAcDeviceId != null && !pendingAcDeviceId.isBlank();
-        boolean createLimitReached = selectedDevice == null && isDeviceLimitReached();
+        boolean createLimitReached = isDeviceLimitReached();
         saveButton.setEnabled(!createLimitReached && (!creatingHeatPump || hasAcSelection));
     }
 
@@ -1165,7 +1098,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(currentAccount.getId()));
         limitInfo.setText(t("accountLimits.devices", count, limit, tier));
         limitInfo.getElement().getThemeList().set("badge", true);
-        limitInfo.getElement().getThemeList().set("error", selectedDevice == null && count >= limit);
+        limitInfo.getElement().getThemeList().set("error", count >= limit);
         updateSaveButtonState();
     }
 
