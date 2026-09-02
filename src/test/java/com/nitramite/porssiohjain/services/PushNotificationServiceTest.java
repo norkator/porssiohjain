@@ -14,10 +14,13 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.MarketNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.MarketNotificationMetric;
 import com.nitramite.porssiohjain.entity.repository.PushNotificationTokenRepository;
 import org.junit.jupiter.api.Test;
@@ -82,6 +85,53 @@ class PushNotificationServiceTest {
         assertEquals("NEW_ACCOUNT_CREATED", dataCaptor.getValue().get("type"));
         assertEquals("1", dataCaptor.getValue().get("accountId"));
         assertEquals(uuid.toString(), dataCaptor.getValue().get("accountUuid"));
+        assertEquals(createdAt.toString(), dataCaptor.getValue().get("createdAt"));
+    }
+
+    @Test
+    void newDeviceAdminPushUsesDeviceAndAccountDetails() {
+        PushNotificationService pushNotificationService = spy(new PushNotificationService(
+                messageSource,
+                pushNotificationTokenRepository
+        ));
+        UUID accountUuid = UUID.fromString("a5d74f4c-f1ca-43bf-abca-18f225a4a44d");
+        UUID deviceUuid = UUID.fromString("aeb33bb4-af36-4fc0-9f2e-59bc40f4ed8d");
+        Instant createdAt = Instant.parse("2026-02-01T10:00:00Z");
+        AccountEntity account = new AccountEntity();
+        account.setId(2L);
+        account.setUuid(accountUuid);
+        DeviceEntity device = new DeviceEntity();
+        device.setId(3L);
+        device.setUuid(deviceUuid);
+        device.setDeviceName("Boiler relay");
+        device.setDeviceType(DeviceType.STANDARD);
+        device.setDevicePlatform(DevicePlatform.OPENBEKEN);
+        device.setAccount(account);
+        device.setCreatedAt(createdAt);
+
+        when(messageSource.getMessage(eq("push.admin.newDevice.title"), any(), eq(Locale.ENGLISH)))
+                .thenReturn("New device added");
+        when(messageSource.getMessage(eq("push.admin.newDevice.body"), any(), eq(Locale.ENGLISH)))
+                .thenReturn("Device \"Boiler relay\" was added to account %s.".formatted(accountUuid));
+        doReturn(true).when(pushNotificationService).sendToAdminAccounts(any(), any(), any());
+
+        pushNotificationService.sendNewDeviceCreatedAdminNotification(device, Locale.ENGLISH);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> dataCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(pushNotificationService).sendToAdminAccounts(
+                eq("New device added"),
+                eq("Device \"Boiler relay\" was added to account %s.".formatted(accountUuid)),
+                dataCaptor.capture()
+        );
+        assertEquals("NEW_DEVICE_CREATED", dataCaptor.getValue().get("type"));
+        assertEquals("3", dataCaptor.getValue().get("deviceId"));
+        assertEquals(deviceUuid.toString(), dataCaptor.getValue().get("deviceUuid"));
+        assertEquals("Boiler relay", dataCaptor.getValue().get("deviceName"));
+        assertEquals("STANDARD", dataCaptor.getValue().get("deviceType"));
+        assertEquals("OPENBEKEN", dataCaptor.getValue().get("devicePlatform"));
+        assertEquals("2", dataCaptor.getValue().get("accountId"));
+        assertEquals(accountUuid.toString(), dataCaptor.getValue().get("accountUuid"));
         assertEquals(createdAt.toString(), dataCaptor.getValue().get("createdAt"));
     }
 

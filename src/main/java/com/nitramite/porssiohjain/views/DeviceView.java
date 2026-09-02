@@ -294,6 +294,28 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         H2 title = new H2(t("device.title"));
         title.getStyle().set("margin-top", "0");
 
+        deviceGrid.addComponentColumn(device -> {
+                    Button manageButton = new Button(t("device.button.manage"), event -> openDeviceManageDialog(device));
+                    manageButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+
+                    HorizontalLayout rowActions = new HorizontalLayout(manageButton);
+                    rowActions.setPadding(false);
+                    rowActions.setSpacing(true);
+                    rowActions.setAlignItems(Alignment.CENTER);
+
+                    if (!device.getShared()) {
+                        Button deleteButton = new Button(VaadinIcon.TRASH.create(), event -> openDeleteDeviceDialog(device));
+                        deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL);
+                        deleteButton.getElement().setAttribute("aria-label", t("button.delete"));
+                        rowActions.add(deleteButton);
+                    }
+
+                    return rowActions;
+                })
+                .setHeader(t("device.grid.actions"))
+                .setAutoWidth(true)
+                .setFlexGrow(0)
+                .setFrozen(true);
         deviceGrid.addColumn(DeviceResponse::getId).setHeader(t("device.grid.id")).setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader(t("device.grid.name")).setAutoWidth(true);
         deviceGrid.addColumn(device -> {
@@ -362,18 +384,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         deviceGrid.addColumn(DeviceResponse::getAcDeviceId)
                 .setHeader(t("device.grid.acDeviceId"))
                 .setAutoWidth(true);
-        deviceGrid.addComponentColumn(device -> {
-            if (device.getShared()) {
-                return new Span();
-            }
-
-            Button deleteButton = new Button(t("button.delete"), event -> openDeleteDeviceDialog(device));
-            deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-            return deleteButton;
-        }).setHeader(t("controlTable.grid.actions")).setAutoWidth(true);
 
         deviceGrid.setWidthFull();
-        deviceGrid.setAllRowsVisible(true);
+        deviceGrid.setHeight("min(560px, 60vh)");
         deviceGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 
         deviceGrid.asSingleSelect().addValueChangeListener(event -> {
@@ -826,6 +839,99 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         } catch (Exception e) {
             Notification.show(t("device.notification.failed", e.getMessage())).addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    private void openDeviceManageDialog(DeviceResponse device) {
+        selectedDevice = device;
+        deviceGrid.select(device);
+
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("device.manage.dialog.title", device.getDeviceName()));
+        dialog.setWidth("min(560px, 95vw)");
+
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+        content.setSpacing(true);
+        content.setWidthFull();
+
+        Span meta = new Span(t(
+                "device.manage.dialog.meta",
+                formatDevicePlatform(device.getDevicePlatform()),
+                device.getUuid()
+        ));
+        meta.getStyle()
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("overflow-wrap", "anywhere");
+        content.add(meta);
+
+        if (device.getDeviceType() == DeviceType.STANDARD || device.getDeviceType() == DeviceType.THERMOSTAT) {
+            content.add(createDialogActionButton(
+                    t("device.controls.button"),
+                    VaadinIcon.CODE,
+                    dialog,
+                    this::openControlsJsonDialog
+            ));
+        }
+
+        if (device.getDeviceType() == DeviceType.STANDARD && device.getDevicePlatform() == DevicePlatform.GENERIC_MQTT) {
+            content.add(createDialogActionButton(
+                    t("device.mqttScript.button"),
+                    VaadinIcon.FILE_CODE,
+                    dialog,
+                    this::openMqttControlScriptDialog
+            ));
+        }
+
+        if (device.getDeviceType() == DeviceType.STANDARD && Boolean.TRUE.equals(device.getMqttOnline()) && !Boolean.TRUE.equals(device.getShared())) {
+            content.add(createDialogActionButton(
+                    t("device.mqttDebug.button"),
+                    VaadinIcon.TOOLS,
+                    dialog,
+                    this::openMqttRelayDebugDialog
+            ));
+        }
+
+        if (device.getDeviceType() == DeviceType.HEAT_PUMP && !Boolean.TRUE.equals(device.getShared())) {
+            content.add(createDialogActionButton(
+                    t("device.hp.commandLogButton"),
+                    VaadinIcon.LIST,
+                    dialog,
+                    this::openAcCommandLogDialog
+            ));
+        }
+
+        if (!Boolean.TRUE.equals(device.getShared())) {
+            content.add(createDialogActionButton(
+                    t("device.mqttPasswordChange.button"),
+                    VaadinIcon.KEY,
+                    dialog,
+                    this::openAllowMqttPasswordChangeDialog
+            ));
+
+            Button deleteButton = createDialogActionButton(
+                    t("button.delete"),
+                    VaadinIcon.TRASH,
+                    dialog,
+                    () -> openDeleteDeviceDialog(device)
+            );
+            deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            content.add(deleteButton);
+        }
+
+        Button closeButton = new Button(t("common.cancel"), event -> dialog.close());
+        dialog.getFooter().add(closeButton);
+        dialog.add(content);
+        dialog.open();
+    }
+
+    private Button createDialogActionButton(String text, VaadinIcon icon, Dialog dialog, Runnable action) {
+        Button button = new Button(text, icon.create(), event -> {
+            dialog.close();
+            action.run();
+        });
+        button.setWidthFull();
+        button.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        return button;
     }
 
     private void openDeleteDeviceDialog(DeviceResponse device) {

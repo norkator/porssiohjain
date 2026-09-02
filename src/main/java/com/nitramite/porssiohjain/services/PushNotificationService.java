@@ -355,6 +355,27 @@ public class PushNotificationService {
         return sendToAdminAccounts(title, body, data);
     }
 
+    public boolean sendNewDeviceCreatedAdminNotification(DeviceEntity device, Locale locale) {
+        AccountEntity account = device.getAccount();
+        String title = messageSource.getMessage("push.admin.newDevice.title", null, locale);
+        String body = messageSource.getMessage(
+                "push.admin.newDevice.body",
+                new Object[]{device.getDeviceName(), account == null ? "" : account.getUuid()},
+                locale
+        );
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "NEW_DEVICE_CREATED");
+        data.put("deviceId", String.valueOf(device.getId()));
+        data.put("deviceUuid", device.getUuid() == null ? "" : device.getUuid().toString());
+        data.put("deviceName", device.getDeviceName());
+        data.put("deviceType", device.getDeviceType() == null ? "" : device.getDeviceType().name());
+        data.put("devicePlatform", device.getDevicePlatform() == null ? "" : device.getDevicePlatform().name());
+        data.put("accountId", account == null ? "" : String.valueOf(account.getId()));
+        data.put("accountUuid", account == null || account.getUuid() == null ? "" : account.getUuid().toString());
+        data.put("createdAt", device.getCreatedAt() == null ? "" : device.getCreatedAt().toString());
+        return sendToAdminAccounts(title, body, data);
+    }
+
     public boolean sendSystemErrorAdminNotification(String context, Throwable error) {
         String errorMessage = error == null ? "" : error.toString();
         String title = "System error";

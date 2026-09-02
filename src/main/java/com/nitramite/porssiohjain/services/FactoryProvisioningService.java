@@ -11,11 +11,13 @@ import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.models.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -23,6 +25,7 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FactoryProvisioningService {
 
     private final FactoryTestRunRepository factoryTestRunRepository;
@@ -35,6 +38,7 @@ public class FactoryProvisioningService {
     private final MqttProfileService mqttProfileService;
     private final ObjectProvider<MqttService> mqttServiceProvider;
     private final DemoAccountGuard demoAccountGuard;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional(readOnly = true)
     public List<FactoryDeviceResponse> listFactoryDevices() {
@@ -177,7 +181,19 @@ public class FactoryProvisioningService {
         factoryDevice.setTimezone(requireText(timezone, "timezone"));
         factoryDevice.setFactoryDeviceStatus(FactoryDeviceStatus.CLAIMED);
         factoryDevice.setClaimedAt(Instant.now());
-        return mapDeviceResponse(deviceRepository.save(factoryDevice));
+        DeviceEntity savedDevice = deviceRepository.save(factoryDevice);
+        notifyAdminsDeviceCreated(savedDevice);
+        return mapDeviceResponse(savedDevice);
+    }
+
+    private void notifyAdminsDeviceCreated(DeviceEntity device) {
+        try {
+            pushNotificationService.sendNewDeviceCreatedAdminNotification(device, Locale.ENGLISH);
+        } catch (Exception e) {
+            Long accountId = device.getAccount() == null ? null : device.getAccount().getId();
+            log.warn("Failed to send new device admin push notification for device {} and account {}",
+                    device.getId(), accountId, e);
+        }
     }
 
     @Transactional(readOnly = true)

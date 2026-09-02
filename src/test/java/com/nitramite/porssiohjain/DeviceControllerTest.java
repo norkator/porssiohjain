@@ -24,6 +24,7 @@ import com.nitramite.porssiohjain.entity.repository.RefreshTokenRepository;
 import com.nitramite.porssiohjain.entity.repository.TokenRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
+import com.nitramite.porssiohjain.services.PushNotificationService;
 import com.nitramite.porssiohjain.services.models.HeatPumpAcDeviceResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,6 +52,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -79,6 +82,9 @@ class DeviceControllerTest {
 
     @MockitoBean
     private HeatPumpAcDeviceSelectionService heatPumpAcDeviceSelectionService;
+
+    @MockitoBean
+    private PushNotificationService pushNotificationService;
 
     private AccountEntity testAccount;
     private String authToken;
@@ -135,6 +141,11 @@ class DeviceControllerTest {
                 .andExpect(jsonPath("$.deviceName").value("MyDevice"))
                 .andExpect(jsonPath("$.timezone").value("Europe/Helsinki"))
                 .andExpect(jsonPath("$.createdAt").isString());
+
+        verify(pushNotificationService).sendNewDeviceCreatedAdminNotification(
+                any(DeviceEntity.class),
+                org.mockito.ArgumentMatchers.eq(Locale.ENGLISH)
+        );
     }
 
     @Test
@@ -280,6 +291,10 @@ class DeviceControllerTest {
 
         DeviceEntity updated = deviceRepository.findById(factoryDevice.getId()).orElseThrow();
         assertNotNull(updated.getAccount());
+        verify(pushNotificationService).sendNewDeviceCreatedAdminNotification(
+                any(DeviceEntity.class),
+                org.mockito.ArgumentMatchers.eq(Locale.ENGLISH)
+        );
     }
 
 }

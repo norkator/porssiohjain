@@ -38,6 +38,7 @@ import com.nitramite.porssiohjain.services.DemoAccountGuard;
 import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.MqttProfileService;
+import com.nitramite.porssiohjain.services.PushNotificationService;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.never;
@@ -99,6 +102,8 @@ class DeviceServiceTest {
     private DemoAccountGuard demoAccountGuard;
     @Mock
     private DeviceOfflineNotificationService deviceOfflineNotificationService;
+    @Mock
+    private PushNotificationService pushNotificationService;
     private MqttProfileService mqttProfileService;
 
     private DeviceService deviceService;
@@ -128,7 +133,43 @@ class DeviceServiceTest {
                 mqttProfileService,
                 demoAccountGuard,
                 deviceOfflineNotificationService,
-                new SystemLogService()
+                new SystemLogService(),
+                pushNotificationService
+        );
+    }
+
+    @Test
+    void createDeviceShouldNotifyAdmins() {
+        AccountEntity account = AccountEntity.builder().id(1L).uuid(UUID.randomUUID()).build();
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(deviceRepository.save(any(DeviceEntity.class))).thenAnswer(invocation -> {
+            DeviceEntity device = invocation.getArgument(0);
+            device.setId(10L);
+            device.setUuid(UUID.randomUUID());
+            device.setCreatedAt(Instant.parse("2026-02-01T10:00:00Z"));
+            device.setUpdatedAt(device.getCreatedAt());
+            return device;
+        });
+
+        deviceService.createDevice(
+                1L,
+                1L,
+                "Boiler relay",
+                "Europe/Helsinki",
+                DeviceType.STANDARD,
+                DevicePlatform.OPENBEKEN,
+                true,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        verify(pushNotificationService).sendNewDeviceCreatedAdminNotification(
+                any(DeviceEntity.class),
+                eq(Locale.ENGLISH)
         );
     }
 

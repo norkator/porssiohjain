@@ -23,17 +23,20 @@ import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DeviceService {
 
     private static final long STANDARD_API_OFFLINE_SECONDS = 10L * 60L;
@@ -63,6 +66,7 @@ public class DeviceService {
     private final DemoAccountGuard demoAccountGuard;
     private final DeviceOfflineNotificationService deviceOfflineNotificationService;
     private final SystemLogService systemLogService;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional
     public DeviceResponse createDevice(
@@ -105,6 +109,7 @@ public class DeviceService {
                 deviceAcDataRepository.save(acData);
             }
 
+            notifyAdminsDeviceCreated(device);
             return mapToResponse(device, false);
         } else {
             throw new IllegalStateException("Forbidden!");
@@ -140,7 +145,19 @@ public class DeviceService {
                 .mqttDeviceProfile(mqttDeviceProfile)
                 .account(account)
                 .build();
-        return mapToResponse(deviceRepository.save(device), false);
+        DeviceEntity savedDevice = deviceRepository.save(device);
+        notifyAdminsDeviceCreated(savedDevice);
+        return mapToResponse(savedDevice, false);
+    }
+
+    private void notifyAdminsDeviceCreated(DeviceEntity device) {
+        try {
+            pushNotificationService.sendNewDeviceCreatedAdminNotification(device, Locale.ENGLISH);
+        } catch (Exception e) {
+            Long accountId = device.getAccount() == null ? null : device.getAccount().getId();
+            log.warn("Failed to send new device admin push notification for device {} and account {}",
+                    device.getId(), accountId, e);
+        }
     }
 
     @Transactional(readOnly = true)
