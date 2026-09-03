@@ -26,11 +26,13 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -39,6 +41,7 @@ import jakarta.annotation.security.PermitAll;
 import org.springframework.data.domain.Sort;
 
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -58,8 +61,9 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
     private final SystemLogService systemLogService;
     private final Grid<AccountEntity> grid = new Grid<>(AccountEntity.class, false);
     private Long currentAdminAccountId;
+    private static final ZoneId DISPLAY_ZONE = ZoneId.of("Europe/Helsinki");
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-            .withZone(ZoneId.of("Europe/Helsinki"));
+            .withZone(DISPLAY_ZONE);
 
     public AdminUsersView(
             AuthService authService,
@@ -135,6 +139,10 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         grid.addColumn(account -> account.isBlocked() ? t("admin.users.yes") : t("admin.users.no"))
                 .setHeader(t("admin.users.blocked"))
                 .setAutoWidth(true);
+        grid.addColumn(new ComponentRenderer<>(this::createActivityIndicator))
+                .setHeader(t("admin.users.activityStatus"))
+                .setAutoWidth(true)
+                .setFlexGrow(0);
         grid.addColumn(AccountEntity::getLocale)
                 .setHeader(t("admin.users.locale"))
                 .setAutoWidth(true);
@@ -164,6 +172,24 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
                 .setHeader(t("admin.users.lastActivity"))
                 .setAutoWidth(true);
         grid.addItemClickListener(event -> openUserDialog(event.getItem()));
+    }
+
+    private Span createActivityIndicator(AccountEntity account) {
+        boolean active = adminAccountService.getLastActivity(account.getId())
+                .map(lastActivity -> !lastActivity.isBefore(ZonedDateTime.now(DISPLAY_ZONE).minusMonths(1).toInstant()))
+                .orElse(false);
+        Span indicator = new Span();
+        indicator.getElement().setAttribute("title", active
+                ? t("admin.users.activityStatusActive")
+                : t("admin.users.activityStatusInactive"));
+        indicator.getStyle()
+                .set("display", "inline-block")
+                .set("width", "0.85rem")
+                .set("height", "0.85rem")
+                .set("border-radius", "50%")
+                .set("background", active ? "var(--lumo-success-color)" : "var(--lumo-error-color)")
+                .set("box-shadow", "0 0 0 1px var(--lumo-contrast-20pct)");
+        return indicator;
     }
 
     private void refreshGrid() {

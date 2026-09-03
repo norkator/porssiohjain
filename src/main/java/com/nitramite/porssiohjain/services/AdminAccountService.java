@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,6 +31,8 @@ import java.util.stream.Stream;
 @Service
 @RequiredArgsConstructor
 public class AdminAccountService {
+
+    private static final Duration ACCESS_TOKEN_LIFETIME = Duration.ofDays(1);
 
     private final AccountRepository accountRepository;
     private final DeviceRepository deviceRepository;
@@ -48,6 +51,7 @@ public class AdminAccountService {
                         zigbeeGatewayStatusRepository.findLatestLastSeenByAccountId(accountId),
                         pushNotificationTokenRepository.findLatestLastSeenAtByAccountId(accountId),
                         tokenRepository.findLatestExpiresAtByAccountId(accountId)
+                                .map(expiresAt -> expiresAt.minus(ACCESS_TOKEN_LIFETIME))
                 )
                 .flatMap(Optional::stream)
                 .max(Instant::compareTo);

@@ -67,4 +67,20 @@ class AdminAccountServiceTest {
 
         assertEquals(Optional.of(gatewayPoll), service.getLastActivity(7L));
     }
+
+    @Test
+    void accessTokenExpiryIsConvertedBackToIssueTimeForActivity() {
+        Instant tokenIssuedAt = Instant.parse("2026-08-14T21:30:00Z");
+        Instant tokenExpiresAt = Instant.parse("2026-08-15T21:30:00Z");
+        AccountEntity account = new AccountEntity();
+        account.setId(7L);
+        account.setUpdatedAt(Instant.parse("2026-08-10T10:00:00Z"));
+        when(accounts.findById(7L)).thenReturn(Optional.of(account));
+        when(devices.findLatestLastCommunicationByAccountId(7L)).thenReturn(Optional.empty());
+        when(gatewayStatuses.findLatestLastSeenByAccountId(7L)).thenReturn(Optional.empty());
+        when(pushTokens.findLatestLastSeenAtByAccountId(7L)).thenReturn(Optional.empty());
+        when(tokens.findLatestExpiresAtByAccountId(7L)).thenReturn(Optional.of(tokenExpiresAt));
+
+        assertEquals(Optional.of(tokenIssuedAt), service.getLastActivity(7L));
+    }
 }
