@@ -26,10 +26,6 @@ import { Link } from "react-router-dom";
 
 const CONTRACT_TYPES: ElectricityContractType[] = ["ENERGY", "TRANSFER"];
 
-function contractTypeLabel(type: ElectricityContractType) {
-  return type === "ENERGY" ? "Energy" : "Transfer";
-}
-
 function numberValue(value: string) {
   if (!value.trim()) return null;
   const parsed = Number(value);
@@ -49,11 +45,14 @@ export default function ElectricityContractsView() {
   const [nightPrice, setNightPrice] = useState("");
   const [dayPrice, setDayPrice] = useState("");
   const [staticPrice, setStaticPrice] = useState("");
-  const [taxPercent, setTaxPercent] = useState("");
-  const [taxAmount, setTaxAmount] = useState("");
+  const [taxPercent, setTaxPercent] = useState("25.5");
+  const [taxAmount, setTaxAmount] = useState("0");
   const [isStaticPricing, setIsStaticPricing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const contractTypeLabel = (contractType: ElectricityContractType) => (
+    contractType === "ENERGY" ? t("energyContractType") : t("transferContractType")
+  );
 
   async function loadContracts() {
     setIsLoading(true);
@@ -79,8 +78,8 @@ export default function ElectricityContractsView() {
     setNightPrice("");
     setDayPrice("");
     setStaticPrice("");
-    setTaxPercent("");
-    setTaxAmount("");
+    setTaxPercent("25.5");
+    setTaxAmount("0");
     setIsStaticPricing(false);
   }
 
@@ -210,17 +209,97 @@ export default function ElectricityContractsView() {
         title={editingContractId === null ? t("createContract") : t("update")}
       >
         <form className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" onSubmit={handleSubmit}>
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder={t("name")} value={name} />
-          <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setType(event.target.value as ElectricityContractType)} value={type}>
-            {CONTRACT_TYPES.map((item) => <option key={item} value={item}>{contractTypeLabel(item)}</option>)}
-          </select>
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" min="0" onChange={(event) => setBasicFee(event.target.value)} placeholder={t("basicFee")} step="0.01" type="number" value={basicFee} />
-          <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">{t("staticPricing")}</span><input checked={isStaticPricing} onChange={(event) => setIsStaticPricing(event.target.checked)} type="checkbox" /></label>
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none disabled:opacity-50" disabled={isStaticPricing} min="0" onChange={(event) => setNightPrice(event.target.value)} placeholder={t("nightPrice")} step="0.000001" type="number" value={nightPrice} />
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none disabled:opacity-50" disabled={isStaticPricing} min="0" onChange={(event) => setDayPrice(event.target.value)} placeholder={t("dayPrice")} step="0.000001" type="number" value={dayPrice} />
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none disabled:opacity-50" disabled={!isStaticPricing} min="0" onChange={(event) => setStaticPrice(event.target.value)} placeholder={t("staticPrice")} step="0.000001" type="number" value={staticPrice} />
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" min="0" onChange={(event) => setTaxPercent(event.target.value)} placeholder={t("taxPercent")} step="0.01" type="number" value={taxPercent} />
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" min="0" onChange={(event) => setTaxAmount(event.target.value)} placeholder={t("taxAmount")} step="0.000001" type="number" value={taxAmount} />
+          <label className="block text-sm font-bold text-on-surface">
+            {t("name")}
+            <input
+              className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-4 font-normal outline-none"
+              onChange={(event) => setName(event.target.value)}
+              value={name}
+            />
+          </label>
+          <label className="block text-sm font-bold text-on-surface">
+            {t("contractType")}
+            <select
+              className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-4 font-normal outline-none"
+              onChange={(event) => setType(event.target.value as ElectricityContractType)}
+              value={type}
+            >
+              {CONTRACT_TYPES.map((item) => <option key={item} value={item}>{contractTypeLabel(item)}</option>)}
+            </select>
+          </label>
+          <label className="block text-sm font-bold text-on-surface">
+            {t("basicFee")}
+            <input
+              className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-4 font-normal outline-none"
+              min="0"
+              onChange={(event) => setBasicFee(event.target.value)}
+              step="0.01"
+              type="number"
+              value={basicFee}
+            />
+          </label>
+          <label className="flex items-center justify-between gap-4 self-end rounded-xl bg-surface-container p-4">
+            <span className="font-headline text-sm font-bold">{t("staticPricing")}</span>
+            <input checked={isStaticPricing} onChange={(event) => setIsStaticPricing(event.target.checked)} type="checkbox" />
+          </label>
+          <label className="block text-sm font-bold text-on-surface">
+            {t("nightPrice")}
+            <input
+              className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-4 font-normal outline-none disabled:opacity-50"
+              disabled={isStaticPricing}
+              min="0"
+              onChange={(event) => setNightPrice(event.target.value)}
+              step="0.000001"
+              type="number"
+              value={nightPrice}
+            />
+          </label>
+          <label className="block text-sm font-bold text-on-surface">
+            {t("dayPrice")}
+            <input
+              className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-4 font-normal outline-none disabled:opacity-50"
+              disabled={isStaticPricing}
+              min="0"
+              onChange={(event) => setDayPrice(event.target.value)}
+              step="0.000001"
+              type="number"
+              value={dayPrice}
+            />
+          </label>
+          <label className="block text-sm font-bold text-on-surface">
+            {t("staticPrice")}
+            <input
+              className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-4 font-normal outline-none disabled:opacity-50"
+              disabled={!isStaticPricing}
+              min="0"
+              onChange={(event) => setStaticPrice(event.target.value)}
+              step="0.000001"
+              type="number"
+              value={staticPrice}
+            />
+          </label>
+          <label className="block text-sm font-bold text-on-surface">
+            {t("taxPercent")}
+            <input
+              className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-4 font-normal outline-none"
+              min="0"
+              onChange={(event) => setTaxPercent(event.target.value)}
+              step="0.01"
+              type="number"
+              value={taxPercent}
+            />
+          </label>
+          <label className="block text-sm font-bold text-on-surface">
+            {t("taxAmount")}
+            <input
+              className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-4 font-normal outline-none"
+              min="0"
+              onChange={(event) => setTaxAmount(event.target.value)}
+              step="0.000001"
+              type="number"
+              value={taxAmount}
+            />
+          </label>
 
           {error ? (
             <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container md:col-span-2 lg:col-span-4">

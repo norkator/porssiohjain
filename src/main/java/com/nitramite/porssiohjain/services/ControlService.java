@@ -69,16 +69,43 @@ public class ControlService {
             BigDecimal taxPercent, ControlMode mode, Boolean manualOn,
             Boolean alwaysOnBelowMinPrice
     ) {
+        return createControl(
+                accountId, name, timezone, maxPriceSnt, minPriceSnt, dailyOnMinutes,
+                taxPercent, mode, manualOn, alwaysOnBelowMinPrice, null, null, null
+        );
+    }
+
+    public ControlEntity createControl(
+            Long accountId, String name, String timezone,
+            BigDecimal maxPriceSnt, BigDecimal minPriceSnt, Integer dailyOnMinutes,
+            BigDecimal taxPercent, ControlMode mode, Boolean manualOn,
+            Boolean alwaysOnBelowMinPrice, Long energyContractId, Long transferContractId,
+            Long siteId
+    ) {
         demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
 
         if (account.getId().equals(accountId)) {
             accountLimitService.assertCanCreateControl(accountId);
+            ElectricityContractEntity e = energyContractId == null
+                    ? null
+                    : electricityContractRepository.findByIdAndAccountId(energyContractId, accountId)
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Energy contract not found or does not belong to account"));
+            ElectricityContractEntity t = transferContractId == null
+                    ? null
+                    : electricityContractRepository.findByIdAndAccountId(transferContractId, accountId)
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Transfer contract not found or does not belong to account"));
+            SiteEntity site = siteId == null
+                    ? null
+                    : siteRepository.findByIdAndAccountId(siteId, accountId)
+                    .orElseThrow(() -> new EntityNotFoundException("Site not found or does not belong to account"));
             ControlEntity control = ControlEntity.builder()
                     .account(account)
                     .name(name)
-                    .timezone(timezone)
+                    .timezone(timezone == null || timezone.isBlank() ? ZoneId.systemDefault().getId() : ZoneId.of(timezone).getId())
                     .maxPriceSnt(maxPriceSnt)
                     .minPriceSnt(minPriceSnt)
                     .dailyOnMinutes(dailyOnMinutes)
@@ -86,6 +113,9 @@ public class ControlService {
                     .mode(mode != null ? mode : ControlMode.BELOW_MAX_PRICE)
                     .manualOn(manualOn != null ? manualOn : false)
                     .alwaysOnBelowMinPrice(alwaysOnBelowMinPrice != null ? alwaysOnBelowMinPrice : false)
+                    .energyContract(e)
+                    .transferContract(t)
+                    .site(site)
                     .build();
 
             return controlRepository.save(control);

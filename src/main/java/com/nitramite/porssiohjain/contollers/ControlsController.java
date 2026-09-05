@@ -45,11 +45,11 @@ public class ControlsController {
     }
 
     @PostMapping
-    public ControlEntity createControl(
+    public ControlResponse createControl(
             @RequestBody CreateControlRequest request
     ) {
         Long accountId = authContext.getAccountId();
-        return controlService.createControl(
+        ControlEntity control = controlService.createControl(
                 accountId,
                 request.getName(),
                 request.getTimezone(),
@@ -59,8 +59,13 @@ public class ControlsController {
                 request.getTaxPercent(),
                 request.getMode(),
                 request.getManualOn(),
-                request.getAlwaysOnBelowMinPrice()
+                request.getAlwaysOnBelowMinPrice(),
+                request.getEnergyContractId(),
+                request.getTransferContractId(),
+                request.getSiteId()
         );
+        controlSchedulerService.generateForControl(control.getId());
+        return controlService.getControl(accountId, control.getId());
     }
 
     @GetMapping("/{controlId}")

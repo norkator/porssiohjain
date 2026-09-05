@@ -28,4 +28,7 @@ public class CreateControlRequest {
     private ControlMode mode;
     private Boolean alwaysOnBelowMinPrice;
     private Boolean manualOn;
+    private Long energyContractId;
+    private Long transferContractId;
+    private Long siteId;
 }
