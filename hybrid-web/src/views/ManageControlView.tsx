@@ -27,6 +27,7 @@ import {
   fetchControl,
   fetchControlDeviceLinks,
   fetchControlHeatPumpLinks,
+  fetchControlThermostatLinks,
   formatControlDate,
   formatControlMode,
   type ApiControl,
@@ -96,6 +97,7 @@ export default function ManageControlView() {
   const [standardDevices, setStandardDevices] = useState<ApiDevice[]>([]);
   const [heatPumpLinks, setHeatPumpLinks] = useState<ControlHeatPumpLink[]>([]);
   const [heatPumpDevices, setHeatPumpDevices] = useState<ApiDevice[]>([]);
+  const [thermostatLinkCount, setThermostatLinkCount] = useState(0);
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const [linksError, setLinksError] = useState<string | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
@@ -136,6 +138,8 @@ export default function ManageControlView() {
     compareByName(left.device.deviceName, right.device.deviceName)
     || left.id - right.id
   );
+  const linkedControlDeviceCount = standardLinks.length + sortedHeatPumpLinks.length + thermostatLinkCount;
+  const showNoLinkedDevicesNotice = !isLoadingLinks && !linksError && linkedControlDeviceCount === 0;
   const linkedDeviceKeys = new Set(
     standardLinks
       .filter((link) => link.id !== editingDeviceLinkId)
@@ -252,9 +256,10 @@ export default function ManageControlView() {
       setLinksError(null);
 
       try {
-        const [linksResponse, heatPumpLinksResponse, devicesResponse] = await Promise.all([
+        const [linksResponse, heatPumpLinksResponse, thermostatLinksResponse, devicesResponse] = await Promise.all([
           fetchControlDeviceLinks(controlId),
           fetchControlHeatPumpLinks(controlId),
+          fetchControlThermostatLinks(controlId),
           fetchDevices()
         ]);
 
@@ -264,6 +269,7 @@ export default function ManageControlView() {
 
         setDeviceLinks(linksResponse);
         setHeatPumpLinks(heatPumpLinksResponse);
+        setThermostatLinkCount(thermostatLinksResponse.length);
         setStandardDevices(devicesResponse.filter((device) => device.deviceType === "STANDARD"));
         setHeatPumpDevices(devicesResponse.filter((device) => device.deviceType === "HEAT_PUMP"));
         setIsLoadingLinks(false);
@@ -740,8 +746,35 @@ export default function ManageControlView() {
             <section className="app-card p-4 sm:p-6">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="font-headline text-xl font-bold text-on-surface">{t("controlLinks")}</h2>
-                <span className="chip bg-surface-container-highest text-primary-container">{standardLinks.length + sortedHeatPumpLinks.length}</span>
+                <span className="chip bg-surface-container-highest text-primary-container">{linkedControlDeviceCount}</span>
               </div>
+
+              {showNoLinkedDevicesNotice ? (
+                <div className="mb-6 rounded-xl border border-primary/30 bg-surface-container-low p-4 sm:p-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <p className="metric-label mb-2">{t("noLinkedDevicesEyebrow")}</p>
+                      <h3 className="font-headline text-xl font-black text-on-surface">{t("noLinkedDevicesTitle")}</h3>
+                      <p className="mt-1 max-w-2xl text-sm leading-6 text-on-surface-variant">
+                        {t("noLinkedDevicesDescription")}
+                      </p>
+                    </div>
+                    {!control?.shared ? (
+                      <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[28rem]">
+                        <button className="secondary-action justify-center px-3 py-2 text-xs" onClick={() => setActiveDeviceTab("STANDARD")} type="button">
+                          {t("linkStandardShort")}
+                        </button>
+                        <button className="secondary-action justify-center px-3 py-2 text-xs" onClick={() => setActiveDeviceTab("HEAT_PUMP")} type="button">
+                          {t("linkHeatPumpShort")}
+                        </button>
+                        <button className="secondary-action justify-center px-3 py-2 text-xs" onClick={() => setActiveDeviceTab("THERMOSTAT")} type="button">
+                          {t("linkThermostatShort")}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="mb-6 flex flex-wrap gap-2 rounded-2xl bg-surface-container p-2">
                 <button
@@ -957,7 +990,7 @@ export default function ManageControlView() {
               ) : null}
 
               {activeDeviceTab === "THERMOSTAT" ? (
-                <ControlThermostatsCard controlId={controlId} isReadOnly={Boolean(control?.shared)} />
+                <ControlThermostatsCard controlId={controlId} isReadOnly={Boolean(control?.shared)} onLinksChange={setThermostatLinkCount} />
               ) : null}
 
               {linksError ? (

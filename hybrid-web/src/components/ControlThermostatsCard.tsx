@@ -13,7 +13,13 @@ function compareByName(left: string | null | undefined, right: string | null | u
   return (left ?? "").localeCompare(right ?? "", undefined, { sensitivity: "base" });
 }
 
-export default function ControlThermostatsCard({ controlId, isReadOnly }: { controlId: number; isReadOnly: boolean }) {
+type ControlThermostatsCardProps = {
+  controlId: number;
+  isReadOnly: boolean;
+  onLinksChange?: (count: number) => void;
+};
+
+export default function ControlThermostatsCard({ controlId, isReadOnly, onLinksChange }: ControlThermostatsCardProps) {
   const { t } = useI18n("manageControl");
   const common = useI18n("common").t;
   const [links, setLinks] = useState<ControlThermostatLink[]>([]);
@@ -42,10 +48,11 @@ export default function ControlThermostatsCard({ controlId, isReadOnly }: { cont
     Promise.all([fetchControlThermostatLinks(controlId), fetchDevices()])
       .then(([nextLinks, nextDevices]) => {
         setLinks(nextLinks);
+        onLinksChange?.(nextLinks.length);
         setDevices(nextDevices.filter((device) => device.deviceType === "THERMOSTAT" && !device.shared));
       })
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : t("failedLoadThermostats")));
-  }, [controlId]);
+  }, [controlId, onLinksChange]);
 
   const reset = () => {
     setEditingId(null); setDeviceId(""); setChannel("1"); setCurveJson(DEFAULT_CURVE);
@@ -80,14 +87,23 @@ export default function ControlThermostatsCard({ controlId, isReadOnly }: { cont
     try {
       if (editingId === null) await addControlThermostatLink(controlId, payload);
       else await updateControlThermostatLink(editingId, payload);
-      setLinks(await fetchControlThermostatLinks(controlId)); closeForm();
+      const nextLinks = await fetchControlThermostatLinks(controlId);
+      setLinks(nextLinks);
+      onLinksChange?.(nextLinks.length);
+      closeForm();
     } catch (reason) { setError(reason instanceof Error ? reason.message : t("failedSaveThermostat")); }
     finally { setIsSaving(false); }
   };
 
   const remove = async (id: number) => {
     setError(null);
-    try { await deleteControlThermostatLink(id); setLinks((current) => current.filter((link) => link.id !== id)); if (editingId === id) closeForm(); }
+    try {
+      await deleteControlThermostatLink(id);
+      const nextLinks = links.filter((link) => link.id !== id);
+      setLinks(nextLinks);
+      onLinksChange?.(nextLinks.length);
+      if (editingId === id) closeForm();
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : t("failedRemoveThermostat")); }
     setDeletingId(null);
   };
