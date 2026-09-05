@@ -826,6 +826,7 @@
     "transferPrice": "Siirtohinta",
     "nordpoolPrice": "Nord Pool -hinta",
     "finalControlPrice": "Lopullinen ohjaushinta",
+    "combinedPriceBreakdown": "Yhteensä {combined} snt/kWh",
     "currentNordpool": "Nykyinen Nord Pool",
     "currentTransfer": "Nykyinen siirto",
     "currentFinal": "Nykyinen lopullinen",

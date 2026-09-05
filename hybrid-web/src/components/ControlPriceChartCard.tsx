@@ -175,8 +175,9 @@ function ControlChartSurface({
   const activePoint = chart.points[activePointIndex];
   const activeMarkerValue = activePoint.finalControlPrice ?? activePoint.nordpoolPrice;
   const activeCoordinates = getPointCoordinates(activePointIndex, activeMarkerValue, innerWidth, innerHeight, minValue, range, chart.points.length);
-  const activeTooltipX = Math.min(Math.max(activeCoordinates.x, CHART_PADDING_LEFT + 86), CHART_PADDING_LEFT + innerWidth - 86);
-  const activeTooltipY = Math.max(activeCoordinates.y - 54, CHART_PADDING_TOP + 34);
+  const activeTooltipX = Math.min(Math.max(activeCoordinates.x, CHART_PADDING_LEFT + 76), CHART_PADDING_LEFT + innerWidth - 76);
+  const activeTooltipY = Math.max(activeCoordinates.y - 62, CHART_PADDING_TOP + 40);
+  const activeCombinedPrice = activePoint.transferPrice === null ? null : activePoint.nordpoolPrice + activePoint.transferPrice;
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
     if (!onSelectedPointChange) {
@@ -245,16 +246,23 @@ function ControlChartSurface({
             <g>
               <line stroke="rgb(204 51 51 / 0.65)" strokeDasharray="4 6" strokeWidth="2" x1={activeCoordinates.x} x2={activeCoordinates.x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
               <circle cx={activeCoordinates.x} cy={activeCoordinates.y} fill="rgb(var(--color-surface-container-lowest))" r="8" stroke="rgb(204 51 51)" strokeWidth="3" />
-              <rect fill="rgb(var(--color-surface-container-lowest))" height="58" rx="10" stroke="rgb(var(--color-outline-variant))" width="172" x={activeTooltipX - 86} y={activeTooltipY - 26} />
-              <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY - 7}>
+              <rect fill="rgb(var(--color-surface-container-lowest))" height={activeCombinedPrice === null ? "50" : "66"} rx="8" stroke="rgb(var(--color-outline-variant))" width="152" x={activeTooltipX - 76} y={activeTooltipY - 22} />
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="10" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY - 6}>
                 {formatNordpoolTime(activePoint.timestamp, chart.timezone)}
               </text>
-              <text fill="rgb(var(--color-on-surface))" fontSize="14" fontWeight="800" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 10}>
+              <text fill="rgb(var(--color-on-surface))" fontSize="13" fontWeight="800" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 9}>
                 {activePoint.finalControlPrice === null ? "-" : formatNordpoolPrice(activePoint.finalControlPrice)} snt/kWh
               </text>
-              <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 25}>
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="10" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 22}>
                 {t("finalControlPrice")}
               </text>
+              {activeCombinedPrice !== null ? (
+                <text fill="rgb(var(--color-on-surface-variant))" fontSize="10" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 40}>
+                  {t("combinedPriceBreakdown", {
+                    combined: formatNordpoolPrice(activeCombinedPrice),
+                  })}
+                </text>
+              ) : null}
             </g>
           ) : null}
 

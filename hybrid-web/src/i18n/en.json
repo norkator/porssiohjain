@@ -826,6 +826,7 @@
     "transferPrice": "Transfer price",
     "nordpoolPrice": "Nord Pool price",
     "finalControlPrice": "Final control price",
+    "combinedPriceBreakdown": "Combined {combined} snt/kWh",
     "currentNordpool": "Current Nord Pool",
     "currentTransfer": "Current Transfer",
     "currentFinal": "Current Final",
