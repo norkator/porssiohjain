@@ -690,6 +690,10 @@
     "copying": "Kopioidaan...",
     "copySuccess": "Skripti kopioitu leikepöydälle",
     "copyFailed": "Skriptin kopiointi epäonnistui",
+    "firstControlNextStepLabel": "Seuraava vaihe",
+    "firstControlNextStepTitle": "Luo ensimmäinen ohjaus",
+    "firstControlNextStepDescription": "Laite on nyt valmiina. Lisää seuraavaksi ohjaus, jolla määrität miten Energy Controller ohjaa laitetta.",
+    "createFirstControl": "Lisää ensimmäinen ohjaus",
     "finishSetup": "Viimeistele asennus",
     "successToast": "Laitteen asennus valmis"
   },

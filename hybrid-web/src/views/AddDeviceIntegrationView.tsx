@@ -11,6 +11,7 @@
 
 import PageHeader from "@/components/PageHeader";
 import ProgressHeader from "@/components/ProgressHeader";
+import { useControls } from "@/hooks/useControls";
 import { clearAddDeviceDraft, clearProvisionedDeviceDraft, getDeviceTypeOption, readAddDeviceDraft, readProvisionedDeviceDraft } from "@/lib/add-device-flow";
 import { showNativeToast } from "@/lib/android-bridge";
 import { useI18n } from "@/lib/i18n";
@@ -28,6 +29,11 @@ export default function AddDeviceIntegrationView() {
   const provisionedDevice = readProvisionedDeviceDraft();
   const deviceType = getDeviceTypeOption(draft.deviceTypeId);
   const [isCopying, setIsCopying] = useState(false);
+  const {
+    error: controlsError,
+    isLoading: isControlsLoading,
+    totalCount: controlsCount
+  } = useControls();
 
   if (!deviceType || !provisionedDevice) {
     return <Navigate replace to="/devices/add/type" />;
@@ -36,12 +42,20 @@ export default function AddDeviceIntegrationView() {
   const translatedDeviceTypeTitle = deviceTypeLabels[`${deviceType.id}.title`] ?? deviceType.title;
   const isOpenBeken = deviceType.id === "openbeken";
   const isShelly = deviceType.id === "shelly-pro-relays";
+  const showFirstControlNextStep = !isControlsLoading && !controlsError && controlsCount === 0;
 
   const handleFinish = () => {
     clearAddDeviceDraft();
     clearProvisionedDeviceDraft();
     showNativeToast(t("successToast"));
     navigate("/devices");
+  };
+
+  const handleCreateFirstControl = () => {
+    clearAddDeviceDraft();
+    clearProvisionedDeviceDraft();
+    showNativeToast(t("successToast"));
+    navigate("/controls/add");
   };
 
   const shellyScript = shellyTemplate.replace(
@@ -165,6 +179,26 @@ export default function AddDeviceIntegrationView() {
             ) : null}
 
             <div className="pt-4">
+              {showFirstControlNextStep ? (
+                <div className="mb-5 rounded-xl border border-primary/30 bg-surface-container-low p-4 sm:p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="metric-label mb-2">{t("firstControlNextStepLabel")}</p>
+                      <h3 className="font-headline text-xl font-black text-on-surface">{t("firstControlNextStepTitle")}</h3>
+                      <p className="mt-1 text-sm leading-6 text-on-surface-variant">
+                        {t("firstControlNextStepDescription")}
+                      </p>
+                    </div>
+                    <button
+                      className="primary-action w-full shrink-0 justify-center px-4 py-3 text-sm sm:w-auto"
+                      onClick={handleCreateFirstControl}
+                      type="button"
+                    >
+                      {t("createFirstControl")}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <button
                 className="primary-action w-full justify-center"
                 onClick={handleFinish}

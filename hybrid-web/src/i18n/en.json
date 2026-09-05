@@ -690,6 +690,10 @@
     "copying": "Copying...",
     "copySuccess": "Script copied to clipboard",
     "copyFailed": "Failed to copy script",
+    "firstControlNextStepLabel": "Next step",
+    "firstControlNextStepTitle": "Create your first control",
+    "firstControlNextStepDescription": "A device is available now. Add a control next to tell Energy Controller how this device should be controlled.",
+    "createFirstControl": "Add first control",
     "finishSetup": "Finish Setup",
     "successToast": "Device setup completed"
   },
