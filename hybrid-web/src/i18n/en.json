@@ -126,6 +126,7 @@
     "feedbackFailed": "Feedback sending failed.",
     "feedbackTextRequired": "Write feedback before sending.",
     "feedbackEmailRequired": "Enter a contact email.",
+    "firstDeviceStartChip": "Start here",
     "loadingDevices": "Loading devices...",
     "deviceSyncUnavailable": "Device sync unavailable",
     "deviceCounts": "{totalCount} Active • {onlineCount} Online",

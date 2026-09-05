@@ -126,6 +126,7 @@
     "feedbackFailed": "Palautteen lähetys epäonnistui.",
     "feedbackTextRequired": "Kirjoita palaute ennen lähetystä.",
     "feedbackEmailRequired": "Syötä yhteyssähköposti.",
+    "firstDeviceStartChip": "Aloita tästä",
     "loadingDevices": "Ladataan laitteita...",
     "deviceSyncUnavailable": "Laitteiden synkronointi ei ole saatavilla",
     "deviceCounts": "{totalCount} aktiivista • {onlineCount} verkossa",

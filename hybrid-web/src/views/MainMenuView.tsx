@@ -175,6 +175,7 @@ export default function MainMenuView() {
     : contractsCount === null
       ? t("loadingContracts")
       : t("contractsConfigured", { count: contractsCount });
+  const showFirstDeviceStartCue = !isLoading && !error && totalCount === 0;
 
   useEffect(() => {
     const savedScrollY = Number(window.sessionStorage.getItem(MAIN_MENU_SCROLL_STORAGE_KEY));
@@ -769,7 +770,9 @@ export default function MainMenuView() {
             {tiles.map((tile) => (
               <Link
                 key={tile.key}
-                className="group relative overflow-hidden rounded-xl bg-surface-container-low p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98] sm:p-6"
+                className={`group relative overflow-hidden rounded-xl bg-surface-container-low p-4 transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98] sm:p-6 ${
+                  showFirstDeviceStartCue && tile.key === "devices" ? "first-device-start-tile" : ""
+                }`}
                 to={tile.to}
               >
                 <div className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-primary transition-transform duration-300 group-hover:scale-x-100" />
@@ -778,7 +781,13 @@ export default function MainMenuView() {
                     <div className="rounded-lg bg-surface-container-lowest p-3 shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-md">
                       <span className="font-headline text-xl font-black text-primary">{tile.icon}</span>
                     </div>
-                    <span className="translate-y-1 text-lg text-outline-variant opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:text-primary group-hover:opacity-100">↗</span>
+                    {showFirstDeviceStartCue && tile.key === "devices" ? (
+                      <span className="rounded-md bg-primary px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-on-primary shadow-sm">
+                        {t("firstDeviceStartChip")}
+                      </span>
+                    ) : (
+                      <span className="translate-y-1 text-lg text-outline-variant opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:text-primary group-hover:opacity-100">↗</span>
+                    )}
                   </div>
                   <div>
                     <h3 className="text-xl font-bold transition-colors duration-300 group-hover:text-primary">{tile.title}</h3>

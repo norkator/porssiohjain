@@ -89,7 +89,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     .device-card-channel-active,
-    .device-card-channel-active-dot {
+    .device-card-channel-active-dot,
+    .first-device-start-tile {
       animation: none !important;
       transform: none !important;
     }
@@ -172,6 +173,14 @@
   .device-card-channel-active-dot {
     box-shadow: 0 0 0 0 rgb(5 150 105 / 0.52);
     animation: active-channel-dot-pulse 1.9s ease-out infinite;
+  }
+
+  .first-device-start-tile {
+    box-shadow:
+      0 0 0 2px rgb(var(--color-primary) / 0.58),
+      0 0 0 0 rgb(var(--color-primary) / 0.34),
+      var(--shadow-soft);
+    animation: first-device-start-border 2.4s ease-out infinite;
   }
 
 }
@@ -265,5 +274,28 @@
   75%,
   100% {
     box-shadow: 0 0 0 8px rgb(5 150 105 / 0);
+  }
+}
+
+@keyframes first-device-start-border {
+  0% {
+    box-shadow:
+      0 0 0 2px rgb(var(--color-primary) / 0.62),
+      0 0 0 0 rgb(var(--color-primary) / 0.34),
+      var(--shadow-soft);
+  }
+
+  60% {
+    box-shadow:
+      0 0 0 2px rgb(var(--color-primary) / 0.78),
+      0 0 0 13px rgb(var(--color-primary) / 0),
+      var(--shadow-soft);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 2px rgb(var(--color-primary) / 0.62),
+      0 0 0 0 rgb(var(--color-primary) / 0),
+      var(--shadow-soft);
   }
 }
