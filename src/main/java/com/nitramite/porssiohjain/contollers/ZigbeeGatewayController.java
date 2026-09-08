@@ -13,9 +13,11 @@ package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
+import com.nitramite.porssiohjain.services.AdminClientCallLogService;
 import com.nitramite.porssiohjain.services.ZigbeeGatewaySyncService;
 import com.nitramite.porssiohjain.services.ZigbeeGatewayBackupService;
 import com.nitramite.porssiohjain.services.models.*;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
@@ -26,12 +28,15 @@ import java.util.UUID;
 public class ZigbeeGatewayController {
     private final ZigbeeGatewaySyncService syncService;
     private final ZigbeeGatewayBackupService backupService;
+    private final AdminClientCallLogService deviceCallLogService;
     private final AuthContext authContext;
 
     @RequireAuth
     @PostMapping("/{gatewayId}/sync")
     public ZigbeeGatewaySyncResponse sync(@PathVariable UUID gatewayId,
-            @RequestBody ZigbeeGatewaySyncRequest request) {
+            @RequestBody ZigbeeGatewaySyncRequest request,
+            HttpServletRequest httpRequest) {
+        deviceCallLogService.recordZigbeeGatewaySync(gatewayId.toString(), resolveClientIp(httpRequest));
         return syncService.sync(authContext.getAccountId(), gatewayId, request);
     }
 
@@ -52,5 +57,17 @@ public class ZigbeeGatewayController {
     @GetMapping("/backups")
     public java.util.List<ZigbeeGatewayBackup> listBackups() {
         return backupService.list(authContext.getAccountId());
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",", 2)[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+        return request.getRemoteAddr();
     }
 }

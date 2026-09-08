@@ -15,8 +15,10 @@ import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
+import com.nitramite.porssiohjain.services.AdminClientCallLogService;
 import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.models.*;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -32,12 +34,15 @@ import java.util.Map;
 public class ControlController {
 
     private final ControlService controlService;
+    private final AdminClientCallLogService deviceCallLogService;
     private final AuthContext authContext;
 
     @GetMapping("/{deviceUuid}")
     public ResponseEntity<Map<Integer, Integer>> controlsForDevice(
-            @PathVariable String deviceUuid
+            @PathVariable String deviceUuid,
+            HttpServletRequest request
     ) {
+        deviceCallLogService.recordControlDeviceCall(deviceUuid, resolveClientIp(request), "/control/{deviceUuid}");
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(controlService.getControlsForDevice(deviceUuid));
@@ -45,8 +50,10 @@ public class ControlController {
 
     @GetMapping("/{deviceUuid}/timetable")
     public TimeTableListResponse timeTableForDevice(
-            @PathVariable String deviceUuid
+            @PathVariable String deviceUuid,
+            HttpServletRequest request
     ) {
+        deviceCallLogService.recordControlDeviceCall(deviceUuid, resolveClientIp(request), "/control/{deviceUuid}/timetable");
         return controlService.getTimetableForDevice(deviceUuid);
     }
 
@@ -151,6 +158,18 @@ public class ControlController {
     ) {
         Long accountId = authContext.getAccountId();
         return controlService.getDevicesByControl(accountId, controlId);
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",", 2)[0].trim();
+        }
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+        return request.getRemoteAddr();
     }
 
 }

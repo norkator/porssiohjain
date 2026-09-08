@@ -106,6 +106,12 @@ vaadin-button[theme~="large"] {
     padding: 6px 12px;
 }
 
+vaadin-grid::part(fresh-control-device-call) {
+    background-color: rgba(46, 160, 67, 0.18);
+    color: #0b4f1c;
+    font-weight: 600;
+}
+
 .landing-view {
     padding: var(--lumo-space-m) var(--lumo-space-l);
 }

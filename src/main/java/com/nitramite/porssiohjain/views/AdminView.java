@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.services.models.SystemLogResponse;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
@@ -84,7 +85,24 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         Button usersButton = new Button(t("admin.users.button"),
                 e -> UI.getCurrent().navigate(AdminUsersView.class));
         usersButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button controlDeviceCallsButton = new Button("Client call monitor",
+                e -> UI.getCurrent().navigate(AdminClientCallLogView.class));
+        controlDeviceCallsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button refreshLogsButton = new Button("Refresh logs", e -> refreshLogs());
+        FlexLayout actions = new FlexLayout(
+                provisioningButton,
+                mqttRelayTestButton,
+                usersButton,
+                controlDeviceCallsButton,
+                refreshLogsButton
+        );
+        actions.setWidthFull();
+        actions.getStyle()
+                .set("display", "flex")
+                .set("flex-wrap", "wrap")
+                .set("gap", "var(--lumo-space-s)");
+        actions.getChildren().forEach(component ->
+                component.getElement().getStyle().set("flex", "1 1 180px"));
 
         H1 title = new H1(t("admin.title"));
         title.getStyle().set("margin-bottom", "1em");
@@ -96,10 +114,7 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         card.add(
                 backButton,
                 title,
-                provisioningButton,
-                mqttRelayTestButton,
-                usersButton,
-                refreshLogsButton,
+                actions,
                 createDivider(),
                 systemLogsTitle,
                 systemLogList,
