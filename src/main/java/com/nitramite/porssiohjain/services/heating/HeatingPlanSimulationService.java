@@ -61,6 +61,23 @@ public class HeatingPlanSimulationService {
         return new PriceThresholds(cheap, expensive);
     }
 
+    public PriceThresholds calculatePriceThresholds(List<MarketPoint> market,
+                                                    BigDecimal cheapPricePercentile,
+                                                    BigDecimal expensivePricePercentile,
+                                                    BigDecimal cheapPriceThreshold,
+                                                    BigDecimal expensivePriceThreshold) {
+        PriceThresholds dynamic = calculateDynamicPriceThresholds(
+                market, cheapPricePercentile, expensivePricePercentile);
+        BigDecimal cheapLimit = cheapPriceThreshold == null ? dynamic.cheapPriceThreshold()
+                : dynamic.cheapPriceThreshold().min(cheapPriceThreshold);
+        BigDecimal expensiveLimit = expensivePriceThreshold == null ? dynamic.expensivePriceThreshold()
+                : dynamic.expensivePriceThreshold().max(expensivePriceThreshold);
+        if (expensiveLimit.compareTo(cheapLimit) <= 0) {
+            expensiveLimit = cheapLimit.add(PRICE_THRESHOLD_MINIMUM_GAP);
+        }
+        return new PriceThresholds(cheapLimit, expensiveLimit);
+    }
+
     private BigDecimal percentile(List<BigDecimal> sorted, BigDecimal percentile) {
         if (sorted.size() == 1) {
             return sorted.getFirst();

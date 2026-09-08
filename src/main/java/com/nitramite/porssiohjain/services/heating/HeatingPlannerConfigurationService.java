@@ -67,7 +67,8 @@ public class HeatingPlannerConfigurationService {
         if (settings.isEmpty()) {
             return new Configuration(false, new BigDecimal("5.00"), new BigDecimal("0.00"),
                     new BigDecimal("25.50"), null, false, LocalTime.of(6, 0), LocalTime.of(22, 0),
-                    new BigDecimal("8.00"), 45, 360, new BigDecimal("0.2500"),
+                    new BigDecimal("8.00"), 45, 360, new BigDecimal("5.0000"), new BigDecimal("20.0000"),
+                    new BigDecimal("0.2500"),
                     new BigDecimal("0.7500"), List.of());
         }
         HeatingPlannerSettingsEntity settingsEntity = settings.get();
@@ -97,7 +98,8 @@ public class HeatingPlannerConfigurationService {
                 settingsEntity.getTransferContract() == null ? null : settingsEntity.getTransferContract().getId(),
                 settingsEntity.isStoveLoaded(), settingsEntity.getStoveAvailableFrom(), settingsEntity.getStoveAvailableTo(),
                 settingsEntity.getWoodAmount(), settingsEntity.getWoodReleaseDelayMinutes(),
-                settingsEntity.getWoodReleaseDurationMinutes(), settingsEntity.getCheapPricePercentile(),
+                settingsEntity.getWoodReleaseDurationMinutes(), settingsEntity.getCheapPriceThreshold(),
+                settingsEntity.getExpensivePriceThreshold(), settingsEntity.getCheapPricePercentile(),
                 settingsEntity.getExpensivePricePercentile(), rooms);
     }
 
@@ -122,6 +124,8 @@ public class HeatingPlannerConfigurationService {
         settings.setWoodAmount(settingsConfiguration.woodAmount());
         settings.setWoodReleaseDelayMinutes(settingsConfiguration.woodReleaseDelayMinutes());
         settings.setWoodReleaseDurationMinutes(settingsConfiguration.woodReleaseDurationMinutes());
+        settings.setCheapPriceThreshold(settingsConfiguration.cheapPriceThreshold());
+        settings.setExpensivePriceThreshold(settingsConfiguration.expensivePriceThreshold());
         settings.setCheapPricePercentile(settingsConfiguration.cheapPricePercentile());
         settings.setExpensivePricePercentile(settingsConfiguration.expensivePricePercentile());
         ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
@@ -175,6 +179,8 @@ public class HeatingPlannerConfigurationService {
         settings.setWoodAmount(settingsConfiguration.woodAmount());
         settings.setWoodReleaseDelayMinutes(settingsConfiguration.woodReleaseDelayMinutes());
         settings.setWoodReleaseDurationMinutes(settingsConfiguration.woodReleaseDurationMinutes());
+        settings.setCheapPriceThreshold(settingsConfiguration.cheapPriceThreshold());
+        settings.setExpensivePriceThreshold(settingsConfiguration.expensivePriceThreshold());
         settings.setCheapPricePercentile(settingsConfiguration.cheapPricePercentile());
         settings.setExpensivePricePercentile(settingsConfiguration.expensivePricePercentile());
         ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
@@ -257,6 +263,16 @@ public class HeatingPlannerConfigurationService {
     }
 
     private void validatePricePercentiles(SettingsConfiguration settingsConfiguration) {
+        if (settingsConfiguration.cheapPriceThreshold() == null
+                || settingsConfiguration.expensivePriceThreshold() == null
+                || settingsConfiguration.cheapPriceThreshold().compareTo(BigDecimal.ZERO) < 0
+                || settingsConfiguration.expensivePriceThreshold().compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Price thresholds must be zero or greater");
+        }
+        if (settingsConfiguration.cheapPriceThreshold()
+                .compareTo(settingsConfiguration.expensivePriceThreshold()) >= 0) {
+            throw new IllegalArgumentException("Cheap price threshold must be below expensive price threshold");
+        }
         BigDecimal cheap = settingsConfiguration.cheapPricePercentile();
         BigDecimal expensive = settingsConfiguration.expensivePricePercentile();
         if (cheap == null || expensive == null
@@ -279,6 +295,8 @@ public class HeatingPlannerConfigurationService {
             BigDecimal woodAmount,
             Integer woodReleaseDelayMinutes,
             Integer woodReleaseDurationMinutes,
+            BigDecimal cheapPriceThreshold,
+            BigDecimal expensivePriceThreshold,
             BigDecimal cheapPricePercentile,
             BigDecimal expensivePricePercentile,
             List<RoomConfiguration> rooms
@@ -297,6 +315,8 @@ public class HeatingPlannerConfigurationService {
             BigDecimal woodAmount,
             Integer woodReleaseDelayMinutes,
             Integer woodReleaseDurationMinutes,
+            BigDecimal cheapPriceThreshold,
+            BigDecimal expensivePriceThreshold,
             BigDecimal cheapPricePercentile,
             BigDecimal expensivePricePercentile
     ) {

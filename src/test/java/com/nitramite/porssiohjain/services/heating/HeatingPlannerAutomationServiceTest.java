@@ -6,6 +6,7 @@ package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
+import com.nitramite.porssiohjain.services.ControlPriceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +42,7 @@ class HeatingPlannerAutomationServiceTest {
     void setUp() {
         service = new HeatingPlannerAutomationService(settingsRepository, roomRepository, nordpoolRepository,
                 weatherRepository, measurementService, thermalModelService, simulationService, planService,
-                activeControlService);
+                activeControlService, new ControlPriceService(nordpoolRepository));
         now = Instant.parse("2026-01-15T12:00:00Z");
         AccountEntity account = new AccountEntity(); account.setId(7L); account.setMarketIndexName("FI");
         SiteEntity site = new SiteEntity(); site.setId(8L); site.setTimezone("Europe/Helsinki");
@@ -74,10 +75,11 @@ class HeatingPlannerAutomationServiceTest {
                         new BigDecimal("0.8"), "learned"));
         settings.setCheapPricePercentile(new BigDecimal("0.3000"));
         settings.setExpensivePricePercentile(new BigDecimal("0.6500"));
-        when(simulationService.calculateDynamicPriceThresholds(anyList(), eq(new BigDecimal("0.3000")),
-                eq(new BigDecimal("0.6500")))).thenReturn(
+        when(simulationService.calculatePriceThresholds(anyList(), eq(new BigDecimal("0.3000")),
+                eq(new BigDecimal("0.6500")), eq(new BigDecimal("5.0000")),
+                eq(new BigDecimal("20.0000")))).thenReturn(
                 new HeatingPlanSimulationService.PriceThresholds(
-                        new BigDecimal("8.75"), new BigDecimal("16.25")));
+                        new BigDecimal("5.00"), new BigDecimal("20.00")));
         when(simulationService.simulate(any())).thenReturn(simulation);
         when(planService.persistSimulatedPlan(eq(7L), eq(8L), anyMap())).thenReturn(true);
         when(activeControlService.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now)).thenReturn(true);
@@ -87,8 +89,9 @@ class HeatingPlannerAutomationServiceTest {
         assertThat(settings.getLastAutomaticPlanAt()).isEqualTo(now);
         assertThat(settings.getLastAutomaticActivationAt()).isEqualTo(now);
         assertThat(settings.getLastAutomationError()).isNull();
-        verify(simulationService).calculateDynamicPriceThresholds(anyList(), eq(new BigDecimal("0.3000")),
-                eq(new BigDecimal("0.6500")));
+        verify(simulationService).calculatePriceThresholds(anyList(), eq(new BigDecimal("0.3000")),
+                eq(new BigDecimal("0.6500")), eq(new BigDecimal("5.0000")),
+                eq(new BigDecimal("20.0000")));
         verify(activeControlService).activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now);
     }
 

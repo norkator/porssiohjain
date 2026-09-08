@@ -70,6 +70,22 @@ class HeatingPlanSimulationServiceTest {
     }
 
     @Test
+    void configuredPriceLimitsGateDynamicPercentiles() {
+        Instant start = Instant.parse("2026-01-15T00:00:00Z");
+        var market = List.of(
+                point(start, "0.2"), point(start.plusSeconds(1), "1.0"),
+                point(start.plusSeconds(2), "2.0"), point(start.plusSeconds(3), "5.0")
+        );
+
+        var thresholds = service.calculatePriceThresholds(
+                market, new BigDecimal("0.25"), new BigDecimal("0.75"),
+                new BigDecimal("5.0"), new BigDecimal("20.0"));
+
+        assertThat(thresholds.cheapPriceThreshold()).isEqualByComparingTo("0.8");
+        assertThat(thresholds.expensivePriceThreshold()).isEqualByComparingTo("20.0");
+    }
+
+    @Test
     void preheatsBeforeExpensivePeriodAndDischargesDuringIt() {
         Instant start = Instant.parse("2026-01-15T00:00:00Z");
         var request = request(List.of(

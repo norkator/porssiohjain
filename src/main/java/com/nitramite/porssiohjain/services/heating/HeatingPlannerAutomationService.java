@@ -6,6 +6,7 @@ package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.repository.*;
+import com.nitramite.porssiohjain.services.ControlPriceService;
 import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,7 @@ public class HeatingPlannerAutomationService {
     private final HeatingPlanSimulationService simulationService;
     private final HeatingPlannerPlanService planService;
     private final HeatingPlannerActiveControlService activeControlService;
+    private final ControlPriceService controlPriceService;
 
     @Transactional
     public void runEnabledPlanners(Instant now) {
@@ -119,15 +121,13 @@ public class HeatingPlannerAutomationService {
     private List<HeatingPlanSimulationService.MarketPoint> market(HeatingPlannerSettingsEntity settings,
                                                                   List<NordpoolEntity> prices,
                                                                   List<SiteWeatherEntity> weather, ZoneId zone) {
-        BigDecimal taxMultiplier = BigDecimal.ONE.add(settings.getTaxPercent()
-                .divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP));
         return prices.stream().sorted(Comparator.comparing(NordpoolEntity::getDeliveryStart)).map(price -> {
             SiteWeatherEntity forecast = weather.stream().min(Comparator.comparing(point ->
                     Duration.between(point.getForecastTime(), price.getDeliveryStart()).abs())).orElseThrow();
-            BigDecimal marketPrice = price.getPriceFi().multiply(new BigDecimal("0.1"))
-                    .multiply(taxMultiplier).setScale(4, RoundingMode.HALF_UP);
-            BigDecimal transferPrice = transferPrice(settings.getTransferContract(), price.getDeliveryStart(), zone);
-            return new HeatingPlanSimulationService.MarketPoint(price.getDeliveryStart(), marketPrice.add(transferPrice),
+            BigDecimal combinedPrice = controlPriceService.getCombinedPrice(
+                    settings.getTaxPercent(), settings.getTransferContract(), price, zone)
+                    .setScale(4, RoundingMode.HALF_UP);
+            return new HeatingPlanSimulationService.MarketPoint(price.getDeliveryStart(), combinedPrice,
                     forecast.getTemperature() == null ? BigDecimal.ZERO : forecast.getTemperature(),
                     forecast.getWindSpeedMs() == null ? BigDecimal.ZERO : forecast.getWindSpeedMs());
         }).toList();
@@ -141,8 +141,9 @@ public class HeatingPlannerAutomationService {
                                                                     boolean floorFresh, boolean roomFresh,
                                                                     ZonedDateTime horizonStart) {
         HeatingPlanSimulationService.PriceThresholds priceThresholds =
-                simulationService.calculateDynamicPriceThresholds(
-                        market, settings.getCheapPricePercentile(), settings.getExpensivePricePercentile());
+                simulationService.calculatePriceThresholds(
+                        market, settings.getCheapPricePercentile(), settings.getExpensivePricePercentile(),
+                        settings.getCheapPriceThreshold(), settings.getExpensivePriceThreshold());
         var simulationSettings = new HeatingPlanSimulationService.Settings(
                 Duration.ofMinutes(settings.getSimulationStepMinutes()), priceThresholds.cheapPriceThreshold(),
                 priceThresholds.expensivePriceThreshold(), room.getNormalFloorTemperature(),
@@ -176,16 +177,6 @@ public class HeatingPlannerAutomationService {
                 value(room.getFloorToRoomRate(), DEFAULT_FLOOR_TO_ROOM_RATE),
                 value(room.getRoomOutdoorLossRate(), DEFAULT_OUTDOOR_LOSS_RATE),
                 value(room.getWindLossRate(), DEFAULT_WIND_LOSS_RATE));
-    }
-
-    private BigDecimal transferPrice(ElectricityContractEntity contract, Instant time, ZoneId zone) {
-        if (contract == null) return BigDecimal.ZERO;
-        BigDecimal tax = value(contract.getTaxAmount(), BigDecimal.ZERO);
-        if (contract.getStaticPrice() != null && contract.getDayPrice() == null && contract.getNightPrice() == null)
-            return contract.getStaticPrice().add(tax);
-        boolean night = time.atZone(zone).getHour() >= 22 || time.atZone(zone).getHour() < 7;
-        BigDecimal price = night ? contract.getNightPrice() : contract.getDayPrice();
-        return price == null ? BigDecimal.ZERO : price.add(tax);
     }
 
     private ZoneId zone(HeatingPlannerSettingsEntity settings) {

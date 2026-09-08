@@ -40,15 +40,30 @@ public class ControlPriceService {
     }
 
     public BigDecimal getCombinedPrice(ControlEntity control, NordpoolEntity priceEntry) {
-        BigDecimal taxPercent = control.getTaxPercent() != null ? control.getTaxPercent() : BigDecimal.ZERO;
-        BigDecimal taxMultiplier = BigDecimal.ONE.add(taxPercent.divide(BigDecimal.valueOf(100)));
+        return getCombinedPrice(
+                control.getTaxPercent(),
+                control.getTransferContract(),
+                priceEntry,
+                ZoneId.of(control.getTimezone())
+        );
+    }
+
+    public BigDecimal getCombinedPrice(BigDecimal taxPercent,
+                                       ElectricityContractEntity transferContract,
+                                       NordpoolEntity priceEntry,
+                                       ZoneId zone) {
+        if (priceEntry == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal taxMultiplier = BigDecimal.ONE.add(
+                (taxPercent == null ? BigDecimal.ZERO : taxPercent).divide(BigDecimal.valueOf(100)));
         BigDecimal nordpoolPrice = priceEntry.getPriceFi()
                 .multiply(BigDecimal.valueOf(0.1))
                 .multiply(taxMultiplier);
         return nordpoolPrice.add(resolveTransferPrice(
-                control.getTransferContract(),
+                transferContract,
                 priceEntry.getDeliveryStart(),
-                ZoneId.of(control.getTimezone())
+                zone
         ));
     }
 
