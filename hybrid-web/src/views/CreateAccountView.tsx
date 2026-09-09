@@ -124,7 +124,7 @@ export default function CreateAccountView() {
     setIsSubmitting(true);
 
     try {
-      setAccount(await createAccount());
+      setAccount(await createAccount({ locale }));
       setIsTermsOpen(false);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : t("genericFailed"));

@@ -96,11 +96,33 @@ class AccountControllerTest {
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.uuid").isString())
                 .andExpect(jsonPath("$.secret").isString())
+                .andExpect(jsonPath("$.locale").value("en"))
                 .andExpect(jsonPath("$.agreedTerms").value(true))
                 .andExpect(jsonPath("$.agreedTermsAt").isString())
                 .andExpect(jsonPath("$.createdAt").isString());
 
         assertThat(accountRepository.count()).isGreaterThan(0);
+    }
+
+    @Test
+    @DisplayName("Should persist requested locale when creating account")
+    void createAccountShouldPersistRequestedLocale() throws Exception {
+        String responseBody = mockMvc.perform(post("/account/create")
+                        .header("X-Forwarded-For", "10.10.10.11")
+                        .contentType("application/json")
+                        .content("""
+                                {"locale":"fi-FI"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.locale").value("fi"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID accountUuid = UUID.fromString(objectMapper.readTree(responseBody).get("uuid").asText());
+        AccountEntity saved = accountRepository.findByUuid(accountUuid).orElseThrow();
+        assertThat(saved.getLocale()).isEqualTo("fi");
     }
 
     @Test

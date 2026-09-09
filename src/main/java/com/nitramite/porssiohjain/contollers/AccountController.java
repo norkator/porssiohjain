@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.RateLimitService;
 import com.nitramite.porssiohjain.services.TermsOfServiceService;
+import com.nitramite.porssiohjain.services.models.CreateAccountRequest;
 import com.nitramite.porssiohjain.services.models.LoginRequest;
 import com.nitramite.porssiohjain.services.models.RefreshTokenRequest;
 import com.nitramite.porssiohjain.services.models.TermsOfServiceResponse;
@@ -42,13 +43,13 @@ public class AccountController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<?> createAccount() {
+    public ResponseEntity<?> createAccount(@RequestBody(required = false) CreateAccountRequest requestBody) {
         String ip = getClientIp();
         if (!rateLimitService.allowAccountCreation(ip)) {
             return ResponseEntity.status(429).body("Too many account creations. Try again later.");
         }
 
-        return ResponseEntity.ok(accountService.createAccount(ip, true));
+        return ResponseEntity.ok(accountService.createAccount(ip, true, requestBody != null ? requestBody.getLocale() : null));
     }
 
     @GetMapping("/terms")

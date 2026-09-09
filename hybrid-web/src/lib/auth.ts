@@ -26,6 +26,7 @@ export type CreatedAccount = {
   id?: number;
   uuid: string;
   secret: string;
+  locale?: string;
 };
 
 export type TermsOfService = {
@@ -83,8 +84,14 @@ export async function loginWithCredentials(input: { uuid: string; secret: string
   return loginResponse;
 }
 
-export async function createAccount() {
+export async function createAccount(input?: { locale?: string }) {
   const response = await fetch(getPublicApiUrl("/account/create"), {
+    body: JSON.stringify({
+      locale: input?.locale ?? getCurrentLocale()
+    }),
+    headers: {
+      "Content-Type": "application/json"
+    },
     method: "POST"
   });
 

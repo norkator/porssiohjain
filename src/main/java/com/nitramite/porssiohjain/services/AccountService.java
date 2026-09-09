@@ -37,6 +37,11 @@ public class AccountService {
 
     @Transactional
     public AccountEntity createAccount(String ip, boolean agreedTerms) {
+        return createAccount(ip, agreedTerms, null);
+    }
+
+    @Transactional
+    public AccountEntity createAccount(String ip, boolean agreedTerms, String locale) {
         if (!rateLimitService.allowAccountCreation(ip)) {
             throw new IllegalStateException("Rate limit exceeded. Try again later.");
         }
@@ -51,6 +56,7 @@ public class AccountService {
         AccountEntity account = AccountEntity.builder()
                 .uuid(UUID.randomUUID())
                 .secret(hashedSecret)
+                .locale(normalizeLocale(locale))
                 .agreedTerms(true)
                 .agreedTermsAt(now)
                 .createdAt(now)
@@ -88,6 +94,15 @@ public class AccountService {
                 .createdAt(savedAccount.getCreatedAt())
                 .updatedAt(savedAccount.getUpdatedAt())
                 .build();
+    }
+
+    private String normalizeLocale(String locale) {
+        if (locale == null || locale.isBlank()) {
+            return "en";
+        }
+
+        String language = Locale.forLanguageTag(locale.trim()).getLanguage();
+        return "fi".equals(language) ? "fi" : "en";
     }
 
     private void notifyAdminsAccountCreated(AccountEntity account) {
