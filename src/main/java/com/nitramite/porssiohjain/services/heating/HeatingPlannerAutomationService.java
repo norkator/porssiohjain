@@ -56,6 +56,13 @@ public class HeatingPlannerAutomationService {
         }
     }
 
+    @Transactional
+    public void generateForSite(Long accountId, Long siteId, Instant now) {
+        HeatingPlannerSettingsEntity settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId)
+                .orElseThrow(() -> new IllegalStateException("Heating Planner settings have not been saved"));
+        generateAndMaybeActivate(settings, now);
+    }
+
     void generateAndMaybeActivate(HeatingPlannerSettingsEntity settings, Instant now) {
         ZoneId zone = zone(settings);
         ZonedDateTime horizonStart = now.atZone(zone).toLocalDate().atStartOfDay(zone);

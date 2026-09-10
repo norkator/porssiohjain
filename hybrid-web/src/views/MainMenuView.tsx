@@ -370,6 +370,16 @@ export default function MainMenuView() {
       hasError: false
     }
   ];
+  const toolTiles: Extract<SiteOwnTile, { to: string }>[] = [
+    {
+      key: "heatingPlanner",
+      title: tileTitles.heatingPlanner,
+      detail: t("heatingPlannerDescription"),
+      to: "/heating-planner",
+      icon: "H",
+      hasError: false
+    }
+  ];
   const siteOwnTileClassName = "group relative overflow-hidden rounded-xl bg-surface-container-low p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98] sm:p-6";
   const renderSiteOwnTileContent = (tile: typeof siteOwnTiles[number]) => (
     <>
@@ -863,6 +873,20 @@ export default function MainMenuView() {
                   {renderSiteOwnTileContent(tile)}
                 </button>
               )
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-12">
+          <h2 className="mb-8 flex items-center gap-3 text-2xl font-bold">
+            <span className="h-1 w-8 rounded-full bg-primary" />
+            {t("tools")}
+          </h2>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-5">
+            {toolTiles.map((tile) => (
+              <Link className={siteOwnTileClassName} key={tile.key} to={tile.to}>
+                {renderSiteOwnTileContent(tile)}
+              </Link>
             ))}
           </div>
         </section>

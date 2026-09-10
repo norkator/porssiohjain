@@ -23,6 +23,7 @@ import ControlsView from "@/views/ControlsView";
 import CreateAccountView from "@/views/CreateAccountView";
 import DevicesView from "@/views/DevicesView";
 import ElectricityContractsView from "@/views/ElectricityContractsView";
+import HeatingPlannerView from "@/views/HeatingPlannerView";
 import LoginView from "@/views/LoginView";
 import MainMenuView from "@/views/MainMenuView";
 import ManageControlView from "@/views/ManageControlView";
@@ -84,6 +85,7 @@ function ProtectedAppRoutes() {
         <Route path="/weather-controls/:weatherControlId" element={<ManageWeatherControlView />} />
         <Route path="/sites" element={<SitesView />} />
         <Route path="/electricity-contracts" element={<ElectricityContractsView />} />
+        <Route path="/heating-planner" element={<HeatingPlannerView />} />
         <Route path="/production-sources" element={<ProductionSourcesView />} />
         <Route path="/production-sources/:sourceId" element={<ManageProductionSourceView />} />
         <Route path="/power-limits" element={<PowerLimitsView />} />
