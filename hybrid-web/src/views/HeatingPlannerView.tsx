@@ -421,7 +421,11 @@ export default function HeatingPlannerView() {
                 <h2 className="font-headline text-2xl font-black">{data.activeControl.active ? t("activeNow") : t("dryRun")}</h2>
                 <p className="mt-2 text-sm text-on-surface-variant">{data.activeControl.ready ? t("activeReady") : data.activeControl.issues[0] ?? t("activeNotReady")}</p>
                 <button
-                  className={`mt-5 w-full justify-center px-5 py-3 text-sm ${data.activeControl.active ? "secondary-action" : "primary-action"} disabled:cursor-not-allowed disabled:opacity-60`}
+                  className={`mt-5 w-full justify-center px-5 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${
+                    data.activeControl.active
+                      ? "inline-flex items-center gap-2 rounded-xl bg-on-error-container px-6 py-4 font-headline text-lg font-bold text-white shadow-lg transition-transform active:scale-95"
+                      : "primary-action"
+                  }`}
                   disabled={isTogglingActive || (!data.activeControl.active && !data.activeControl.ready)}
                   onClick={handleActiveControlToggle}
                   type="button"
@@ -439,74 +443,74 @@ export default function HeatingPlannerView() {
               </article>
             </section>
 
-            <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-              <div className="space-y-6">
-                <article className="app-card p-5">
-                  <h2 className="font-headline text-2xl font-black">{t("planningInputs")}</h2>
-                  <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <NumberInput label={t("plannerActiveBelow")} name="plannerActiveBelowTemperature" value={configuration.plannerActiveBelowTemperature} />
-                    <NumberInput label={t("woodRecommendationBelow")} name="woodRecommendationBelowTemperature" value={configuration.woodRecommendationBelowTemperature} />
-                    <NumberInput label={t("taxPercent")} name="taxPercent" value={configuration.taxPercent} />
-                    <label className="block text-sm font-bold">
-                      {t("transferContract")}
-                      <select className="mt-2 w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-3 py-3 outline-none focus:border-primary" name="transferContractId" value={configuration.transferContractId ?? ""}>
-                        <option value="">{common("notAvailable")}</option>
-                        {data.transferContracts.map((contract) => <option key={contract.id} value={contract.id}>{contract.name}</option>)}
-                      </select>
-                    </label>
-                    <NumberInput label={t("cheapThreshold")} name="cheapPriceThreshold" step="0.25" value={configuration.cheapPriceThreshold} />
-                    <NumberInput label={t("expensiveThreshold")} name="expensivePriceThreshold" step="0.25" value={configuration.expensivePriceThreshold} />
-                    <NumberInput label={t("cheapPercentile")} name="cheapPricePercentile" step="0.05" value={configuration.cheapPricePercentile} />
-                    <NumberInput label={t("expensivePercentile")} name="expensivePricePercentile" step="0.05" value={configuration.expensivePricePercentile} />
-                  </div>
-                </article>
-
-                <article className="app-card p-5">
-                  <h2 className="font-headline text-2xl font-black">{t("woodStove")}</h2>
-                  <label className="mt-5 flex items-center justify-between gap-4 rounded-lg bg-surface-container-low p-4 font-bold">
-                    <span>{t("stoveLoaded")}</span>
-                    <input checked={configuration.stoveLoaded} name="stoveLoaded" onChange={(event) => updateConfiguration({ stoveLoaded: event.target.checked })} type="checkbox" />
+            <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <article className="app-card p-5">
+                <h2 className="font-headline text-2xl font-black">{t("planningInputs")}</h2>
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <NumberInput label={t("plannerActiveBelow")} name="plannerActiveBelowTemperature" value={configuration.plannerActiveBelowTemperature} />
+                  <NumberInput label={t("woodRecommendationBelow")} name="woodRecommendationBelowTemperature" value={configuration.woodRecommendationBelowTemperature} />
+                  <NumberInput label={t("taxPercent")} name="taxPercent" value={configuration.taxPercent} />
+                  <label className="block text-sm font-bold">
+                    {t("transferContract")}
+                    <select className="mt-2 w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-3 py-3 outline-none focus:border-primary" name="transferContractId" value={configuration.transferContractId ?? ""}>
+                      <option value="">{common("notAvailable")}</option>
+                      {data.transferContracts.map((contract) => <option key={contract.id} value={contract.id}>{contract.name}</option>)}
+                    </select>
                   </label>
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <TimeInput label={t("availableFrom")} name="stoveAvailableFrom" value={configuration.stoveAvailableFrom} />
-                    <TimeInput label={t("availableTo")} name="stoveAvailableTo" value={configuration.stoveAvailableTo} />
-                    <NumberInput label={t("woodAmount")} name="woodAmount" value={configuration.woodAmount} />
-                    <NumberInput label={t("releaseDelay")} name="woodReleaseDelayMinutes" value={configuration.woodReleaseDelayMinutes} />
-                    <NumberInput label={t("releaseDuration")} name="woodReleaseDurationMinutes" value={configuration.woodReleaseDurationMinutes} />
-                  </div>
-                </article>
+                  <NumberInput label={t("cheapThreshold")} name="cheapPriceThreshold" step="0.25" value={configuration.cheapPriceThreshold} />
+                  <NumberInput label={t("expensiveThreshold")} name="expensivePriceThreshold" step="0.25" value={configuration.expensivePriceThreshold} />
+                  <NumberInput label={t("cheapPercentile")} name="cheapPricePercentile" step="0.05" value={configuration.cheapPricePercentile} />
+                  <NumberInput label={t("expensivePercentile")} name="expensivePricePercentile" step="0.05" value={configuration.expensivePricePercentile} />
+                </div>
+              </article>
+
+              <article className="app-card p-5">
+                <h2 className="font-headline text-2xl font-black">{t("woodStove")}</h2>
+                <label className="mt-5 flex items-center justify-between gap-4 rounded-lg bg-surface-container-low p-4 font-bold">
+                  <span>{t("stoveLoaded")}</span>
+                  <input checked={configuration.stoveLoaded} name="stoveLoaded" onChange={(event) => updateConfiguration({ stoveLoaded: event.target.checked })} type="checkbox" />
+                </label>
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <TimeInput label={t("availableFrom")} name="stoveAvailableFrom" value={configuration.stoveAvailableFrom} />
+                  <TimeInput label={t("availableTo")} name="stoveAvailableTo" value={configuration.stoveAvailableTo} />
+                  <NumberInput label={t("woodAmount")} name="woodAmount" value={configuration.woodAmount} />
+                  <NumberInput label={t("releaseDelay")} name="woodReleaseDelayMinutes" value={configuration.woodReleaseDelayMinutes} />
+                  <NumberInput label={t("releaseDuration")} name="woodReleaseDurationMinutes" value={configuration.woodReleaseDurationMinutes} />
+                </div>
+              </article>
+            </section>
+
+            <section className="app-card p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="font-headline text-2xl font-black">{t("planPreview")}</h2>
+                  <p className="mt-2 text-sm text-on-surface-variant">{latestReason}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  {data.latestPlan ? <span className="chip bg-surface-container-highest text-primary">{data.latestPlan.points.length} {t("points")}</span> : null}
+                  <button
+                    className="secondary-action rounded-lg px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isRecalculating}
+                    onClick={handleRecalculate}
+                    type="button"
+                  >
+                    {isRecalculating ? common("syncing") : t("recalculate")}
+                  </button>
+                </div>
               </div>
-
-              <div className="space-y-6">
-                <article className="app-card p-5">
-                  <div className="flex items-center justify-between gap-4">
-                    <h2 className="font-headline text-2xl font-black">{t("planPreview")}</h2>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      {data.latestPlan ? <span className="chip bg-surface-container-highest text-primary">{data.latestPlan.points.length} {t("points")}</span> : null}
-                      <button
-                        className="secondary-action rounded-lg px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={isRecalculating}
-                        onClick={handleRecalculate}
-                        type="button"
-                      >
-                        {isRecalculating ? common("syncing") : t("recalculate")}
-                      </button>
-                    </div>
-                  </div>
-                  <p className="mb-5 mt-2 text-sm text-on-surface-variant">{latestReason}</p>
-                  <HeatingPlanChart plan={data.latestPlan} timezone={selectedSite.timezone} />
-                </article>
-
-                <article className="app-card p-5">
-                  <h2 className="font-headline text-2xl font-black">{t("activeEvidence")}</h2>
-                  <div className="mt-4 space-y-2">
-                    {(data.activeControl.issues.length ? data.activeControl.issues : [t("noActiveIssues")]).map((issue) => (
-                      <p className="rounded-lg bg-surface-container-low px-4 py-3 text-sm text-on-surface-variant" key={issue}>{issue}</p>
-                    ))}
-                  </div>
-                </article>
+              <div className="mt-5">
+                <HeatingPlanChart plan={data.latestPlan} timezone={selectedSite.timezone} />
               </div>
             </section>
+
+            <details className="app-card p-5">
+              <summary className="cursor-pointer font-headline text-xl font-black">{t("activeEvidence")}</summary>
+              <div className="mt-4 space-y-2">
+                {(data.activeControl.issues.length ? data.activeControl.issues : [t("noActiveIssues")]).map((issue) => (
+                  <p className="rounded-lg bg-surface-container-low px-4 py-3 text-sm text-on-surface-variant" key={issue}>{issue}</p>
+                ))}
+              </div>
+            </details>
 
             <section className="app-card p-5">
               <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
