@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import AppDialog from "@/components/AppDialog";
 import PageHeader from "@/components/PageHeader";
 import {
   disableHeatingPlannerActiveControl,
@@ -73,6 +74,11 @@ function heatSourceLabel(type: HeatingPlannerHeatSourceType, labels: Record<stri
 
 function deviceOptions(devices: HeatingPlannerDeviceChoice[], type: "THERMOSTAT" | "TEMPERATURE_SENSOR" | "ANY") {
   return devices.filter((device) => type === "ANY" || device.type === type);
+}
+
+function deviceName(devices: HeatingPlannerDeviceChoice[], deviceId: number | null) {
+  if (!deviceId) return "-";
+  return devices.find((device) => device.id === deviceId)?.name ?? `#${deviceId}`;
 }
 
 function linePath<T>(items: T[], getX: (item: T, index: number) => number, getY: (item: T) => number | null) {
@@ -176,6 +182,8 @@ export default function HeatingPlannerView() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [isTogglingActive, setIsTogglingActive] = useState(false);
+  const [editingRoomIndex, setEditingRoomIndex] = useState<number | null>(null);
+  const [roomDraft, setRoomDraft] = useState<HeatingPlannerRoom | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -213,28 +221,48 @@ export default function HeatingPlannerView() {
     setConfiguration((current) => current ? { ...current, ...patch } : current);
   }
 
-  function updateRoom(index: number, patch: Partial<HeatingPlannerRoom>) {
-    setConfiguration((current) => {
-      if (!current) return current;
-      return {
-        ...current,
-        rooms: current.rooms.map((room, roomIndex) => roomIndex === index ? { ...room, ...patch } : room)
-      };
-    });
-  }
-
-  function addRoom() {
-    setConfiguration((current) => current ? {
-      ...current,
-      rooms: [...current.rooms, { ...DEFAULT_ROOM, name: t("newRoomName") }]
-    } : current);
-  }
-
   function removeRoom(index: number) {
     setConfiguration((current) => current ? {
       ...current,
       rooms: current.rooms.filter((_room, roomIndex) => roomIndex !== index)
     } : current);
+  }
+
+  function openAddRoomDialog() {
+    setEditingRoomIndex(null);
+    setRoomDraft({ ...DEFAULT_ROOM, name: t("newRoomName") });
+  }
+
+  function openEditRoomDialog(index: number) {
+    const room = configuration?.rooms[index];
+    if (!room) return;
+    setEditingRoomIndex(index);
+    setRoomDraft({ ...room });
+  }
+
+  function closeRoomDialog() {
+    setEditingRoomIndex(null);
+    setRoomDraft(null);
+  }
+
+  function updateRoomDraft(patch: Partial<HeatingPlannerRoom>) {
+    setRoomDraft((current) => current ? { ...current, ...patch } : current);
+  }
+
+  function saveRoomDraft() {
+    if (!roomDraft) return;
+    const normalizedRoom = {
+      ...roomDraft,
+      name: roomDraft.name.trim() || t("newRoomName")
+    };
+    setConfiguration((current) => {
+      if (!current) return current;
+      const rooms = editingRoomIndex === null
+        ? [...current.rooms, normalizedRoom]
+        : current.rooms.map((room, index) => index === editingRoomIndex ? normalizedRoom : room);
+      return { ...current, rooms };
+    });
+    closeRoomDialog();
   }
 
   async function handleSiteChange(event: ChangeEvent<HTMLSelectElement>) {
@@ -486,34 +514,35 @@ export default function HeatingPlannerView() {
                   <h2 className="font-headline text-2xl font-black">{t("rooms")}</h2>
                   <p className="mt-1 text-sm text-on-surface-variant">{t("roomsDescription")}</p>
                 </div>
-                <button className="secondary-action justify-center px-4 py-3 text-sm" onClick={addRoom} type="button">+ {t("addRoom")}</button>
+                <button className="secondary-action justify-center px-4 py-3 text-sm" onClick={openAddRoomDialog} type="button">+ {t("addRoom")}</button>
               </div>
-              <div className="grid grid-cols-1 gap-5">
+              <div className="grid grid-cols-1 gap-3">
                 {configuration.rooms.map((room, index) => (
                   <article className="rounded-xl border border-outline-variant/60 bg-surface-container-low p-4" key={`${room.name}-${index}`}>
-                    <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
                         <p className="metric-label mb-1">{t("room")} {index + 1}</p>
                         <h3 className="font-headline text-xl font-black">{room.name || t("newRoomName")}</h3>
+                        <p className="mt-1 text-sm text-on-surface-variant">{heatSourceLabel(room.sourceType, heatSourceLabels)}</p>
                       </div>
-                      <button className="secondary-action rounded-lg px-3 py-2 text-xs" disabled={configuration.rooms.length === 1} onClick={() => removeRoom(index)} type="button">{common("remove")}</button>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <TextInput label={t("roomName")} value={room.name} onChange={(value) => updateRoom(index, { name: value })} />
-                      <label className="block text-sm font-bold">
-                        {t("heatSource")}
-                        <select className="mt-2 w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-3 py-3 outline-none focus:border-primary" onChange={(event) => updateRoom(index, { sourceType: event.target.value as HeatingPlannerHeatSourceType })} value={room.sourceType}>
-                          {(["FLOOR_HEATING", "WOOD_STOVE", "OTHER"] as HeatingPlannerHeatSourceType[]).map((type) => <option key={type} value={type}>{heatSourceLabel(type, heatSourceLabels)}</option>)}
-                        </select>
-                      </label>
-                      <SelectDevice label={t("controller")} devices={thermostatChoices} value={room.controllingDeviceId} onChange={(value) => updateRoom(index, { controllingDeviceId: value })} />
-                      <SelectDevice label={t("roomSensor")} devices={temperatureSensorChoices} value={room.roomSensorDeviceId} onChange={(value) => updateRoom(index, { roomSensorDeviceId: value })} />
-                      <SelectDevice label={t("floorSensor")} devices={floorSensorChoices} value={room.floorSensorDeviceId} onChange={(value) => updateRoom(index, { floorSensorDeviceId: value })} />
-                      <NumberControl label={t("targetRoom")} value={room.targetRoomTemperature} onChange={(value) => updateRoom(index, { targetRoomTemperature: value })} />
-                      <NumberControl label={t("normalFloor")} value={room.normalFloorTemperature} onChange={(value) => updateRoom(index, { normalFloorTemperature: value })} />
-                      <NumberControl label={t("preheatMax")} value={room.maximumPreheatFloorTemperature} onChange={(value) => updateRoom(index, { maximumPreheatFloorTemperature: value })} />
-                      <NumberControl label={t("absoluteMax")} value={room.absoluteMaximumFloorTemperature} onChange={(value) => updateRoom(index, { absoluteMaximumFloorTemperature: value })} />
-                      <NumberControl label={t("dischargeSetpoint")} value={room.dischargeFloorSetpoint} onChange={(value) => updateRoom(index, { dischargeFloorSetpoint: value })} />
+                      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3 lg:min-w-[34rem]">
+                        <div className="rounded-lg bg-surface-container-high px-3 py-2">
+                          <span className="metric-label">{t("controller")}</span>
+                          <p className="font-semibold">{deviceName(data.devices, room.controllingDeviceId)}</p>
+                        </div>
+                        <div className="rounded-lg bg-surface-container-high px-3 py-2">
+                          <span className="metric-label">{t("roomSensor")}</span>
+                          <p className="font-semibold">{deviceName(data.devices, room.roomSensorDeviceId)}</p>
+                        </div>
+                        <div className="rounded-lg bg-surface-container-high px-3 py-2">
+                          <span className="metric-label">{t("floorSensor")}</span>
+                          <p className="font-semibold">{deviceName(data.devices, room.floorSensorDeviceId)}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
+                        <button className="secondary-action justify-center rounded-lg px-3 py-2 text-sm" onClick={() => openEditRoomDialog(index)} type="button">{common("edit")}</button>
+                        <button className="secondary-action justify-center rounded-lg px-3 py-2 text-sm" disabled={configuration.rooms.length === 1} onClick={() => removeRoom(index)} type="button">{common("remove")}</button>
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -528,6 +557,41 @@ export default function HeatingPlannerView() {
           </form>
         ) : null}
       </main>
+
+      <AppDialog
+        description={t("roomDialogDescription")}
+        isOpen={Boolean(roomDraft)}
+        maxWidthClassName="max-w-4xl"
+        onClose={closeRoomDialog}
+        title={editingRoomIndex === null ? t("addRoomTitle") : t("editRoomTitle")}
+      >
+        {roomDraft ? (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <TextInput label={t("roomName")} value={roomDraft.name} onChange={(value) => updateRoomDraft({ name: value })} />
+              <label className="block text-sm font-bold">
+                {t("heatSource")}
+                <select className="mt-2 w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-3 py-3 outline-none focus:border-primary" onChange={(event) => updateRoomDraft({ sourceType: event.target.value as HeatingPlannerHeatSourceType })} value={roomDraft.sourceType}>
+                  {(["FLOOR_HEATING", "WOOD_STOVE", "OTHER"] as HeatingPlannerHeatSourceType[]).map((type) => <option key={type} value={type}>{heatSourceLabel(type, heatSourceLabels)}</option>)}
+                </select>
+              </label>
+              <SelectDevice label={t("controller")} devices={thermostatChoices} value={roomDraft.controllingDeviceId} onChange={(value) => updateRoomDraft({ controllingDeviceId: value })} />
+              <SelectDevice label={t("roomSensor")} devices={temperatureSensorChoices} value={roomDraft.roomSensorDeviceId} onChange={(value) => updateRoomDraft({ roomSensorDeviceId: value })} />
+              <SelectDevice label={t("floorSensor")} devices={floorSensorChoices} value={roomDraft.floorSensorDeviceId} onChange={(value) => updateRoomDraft({ floorSensorDeviceId: value })} />
+              <NumberControl label={t("targetRoom")} value={roomDraft.targetRoomTemperature} onChange={(value) => updateRoomDraft({ targetRoomTemperature: value })} />
+              <NumberControl label={t("normalFloor")} value={roomDraft.normalFloorTemperature} onChange={(value) => updateRoomDraft({ normalFloorTemperature: value })} />
+              <NumberControl label={t("preheatMax")} value={roomDraft.maximumPreheatFloorTemperature} onChange={(value) => updateRoomDraft({ maximumPreheatFloorTemperature: value })} />
+              <NumberControl label={t("absoluteMax")} value={roomDraft.absoluteMaximumFloorTemperature} onChange={(value) => updateRoomDraft({ absoluteMaximumFloorTemperature: value })} />
+              <NumberControl label={t("dischargeSetpoint")} value={roomDraft.dischargeFloorSetpoint} onChange={(value) => updateRoomDraft({ dischargeFloorSetpoint: value })} />
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button className="secondary-action justify-center" onClick={closeRoomDialog} type="button">{common("cancel")}</button>
+              <button className="primary-action justify-center" onClick={saveRoomDraft} type="button">{t("saveRoom")}</button>
+            </div>
+          </div>
+        ) : null}
+      </AppDialog>
     </>
   );
 }
