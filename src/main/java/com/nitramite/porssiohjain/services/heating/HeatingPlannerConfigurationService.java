@@ -82,6 +82,7 @@ public class HeatingPlannerConfigurationService {
                             room.getName(),
                             source == null ? HeatingPlannerHeatSourceType.OTHER : source.getSourceType(),
                             room.getTargetRoomTemperature(),
+                            room.getMinimumRoomTemperature(),
                             room.getNormalFloorTemperature(),
                             room.getMaximumPreheatFloorTemperature(),
                             room.getAbsoluteMaximumFloorTemperature(),
@@ -201,6 +202,8 @@ public class HeatingPlannerConfigurationService {
             }
             BigDecimal target = roomConfiguration.targetRoomTemperature() == null
                     ? new BigDecimal("21.00") : roomConfiguration.targetRoomTemperature();
+            BigDecimal minimumRoom = roomConfiguration.minimumRoomTemperature() == null
+                    ? target.subtract(BigDecimal.ONE) : roomConfiguration.minimumRoomTemperature();
             BigDecimal normalFloor = roomConfiguration.normalFloorTemperature() == null
                     ? new BigDecimal("23.00") : roomConfiguration.normalFloorTemperature();
             BigDecimal maximumPreheatFloor = roomConfiguration.maximumPreheatFloorTemperature() == null
@@ -209,6 +212,9 @@ public class HeatingPlannerConfigurationService {
                     ? new BigDecimal("29.00") : roomConfiguration.absoluteMaximumFloorTemperature();
             BigDecimal dischargeFloor = roomConfiguration.dischargeFloorSetpoint() == null
                     ? new BigDecimal("19.00") : roomConfiguration.dischargeFloorSetpoint();
+            if (minimumRoom.compareTo(target.add(new BigDecimal("2.50"))) >= 0) {
+                throw new IllegalArgumentException("Comfort minimum must be below the room comfort maximum");
+            }
             HeatingPlannerHeatSourceType sourceType = roomConfiguration.sourceType() == null
                     ? HeatingPlannerHeatSourceType.OTHER : roomConfiguration.sourceType();
             HeatingPlannerRoomEntity room = existingByName.remove(roomName.toLowerCase(Locale.ROOT));
@@ -217,11 +223,11 @@ public class HeatingPlannerConfigurationService {
             }
             room.setName(roomName);
             room.setTargetRoomTemperature(target);
+            room.setMinimumRoomTemperature(minimumRoom);
             room.setNormalFloorTemperature(normalFloor);
             room.setMaximumPreheatFloorTemperature(maximumPreheatFloor);
             room.setAbsoluteMaximumFloorTemperature(absoluteMaximumFloor);
             room.setDischargeFloorSetpoint(dischargeFloor);
-            room.setMinimumRoomTemperature(target.subtract(BigDecimal.ONE));
             room.setMaximumRoomTemperature(target.add(new BigDecimal("2.50")));
             room.setSortOrder(sortOrder);
             DeviceEntity controller = roomConfiguration.controllingDeviceId() == null ? null
@@ -326,6 +332,7 @@ public class HeatingPlannerConfigurationService {
             String name,
             HeatingPlannerHeatSourceType sourceType,
             BigDecimal targetRoomTemperature,
+            BigDecimal minimumRoomTemperature,
             BigDecimal normalFloorTemperature,
             BigDecimal maximumPreheatFloorTemperature,
             BigDecimal absoluteMaximumFloorTemperature,

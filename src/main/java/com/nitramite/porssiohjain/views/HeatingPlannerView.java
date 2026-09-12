@@ -270,6 +270,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         Grid<RoomOverview> rooms = roomOverviewGrid(roomRows, thermostats, temperatureSensors, floorSensors);
         Button addRoom = new Button("Add room", VaadinIcon.PLUS.create(), event -> {
             roomRows.add(new RoomOverview("New room", HeatingPlannerHeatSourceType.FLOOR_HEATING, new BigDecimal("21.00"),
+                    new BigDecimal("20.00"),
                     new BigDecimal("23.00"), new BigDecimal("27.00"), new BigDecimal("29.00"),
                     new BigDecimal("19.00"), null, null, null));
             rooms.getDataProvider().refreshAll();
@@ -337,7 +338,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             return new RoomPlan(room.room(), room.heatSource(), room.controller(),
                                     measurements.roomTemperature(), measurements.floorTemperature(),
                                     measurements.roomMeasurement(), measurements.floorMeasurement(),
-                                    room.targetRoomTemperature(), room.normalFloorTemperature(),
+                                    room.targetRoomTemperature(), room.minimumRoomTemperature(), room.normalFloorTemperature(),
                                     room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
                                     room.dischargeFloorSetpoint(), modelEvidence,
                                     simulationService.simulate(simulationRequest(
@@ -345,7 +346,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                             woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
                                             plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(),
                                             measurements.floorTemperature(), measurements.roomTemperature(),
-                                            room.targetRoomTemperature(), room.normalFloorTemperature(),
+                                            room.targetRoomTemperature(), room.minimumRoomTemperature(), room.normalFloorTemperature(),
                                             room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
                                             room.dischargeFloorSetpoint(), marketSeries.points(), model,
                                             measurements.roomMeasurement().fresh(), measurements.floorMeasurement().fresh(),
@@ -355,7 +356,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             return new RoomPlan(room.room(), room.heatSource(), room.controller(),
                                     measurements.roomTemperature(), measurements.floorTemperature(),
                                     measurements.roomMeasurement(), measurements.floorMeasurement(),
-                                    room.targetRoomTemperature(), room.normalFloorTemperature(),
+                                    room.targetRoomTemperature(), room.minimumRoomTemperature(), room.normalFloorTemperature(),
                                     room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
                                     room.dischargeFloorSetpoint(), "Model unavailable because plan inputs are invalid",
                                     null, ex.getMessage());
@@ -367,7 +368,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         new BigDecimal("21.00"), new BigDecimal("22.00"),
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
-                        new BigDecimal("21.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
+                        new BigDecimal("21.00"), new BigDecimal("20.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
                         new BigDecimal("29.00"), new BigDecimal("19.00"),
                         thermalModelEvidence("Configured fallback thermal model", defaultThermalModel()),
                         simulationService.simulate(simulationRequest(
@@ -375,7 +376,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 woodAmount.getValue(), releaseDelay.getValue(), releaseDuration.getValue(),
                                 plannerWeatherThreshold.getValue(), woodWeatherThreshold.getValue(),
                                 new BigDecimal("22.00"), new BigDecimal("21.00"),
-                                new BigDecimal("21.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
+                                new BigDecimal("21.00"), new BigDecimal("20.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
                                 new BigDecimal("29.00"), new BigDecimal("19.00"), marketSeries.points(),
                                 defaultThermalModel(), false, false, priceThresholds)),
                         null));
@@ -484,7 +485,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         ),
                         roomRows.stream()
                                 .map(row -> new HeatingPlannerConfigurationService.RoomConfiguration(
-                                        row.room(), row.heatSource(), row.targetRoomTemperature(),
+                                        row.room(), row.heatSource(), row.targetRoomTemperature(), row.minimumRoomTemperature(),
                                         row.normalFloorTemperature(), row.maximumPreheatFloorTemperature(),
                                         row.absoluteMaximumFloorTemperature(), row.dischargeFloorSetpoint(),
                                         row.controller() == null ? null : row.controller().getId(),
@@ -942,6 +943,21 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             });
             return target;
         }).setHeader("Comfort target").setFlexGrow(1);
+        grid.addComponentColumn(row -> {
+            NumberField minimum = new NumberField();
+            minimum.setValue(row.minimumRoomTemperature().doubleValue());
+            minimum.setMin(5);
+            minimum.setMax(35);
+            minimum.setStep(0.25);
+            minimum.setSuffixComponent(new Span("°C"));
+            minimum.setWidthFull();
+            minimum.addValueChangeListener(event -> {
+                if (event.getValue() != null) {
+                    row.setMinimumRoomTemperature(BigDecimal.valueOf(event.getValue()));
+                }
+            });
+            return minimum;
+        }).setHeader("Comfort minimum").setFlexGrow(1);
         grid.addComponentColumn(row -> roomTemperatureField(row.maximumPreheatFloorTemperature(), 5, 40,
                 row::setMaximumPreheatFloorTemperature))
                 .setHeader("Preheat max").setFlexGrow(1);
@@ -1312,7 +1328,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         grid.setItems(roomPlans.stream()
                 .map(plan -> new RoomLimitEvidenceRow(plan.room(),
                         "target " + plan.targetRoomTemperature() + " °C, guard "
-                                + plan.targetRoomTemperature().subtract(BigDecimal.ONE) + "..."
+                                + plan.minimumRoomTemperature() + "..."
                                 + plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C",
                         "normal " + plan.normalFloorTemperature() + " °C, preheat max "
                                 + plan.maximumPreheatFloorTemperature() + " °C, absolute max "
@@ -1363,7 +1379,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         String startingState = "room " + measurementText(plan.roomMeasurement(), plan.initialRoomTemperature())
                 + "; floor " + measurementText(plan.floorMeasurement(), plan.initialFloorTemperature());
         String limits = "comfort " + plan.targetRoomTemperature() + " °C, comfort guard "
-                + plan.targetRoomTemperature().subtract(BigDecimal.ONE) + "..." + plan.targetRoomTemperature().add(new BigDecimal("2.50"))
+                + plan.minimumRoomTemperature() + "..." + plan.targetRoomTemperature().add(new BigDecimal("2.50"))
                 + " °C; normal floor " + plan.normalFloorTemperature() + " °C, preheat max "
                 + plan.maximumPreheatFloorTemperature() + " °C, absolute max "
                 + plan.absoluteMaximumFloorTemperature() + " °C, discharge "
@@ -1474,6 +1490,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                                                              BigDecimal initialFloorTemperature,
                                                                              BigDecimal initialRoomTemperature,
                                                                              BigDecimal targetRoomTemperature,
+                                                                             BigDecimal minimumRoomTemperature,
                                                                              BigDecimal normalFloorTemperature,
                                                                              BigDecimal maximumPreheatFloorTemperature,
                                                                              BigDecimal absoluteMaximumFloorTemperature,
@@ -1487,6 +1504,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         BigDecimal initialFloor = initialFloorTemperature == null ? new BigDecimal("22.00") : initialFloorTemperature;
         BigDecimal initialRoom = initialRoomTemperature == null ? new BigDecimal("21.00") : initialRoomTemperature;
         BigDecimal target = targetRoomTemperature == null ? new BigDecimal("21.00") : targetRoomTemperature;
+        BigDecimal minimumRoom = minimumRoomTemperature == null ? target.subtract(BigDecimal.ONE) : minimumRoomTemperature;
         BigDecimal normalFloor = normalFloorTemperature == null ? new BigDecimal("23.00") : normalFloorTemperature;
         BigDecimal maximumPreheatFloor = maximumPreheatFloorTemperature == null
                 ? new BigDecimal("27.00") : maximumPreheatFloorTemperature;
@@ -1496,7 +1514,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         var settings = new HeatingPlanSimulationService.Settings(Duration.ofHours(1),
                 priceThresholds.cheapPriceThreshold(), priceThresholds.expensivePriceThreshold(),
                 normalFloor, maximumPreheatFloor,
-                absoluteMaximumFloor, dischargeFloor, target.subtract(BigDecimal.ONE),
+                absoluteMaximumFloor, dischargeFloor, minimumRoom,
                 target.add(new BigDecimal("2.50")),
                 BigDecimal.valueOf(plannerWeatherThreshold));
         List<HeatingPlanSimulationService.StoveAvailability> availability = List.of(
@@ -1551,7 +1569,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private String roomLimitEvidence(RoomPlan plan) {
         return plan.room() + " target " + plan.targetRoomTemperature() + " °C, comfort guard "
-                + plan.targetRoomTemperature().subtract(BigDecimal.ONE) + "…"
+                + plan.minimumRoomTemperature() + "…"
                 + plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C, floor normal "
                 + plan.normalFloorTemperature() + " °C, preheat max "
                 + plan.maximumPreheatFloorTemperature() + " °C, absolute max "
@@ -1652,6 +1670,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             HeatingPlannerMeasurementService.LatestMeasurement roomMeasurement,
                             HeatingPlannerMeasurementService.LatestMeasurement floorMeasurement,
                             BigDecimal targetRoomTemperature,
+                            BigDecimal minimumRoomTemperature,
                             BigDecimal normalFloorTemperature,
                             BigDecimal maximumPreheatFloorTemperature,
                             BigDecimal absoluteMaximumFloorTemperature,
@@ -1869,6 +1888,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             room.name(),
                             room.sourceType(),
                             room.targetRoomTemperature(),
+                            room.minimumRoomTemperature(),
                             room.normalFloorTemperature(),
                             room.maximumPreheatFloorTemperature(),
                             room.absoluteMaximumFloorTemperature(),
@@ -1995,6 +2015,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         private String room;
         private HeatingPlannerHeatSourceType heatSource;
         private BigDecimal targetRoomTemperature;
+        private BigDecimal minimumRoomTemperature;
         private BigDecimal normalFloorTemperature;
         private BigDecimal maximumPreheatFloorTemperature;
         private BigDecimal absoluteMaximumFloorTemperature;
@@ -2004,12 +2025,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         private DeviceEntity floorSensor;
 
         private RoomOverview(String room, HeatingPlannerHeatSourceType heatSource, BigDecimal targetRoomTemperature,
-                             BigDecimal normalFloorTemperature, BigDecimal maximumPreheatFloorTemperature,
+                             BigDecimal minimumRoomTemperature, BigDecimal normalFloorTemperature, BigDecimal maximumPreheatFloorTemperature,
                              BigDecimal absoluteMaximumFloorTemperature, BigDecimal dischargeFloorSetpoint,
                              DeviceEntity controller, DeviceEntity roomSensor, DeviceEntity floorSensor) {
             this.room = room;
             this.heatSource = heatSource;
             this.targetRoomTemperature = targetRoomTemperature == null ? new BigDecimal("21.00") : targetRoomTemperature;
+            this.minimumRoomTemperature = minimumRoomTemperature == null
+                    ? this.targetRoomTemperature.subtract(BigDecimal.ONE) : minimumRoomTemperature;
             this.maximumPreheatFloorTemperature = maximumPreheatFloorTemperature == null
                     ? new BigDecimal("27.00") : maximumPreheatFloorTemperature;
             deriveHiddenFloorSetpoints();
@@ -2041,6 +2064,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         private void setTargetRoomTemperature(BigDecimal targetRoomTemperature) {
             this.targetRoomTemperature = targetRoomTemperature;
             deriveHiddenFloorSetpoints();
+        }
+
+        private BigDecimal minimumRoomTemperature() {
+            return minimumRoomTemperature;
+        }
+
+        private void setMinimumRoomTemperature(BigDecimal minimumRoomTemperature) {
+            this.minimumRoomTemperature = minimumRoomTemperature;
         }
 
         private BigDecimal normalFloorTemperature() {
@@ -2079,6 +2110,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         private void deriveHiddenFloorSetpoints() {
             if (targetRoomTemperature == null) {
                 targetRoomTemperature = new BigDecimal("21.00");
+            }
+            if (minimumRoomTemperature == null) {
+                minimumRoomTemperature = targetRoomTemperature.subtract(BigDecimal.ONE);
             }
             if (maximumPreheatFloorTemperature == null) {
                 maximumPreheatFloorTemperature = new BigDecimal("27.00");
