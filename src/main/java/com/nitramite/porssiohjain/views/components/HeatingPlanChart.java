@@ -9,7 +9,7 @@
 package com.nitramite.porssiohjain.views.components;
 
 import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
-import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.html.Div;
 
 import java.time.Duration;
@@ -19,7 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 
-@JsModule("./js/apexcharts.min.js")
+@JavaScript("context://js/apexcharts.min.js")
 public class HeatingPlanChart extends Div {
 
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
