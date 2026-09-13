@@ -16,6 +16,8 @@ import App from "./App";
 import { clearDevSessionOverride, getSessionData, setDevSessionOverride } from "@/lib/session";
 import { syncDocumentLocale } from "@/lib/i18n";
 import { initializeTheme } from "@/lib/theme";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/manrope";
 import "./styles/index.css";
 
 initializeTheme();
