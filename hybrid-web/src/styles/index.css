@@ -1,8 +1,6 @@
-@import "./fonts.css";
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@config "../../tailwind.config.ts";
 
 :root {
   --color-primary: 0 67 66;
@@ -84,7 +82,7 @@
   }
 
   button {
-    @apply tap-highlight-none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -151,7 +149,8 @@
   }
 
   .primary-action {
-    @apply signature-gradient inline-flex items-center gap-2 rounded-xl px-6 py-4 font-headline text-lg font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform active:scale-95;
+    @apply inline-flex items-center gap-2 rounded-xl px-6 py-4 font-headline text-lg font-bold text-on-primary shadow-lg shadow-primary/20 transition-transform active:scale-95;
+    background: linear-gradient(135deg, rgb(var(--gradient-signature-start)) 0%, rgb(var(--gradient-signature-end)) 100%);
   }
 
   .secondary-action {
