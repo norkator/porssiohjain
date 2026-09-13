@@ -11,10 +11,12 @@
 
 package com.nitramite.porssiohjain.views.components;
 
+import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.html.Div;
 
 import java.util.List;
 
+@JavaScript("context://js/apexcharts.min.js")
 public class PriceChart extends Div {
 
     public PriceChart() {

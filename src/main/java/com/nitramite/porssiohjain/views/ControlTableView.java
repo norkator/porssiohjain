@@ -25,7 +25,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
@@ -62,9 +62,9 @@ import java.util.*;
 
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
-@JsModule("./js/apexcharts.min.js")
-@JsModule("./js/chart.js")
-@JsModule("./js/chartjs-plugin-dragdata.js")
+@JavaScript("context://js/apexcharts.min.js")
+@JavaScript("context://js/chart.js")
+@JavaScript("context://js/chartjs-plugin-dragdata.js")
 @PageTitle("Pörssiohjain - Control table")
 @Route("controls/:controlId")
 @PermitAll

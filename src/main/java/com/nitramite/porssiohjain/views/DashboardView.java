@@ -22,7 +22,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
-@JsModule("./js/apexcharts.min.js")
+@JavaScript("context://js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Dashboard")
 @Route("dashboard")
 @PermitAll

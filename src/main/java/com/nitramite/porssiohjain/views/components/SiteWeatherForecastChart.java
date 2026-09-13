@@ -9,12 +9,14 @@
 package com.nitramite.porssiohjain.views.components;
 
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
+import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.html.Div;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@JavaScript("context://js/apexcharts.min.js")
 public class SiteWeatherForecastChart extends Div {
 
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("MM-dd HH:mm");
