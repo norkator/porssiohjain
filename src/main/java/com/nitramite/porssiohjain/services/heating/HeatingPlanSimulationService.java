@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -205,6 +206,7 @@ public class HeatingPlanSimulationService {
             List<MarketPoint> candidates = market.subList(0, blockStart).stream()
                     .filter(candidate -> candidate.priceCentsPerKwh().compareTo(settings.cheapPriceThreshold()) <= 0)
                     .filter(candidate -> !selected.contains(candidate.time()))
+                    .filter(candidate -> !isNoPreheatTime(candidate.time(), settings))
                     .sorted(Comparator.comparing(MarketPoint::priceCentsPerKwh)
                             .thenComparing(MarketPoint::time, Comparator.reverseOrder()))
                     .limit(requiredSteps)
@@ -212,6 +214,15 @@ public class HeatingPlanSimulationService {
             candidates.forEach(candidate -> selected.add(candidate.time()));
         }
         return Set.copyOf(selected);
+    }
+
+    private boolean isNoPreheatTime(Instant time, Settings settings) {
+        if (settings.noPreheatWindows() == null || settings.noPreheatWindows().isEmpty()) {
+            return false;
+        }
+        return settings.noPreheatWindows().stream()
+                .filter(Objects::nonNull)
+                .anyMatch(window -> !time.isBefore(window.from()) && time.isBefore(window.to()));
     }
 
     private boolean isExpensive(MarketPoint point, Settings settings) {
@@ -324,6 +335,11 @@ public class HeatingPlanSimulationService {
         if (request.woodStove() != null && request.woodStove().availability() == null) {
             throw new IllegalArgumentException("Wood-stove availability is required");
         }
+        if (settings.noPreheatWindows() != null && settings.noPreheatWindows().stream()
+                .filter(Objects::nonNull)
+                .anyMatch(window -> window.from() == null || window.to() == null || !window.from().isBefore(window.to()))) {
+            throw new IllegalArgumentException("No-preheat windows must have a start before end");
+        }
         if (request.model().heaterPowerKw().signum() < 0
                 || request.model().floorHeatingRate().signum() < 0
                 || request.model().floorToRoomRate().signum() < 0
@@ -355,7 +371,14 @@ public class HeatingPlanSimulationService {
             BigDecimal dischargeFloorSetpoint,
             BigDecimal minimumRoomTemperature,
             BigDecimal maximumRoomTemperature,
-            BigDecimal plannerActivationOutdoorTemperature
+            BigDecimal plannerActivationOutdoorTemperature,
+            List<NoPreheatWindow> noPreheatWindows
+    ) {
+    }
+
+    public record NoPreheatWindow(
+            Instant from,
+            Instant to
     ) {
     }
 

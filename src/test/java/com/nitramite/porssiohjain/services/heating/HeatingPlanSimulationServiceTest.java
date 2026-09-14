@@ -110,6 +110,60 @@ class HeatingPlanSimulationServiceTest {
     }
 
     @Test
+    void noPreheatWindowBlocksPriceDrivenPreheating() {
+        Instant start = Instant.parse("2026-01-15T20:00:00Z");
+        var original = request(List.of(
+                point(start, "3.0"),
+                point(start.plus(Duration.ofHours(1)), "3.0"),
+                point(start.plus(Duration.ofHours(2)), "24.0"),
+                point(start.plus(Duration.ofHours(3)), "24.0")
+        ));
+        var settings = new HeatingPlanSimulationService.Settings(
+                original.settings().step(), original.settings().cheapPriceThreshold(),
+                original.settings().expensivePriceThreshold(), original.settings().normalFloorTemperature(),
+                original.settings().maximumPreheatFloorTemperature(), original.settings().absoluteMaximumFloorTemperature(),
+                original.settings().dischargeFloorSetpoint(), original.settings().minimumRoomTemperature(),
+                original.settings().maximumRoomTemperature(), original.settings().plannerActivationOutdoorTemperature(),
+                List.of(new HeatingPlanSimulationService.NoPreheatWindow(
+                        start, start.plus(Duration.ofHours(2)))));
+        var request = new HeatingPlanSimulationService.SimulationRequest(
+                original.initialFloorTemperature(), original.initialRoomTemperature(), settings,
+                original.model(), original.market(), null, true, true);
+
+        var result = service.simulate(request);
+
+        assertThat(result.points()).extracting(HeatingPlanSimulationService.SimulationPoint::mode)
+                .containsExactly(
+                        HeatingPlanSimulationService.OperatingMode.NORMAL,
+                        HeatingPlanSimulationService.OperatingMode.NORMAL,
+                        HeatingPlanSimulationService.OperatingMode.DISCHARGE,
+                        HeatingPlanSimulationService.OperatingMode.DISCHARGE
+                );
+    }
+
+    @Test
+    void comfortRecoveryStillWorksInsideNoPreheatWindow() {
+        Instant start = Instant.parse("2026-01-15T20:00:00Z");
+        var original = request(List.of(point(start, "3.0")));
+        var settings = new HeatingPlanSimulationService.Settings(
+                original.settings().step(), original.settings().cheapPriceThreshold(),
+                original.settings().expensivePriceThreshold(), original.settings().normalFloorTemperature(),
+                original.settings().maximumPreheatFloorTemperature(), original.settings().absoluteMaximumFloorTemperature(),
+                original.settings().dischargeFloorSetpoint(), original.settings().minimumRoomTemperature(),
+                original.settings().maximumRoomTemperature(), original.settings().plannerActivationOutdoorTemperature(),
+                List.of(new HeatingPlanSimulationService.NoPreheatWindow(
+                        start, start.plus(Duration.ofHours(2)))));
+        var request = new HeatingPlanSimulationService.SimulationRequest(
+                original.initialFloorTemperature(), new BigDecimal("19.5"), settings,
+                original.model(), original.market(), null, true, true);
+
+        var point = service.simulate(request).points().getFirst();
+
+        assertThat(point.mode()).isEqualTo(HeatingPlanSimulationService.OperatingMode.COMFORT_RECOVERY);
+        assertThat(point.floorSetpoint()).isEqualByComparingTo("23.0");
+    }
+
+    @Test
     void comfortMinimumOverridesExpensivePrice() {
         Instant start = Instant.parse("2026-01-15T00:00:00Z");
         var original = request(List.of(point(start, "24.0")));
@@ -149,7 +203,7 @@ class HeatingPlanSimulationServiceTest {
                 new BigDecimal("5.0"), new BigDecimal("20.0"),
                 new BigDecimal("23.0"), preheatMaximum, absoluteMaximum,
                 new BigDecimal("19.0"), new BigDecimal("20.0"), new BigDecimal("23.5"),
-                new BigDecimal("5.0")
+                new BigDecimal("5.0"), List.of()
         );
     }
 
@@ -274,7 +328,8 @@ class HeatingPlanSimulationServiceTest {
                 original.settings().expensivePriceThreshold(), original.settings().normalFloorTemperature(),
                 original.settings().maximumPreheatFloorTemperature(), original.settings().absoluteMaximumFloorTemperature(),
                 original.settings().dischargeFloorSetpoint(), original.settings().minimumRoomTemperature(),
-                original.settings().maximumRoomTemperature(), original.settings().plannerActivationOutdoorTemperature());
+                original.settings().maximumRoomTemperature(), original.settings().plannerActivationOutdoorTemperature(),
+                original.settings().noPreheatWindows());
         var request = new HeatingPlanSimulationService.SimulationRequest(
                 original.initialFloorTemperature(), original.initialRoomTemperature(), staleSettings,
                 original.model(), original.market(), null, true, false);

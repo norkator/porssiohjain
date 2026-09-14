@@ -69,7 +69,7 @@ public class HeatingPlannerConfigurationService {
                     new BigDecimal("25.50"), null, false, LocalTime.of(6, 0), LocalTime.of(22, 0),
                     new BigDecimal("8.00"), 45, 360, new BigDecimal("5.0000"), new BigDecimal("20.0000"),
                     new BigDecimal("0.2500"),
-                    new BigDecimal("0.7500"), List.of());
+                    new BigDecimal("0.7500"), false, LocalTime.of(22, 0), LocalTime.of(5, 0), List.of());
         }
         HeatingPlannerSettingsEntity settingsEntity = settings.get();
         List<RoomConfiguration> rooms = roomRepository.findBySettingsIdOrderBySortOrderAscIdAsc(settingsEntity.getId())
@@ -101,7 +101,8 @@ public class HeatingPlannerConfigurationService {
                 settingsEntity.getWoodAmount(), settingsEntity.getWoodReleaseDelayMinutes(),
                 settingsEntity.getWoodReleaseDurationMinutes(), settingsEntity.getCheapPriceThreshold(),
                 settingsEntity.getExpensivePriceThreshold(), settingsEntity.getCheapPricePercentile(),
-                settingsEntity.getExpensivePricePercentile(), rooms);
+                settingsEntity.getExpensivePricePercentile(), settingsEntity.isNoPreheatWindowEnabled(),
+                settingsEntity.getNoPreheatFrom(), settingsEntity.getNoPreheatTo(), rooms);
     }
 
     @Transactional
@@ -129,6 +130,9 @@ public class HeatingPlannerConfigurationService {
         settings.setExpensivePriceThreshold(settingsConfiguration.expensivePriceThreshold());
         settings.setCheapPricePercentile(settingsConfiguration.cheapPricePercentile());
         settings.setExpensivePricePercentile(settingsConfiguration.expensivePricePercentile());
+        settings.setNoPreheatWindowEnabled(settingsConfiguration.noPreheatWindowEnabled());
+        settings.setNoPreheatFrom(settingsConfiguration.noPreheatFrom());
+        settings.setNoPreheatTo(settingsConfiguration.noPreheatTo());
         ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
                 : electricityContractRepository.findByIdAndAccountId(settingsConfiguration.transferContractId(), accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Transfer contract not found"));
@@ -184,6 +188,9 @@ public class HeatingPlannerConfigurationService {
         settings.setExpensivePriceThreshold(settingsConfiguration.expensivePriceThreshold());
         settings.setCheapPricePercentile(settingsConfiguration.cheapPricePercentile());
         settings.setExpensivePricePercentile(settingsConfiguration.expensivePricePercentile());
+        settings.setNoPreheatWindowEnabled(settingsConfiguration.noPreheatWindowEnabled());
+        settings.setNoPreheatFrom(settingsConfiguration.noPreheatFrom());
+        settings.setNoPreheatTo(settingsConfiguration.noPreheatTo());
         ElectricityContractEntity transferContract = settingsConfiguration.transferContractId() == null ? null
                 : electricityContractRepository.findByIdAndAccountId(settingsConfiguration.transferContractId(), accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Transfer contract not found"));
@@ -305,6 +312,9 @@ public class HeatingPlannerConfigurationService {
             BigDecimal expensivePriceThreshold,
             BigDecimal cheapPricePercentile,
             BigDecimal expensivePricePercentile,
+            boolean noPreheatWindowEnabled,
+            LocalTime noPreheatFrom,
+            LocalTime noPreheatTo,
             List<RoomConfiguration> rooms
     ) {
     }
@@ -324,7 +334,10 @@ public class HeatingPlannerConfigurationService {
             BigDecimal cheapPriceThreshold,
             BigDecimal expensivePriceThreshold,
             BigDecimal cheapPricePercentile,
-            BigDecimal expensivePricePercentile
+            BigDecimal expensivePricePercentile,
+            boolean noPreheatWindowEnabled,
+            LocalTime noPreheatFrom,
+            LocalTime noPreheatTo
     ) {
     }
 

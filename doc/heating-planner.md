@@ -99,6 +99,8 @@ Use a today-and-tomorrow horizon in the site's timezone with 15-minute simulatio
 
 The deterministic planner identifies expensive periods across the complete today-and-tomorrow horizon. For each expensive block it estimates forecast room heat loss from the indoor/outdoor temperature difference and wind, converts the required reserve into floor-heating steps, and selects sufficient preceding cheap points. It prefers lower prices and uses later points as the tie-breaker to reduce storage loss. There is no fixed preheat look-ahead. During selected cheap periods it raises the floor setpoint up to the configured preheat maximum. During expensive periods it lowers the setpoint so that stored heat is used. Room comfort, measurement freshness, and configured planner bounds override price optimization.
 
+An optional daily no-preheat window blocks only price-driven floor preheating during user-defined local times. For example, a `22:00-05:00` window prevents the optimizer from choosing those points for storing cheap heat in the floor; outside the window, preheating can still be selected if it is cheap enough and needed before an expensive period. Comfort recovery remains allowed inside the window so the planner does not knowingly leave a room below its configured minimum.
+
 If a wood-stove load is configured and an expensive period has forecast heating demand, the planner works backwards from the desired heat-release start:
 
 ```text

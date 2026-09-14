@@ -149,7 +149,7 @@ public class HeatingPlannerAutomationService {
                 priceThresholds.expensivePriceThreshold(), room.getNormalFloorTemperature(),
                 room.getMaximumPreheatFloorTemperature(), room.getAbsoluteMaximumFloorTemperature(),
                 room.getDischargeFloorSetpoint(), room.getMinimumRoomTemperature(), room.getMaximumRoomTemperature(),
-                settings.getPlannerActiveBelowTemperature());
+                settings.getPlannerActiveBelowTemperature(), noPreheatWindows(settings, horizonStart));
         List<HeatingPlanSimulationService.StoveAvailability> availability = List.of(
                 availability(settings, horizonStart), availability(settings, horizonStart.plusDays(1)));
         var stove = new HeatingPlanSimulationService.WoodStoveSettings(true, settings.isStoveLoaded(), "Configured load",
@@ -168,6 +168,27 @@ public class HeatingPlannerAutomationService {
         ZonedDateTime ends = day.with(to);
         if (ends.isBefore(starts)) ends = ends.plusDays(1);
         return new HeatingPlanSimulationService.StoveAvailability(starts.toInstant(), ends.toInstant());
+    }
+
+    private List<HeatingPlanSimulationService.NoPreheatWindow> noPreheatWindows(
+            HeatingPlannerSettingsEntity settings, ZonedDateTime horizonStart) {
+        if (!settings.isNoPreheatWindowEnabled()) {
+            return List.of();
+        }
+        return List.of(
+                noPreheatWindow(settings, horizonStart.minusDays(1)),
+                noPreheatWindow(settings, horizonStart),
+                noPreheatWindow(settings, horizonStart.plusDays(1)));
+    }
+
+    private HeatingPlanSimulationService.NoPreheatWindow noPreheatWindow(
+            HeatingPlannerSettingsEntity settings, ZonedDateTime day) {
+        LocalTime from = settings.getNoPreheatFrom();
+        LocalTime to = settings.getNoPreheatTo();
+        ZonedDateTime starts = day.with(from == null ? LocalTime.of(22, 0) : from);
+        ZonedDateTime ends = day.with(to == null ? LocalTime.of(5, 0) : to);
+        if (!ends.isAfter(starts)) ends = ends.plusDays(1);
+        return new HeatingPlanSimulationService.NoPreheatWindow(starts.toInstant(), ends.toInstant());
     }
 
     private HeatingPlanSimulationService.ThermalModel configuredModel(HeatingPlannerRoomEntity room) {

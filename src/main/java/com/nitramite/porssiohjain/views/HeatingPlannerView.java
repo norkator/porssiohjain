@@ -179,6 +179,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         NumberField expensivePricePercentile = numberField("Expensive price percentile", 0.75, 0.05, 1);
         expensivePricePercentile.setStep(0.05);
         expensivePricePercentile.setHelperText("Lower this, for example to 0.60, to avoid heating during more high-price hours.");
+        Checkbox noPreheatWindowEnabled = new Checkbox("Block preheating in time window", false);
+        noPreheatWindowEnabled.setHelperText("Only price-driven floor preheating is blocked; comfort recovery can still heat.");
+        TimePicker noPreheatFrom = new TimePicker("No preheat from", LocalTime.of(22, 0));
+        TimePicker noPreheatTo = new TimePicker("No preheat until", LocalTime.of(5, 0));
+        noPreheatFrom.setWidthFull();
+        noPreheatTo.setWidthFull();
         ComboBox<ElectricityContractEntity> transferContract = new ComboBox<>("Transfer contract");
         transferContract.setItems(transferContracts);
         transferContract.setItemLabelGenerator(ElectricityContractEntity::getName);
@@ -195,6 +201,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         siteWarnings.setSpacing(false);
         FormLayout siteForm = new FormLayout(siteSelect, taxPercent, transferContract,
                 cheapPriceThreshold, expensivePriceThreshold, cheapPricePercentile, expensivePricePercentile,
+                noPreheatWindowEnabled, noPreheatFrom, noPreheatTo,
                 siteWarnings);
         siteForm.setWidthFull();
         siteForm.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("650px", 2));
@@ -350,7 +357,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                             room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
                                             room.dischargeFloorSetpoint(), marketSeries.points(), model,
                                             measurements.roomMeasurement().fresh(), measurements.floorMeasurement().fresh(),
-                                            priceThresholds)),
+                                            priceThresholds, noPreheatWindowEnabled.getValue(),
+                                            noPreheatFrom.getValue(), noPreheatTo.getValue(), zoneForSite(selectedSite))),
                                     null);
                         } catch (IllegalArgumentException ex) {
                             return new RoomPlan(room.room(), room.heatSource(), room.controller(),
@@ -378,7 +386,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 new BigDecimal("22.00"), new BigDecimal("21.00"),
                                 new BigDecimal("21.00"), new BigDecimal("20.00"), new BigDecimal("23.00"), new BigDecimal("27.00"),
                                 new BigDecimal("29.00"), new BigDecimal("19.00"), marketSeries.points(),
-                                defaultThermalModel(), false, false, priceThresholds)),
+                                defaultThermalModel(), false, false, priceThresholds,
+                                noPreheatWindowEnabled.getValue(), noPreheatFrom.getValue(),
+                                noPreheatTo.getValue(), zoneForSite(selectedSite))),
                         null));
             }
             if (account != null && selectedSite != null) {
@@ -405,7 +415,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     releaseDelay.getValue(), releaseDuration.getValue(), priceThresholds.cheapPriceThreshold(),
                     priceThresholds.expensivePriceThreshold(), cheapPricePercentile.getValue(),
                     expensivePricePercentile.getValue(), decimalOrDefault(cheapPriceThreshold.getValue(), "5.0000"),
-                    decimalOrDefault(expensivePriceThreshold.getValue(), "20.0000"));
+                    decimalOrDefault(expensivePriceThreshold.getValue(), "20.0000"),
+                    noPreheatWindowEnabled.getValue(), noPreheatFrom.getValue(), noPreheatTo.getValue());
             planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries, evidenceInputs));
             refreshActiveControlState(activeControlService, account == null ? null : account.getId(), selectedSite,
                     activeControlStatus, enableActiveControl, disableActiveControl);
@@ -481,7 +492,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 decimalOrDefault(cheapPriceThreshold.getValue(), "5.0000"),
                                 decimalOrDefault(expensivePriceThreshold.getValue(), "20.0000"),
                                 decimalOrDefault(cheapPricePercentile.getValue(), "0.2500"),
-                                decimalOrDefault(expensivePricePercentile.getValue(), "0.7500")
+                                decimalOrDefault(expensivePricePercentile.getValue(), "0.7500"),
+                                noPreheatWindowEnabled.getValue(),
+                                timeOrDefault(noPreheatFrom.getValue(), LocalTime.of(22, 0)),
+                                timeOrDefault(noPreheatTo.getValue(), LocalTime.of(5, 0))
                         ),
                         roomRows.stream()
                                 .map(row -> new HeatingPlannerConfigurationService.RoomConfiguration(
@@ -515,7 +529,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 savePlannerSettings(configurationService, account.getId(), selectedSite, plannerEnabled,
                         plannerWeatherThreshold, woodWeatherThreshold, taxPercent, transferContract,
                         loaded, availableFrom, availableTo, woodAmount, releaseDelay, releaseDuration,
-                        cheapPriceThreshold, expensivePriceThreshold, cheapPricePercentile, expensivePricePercentile);
+                        cheapPriceThreshold, expensivePriceThreshold, cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 if (!event.getValue()) {
                     activeControlService.disable(account.getId(), selectedSite.getId(), Instant.now());
                 }
@@ -536,7 +550,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -546,7 +560,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -556,7 +570,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -566,7 +580,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -576,7 +590,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -586,7 +600,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -596,7 +610,37 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
+                calculate.run();
+            }
+        });
+        noPreheatWindowEnabled.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
+                calculate.run();
+            }
+        });
+        noPreheatFrom.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
+                calculate.run();
+            }
+        });
+        noPreheatTo.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get()) {
+                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
+                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                        taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
+                        releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -606,7 +650,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -616,7 +660,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -626,7 +670,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -636,7 +680,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -646,7 +690,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -656,7 +700,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -666,7 +710,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                        cheapPricePercentile, expensivePricePercentile);
+                        cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
@@ -677,13 +721,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                     taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                     releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                    cheapPricePercentile, expensivePricePercentile, roomRows, rooms,
+                    cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled,
+                    noPreheatFrom, noPreheatTo, roomRows, rooms,
                     thermostats, temperatureSensors, floorSensors, transferContracts);
             savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                     event.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                     taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                     releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                    cheapPricePercentile, expensivePricePercentile);
+                    cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
             calculate.run();
         });
         updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, siteSelect.getValue());
@@ -692,7 +737,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 loadingConfiguration, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                 taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                 releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                cheapPricePercentile, expensivePricePercentile, roomRows, rooms,
+                cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled,
+                noPreheatFrom, noPreheatTo, roomRows, rooms,
                 thermostats, temperatureSensors, floorSensors, transferContracts);
         calculate.run();
 
@@ -1236,6 +1282,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 + ", configured min " + priceDisplay(inputs.configuredExpensivePriceThreshold())),
                         new EvidenceValue("Price sample", marketSeries.points().size()
                                 + " today-and-tomorrow combined-price points, 1 h simulation step"),
+                        new EvidenceValue("No-preheat window", inputs.noPreheatWindowEnabled()
+                                ? timeOrDefault(inputs.noPreheatFrom(), LocalTime.of(22, 0))
+                                + "–" + timeOrDefault(inputs.noPreheatTo(), LocalTime.of(5, 0))
+                                + " blocks price-driven floor preheating"
+                                : "off"),
                         new EvidenceValue("Planner active below", decimalDisplay(inputs.plannerWeatherThreshold()) + " °C"),
                         new EvidenceValue("Planner gate", plannerGateText(marketSeries.points(),
                                 inputs.plannerWeatherThreshold())),
@@ -1499,8 +1550,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                                                              HeatingPlanSimulationService.ThermalModel model,
                                                                              boolean roomMeasurementFresh,
                                                                              boolean floorMeasurementFresh,
-                                                                             HeatingPlanSimulationService.PriceThresholds priceThresholds) {
-        ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
+                                                                             HeatingPlanSimulationService.PriceThresholds priceThresholds,
+                                                                             boolean noPreheatWindowEnabled,
+                                                                             LocalTime noPreheatFrom,
+                                                                             LocalTime noPreheatTo,
+                                                                             ZoneId zone) {
+        ZonedDateTime start = LocalDate.now(zone).atStartOfDay(zone);
         BigDecimal initialFloor = initialFloorTemperature == null ? new BigDecimal("22.00") : initialFloorTemperature;
         BigDecimal initialRoom = initialRoomTemperature == null ? new BigDecimal("21.00") : initialRoomTemperature;
         BigDecimal target = targetRoomTemperature == null ? new BigDecimal("21.00") : targetRoomTemperature;
@@ -1516,7 +1571,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 normalFloor, maximumPreheatFloor,
                 absoluteMaximumFloor, dischargeFloor, minimumRoom,
                 target.add(new BigDecimal("2.50")),
-                BigDecimal.valueOf(plannerWeatherThreshold));
+                BigDecimal.valueOf(plannerWeatherThreshold),
+                noPreheatWindows(noPreheatWindowEnabled, noPreheatFrom, noPreheatTo, start));
         List<HeatingPlanSimulationService.StoveAvailability> availability = List.of(
                 new HeatingPlanSimulationService.StoveAvailability(
                         start.with(timeOrDefault(availableFrom, LocalTime.of(6, 0))).toInstant(),
@@ -1531,6 +1587,27 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 BigDecimal.valueOf(woodWeatherThreshold), availability);
         return new HeatingPlanSimulationService.SimulationRequest(initialFloor, initialRoom,
                 settings, model, market, stove, floorMeasurementFresh, roomMeasurementFresh);
+    }
+
+    private List<HeatingPlanSimulationService.NoPreheatWindow> noPreheatWindows(
+            boolean enabled, LocalTime from, LocalTime to, ZonedDateTime start) {
+        if (!enabled) {
+            return List.of();
+        }
+        return List.of(
+                noPreheatWindow(from, to, start.minusDays(1)),
+                noPreheatWindow(from, to, start),
+                noPreheatWindow(from, to, start.plusDays(1)));
+    }
+
+    private HeatingPlanSimulationService.NoPreheatWindow noPreheatWindow(
+            LocalTime from, LocalTime to, ZonedDateTime day) {
+        ZonedDateTime starts = day.with(timeOrDefault(from, LocalTime.of(22, 0)));
+        ZonedDateTime ends = day.with(timeOrDefault(to, LocalTime.of(5, 0)));
+        if (!ends.isAfter(starts)) {
+            ends = ends.plusDays(1);
+        }
+        return new HeatingPlanSimulationService.NoPreheatWindow(starts.toInstant(), ends.toInstant());
     }
 
     private HeatingPlanSimulationService.ThermalModel defaultThermalModel() {
@@ -1736,7 +1813,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             Double cheapPricePercentile,
             Double expensivePricePercentile,
             BigDecimal configuredCheapPriceThreshold,
-            BigDecimal configuredExpensivePriceThreshold
+            BigDecimal configuredExpensivePriceThreshold,
+            boolean noPreheatWindowEnabled,
+            LocalTime noPreheatFrom,
+            LocalTime noPreheatTo
     ) {
     }
 
@@ -1800,7 +1880,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                              NumberField cheapPriceThreshold,
                                              NumberField expensivePriceThreshold,
                                              NumberField cheapPricePercentile,
-                                             NumberField expensivePricePercentile) {
+                                             NumberField expensivePricePercentile,
+                                             Checkbox noPreheatWindowEnabled,
+                                             TimePicker noPreheatFrom,
+                                             TimePicker noPreheatTo) {
         if (accountId == null || site == null) {
             return;
         }
@@ -1808,7 +1891,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             savePlannerSettings(configurationService, accountId, site, plannerEnabled, plannerWeatherThreshold,
                     woodWeatherThreshold, taxPercent, transferContract, loaded, availableFrom, availableTo,
                     woodAmount, releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                    cheapPricePercentile, expensivePricePercentile);
+                    cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
         } catch (IllegalArgumentException ex) {
             Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
@@ -1825,7 +1908,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                      NumberField cheapPriceThreshold,
                                      NumberField expensivePriceThreshold,
                                      NumberField cheapPricePercentile,
-                                     NumberField expensivePricePercentile) {
+                                     NumberField expensivePricePercentile,
+                                     Checkbox noPreheatWindowEnabled,
+                                     TimePicker noPreheatFrom,
+                                     TimePicker noPreheatTo) {
         configurationService.saveSettings(accountId, site.getId(),
                 new HeatingPlannerConfigurationService.SettingsConfiguration(
                         plannerEnabled.getValue(),
@@ -1842,7 +1928,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         decimalOrDefault(cheapPriceThreshold.getValue(), "5.0000"),
                         decimalOrDefault(expensivePriceThreshold.getValue(), "20.0000"),
                         decimalOrDefault(cheapPricePercentile.getValue(), "0.2500"),
-                        decimalOrDefault(expensivePricePercentile.getValue(), "0.7500")
+                        decimalOrDefault(expensivePricePercentile.getValue(), "0.7500"),
+                        noPreheatWindowEnabled.getValue(),
+                        timeOrDefault(noPreheatFrom.getValue(), LocalTime.of(22, 0)),
+                        timeOrDefault(noPreheatTo.getValue(), LocalTime.of(5, 0))
                 ));
     }
 
@@ -1854,6 +1943,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                    NumberField woodAmount, NumberField releaseDelay, NumberField releaseDuration,
                                    NumberField cheapPriceThreshold, NumberField expensivePriceThreshold,
                                    NumberField cheapPricePercentile, NumberField expensivePricePercentile,
+                                   Checkbox noPreheatWindowEnabled, TimePicker noPreheatFrom, TimePicker noPreheatTo,
                                    List<RoomOverview> roomRows,
                                    Grid<RoomOverview> rooms, List<DeviceEntity> thermostats,
                                    List<DeviceEntity> temperatureSensors,
@@ -1883,6 +1973,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             expensivePriceThreshold.setValue(configuration.expensivePriceThreshold().doubleValue());
             cheapPricePercentile.setValue(configuration.cheapPricePercentile().doubleValue());
             expensivePricePercentile.setValue(configuration.expensivePricePercentile().doubleValue());
+            noPreheatWindowEnabled.setValue(configuration.noPreheatWindowEnabled());
+            noPreheatFrom.setValue(timeOrDefault(configuration.noPreheatFrom(), LocalTime.of(22, 0)));
+            noPreheatTo.setValue(timeOrDefault(configuration.noPreheatTo(), LocalTime.of(5, 0)));
             configuration.rooms().stream()
                     .map(room -> new RoomOverview(
                             room.name(),
@@ -1923,6 +2016,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             expensivePriceThreshold.setValue(20.0);
             cheapPricePercentile.setValue(0.25);
             expensivePricePercentile.setValue(0.75);
+            noPreheatWindowEnabled.setValue(false);
+            noPreheatFrom.setValue(LocalTime.of(22, 0));
+            noPreheatTo.setValue(LocalTime.of(5, 0));
         }
         loadingConfiguration.set(false);
         rooms.getDataProvider().refreshAll();

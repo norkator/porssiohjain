@@ -112,6 +112,18 @@ public class HeatingPlannerSettingsEntity {
     private BigDecimal expensivePricePercentile = new BigDecimal("0.7500");
 
     @Builder.Default
+    @Column(name = "no_preheat_window_enabled", nullable = false)
+    private boolean noPreheatWindowEnabled = false;
+
+    @Builder.Default
+    @Column(name = "no_preheat_from")
+    private LocalTime noPreheatFrom = LocalTime.of(22, 0);
+
+    @Builder.Default
+    @Column(name = "no_preheat_to")
+    private LocalTime noPreheatTo = LocalTime.of(5, 0);
+
+    @Builder.Default
     @Column(name = "simulation_step_minutes", nullable = false)
     private Integer simulationStepMinutes = 15;
 
@@ -165,6 +177,8 @@ public class HeatingPlannerSettingsEntity {
         if (expensivePriceThreshold == null) expensivePriceThreshold = new BigDecimal("20.0000");
         if (cheapPricePercentile == null) cheapPricePercentile = new BigDecimal("0.2500");
         if (expensivePricePercentile == null) expensivePricePercentile = new BigDecimal("0.7500");
+        if (noPreheatFrom == null) noPreheatFrom = LocalTime.of(22, 0);
+        if (noPreheatTo == null) noPreheatTo = LocalTime.of(5, 0);
         if (simulationStepMinutes == null) simulationStepMinutes = 15;
         if (modelVersion == null || modelVersion.isBlank()) modelVersion = "deterministic-v1";
     }
