@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
+import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
@@ -126,6 +127,25 @@ class AccountControllerTest {
     }
 
     @Test
+    @DisplayName("Should persist activity source when creating account")
+    void createAccountShouldPersistActivitySource() throws Exception {
+        String responseBody = mockMvc.perform(post("/account/create")
+                        .header("X-Forwarded-For", "10.10.10.12")
+                        .contentType("application/json")
+                        .content("""
+                                {"activitySource":"HYBRID_WEB"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        UUID accountUuid = UUID.fromString(objectMapper.readTree(responseBody).get("uuid").asText());
+        AccountEntity saved = accountRepository.findByUuid(accountUuid).orElseThrow();
+        assertThat(saved.getLastActivitySource()).isEqualTo(AccountActivitySource.HYBRID_WEB);
+    }
+
+    @Test
     @DisplayName("Should store hashed secret when creating account")
     void createAccountShouldHashStoredSecret() {
         AccountEntity created = accountService.createAccount("60.60.60.60", true);
@@ -192,6 +212,33 @@ class AccountControllerTest {
                 .andExpect(jsonPath("$.refreshTokenExpiresAt").isString())
                 .andExpect(jsonPath("$.accountId").value(account.getId()))
                 .andExpect(jsonPath("$.locale").value("en"));
+    }
+
+    @Test
+    @DisplayName("Should persist activity source when logging in")
+    void loginShouldPersistActivitySource() throws Exception {
+        String password = "activitysecret";
+        AccountEntity account = new AccountEntity();
+        account.setUuid(UUID.randomUUID());
+        account.setSecret(passwordEncoder.encode(password));
+        account.setCreatedAt(Instant.now());
+        account.setUpdatedAt(Instant.now());
+        accountRepository.save(account);
+
+        mockMvc.perform(post("/account/login")
+                        .header("X-Forwarded-For", "30.30.30.31")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "uuid": "%s",
+                                    "secret": "%s",
+                                    "activitySource": "HYBRID_ANDROID"
+                                }
+                                """.formatted(account.getUuid(), password)))
+                .andExpect(status().isOk());
+
+        AccountEntity saved = accountRepository.findById(account.getId()).orElseThrow();
+        assertThat(saved.getLastActivitySource()).isEqualTo(AccountActivitySource.HYBRID_ANDROID);
     }
 
     @Test

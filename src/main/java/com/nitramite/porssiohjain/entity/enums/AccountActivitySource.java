@@ -9,15 +9,10 @@
  * See LICENSE for details.
  */
 
-package com.nitramite.porssiohjain.services.models;
+package com.nitramite.porssiohjain.entity.enums;
 
-import lombok.Data;
-
-import java.util.UUID;
-
-@Data
-public class LoginRequest {
-    private UUID uuid;
-    private String secret;
-    private String activitySource;
+public enum AccountActivitySource {
+    VAADIN,
+    HYBRID_WEB,
+    HYBRID_ANDROID
 }

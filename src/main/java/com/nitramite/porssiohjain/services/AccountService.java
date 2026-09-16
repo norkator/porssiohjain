@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.nitramite.porssiohjain.entity.enums.AccountTier;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
@@ -37,11 +38,16 @@ public class AccountService {
 
     @Transactional
     public AccountEntity createAccount(String ip, boolean agreedTerms) {
-        return createAccount(ip, agreedTerms, null);
+        return createAccount(ip, agreedTerms, null, null);
     }
 
     @Transactional
     public AccountEntity createAccount(String ip, boolean agreedTerms, String locale) {
+        return createAccount(ip, agreedTerms, locale, null);
+    }
+
+    @Transactional
+    public AccountEntity createAccount(String ip, boolean agreedTerms, String locale, AccountActivitySource activitySource) {
         if (!rateLimitService.allowAccountCreation(ip)) {
             throw new IllegalStateException("Rate limit exceeded. Try again later.");
         }
@@ -59,6 +65,7 @@ public class AccountService {
                 .locale(normalizeLocale(locale))
                 .agreedTerms(true)
                 .agreedTermsAt(now)
+                .lastActivitySource(activitySource)
                 .createdAt(now)
                 .updatedAt(now)
                 .build();
@@ -91,6 +98,7 @@ public class AccountService {
                 .admin(savedAccount.isAdmin())
                 .demo(savedAccount.isDemo())
                 .blocked(savedAccount.isBlocked())
+                .lastActivitySource(savedAccount.getLastActivitySource())
                 .createdAt(savedAccount.getCreatedAt())
                 .updatedAt(savedAccount.getUpdatedAt())
                 .build();

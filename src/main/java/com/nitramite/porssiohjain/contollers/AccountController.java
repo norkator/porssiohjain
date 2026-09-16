@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.services.AccountService;
+import com.nitramite.porssiohjain.services.AccountActivitySourceResolver;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.RateLimitService;
 import com.nitramite.porssiohjain.services.TermsOfServiceService;
@@ -49,7 +50,12 @@ public class AccountController {
             return ResponseEntity.status(429).body("Too many account creations. Try again later.");
         }
 
-        return ResponseEntity.ok(accountService.createAccount(ip, true, requestBody != null ? requestBody.getLocale() : null));
+        return ResponseEntity.ok(accountService.createAccount(
+                ip,
+                true,
+                requestBody != null ? requestBody.getLocale() : null,
+                AccountActivitySourceResolver.resolve(requestBody != null ? requestBody.getActivitySource() : null)
+        ));
     }
 
     @GetMapping("/terms")
@@ -71,7 +77,12 @@ public class AccountController {
             return ResponseEntity.status(429).body("Too many login attempts. Try again later.");
         }
 
-        return ResponseEntity.ok(authService.login(ip, requestBody.getUuid(), requestBody.getSecret()));
+        return ResponseEntity.ok(authService.login(
+                ip,
+                requestBody.getUuid(),
+                requestBody.getSecret(),
+                AccountActivitySourceResolver.resolve(requestBody.getActivitySource())
+        ));
     }
 
     @PostMapping("/token/refresh")

@@ -16,4 +16,5 @@ import lombok.Data;
 @Data
 public class CreateAccountRequest {
     private String locale;
+    private String activitySource;
 }

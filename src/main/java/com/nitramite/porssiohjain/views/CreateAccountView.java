@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.TermsOfServiceService;
@@ -112,7 +113,7 @@ public class CreateAccountView extends VerticalLayout {
     private void handleCreateAccount() {
         try {
             String ip = VaadinRequest.getCurrent().getRemoteAddr();
-            AccountEntity account = accountService.createAccount(ip, true);
+            AccountEntity account = accountService.createAccount(ip, true, null, AccountActivitySource.VAADIN);
             showAccountInfo(account);
             createButton.setEnabled(false);
         } catch (Exception e) {

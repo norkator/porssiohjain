@@ -61,7 +61,10 @@ export async function readError(response: Response) {
 
 export async function loginWithCredentials(input: { uuid: string; secret: string }) {
   const response = await fetch(getPublicApiUrl("/account/login"), {
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      activitySource: "HYBRID_WEB"
+    }),
     headers: {
       "Content-Type": "application/json"
     },
@@ -87,6 +90,7 @@ export async function loginWithCredentials(input: { uuid: string; secret: string
 export async function createAccount(input?: { locale?: string }) {
   const response = await fetch(getPublicApiUrl("/account/create"), {
     body: JSON.stringify({
+      activitySource: "HYBRID_WEB",
       locale: input?.locale ?? getCurrentLocale()
     }),
     headers: {

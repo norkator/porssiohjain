@@ -143,6 +143,11 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
                 .setHeader(t("admin.users.activityStatus"))
                 .setAutoWidth(true)
                 .setFlexGrow(0);
+        grid.addColumn(account -> formatActivitySource(account.getLastActivitySource()))
+                .setHeader(t("admin.users.lastActivitySource"))
+                .setAutoWidth(true)
+                .setSortable(true)
+                .setComparator(Comparator.comparing(account -> formatActivitySource(account.getLastActivitySource())));
         grid.addColumn(AccountEntity::getLocale)
                 .setHeader(t("admin.users.locale"))
                 .setAutoWidth(true);
@@ -214,6 +219,10 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
                 "admin.users.dialogLastActivity",
                 adminAccountService.getLastActivity(account.getId()).map(formatter::format).orElse("-")
         ));
+        Paragraph lastActivitySource = new Paragraph(t(
+                "admin.users.dialogLastActivitySource",
+                formatActivitySource(account.getLastActivitySource())
+        ));
 
         Button closeButton = new Button(t("admin.users.close"), event -> dialog.close());
         Button impersonateButton = new Button(t("admin.users.impersonate"), event -> {
@@ -267,7 +276,7 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         deleteButton.getStyle().set("flex", "1 1 150px");
         toggleBlockButton.getStyle().set("flex", "1 1 150px");
 
-        VerticalLayout content = new VerticalLayout(title, email, status, lastActivity, actions);
+        VerticalLayout content = new VerticalLayout(title, email, status, lastActivity, lastActivitySource, actions);
         content.setPadding(false);
         content.setSpacing(true);
         content.setAlignItems(Alignment.STRETCH);
@@ -320,6 +329,13 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
 
     private String t(String key, Object... args) {
         return i18n.t(key, args);
+    }
+
+    private String formatActivitySource(Enum<?> source) {
+        if (source == null) {
+            return "-";
+        }
+        return t("admin.users.activitySource." + source.name());
     }
 
     @Override

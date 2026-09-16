@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.entity;
 
+import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.nitramite.porssiohjain.entity.enums.AccountTier;
 import jakarta.persistence.*;
 import lombok.*;
@@ -117,6 +118,10 @@ public class AccountEntity {
     @Column(name = "blocked", nullable = false)
     @Builder.Default
     private boolean blocked = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "last_activity_source", length = 32)
+    private AccountActivitySource lastActivitySource;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

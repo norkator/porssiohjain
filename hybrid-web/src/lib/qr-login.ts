@@ -45,7 +45,10 @@ export async function createQrLoginChallenge() {
 
 export async function completeQrLoginChallenge(challengeId: string, browserSecret: string) {
   const response = await fetch(getPublicApiUrl(`/account/qr-login/challenges/${challengeId}/complete`), {
-    body: JSON.stringify({ browserSecret }),
+    body: JSON.stringify({
+      activitySource: "HYBRID_WEB",
+      browserSecret
+    }),
     headers: {
       "Content-Type": "application/json"
     },

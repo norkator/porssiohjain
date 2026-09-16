@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.QrLoginChallengeEntity;
+import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.nitramite.porssiohjain.entity.enums.QrLoginStatus;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.QrLoginChallengeRepository;
@@ -118,6 +119,11 @@ public class QrLoginService {
 
     @Transactional
     public Object completeChallenge(UUID challengeId, String browserSecret) {
+        return completeChallenge(challengeId, browserSecret, null);
+    }
+
+    @Transactional
+    public Object completeChallenge(UUID challengeId, String browserSecret, AccountActivitySource activitySource) {
         QrLoginChallengeEntity challenge = getChallenge(challengeId);
         expireIfNeeded(challenge);
 
@@ -137,7 +143,7 @@ public class QrLoginService {
         }
 
         AccountEntity account = challenge.getAccount();
-        LoginResponse loginResponse = authService.createTokenForAccount(account);
+        LoginResponse loginResponse = authService.createTokenForAccount(account, activitySource);
         challenge.setStatus(QrLoginStatus.CONSUMED);
         challenge.setConsumedAt(Instant.now());
 

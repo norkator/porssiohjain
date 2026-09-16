@@ -16,6 +16,7 @@ import com.google.zxing.WriterException;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
+import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.nitramite.porssiohjain.entity.enums.QrLoginStatus;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -124,7 +125,7 @@ public class LoginView extends VerticalLayout {
                 String secret = secretField.getValue().trim();
 
                 String ip = VaadinRequest.getCurrent().getRemoteAddr();
-                LoginResponse response = authService.login(ip, uuid, secret);
+                LoginResponse response = authService.login(ip, uuid, secret, AccountActivitySource.VAADIN);
 
                 VaadinSession.getCurrent().setAttribute("token", response.getToken());
                 VaadinSession.getCurrent().setAttribute("expiresAt", response.getExpiresAt());
@@ -283,7 +284,11 @@ public class LoginView extends VerticalLayout {
         }
 
         try {
-            Object result = qrLoginService.completeChallenge(qrChallenge.getChallengeId(), qrChallenge.getBrowserSecret());
+            Object result = qrLoginService.completeChallenge(
+                    qrChallenge.getChallengeId(),
+                    qrChallenge.getBrowserSecret(),
+                    AccountActivitySource.VAADIN
+            );
             if (result instanceof LoginResponse loginResponse) {
                 VaadinSession.getCurrent().setAttribute("token", loginResponse.getToken());
                 VaadinSession.getCurrent().setAttribute("expiresAt", loginResponse.getExpiresAt());

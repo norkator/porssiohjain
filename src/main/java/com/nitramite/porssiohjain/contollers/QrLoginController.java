@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.contollers;
 
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
+import com.nitramite.porssiohjain.services.AccountActivitySourceResolver;
 import com.nitramite.porssiohjain.services.QrLoginService;
 import com.nitramite.porssiohjain.services.models.CreateQrLoginChallengeRequest;
 import com.nitramite.porssiohjain.services.models.QrLoginApproveRequest;
@@ -61,7 +62,11 @@ public class QrLoginController {
             @PathVariable UUID challengeId,
             @RequestBody QrLoginCompleteRequest requestBody
     ) {
-        return ResponseEntity.ok(qrLoginService.completeChallenge(challengeId, requestBody.getBrowserSecret()));
+        return ResponseEntity.ok(qrLoginService.completeChallenge(
+                challengeId,
+                requestBody.getBrowserSecret(),
+                AccountActivitySourceResolver.resolve(requestBody.getActivitySource())
+        ));
     }
 
     @PostMapping("/challenges/{challengeId}/cancel")

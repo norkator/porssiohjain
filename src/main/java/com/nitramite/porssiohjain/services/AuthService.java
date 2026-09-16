@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.nitramite.porssiohjain.entity.RefreshTokenEntity;
 import com.nitramite.porssiohjain.entity.TokenEntity;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
@@ -48,6 +49,11 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(String ip, UUID uuid, String secret) {
+        return login(ip, uuid, secret, null);
+    }
+
+    @Transactional
+    public LoginResponse login(String ip, UUID uuid, String secret, AccountActivitySource activitySource) {
         AccountEntity account = accountRepository.findByUuid(uuid)
                 .orElseThrow(() -> invalidCredentials(ip));
 
@@ -58,12 +64,21 @@ public class AuthService {
 
         rateLimitService.resetLoginFailures(ip);
 
-        return createTokenForAccount(account);
+        return createTokenForAccount(account, activitySource);
     }
 
     @Transactional
     public LoginResponse createTokenForAccount(AccountEntity account) {
+        return createTokenForAccount(account, null);
+    }
+
+    @Transactional
+    public LoginResponse createTokenForAccount(AccountEntity account, AccountActivitySource activitySource) {
         assertNotBlocked(account);
+        if (activitySource != null) {
+            account.setLastActivitySource(activitySource);
+            account = accountRepository.save(account);
+        }
 
         return createTokenPair(account);
     }

@@ -16,4 +16,5 @@ import lombok.Data;
 @Data
 public class QrLoginCompleteRequest {
     private String browserSecret;
+    private String activitySource;
 }
