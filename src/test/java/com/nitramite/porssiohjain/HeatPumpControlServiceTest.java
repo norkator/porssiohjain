@@ -184,6 +184,23 @@ class HeatPumpControlServiceTest {
         verify(acCommandDispatchService, never()).dispatchHexState(acData, "AAAA");
     }
 
+    @Test
+    void heatingPlannerCommandHasPriorityOverOtherHeatPumpRules() {
+        DeviceEntity device = enabledHeatPumpDevice(1L);
+        DeviceAcDataEntity acData = acData(device, "OLD");
+        when(heatingPlannerHeatPumpCommandService.currentCommands(any())).thenReturn(List.of(
+                new HeatingPlannerHeatPumpCommandService.HeatPumpPlanCommand(
+                        device, "PLANNER", 50L, "comfort target")));
+        when(weatherControlHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(productionSourceHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(controlHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(deviceAcDataRepository.findByDevice(device)).thenReturn(Optional.of(acData));
+
+        heatPumpControlService.runScheduledHeatPumpControls();
+
+        verify(acCommandDispatchService).dispatchHexState(acData, "PLANNER");
+    }
+
     private DeviceEntity enabledHeatPumpDevice(Long id) {
         DeviceEntity device = new DeviceEntity();
         device.setId(id);

@@ -991,7 +991,17 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             heatSource.setItemLabelGenerator(HeatingPlannerHeatSourceType::label);
             heatSource.setValue(row.heatSource());
             heatSource.setWidthFull();
-            heatSource.addValueChangeListener(event -> row.setHeatSource(event.getValue()));
+            heatSource.addValueChangeListener(event -> {
+                HeatingPlannerHeatSourceType selected = event.getValue();
+                row.setHeatSource(selected);
+                if (row.controller() != null) {
+                    boolean compatible = selected == HeatingPlannerHeatSourceType.HEAT_PUMP
+                            ? row.controller().getDeviceType() == DeviceType.HEAT_PUMP
+                            : row.controller().getDeviceType() == DeviceType.THERMOSTAT;
+                    if (!compatible) row.setController(null);
+                }
+                grid.getDataProvider().refreshItem(row);
+            });
             return heatSource;
         }).setHeader("Heat source").setFlexGrow(1);
         grid.addComponentColumn(row -> {
