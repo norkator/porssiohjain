@@ -6,12 +6,13 @@ ALTER TABLE heating_planner_room_heat_source
     ADD COLUMN heat_pump_temperature_adjustment NUMERIC(4, 2) NOT NULL DEFAULT 2.00;
 
 ALTER TABLE heating_planner_room_heat_source
-    DROP CONSTRAINT chk_heating_planner_heat_source_type;
+DROP
+CONSTRAINT chk_heating_planner_heat_source_type;
 
 ALTER TABLE heating_planner_room_heat_source
     ADD CONSTRAINT chk_heating_planner_heat_source_type CHECK (
         source_type IN ('FLOOR_HEATING', 'WOOD_STOVE', 'HEAT_PUMP', 'HEAT_PUMP_OBSERVED_ONLY', 'OTHER')
-    ),
+        ),
     ADD CONSTRAINT chk_heating_planner_heat_pump_adjustment CHECK (
         heat_pump_temperature_adjustment >= 0 AND heat_pump_temperature_adjustment <= 5
     );
