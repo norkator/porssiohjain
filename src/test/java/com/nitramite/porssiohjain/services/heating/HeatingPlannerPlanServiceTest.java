@@ -13,6 +13,7 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,5 +59,25 @@ class HeatingPlannerPlanServiceTest {
         inOrder.verify(pointRepository).deleteByPlanEndedBeforeAndPlanStatusNot(
                 cutoff, HeatingPlannerPlanStatus.ACTIVE);
         inOrder.verify(planRepository).deleteEndedBeforeAndStatusNot(cutoff, HeatingPlannerPlanStatus.ACTIVE);
+    }
+
+    @Test
+    void heatPumpPreviewUsesSameComfortAndPriceShiftSetpointsAsPersistedPlan() {
+        var cheap = point(new BigDecimal("21.00"), HeatingPlanSimulationService.OperatingMode.PREHEAT);
+        var expensive = point(new BigDecimal("22.00"), HeatingPlanSimulationService.OperatingMode.DISCHARGE);
+
+        assertThat(HeatingPlannerPlanService.plannedHeatPumpSetpoint(
+                new BigDecimal("22.00"), new BigDecimal("20.00"), new BigDecimal("2.00"), true, cheap))
+                .isEqualByComparingTo("24.00");
+        assertThat(HeatingPlannerPlanService.plannedHeatPumpSetpoint(
+                new BigDecimal("22.00"), new BigDecimal("20.00"), new BigDecimal("2.00"), true, expensive))
+                .isEqualByComparingTo("20.00");
+    }
+
+    private HeatingPlanSimulationService.SimulationPoint point(
+            BigDecimal roomTemperature, HeatingPlanSimulationService.OperatingMode mode) {
+        return new HeatingPlanSimulationService.SimulationPoint(Instant.parse("2026-01-20T12:00:00Z"),
+                BigDecimal.TEN, BigDecimal.ZERO, new BigDecimal("23.00"), roomTemperature,
+                new BigDecimal("23.00"), BigDecimal.ZERO, false, mode, "test reason");
     }
 }

@@ -117,17 +117,23 @@ public class HeatingPlannerPlanService {
     private BigDecimal heatPumpSetpoint(HeatingPlannerRoomEntity room,
                                         HeatingPlannerRoomHeatSourceEntity heatPump,
                                         HeatingPlanSimulationService.SimulationPoint point) {
-        if (heatPump == null || point.mode() == HeatingPlanSimulationService.OperatingMode.INACTIVE) {
+        if (heatPump == null) {
             return null;
         }
-        BigDecimal target = room.getTargetRoomTemperature();
-        BigDecimal adjustment = heatPump.getHeatPumpTemperatureAdjustment() == null
-                ? new BigDecimal("2.00") : heatPump.getHeatPumpTemperatureAdjustment();
+        return plannedHeatPumpSetpoint(room.getTargetRoomTemperature(), room.getMinimumRoomTemperature(),
+                heatPump.getHeatPumpTemperatureAdjustment(), heatPump.isHeatPumpPriceOptimizationEnabled(), point);
+    }
+
+    public static BigDecimal plannedHeatPumpSetpoint(BigDecimal target, BigDecimal minimumRoomTemperature,
+                                                      BigDecimal configuredAdjustment, boolean priceOptimizationEnabled,
+                                                      HeatingPlanSimulationService.SimulationPoint point) {
+        if (point == null || point.mode() == HeatingPlanSimulationService.OperatingMode.INACTIVE) return null;
+        BigDecimal adjustment = configuredAdjustment == null ? new BigDecimal("2.00") : configuredAdjustment;
         BigDecimal requested = target;
-        if (point.roomTemperature().compareTo(room.getMinimumRoomTemperature()) < 0
+        if (point.roomTemperature().compareTo(minimumRoomTemperature) < 0
                 || point.mode() == HeatingPlanSimulationService.OperatingMode.COMFORT_RECOVERY) {
             requested = target.add(adjustment);
-        } else if (heatPump.isHeatPumpPriceOptimizationEnabled()) {
+        } else if (priceOptimizationEnabled) {
             if (point.mode() == HeatingPlanSimulationService.OperatingMode.PREHEAT) {
                 requested = target.add(adjustment);
             } else if (point.mode() == HeatingPlanSimulationService.OperatingMode.DISCHARGE) {

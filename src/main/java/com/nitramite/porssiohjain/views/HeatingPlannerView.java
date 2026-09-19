@@ -349,7 +349,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                         : resolution.reason();
                             }
                             modelEvidence = thermalModelEvidence(modelEvidence, model);
-                            return new RoomPlan(room.room(), room.heatSource(), room.controller(),
+                            return new RoomPlan(room.room(), room.heatSource(), room.heatPumpPriceOptimizationEnabled(),
+                                    room.heatPumpTemperatureAdjustment(), room.controller(),
                                     measurements.roomTemperature(), measurements.floorTemperature(),
                                     measurements.roomMeasurement(), measurements.floorMeasurement(),
                                     room.targetRoomTemperature(), room.minimumRoomTemperature(), room.normalFloorTemperature(),
@@ -370,7 +371,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                             noPreheatFrom.getValue(), noPreheatTo.getValue(), zoneForSite(selectedSite))),
                                     null);
                         } catch (IllegalArgumentException ex) {
-                            return new RoomPlan(room.room(), room.heatSource(), room.controller(),
+                            return new RoomPlan(room.room(), room.heatSource(), room.heatPumpPriceOptimizationEnabled(),
+                                    room.heatPumpTemperatureAdjustment(), room.controller(),
                                     measurements.roomTemperature(), measurements.floorTemperature(),
                                     measurements.roomMeasurement(), measurements.floorMeasurement(),
                                     room.targetRoomTemperature(), room.minimumRoomTemperature(), room.normalFloorTemperature(),
@@ -381,7 +383,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     })
                     .toList();
             if (roomPlans.isEmpty()) {
-                roomPlans = List.of(new RoomPlan("Unconfigured house", HeatingPlannerHeatSourceType.OTHER, null,
+                roomPlans = List.of(new RoomPlan("Unconfigured house", HeatingPlannerHeatSourceType.OTHER,
+                        false, new BigDecimal("2.00"), null,
                         new BigDecimal("21.00"), new BigDecimal("22.00"),
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
                         HeatingPlannerMeasurementService.LatestMeasurement.missing(),
@@ -426,7 +429,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     expensivePricePercentile.getValue(), decimalOrDefault(cheapPriceThreshold.getValue(), "5.0000"),
                     decimalOrDefault(expensivePriceThreshold.getValue(), "20.0000"),
                     noPreheatWindowEnabled.getValue(), noPreheatFrom.getValue(), noPreheatTo.getValue());
-            planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries, evidenceInputs));
+            planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries, evidenceInputs,
+                    heatPumpControlEnabled.getValue()));
             refreshActiveControlState(activeControlService, account == null ? null : account.getId(), selectedSite,
                     activeControlStatus, enableActiveControl, disableActiveControl);
         };
@@ -886,7 +890,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private VerticalLayout planContent(List<RoomPlan> roomPlans, SiteEntity site,
                                        List<SiteWeatherEntity> forecast, MarketSeries marketSeries,
-                                       PlanEvidenceInputs inputs) {
+                                       PlanEvidenceInputs inputs, boolean heatPumpControlEnabled) {
         VerticalLayout plan = new VerticalLayout();
         plan.setPadding(false);
         Details evidence = new Details("Inputs used to determine this plan",
@@ -894,8 +898,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         evidence.setOpened(false);
         Details calculationBreakdown = roomCalculationBreakdown(roomPlans);
         LocalDate today = LocalDate.now(ZONE);
-        VerticalLayout todayContent = dayContent(roomPlans, today, true);
-        VerticalLayout tomorrowContent = dayContent(roomPlans, today.plusDays(1), false);
+        VerticalLayout todayContent = dayContent(roomPlans, today, true, heatPumpControlEnabled);
+        VerticalLayout tomorrowContent = dayContent(roomPlans, today.plusDays(1), false, heatPumpControlEnabled);
         Tab todayTab = new Tab("Today");
         Tab tomorrowTab = new Tab("Tomorrow");
         Tabs tabs = new Tabs(todayTab, tomorrowTab);
@@ -1000,6 +1004,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             : row.controller().getDeviceType() == DeviceType.THERMOSTAT;
                     if (!compatible) row.setController(null);
                 }
+                if (selected == HeatingPlannerHeatSourceType.HEAT_PUMP) row.setFloorSensor(null);
                 grid.getDataProvider().refreshItem(row);
             });
             return heatSource;
@@ -1056,9 +1061,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             });
             return minimum;
         }).setHeader("Comfort minimum").setFlexGrow(1);
-        grid.addComponentColumn(row -> roomTemperatureField(row.maximumPreheatFloorTemperature(), 5, 40,
-                row::setMaximumPreheatFloorTemperature))
-                .setHeader("Preheat max").setFlexGrow(1);
+        grid.addComponentColumn(row -> {
+            NumberField field = roomTemperatureField(row.maximumPreheatFloorTemperature(), 5, 40,
+                    row::setMaximumPreheatFloorTemperature);
+            field.setEnabled(row.heatSource() == HeatingPlannerHeatSourceType.FLOOR_HEATING);
+            return field;
+        }).setHeader("Floor preheat max").setFlexGrow(1);
         grid.addComponentColumn(row -> {
             ComboBox<DeviceEntity> controller = new ComboBox<>();
             controller.setItems(heatingControllers.stream()
@@ -1091,6 +1099,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             sensor.setItemLabelGenerator(this::deviceLabel);
             sensor.setValue(row.floorSensor());
             sensor.setPlaceholder("Required for preheating");
+            if (row.heatSource() == HeatingPlannerHeatSourceType.HEAT_PUMP) {
+                sensor.setPlaceholder("Not used for heat pumps");
+                sensor.setEnabled(false);
+            }
             sensor.setClearButtonVisible(true);
             sensor.setWidthFull();
             sensor.addValueChangeListener(event -> row.setFloorSensor(event.getValue()));
@@ -1128,7 +1140,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return field;
     }
 
-    private VerticalLayout dayContent(List<RoomPlan> roomPlans, LocalDate date, boolean today) {
+    private VerticalLayout dayContent(List<RoomPlan> roomPlans, LocalDate date, boolean today,
+                                      boolean heatPumpControlEnabled) {
         VerticalLayout content = new VerticalLayout();
         content.setPadding(false);
         List<RoomDayPlan> plans = roomPlans.stream()
@@ -1167,7 +1180,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         renderSelectedRoom.run();
         content.add(roomFilter, selectedRoomPlan);
         if (today) {
-            content.add(currentCommandPreview(roomPlans), woodBurningPreview(roomPlans));
+            content.add(currentCommandPreview(roomPlans, heatPumpControlEnabled), woodBurningPreview(roomPlans));
         }
         return content;
     }
@@ -1194,34 +1207,35 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         return section;
     }
 
-    private VerticalLayout currentCommandPreview(List<RoomPlan> roomPlans) {
+    private VerticalLayout currentCommandPreview(List<RoomPlan> roomPlans, boolean heatPumpControlEnabled) {
         VerticalLayout section = new VerticalLayout();
         section.setPadding(false);
         Grid<CurrentCommandPreview> grid = new Grid<>(CurrentCommandPreview.class, false);
         grid.addColumn(CurrentCommandPreview::room).setHeader("Room").setFlexGrow(1);
-        grid.addComponentColumn(row -> wrappingCell(row.thermostat())).setHeader("Thermostat").setFlexGrow(2);
+        grid.addComponentColumn(row -> wrappingCell(row.thermostat())).setHeader("Controller").setFlexGrow(2);
         grid.addColumn(CurrentCommandPreview::command).setHeader("Would command now").setFlexGrow(1);
         grid.addComponentColumn(row -> wrappingCell(row.reason())).setHeader("Why").setFlexGrow(3);
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
         Instant now = Instant.now();
         List<CurrentCommandPreview> previews = roomPlans.stream()
-                .map(plan -> currentCommand(plan, now))
+                .map(plan -> currentCommand(plan, now, heatPumpControlEnabled))
                 .toList();
         grid.setItems(previews);
         grid.setAllRowsVisible(true);
-        Span warning = new Span("Preview only unless the Active thermostat control panel says ACTIVE. Active commands have priority; expired or disabled planner control leaves the existing Control feature as fallback.");
+        Span warning = new Span("Floor commands require Active thermostat control. Heat-pump commands require the site's Control heat pumps switch. Expired or disabled planner control leaves existing controls as fallback.");
         warning.getElement().getThemeList().add("badge warning");
-        section.add(new H3("Current planned thermostat setpoints"), warning, grid);
+        section.add(new H3("Current planned heating setpoints"), warning, grid);
         return section;
     }
 
-    private CurrentCommandPreview currentCommand(RoomPlan plan, Instant now) {
+    private CurrentCommandPreview currentCommand(RoomPlan plan, Instant now, boolean heatPumpControlEnabled) {
         if (plan.result() == null) {
             return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "No command", plan.planError());
         }
-        if (plan.sourceType() != HeatingPlannerHeatSourceType.FLOOR_HEATING) {
+        if (plan.sourceType() != HeatingPlannerHeatSourceType.FLOOR_HEATING
+                && plan.sourceType() != HeatingPlannerHeatSourceType.HEAT_PUMP) {
             return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "No command",
-                    "The configured heat source is not controllable floor heating.");
+                    "The configured heat source is observed only.");
         }
         if (plan.controller() == null) {
             return new CurrentCommandPreview(plan.room(), "Not configured", "No command",
@@ -1234,6 +1248,21 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         if (!plan.result().plannerActive()
                 || point.mode() == HeatingPlanSimulationService.OperatingMode.INACTIVE) {
             return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "No command", point.reason());
+        }
+        if (plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP) {
+            BigDecimal setpoint = HeatingPlannerPlanService.plannedHeatPumpSetpoint(
+                    plan.targetRoomTemperature(), plan.minimumRoomTemperature(),
+                    plan.heatPumpTemperatureAdjustment(), plan.heatPumpPriceOptimizationEnabled(), point);
+            if (!heatPumpControlEnabled) {
+                return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "Observed only",
+                        "The site's Control heat pumps switch is off. Planned request would be " + setpoint + " °C.");
+            }
+            if (!plan.roomMeasurement().fresh()) {
+                return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "No command",
+                        "Room measurement is missing or stale; heat-pump control is suppressed.");
+            }
+            return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()),
+                    setpoint + " °C", point.reason());
         }
         return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()),
                 point.floorSetpoint() + " °C", point.reason());
@@ -1797,7 +1826,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private record PlanAction(String time, String action, String reason) {
     }
 
-    private record RoomPlan(String room, HeatingPlannerHeatSourceType sourceType, DeviceEntity controller,
+    private record RoomPlan(String room, HeatingPlannerHeatSourceType sourceType,
+                            boolean heatPumpPriceOptimizationEnabled,
+                            BigDecimal heatPumpTemperatureAdjustment,
+                            DeviceEntity controller,
                             BigDecimal initialRoomTemperature,
                             BigDecimal initialFloorTemperature,
                             HeatingPlannerMeasurementService.LatestMeasurement roomMeasurement,
@@ -2201,7 +2233,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             deriveHiddenFloorSetpoints();
             this.controller = controller;
             this.roomSensor = roomSensor;
-            this.floorSensor = floorSensor;
+            this.floorSensor = heatSource == HeatingPlannerHeatSourceType.HEAT_PUMP ? null : floorSensor;
         }
 
         private String room() {

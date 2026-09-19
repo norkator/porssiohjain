@@ -266,7 +266,8 @@ public class HeatingPlannerConfigurationService {
             }
             room.setRoomSensorDevice(roomSensor);
             room.setRoomSensorMeasurementKey(roomSensor == null ? null : HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY);
-            DeviceEntity floorSensor = roomConfiguration.floorSensorDeviceId() == null ? null
+            DeviceEntity floorSensor = sourceType == HeatingPlannerHeatSourceType.HEAT_PUMP
+                    || roomConfiguration.floorSensorDeviceId() == null ? null
                     : deviceRepository.findByIdAndAccount(roomConfiguration.floorSensorDeviceId(), account)
                     .orElseThrow(() -> new IllegalArgumentException("Selected floor sensor not found"));
             if (floorSensor != null && floorSensor.getDeviceType() != DeviceType.TEMPERATURE_SENSOR
