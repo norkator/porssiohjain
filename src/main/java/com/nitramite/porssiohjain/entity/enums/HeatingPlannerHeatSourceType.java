@@ -14,7 +14,8 @@ package com.nitramite.porssiohjain.entity.enums;
 public enum HeatingPlannerHeatSourceType {
     FLOOR_HEATING("Floor heating"),
     WOOD_STOVE("Wood stove"),
-    HEAT_PUMP_OBSERVED_ONLY("Heat pump (observed only)"),
+    HEAT_PUMP("Heat pump"),
+    HEAT_PUMP_OBSERVED_ONLY("Heat pump (legacy observed only)"),
     OTHER("Other / not used");
 
     private final String label;

@@ -55,7 +55,9 @@ Every planned action must be selectable in the chart or timeline and expose its 
 
 Once telemetry persistence exists, the same view becomes the room configuration and monitoring view. It compares planned, simulated, and measured temperatures and shows model error. Configuration is organized as a house/site containing heat zones. A zone normally links one room sensor and zero or more heat sources. Kitchen, shower, toilet, and entrance can each have an independently controlled floor thermostat. The living-room zone can contain the heat-retaining wood stove without floor heating. Other configured rooms may receive a reduced share of stove heat.
 
-A separately controlled heat pump is outside Heating Planner scope. It continues using its own thermostat. Its heating effect is naturally visible in room-temperature measurements, so the planner responds by reducing unnecessary floor preheating or wood recommendations without issuing heat-pump commands.
+Heat pumps can either remain observed or be controlled by Heating Planner. A site-level **Control heat pumps** switch is independent of floor-heating active control and defaults off. When off, their heating effect is visible through room-temperature measurements but no heat-pump command is issued.
+
+When control is enabled, each heat-pump room uses its explicit room sensor and comfort target. Heating Planner may request a configured adjustment above or below that target (2 °C by default, clamped to the device-supported 16–30 °C range). Below the comfort minimum always requests recovery. A per-room price-shifting toggle optionally raises the requested temperature in selected cheap preheat periods and lowers it in expensive discharge periods. With price shifting off, setpoint changes respond only to the measured/predicted room temperature around the comfort target. Missing or stale room measurements suppress heat-pump commands.
 
 ## Planning inputs
 
@@ -191,6 +193,7 @@ Heating Planner does not replace or bypass the thermostat's configured internal 
 - Wood-stove actions always remain advisory and human-operated. The service does not ignite a fire or control combustion air or dampers.
 - Stove temperature monitoring does not replace certified independent smoke and carbon-monoxide alarms.
 - Cloud or gateway failure leaves the last verified local setting; it must not invent a new fallback command.
+- Heat-pump control requires an explicit site-level opt-in. Unsupported AC types or devices without a readable previously polled state remain observed only.
 - Planner bounds should be configured consistently with the thermostat installation; Heating Planner does not invent or advertise a universal device limit.
 
 ## Active-control activation

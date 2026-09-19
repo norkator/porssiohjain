@@ -11,9 +11,11 @@ package com.nitramite.porssiohjain.services.heating;
 import com.nitramite.porssiohjain.entity.HeatingPlannerPlanEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerPlanPointEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
+import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerSettingsEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerWoodRecommendationEntity;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanPointStatus;
+import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanStatus;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerWoodRecommendationStatus;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerPlanPointRepository;
@@ -25,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
@@ -91,12 +94,17 @@ public class HeatingPlannerPlanService {
 
         resultsByRoomName.forEach((roomName, result) -> {
             HeatingPlannerRoomEntity room = rooms.get(roomName);
+            HeatingPlannerRoomHeatSourceEntity heatPump = room.getHeatSources().stream()
+                    .filter(HeatingPlannerRoomHeatSourceEntity::isEnabled)
+                    .filter(source -> source.getSourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP)
+                    .findFirst().orElse(null);
             result.points().forEach(point -> plan.getPoints().add(HeatingPlannerPlanPointEntity.builder()
                     .plan(plan).room(room).account(settings.getAccount()).site(settings.getSite())
                     .planVersion(plan.getPlanVersion()).plannedTime(point.time())
                     .priceCentsPerKwh(point.priceCentsPerKwh()).outdoorTemperature(point.outdoorTemperature())
                     .predictedFloorTemperature(point.floorTemperature())
                     .predictedRoomTemperature(point.roomTemperature()).plannedFloorSetpoint(point.floorSetpoint())
+                    .plannedHeatPumpSetpoint(heatPumpSetpoint(room, heatPump, point))
                     .predictedWoodHeatRate(point.woodRoomHeatingRate()).heating(point.heating())
                     .operatingMode(point.mode()).reason(point.reason())
                     .status(HeatingPlannerPlanPointStatus.SIMULATED).build()));
@@ -104,6 +112,36 @@ public class HeatingPlannerPlanService {
         planRepository.save(plan);
         persistWoodRecommendation(plan, settings, rooms, resultsByRoomName);
         return true;
+    }
+
+    private BigDecimal heatPumpSetpoint(HeatingPlannerRoomEntity room,
+                                        HeatingPlannerRoomHeatSourceEntity heatPump,
+                                        HeatingPlanSimulationService.SimulationPoint point) {
+        if (heatPump == null || point.mode() == HeatingPlanSimulationService.OperatingMode.INACTIVE) {
+            return null;
+        }
+        BigDecimal target = room.getTargetRoomTemperature();
+        BigDecimal adjustment = heatPump.getHeatPumpTemperatureAdjustment() == null
+                ? new BigDecimal("2.00") : heatPump.getHeatPumpTemperatureAdjustment();
+        BigDecimal requested = target;
+        if (point.roomTemperature().compareTo(room.getMinimumRoomTemperature()) < 0
+                || point.mode() == HeatingPlanSimulationService.OperatingMode.COMFORT_RECOVERY) {
+            requested = target.add(adjustment);
+        } else if (heatPump.isHeatPumpPriceOptimizationEnabled()) {
+            if (point.mode() == HeatingPlanSimulationService.OperatingMode.PREHEAT) {
+                requested = target.add(adjustment);
+            } else if (point.mode() == HeatingPlanSimulationService.OperatingMode.DISCHARGE) {
+                requested = target.subtract(adjustment);
+            }
+        } else {
+            BigDecimal deadband = new BigDecimal("0.25");
+            if (point.roomTemperature().compareTo(target.subtract(deadband)) < 0) {
+                requested = target.add(adjustment);
+            } else if (point.roomTemperature().compareTo(target.add(deadband)) > 0) {
+                requested = target.subtract(adjustment);
+            }
+        }
+        return requested.max(new BigDecimal("16.00")).min(new BigDecimal("30.00"));
     }
 
     @Transactional

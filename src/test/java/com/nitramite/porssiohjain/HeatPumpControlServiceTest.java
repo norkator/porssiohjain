@@ -34,6 +34,7 @@ import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpReposi
 import com.nitramite.porssiohjain.services.AcCommandDispatchService;
 import com.nitramite.porssiohjain.services.ControlPriceService;
 import com.nitramite.porssiohjain.services.HeatPumpControlService;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerHeatPumpCommandService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -76,6 +77,9 @@ class HeatPumpControlServiceTest {
     @Mock
     private ControlPriceService controlPriceService;
 
+    @Mock
+    private HeatingPlannerHeatPumpCommandService heatingPlannerHeatPumpCommandService;
+
     private HeatPumpControlService heatPumpControlService;
 
     @BeforeEach
@@ -88,8 +92,10 @@ class HeatPumpControlServiceTest {
                 siteWeatherRepository,
                 controlTableRepository,
                 acCommandDispatchService,
-                controlPriceService
+                controlPriceService,
+                heatingPlannerHeatPumpCommandService
         );
+        when(heatingPlannerHeatPumpCommandService.currentCommands(any())).thenReturn(List.of());
     }
 
     @Test

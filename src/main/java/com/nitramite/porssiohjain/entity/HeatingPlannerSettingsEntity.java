@@ -52,6 +52,10 @@ public class HeatingPlannerSettingsEntity {
     private boolean activeControlEnabled = false;
 
     @Builder.Default
+    @Column(name = "heat_pump_control_enabled", nullable = false)
+    private boolean heatPumpControlEnabled = false;
+
+    @Builder.Default
     @Column(nullable = false, length = 64)
     private String timezone = "Europe/Helsinki";
 

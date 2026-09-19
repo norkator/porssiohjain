@@ -79,6 +79,9 @@ public class HeatingPlannerPlanPointEntity {
     @Column(name = "planned_floor_setpoint", precision = 10, scale = 2)
     private BigDecimal plannedFloorSetpoint;
 
+    @Column(name = "planned_heat_pump_setpoint", precision = 10, scale = 2)
+    private BigDecimal plannedHeatPumpSetpoint;
+
     @Column(name = "predicted_wood_heat_rate", precision = 10, scale = 4)
     private BigDecimal predictedWoodHeatRate;
 

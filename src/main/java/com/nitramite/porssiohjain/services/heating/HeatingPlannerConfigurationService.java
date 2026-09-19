@@ -65,7 +65,7 @@ public class HeatingPlannerConfigurationService {
     public Configuration configuration(Long accountId, Long siteId) {
         Optional<HeatingPlannerSettingsEntity> settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId);
         if (settings.isEmpty()) {
-            return new Configuration(false, new BigDecimal("5.00"), new BigDecimal("0.00"),
+            return new Configuration(false, false, new BigDecimal("5.00"), new BigDecimal("0.00"),
                     new BigDecimal("25.50"), null, false, LocalTime.of(6, 0), LocalTime.of(22, 0),
                     new BigDecimal("8.00"), 45, 360, new BigDecimal("5.0000"), new BigDecimal("20.0000"),
                     new BigDecimal("0.2500"),
@@ -80,7 +80,11 @@ public class HeatingPlannerConfigurationService {
                             .orElse(null);
                     return new RoomConfiguration(
                             room.getName(),
-                            source == null ? HeatingPlannerHeatSourceType.OTHER : source.getSourceType(),
+                            source == null ? HeatingPlannerHeatSourceType.OTHER
+                                    : source.getSourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP_OBSERVED_ONLY
+                                    ? HeatingPlannerHeatSourceType.HEAT_PUMP : source.getSourceType(),
+                            source != null && source.isHeatPumpPriceOptimizationEnabled(),
+                            source == null ? new BigDecimal("2.00") : source.getHeatPumpTemperatureAdjustment(),
                             room.getTargetRoomTemperature(),
                             room.getMinimumRoomTemperature(),
                             room.getNormalFloorTemperature(),
@@ -94,7 +98,7 @@ public class HeatingPlannerConfigurationService {
                     );
                 })
                 .toList();
-        return new Configuration(settingsEntity.isEnabled(), settingsEntity.getPlannerActiveBelowTemperature(),
+        return new Configuration(settingsEntity.isEnabled(), settingsEntity.isHeatPumpControlEnabled(), settingsEntity.getPlannerActiveBelowTemperature(),
                 settingsEntity.getWoodRecommendationBelowTemperature(), settingsEntity.getTaxPercent(),
                 settingsEntity.getTransferContract() == null ? null : settingsEntity.getTransferContract().getId(),
                 settingsEntity.isStoveLoaded(), settingsEntity.getStoveAvailableFrom(), settingsEntity.getStoveAvailableTo(),
@@ -109,6 +113,13 @@ public class HeatingPlannerConfigurationService {
     public void setEnabled(Long accountId, Long siteId, boolean enabled) {
         HeatingPlannerSettingsEntity settings = requireOrCreateSettings(accountId, siteId);
         settings.setEnabled(enabled);
+        settingsRepository.save(settings);
+    }
+
+    @Transactional
+    public void setHeatPumpControlEnabled(Long accountId, Long siteId, boolean enabled) {
+        HeatingPlannerSettingsEntity settings = requireOrCreateSettings(accountId, siteId);
+        settings.setHeatPumpControlEnabled(enabled);
         settingsRepository.save(settings);
     }
 
@@ -240,8 +251,12 @@ public class HeatingPlannerConfigurationService {
             DeviceEntity controller = roomConfiguration.controllingDeviceId() == null ? null
                     : deviceRepository.findByIdAndAccount(roomConfiguration.controllingDeviceId(), account)
                     .orElseThrow(() -> new IllegalArgumentException("Selected controlling device not found"));
-            if (controller != null && controller.getDeviceType() != DeviceType.THERMOSTAT) {
-                throw new IllegalArgumentException("Selected controlling device is not a thermostat");
+            DeviceType expectedControllerType = sourceType == HeatingPlannerHeatSourceType.HEAT_PUMP
+                    ? DeviceType.HEAT_PUMP : DeviceType.THERMOSTAT;
+            if (controller != null && controller.getDeviceType() != expectedControllerType) {
+                throw new IllegalArgumentException(sourceType == HeatingPlannerHeatSourceType.HEAT_PUMP
+                        ? "Selected controlling device is not a heat pump"
+                        : "Selected controlling device is not a thermostat");
             }
             DeviceEntity roomSensor = roomConfiguration.roomSensorDeviceId() == null ? null
                     : deviceRepository.findByIdAndAccount(roomConfiguration.roomSensorDeviceId(), account)
@@ -269,6 +284,13 @@ public class HeatingPlannerConfigurationService {
             heatSource.setName(sourceType.label());
             heatSource.setSourceType(sourceType);
             heatSource.setControllingDevice(controller);
+            heatSource.setHeatPumpPriceOptimizationEnabled(roomConfiguration.heatPumpPriceOptimizationEnabled());
+            BigDecimal adjustment = roomConfiguration.heatPumpTemperatureAdjustment() == null
+                    ? new BigDecimal("2.00") : roomConfiguration.heatPumpTemperatureAdjustment();
+            if (adjustment.compareTo(BigDecimal.ZERO) < 0 || adjustment.compareTo(new BigDecimal("5.00")) > 0) {
+                throw new IllegalArgumentException("Heat pump temperature adjustment must be between 0 and 5 °C");
+            }
+            heatSource.setHeatPumpTemperatureAdjustment(adjustment);
             roomRepository.save(room);
             sortOrder++;
         }
@@ -298,6 +320,7 @@ public class HeatingPlannerConfigurationService {
 
     public record Configuration(
             boolean enabled,
+            boolean heatPumpControlEnabled,
             BigDecimal plannerActiveBelowTemperature,
             BigDecimal woodRecommendationBelowTemperature,
             BigDecimal taxPercent,
@@ -344,6 +367,8 @@ public class HeatingPlannerConfigurationService {
     public record RoomConfiguration(
             String name,
             HeatingPlannerHeatSourceType sourceType,
+            boolean heatPumpPriceOptimizationEnabled,
+            BigDecimal heatPumpTemperatureAdjustment,
             BigDecimal targetRoomTemperature,
             BigDecimal minimumRoomTemperature,
             BigDecimal normalFloorTemperature,

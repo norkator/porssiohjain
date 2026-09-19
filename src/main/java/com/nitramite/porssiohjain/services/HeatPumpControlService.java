@@ -26,6 +26,7 @@ import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.ProductionSourceHeatPumpRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpRepository;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerHeatPumpCommandService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,10 +57,15 @@ public class HeatPumpControlService {
     private final ControlTableRepository controlTableRepository;
     private final AcCommandDispatchService acCommandDispatchService;
     private final ControlPriceService controlPriceService;
+    private final HeatingPlannerHeatPumpCommandService heatingPlannerHeatPumpCommandService;
 
     public void runScheduledHeatPumpControls() {
         Instant now = Instant.now();
         Map<Long, HeatPumpCommandCandidate> commandsByDeviceId = new LinkedHashMap<>();
+
+        heatingPlannerHeatPumpCommandService.currentCommands(now).forEach(command -> addIfMatched(commandsByDeviceId,
+                Optional.of(new HeatPumpCommandCandidate(command.device(), command.state(), 0,
+                        "HEATING_PLANNER", command.sourceId(), command.reason()))));
 
         weatherControlHeatPumpRepository.findAll().stream()
                 .sorted(Comparator.comparing(WeatherControlHeatPumpEntity::getId))

@@ -85,6 +85,7 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
         }
 
         acData.setLastPolledStateHex(formattedState);
+        acData.setLastSentStateHex(formattedState);
         deviceAcDataRepository.save(acData);
     }
 

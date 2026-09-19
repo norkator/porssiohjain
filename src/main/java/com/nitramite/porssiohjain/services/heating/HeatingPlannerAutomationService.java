@@ -88,7 +88,8 @@ public class HeatingPlannerAutomationService {
             HeatingPlanSimulationService.ThermalModel model = thermalModelService.learnAndResolve(
                     settings.getAccount().getId(), settings.getSite().getId(), room.getName(), configured, now).model();
             results.put(room.getName(), simulationService.simulate(request(settings, room, market, model,
-                    initialFloor, initialRoom, floorMeasurement.fresh(), roomMeasurement.fresh(), horizonStart)));
+                    initialFloor, initialRoom, floorMeasurement.fresh() || hasEnabledHeatPump(room),
+                    roomMeasurement.fresh(), horizonStart)));
         }
         if (results.isEmpty()) throw new IllegalStateException("No enabled rooms are configured");
         if (!planService.persistSimulatedPlan(settings.getAccount().getId(), settings.getSite().getId(), results))
@@ -198,6 +199,11 @@ public class HeatingPlannerAutomationService {
                 value(room.getFloorToRoomRate(), DEFAULT_FLOOR_TO_ROOM_RATE),
                 value(room.getRoomOutdoorLossRate(), DEFAULT_OUTDOOR_LOSS_RATE),
                 value(room.getWindLossRate(), DEFAULT_WIND_LOSS_RATE));
+    }
+
+    private boolean hasEnabledHeatPump(HeatingPlannerRoomEntity room) {
+        return room.getHeatSources().stream().anyMatch(source -> source.isEnabled()
+                && source.getSourceType() == com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType.HEAT_PUMP);
     }
 
     private ZoneId zone(HeatingPlannerSettingsEntity settings) {

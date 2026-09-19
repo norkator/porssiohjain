@@ -68,6 +68,14 @@ public class HeatingPlannerRoomHeatSourceEntity {
     private BigDecimal heatShare;
 
     @Builder.Default
+    @Column(name = "heat_pump_price_optimization_enabled", nullable = false)
+    private boolean heatPumpPriceOptimizationEnabled = false;
+
+    @Builder.Default
+    @Column(name = "heat_pump_temperature_adjustment", nullable = false, precision = 4, scale = 2)
+    private BigDecimal heatPumpTemperatureAdjustment = new BigDecimal("2.00");
+
+    @Builder.Default
     @Column(nullable = false)
     private boolean enabled = true;
 
@@ -97,5 +105,6 @@ public class HeatingPlannerRoomHeatSourceEntity {
     private void normalizeDefaults() {
         if (sourceType == null) sourceType = HeatingPlannerHeatSourceType.OTHER;
         if (sortOrder == null) sortOrder = 0;
+        if (heatPumpTemperatureAdjustment == null) heatPumpTemperatureAdjustment = new BigDecimal("2.00");
     }
 }
