@@ -267,6 +267,15 @@ export default function LoginView() {
           </button>
         </div>
 
+        <div className="mt-3">
+          <a
+            className="secondary-action w-full justify-center"
+            href="https://app.porssiohjain.fi/"
+          >
+            {t("openAdvancedWebVersion")}
+          </a>
+        </div>
+
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4 text-sm">
           <button className="font-label font-bold text-primary-container underline" onClick={fillDemoAccount} type="button">
             {t("useDemoAccount")}

@@ -15,6 +15,7 @@
     "useDemoAccount": "Use demo account",
     "createAccount": "Create account",
     "loginWithQr": "Login with QR code",
+    "openAdvancedWebVersion": "Advanced version",
     "qrStarting": "Creating QR login...",
     "qrEyebrow": "QR Login",
     "qrTitle": "Scan to log in",
