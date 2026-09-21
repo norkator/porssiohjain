@@ -34,6 +34,7 @@ import org.xml.sax.InputSource;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.StringReader;
 import java.math.BigDecimal;
+import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeFormatter;
@@ -82,24 +83,13 @@ public class FmiWeatherService {
         Instant startTime = Instant.now().truncatedTo(ChronoUnit.HOURS);
         Instant endTime = startTime.plus(forecastHours, ChronoUnit.HOURS);
 
-        String url = UriComponentsBuilder.fromUriString(wfsUrl)
-                .queryParam("service", "WFS")
-                .queryParam("version", "2.0.0")
-                .queryParam("request", "getFeature")
-                .queryParam("storedquery_id", storedQueryId)
-                .queryParam("place", site.getWeatherPlace())
-                .queryParam("starttime", FMI_TIME_FORMATTER.format(startTime))
-                .queryParam("endtime", FMI_TIME_FORMATTER.format(endTime))
-                .queryParam("timestep", timestepMinutes)
-                .queryParam("parameters", forecastParameters)
-                .build(true)
-                .toUriString();
+        URI uri = buildForecastUri(site, startTime, endTime);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setAccept(List.of(MediaType.APPLICATION_XML, MediaType.TEXT_XML, MediaType.ALL));
 
         ResponseEntity<String> response = restTemplate.exchange(
-                url,
+                uri,
                 HttpMethod.GET,
                 new HttpEntity<>(headers),
                 String.class
@@ -125,6 +115,22 @@ public class FmiWeatherService {
                 .timestepMinutes(timestepMinutes)
                 .points(points)
                 .build();
+    }
+
+    URI buildForecastUri(SiteEntity site, Instant startTime, Instant endTime) {
+        return UriComponentsBuilder.fromUriString(wfsUrl)
+                .queryParam("service", "WFS")
+                .queryParam("version", "2.0.0")
+                .queryParam("request", "getFeature")
+                .queryParam("storedquery_id", storedQueryId)
+                .queryParam("place", site.getWeatherPlace())
+                .queryParam("starttime", FMI_TIME_FORMATTER.format(startTime))
+                .queryParam("endtime", FMI_TIME_FORMATTER.format(endTime))
+                .queryParam("timestep", timestepMinutes)
+                .queryParam("parameters", forecastParameters)
+                .build()
+                .encode()
+                .toUri();
     }
 
     private List<SiteWeatherForecastPointResponse> parseForecastPoints(String xml) {
