@@ -58,6 +58,18 @@ body {
     padding: 32px;
 }
 
+.service-notice {
+    background: #fff7d6;
+    border: 2px solid #8a7127;
+    border-left: 7px solid #c58b00;
+    box-shadow: inset 1px 1px #fffdf2, inset -1px -1px #d6c27c, 2px 2px 0 rgba(0, 0, 0, 0.18);
+}
+
+.service-notice-title {
+    color: #654900;
+    letter-spacing: 0.02em;
+}
+
 @media (max-width: 767px) {
     .responsive-card {
         padding: 16px !important;

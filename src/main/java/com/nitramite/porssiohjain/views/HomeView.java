@@ -297,6 +297,7 @@ public class HomeView extends VerticalLayout {
 
     private Div createServiceNotice(String text) {
         Span label = new Span(t("home.serviceNotice"));
+        label.addClassName("service-notice-title");
         label.getStyle()
                 .set("display", "block")
                 .set("font-weight", "700")
@@ -306,13 +307,11 @@ public class HomeView extends VerticalLayout {
                 .set("margin", "0")
                 .set("white-space", "pre-wrap");
         Div notice = new Div(label, message);
+        notice.addClassName("service-notice");
         notice.setWidthFull();
         notice.getStyle()
                 .set("box-sizing", "border-box")
                 .set("padding", "1rem")
-                .set("border", "1px solid var(--lumo-warning-color-50pct)")
-                .set("border-radius", "8px")
-                .set("background-color", "var(--lumo-warning-color-10pct)")
                 .set("color", "var(--lumo-body-text-color)");
         return notice;
     }
