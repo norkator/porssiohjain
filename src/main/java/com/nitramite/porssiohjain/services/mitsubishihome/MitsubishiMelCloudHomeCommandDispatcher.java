@@ -18,10 +18,12 @@ import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.services.AcCommandDispatcher;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MitsubishiMelCloudHomeCommandDispatcher implements AcCommandDispatcher {
@@ -99,6 +101,12 @@ public class MitsubishiMelCloudHomeCommandDispatcher implements AcCommandDispatc
         String formattedState = formatState(state);
         acData.setLastSentStateHex(formattedState);
         deviceAcDataRepository.save(acData);
+        log.info(
+                "MELCloud Home AC state changed. name={}, unitId={}, unitType={}",
+                state.getName() != null && !state.getName().isBlank() ? state.getName() : acData.getName(),
+                unitId,
+                state.getUnitType()
+        );
         systemLogService.log(String.format(
                 "MELCloud Home control sent. deviceId=%s, acDataId=%s, unitId=%s, unitType=%s",
                 acData.getDevice() != null ? acData.getDevice().getId() : null,
