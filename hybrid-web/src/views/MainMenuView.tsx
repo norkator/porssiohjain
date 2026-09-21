@@ -782,7 +782,7 @@ export default function MainMenuView() {
         {serviceNotice?.active && serviceNotice.text ? (
           <aside
             aria-label={t("serviceNotice")}
-            className="mb-8 rounded-xl border border-[#d79b00] bg-[#fff3bf] p-5 text-[#4a3200] shadow-md dark:border-[#f2c94c] dark:bg-[#4a3a00] dark:text-[#fff3bf] sm:p-6"
+            className="mb-8 rounded-xl border border-[#c58b00] bg-[#fff7d6] p-5 text-[#4a3200] shadow-md dark:border-[#806c22] dark:bg-[#4a3a00] dark:text-[#fff3bf] sm:p-6"
           >
             <p className="mb-2 text-xs font-black uppercase tracking-[0.16em]">{t("serviceNotice")}</p>
             <p className="whitespace-pre-wrap text-base font-medium leading-relaxed">{serviceNotice.text}</p>
