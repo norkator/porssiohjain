@@ -34,6 +34,8 @@ class MitsubishiMelCloudHomeApiClientTest {
     private HttpServer server;
     private MitsubishiMelCloudHomeApiClient client;
     private final AtomicReference<String> oauthState = new AtomicReference<>();
+    private final AtomicReference<String> ataControlBody = new AtomicReference<>();
+    private final AtomicReference<String> atwControlBody = new AtomicReference<>();
 
     @BeforeEach
     void setUp() throws IOException {
@@ -50,6 +52,8 @@ class MitsubishiMelCloudHomeApiClientTest {
         ));
         server.createContext("/connect/token", this::handleToken);
         server.createContext("/context", this::handleContext);
+        server.createContext("/monitor/ataunit/ata-1", exchange -> handleControl(exchange, ataControlBody));
+        server.createContext("/monitor/atwunit/atw-1", exchange -> handleControl(exchange, atwControlBody));
         server.start();
     }
 
@@ -80,6 +84,23 @@ class MitsubishiMelCloudHomeApiClientTest {
 
         assertEquals("refreshed-access-token", tokens.accessToken());
         assertEquals("new-refresh-token", tokens.refreshToken());
+    }
+
+    @Test
+    void sendsAtaAndAtwControlPayloads() throws Exception {
+        client.controlAtaUnit("access-token", "ata-1", new MitsubishiMelCloudHomeApiClient.AtaControlRequest(
+                true, "Heat", 21.5, "Auto", "Swing", "Centre", null, false
+        ));
+        client.controlAtwUnit("access-token", "atw-1", new MitsubishiMelCloudHomeApiClient.AtwControlRequest(
+                true, 21.0, null, "HeatRoomTemperature", null, 50.0, false, false,
+                null, null, null, null
+        ));
+
+        ObjectMapper mapper = new ObjectMapper();
+        assertEquals("Heat", mapper.readTree(ataControlBody.get()).path("operationMode").asText());
+        assertEquals(21.5, mapper.readTree(ataControlBody.get()).path("setTemperature").asDouble());
+        assertEquals("HeatRoomTemperature", mapper.readTree(atwControlBody.get()).path("operationModeZone1").asText());
+        assertEquals(50.0, mapper.readTree(atwControlBody.get()).path("setTankWaterTemperature").asDouble());
     }
 
     private void handlePar(HttpExchange exchange) throws IOException {
@@ -137,6 +158,14 @@ class MitsubishiMelCloudHomeApiClientTest {
                   }]
                 }
                 """);
+    }
+
+    private static void handleControl(HttpExchange exchange, AtomicReference<String> bodyTarget) throws IOException {
+        assertEquals("PUT", exchange.getRequestMethod());
+        assertEquals("Bearer access-token", exchange.getRequestHeaders().getFirst("Authorization"));
+        bodyTarget.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        exchange.sendResponseHeaders(204, -1);
+        exchange.close();
     }
 
     private static Map<String, String> readForm(HttpExchange exchange) throws IOException {

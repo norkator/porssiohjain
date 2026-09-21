@@ -65,7 +65,20 @@ public record MitsubishiMelCloudHomeContextResponse(
     public record Capabilities(
             Boolean hasEnergyConsumedMeter,
             Boolean hasHotWater,
-            Boolean hasZone2
+            Boolean hasZone2,
+            Integer numberOfFanSpeeds,
+            Double minTempHeat,
+            Double maxTempHeat,
+            Double minTempCool,
+            Double maxTempCool,
+            Double minTempAutomatic,
+            Double maxTempAutomatic,
+            Double minSetTemperatureZone1,
+            Double maxSetTemperatureZone1,
+            Double minSetTemperatureZone2,
+            Double maxSetTemperatureZone2,
+            Double minSetTankTemperature,
+            Double maxSetTankTemperature
     ) {
     }
 }

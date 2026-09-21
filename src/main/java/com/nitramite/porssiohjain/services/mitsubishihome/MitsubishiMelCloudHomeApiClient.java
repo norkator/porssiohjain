@@ -164,6 +164,39 @@ public class MitsubishiMelCloudHomeApiClient {
         }
     }
 
+    public void controlAtaUnit(String accessToken, String unitId, AtaControlRequest control) {
+        putControl(accessToken, "/monitor/ataunit/" + validateUnitId(unitId), control);
+    }
+
+    public void controlAtwUnit(String accessToken, String unitId, AtwControlRequest control) {
+        putControl(accessToken, "/monitor/atwunit/" + validateUnitId(unitId), control);
+    }
+
+    private void putControl(String accessToken, String path, Object control) {
+        if (accessToken == null || accessToken.isBlank()) {
+            throw new MitsubishiMelCloudHomeException("MELCloud Home access token is required");
+        }
+        final String body;
+        try {
+            body = objectMapper.writeValueAsString(control);
+        } catch (IOException e) {
+            throw new MitsubishiMelCloudHomeException("Unable to serialize MELCloud Home control request", e);
+        }
+        HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(REQUEST_TIMEOUT)
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
+        HttpRequest request = HttpRequest.newBuilder(apiUri(path))
+                .timeout(REQUEST_TIMEOUT)
+                .header("Authorization", "Bearer " + accessToken)
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .header("User-Agent", "Porssiohjain MELCloud Home")
+                .PUT(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+        requireSuccess(send(client, request), "Sending MELCloud Home control failed");
+    }
+
     private TokenResponse exchangeToken(HttpClient client, Map<String, String> parameters) {
         JsonNode tokenResponse = readJson(sendForm(client, authUri("/connect/token"), parameters));
         String accessToken = requiredText(tokenResponse, "access_token", "Token response did not contain access_token");
@@ -353,6 +386,41 @@ public class MitsubishiMelCloudHomeApiClient {
         return value;
     }
 
+    private static String validateUnitId(String unitId) {
+        if (unitId == null || !unitId.matches("[A-Za-z0-9_-]{1,128}")) {
+            throw new IllegalArgumentException("A valid MELCloud Home unit ID is required");
+        }
+        return unitId;
+    }
+
     public record TokenResponse(String accessToken, String refreshToken, long expiresInSeconds) {
+    }
+
+    public record AtaControlRequest(
+            Boolean power,
+            String operationMode,
+            Double setTemperature,
+            String setFanSpeed,
+            String vaneVerticalDirection,
+            String vaneHorizontalDirection,
+            Integer temperatureIncrementOverride,
+            Boolean inStandbyMode
+    ) {
+    }
+
+    public record AtwControlRequest(
+            Boolean power,
+            Double setTemperatureZone1,
+            Double setTemperatureZone2,
+            String operationModeZone1,
+            String operationModeZone2,
+            Double setTankWaterTemperature,
+            Boolean forcedHotWaterMode,
+            Boolean inStandbyMode,
+            Double setHeatFlowTemperatureZone1,
+            Double setCoolFlowTemperatureZone1,
+            Double setHeatFlowTemperatureZone2,
+            Double setCoolFlowTemperatureZone2
+    ) {
     }
 }
