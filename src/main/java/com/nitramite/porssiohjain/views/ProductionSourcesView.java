@@ -46,7 +46,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Production Sources")
-@Route("production-sources")
+@Route(value = "production-sources", layout = MainLayout.class)
 @PermitAll
 public class ProductionSourcesView extends VerticalLayout implements BeforeEnterObserver {
 

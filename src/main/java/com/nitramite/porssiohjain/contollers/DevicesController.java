@@ -145,7 +145,7 @@ public class DevicesController {
             if (response != null && response.getResObj() != null) {
                 currentState = response.getResObj().getAcStateData();
             }
-        } else if (acData.getAcType() == AcType.MITSUBISHI) {
+        } else if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD) {
             MitsubishiAcStateResponse response = mitsubishiAcStateService.getAcState(acData);
             if (response != null) {
                 currentState = acData.getLastPolledStateHex();

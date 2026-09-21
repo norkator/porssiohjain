@@ -118,7 +118,7 @@ class MitsubishiAcCommandDispatcherTest {
         DeviceAcDataEntity acData = new DeviceAcDataEntity();
         acData.setId(34L);
         acData.setDevice(device);
-        acData.setAcType(AcType.MITSUBISHI);
+        acData.setAcType(AcType.MITSUBISHI_MELCLOUD);
         acData.setAcDeviceId("77");
         acData.setBuildingId("99");
         return acData;

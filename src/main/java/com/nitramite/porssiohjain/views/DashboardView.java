@@ -48,7 +48,7 @@ import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @JavaScript("context://js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Dashboard")
-@Route("dashboard")
+@Route(value = "dashboard", layout = MainLayout.class)
 @PermitAll
 public class DashboardView extends VerticalLayout implements BeforeEnterObserver {
 

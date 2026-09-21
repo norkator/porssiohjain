@@ -51,7 +51,7 @@ import java.util.Objects;
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @PageTitle("Pörssiohjain - Provisioning")
-@Route("admin/provisioning")
+@Route(value = "admin/provisioning", layout = MainLayout.class)
 @PermitAll
 public class AdminProvisioningView extends VerticalLayout implements BeforeEnterObserver {
 

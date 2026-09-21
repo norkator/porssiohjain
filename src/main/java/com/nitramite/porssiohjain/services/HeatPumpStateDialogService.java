@@ -20,6 +20,8 @@ import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateService;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeState;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeStateService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateDecodedResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateHexDecoderService;
@@ -61,6 +63,7 @@ public class HeatPumpStateDialogService {
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final ToshibaAcStateService toshibaAcStateService;
     private final MitsubishiAcStateService mitsubishiAcStateService;
+    private final MitsubishiMelCloudHomeStateService mitsubishiMelCloudHomeStateService;
     private final AcCommandDispatchService acCommandDispatchService;
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
     private final ToshibaAcStateHexEditorService toshibaAcStateHexEditorService;
@@ -69,11 +72,19 @@ public class HeatPumpStateDialogService {
 
     public void openStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
         DeviceAcDataEntity acData = getAcData(deviceResponse);
-        if (acData.getAcType() == AcType.MITSUBISHI) {
+        if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD) {
             openMitsubishiStateDialog(deviceResponse, stateHexField);
             return;
         }
-        openToshibaStateDialog(deviceResponse, stateHexField);
+        if (acData.getAcType() == AcType.TOSHIBA) {
+            openToshibaStateDialog(deviceResponse, stateHexField);
+            return;
+        }
+        if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD_HOME) {
+            openMitsubishiMelCloudHomeStateDialog(deviceResponse, stateHexField);
+            return;
+        }
+        throw new UnsupportedOperationException("State editing is not implemented for " + acData.getAcType());
     }
 
     private void openToshibaStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
@@ -538,9 +549,353 @@ public class HeatPumpStateDialogService {
         dialog.open();
     }
 
+    private void openMitsubishiMelCloudHomeStateDialog(DeviceResponse deviceResponse, TextField stateJsonField) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
+        dialog.setWidth("1000px");
+        dialog.setMaxWidth("96vw");
+
+        TextArea editableJsonArea = new TextArea(t("controlTable.dialog.queryState.melCloudHome.stateJson"));
+        editableJsonArea.setWidthFull();
+        editableJsonArea.setMinHeight("260px");
+
+        ComboBox<PowerOption> powerField = new ComboBox<>(t("controlTable.dialog.queryState.editor.power"));
+        powerField.setItems(PowerOption.values());
+        powerField.setItemLabelGenerator(PowerOption::label);
+        powerField.setClearButtonVisible(true);
+
+        ComboBox<PowerOption> standbyField = new ComboBox<>(t("controlTable.dialog.queryState.melCloudHome.standby"));
+        standbyField.setItems(PowerOption.values());
+        standbyField.setItemLabelGenerator(PowerOption::label);
+        standbyField.setClearButtonVisible(true);
+
+        ComboBox<String> ataModeField = new ComboBox<>(t("controlTable.dialog.queryState.editor.mode"));
+        ataModeField.setItems("Heat", "Cool", "Automatic", "Dry", "Fan");
+        ataModeField.setClearButtonVisible(true);
+
+        NumberField ataTemperatureField = new NumberField(t("controlTable.dialog.queryState.editor.targetTemperature"));
+        ataTemperatureField.setStep(0.5);
+        ataTemperatureField.setStepButtonsVisible(true);
+
+        ComboBox<String> fanSpeedField = new ComboBox<>(t("controlTable.dialog.queryState.field.fanMode"));
+        fanSpeedField.setItems("Auto", "One", "Two", "Three", "Four", "Five");
+        fanSpeedField.setClearButtonVisible(true);
+
+        ComboBox<String> verticalVaneField = new ComboBox<>(t("controlTable.dialog.queryState.melCloudHome.verticalVane"));
+        verticalVaneField.setItems("Auto", "Swing", "One", "Two", "Three", "Four", "Five");
+        verticalVaneField.setClearButtonVisible(true);
+
+        ComboBox<String> horizontalVaneField = new ComboBox<>(t("controlTable.dialog.queryState.melCloudHome.horizontalVane"));
+        horizontalVaneField.setItems("Auto", "Swing", "Left", "LeftCentre", "Centre", "RightCentre", "Right");
+        horizontalVaneField.setClearButtonVisible(true);
+
+        FormLayout ataLayout = new FormLayout(
+                ataModeField,
+                ataTemperatureField,
+                fanSpeedField,
+                verticalVaneField,
+                horizontalVaneField
+        );
+        ataLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("650px", 3)
+        );
+
+        ComboBox<String> zone1ModeField = createAtwZoneModeField(
+                t("controlTable.dialog.queryState.melCloudHome.zone1Mode")
+        );
+        NumberField zone1TemperatureField = createTemperatureEditor(
+                t("controlTable.dialog.queryState.melCloudHome.zone1Temperature")
+        );
+        NumberField zone1HeatFlowField = createTemperatureEditor(
+                t("controlTable.dialog.queryState.melCloudHome.zone1HeatFlow")
+        );
+        NumberField zone1CoolFlowField = createTemperatureEditor(
+                t("controlTable.dialog.queryState.melCloudHome.zone1CoolFlow")
+        );
+        ComboBox<String> zone2ModeField = createAtwZoneModeField(
+                t("controlTable.dialog.queryState.melCloudHome.zone2Mode")
+        );
+        NumberField zone2TemperatureField = createTemperatureEditor(
+                t("controlTable.dialog.queryState.melCloudHome.zone2Temperature")
+        );
+        NumberField zone2HeatFlowField = createTemperatureEditor(
+                t("controlTable.dialog.queryState.melCloudHome.zone2HeatFlow")
+        );
+        NumberField zone2CoolFlowField = createTemperatureEditor(
+                t("controlTable.dialog.queryState.melCloudHome.zone2CoolFlow")
+        );
+        NumberField tankTemperatureField = createTemperatureEditor(
+                t("controlTable.dialog.queryState.melCloudHome.tankTemperature")
+        );
+        ComboBox<PowerOption> forcedHotWaterField = new ComboBox<>(
+                t("controlTable.dialog.queryState.melCloudHome.forcedHotWater")
+        );
+        forcedHotWaterField.setItems(PowerOption.values());
+        forcedHotWaterField.setItemLabelGenerator(PowerOption::label);
+        forcedHotWaterField.setClearButtonVisible(true);
+
+        FormLayout atwLayout = new FormLayout(
+                zone1ModeField,
+                zone1TemperatureField,
+                zone1HeatFlowField,
+                zone1CoolFlowField,
+                zone2ModeField,
+                zone2TemperatureField,
+                zone2HeatFlowField,
+                zone2CoolFlowField,
+                tankTemperatureField,
+                forcedHotWaterField
+        );
+        atwLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("650px", 3)
+        );
+
+        FormLayout commonLayout = new FormLayout(powerField, standbyField);
+        commonLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("500px", 2)
+        );
+
+        Div stateInfoDiv = new Div();
+        stateInfoDiv.setWidthFull();
+        stateInfoDiv.setVisible(false);
+        boolean[] syncing = new boolean[]{false};
+
+        java.util.function.Consumer<MitsubishiMelCloudHomeState> syncEditorFields = state -> {
+            syncing[0] = true;
+            try {
+                boolean ata = state.getUnitType() == MitsubishiMelCloudHomeState.UnitType.AIR_TO_AIR;
+                ataLayout.setVisible(ata);
+                atwLayout.setVisible(!ata);
+                setComboValue(powerField, PowerOption.fromBoolean(state.getPower()));
+                setComboValue(standbyField, PowerOption.fromBoolean(state.getInStandbyMode()));
+
+                if (ata) {
+                    setComboValue(ataModeField, state.getOperationMode());
+                    setNumberValue(ataTemperatureField, state.getSetTemperature());
+                    setComboValue(fanSpeedField, state.getSetFanSpeed());
+                    setComboValue(verticalVaneField, state.getVaneVerticalDirection());
+                    setComboValue(horizontalVaneField, state.getVaneHorizontalDirection());
+                    if (state.getMinTemperature() != null) {
+                        ataTemperatureField.setMin(state.getMinTemperature());
+                    }
+                    if (state.getMaxTemperature() != null) {
+                        ataTemperatureField.setMax(state.getMaxTemperature());
+                    }
+                } else {
+                    setComboValue(zone1ModeField, state.getOperationModeZone1());
+                    setNumberValue(zone1TemperatureField, state.getSetTemperatureZone1());
+                    setNumberValue(zone1HeatFlowField, state.getSetHeatFlowTemperatureZone1());
+                    setNumberValue(zone1CoolFlowField, state.getSetCoolFlowTemperatureZone1());
+                    setComboValue(zone2ModeField, state.getOperationModeZone2());
+                    setNumberValue(zone2TemperatureField, state.getSetTemperatureZone2());
+                    setNumberValue(zone2HeatFlowField, state.getSetHeatFlowTemperatureZone2());
+                    setNumberValue(zone2CoolFlowField, state.getSetCoolFlowTemperatureZone2());
+                    setNumberValue(tankTemperatureField, state.getSetTankWaterTemperature());
+                    setComboValue(forcedHotWaterField, PowerOption.fromBoolean(state.getForcedHotWaterMode()));
+                    boolean zone2 = Boolean.TRUE.equals(state.getHasZone2());
+                    zone2ModeField.setVisible(zone2);
+                    zone2TemperatureField.setVisible(zone2);
+                    zone2HeatFlowField.setVisible(zone2);
+                    zone2CoolFlowField.setVisible(zone2);
+                }
+            } finally {
+                syncing[0] = false;
+            }
+        };
+
+        java.util.function.Consumer<String> renderState = jsonState -> {
+            syncing[0] = true;
+            try {
+                String value = Optional.ofNullable(jsonState).orElse("");
+                editableJsonArea.setValue(value);
+                stateJsonField.setValue(value);
+                stateInfoDiv.removeAll();
+                if (value.isBlank()) {
+                    stateInfoDiv.setVisible(false);
+                    return;
+                }
+                MitsubishiMelCloudHomeState state = parseMitsubishiMelCloudHomeState(value);
+                syncEditorFields.accept(state);
+                stateInfoDiv.add(createMitsubishiMelCloudHomeStateInfoContent(state));
+                stateInfoDiv.setVisible(true);
+            } catch (Exception e) {
+                stateInfoDiv.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
+                stateInfoDiv.setVisible(true);
+            } finally {
+                syncing[0] = false;
+            }
+        };
+
+        Runnable applyEditorChanges = () -> {
+            if (syncing[0]) {
+                return;
+            }
+            try {
+                MitsubishiMelCloudHomeState state = parseMitsubishiMelCloudHomeState(editableJsonArea.getValue());
+                state.setPower(powerField.getValue() != null ? powerField.getValue().powerOn() : null);
+                state.setInStandbyMode(standbyField.getValue() != null ? standbyField.getValue().powerOn() : null);
+                if (state.getUnitType() == MitsubishiMelCloudHomeState.UnitType.AIR_TO_AIR) {
+                    state.setOperationMode(ataModeField.getValue());
+                    state.setSetTemperature(ataTemperatureField.getValue());
+                    state.setSetFanSpeed(fanSpeedField.getValue());
+                    state.setVaneVerticalDirection(verticalVaneField.getValue());
+                    state.setVaneHorizontalDirection(horizontalVaneField.getValue());
+                } else {
+                    state.setOperationModeZone1(zone1ModeField.getValue());
+                    state.setSetTemperatureZone1(zone1TemperatureField.getValue());
+                    state.setSetHeatFlowTemperatureZone1(zone1HeatFlowField.getValue());
+                    state.setSetCoolFlowTemperatureZone1(zone1CoolFlowField.getValue());
+                    state.setOperationModeZone2(zone2ModeField.getValue());
+                    state.setSetTemperatureZone2(zone2TemperatureField.getValue());
+                    state.setSetHeatFlowTemperatureZone2(zone2HeatFlowField.getValue());
+                    state.setSetCoolFlowTemperatureZone2(zone2CoolFlowField.getValue());
+                    state.setSetTankWaterTemperature(tankTemperatureField.getValue());
+                    state.setForcedHotWaterMode(
+                            forcedHotWaterField.getValue() != null ? forcedHotWaterField.getValue().powerOn() : null
+                    );
+                }
+                renderState.accept(formatMitsubishiMelCloudHomeState(state));
+            } catch (Exception e) {
+                Notification.show(t("controlTable.notification.failedSave", e.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        };
+
+        editableJsonArea.addValueChangeListener(event -> {
+            if (syncing[0]) {
+                return;
+            }
+            String value = Optional.ofNullable(event.getValue()).orElse("");
+            stateJsonField.setValue(value);
+            if (!value.isBlank()) {
+                try {
+                    MitsubishiMelCloudHomeState state = parseMitsubishiMelCloudHomeState(value);
+                    syncEditorFields.accept(state);
+                    stateInfoDiv.removeAll();
+                    stateInfoDiv.add(createMitsubishiMelCloudHomeStateInfoContent(state));
+                    stateInfoDiv.setVisible(true);
+                } catch (Exception ignored) {
+                    stateInfoDiv.removeAll();
+                    stateInfoDiv.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
+                    stateInfoDiv.setVisible(true);
+                }
+            }
+        });
+
+        powerField.addValueChangeListener(event -> applyEditorChanges.run());
+        standbyField.addValueChangeListener(event -> applyEditorChanges.run());
+        ataModeField.addValueChangeListener(event -> applyEditorChanges.run());
+        ataTemperatureField.addValueChangeListener(event -> applyEditorChanges.run());
+        fanSpeedField.addValueChangeListener(event -> applyEditorChanges.run());
+        verticalVaneField.addValueChangeListener(event -> applyEditorChanges.run());
+        horizontalVaneField.addValueChangeListener(event -> applyEditorChanges.run());
+        zone1ModeField.addValueChangeListener(event -> applyEditorChanges.run());
+        zone1TemperatureField.addValueChangeListener(event -> applyEditorChanges.run());
+        zone1HeatFlowField.addValueChangeListener(event -> applyEditorChanges.run());
+        zone1CoolFlowField.addValueChangeListener(event -> applyEditorChanges.run());
+        zone2ModeField.addValueChangeListener(event -> applyEditorChanges.run());
+        zone2TemperatureField.addValueChangeListener(event -> applyEditorChanges.run());
+        zone2HeatFlowField.addValueChangeListener(event -> applyEditorChanges.run());
+        zone2CoolFlowField.addValueChangeListener(event -> applyEditorChanges.run());
+        tankTemperatureField.addValueChangeListener(event -> applyEditorChanges.run());
+        forcedHotWaterField.addValueChangeListener(event -> applyEditorChanges.run());
+
+        Button acquireCurrentStateButton = new Button(t("controlTable.dialog.queryState.actionButton"), event -> {
+            try {
+                MitsubishiMelCloudHomeState state = mitsubishiMelCloudHomeStateService.getAcState(getAcData(deviceResponse));
+                renderState.accept(formatMitsubishiMelCloudHomeState(state));
+                Notification.show(t("controlTable.dialog.queryState.queried"))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (Exception e) {
+                Notification.show(t("controlTable.notification.failedSave", e.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+
+        Button useLastPolledStateButton = new Button(t("controlTable.dialog.queryState.useLastPolledButton"), event -> {
+            DeviceAcDataEntity acData = getAcData(deviceResponse);
+            if (acData.getLastPolledStateHex() == null || acData.getLastPolledStateHex().isBlank()) {
+                Notification.show(t("controlTable.dialog.queryState.noLastPolledState"))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
+            renderState.accept(acData.getLastPolledStateHex());
+            Notification.show(t("controlTable.dialog.queryState.loadedLastPolled"))
+                    .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        });
+        useLastPolledStateButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        Button sendStateButton = new Button(t("controlTable.dialog.queryState.sendButton"), event -> {
+            try {
+                String formatted = formatMitsubishiMelCloudHomeState(
+                        parseMitsubishiMelCloudHomeState(editableJsonArea.getValue())
+                );
+                acCommandDispatchService.dispatchHexState(getAcData(deviceResponse), formatted);
+                renderState.accept(formatted);
+                Notification.show(t("controlTable.dialog.queryState.sent"))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (Exception e) {
+                Notification.show(t("controlTable.notification.failedSave", e.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        sendStateButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        HorizontalLayout buttonRow = new HorizontalLayout(
+                acquireCurrentStateButton,
+                useLastPolledStateButton,
+                sendStateButton
+        );
+        buttonRow.setWrap(true);
+
+        VerticalLayout content = new VerticalLayout(
+                new Paragraph(t("controlTable.dialog.queryState.melCloudHome.instructions")),
+                buttonRow,
+                commonLayout,
+                ataLayout,
+                atwLayout,
+                editableJsonArea,
+                stateInfoDiv
+        );
+        content.setPadding(false);
+        content.setWidthFull();
+        dialog.add(content);
+
+        String existingState = stateJsonField.getValue();
+        if (existingState != null && !existingState.isBlank()) {
+            renderState.accept(existingState);
+        } else {
+            ataLayout.setVisible(false);
+            atwLayout.setVisible(false);
+        }
+
+        Button saveButton = new Button(t("common.save"), event -> {
+            try {
+                String formatted = formatMitsubishiMelCloudHomeState(
+                        parseMitsubishiMelCloudHomeState(editableJsonArea.getValue())
+                );
+                stateJsonField.setValue(formatted);
+                dialog.close();
+            } catch (Exception e) {
+                Notification.show(t("controlTable.notification.failedSave", e.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button cancelButton = new Button(t("common.cancel"), event -> dialog.close());
+        dialog.getFooter().add(cancelButton, saveButton);
+        dialog.open();
+    }
+
     public Component createAcStateInfoContentFromHex(String stateHex) {
         if (isJsonState(stateHex)) {
             try {
+                if (isMitsubishiMelCloudHomeState(stateHex)) {
+                    return createMitsubishiMelCloudHomeStateInfoContent(parseMitsubishiMelCloudHomeState(stateHex));
+                }
                 return createMitsubishiAcStateInfoContent(parseMitsubishiState(stateHex));
             } catch (Exception ignored) {
                 VerticalLayout content = new VerticalLayout();
@@ -736,6 +1091,103 @@ public class HeatPumpStateDialogService {
         );
         content.add(stateLayout);
         return content;
+    }
+
+    private Component createMitsubishiMelCloudHomeStateInfoContent(MitsubishiMelCloudHomeState state) {
+        FormLayout stateLayout = new FormLayout(
+                createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.unit"), state.getName()),
+                createReadOnlyField("ID", state.getUnitId()),
+                createReadOnlyField(
+                        t("controlTable.dialog.queryState.melCloudHome.unitType"),
+                        state.getUnitType() != null ? state.getUnitType().name() : null
+                ),
+                createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.building"), state.getBuildingName()),
+                createReadOnlyField(
+                        t("controlTable.dialog.queryState.melCloudHome.connected"),
+                        state.getConnected() != null ? String.valueOf(state.getConnected()) : null
+                ),
+                createReadOnlyField(
+                        t("controlTable.dialog.queryState.melCloudHome.error"),
+                        state.getInError() != null ? String.valueOf(state.getInError()) : null
+                ),
+                createReadOnlyField(t("controlTable.dialog.queryState.field.power"), String.valueOf(state.getPower())),
+                createReadOnlyField(
+                        t("controlTable.dialog.queryState.field.indoorTemperature"),
+                        formatDouble(state.getUnitType() == MitsubishiMelCloudHomeState.UnitType.AIR_TO_AIR
+                                ? state.getRoomTemperature()
+                                : state.getRoomTemperatureZone1())
+                ),
+                createReadOnlyField(
+                        t("controlTable.dialog.queryState.melCloudHome.tankTemperatureCurrent"),
+                        formatDouble(state.getTankWaterTemperature())
+                )
+        );
+        stateLayout.setWidthFull();
+        stateLayout.setResponsiveSteps(
+                new FormLayout.ResponsiveStep("0", 1),
+                new FormLayout.ResponsiveStep("600px", 2),
+                new FormLayout.ResponsiveStep("900px", 3)
+        );
+        return stateLayout;
+    }
+
+    private ComboBox<String> createAtwZoneModeField(String label) {
+        ComboBox<String> field = new ComboBox<>(label);
+        field.setItems(
+                "HeatRoomTemperature",
+                "HeatFlowTemperature",
+                "HeatCurve",
+                "CoolRoomTemperature",
+                "CoolFlowTemperature"
+        );
+        field.setClearButtonVisible(true);
+        return field;
+    }
+
+    private NumberField createTemperatureEditor(String label) {
+        NumberField field = new NumberField(label);
+        field.setStep(0.5);
+        field.setStepButtonsVisible(true);
+        return field;
+    }
+
+    private <T> void setComboValue(ComboBox<T> field, T value) {
+        if (value != null) {
+            field.setValue(value);
+        } else {
+            field.clear();
+        }
+    }
+
+    private void setNumberValue(NumberField field, Double value) {
+        if (value != null) {
+            field.setValue(value);
+        } else {
+            field.clear();
+        }
+    }
+
+    private MitsubishiMelCloudHomeState parseMitsubishiMelCloudHomeState(String stateJson) throws JsonProcessingException {
+        if (stateJson == null || stateJson.isBlank()) {
+            throw new IllegalArgumentException("MELCloud Home state JSON cannot be blank");
+        }
+        return objectMapper.readValue(stateJson, MitsubishiMelCloudHomeState.class);
+    }
+
+    private String formatMitsubishiMelCloudHomeState(MitsubishiMelCloudHomeState state) {
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(state);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Failed to format MELCloud Home state JSON", e);
+        }
+    }
+
+    private boolean isMitsubishiMelCloudHomeState(String stateJson) {
+        try {
+            return objectMapper.readTree(stateJson).hasNonNull("unitType");
+        } catch (JsonProcessingException e) {
+            return false;
+        }
     }
 
     private MitsubishiAcStateResponse parseMitsubishiState(String stateJson) throws JsonProcessingException {

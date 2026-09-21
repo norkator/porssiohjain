@@ -58,7 +58,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @PageTitle("Pörssiohjain - Load Shedding")
-@Route("load-shedding")
+@Route(value = "load-shedding", layout = MainLayout.class)
 @PermitAll
 public class LoadSheddingView extends VerticalLayout implements BeforeEnterObserver {
 

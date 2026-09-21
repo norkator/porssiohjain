@@ -39,7 +39,7 @@ import java.time.format.DateTimeFormatter;
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @PageTitle("Pörssiohjain - Client Call Monitor")
-@Route("admin/client-call-monitor")
+@Route(value = "admin/client-call-monitor", layout = MainLayout.class)
 @PermitAll
 public class AdminClientCallLogView extends VerticalLayout implements BeforeEnterObserver {
 

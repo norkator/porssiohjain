@@ -34,6 +34,7 @@ export default function AddDeviceTypeView() {
       deviceName: "",
       timezone: getCurrentTimezone(),
       hpName: "",
+      acType: deviceTypeId === "toshiba-heat-pump" ? "TOSHIBA" : "MITSUBISHI_MELCLOUD",
       acUsername: "",
       acPassword: "",
       acDeviceId: "",

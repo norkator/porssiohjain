@@ -59,7 +59,10 @@ public class HeatPumpOnlineCheckService {
 
         switch (acType) {
             case TOSHIBA -> toshibaAcStateService.getAcState(acData);
-            case MITSUBISHI -> mitsubishiAcStateService.getAcState(acData);
+            case MITSUBISHI_MELCLOUD -> mitsubishiAcStateService.getAcState(acData);
+            case MITSUBISHI_MELCLOUD_HOME -> {
+                // MELCloud Home uses a different API. Online polling will be added with that integration.
+            }
             default -> {
             }
         }

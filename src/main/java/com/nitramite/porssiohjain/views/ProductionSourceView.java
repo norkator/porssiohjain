@@ -68,7 +68,7 @@ import java.util.concurrent.TimeUnit;
 
 @JavaScript("context://js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Production Source")
-@Route("production-source/:sourceId")
+@Route(value = "production-source/:sourceId", layout = MainLayout.class)
 @PermitAll
 public class ProductionSourceView extends VerticalLayout implements BeforeEnterObserver {
 

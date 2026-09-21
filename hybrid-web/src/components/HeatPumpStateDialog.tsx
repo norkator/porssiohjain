@@ -202,7 +202,7 @@ export default function HeatPumpStateDialog({
 }: Props) {
   const [effectiveFlags, setEffectiveFlags] = useState(0);
   const editorUpdatingRef = useRef(false);
-  const isMitsubishi = acType === "MITSUBISHI";
+  const isMitsubishi = acType === "MITSUBISHI_MELCLOUD";
   const isToshiba = acType === "TOSHIBA";
 
   const parsedMitsubishiState = useMemo(() => {

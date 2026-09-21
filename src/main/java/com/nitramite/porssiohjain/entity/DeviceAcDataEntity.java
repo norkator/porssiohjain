@@ -59,6 +59,10 @@ public class DeviceAcDataEntity {
     @Column(name = "ac_access_token", columnDefinition = "TEXT")
     private String acAccessToken; // jwt token
 
+    @Convert(converter = CryptoConverter.class)
+    @Column(name = "ac_refresh_token", columnDefinition = "TEXT")
+    private String acRefreshToken;
+
     @Column(name = "ac_consumer_id")
     private String acConsumerId; // like uuid
 

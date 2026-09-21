@@ -38,7 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@Route("resource-sharing")
+@Route(value = "resource-sharing", layout = MainLayout.class)
 @PermitAll
 public class ResourceSharingView extends VerticalLayout implements BeforeEnterObserver, HasDynamicTitle {
 

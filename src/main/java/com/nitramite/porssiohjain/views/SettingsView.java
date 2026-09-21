@@ -55,7 +55,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 @PageTitle("Pörssiohjain - Settings")
-@Route("settings")
+@Route(value = "settings", layout = MainLayout.class)
 @PermitAll
 public class SettingsView extends VerticalLayout implements BeforeEnterObserver {
 

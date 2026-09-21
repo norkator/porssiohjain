@@ -35,7 +35,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
 const DEVICE_TYPES: DeviceType[] = ["STANDARD", "HEAT_PUMP"];
-const AC_TYPES: AcType[] = ["NONE", "TOSHIBA", "MITSUBISHI"];
+const AC_TYPES: AcType[] = ["NONE", "TOSHIBA", "MITSUBISHI_MELCLOUD", "MITSUBISHI_MELCLOUD_HOME"];
 
 export default function ManageDeviceView() {
   const { t, group } = useI18n("manageDevice");

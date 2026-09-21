@@ -8,12 +8,15 @@
  * service to third parties requires separate written permission.
  * See LICENSE for details.
  */
+package com.nitramite.porssiohjain.services.mitsubishihome;
 
-package com.nitramite.porssiohjain.entity.enums;
+public class MitsubishiMelCloudHomeException extends RuntimeException {
 
-public enum AcType {
-    NONE,
-    TOSHIBA,
-    MITSUBISHI_MELCLOUD,
-    MITSUBISHI_MELCLOUD_HOME
+    public MitsubishiMelCloudHomeException(String message) {
+        super(message);
+    }
+
+    public MitsubishiMelCloudHomeException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

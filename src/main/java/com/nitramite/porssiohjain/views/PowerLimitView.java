@@ -62,7 +62,7 @@ import java.util.Optional;
 
 @JavaScript("context://js/apexcharts.min.js")
 @PageTitle("Pörssiohjain - Power Limit")
-@Route("power-limit/:powerLimitId")
+@Route(value = "power-limit/:powerLimitId", layout = MainLayout.class)
 @PermitAll
 public class PowerLimitView extends VerticalLayout implements BeforeEnterObserver {
 

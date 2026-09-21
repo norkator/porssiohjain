@@ -87,7 +87,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @PageTitle("Pörssiohjain - Heating Planner")
-@Route("heating-planner")
+@Route(value = "heating-planner", layout = MainLayout.class)
 @PermitAll
 public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObserver {
 

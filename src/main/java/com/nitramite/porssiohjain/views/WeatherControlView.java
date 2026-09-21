@@ -74,7 +74,7 @@ import java.util.Optional;
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @PageTitle("Pörssiohjain - Weather Control")
-@Route("weather-controls/:weatherControlId")
+@Route(value = "weather-controls/:weatherControlId", layout = MainLayout.class)
 @PermitAll
 public class WeatherControlView extends VerticalLayout implements BeforeEnterObserver {
 

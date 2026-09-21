@@ -44,7 +44,7 @@ import java.util.List;
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @PageTitle("Pörssiohjain - MQTT Relay Tests")
-@Route("admin/mqtt-relay-tests")
+@Route(value = "admin/mqtt-relay-tests", layout = MainLayout.class)
 @PermitAll
 public class AdminMqttRelayTestView extends VerticalLayout implements BeforeEnterObserver {
 

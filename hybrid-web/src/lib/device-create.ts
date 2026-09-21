@@ -19,7 +19,7 @@ type CreateDeviceRequest = {
   deviceType: string;
   devicePlatform: "OPENBEKEN" | "TASMOTA" | "ESPHOME" | "GENERIC_MQTT";
   enabled: boolean;
-  acType?: "TOSHIBA" | "MITSUBISHI";
+  acType?: "TOSHIBA" | "MITSUBISHI_MELCLOUD" | "MITSUBISHI_MELCLOUD_HOME";
   hpName?: string;
   acUsername?: string;
   acPassword?: string;
@@ -41,12 +41,15 @@ function getBackendDeviceType(deviceTypeId: string) {
   }
 }
 
-function getBackendAcType(deviceTypeId: string) {
+function getBackendAcType(
+  deviceTypeId: string,
+  selectedAcType?: "TOSHIBA" | "MITSUBISHI_MELCLOUD" | "MITSUBISHI_MELCLOUD_HOME"
+) {
   switch (deviceTypeId) {
     case "toshiba-heat-pump":
       return "TOSHIBA" as const;
     case "mitsubishi-heat-pump":
-      return "MITSUBISHI" as const;
+      return selectedAcType ?? "MITSUBISHI_MELCLOUD";
     default:
       return undefined;
   }
@@ -92,6 +95,7 @@ export async function createDevice(input: {
   acDeviceId?: string;
   buildingId?: string;
   acDeviceUniqueId?: string;
+  acType?: "TOSHIBA" | "MITSUBISHI_MELCLOUD" | "MITSUBISHI_MELCLOUD_HOME";
 }) {
   const accountId = await resolveAccountId();
   const payload: CreateDeviceRequest = {
@@ -100,7 +104,7 @@ export async function createDevice(input: {
     deviceType: getBackendDeviceType(input.deviceTypeId),
     devicePlatform: getBackendDevicePlatform(input.deviceTypeId),
     enabled: true,
-    acType: getBackendAcType(input.deviceTypeId),
+    acType: getBackendAcType(input.deviceTypeId, input.acType),
     hpName: input.hpName,
     acUsername: input.acUsername,
     acPassword: input.acPassword,

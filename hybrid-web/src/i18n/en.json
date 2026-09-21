@@ -613,8 +613,8 @@
       "toshiba-heat-pump.description": "Devices using the Toshiba Home AC Control app.",
       "toshiba-heat-pump.setupNotice": "Before continuing, make sure your Toshiba heat pump is already available in the Toshiba Home AC Control application.",
       "mitsubishi-heat-pump.title": "Mitsubishi Heat Pump",
-      "mitsubishi-heat-pump.description": "Devices using the MELCloud app.",
-      "mitsubishi-heat-pump.setupNotice": "Before continuing, make sure your Mitsubishi heat pump is already available in the MELCloud application."
+      "mitsubishi-heat-pump.description": "Devices using the MELCloud or MELCloud Home app.",
+      "mitsubishi-heat-pump.setupNotice": "Before continuing, make sure your Mitsubishi heat pump is already available in MELCloud or MELCloud Home."
     }
   },
   "addDeviceConfigure": {
@@ -630,6 +630,7 @@
     "invalidTimezone": "Select a valid timezone from the available list.",
     "heatPumpDeviceName": "Heat Pump Device Name",
     "heatPumpDevicePlaceholder": "e.g., Living Room Heat Pump",
+    "mitsubishiApp": "Mitsubishi app",
     "heatPumpUsername": "Heat Pump App Username",
     "toshibaUsernamePlaceholder": "Toshiba app email or username",
     "mitsubishiUsernamePlaceholder": "MELCloud email or username",
@@ -1039,7 +1040,8 @@
     "acTypes": {
       "NONE": "None",
       "TOSHIBA": "Toshiba",
-      "MITSUBISHI": "Mitsubishi"
+      "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
+      "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     }
   },
   "manageControl": {
@@ -1179,7 +1181,8 @@
     "acTypes": {
       "NONE": "None",
       "TOSHIBA": "Toshiba",
-      "MITSUBISHI": "Mitsubishi"
+      "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
+      "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     }
   },
   "manageWeatherControl": {
@@ -1261,7 +1264,8 @@
       "HEAT_PUMP": "Heat Pump",
       "NONE": "None",
       "TOSHIBA": "Toshiba",
-      "MITSUBISHI": "Mitsubishi"
+      "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
+      "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     }
   }
 }
