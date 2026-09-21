@@ -39,7 +39,10 @@ public class HeatPumpAcDeviceSelectionService {
 
         return switch (request.getAcType()) {
             case TOSHIBA -> getToshibaDevices(acData);
-            case MITSUBISHI -> getMitsubishiDevices(acData);
+            case MITSUBISHI_MELCLOUD -> getMitsubishiDevices(acData);
+            case MITSUBISHI_MELCLOUD_HOME -> throw new UnsupportedOperationException(
+                    "MELCloud Home integration is not implemented yet"
+            );
             case NONE -> throw new IllegalArgumentException("AC type is required");
         };
     }
@@ -66,7 +69,7 @@ public class HeatPumpAcDeviceSelectionService {
 
         return mitsubishiAcDevicesService.getAcDevices(acData).stream()
                 .map(device -> HeatPumpAcDeviceResponse.builder()
-                        .acType(AcType.MITSUBISHI)
+                        .acType(AcType.MITSUBISHI_MELCLOUD)
                         .id(String.valueOf(device.getDeviceId()))
                         .name(device.getDeviceName())
                         .buildingId(device.getBuildingId() != null ? String.valueOf(device.getBuildingId()) : null)

@@ -52,7 +52,8 @@ export default function AddDeviceReviewView() {
         acPassword: draft.acPassword,
         acDeviceId: draft.acDeviceId,
         buildingId: draft.acBuildingId,
-        acDeviceUniqueId: draft.acDeviceUniqueId
+        acDeviceUniqueId: draft.acDeviceUniqueId,
+        acType: draft.acType
       });
 
       writeProvisionedDeviceDraft({

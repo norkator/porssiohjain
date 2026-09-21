@@ -8,12 +8,15 @@
  * service to third parties requires separate written permission.
  * See LICENSE for details.
  */
+package com.nitramite.porssiohjain.services.mitsubishihome;
 
-package com.nitramite.porssiohjain.entity.enums;
+import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import org.springframework.stereotype.Service;
 
-public enum AcType {
-    NONE,
-    TOSHIBA,
-    MITSUBISHI_MELCLOUD,
-    MITSUBISHI_MELCLOUD_HOME
+@Service
+public class MitsubishiMelCloudHomeLoginService {
+
+    public void login(DeviceAcDataEntity acData) {
+        throw new UnsupportedOperationException("MELCloud Home login is not implemented yet");
+    }
 }

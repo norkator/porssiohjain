@@ -96,7 +96,7 @@ public class HeatingPlannerHeatPumpCommandService {
                 return null;
             }
         }
-        if (acData.getAcType() == AcType.MITSUBISHI) {
+        if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD) {
             try {
                 MitsubishiAcStateResponse state = objectMapper.readValue(base, MitsubishiAcStateResponse.class);
                 double requested = point.getPlannedHeatPumpSetpoint().doubleValue();

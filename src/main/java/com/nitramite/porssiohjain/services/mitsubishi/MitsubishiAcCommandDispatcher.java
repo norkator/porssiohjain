@@ -44,7 +44,7 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
 
     @Override
     public boolean supports(AcType acType) {
-        return AcType.MITSUBISHI == acType;
+        return AcType.MITSUBISHI_MELCLOUD == acType;
     }
 
     @Override

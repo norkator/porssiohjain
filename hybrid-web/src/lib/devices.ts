@@ -50,7 +50,7 @@ export type HeatPumpStateResponse = {
 export type DeviceType = "STANDARD" | "HEAT_PUMP";
 export type DevicePlatform = "OPENBEKEN" | "TASMOTA" | "ESPHOME" | "GENERIC_MQTT";
 export type MqttDeviceProfile = "GENERIC_RELAY" | "OPENBEKEN_RELAY" | "TASMOTA_RELAY" | "ESPHOME_RELAY" | "GENERIC_THERMOSTAT";
-export type AcType = "NONE" | "TOSHIBA" | "MITSUBISHI";
+export type AcType = "NONE" | "TOSHIBA" | "MITSUBISHI_MELCLOUD" | "MITSUBISHI_MELCLOUD_HOME";
 
 export type DevicePayload = {
   deviceName: string;
@@ -205,8 +205,10 @@ export function formatAcType(acType: string | null | undefined) {
   switch (acType) {
     case "TOSHIBA":
       return "Toshiba";
-    case "MITSUBISHI":
-      return "Mitsubishi";
+    case "MITSUBISHI_MELCLOUD":
+      return "Mitsubishi - MELCloud";
+    case "MITSUBISHI_MELCLOUD_HOME":
+      return "Mitsubishi - MELCloud Home";
     case "NONE":
     default:
       return "None";

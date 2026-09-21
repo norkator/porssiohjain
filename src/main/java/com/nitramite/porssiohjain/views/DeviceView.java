@@ -453,8 +453,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             AcType acType = acTypeCombo.getValue();
             if (acType == AcType.TOSHIBA) {
                 openToshibaAcDeviceSelectionDialog(acData);
-            } else if (acType == AcType.MITSUBISHI) {
+            } else if (acType == AcType.MITSUBISHI_MELCLOUD) {
                 openMitsubishiAcDeviceSelectionDialog(acData);
+            } else if (acType == AcType.MITSUBISHI_MELCLOUD_HOME) {
+                Notification.show(t("device.notification.melCloudHomeNotImplemented"))
+                        .addThemeVariants(NotificationVariant.LUMO_WARNING);
             } else {
                 Notification.show(t("device.notification.failed", "Unsupported AC type"))
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -564,7 +567,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         acTypeCombo.setItemLabelGenerator(type -> switch (type) {
             case NONE -> t("acType.none");
             case TOSHIBA -> t("acType.toshiba");
-            case MITSUBISHI -> t("acType.mitsubishi");
+            case MITSUBISHI_MELCLOUD -> t("acType.mitsubishiMelCloud");
+            case MITSUBISHI_MELCLOUD_HOME -> t("acType.mitsubishiMelCloudHome");
         });
         acTypeCombo.setValue(AcType.NONE);
         acUsernameField = new TextField(t("device.hp.username"));
@@ -802,7 +806,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         dialogAcTypeCombo.setItemLabelGenerator(type -> switch (type) {
             case NONE -> t("acType.none");
             case TOSHIBA -> t("acType.toshiba");
-            case MITSUBISHI -> t("acType.mitsubishi");
+            case MITSUBISHI_MELCLOUD -> t("acType.mitsubishiMelCloud");
+            case MITSUBISHI_MELCLOUD_HOME -> t("acType.mitsubishiMelCloudHome");
         });
         dialogAcTypeCombo.setValue(device.getAcType() != null ? device.getAcType() : AcType.NONE);
         dialogAcTypeCombo.setReadOnly(shared);

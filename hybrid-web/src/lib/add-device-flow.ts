@@ -22,6 +22,7 @@ export type AddDeviceDraft = {
   deviceName: string;
   timezone: string;
   hpName: string;
+  acType: "TOSHIBA" | "MITSUBISHI_MELCLOUD" | "MITSUBISHI_MELCLOUD_HOME";
   acUsername: string;
   acPassword: string;
   acDeviceId: string;
@@ -61,10 +62,10 @@ export const DEVICE_TYPE_OPTIONS: DeviceTypeOption[] = [
   {
     id: "mitsubishi-heat-pump",
     title: "Mitsubishi Heat Pump",
-    description: "Devices using the MELCloud app.",
+    description: "Devices using the MELCloud or MELCloud Home app.",
     icon: "M",
     setupNotice:
-      "Before continuing, make sure your Mitsubishi heat pump is already available in MELCloud application."
+      "Before continuing, make sure your Mitsubishi heat pump is already available in MELCloud or MELCloud Home."
   },
   {
     id: "openbeken",
@@ -95,6 +96,7 @@ export function getDefaultAddDeviceDraft(): AddDeviceDraft {
     deviceName: "",
     timezone: getCurrentTimezone(),
     hpName: "",
+    acType: "MITSUBISHI_MELCLOUD",
     acUsername: "",
     acPassword: "",
     acDeviceId: "",
@@ -129,6 +131,7 @@ export function readAddDeviceDraft(): AddDeviceDraft {
       deviceName: parsed.deviceName ?? fallback.deviceName,
       timezone: parsed.timezone ?? fallback.timezone,
       hpName: parsed.hpName ?? fallback.hpName,
+      acType: parsed.acType ?? fallback.acType,
       acUsername: parsed.acUsername ?? fallback.acUsername,
       acPassword: parsed.acPassword ?? fallback.acPassword,
       acDeviceId: parsed.acDeviceId ?? fallback.acDeviceId,

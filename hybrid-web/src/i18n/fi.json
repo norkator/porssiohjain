@@ -613,8 +613,8 @@
       "toshiba-heat-pump.description": "Toshiba Home AC Control -sovellusta käyttävät laitteet.",
       "toshiba-heat-pump.setupNotice": "Ennen jatkamista varmista, että Toshiba-lämpöpumppu näkyy jo Toshiba Home AC Control -sovelluksessa.",
       "mitsubishi-heat-pump.title": "Mitsubishi-lämpöpumppu",
-      "mitsubishi-heat-pump.description": "MELCloud-sovellusta käyttävät laitteet.",
-      "mitsubishi-heat-pump.setupNotice": "Ennen jatkamista varmista, että Mitsubishi-lämpöpumppu näkyy jo MELCloud-sovelluksessa."
+      "mitsubishi-heat-pump.description": "MELCloud- tai MELCloud Home -sovellusta käyttävät laitteet.",
+      "mitsubishi-heat-pump.setupNotice": "Ennen jatkamista varmista, että Mitsubishi-lämpöpumppu näkyy jo MELCloud- tai MELCloud Home -sovelluksessa."
     }
   },
   "addDeviceConfigure": {
@@ -630,6 +630,8 @@
     "invalidTimezone": "Valitse kelvollinen aikavyöhyke listalta.",
     "heatPumpDeviceName": "Lämpöpumpun laitteen nimi",
     "heatPumpDevicePlaceholder": "esim. Olohuoneen lämpöpumppu",
+    "mitsubishiApp": "Mitsubishi-sovellus",
+    "melCloudHomeUnavailable": "MELCloud Home voidaan nyt valita, mutta sen API-integraatiota ei ole vielä toteutettu.",
     "heatPumpUsername": "Lämpöpumppusovelluksen käyttäjätunnus",
     "toshibaUsernamePlaceholder": "Toshiba-sovelluksen sähköposti tai käyttäjätunnus",
     "mitsubishiUsernamePlaceholder": "MELCloud-sähköposti tai käyttäjätunnus",
@@ -1039,7 +1041,8 @@
     "acTypes": {
       "NONE": "Ei mitään",
       "TOSHIBA": "Toshiba",
-      "MITSUBISHI": "Mitsubishi"
+      "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
+      "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     }
   },
   "manageControl": {
@@ -1179,7 +1182,8 @@
     "acTypes": {
       "NONE": "Ei mitään",
       "TOSHIBA": "Toshiba",
-      "MITSUBISHI": "Mitsubishi"
+      "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
+      "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     }
   },
   "manageWeatherControl": {
@@ -1261,7 +1265,8 @@
       "HEAT_PUMP": "Lämpöpumppu",
       "NONE": "Ei mitään",
       "TOSHIBA": "Toshiba",
-      "MITSUBISHI": "Mitsubishi"
+      "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
+      "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     }
   }
 }

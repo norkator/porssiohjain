@@ -69,11 +69,15 @@ public class HeatPumpStateDialogService {
 
     public void openStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
         DeviceAcDataEntity acData = getAcData(deviceResponse);
-        if (acData.getAcType() == AcType.MITSUBISHI) {
+        if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD) {
             openMitsubishiStateDialog(deviceResponse, stateHexField);
             return;
         }
-        openToshibaStateDialog(deviceResponse, stateHexField);
+        if (acData.getAcType() == AcType.TOSHIBA) {
+            openToshibaStateDialog(deviceResponse, stateHexField);
+            return;
+        }
+        throw new UnsupportedOperationException("State editing is not implemented for " + acData.getAcType());
     }
 
     private void openToshibaStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {

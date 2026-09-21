@@ -11,7 +11,7 @@
 
 import { apiFetch } from "@/lib/api";
 
-export type HeatPumpAcType = "TOSHIBA" | "MITSUBISHI";
+export type HeatPumpAcType = "TOSHIBA" | "MITSUBISHI_MELCLOUD" | "MITSUBISHI_MELCLOUD_HOME";
 
 export type HeatPumpAcDevice = {
   acType: HeatPumpAcType;

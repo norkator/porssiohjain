@@ -20,6 +20,7 @@ import {
   updateAddDeviceDraft
 } from "@/lib/add-device-flow";
 import {
+  type HeatPumpAcType,
   type HeatPumpAcDevice,
   listSelectableHeatPumpAcDevices
 } from "@/lib/heat-pump-devices";
@@ -39,6 +40,9 @@ export default function AddDeviceConfigureView() {
   const [deviceName, setDeviceName] = useState(draft.deviceName);
   const [timezone, setTimezone] = useState(draft.timezone);
   const [hpName, setHpName] = useState(draft.hpName);
+  const [acType, setAcType] = useState<HeatPumpAcType>(
+    deviceType?.id === "toshiba-heat-pump" ? "TOSHIBA" : draft.acType
+  );
   const [acUsername, setAcUsername] = useState(draft.acUsername);
   const [acPassword, setAcPassword] = useState(draft.acPassword);
   const [acDeviceId, setAcDeviceId] = useState(draft.acDeviceId);
@@ -51,23 +55,26 @@ export default function AddDeviceConfigureView() {
   const [acSelectionError, setAcSelectionError] = useState<string | null>(null);
   const lastAcCredentialsRef = useRef({
     acPassword: draft.acPassword,
+    acType: deviceType?.id === "toshiba-heat-pump" ? "TOSHIBA" : draft.acType,
     acUsername: draft.acUsername,
     deviceTypeId: draft.deviceTypeId ?? ""
   });
   const timezoneIsValid = availableTimezones.includes(timezone);
   const hasAcCredentials = acUsername.trim().length > 0 && acPassword.trim().length > 0;
+  const melCloudHomeSelected = acType === "MITSUBISHI_MELCLOUD_HOME";
   const heatPumpReady =
     hpName.trim().length > 0 &&
     hasAcCredentials &&
+    !melCloudHomeSelected &&
     acDeviceId.trim().length > 0;
   const canContinue = deviceName.trim().length > 0 && timezoneIsValid && (!isHeatPump || heatPumpReady);
-  const acType = deviceType?.id === "toshiba-heat-pump" ? "TOSHIBA" : "MITSUBISHI";
 
   useEffect(() => {
     const lastAcCredentials = lastAcCredentialsRef.current;
     const credentialsChanged =
       lastAcCredentials.acUsername !== acUsername ||
       lastAcCredentials.acPassword !== acPassword ||
+      lastAcCredentials.acType !== acType ||
       lastAcCredentials.deviceTypeId !== (deviceType?.id ?? "");
 
     if (!credentialsChanged) {
@@ -82,10 +89,11 @@ export default function AddDeviceConfigureView() {
     setIsAcDialogOpen(false);
     lastAcCredentialsRef.current = {
       acPassword,
+      acType,
       acUsername,
       deviceTypeId: deviceType?.id ?? ""
     };
-  }, [acUsername, acPassword, deviceType?.id]);
+  }, [acUsername, acPassword, acType, deviceType?.id]);
 
   if (!deviceType) {
     return <Navigate replace to="/devices/add/type" />;
@@ -102,6 +110,7 @@ export default function AddDeviceConfigureView() {
       deviceName: deviceName.trim(),
       timezone,
       hpName: hpName.trim(),
+      acType,
       acUsername: acUsername.trim(),
       acPassword,
       acDeviceId,
@@ -229,6 +238,28 @@ export default function AddDeviceConfigureView() {
 
               {isHeatPump ? (
                 <>
+                  {deviceType.id === "mitsubishi-heat-pump" ? (
+                    <div>
+                      <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="mitsubishi-app">
+                        {t("mitsubishiApp")}
+                      </label>
+                      <select
+                        className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
+                        id="mitsubishi-app"
+                        onChange={(event) => setAcType(event.target.value as HeatPumpAcType)}
+                        value={acType}
+                      >
+                        <option value="MITSUBISHI_MELCLOUD">MELCloud</option>
+                        <option value="MITSUBISHI_MELCLOUD_HOME">MELCloud Home</option>
+                      </select>
+                      {melCloudHomeSelected ? (
+                        <p className="mt-3 rounded-xl bg-surface-container-low p-4 text-sm text-on-surface-variant">
+                          {t("melCloudHomeUnavailable")}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div>
                     <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="hp-name">
                       {t("heatPumpDeviceName")}
@@ -289,7 +320,7 @@ export default function AddDeviceConfigureView() {
                       </div>
                       <button
                         className="secondary-action justify-center disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={!hasAcCredentials || isLoadingAcDevices}
+                        disabled={!hasAcCredentials || isLoadingAcDevices || melCloudHomeSelected}
                         onClick={handleOpenAcSelection}
                         type="button"
                       >
