@@ -87,16 +87,14 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         currentAdminAccountId = account.getId();
 
         setWidthFull();
-        setSizeFull();
         setPadding(true);
         setSpacing(true);
         setAlignItems(Alignment.STRETCH);
-        getStyle().set("min-height", "0");
+        getStyle().set("overflow", "auto");
 
         VerticalLayout card = new VerticalLayout();
-        card.setSizeFull();
+        card.setWidthFull();
         card.addClassName("responsive-card");
-        card.getStyle().set("min-height", "0");
 
         Button backButton = new Button("← " + t("admin.back"), e -> UI.getCurrent().navigate(AdminView.class));
         H1 title = new H1(t("admin.users.title"));
@@ -105,14 +103,13 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         refreshGrid();
 
         card.add(backButton, title, createDivider(), grid);
-        card.setFlexGrow(1, grid);
         add(card);
-        setFlexGrow(1, card);
     }
 
     private void configureGrid() {
-        grid.setSizeFull();
-        grid.getStyle().set("min-height", "0");
+        grid.setWidthFull();
+        grid.setHeight("70vh");
+        grid.setMinHeight("420px");
         grid.addColumn(AccountEntity::getId)
                 .setHeader(t("admin.users.id"))
                 .setAutoWidth(true)
