@@ -13,22 +13,16 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
-import com.nitramite.porssiohjain.services.ServiceNoticeService;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.SystemLogResponse;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.checkbox.Checkbox;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -49,7 +43,6 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
     private final AuthService authService;
     private final I18nService i18n;
     private final SystemLogService systemLogService;
-    private final ServiceNoticeService serviceNoticeService;
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
             .withZone(ZoneId.of("Europe/Helsinki"));
     private final VerticalLayout systemLogList = createLogList();
@@ -58,13 +51,11 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
     public AdminView(
             AuthService authService,
             I18nService i18n,
-            SystemLogService systemLogService,
-            ServiceNoticeService serviceNoticeService
+            SystemLogService systemLogService
     ) {
         this.authService = authService;
         this.i18n = i18n;
         this.systemLogService = systemLogService;
-        this.serviceNoticeService = serviceNoticeService;
 
         var account = ViewAuthUtils.findRealAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
@@ -97,12 +88,16 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         Button controlDeviceCallsButton = new Button("Client call monitor",
                 e -> UI.getCurrent().navigate(AdminClientCallLogView.class));
         controlDeviceCallsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button serviceNoticeButton = new Button(t("admin.serviceNotice.button"),
+                e -> UI.getCurrent().navigate(AdminServiceNoticeView.class));
+        serviceNoticeButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button refreshLogsButton = new Button("Refresh logs", e -> refreshLogs());
         FlexLayout actions = new FlexLayout(
                 provisioningButton,
                 mqttRelayTestButton,
                 usersButton,
                 controlDeviceCallsButton,
+                serviceNoticeButton,
                 refreshLogsButton
         );
         actions.setWidthFull();
@@ -123,7 +118,6 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         card.add(
                 backButton,
                 title,
-                createServiceNoticeEditor(),
                 actions,
                 createDivider(),
                 systemLogsTitle,
@@ -132,57 +126,6 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
                 mqttLogList
         );
         add(card);
-    }
-
-    private VerticalLayout createServiceNoticeEditor() {
-        ServiceNoticeService.Configuration configuration = serviceNoticeService.getConfiguration();
-
-        H3 title = new H3(t("admin.serviceNotice.title"));
-        title.getStyle().set("margin", "0");
-        Span description = new Span(t("admin.serviceNotice.description"));
-        description.getStyle().set("color", "var(--lumo-secondary-text-color)");
-
-        Checkbox active = new Checkbox(t("admin.serviceNotice.active"), configuration.active());
-        TextArea finnishText = new TextArea(t("admin.serviceNotice.finnishText"));
-        finnishText.setValue(configuration.finnishText());
-        finnishText.setMaxLength(ServiceNoticeService.MAX_TEXT_LENGTH);
-        finnishText.setWidthFull();
-        finnishText.setMinHeight("120px");
-        TextArea englishText = new TextArea(t("admin.serviceNotice.englishText"));
-        englishText.setValue(configuration.englishText());
-        englishText.setMaxLength(ServiceNoticeService.MAX_TEXT_LENGTH);
-        englishText.setWidthFull();
-        englishText.setMinHeight("120px");
-
-        FormLayout fields = new FormLayout(finnishText, englishText);
-        fields.setWidthFull();
-        fields.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("700px", 2)
-        );
-
-        Button save = new Button(t("admin.serviceNotice.save"));
-        save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        save.addClickListener(event -> {
-            try {
-                serviceNoticeService.save(active.getValue(), finnishText.getValue(), englishText.getValue());
-                Notification notification = Notification.show(t("admin.serviceNotice.saved"));
-                notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            } catch (IllegalArgumentException exception) {
-                Notification notification = Notification.show(t("admin.serviceNotice.saveFailed", exception.getMessage()));
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
-
-        VerticalLayout editor = new VerticalLayout(title, description, active, fields, save);
-        editor.setWidthFull();
-        editor.setPadding(true);
-        editor.setSpacing(true);
-        editor.getStyle()
-                .set("border", "1px solid var(--lumo-contrast-20pct)")
-                .set("border-radius", "8px")
-                .set("background-color", "var(--lumo-contrast-5pct)");
-        return editor;
     }
 
     protected String t(String key, Object... args) {
