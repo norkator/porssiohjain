@@ -81,7 +81,7 @@ import java.util.Locale;
 import java.util.Map;
 
 @PageTitle("Pörssiohjain - Devices")
-@Route("device")
+@Route(value = "device", layout = MainLayout.class)
 @PermitAll
 public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 

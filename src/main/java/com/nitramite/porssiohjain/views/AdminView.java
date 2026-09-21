@@ -36,7 +36,7 @@ import java.util.List;
 import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 
 @PageTitle("Pörssiohjain - Admin")
-@Route("admin")
+@Route(value = "admin", layout = MainLayout.class)
 @PermitAll
 public class AdminView extends VerticalLayout implements BeforeEnterObserver {
 

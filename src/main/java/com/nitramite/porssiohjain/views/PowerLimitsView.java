@@ -42,7 +42,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Power Limits")
-@Route("power-limits")
+@Route(value = "power-limits", layout = MainLayout.class)
 @PermitAll
 public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserver {
 

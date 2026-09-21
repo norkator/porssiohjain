@@ -66,7 +66,7 @@ import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 @JavaScript("context://js/chart.js")
 @JavaScript("context://js/chartjs-plugin-dragdata.js")
 @PageTitle("Pörssiohjain - Control table")
-@Route("controls/:controlId")
+@Route(value = "controls/:controlId", layout = MainLayout.class)
 @PermitAll
 public class ControlTableView extends VerticalLayout implements BeforeEnterObserver {
 

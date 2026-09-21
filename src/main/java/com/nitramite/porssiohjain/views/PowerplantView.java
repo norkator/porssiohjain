@@ -75,7 +75,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @PageTitle("Pörssiohjain - Powerplant")
-@Route("powerplant")
+@Route(value = "powerplant", layout = MainLayout.class)
 @PermitAll
 public class PowerplantView extends VerticalLayout implements BeforeEnterObserver {
 

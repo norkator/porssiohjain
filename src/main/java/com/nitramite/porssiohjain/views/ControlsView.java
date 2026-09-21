@@ -47,7 +47,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Controls")
-@Route("controls")
+@Route(value = "controls", layout = MainLayout.class)
 @PermitAll
 public class ControlsView extends VerticalLayout implements BeforeEnterObserver {
 

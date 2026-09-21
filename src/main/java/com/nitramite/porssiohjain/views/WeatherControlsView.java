@@ -48,7 +48,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Weather Controls")
-@Route("weather-controls")
+@Route(value = "weather-controls", layout = MainLayout.class)
 @PermitAll
 public class WeatherControlsView extends VerticalLayout implements BeforeEnterObserver {
 

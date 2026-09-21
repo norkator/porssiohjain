@@ -52,7 +52,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Solar Angle Planner")
-@Route("solar-angle-planner")
+@Route(value = "solar-angle-planner", layout = MainLayout.class)
 @PermitAll
 public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnterObserver {
 

@@ -43,7 +43,7 @@ import java.math.BigDecimal;
 import java.util.Locale;
 
 @PageTitle("Pörssiohjain - Electricity Contracts")
-@Route("electricity-contracts")
+@Route(value = "electricity-contracts", layout = MainLayout.class)
 @PermitAll
 public class ElectricityContractsView extends VerticalLayout implements BeforeEnterObserver {
 

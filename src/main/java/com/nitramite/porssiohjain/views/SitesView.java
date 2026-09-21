@@ -46,7 +46,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
 @PageTitle("Pörssiohjain - Sites")
-@Route("sites")
+@Route(value = "sites", layout = MainLayout.class)
 @PermitAll
 public class SitesView extends VerticalLayout implements BeforeEnterObserver {
 
