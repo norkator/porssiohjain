@@ -14,6 +14,8 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.NordpoolService;
+import com.nitramite.porssiohjain.services.ServiceNoticeService;
+import com.nitramite.porssiohjain.services.models.ServiceNoticeResponse;
 import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -42,14 +44,17 @@ public class HomeView extends VerticalLayout {
 
     private final AuthService authService;
     protected final I18nService i18n;
+    private final ServiceNoticeService serviceNoticeService;
 
     public HomeView(
             NordpoolService nordpoolService,
             AuthService authService,
-            I18nService i18n
+            I18nService i18n,
+            ServiceNoticeService serviceNoticeService
     ) {
         this.authService = authService;
         this.i18n = i18n;
+        this.serviceNoticeService = serviceNoticeService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -175,6 +180,10 @@ public class HomeView extends VerticalLayout {
         boolean admin = loggedIn && authenticatedAccount.isAdmin();
 
         contentBox.add(langButtons, title);
+        ServiceNoticeResponse notice = serviceNoticeService.getNotice(UI.getCurrent().getLocale());
+        if (notice.active()) {
+            contentBox.add(createServiceNotice(notice.text()));
+        }
 
         Anchor googlePlayBadgeLink = new Anchor(
                 "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller"
@@ -284,6 +293,28 @@ public class HomeView extends VerticalLayout {
                 .set("min-width", "150px")
                 .set("min-height", "88px")
                 .set("line-height", "1.2");
+    }
+
+    private Div createServiceNotice(String text) {
+        Span label = new Span(t("home.serviceNotice"));
+        label.getStyle()
+                .set("display", "block")
+                .set("font-weight", "700")
+                .set("margin-bottom", "0.35rem");
+        Paragraph message = new Paragraph(text);
+        message.getStyle()
+                .set("margin", "0")
+                .set("white-space", "pre-wrap");
+        Div notice = new Div(label, message);
+        notice.setWidthFull();
+        notice.getStyle()
+                .set("box-sizing", "border-box")
+                .set("padding", "1rem")
+                .set("border", "1px solid var(--lumo-warning-color-50pct)")
+                .set("border-radius", "8px")
+                .set("background-color", "var(--lumo-warning-color-10pct)")
+                .set("color", "var(--lumo-body-text-color)");
+        return notice;
     }
 
 }

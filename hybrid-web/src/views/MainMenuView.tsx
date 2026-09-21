@@ -33,6 +33,7 @@ import {
 } from "@/lib/mock-branded-device-provisioning";
 import { useI18n } from "@/lib/i18n";
 import { clearBrowserSession, getSessionData } from "@/lib/session";
+import { fetchServiceNotice, type ServiceNotice } from "@/lib/service-notice";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 import { type FormEvent, useEffect, useState } from "react";
 
@@ -132,6 +133,7 @@ export default function MainMenuView() {
   const [savingsError, setSavingsError] = useState(false);
   const [sitesError, setSitesError] = useState(false);
   const [contractsError, setContractsError] = useState(false);
+  const [serviceNotice, setServiceNotice] = useState<ServiceNotice | null>(null);
   const { error, isLoading, onlineCount, totalCount } = useDevices();
   const {
     error: controlsError,
@@ -195,6 +197,22 @@ export default function MainMenuView() {
       window.removeEventListener("beforeunload", saveScrollPosition);
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchServiceNotice(locale)
+      .then((notice) => {
+        if (active) setServiceNotice(notice);
+      })
+      .catch(() => {
+        if (active) setServiceNotice(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [locale]);
 
   useEffect(() => {
     let active = true;
@@ -759,6 +777,16 @@ export default function MainMenuView() {
               )}
             </section>
           </div>
+        ) : null}
+
+        {serviceNotice?.active && serviceNotice.text ? (
+          <aside
+            aria-label={t("serviceNotice")}
+            className="mb-8 rounded-xl border border-tertiary/40 bg-tertiary-container p-5 text-on-tertiary-container shadow-sm sm:p-6"
+          >
+            <p className="mb-2 text-xs font-black uppercase tracking-[0.16em]">{t("serviceNotice")}</p>
+            <p className="whitespace-pre-wrap text-base font-medium leading-relaxed">{serviceNotice.text}</p>
+          </aside>
         ) : null}
 
         <section className="mb-12">
