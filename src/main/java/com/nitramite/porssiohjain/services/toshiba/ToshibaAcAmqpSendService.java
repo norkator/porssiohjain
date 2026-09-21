@@ -86,6 +86,11 @@ public class ToshibaAcAmqpSendService {
         deviceAcDataRepository.save(acData);
         markDeviceReachable(acData);
         log.info(
+                "Toshiba AC state changed. name={}, acDeviceId={}",
+                acData.getName(),
+                acData.getAcDeviceId()
+        );
+        log.info(
                 "Persisted lastSentStateHex after successful Toshiba send. deviceId={}, acDataId={}",
                 deviceId,
                 acData.getId()
