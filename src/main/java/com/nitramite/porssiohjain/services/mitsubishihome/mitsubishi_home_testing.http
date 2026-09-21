@@ -1,0 +1,319 @@
+### Mitsubishi MELCloud Home API testing
+###
+### This is for the NEW MELCloud Home app/API only. The legacy MELCloud API is
+### covered by ../mitsubishi/mitsubishi_testing.http.
+###
+### IntelliJ HTTP Client setup:
+### 1. Put these values in http-client.private.env.json (do not commit it):
+###    {
+###      "dev": {
+###        "mitsubishi_home_username": "your@email.example",
+###        "mitsubishi_home_password": "your-password"
+###      }
+###    }
+### 2. Select the "dev" environment.
+### 3. Run requests 1-6 in order. Cookies are retained by the HTTP Client.
+### 4. Run request 7 to list buildings and units. The first ATA and ATW unit
+###    IDs are saved automatically as mitsubishi_home_ata_unit_id and
+###    mitsubishi_home_atw_unit_id for the later requests.
+###
+### Based on aiomelcloudhome 0.2.3, used by Home Assistant melcloud_home.
+
+
+### 1. Start OAuth 2.0 Authorization Code + PKCE login
+# @name melCloudHomePar
+# @no-log
+< {%
+    const verifier = crypto.sha256()
+        .updateWithText($random.uuid.toString() + $random.uuid.toString())
+        .digest()
+        .toHex();
+    const challenge = crypto.sha256()
+        .updateWithText(verifier)
+        .digest()
+        .toBase64()
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/g, "");
+    const state = $random.uuid.toString();
+
+    client.global.set("mitsubishi_home_code_verifier", verifier);
+    client.global.set("mitsubishi_home_code_challenge", challenge);
+    client.global.set("mitsubishi_home_oauth_state", state);
+%}
+POST https://auth.melcloudhome.com/connect/par
+Content-Type: application/x-www-form-urlencoded
+Accept: application/json
+
+client_id=homemobile&redirect_uri=melcloudhome%3A%2F%2F&response_type=code&scope=openid%20profile%20email%20offline_access%20IdentityServerApi&state={{mitsubishi_home_oauth_state}}&code_challenge={{mitsubishi_home_code_challenge}}&code_challenge_method=S256
+
+> {%
+    client.test("PAR request succeeded", function () {
+        client.assert(response.status === 200, "Expected HTTP 200");
+        client.assert(response.body.request_uri, "Missing request_uri");
+    });
+    client.global.set(
+        "mitsubishi_home_request_uri",
+        encodeURIComponent(response.body.request_uri)
+    );
+%}
+
+
+### 2. Resolve the pushed authorization request to the Cognito login URL
+# @name melCloudHomeAuthorize
+# @no-redirect
+# @no-log
+GET https://auth.melcloudhome.com/connect/authorize?client_id=homemobile&request_uri={{mitsubishi_home_request_uri}}
+Accept: text/html
+
+> {%
+    const location = response.headers.valueOf("Location");
+    client.test("Authorization redirects to login", function () {
+        client.assert(response.status >= 300 && response.status < 400, "Expected a redirect");
+        client.assert(location, "Missing Cognito redirect Location");
+    });
+    client.global.set("mitsubishi_home_cognito_url", location);
+%}
+
+
+### 3. Load the Cognito login page and capture its CSRF token
+# @name melCloudHomeLoginPage
+# @no-log
+GET {{mitsubishi_home_cognito_url}}
+Accept: text/html
+
+> {%
+    const match = response.body.match(/name=["']_csrf["']\s+value=["']([^"']+)["']/);
+    client.test("Cognito login page contains a CSRF token", function () {
+        client.assert(response.status === 200, "Expected HTTP 200");
+        client.assert(match, "Could not find the _csrf input");
+    });
+    if (match) {
+        client.global.set("mitsubishi_home_csrf", encodeURIComponent(match[1]));
+    }
+%}
+
+
+### 4. Submit MELCloud Home credentials
+### Keep redirects disabled so the custom melcloudhome:// callback is not opened.
+# @name melCloudHomeSubmitCredentials
+# @no-redirect
+# @no-log
+< {%
+    request.variables.set(
+        "mitsubishi_home_encoded_username",
+        encodeURIComponent(request.environment.get("mitsubishi_home_username"))
+    );
+    request.variables.set(
+        "mitsubishi_home_encoded_password",
+        encodeURIComponent(request.environment.get("mitsubishi_home_password"))
+    );
+%}
+POST {{mitsubishi_home_cognito_url}}
+Content-Type: application/x-www-form-urlencoded
+Accept: text/html
+
+_csrf={{mitsubishi_home_csrf}}&username={{mitsubishi_home_encoded_username}}&password={{mitsubishi_home_encoded_password}}
+
+> {%
+    const location = response.headers.valueOf("Location");
+    client.test("Credential submission redirects", function () {
+        client.assert(response.status === 301 || response.status === 302, "Expected HTTP 301/302; verify username and password");
+        client.assert(location, "Missing callback Location");
+    });
+    client.global.set("mitsubishi_home_callback_url", location);
+
+    // Some sessions redirect directly to melcloudhome:// instead of going
+    // through request 5. Capture that code as well.
+    if (location && location.startsWith("melcloudhome://")) {
+        const directCode = new URL(location).searchParams.get("code");
+        if (directCode) {
+            client.global.set("mitsubishi_home_authorization_code", encodeURIComponent(directCode));
+        }
+    }
+%}
+
+
+### 5. Complete the IdentityServer callback
+### Skip this only if request 4 returned a direct melcloudhome:// Location.
+# @name melCloudHomeAuthorizationCallback
+# @no-redirect
+# @no-log
+GET {{mitsubishi_home_callback_url}}
+Accept: text/html
+
+> {%
+    const location = response.headers.valueOf("Location");
+    const code = location ? new URL(location).searchParams.get("code") : null;
+    client.test("Callback returns an authorization code", function () {
+        client.assert(response.status >= 300 && response.status < 400, "Expected a redirect");
+        client.assert(code, "Missing authorization code in callback Location");
+    });
+    if (code) {
+        client.global.set("mitsubishi_home_authorization_code", encodeURIComponent(code));
+    }
+%}
+
+
+### 6. Exchange the authorization code for access and refresh tokens
+# @name melCloudHomeToken
+# @no-log
+POST https://auth.melcloudhome.com/connect/token
+Content-Type: application/x-www-form-urlencoded
+Accept: application/json
+
+grant_type=authorization_code&client_id=homemobile&code={{mitsubishi_home_authorization_code}}&redirect_uri=melcloudhome%3A%2F%2F&code_verifier={{mitsubishi_home_code_verifier}}
+
+> {%
+    client.test("Token exchange succeeded", function () {
+        client.assert(response.status === 200, "Expected HTTP 200");
+        client.assert(response.body.access_token, "Missing access_token");
+        client.assert(response.body.refresh_token, "Missing refresh_token");
+    });
+    client.global.set("mitsubishi_home_access_token", response.body.access_token);
+    client.global.set("mitsubishi_home_refresh_token", response.body.refresh_token);
+%}
+
+
+### Refresh an expired access token (run instead of logging in again)
+# @name melCloudHomeRefreshToken
+# @no-log
+POST https://auth.melcloudhome.com/connect/token
+Content-Type: application/x-www-form-urlencoded
+Accept: application/json
+
+grant_type=refresh_token&client_id=homemobile&refresh_token={{mitsubishi_home_refresh_token}}
+
+> {%
+    client.test("Token refresh succeeded", function () {
+        client.assert(response.status === 200, "Expected HTTP 200");
+        client.assert(response.body.access_token, "Missing access_token");
+    });
+    client.global.set("mitsubishi_home_access_token", response.body.access_token);
+    if (response.body.refresh_token) {
+        client.global.set("mitsubishi_home_refresh_token", response.body.refresh_token);
+    }
+%}
+
+
+### 7. Get account, buildings, heat pumps, capabilities, and current states
+### airToAirUnits = ATA air conditioners / air-to-air heat pumps
+### airToWaterUnits = ATW hydronic heat pumps
+# @name melCloudHomeContext
+# @no-log
+GET https://mobile.bff.melcloudhome.com/context
+Authorization: Bearer {{mitsubishi_home_access_token}}
+Accept: application/json
+
+> {%
+    const buildings = response.body.buildings || [];
+    const ataUnits = buildings.flatMap(building => building.airToAirUnits || []);
+    const atwUnits = buildings.flatMap(building => building.airToWaterUnits || []);
+
+    client.test("Context request succeeded", function () {
+        client.assert(response.status === 200, "Expected HTTP 200");
+        client.assert(Array.isArray(buildings), "Missing buildings array");
+    });
+    if (ataUnits.length > 0) {
+        client.global.set("mitsubishi_home_ata_unit_id", ataUnits[0].id);
+        client.log("Saved first ATA unit: " + ataUnits[0].givenDisplayName + " (" + ataUnits[0].id + ")");
+    }
+    if (atwUnits.length > 0) {
+        client.global.set("mitsubishi_home_atw_unit_id", atwUnits[0].id);
+        client.log("Saved first ATW unit: " + atwUnits[0].givenDisplayName + " (" + atwUnits[0].id + ")");
+    }
+%}
+
+
+### Get ATA outdoor-temperature trend for today
+### Change the timestamps when needed. unitId comes from request 7.
+# @no-log
+GET https://mobile.bff.melcloudhome.com/report/v1/trendsummary?unitId={{mitsubishi_home_ata_unit_id}}&period=Daily&from=2026-09-21T00%3A00%3A00.0000000&to=2026-09-21T23%3A59%3A59.0000000
+Authorization: Bearer {{mitsubishi_home_access_token}}
+Accept: application/json
+
+
+### Get hourly consumed-energy telemetry
+### Works only for a unit whose capabilities.hasEnergyConsumedMeter is true.
+### Replace the ID with mitsubishi_home_ata_unit_id for an ATA energy meter.
+# @no-log
+GET https://mobile.bff.melcloudhome.com/telemetry/telemetry/energy/{{mitsubishi_home_atw_unit_id}}?from=2026-09-20%2000%3A00&to=2026-09-21%2023%3A59&interval=Hour&measure=cumulative_energy_consumed_since_last_upload
+Authorization: Bearer {{mitsubishi_home_access_token}}
+Accept: application/json
+
+
+### Get ATW actual room-temperature telemetry
+### Other known measures include flow_temperature and return_temperature.
+# @no-log
+GET https://mobile.bff.melcloudhome.com/telemetry/telemetry/actual/{{mitsubishi_home_atw_unit_id}}?from=2026-09-20%2000%3A00&to=2026-09-21%2023%3A59&measure=room_temperature
+Authorization: Bearer {{mitsubishi_home_access_token}}
+Accept: application/json
+
+
+### WRITE EXAMPLE: Set ATA state
+### WARNING: This changes the real unit. Send only after checking request 7.
+### Valid operationMode: Heat, Cool, Automatic, Dry, Fan
+### Valid setFanSpeed: Auto, One, Two, Three, Four, Five
+### Valid vertical vane: Auto, Swing, One, Two, Three, Four, Five
+### Valid horizontal vane: Auto, Swing, Left, LeftCentre, Centre, RightCentre, Right
+# @no-log
+PUT https://mobile.bff.melcloudhome.com/monitor/ataunit/{{mitsubishi_home_ata_unit_id}}
+Authorization: Bearer {{mitsubishi_home_access_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "power": true,
+  "operationMode": "Heat",
+  "setTemperature": 21.0,
+  "setFanSpeed": "Auto",
+  "vaneVerticalDirection": "Auto",
+  "vaneHorizontalDirection": "Centre",
+  "temperatureIncrementOverride": null,
+  "inStandbyMode": null
+}
+
+
+### WRITE EXAMPLE: Turn ATA off without changing other settings
+# @no-log
+PUT https://mobile.bff.melcloudhome.com/monitor/ataunit/{{mitsubishi_home_ata_unit_id}}
+Authorization: Bearer {{mitsubishi_home_access_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "power": false,
+  "operationMode": null,
+  "setTemperature": null,
+  "setFanSpeed": null,
+  "vaneVerticalDirection": null,
+  "vaneHorizontalDirection": null,
+  "temperatureIncrementOverride": null,
+  "inStandbyMode": null
+}
+
+
+### WRITE EXAMPLE: Set ATW heat-pump zone 1 and hot-water targets
+### WARNING: This changes the real unit. Send only after checking request 7.
+### Zone modes: HeatRoomTemperature, HeatFlowTemperature, HeatCurve,
+###             CoolRoomTemperature, CoolFlowTemperature
+# @no-log
+PUT https://mobile.bff.melcloudhome.com/monitor/atwunit/{{mitsubishi_home_atw_unit_id}}
+Authorization: Bearer {{mitsubishi_home_access_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "power": true,
+  "setTemperatureZone1": 21.0,
+  "setTemperatureZone2": null,
+  "operationModeZone1": "HeatRoomTemperature",
+  "operationModeZone2": null,
+  "setTankWaterTemperature": 50.0,
+  "forcedHotWaterMode": null,
+  "inStandbyMode": null,
+  "setHeatFlowTemperatureZone1": null,
+  "setCoolFlowTemperatureZone1": null,
+  "setHeatFlowTemperatureZone2": null,
+  "setCoolFlowTemperatureZone2": null
+}

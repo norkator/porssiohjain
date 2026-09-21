@@ -631,7 +631,6 @@
     "heatPumpDeviceName": "Heat Pump Device Name",
     "heatPumpDevicePlaceholder": "e.g., Living Room Heat Pump",
     "mitsubishiApp": "Mitsubishi app",
-    "melCloudHomeUnavailable": "MELCloud Home can be selected now, but its API integration is not implemented yet.",
     "heatPumpUsername": "Heat Pump App Username",
     "toshibaUsernamePlaceholder": "Toshiba app email or username",
     "mitsubishiUsernamePlaceholder": "MELCloud email or username",

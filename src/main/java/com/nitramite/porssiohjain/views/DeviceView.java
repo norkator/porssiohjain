@@ -30,6 +30,8 @@ import com.nitramite.porssiohjain.services.models.ClaimProvisionedDeviceRequest;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesResponse;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesService;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiLoginService;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeDevicesService;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeLoginService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
 import com.nitramite.porssiohjain.services.models.ProvisionedDeviceLookupResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcDevicesService;
@@ -94,6 +96,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final ToshibaAcDevicesService toshibaAcDevicesService;
     private final MitsubishiLoginService mitsubishiLoginService;
     private final MitsubishiAcDevicesService mitsubishiAcDevicesService;
+    private final MitsubishiMelCloudHomeLoginService mitsubishiMelCloudHomeLoginService;
+    private final MitsubishiMelCloudHomeDevicesService mitsubishiMelCloudHomeDevicesService;
     private final AccountLimitService accountLimitService;
     protected final I18nService i18n;
 
@@ -143,6 +147,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             ToshibaAcDevicesService toshibaAcDevicesService,
             MitsubishiLoginService mitsubishiLoginService,
             MitsubishiAcDevicesService mitsubishiAcDevicesService,
+            MitsubishiMelCloudHomeLoginService mitsubishiMelCloudHomeLoginService,
+            MitsubishiMelCloudHomeDevicesService mitsubishiMelCloudHomeDevicesService,
             AccountLimitService accountLimitService
     ) {
         this.deviceService = deviceService;
@@ -156,6 +162,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         this.toshibaAcDevicesService = toshibaAcDevicesService;
         this.mitsubishiLoginService = mitsubishiLoginService;
         this.mitsubishiAcDevicesService = mitsubishiAcDevicesService;
+        this.mitsubishiMelCloudHomeLoginService = mitsubishiMelCloudHomeLoginService;
+        this.mitsubishiMelCloudHomeDevicesService = mitsubishiMelCloudHomeDevicesService;
         this.accountLimitService = accountLimitService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
@@ -456,8 +464,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             } else if (acType == AcType.MITSUBISHI_MELCLOUD) {
                 openMitsubishiAcDeviceSelectionDialog(acData);
             } else if (acType == AcType.MITSUBISHI_MELCLOUD_HOME) {
-                Notification.show(t("device.notification.melCloudHomeNotImplemented"))
-                        .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                openMitsubishiMelCloudHomeDeviceSelectionDialog(acData);
             } else {
                 Notification.show(t("device.notification.failed", "Unsupported AC type"))
                         .addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -539,6 +546,58 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                         selected.getBuildingId() != null ? String.valueOf(selected.getBuildingId()) : null
                 );
                 Notification.show(t("device.notification.acDeviceSelected")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                dialog.close();
+            }
+        });
+        selectButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button cancelButton = new Button(t("common.cancel"), e -> dialog.close());
+
+        dialog.getFooter().add(cancelButton, selectButton);
+        dialog.add(new VerticalLayout(acGrid));
+        dialog.open();
+    }
+
+    private void openMitsubishiMelCloudHomeDeviceSelectionDialog(DeviceAcDataEntity acData) {
+        if (!mitsubishiMelCloudHomeLoginService.login(acData).isSuccess()) {
+            Notification.show(t("device.notification.melCloudHomeLoginFailed"))
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return;
+        }
+
+        List<MitsubishiMelCloudHomeDevicesService.MitsubishiMelCloudHomeDevice> acDevices =
+                mitsubishiMelCloudHomeDevicesService.getAcDevices(acData);
+        if (acDevices.isEmpty()) {
+            Notification.show(t("device.notification.noAcDevicesFound")).addThemeVariants(NotificationVariant.LUMO_WARNING);
+            return;
+        }
+
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("device.hp.dialog.title"));
+
+        Grid<MitsubishiMelCloudHomeDevicesService.MitsubishiMelCloudHomeDevice> acGrid = new Grid<>();
+        acGrid.addColumn(MitsubishiMelCloudHomeDevicesService.MitsubishiMelCloudHomeDevice::name)
+                .setHeader(t("device.hp.dialog.grid.name"));
+        acGrid.addColumn(MitsubishiMelCloudHomeDevicesService.MitsubishiMelCloudHomeDevice::id)
+                .setHeader(t("device.hp.dialog.grid.id"));
+        acGrid.addColumn(device -> device.unitType() == MitsubishiMelCloudHomeDevicesService.UnitType.AIR_TO_AIR
+                        ? t("device.hp.dialog.unitType.airToAir")
+                        : t("device.hp.dialog.unitType.airToWater"))
+                .setHeader(t("device.hp.dialog.grid.type"));
+        acGrid.addColumn(MitsubishiMelCloudHomeDevicesService.MitsubishiMelCloudHomeDevice::buildingName)
+                .setHeader(t("device.hp.dialog.grid.building"));
+        acGrid.addColumn(device -> Boolean.TRUE.equals(device.connected()) ? t("common.yes") : t("common.no"))
+                .setHeader(t("device.hp.dialog.grid.online"));
+        acGrid.setItems(acDevices);
+        acGrid.setWidth("800px");
+        acGrid.setHeight("300px");
+
+        Button selectButton = new Button(t("common.select"), e -> {
+            MitsubishiMelCloudHomeDevicesService.MitsubishiMelCloudHomeDevice selected =
+                    acGrid.asSingleSelect().getValue();
+            if (selected != null) {
+                persistSelectedAcDevice(selected.id(), selected.buildingId());
+                Notification.show(t("device.notification.acDeviceSelected"))
+                        .addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 dialog.close();
             }
         });

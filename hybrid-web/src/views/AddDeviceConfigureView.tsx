@@ -61,11 +61,9 @@ export default function AddDeviceConfigureView() {
   });
   const timezoneIsValid = availableTimezones.includes(timezone);
   const hasAcCredentials = acUsername.trim().length > 0 && acPassword.trim().length > 0;
-  const melCloudHomeSelected = acType === "MITSUBISHI_MELCLOUD_HOME";
   const heatPumpReady =
     hpName.trim().length > 0 &&
     hasAcCredentials &&
-    !melCloudHomeSelected &&
     acDeviceId.trim().length > 0;
   const canContinue = deviceName.trim().length > 0 && timezoneIsValid && (!isHeatPump || heatPumpReady);
 
@@ -252,11 +250,6 @@ export default function AddDeviceConfigureView() {
                         <option value="MITSUBISHI_MELCLOUD">MELCloud</option>
                         <option value="MITSUBISHI_MELCLOUD_HOME">MELCloud Home</option>
                       </select>
-                      {melCloudHomeSelected ? (
-                        <p className="mt-3 rounded-xl bg-surface-container-low p-4 text-sm text-on-surface-variant">
-                          {t("melCloudHomeUnavailable")}
-                        </p>
-                      ) : null}
                     </div>
                   ) : null}
 
@@ -320,7 +313,7 @@ export default function AddDeviceConfigureView() {
                       </div>
                       <button
                         className="secondary-action justify-center disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={!hasAcCredentials || isLoadingAcDevices || melCloudHomeSelected}
+                        disabled={!hasAcCredentials || isLoadingAcDevices}
                         onClick={handleOpenAcSelection}
                         type="button"
                       >

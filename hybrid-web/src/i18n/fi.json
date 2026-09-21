@@ -631,7 +631,6 @@
     "heatPumpDeviceName": "Lämpöpumpun laitteen nimi",
     "heatPumpDevicePlaceholder": "esim. Olohuoneen lämpöpumppu",
     "mitsubishiApp": "Mitsubishi-sovellus",
-    "melCloudHomeUnavailable": "MELCloud Home voidaan nyt valita, mutta sen API-integraatiota ei ole vielä toteutettu.",
     "heatPumpUsername": "Lämpöpumppusovelluksen käyttäjätunnus",
     "toshibaUsernamePlaceholder": "Toshiba-sovelluksen sähköposti tai käyttäjätunnus",
     "mitsubishiUsernamePlaceholder": "MELCloud-sähköposti tai käyttäjätunnus",

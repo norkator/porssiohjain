@@ -15,6 +15,8 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesService;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiLoginService;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeDevicesService;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeLoginService;
 import com.nitramite.porssiohjain.services.models.HeatPumpAcDeviceResponse;
 import com.nitramite.porssiohjain.services.models.HeatPumpAcDevicesRequest;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcDevicesService;
@@ -32,6 +34,8 @@ public class HeatPumpAcDeviceSelectionService {
     private final ToshibaAcDevicesService toshibaAcDevicesService;
     private final MitsubishiLoginService mitsubishiLoginService;
     private final MitsubishiAcDevicesService mitsubishiAcDevicesService;
+    private final MitsubishiMelCloudHomeLoginService mitsubishiMelCloudHomeLoginService;
+    private final MitsubishiMelCloudHomeDevicesService mitsubishiMelCloudHomeDevicesService;
 
     public List<HeatPumpAcDeviceResponse> getSelectableDevices(HeatPumpAcDevicesRequest request) {
         validateRequest(request);
@@ -40,9 +44,7 @@ public class HeatPumpAcDeviceSelectionService {
         return switch (request.getAcType()) {
             case TOSHIBA -> getToshibaDevices(acData);
             case MITSUBISHI_MELCLOUD -> getMitsubishiDevices(acData);
-            case MITSUBISHI_MELCLOUD_HOME -> throw new UnsupportedOperationException(
-                    "MELCloud Home integration is not implemented yet"
-            );
+            case MITSUBISHI_MELCLOUD_HOME -> getMitsubishiMelCloudHomeDevices(acData);
             case NONE -> throw new IllegalArgumentException("AC type is required");
         };
     }
@@ -73,6 +75,21 @@ public class HeatPumpAcDeviceSelectionService {
                         .id(String.valueOf(device.getDeviceId()))
                         .name(device.getDeviceName())
                         .buildingId(device.getBuildingId() != null ? String.valueOf(device.getBuildingId()) : null)
+                        .build())
+                .toList();
+    }
+
+    private List<HeatPumpAcDeviceResponse> getMitsubishiMelCloudHomeDevices(DeviceAcDataEntity acData) {
+        if (!mitsubishiMelCloudHomeLoginService.login(acData).isSuccess()) {
+            throw new IllegalStateException("MELCloud Home login failed");
+        }
+
+        return mitsubishiMelCloudHomeDevicesService.getAcDevices(acData).stream()
+                .map(device -> HeatPumpAcDeviceResponse.builder()
+                        .acType(AcType.MITSUBISHI_MELCLOUD_HOME)
+                        .id(device.id())
+                        .name(device.name())
+                        .buildingId(device.buildingId())
                         .build())
                 .toList();
     }

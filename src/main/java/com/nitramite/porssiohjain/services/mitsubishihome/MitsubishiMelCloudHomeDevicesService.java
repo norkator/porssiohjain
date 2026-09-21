@@ -11,17 +11,80 @@
 package com.nitramite.porssiohjain.services.mitsubishihome;
 
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class MitsubishiMelCloudHomeDevicesService {
 
+    private final MitsubishiMelCloudHomeApiClient apiClient;
+
     public List<MitsubishiMelCloudHomeDevice> getAcDevices(DeviceAcDataEntity acData) {
-        throw new UnsupportedOperationException("MELCloud Home device discovery is not implemented yet");
+        try {
+            MitsubishiMelCloudHomeContextResponse context = apiClient.getContext(acData.getAcAccessToken());
+            List<MitsubishiMelCloudHomeDevice> devices = new ArrayList<>();
+            addBuildingDevices(devices, context.buildings(), false);
+            addBuildingDevices(devices, context.guestBuildings(), true);
+            return List.copyOf(devices);
+        } catch (MitsubishiMelCloudHomeException e) {
+            log.warn("Unable to list MELCloud Home units: {}", e.getMessage());
+            return List.of();
+        }
     }
 
-    public record MitsubishiMelCloudHomeDevice(String id, String name) {
+    private void addBuildingDevices(
+            List<MitsubishiMelCloudHomeDevice> devices,
+            List<MitsubishiMelCloudHomeContextResponse.Building> buildings,
+            boolean guestAccess
+    ) {
+        for (MitsubishiMelCloudHomeContextResponse.Building building : buildings) {
+            building.airToAirUnits().stream()
+                    .map(unit -> toDevice(unit, building, UnitType.AIR_TO_AIR, guestAccess))
+                    .forEach(devices::add);
+            building.airToWaterUnits().stream()
+                    .map(unit -> toDevice(unit, building, UnitType.AIR_TO_WATER, guestAccess))
+                    .forEach(devices::add);
+        }
+    }
+
+    private MitsubishiMelCloudHomeDevice toDevice(
+            MitsubishiMelCloudHomeContextResponse.Unit unit,
+            MitsubishiMelCloudHomeContextResponse.Building building,
+            UnitType unitType,
+            boolean guestAccess
+    ) {
+        return new MitsubishiMelCloudHomeDevice(
+                unit.id(),
+                unit.givenDisplayName(),
+                unitType,
+                building.id(),
+                building.name(),
+                unit.isConnected(),
+                unit.isInError(),
+                guestAccess
+        );
+    }
+
+    public enum UnitType {
+        AIR_TO_AIR,
+        AIR_TO_WATER
+    }
+
+    public record MitsubishiMelCloudHomeDevice(
+            String id,
+            String name,
+            UnitType unitType,
+            String buildingId,
+            String buildingName,
+            Boolean connected,
+            Boolean inError,
+            boolean guestAccess
+    ) {
     }
 }
