@@ -1209,6 +1209,8 @@
     "heatPump": "Heat Pump",
     "priority": "Priority",
     "priorityRule": "Priority Rule",
+    "priorityRuleBehavior": "Priority rule behavior",
+    "heatPumpPriorityRuleHelp": "When enabled and this weather condition matches, the rule's saved state overrides all other heat pump control features for the same pump. For example, a rule for temperatures above 10 °C keeps its chosen state while the condition matches. When it no longer matches, other controls can resume.",
     "noStandardRules": "No standard device rules yet.",
     "noHeatPumpRules": "No heat pump rules yet.",
     "removeDeviceRuleDescription": "This removes the device rule from this weather control.",

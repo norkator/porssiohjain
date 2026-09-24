@@ -59,6 +59,8 @@ Heat pumps can either remain observed or be controlled by Heating Planner. A sit
 
 When control is enabled, each heat-pump room uses its explicit room sensor and comfort target. Heating Planner may request a configured adjustment above or below that target (2 °C by default, clamped to the device-supported 16–30 °C range). Below the comfort minimum always requests recovery. A per-room price-shifting toggle optionally raises the requested temperature in selected cheap preheat periods and lowers it in expensive discharge periods. With price shifting off, setpoint changes respond only to the measured/predicted room temperature around the comfort target. Missing or stale room measurements suppress heat-pump commands.
 
+A matching Weather Controls heat-pump rule with **Priority rule** enabled takes precedence over Heating Planner for that pump. A weather rule without priority is used only when Heating Planner has no command for the pump. When the priority rule stops matching, Heating Planner may resume control on the next scheduler run.
+
 ## Planning inputs
 
 The planner deliberately uses only:

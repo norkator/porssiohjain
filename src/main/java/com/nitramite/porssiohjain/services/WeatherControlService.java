@@ -218,7 +218,7 @@ public class WeatherControlService {
 
     public WeatherControlHeatPumpResponse addHeatPumpToWeatherControl(
             Long accountId, Long weatherControlId, Long deviceId, String stateHex, WeatherMetricType weatherMetric,
-            ComparisonType comparisonType, BigDecimal thresholdValue
+            ComparisonType comparisonType, BigDecimal thresholdValue, boolean priorityRule
     ) {
         demoAccountGuard.assertWritable(accountId);
         WeatherControlEntity weatherControl = getOwnedWeatherControl(accountId, weatherControlId);
@@ -231,6 +231,7 @@ public class WeatherControlService {
                 .weatherMetric(weatherMetric)
                 .comparisonType(comparisonType)
                 .thresholdValue(thresholdValue)
+                .priorityRule(priorityRule)
                 .build();
 
         return toHeatPumpResponse(weatherControlHeatPumpRepository.save(entity));
@@ -238,7 +239,7 @@ public class WeatherControlService {
 
     public WeatherControlHeatPumpResponse updateWeatherControlHeatPump(
             Long accountId, Long weatherControlHeatPumpId, Long deviceId, String stateHex, WeatherMetricType weatherMetric,
-            ComparisonType comparisonType, BigDecimal thresholdValue
+            ComparisonType comparisonType, BigDecimal thresholdValue, boolean priorityRule
     ) {
         demoAccountGuard.assertWritable(accountId);
         WeatherControlHeatPumpEntity entity = weatherControlHeatPumpRepository.findById(weatherControlHeatPumpId)
@@ -251,6 +252,7 @@ public class WeatherControlService {
         entity.setWeatherMetric(weatherMetric);
         entity.setComparisonType(comparisonType);
         entity.setThresholdValue(thresholdValue);
+        entity.setPriorityRule(priorityRule);
 
         return toHeatPumpResponse(weatherControlHeatPumpRepository.save(entity));
     }
@@ -358,6 +360,7 @@ public class WeatherControlService {
                 .weatherMetric(entity.getWeatherMetric())
                 .comparisonType(entity.getComparisonType())
                 .thresholdValue(entity.getThresholdValue())
+                .priorityRule(entity.isPriorityRule())
                 .device(toDeviceResponse(entity.getDevice()))
                 .build();
     }

@@ -63,12 +63,18 @@ public class HeatPumpControlService {
         Instant now = Instant.now();
         Map<Long, HeatPumpCommandCandidate> commandsByDeviceId = new LinkedHashMap<>();
 
+        var weatherRules = weatherControlHeatPumpRepository.findAll().stream()
+                .sorted(Comparator.comparing(WeatherControlHeatPumpEntity::getId))
+                .toList();
+
+        weatherRules.stream().filter(WeatherControlHeatPumpEntity::isPriorityRule)
+                .forEach(rule -> addIfMatched(commandsByDeviceId, evaluateWeatherRule(rule, now)));
+
         heatingPlannerHeatPumpCommandService.currentCommands(now).forEach(command -> addIfMatched(commandsByDeviceId,
                 Optional.of(new HeatPumpCommandCandidate(command.device(), command.state(), 0,
                         "HEATING_PLANNER", command.sourceId(), command.reason()))));
 
-        weatherControlHeatPumpRepository.findAll().stream()
-                .sorted(Comparator.comparing(WeatherControlHeatPumpEntity::getId))
+        weatherRules.stream().filter(rule -> !rule.isPriorityRule())
                 .forEach(rule -> addIfMatched(commandsByDeviceId, evaluateWeatherRule(rule, now)));
 
         productionSourceHeatPumpRepository.findAll().stream()

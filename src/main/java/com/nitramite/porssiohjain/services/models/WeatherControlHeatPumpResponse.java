@@ -32,5 +32,6 @@ public class WeatherControlHeatPumpResponse {
     private WeatherMetricType weatherMetric;
     private ComparisonType comparisonType;
     private BigDecimal thresholdValue;
+    private boolean priorityRule;
     private DeviceResponse device;
 }

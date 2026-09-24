@@ -53,4 +53,7 @@ public class WeatherControlHeatPumpEntity {
     @Column(name = "threshold_value", nullable = false, precision = 19, scale = 4)
     private BigDecimal thresholdValue;
 
+    @Column(name = "priority_rule", nullable = false)
+    private boolean priorityRule;
+
 }

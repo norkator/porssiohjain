@@ -113,6 +113,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     private ComboBox<WeatherMetricType> heatPumpMetricCombo;
     private ComboBox<ComparisonType> heatPumpComparisonCombo;
     private NumberField heatPumpThresholdField;
+    private Checkbox heatPumpPriorityRuleCheckbox;
     private Button heatPumpQueryStateButton;
     private Button heatPumpSaveButton;
     private Button heatPumpCancelButton;
@@ -383,6 +384,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         heatPumpGrid.addColumn(cd -> t("weatherMetricType." + cd.getWeatherMetric().name())).setHeader(t("weatherControl.grid.metric"));
         heatPumpGrid.addColumn(cd -> t("comparisonType." + cd.getComparisonType().name())).setHeader(t("controlTable.grid.comparisonType"));
         heatPumpGrid.addColumn(cd -> formatDecimal(cd.getThresholdValue(), "")).setHeader(t("weatherControl.grid.threshold"));
+        heatPumpGrid.addColumn(cd -> cd.isPriorityRule() ? t("common.yes") : t("common.no")).setHeader(t("weatherControl.grid.priorityRule"));
         heatPumpGrid.addColumn(WeatherControlHeatPumpResponse::getStateHex).setHeader(t("controlTable.grid.stateHex"));
         heatPumpGrid.addComponentColumn(cd -> {
             Button decode = new Button(t("controlTable.button.decodeState"), event -> openHeatPumpStateHexDialog(cd.getStateHex()));
@@ -545,6 +547,8 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         heatPumpThresholdField = new NumberField(t("weatherControl.field.threshold"));
         heatPumpThresholdField.setStep(0.1);
         heatPumpThresholdField.setWidthFull();
+        heatPumpPriorityRuleCheckbox = new Checkbox(t("weatherControl.field.priorityRule"));
+        heatPumpPriorityRuleCheckbox.setWidthFull();
 
         heatPumpSaveButton = new Button(t("controlTable.button.addDevice"), event -> {
             try {
@@ -562,7 +566,8 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                             heatPumpStateHexField.getValue(),
                             heatPumpMetricCombo.getValue(),
                             heatPumpComparisonCombo.getValue(),
-                            BigDecimal.valueOf(heatPumpThresholdField.getValue())
+                            BigDecimal.valueOf(heatPumpThresholdField.getValue()),
+                            heatPumpPriorityRuleCheckbox.getValue()
                     );
                 } else {
                     weatherControlService.addHeatPumpToWeatherControl(
@@ -572,7 +577,8 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                             heatPumpStateHexField.getValue(),
                             heatPumpMetricCombo.getValue(),
                             heatPumpComparisonCombo.getValue(),
-                            BigDecimal.valueOf(heatPumpThresholdField.getValue())
+                            BigDecimal.valueOf(heatPumpThresholdField.getValue()),
+                            heatPumpPriorityRuleCheckbox.getValue()
                     );
                 }
                 loadControlHeatPumps();
@@ -596,6 +602,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                 heatPumpMetricCombo,
                 heatPumpComparisonCombo,
                 heatPumpThresholdField,
+                heatPumpPriorityRuleCheckbox,
                 heatPumpSaveButton,
                 heatPumpCancelButton
         );
@@ -609,7 +616,13 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                 .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
                 .set("background-color", "var(--lumo-contrast-5pct)");
         clearHeatPumpForm();
-        return formLayout;
+        return new VerticalLayout(
+                formLayout,
+                new InfoBox(
+                        t("weatherControl.priorityInfo.title"),
+                        t("weatherControl.heatPumpPriorityInfo.description")
+                )
+        );
     }
 
     private ComboBox<WeatherMetricType> createMetricCombo() {
@@ -733,6 +746,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         heatPumpMetricCombo.setValue(rule.getWeatherMetric());
         heatPumpComparisonCombo.setValue(rule.getComparisonType());
         heatPumpThresholdField.setValue(rule.getThresholdValue() != null ? rule.getThresholdValue().doubleValue() : null);
+        heatPumpPriorityRuleCheckbox.setValue(rule.isPriorityRule());
         heatPumpSaveButton.setText(t("controlTable.button.save"));
         heatPumpCancelButton.setVisible(true);
     }
@@ -793,6 +807,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         heatPumpMetricCombo.clear();
         heatPumpComparisonCombo.clear();
         heatPumpThresholdField.clear();
+        heatPumpPriorityRuleCheckbox.setValue(false);
         heatPumpSaveButton.setText(t("controlTable.button.addDevice"));
         heatPumpCancelButton.setVisible(false);
     }

@@ -91,6 +91,7 @@ export default function ManageWeatherControlView() {
   const [heatPumpWeatherMetric, setHeatPumpWeatherMetric] = useState<WeatherMetricType>("TEMPERATURE");
   const [heatPumpComparisonType, setHeatPumpComparisonType] = useState<ComparisonType>("GREATER_THAN");
   const [heatPumpThresholdValue, setHeatPumpThresholdValue] = useState("0");
+  const [heatPumpPriorityRule, setHeatPumpPriorityRule] = useState(false);
   const [editingHeatPumpLinkId, setEditingHeatPumpLinkId] = useState<number | null>(null);
   const [isHeatPumpRuleDialogOpen, setIsHeatPumpRuleDialogOpen] = useState(false);
   const [deleteHeatPumpConfirmId, setDeleteHeatPumpConfirmId] = useState<number | null>(null);
@@ -123,6 +124,7 @@ export default function ManageWeatherControlView() {
     setHeatPumpWeatherMetric("TEMPERATURE");
     setHeatPumpComparisonType("GREATER_THAN");
     setHeatPumpThresholdValue("0");
+    setHeatPumpPriorityRule(false);
   };
 
   async function loadData() {
@@ -234,6 +236,7 @@ export default function ManageWeatherControlView() {
         comparisonType: heatPumpComparisonType,
         deviceId,
         stateHex: heatPumpStateHex.trim(),
+        priorityRule: heatPumpPriorityRule,
         thresholdValue: threshold,
         weatherMetric: heatPumpWeatherMetric
       };
@@ -287,6 +290,7 @@ export default function ManageWeatherControlView() {
     setHeatPumpWeatherMetric(link.weatherMetric);
     setHeatPumpComparisonType(link.comparisonType);
     setHeatPumpThresholdValue(String(link.thresholdValue));
+    setHeatPumpPriorityRule(link.priorityRule);
     setIsHeatPumpRuleDialogOpen(true);
   };
 
@@ -453,9 +457,10 @@ export default function ManageWeatherControlView() {
               </div>
             )}
           </div>
-          <div className="mt-3 grid gap-2 text-sm md:grid-cols-2">
+          <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
             <div><span className="metric-label">{t("state")}</span><p className="mt-1 whitespace-pre-wrap break-all rounded-lg bg-surface-container-highest p-3 font-mono text-xs">{link.stateHex}</p></div>
             <div><span className="metric-label">{t("type")}</span><p className="font-semibold">{translatedLabel(link.device.deviceType)}</p></div>
+            <div><span className="metric-label">{t("priority")}</span><p className="font-semibold">{link.priorityRule ? common("yes") : common("no")}</p></div>
           </div>
         </div>
       ))}
@@ -667,6 +672,8 @@ export default function ManageWeatherControlView() {
           <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpWeatherMetric(event.target.value as WeatherMetricType)} value={heatPumpWeatherMetric}>{WEATHER_METRICS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
           <select className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpComparisonType(event.target.value as ComparisonType)} value={heatPumpComparisonType}>{COMPARISONS.map((item) => <option key={item} value={item}>{translatedLabel(item)}</option>)}</select>
           <input className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" onChange={(event) => setHeatPumpThresholdValue(event.target.value)} step="0.1" type="number" value={heatPumpThresholdValue} />
+          <label className="flex items-center justify-between rounded-xl bg-surface-container p-4 md:col-span-2"><span className="font-headline text-sm font-bold">{t("priorityRule")}</span><input checked={heatPumpPriorityRule} onChange={(event) => setHeatPumpPriorityRule(event.target.checked)} type="checkbox" /></label>
+          <div className="rounded-xl bg-surface-container p-4 text-sm text-on-surface-variant md:col-span-2"><p className="font-headline font-bold text-on-surface">{t("priorityRuleBehavior")}</p><p className="mt-2">{t("heatPumpPriorityRuleHelp")}</p></div>
           <div className="grid gap-3 md:col-span-2 md:grid-cols-2">
             <button className="secondary-action justify-center disabled:opacity-60" disabled={!selectedHeatPumpDeviceId || !heatPumpStateHex.trim()} type="submit">{editingHeatPumpLinkId === null ? t("addHeatPumpRule") : t("saveHeatPumpRule")}</button>
             <button className="secondary-action justify-center" onClick={() => {

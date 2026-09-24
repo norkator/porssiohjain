@@ -1209,6 +1209,8 @@
     "heatPump": "Lämpöpumppu",
     "priority": "Prioriteetti",
     "priorityRule": "Prioriteettisääntö",
+    "priorityRuleBehavior": "Prioriteettisäännön toiminta",
+    "heatPumpPriorityRuleHelp": "Kun prioriteetti on käytössä ja sääehto täyttyy, säännön tallennettu tila ohittaa kaikki muut saman lämpöpumpun ohjaustoiminnot. Esimerkiksi yli 10 °C:n sääntö pitää valitun tilan voimassa ehdon täyttyessä. Kun ehto ei enää täyty, muut ohjaukset voivat jatkua.",
     "noStandardRules": "Vakiolaitteiden sääntöjä ei ole vielä.",
     "noHeatPumpRules": "Lämpöpumppusääntöjä ei ole vielä.",
     "removeDeviceRuleDescription": "Tämä poistaa laitesäännön tästä sääohjauksesta.",

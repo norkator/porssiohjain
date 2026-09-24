@@ -201,6 +201,55 @@ class HeatPumpControlServiceTest {
         verify(acCommandDispatchService).dispatchHexState(acData, "PLANNER");
     }
 
+    @Test
+    void matchingPriorityWeatherRuleOverridesHeatingPlannerForSamePump() {
+        verifyPlannerWeatherConflict(true, BigDecimal.valueOf(12), "WEATHER");
+    }
+
+    @Test
+    void unmatchedPriorityWeatherRuleDoesNotOverrideHeatingPlanner() {
+        verifyPlannerWeatherConflict(true, BigDecimal.valueOf(10), "PLANNER");
+    }
+
+    @Test
+    void matchingWeatherRuleWithoutPriorityDoesNotOverrideHeatingPlanner() {
+        verifyPlannerWeatherConflict(false, BigDecimal.valueOf(12), "PLANNER");
+    }
+
+    private void verifyPlannerWeatherConflict(boolean priorityRule, BigDecimal temperature, String expectedState) {
+        DeviceEntity device = enabledHeatPumpDevice(1L);
+        DeviceAcDataEntity acData = acData(device, "OLD");
+        SiteEntity site = new SiteEntity();
+        WeatherControlEntity weatherControl = new WeatherControlEntity();
+        weatherControl.setSite(site);
+        WeatherControlHeatPumpEntity weatherRule = WeatherControlHeatPumpEntity.builder()
+                .id(10L)
+                .device(device)
+                .weatherControl(weatherControl)
+                .stateHex("WEATHER")
+                .weatherMetric(WeatherMetricType.TEMPERATURE)
+                .comparisonType(ComparisonType.GREATER_THAN)
+                .thresholdValue(BigDecimal.TEN)
+                .priorityRule(priorityRule)
+                .build();
+        SiteWeatherEntity siteWeather = new SiteWeatherEntity();
+        siteWeather.setTemperature(temperature);
+
+        when(heatingPlannerHeatPumpCommandService.currentCommands(any())).thenReturn(List.of(
+                new HeatingPlannerHeatPumpCommandService.HeatPumpPlanCommand(
+                        device, "PLANNER", 50L, "comfort target")));
+        when(weatherControlHeatPumpRepository.findAll()).thenReturn(List.of(weatherRule));
+        when(productionSourceHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(controlHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(siteWeatherRepository.findFirstBySiteAndForecastTimeLessThanEqualOrderByForecastTimeDesc(any(SiteEntity.class), any()))
+                .thenReturn(Optional.of(siteWeather));
+        when(deviceAcDataRepository.findByDevice(device)).thenReturn(Optional.of(acData));
+
+        heatPumpControlService.runScheduledHeatPumpControls();
+
+        verify(acCommandDispatchService).dispatchHexState(acData, expectedState);
+    }
+
     private DeviceEntity enabledHeatPumpDevice(Long id) {
         DeviceEntity device = new DeviceEntity();
         device.setId(id);

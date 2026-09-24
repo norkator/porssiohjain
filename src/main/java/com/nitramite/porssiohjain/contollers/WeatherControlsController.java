@@ -144,7 +144,8 @@ public class WeatherControlsController {
                 request.stateHex(),
                 request.weatherMetric(),
                 request.comparisonType(),
-                request.thresholdValue()
+                request.thresholdValue(),
+                request.priorityRule()
         );
     }
 
@@ -160,7 +161,8 @@ public class WeatherControlsController {
                 request.stateHex(),
                 request.weatherMetric(),
                 request.comparisonType(),
-                request.thresholdValue()
+                request.thresholdValue(),
+                request.priorityRule()
         );
     }
 
@@ -188,7 +190,8 @@ public class WeatherControlsController {
             String stateHex,
             WeatherMetricType weatherMetric,
             ComparisonType comparisonType,
-            BigDecimal thresholdValue
+            BigDecimal thresholdValue,
+            boolean priorityRule
     ) {
     }
 }

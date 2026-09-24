@@ -108,6 +108,7 @@ export type WeatherControlHeatPumpLink = {
   weatherMetric: WeatherMetricType;
   comparisonType: ComparisonType;
   thresholdValue: number;
+  priorityRule: boolean;
   device: Pick<ApiDevice, "deviceName" | "deviceType" | "id" | "uuid">;
 };
 
@@ -117,6 +118,7 @@ export type WeatherControlHeatPumpPayload = {
   weatherMetric: WeatherMetricType;
   comparisonType: ComparisonType;
   thresholdValue: number;
+  priorityRule: boolean;
 };
 
 export type ApiProductionSource = {
