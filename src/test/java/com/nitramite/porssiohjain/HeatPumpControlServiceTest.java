@@ -46,8 +46,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -79,6 +82,8 @@ class HeatPumpControlServiceTest {
 
     @Mock
     private HeatingPlannerHeatPumpCommandService heatingPlannerHeatPumpCommandService;
+    @Mock
+    private com.nitramite.porssiohjain.services.heating.HeatingPlannerChangeNotificationService changeNotificationService;
 
     private HeatPumpControlService heatPumpControlService;
 
@@ -93,7 +98,7 @@ class HeatPumpControlServiceTest {
                 controlTableRepository,
                 acCommandDispatchService,
                 controlPriceService,
-                heatingPlannerHeatPumpCommandService
+                heatingPlannerHeatPumpCommandService, changeNotificationService
         );
         when(heatingPlannerHeatPumpCommandService.currentCommands(any())).thenReturn(List.of());
     }
@@ -190,7 +195,7 @@ class HeatPumpControlServiceTest {
         DeviceAcDataEntity acData = acData(device, "OLD");
         when(heatingPlannerHeatPumpCommandService.currentCommands(any())).thenReturn(List.of(
                 new HeatingPlannerHeatPumpCommandService.HeatPumpPlanCommand(
-                        device, "PLANNER", 50L, "comfort target")));
+                        device, "PLANNER", 50L, "comfort target", new BigDecimal("21"))));
         when(weatherControlHeatPumpRepository.findAll()).thenReturn(List.of());
         when(productionSourceHeatPumpRepository.findAll()).thenReturn(List.of());
         when(controlHeatPumpRepository.findAll()).thenReturn(List.of());
@@ -199,6 +204,45 @@ class HeatPumpControlServiceTest {
         heatPumpControlService.runScheduledHeatPumpControls();
 
         verify(acCommandDispatchService).dispatchHexState(acData, "PLANNER");
+        verifyNoInteractions(changeNotificationService);
+    }
+
+    @Test
+    void plannerNotifiesOnlyAfterDispatcherRecordsChangedState() {
+        DeviceEntity device = enabledHeatPumpDevice(1L);
+        DeviceAcDataEntity acData = acData(device, "OLD");
+        when(heatingPlannerHeatPumpCommandService.currentCommands(any())).thenReturn(List.of(
+                new HeatingPlannerHeatPumpCommandService.HeatPumpPlanCommand(
+                        device, "PLANNER", 50L, "comfort target", new BigDecimal("21"))));
+        when(weatherControlHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(productionSourceHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(controlHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(deviceAcDataRepository.findByDevice(device)).thenReturn(Optional.of(acData));
+        doAnswer(call -> { acData.setLastSentStateHex("PLANNER"); return null; })
+                .when(acCommandDispatchService).dispatchHexState(acData, "PLANNER");
+
+        heatPumpControlService.runScheduledHeatPumpControls();
+
+        verify(changeNotificationService).heatPumpApplied(eq(50L), eq(new BigDecimal("21")), any());
+    }
+
+    @Test
+    void formattedMelCloudJsonDoesNotTriggerRepeatedPlannerCommand() {
+        DeviceEntity device = enabledHeatPumpDevice(1L);
+        DeviceAcDataEntity acData = acData(device, "{\"power\":true,\"setTemperature\":21.0}");
+        when(heatingPlannerHeatPumpCommandService.currentCommands(any())).thenReturn(List.of(
+                new HeatingPlannerHeatPumpCommandService.HeatPumpPlanCommand(
+                        device, "{\n  \"setTemperature\": 21.0, \"power\": true\n}",
+                        50L, "comfort target", new BigDecimal("21"))));
+        when(weatherControlHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(productionSourceHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(controlHeatPumpRepository.findAll()).thenReturn(List.of());
+        when(deviceAcDataRepository.findByDevice(device)).thenReturn(Optional.of(acData));
+
+        heatPumpControlService.runScheduledHeatPumpControls();
+
+        verify(acCommandDispatchService, never()).dispatchHexState(any(), any());
+        verifyNoInteractions(changeNotificationService);
     }
 
     @Test
@@ -237,7 +281,7 @@ class HeatPumpControlServiceTest {
 
         when(heatingPlannerHeatPumpCommandService.currentCommands(any())).thenReturn(List.of(
                 new HeatingPlannerHeatPumpCommandService.HeatPumpPlanCommand(
-                        device, "PLANNER", 50L, "comfort target")));
+                        device, "PLANNER", 50L, "comfort target", new BigDecimal("21"))));
         when(weatherControlHeatPumpRepository.findAll()).thenReturn(List.of(weatherRule));
         when(productionSourceHeatPumpRepository.findAll()).thenReturn(List.of());
         when(controlHeatPumpRepository.findAll()).thenReturn(List.of());

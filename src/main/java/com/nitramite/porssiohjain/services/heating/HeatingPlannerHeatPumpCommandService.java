@@ -12,12 +12,14 @@ import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerPlanStatus;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeState;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateHexEditorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.RoundingMode;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -56,7 +58,8 @@ public class HeatingPlannerHeatPumpCommandService {
             String state = stateWithSetpoint(acData, point);
             if (state != null) {
                 commands.add(new HeatPumpPlanCommand(source.getControllingDevice(), state, source.getId(),
-                        point.getReason() + "; requested room setpoint " + point.getPlannedHeatPumpSetpoint() + " °C"));
+                        point.getReason() + "; requested room setpoint " + point.getPlannedHeatPumpSetpoint() + " °C",
+                        point.getPlannedHeatPumpSetpoint()));
             }
         }
         return List.copyOf(commands);
@@ -115,6 +118,22 @@ public class HeatingPlannerHeatPumpCommandService {
                 return null;
             }
         }
+        if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD_HOME) {
+            try {
+                MitsubishiMelCloudHomeState state = objectMapper.readValue(base, MitsubishiMelCloudHomeState.class);
+                if (state.getUnitType() != MitsubishiMelCloudHomeState.UnitType.AIR_TO_AIR) return null;
+                double requested = point.getPlannedHeatPumpSetpoint().doubleValue();
+                if (Boolean.TRUE.equals(state.getPower()) && "Heat".equals(state.getOperationMode())
+                        && state.getSetTemperature() != null
+                        && Math.abs(state.getSetTemperature() - requested) < 0.01d) return null;
+                state.setPower(true);
+                state.setOperationMode("Heat");
+                state.setSetTemperature(requested);
+                return objectMapper.writeValueAsString(state);
+            } catch (JsonProcessingException ignored) {
+                return null;
+            }
+        }
         return null;
     }
 
@@ -123,5 +142,6 @@ public class HeatingPlannerHeatPumpCommandService {
         return second == null || second.isBlank() ? null : second;
     }
 
-    public record HeatPumpPlanCommand(DeviceEntity device, String state, Long sourceId, String reason) { }
+    public record HeatPumpPlanCommand(DeviceEntity device, String state, Long sourceId, String reason,
+                                      BigDecimal targetTemperature) { }
 }

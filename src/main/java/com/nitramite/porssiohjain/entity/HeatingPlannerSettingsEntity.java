@@ -56,6 +56,14 @@ public class HeatingPlannerSettingsEntity {
     private boolean heatPumpControlEnabled = false;
 
     @Builder.Default
+    @Column(name = "notify_thermostat_changes", nullable = false)
+    private boolean notifyThermostatChanges = false;
+
+    @Builder.Default
+    @Column(name = "notify_heat_pump_changes", nullable = false)
+    private boolean notifyHeatPumpChanges = false;
+
+    @Builder.Default
     @Column(nullable = false, length = 64)
     private String timezone = "Europe/Helsinki";
 

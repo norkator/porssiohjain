@@ -224,6 +224,28 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         siteConfiguration.setWidthFull();
         siteConfiguration.setOpened(false);
 
+        Checkbox notifyThermostatChanges = new Checkbox("Thermostat temperature changes");
+        Checkbox notifyHeatPumpChanges = new Checkbox("Heat pump state and target temperature changes");
+        notifyThermostatChanges.setHelperText("Send a push notification after the gateway reports the planner's requested temperature.");
+        notifyHeatPumpChanges.setHelperText("Send a push notification when a planner heat pump command is applied. Includes the new target °C.");
+        VerticalLayout notificationOptions = new VerticalLayout(notifyThermostatChanges, notifyHeatPumpChanges);
+        notificationOptions.setPadding(false);
+        Details notifications = new Details("Notifications", notificationOptions);
+        notifications.setWidthFull();
+        notifications.setOpened(false);
+        notifyThermostatChanges.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get() && account != null && siteSelect.getValue() != null) {
+                configurationService.setChangeNotifications(account.getId(), siteSelect.getValue().getId(),
+                        event.getValue(), notifyHeatPumpChanges.getValue());
+            }
+        });
+        notifyHeatPumpChanges.addValueChangeListener(event -> {
+            if (!loadingConfiguration.get() && account != null && siteSelect.getValue() != null) {
+                configurationService.setChangeNotifications(account.getId(), siteSelect.getValue().getId(),
+                        notifyThermostatChanges.getValue(), event.getValue());
+            }
+        });
+
         Checkbox loaded = new Checkbox("Stove is loaded and ready", true);
         TimePicker availableFrom = new TimePicker("Available to light from", LocalTime.of(6, 0));
         TimePicker availableTo = new TimePicker("Available to light until", LocalTime.of(22, 0));
@@ -746,6 +768,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled,
                     noPreheatFrom, noPreheatTo, roomRows, rooms,
                     heatingControllers, temperatureSensors, floorSensors, transferContracts);
+            loadNotificationOptions(configurationService, account == null ? null : account.getId(),
+                    event.getValue(), loadingConfiguration, notifyThermostatChanges, notifyHeatPumpChanges);
             savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
                     event.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                     taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
@@ -762,11 +786,27 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled,
                 noPreheatFrom, noPreheatTo, roomRows, rooms,
                 heatingControllers, temperatureSensors, floorSensors, transferContracts);
+        loadNotificationOptions(configurationService, account == null ? null : account.getId(),
+                siteSelect.getValue(), loadingConfiguration, notifyThermostatChanges, notifyHeatPumpChanges);
         calculate.run();
 
-        card.add(back, heading, summary, plannerWeatherGatePanel, activeControlPanel, siteConfiguration, roomConfiguration, recentMeasurements, stoveConfiguration,
+        card.add(back, heading, summary, plannerWeatherGatePanel, activeControlPanel, siteConfiguration, notifications, roomConfiguration, recentMeasurements, stoveConfiguration,
                 stoveHeatProfileConfiguration, recalculate, planHost);
         add(card);
+    }
+
+    private void loadNotificationOptions(HeatingPlannerConfigurationService service, Long accountId, SiteEntity site,
+                                         AtomicBoolean loading, Checkbox thermostat, Checkbox heatPump) {
+        var options = accountId == null || site == null
+                ? new HeatingPlannerConfigurationService.ChangeNotifications(false, false)
+                : service.changeNotifications(accountId, site.getId());
+        loading.set(true);
+        try {
+            thermostat.setValue(options.thermostat());
+            heatPump.setValue(options.heatPump());
+        } finally {
+            loading.set(false);
+        }
     }
 
     private Details recentMeasurementsDetails(Long accountId, ZigbeeDeviceMeasurementRepository measurementRepository) {
@@ -1332,7 +1372,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         if (wood != null && wood.notifyAt().atZone(ZONE).toLocalDate()
                 .equals(points.getFirst().time().atZone(ZONE).toLocalDate())) {
             actions.add(new PlanAction(TIME.format(wood.notifyAt().atZone(ZONE)),
-                    "Push: light " + wood.loadName() + " (" + wood.woodAmount() + " kg)", wood.reason()));
+                    "Push notification: light " + wood.loadName() + " (" + wood.woodAmount() + " kg)", wood.reason()));
         }
         actions.sort((left, right) -> left.time().compareTo(right.time()));
         return actions;

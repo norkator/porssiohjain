@@ -13,13 +13,17 @@ package com.nitramite.porssiohjain.services.mitsubishihome;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
+import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +32,8 @@ public class MitsubishiMelCloudHomeStateService {
     private final MitsubishiMelCloudHomeLoginService loginService;
     private final MitsubishiMelCloudHomeApiClient apiClient;
     private final DeviceAcDataRepository deviceAcDataRepository;
+    private final DeviceRepository deviceRepository;
+    private final DeviceOfflineNotificationService deviceOfflineNotificationService;
     private final ObjectMapper objectMapper;
 
     public MitsubishiMelCloudHomeState getAcState(DeviceAcDataEntity acData) {
@@ -44,6 +50,20 @@ public class MitsubishiMelCloudHomeStateService {
         acData.setLastPolledStateHex(formatState(state));
         if (acData.getId() != null) {
             deviceAcDataRepository.save(acData);
+        }
+        DeviceEntity device = acData.getDevice();
+        if (device != null && device.getId() != null) {
+            deviceRepository.findWithAccountById(device.getId()).ifPresent(managed -> {
+                boolean wasApiOnline = managed.isApiOnline();
+                boolean wasMqttOnline = managed.isMqttOnline();
+                boolean connected = Boolean.TRUE.equals(state.getConnected());
+                Instant now = Instant.now();
+                if (connected) managed.setLastCommunication(now);
+                managed.setApiOnline(connected);
+                deviceRepository.save(managed);
+                if (connected) deviceOfflineNotificationService.sendIfDeviceCameOnline(
+                        managed, wasApiOnline, wasMqttOnline, "API", now);
+            });
         }
         return state;
     }

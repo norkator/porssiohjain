@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlHeatPumpEntity;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
@@ -27,6 +28,7 @@ import com.nitramite.porssiohjain.entity.repository.ProductionSourceHeatPumpRepo
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpRepository;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerHeatPumpCommandService;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerChangeNotificationService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,7 @@ import java.util.Optional;
 public class HeatPumpControlService {
 
     private static final long CONTROL_LOOKBACK_SECONDS = 30L * 60L;
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
     private final ProductionSourceHeatPumpRepository productionSourceHeatPumpRepository;
@@ -58,6 +61,7 @@ public class HeatPumpControlService {
     private final AcCommandDispatchService acCommandDispatchService;
     private final ControlPriceService controlPriceService;
     private final HeatingPlannerHeatPumpCommandService heatingPlannerHeatPumpCommandService;
+    private final HeatingPlannerChangeNotificationService changeNotificationService;
 
     public void runScheduledHeatPumpControls() {
         Instant now = Instant.now();
@@ -72,7 +76,7 @@ public class HeatPumpControlService {
 
         heatingPlannerHeatPumpCommandService.currentCommands(now).forEach(command -> addIfMatched(commandsByDeviceId,
                 Optional.of(new HeatPumpCommandCandidate(command.device(), command.state(), 0,
-                        "HEATING_PLANNER", command.sourceId(), command.reason()))));
+                        "HEATING_PLANNER", command.sourceId(), command.reason(), command.targetTemperature()))));
 
         weatherRules.stream().filter(rule -> !rule.isPriorityRule())
                 .forEach(rule -> addIfMatched(commandsByDeviceId, evaluateWeatherRule(rule, now)));
@@ -127,7 +131,7 @@ public class HeatPumpControlService {
                         rule.getComparisonType(),
                         rule.getThresholdValue(),
                         metricValue.get()
-                )
+                ), null
         ));
     }
 
@@ -155,7 +159,7 @@ public class HeatPumpControlService {
                         rule.getComparisonType(),
                         rule.getTriggerKw(),
                         currentKw
-                )
+                ), null
         ));
     }
 
@@ -189,7 +193,7 @@ public class HeatPumpControlService {
                             rule.getComparisonType(),
                             rule.getPriceLimit(),
                             currentPrice.get()
-                    )
+                    ), null
             ));
         }
 
@@ -203,7 +207,7 @@ public class HeatPumpControlService {
                 3,
                 "CONTROL",
                 rule.getId(),
-                "control schedule currently active"
+                "control schedule currently active", null
         ));
     }
 
@@ -217,7 +221,7 @@ public class HeatPumpControlService {
             return;
         }
 
-        if (candidate.stateHex().equalsIgnoreCase(nullSafe(acData.getLastSentStateHex()))) {
+        if (sameState(candidate.stateHex(), acData.getLastSentStateHex())) {
             log.info(
                     "Skipping heat pump command for deviceId={} because desired state already matches lastSentStateHex. ruleType={}, ruleId={}",
                     device.getId(),
@@ -235,7 +239,13 @@ public class HeatPumpControlService {
                 candidate.ruleId(),
                 candidate.reason()
         );
+        String previousSentState = acData.getLastSentStateHex();
         acCommandDispatchService.dispatchHexState(acData, candidate.stateHex());
+        if ("HEATING_PLANNER".equals(candidate.ruleType()) && candidate.targetTemperature() != null
+                && !nullSafe(acData.getLastSentStateHex()).isBlank()
+                && !nullSafe(acData.getLastSentStateHex()).equalsIgnoreCase(nullSafe(previousSentState))) {
+            changeNotificationService.heatPumpApplied(candidate.ruleId(), candidate.targetTemperature(), Instant.now());
+        }
     }
 
     private Optional<BigDecimal> getCurrentWeatherMetricValue(
@@ -300,13 +310,27 @@ public class HeatPumpControlService {
         return value == null ? "" : value;
     }
 
+    private boolean sameState(String requested, String sent) {
+        if (requested == null || sent == null) return false;
+        if (requested.equalsIgnoreCase(sent)) return true;
+        if (requested.trim().startsWith("{") && sent.trim().startsWith("{")) {
+            try {
+                return JSON.readTree(requested).equals(JSON.readTree(sent));
+            } catch (Exception ignored) {
+                return false;
+            }
+        }
+        return false;
+    }
+
     private record HeatPumpCommandCandidate(
             DeviceEntity device,
             String stateHex,
             int priority,
             String ruleType,
             Long ruleId,
-            String reason
+            String reason,
+            BigDecimal targetTemperature
     ) {
     }
 

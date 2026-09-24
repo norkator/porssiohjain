@@ -124,6 +124,24 @@ public class HeatingPlannerConfigurationService {
     }
 
     @Transactional
+    public void setChangeNotifications(Long accountId, Long siteId, boolean thermostat, boolean heatPump) {
+        HeatingPlannerSettingsEntity settings = requireOrCreateSettings(accountId, siteId);
+        settings.setNotifyThermostatChanges(thermostat);
+        settings.setNotifyHeatPumpChanges(heatPump);
+        settingsRepository.save(settings);
+    }
+
+    @Transactional(readOnly = true)
+    public ChangeNotifications changeNotifications(Long accountId, Long siteId) {
+        return settingsRepository.findByAccountIdAndSiteId(accountId, siteId)
+                .map(settings -> new ChangeNotifications(settings.isNotifyThermostatChanges(),
+                        settings.isNotifyHeatPumpChanges()))
+                .orElse(new ChangeNotifications(false, false));
+    }
+
+    public record ChangeNotifications(boolean thermostat, boolean heatPump) { }
+
+    @Transactional
     public void saveSettings(Long accountId, Long siteId, SettingsConfiguration settingsConfiguration) {
         validatePricePercentiles(settingsConfiguration);
         HeatingPlannerSettingsEntity settings = requireOrCreateSettings(accountId, siteId);

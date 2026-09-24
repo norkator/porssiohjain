@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateService;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeStateService;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class HeatPumpOnlineCheckService {
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final ToshibaAcStateService toshibaAcStateService;
     private final MitsubishiAcStateService mitsubishiAcStateService;
+    private final MitsubishiMelCloudHomeStateService mitsubishiMelCloudHomeStateService;
 
     @Transactional
     public void refreshHeatPumpApiOnlineStates() {
@@ -60,9 +62,7 @@ public class HeatPumpOnlineCheckService {
         switch (acType) {
             case TOSHIBA -> toshibaAcStateService.getAcState(acData);
             case MITSUBISHI_MELCLOUD -> mitsubishiAcStateService.getAcState(acData);
-            case MITSUBISHI_MELCLOUD_HOME -> {
-                // MELCloud Home uses a different API. Online polling will be added with that integration.
-            }
+            case MITSUBISHI_MELCLOUD_HOME -> mitsubishiMelCloudHomeStateService.getAcState(acData);
             default -> {
             }
         }

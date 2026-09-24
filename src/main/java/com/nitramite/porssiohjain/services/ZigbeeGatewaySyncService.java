@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerGatewayCommandService;
+import com.nitramite.porssiohjain.services.heating.HeatingPlannerChangeNotificationService;
 import com.nitramite.porssiohjain.services.models.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class ZigbeeGatewaySyncService {
     private final ZigbeeGatewayConnectivityService connectivityService;
     private final DeviceOfflineNotificationService deviceOfflineNotificationService;
     private final HeatingPlannerGatewayCommandService heatingPlannerGatewayCommandService;
+    private final HeatingPlannerChangeNotificationService changeNotificationService;
 
     public ZigbeeGatewaySyncResponse sync(Long accountId, UUID pathGatewayId, ZigbeeGatewaySyncRequest request) {
         if (request == null || request.getGatewayId() == null || !pathGatewayId.equals(request.getGatewayId())) {
@@ -57,7 +59,17 @@ public class ZigbeeGatewaySyncService {
             ZigbeeGatewayDeviceEntity link = zigbeeRepository.findByGatewayIdAndZigbeeIeee(pathGatewayId, ieee)
                     .map(existing -> requireOwner(existing, accountId))
                     .orElseGet(() -> register(account, pathGatewayId, ieee, report));
+            BigDecimal previousSetpoint = link.getReportedSetpoint();
             updateReport(link, report, now);
+            if (isThermostatProfile(link.getProfile()) && "HEATING_PLANNER".equals(link.getDesiredSource())
+                    && link.getDesiredExpiresAt() != null && link.getDesiredExpiresAt().isAfter(now)
+                    && report.getSetpoint() != null && previousSetpoint != null
+                    && report.getSetpoint().compareTo(previousSetpoint) != 0
+                    && link.getDesiredTemperature() != null
+                    && report.getSetpoint().compareTo(link.getDesiredTemperature()) == 0
+                    && Objects.equals(normalizeMode(report.getMode(), true), link.getDesiredMode())) {
+                changeNotificationService.thermostatReported(link.getDevice().getId(), report.getSetpoint(), now);
+            }
             saveMeasurements(link, report, now);
             applyHeatingPlannerPriority(link, now);
             if (shouldSendDesiredState(link, now)) {

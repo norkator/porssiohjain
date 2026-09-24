@@ -12,8 +12,11 @@ package com.nitramite.porssiohjain.services.mitsubishihome;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
+import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import org.junit.jupiter.api.Test;
@@ -21,6 +24,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -98,12 +102,18 @@ class MitsubishiMelCloudHomeServicesTest {
         MitsubishiMelCloudHomeApiClient apiClient = mock(MitsubishiMelCloudHomeApiClient.class);
         MitsubishiMelCloudHomeLoginService loginService = mock(MitsubishiMelCloudHomeLoginService.class);
         DeviceAcDataRepository repository = mock(DeviceAcDataRepository.class);
+        DeviceRepository devices = mock(DeviceRepository.class);
+        DeviceOfflineNotificationService offlineNotifications = mock(DeviceOfflineNotificationService.class);
         MitsubishiMelCloudHomeStateService service = new MitsubishiMelCloudHomeStateService(
-                loginService, apiClient, repository, new ObjectMapper()
+                loginService, apiClient, repository, devices, offlineNotifications, new ObjectMapper()
         );
+        DeviceEntity device = new DeviceEntity();
+        device.setId(12L);
+        when(devices.findWithAccountById(12L)).thenReturn(Optional.of(device));
         DeviceAcDataEntity acData = DeviceAcDataEntity.builder()
                 .acDeviceId("ata-1")
                 .acAccessToken("access")
+                .device(device)
                 .build();
         when(loginService.login(acData)).thenReturn(AcLoginResponse.builder().success(true).accessToken("access").build());
         MitsubishiMelCloudHomeContextResponse.Unit ata = new MitsubishiMelCloudHomeContextResponse.Unit(
@@ -136,6 +146,9 @@ class MitsubishiMelCloudHomeServicesTest {
         assertEquals("Heat", state.getOperationMode());
         assertEquals(21.5, state.getSetTemperature());
         assertTrue(acData.getLastPolledStateHex().contains("\"unitType\" : \"AIR_TO_AIR\""));
+        assertTrue(device.isApiOnline());
+        assertTrue(device.getLastCommunication() != null);
+        verify(devices).save(device);
     }
 
     @Test
