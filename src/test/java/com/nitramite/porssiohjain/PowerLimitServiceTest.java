@@ -43,6 +43,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -158,6 +159,74 @@ public class PowerLimitServiceTest {
         assertEquals(1, result.size());
         assertEquals(start, result.getFirst().getCreatedAt());
         assertEquals(BigDecimal.valueOf(1.5), result.getFirst().getKilowatts());
+    }
+
+    @Test
+    void getPowerLimitHistoryWithInterval_GeneratesDataForAnyDemoPowerLimit() {
+        Long accountId = 1L;
+        AccountEntity account = new AccountEntity();
+        account.setId(accountId);
+        account.setDemo(true);
+        account.setUuid(UUID.fromString("78b7823f-d5cc-4376-8910-cd62e7b32400"));
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+
+        PowerLimitEntity firstLimit = new PowerLimitEntity();
+        firstLimit.setId(10L);
+        firstLimit.setTimezone("Europe/Helsinki");
+        firstLimit.setLimitIntervalMinutes(15);
+        firstLimit.setLimitKw(BigDecimal.valueOf(4));
+        PowerLimitEntity secondLimit = new PowerLimitEntity();
+        secondLimit.setId(11L);
+        secondLimit.setTimezone("Europe/Helsinki");
+        secondLimit.setLimitIntervalMinutes(60);
+        secondLimit.setLimitKw(BigDecimal.valueOf(8));
+        when(powerLimitRepository.findByAccountIdAndId(accountId, 10L)).thenReturn(Optional.of(firstLimit));
+        when(powerLimitRepository.findByAccountIdAndId(accountId, 11L)).thenReturn(Optional.of(secondLimit));
+
+        List<PowerLimitHistoryResponse> first = powerLimitService.getPowerLimitHistoryWithInterval(accountId, 10L, 24);
+        List<PowerLimitHistoryResponse> second = powerLimitService.getPowerLimitHistoryWithInterval(accountId, 11L, 24);
+
+        assertEquals(96, first.size());
+        assertEquals(24, second.size());
+        assertEquals(accountId, first.getFirst().getAccountId());
+        assertTrue(first.stream().allMatch(point -> point.getKilowatts().signum() >= 0));
+        assertTrue(first.stream().map(PowerLimitHistoryResponse::getKilowatts).distinct().count() > 1);
+        assertTrue(second.getFirst().getKilowatts().compareTo(first.getFirst().getKilowatts()) > 0);
+        assertTrue(first.getFirst().getCreatedAt().isBefore(first.getLast().getCreatedAt()));
+        verifyNoInteractions(powerLimitHistoryRepository);
+    }
+
+    @Test
+    void getPowerLimitHistoryWithInterval_DemoCannotReadAnotherAccountsLimit() {
+        Long accountId = 1L;
+        AccountEntity account = new AccountEntity();
+        account.setId(accountId);
+        account.setDemo(true);
+        account.setUuid(UUID.fromString("78b7823f-d5cc-4376-8910-cd62e7b32400"));
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> powerLimitService.getPowerLimitHistoryWithInterval(accountId, 99L, 24));
+        verifyNoInteractions(powerLimitHistoryRepository);
+    }
+
+    @Test
+    void getPowerLimitHistoryWithInterval_DoesNotGenerateDataForOtherAccounts() {
+        Long accountId = 2L;
+        AccountEntity account = new AccountEntity();
+        account.setId(accountId);
+        account.setDemo(true);
+        account.setUuid(UUID.randomUUID());
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+
+        PowerLimitEntity limit = new PowerLimitEntity();
+        limit.setId(20L);
+        limit.setTimezone("Europe/Helsinki");
+        limit.setLimitIntervalMinutes(15);
+        when(powerLimitRepository.findByAccountIdAndId(accountId, 20L)).thenReturn(Optional.of(limit));
+
+        assertTrue(powerLimitService.getPowerLimitHistoryWithInterval(accountId, 20L, 24).isEmpty());
+        verify(powerLimitHistoryRepository).findByPowerLimitAndCreatedAtBetween(eq(accountId), eq(20L), any(Instant.class), any(Instant.class));
     }
 
     private PowerLimitHistoryEntity getPowerLimitHistoryEntity(

@@ -36,6 +36,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PowerLimitService {
 
+    private static final UUID DEMO_ACCOUNT_UUID = UUID.fromString("78b7823f-d5cc-4376-8910-cd62e7b32400");
+
     private final PowerLimitRepository powerLimitRepository;
     private final PowerLimitDeviceRepository powerLimitDeviceRepository;
     private final DeviceRepository deviceRepository;
@@ -396,9 +398,52 @@ public class PowerLimitService {
     public List<PowerLimitHistoryResponse> getPowerLimitHistoryWithInterval(
             Long accountId, Long powerLimitId, int hours
     ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        if (DEMO_ACCOUNT_UUID.equals(account.getUuid())) {
+            PowerLimitEntity powerLimit = powerLimitRepository.findByAccountIdAndId(accountId, powerLimitId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Power limit not found for account " + accountId + " and id " + powerLimitId
+                    ));
+            return buildDemoPowerLimitHistory(accountId, powerLimit, hours);
+        }
         Instant end = Instant.now();
         Instant start = end.minus(hours, ChronoUnit.HOURS);
         return getPowerLimitHistoryForRange(accountId, powerLimitId, start, end);
+    }
+
+    private List<PowerLimitHistoryResponse> buildDemoPowerLimitHistory(
+            Long accountId, PowerLimitEntity powerLimit, int hours
+    ) {
+        ZoneId zone = ZoneId.of(powerLimit.getTimezone());
+        int intervalMinutes = powerLimit.getLimitIntervalMinutes();
+        Instant end = Instant.now();
+        Instant start = end.minus(hours, ChronoUnit.HOURS);
+        Instant bucket = Utils.toInterval(start, zone, intervalMinutes);
+        if (bucket.isBefore(start)) {
+            bucket = bucket.plus(intervalMinutes, ChronoUnit.MINUTES);
+        }
+
+        double configuredLimit = powerLimit.getLimitKw() == null ? 5.0 : powerLimit.getLimitKw().doubleValue();
+        double scale = Math.max(configuredLimit, 0.5);
+        List<PowerLimitHistoryResponse> history = new ArrayList<>();
+        while (!bucket.isAfter(end)) {
+            ZonedDateTime localTime = bucket.atZone(zone);
+            double hour = localTime.getHour() + localTime.getMinute() / 60.0;
+            double baseline = 0.48 + 0.12 * Math.sin(2 * Math.PI * (hour - 6) / 24);
+            double morningPeak = 0.35 * Math.exp(-Math.pow((hour - 8) / 1.7, 2));
+            double eveningPeak = 0.48 * Math.exp(-Math.pow((hour - 18) / 2.1, 2));
+            double variation = 0.05 * Math.sin(bucket.getEpochSecond() / 2100.0);
+            BigDecimal kilowatts = BigDecimal.valueOf(scale * (baseline + morningPeak + eveningPeak + variation))
+                    .setScale(2, RoundingMode.HALF_UP);
+            history.add(PowerLimitHistoryResponse.builder()
+                    .accountId(accountId)
+                    .kilowatts(kilowatts)
+                    .createdAt(bucket)
+                    .build());
+            bucket = bucket.plus(intervalMinutes, ChronoUnit.MINUTES);
+        }
+        return history;
     }
 
     @Transactional(readOnly = true)
