@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import ModalScrollLock from "@/components/ModalScrollLock";
 import { FormEvent, useEffect, useState } from "react";
 import TimeInput from "@/components/TimeInput";
 import { getCurrentIntlLocales, useI18n } from "@/lib/i18n";
@@ -192,6 +193,7 @@ export default function MarketNotificationsDialog({ isOpen, onClose, timezone }:
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
+      <ModalScrollLock />
       <div className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-xl bg-surface-container-lowest p-5 shadow-2xl sm:p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>

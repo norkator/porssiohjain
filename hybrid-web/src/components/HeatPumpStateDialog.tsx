@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import ModalScrollLock from "@/components/ModalScrollLock";
 import { type AcType } from "@/lib/devices";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -267,6 +268,7 @@ export default function HeatPumpStateDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-on-surface/40 p-4 sm:items-center">
+      <ModalScrollLock />
       <div className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col rounded-xl bg-surface-container-lowest shadow-2xl">
         <div className="min-h-0 overflow-y-auto p-6">
         <div className="mb-5 flex items-start justify-between gap-4">

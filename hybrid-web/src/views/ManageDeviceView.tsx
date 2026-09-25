@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import ModalScrollLock from "@/components/ModalScrollLock";
 import PageHeader from "@/components/PageHeader";
 import { getAvailableTimezones } from "@/lib/add-device-flow";
 import {
@@ -650,6 +651,7 @@ export default function ManageDeviceView() {
 
       {isAcDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
+          <ModalScrollLock />
           <div className="w-full max-w-2xl rounded-xl bg-surface-container-lowest p-4 shadow-2xl sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>

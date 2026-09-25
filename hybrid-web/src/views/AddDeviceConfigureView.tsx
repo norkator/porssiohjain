@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import ModalScrollLock from "@/components/ModalScrollLock";
 import PageHeader from "@/components/PageHeader";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
@@ -363,6 +364,7 @@ export default function AddDeviceConfigureView() {
 
       {isAcDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-on-surface/35 px-4 py-8">
+          <ModalScrollLock />
           <div className="app-card w-full max-w-2xl p-4 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>

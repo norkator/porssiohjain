@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import ModalScrollLock from "@/components/ModalScrollLock";
 import { FormEvent, useEffect, useState } from "react";
 import TimeInput from "@/components/TimeInput";
 import {
@@ -476,6 +477,7 @@ export default function ControlNotificationsCard({
 
       {editingNotification ? (
         <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
+          <ModalScrollLock />
           <div className="w-full max-w-3xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>

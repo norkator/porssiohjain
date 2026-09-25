@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import ModalScrollLock from "@/components/ModalScrollLock";
 import PageHeader from "@/components/PageHeader";
 import NordpoolTodayChartCard from "@/components/NordpoolTodayChartCard";
 import WindForecastCard from "@/components/WindForecastCard";
@@ -47,6 +48,7 @@ const SAVINGS_CHART_Y_AXIS_STEPS = 4;
 const SAVINGS_CHART_LABEL_SIZE = 10;
 const ANDROID_APP_URL = "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller";
 const MAIN_MENU_SCROLL_STORAGE_KEY = "porssiohjain.mainMenu.scrollY";
+const SHOW_DEMO_DEVICE_DISCOVERY = false;
 
 type SiteOwnTile = {
   key: string;
@@ -623,7 +625,7 @@ export default function MainMenuView() {
           </div>
         </section>
 
-        {isDemoAccount && discoveredDevices.length > 0 ? (
+        {SHOW_DEMO_DEVICE_DISCOVERY && isDemoAccount && discoveredDevices.length > 0 ? (
           <button
             aria-label={t("mockDiscoveryTitle")}
             className="fixed right-4 top-20 z-40 flex items-center gap-3 rounded-full border border-primary/40 bg-white px-4 py-3 text-primary shadow-2xl transition-transform hover:-translate-y-0.5 hover:border-primary active:scale-95 sm:right-6 sm:top-24"
@@ -637,8 +639,9 @@ export default function MainMenuView() {
           </button>
         ) : null}
 
-        {isDemoAccount && discoveredDevices.length > 0 && isMockDiscoveryDialogOpen ? (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-3 py-4 sm:items-center sm:px-6">
+        {SHOW_DEMO_DEVICE_DISCOVERY && isDemoAccount && discoveredDevices.length > 0 && isMockDiscoveryDialogOpen ? (
+          <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-black/50 px-3 py-4 sm:items-center sm:px-6">
+            <ModalScrollLock />
             <section className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-surface p-4 shadow-2xl sm:p-6">
               <div className="mb-6 flex items-start justify-between gap-4">
                 <div>

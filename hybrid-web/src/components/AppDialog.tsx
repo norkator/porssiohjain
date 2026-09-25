@@ -11,6 +11,7 @@
 
 import { useI18n } from "@/lib/i18n";
 import { type ReactNode, useEffect } from "react";
+import ModalScrollLock from "@/components/ModalScrollLock";
 
 type Props = {
   children: ReactNode;
@@ -56,13 +57,14 @@ export default function AppDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center"
+      className="fixed inset-0 z-50 flex items-end overscroll-contain bg-on-surface/40 p-4 sm:items-center sm:justify-center"
       onClick={isDismissible ? onClose : undefined}
     >
+      <ModalScrollLock />
       <section
         aria-labelledby="app-dialog-title"
         aria-modal="true"
-        className={`max-h-[92vh] w-full overflow-y-auto rounded-xl bg-surface-container-lowest p-5 shadow-2xl sm:p-6 ${maxWidthClassName}`}
+        className={`max-h-[calc(100dvh-2rem)] w-full overflow-y-auto overscroll-contain rounded-xl bg-surface-container-lowest p-5 shadow-2xl sm:max-h-[92vh] sm:p-6 ${maxWidthClassName}`}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >

@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import ModalScrollLock from "@/components/ModalScrollLock";
 import QRCode from "qrcode";
 import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
@@ -302,6 +303,7 @@ export default function LoginView() {
 
       {qrChallenge ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8">
+          <ModalScrollLock />
           <section className="app-card w-full max-w-sm p-5 shadow-2xl sm:p-6" role="dialog" aria-modal="true" aria-labelledby="qr-login-title">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>

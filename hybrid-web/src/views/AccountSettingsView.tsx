@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import ModalScrollLock from "@/components/ModalScrollLock";
 import AppDialog from "@/components/AppDialog";
 import PageHeader from "@/components/PageHeader";
 import { changePassword, deleteMe, downloadAccountExport, fetchMe, updateMe, type AccountTier } from "@/lib/account";
@@ -706,6 +707,7 @@ export default function AccountSettingsView() {
 
       {isDeleteDialogOpen ? (
         <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
+          <ModalScrollLock />
           <div className="w-full max-w-2xl rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
             <div className="mb-5">
               <p className="metric-label mb-2 text-on-error-container">{t("deleteDialogEyebrow")}</p>

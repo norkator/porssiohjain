@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import ModalScrollLock from "@/components/ModalScrollLock";
 import DeviceCard from "@/components/DeviceCard";
 import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
 import PageHeader from "@/components/PageHeader";
@@ -262,6 +263,7 @@ export default function DevicesView() {
 
       {relayDialogDevice ? (
         <div className="fixed inset-0 z-50 flex items-end bg-on-surface/40 p-4 sm:items-center sm:justify-center">
+          <ModalScrollLock />
           <div className="w-full max-w-xl rounded-xl bg-surface-container-lowest p-4 shadow-2xl sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
