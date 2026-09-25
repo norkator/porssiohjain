@@ -129,3 +129,11 @@ Focused verification:
 ```
 
 The Android Zigbee gateway is maintained in the separate `energy-controller-android` repository. Read that repository's `AGENTS.md` before coordinating backend contracts with the native gateway.
+
+## Authenticated Vaadin desktop
+
+- `DesktopView` is the authenticated landing route (`/desktop`). Public `HomeView` and `LoginView` remain separate; valid sessions reaching `/` are forwarded to the desktop.
+- `MainLayout` owns the Windows 98 desktop, shortcuts, Start menu, bottom taskbar, and one routed feature window. Keep feature views under `layout = MainLayout.class` so their existing routes and deep links open inside that window. Do not restore the old `Windows95Header` top navigation.
+- The window's minimize control hides its content until the taskbar button restores it; maximize fills the space above the taskbar; close returns to `/desktop`. On screens at most 620px wide, desktop shortcuts are hidden and the feature window fills the available screen; navigation remains in Start.
+- Put new feature navigation in Start and add a desktop shortcut only for prominent features. Respect effective-account admin visibility and impersonation state. Keep logout and language switching available from Start.
+- Shared shell styles live in `src/main/frontend/themes/my-theme/styles.css`; preserve feature view behavior and route guards. Verify with the Gradle wrapper and Java 21 (`compileJava` and relevant tests).

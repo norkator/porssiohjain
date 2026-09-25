@@ -109,7 +109,7 @@ public final class ViewAuthUtils {
             return true;
         }
         if (!account.isAdmin()) {
-            event.forwardTo(HomeView.class);
+            event.forwardTo(DesktopView.class);
             return true;
         }
         return false;
