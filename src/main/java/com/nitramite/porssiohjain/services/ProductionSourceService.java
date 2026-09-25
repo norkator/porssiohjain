@@ -38,6 +38,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ProductionSourceService {
 
+    private static final UUID DEMO_ACCOUNT_UUID = UUID.fromString("78b7823f-d5cc-4376-8910-cd62e7b32400");
+
     private final ProductionSourceRepository productionSourceRepository;
     private final AccountRepository accountRepository;
     private final ProductionSourceDeviceRepository productionSourceDeviceRepository;
@@ -124,13 +126,23 @@ public class ProductionSourceService {
     }
 
     private ProductionSourceResponse toResponse(ProductionSourceEntity e, boolean shared) {
+        BigDecimal currentKw = e.getCurrentKw();
+        BigDecimal peakKw = e.getPeakKw();
+        if (!shared && DEMO_ACCOUNT_UUID.equals(e.getAccount().getUuid())) {
+            List<ProductionHistoryResponse> demoHistory = buildDemoProductionHistory(e, 24);
+            currentKw = demoHistory.getLast().getKilowatts();
+            peakKw = demoHistory.stream()
+                    .map(ProductionHistoryResponse::getKilowatts)
+                    .max(BigDecimal::compareTo)
+                    .orElse(BigDecimal.ZERO);
+        }
         return ProductionSourceResponse.builder()
                 .id(e.getId())
                 .uuid(e.getUuid())
                 .name(e.getName())
                 .apiType(e.getApiType())
-                .currentKw(e.getCurrentKw())
-                .peakKw(e.getPeakKw())
+                .currentKw(currentKw)
+                .peakKw(peakKw)
                 .enabled(e.isEnabled())
                 .timezone(e.getTimezone())
                 .createdAt(e.getCreatedAt())
@@ -353,6 +365,10 @@ public class ProductionSourceService {
     @Transactional(readOnly = true)
     public List<ProductionHistoryResponse> getProductionHistory(Long accountId, Long sourceId, int hours) {
         ProductionSourceEntity source = getAccessibleProductionSource(accountId, sourceId);
+        if (accountId.equals(source.getAccount().getId())
+                && DEMO_ACCOUNT_UUID.equals(source.getAccount().getUuid())) {
+            return buildDemoProductionHistory(source, hours);
+        }
         ZoneId zone = ZoneId.of(source.getTimezone());
         Instant since = Instant.now().minus(hours, ChronoUnit.HOURS);
         Map<Instant, List<ProductionHistoryEntity>> grouped =
@@ -375,6 +391,34 @@ public class ProductionSourceService {
                 })
                 .sorted(Comparator.comparing(ProductionHistoryResponse::getCreatedAt))
                 .toList();
+    }
+
+    private List<ProductionHistoryResponse> buildDemoProductionHistory(ProductionSourceEntity source, int hours) {
+        ZoneId zone = ZoneId.of(source.getTimezone());
+        Instant end = Instant.now();
+        Instant start = end.minus(hours, ChronoUnit.HOURS);
+        Instant bucket = Utils.toQuarterHour(start, zone);
+        if (bucket.isBefore(start)) {
+            bucket = bucket.plus(15, ChronoUnit.MINUTES);
+        }
+
+        double peakKw = source.getPeakKw() != null && source.getPeakKw().signum() > 0
+                ? source.getPeakKw().doubleValue()
+                : 4.5 + (source.getId() % 3) * 0.75;
+        List<ProductionHistoryResponse> history = new ArrayList<>();
+        while (!bucket.isAfter(end)) {
+            double hour = bucket.atZone(zone).getHour() + bucket.atZone(zone).getMinute() / 60.0;
+            double daylight = Math.max(0, Math.sin(Math.PI * (hour - 6) / 14));
+            double cloudVariation = 0.82 + 0.12 * Math.sin(bucket.getEpochSecond() / 2700.0);
+            BigDecimal kilowatts = BigDecimal.valueOf(peakKw * daylight * daylight * cloudVariation)
+                    .setScale(2, RoundingMode.HALF_UP);
+            history.add(ProductionHistoryResponse.builder()
+                    .createdAt(bucket)
+                    .kilowatts(kilowatts)
+                    .build());
+            bucket = bucket.plus(15, ChronoUnit.MINUTES);
+        }
+        return history;
     }
 
     @Transactional

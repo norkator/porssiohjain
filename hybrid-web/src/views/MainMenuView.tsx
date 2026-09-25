@@ -898,7 +898,7 @@ export default function MainMenuView() {
           </div>
         </section>
 
-        <section className="flex justify-center pb-4 pt-2">
+        <section className="flex flex-col items-center gap-4 pb-4 pt-2">
           <div className="flex flex-wrap items-center justify-center gap-3">
             {session.source === "android" || import.meta.env.DEV ? (
               <button
@@ -934,6 +934,18 @@ export default function MainMenuView() {
               <span>{t("feedback")}</span>
             </button>
           </div>
+          <p className="text-center text-sm text-on-surface-variant">
+            {t("supportProjectText")}{" "}
+            <a
+              className="font-semibold text-primary underline underline-offset-4 hover:text-primary-container"
+              href="https://buymeacoffee.com/norkator"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <span aria-hidden="true" className="mr-1">☕</span>
+              {t("buyMeACoffee")}
+            </a>
+          </p>
         </section>
 
         {showAndroidAppLink ? (

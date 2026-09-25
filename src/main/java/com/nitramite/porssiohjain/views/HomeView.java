@@ -199,6 +199,16 @@ public class HomeView extends VerticalLayout {
                 .set("display", "block");
         googlePlayBadgeLink.add(googlePlayBadge);
 
+        Paragraph supportProject = new Paragraph(t("home.supportProjectText") + " ");
+        Anchor coffeeLink = new Anchor("https://buymeacoffee.com/norkator", "☕ " + t("home.buyMeACoffee"));
+        coffeeLink.setTarget("_blank");
+        coffeeLink.getElement().setAttribute("rel", "noopener noreferrer");
+        coffeeLink.getStyle().set("font-weight", "600");
+        supportProject.add(coffeeLink);
+        supportProject.getStyle()
+                .set("margin", "0")
+                .set("text-align", "center");
+
         if (loggedIn) {
             configureActionButton(devicesButton, VaadinIcon.DESKTOP);
             configureActionButton(controlsButton, VaadinIcon.SLIDERS);
@@ -238,12 +248,12 @@ public class HomeView extends VerticalLayout {
                         .set("text-align", "center");
                 contentBox.add(impersonationNotice);
             }
-            contentBox.add(actionGrid, googlePlayBadgeLink, logoutButton);
+            contentBox.add(actionGrid, googlePlayBadgeLink, supportProject, logoutButton);
             if (ViewAuthUtils.isImpersonating()) {
                 contentBox.add(stopImpersonatingButton);
             }
         } else {
-            contentBox.add(loginButton, createAccountButton, mobileAppButton, googlePlayBadgeLink);
+            contentBox.add(loginButton, createAccountButton, mobileAppButton, googlePlayBadgeLink, supportProject);
         }
 
         Paragraph docLink = new Paragraph(t("home.licenseText") + " ");
