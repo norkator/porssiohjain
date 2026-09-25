@@ -11,6 +11,7 @@
 
 import PageHeader from "@/components/PageHeader";
 import AppDialog from "@/components/AppDialog";
+import { getAvailableTimezones } from "@/lib/add-device-flow";
 import {
   createSite,
   fetchSiteWeather,
@@ -27,18 +28,25 @@ import {
   type SiteType
 } from "@/lib/automation-resources";
 import { useI18n } from "@/lib/i18n";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 const DEFAULT_TIMEZONE = "Europe/Helsinki";
 
-function siteTypeLabel(type: string) {
-  return type.toLowerCase().replace(/_/g, " ").replace(/^\w/, (char) => char.toUpperCase());
-}
-
 export default function SitesView() {
   const { t } = useI18n("sitesView");
   const common = useI18n("common").t;
+  const siteTypeLabels: Record<SiteType, string> = {
+    HOME: t("siteTypeHome"),
+    APARTMENT: t("siteTypeApartment"),
+    OFFICE: t("siteTypeOffice"),
+    WAREHOUSE: t("siteTypeWarehouse"),
+    FACTORY: t("siteTypeFactory"),
+    COMMERCIAL: t("siteTypeCommercial"),
+    SOLAR_PLANT: t("siteTypeSolarPlant"),
+    OTHER: t("siteTypeOther")
+  };
+  const siteTypeLabel = (type: string) => siteTypeLabels[type as SiteType] ?? type;
   const [sites, setSites] = useState<ApiSite[]>([]);
   const [supportedWeatherPlaces, setSupportedWeatherPlaces] = useState<string[]>([]);
   const [siteWeather, setSiteWeather] = useState<Record<number, ApiSiteWeatherForecast | null>>({});
@@ -51,6 +59,10 @@ export default function SitesView() {
   const [weatherPlace, setWeatherPlace] = useState("");
   const [weatherPlaceError, setWeatherPlaceError] = useState<string | null>(null);
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
+  const availableTimezones = useMemo(
+    () => Array.from(new Set([DEFAULT_TIMEZONE, "UTC", ...getAvailableTimezones(), timezone])).sort(),
+    [timezone]
+  );
   const [enabled, setEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
@@ -158,7 +170,7 @@ export default function SitesView() {
       enabled,
       name: name.trim(),
       operationState,
-      timezone: timezone.trim() || DEFAULT_TIMEZONE,
+      timezone,
       type,
       weatherPlace: normalizedWeatherPlace
     };
@@ -268,7 +280,7 @@ export default function SitesView() {
         description={editingSiteId === null ? t("createSiteDescription") : t("updateSiteDescription")}
         eyebrow={editingSiteId === null ? t("createSiteEyebrow") : t("updateSiteEyebrow")}
         isOpen={isFormDialogOpen}
-        maxWidthClassName="max-w-5xl"
+        maxWidthClassName="max-w-2xl"
         onClose={() => {
           setIsFormDialogOpen(false);
           resetForm();
@@ -276,26 +288,34 @@ export default function SitesView() {
         }}
         title={editingSiteId === null ? t("createSite") : t("update")}
       >
-        <form className="grid gap-4 md:grid-cols-2 lg:grid-cols-5" onSubmit={handleSubmit}>
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder={t("siteName")} value={name} />
-          <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setType(event.target.value as SiteType)} value={type}>
-            {SITE_TYPES.map((item) => <option key={item} value={item}>{siteTypeLabel(item)}</option>)}
-          </select>
-          <label className="flex flex-col gap-1 text-sm font-semibold text-on-surface-variant">
-            {t("operationState")}
-            <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 text-on-surface outline-none" onChange={(event) => setOperationState(event.target.value as SiteOperationState)} value={operationState}>
+        <form className="grid gap-x-5 gap-y-5 sm:grid-cols-2" onSubmit={handleSubmit}>
+          <div className="sm:col-span-2">
+            <label className="mb-2 block text-sm font-semibold text-on-surface" htmlFor="site-name">{t("siteName")}</label>
+            <input className="w-full rounded-lg bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary" id="site-name" onChange={(event) => setName(event.target.value)} required type="text" value={name} />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-on-surface" htmlFor="site-type">{t("siteType")}</label>
+            <select className="w-full rounded-lg bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary" id="site-type" onChange={(event) => setType(event.target.value as SiteType)} value={type}>
+              {SITE_TYPES.map((item) => <option key={item} value={item}>{siteTypeLabel(item)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-on-surface" htmlFor="site-operation-state">{t("operationState")}</label>
+            <select className="w-full rounded-lg bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary" id="site-operation-state" onChange={(event) => setOperationState(event.target.value as SiteOperationState)} value={operationState}>
               {SITE_OPERATION_STATES.map((state) => <option key={state} value={state}>{t(state === "POWER_SAVE" ? "statePowerSave" : "stateNormal")}</option>)}
             </select>
-          </label>
-          <div className="lg:col-span-1">
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-on-surface" htmlFor="site-weather-place">{t("weatherPlace")}</label>
             <input
-              className="w-full rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none"
+              className="w-full rounded-lg bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary"
+              id="site-weather-place"
               list="site-weather-place-options"
               onChange={(event) => {
                 setWeatherPlace(event.target.value);
                 if (weatherPlaceError) setWeatherPlaceError(null);
               }}
-              placeholder={t("weatherPlace")}
+              type="text"
               value={weatherPlace}
             />
             <datalist id="site-weather-place-options">
@@ -304,16 +324,21 @@ export default function SitesView() {
             <p className="mt-2 text-xs text-on-surface-variant">{t("weatherPlaceHelp")}</p>
             {weatherPlaceError ? <p className="mt-1 text-xs text-error">{weatherPlaceError}</p> : null}
           </div>
-          <input className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setTimezone(event.target.value)} placeholder={common("timezone")} value={timezone} />
-          <label className="flex items-center justify-between rounded-xl bg-surface-container p-4"><span className="font-headline text-sm font-bold">{common("enabled")}</span><input checked={enabled} onChange={(event) => setEnabled(event.target.checked)} type="checkbox" /></label>
+          <div>
+            <label className="mb-2 block text-sm font-semibold text-on-surface" htmlFor="site-timezone">{common("timezone")}</label>
+            <select className="w-full rounded-lg bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary" id="site-timezone" onChange={(event) => setTimezone(event.target.value)} value={timezone}>
+              {availableTimezones.map((zone) => <option key={zone} value={zone}>{zone}</option>)}
+            </select>
+          </div>
+          <label className="flex items-center gap-3 rounded-lg bg-surface-container p-4 text-sm font-semibold text-on-surface sm:col-span-2"><input checked={enabled} className="h-4 w-4 accent-primary" onChange={(event) => setEnabled(event.target.checked)} type="checkbox" />{common("enabled")}</label>
 
           {error ? (
-            <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container md:col-span-2 lg:col-span-5">
+            <div className="rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:col-span-2">
               {error}
             </div>
           ) : null}
 
-          <div className="flex flex-col-reverse gap-3 md:col-span-2 lg:col-span-5 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-3 sm:col-span-2 sm:flex-row sm:justify-end">
             <button
               className="secondary-action justify-center"
               onClick={() => {
