@@ -1,0 +1,2 @@
+ALTER TABLE site
+    ADD COLUMN operation_state VARCHAR(32) NOT NULL DEFAULT 'NORMAL';

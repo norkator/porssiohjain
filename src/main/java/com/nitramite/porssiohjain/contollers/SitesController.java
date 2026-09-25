@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.auth.RequireAuth;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.enums.SiteType;
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import com.nitramite.porssiohjain.services.SiteService;
 import com.nitramite.porssiohjain.services.models.SiteResponse;
 import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
@@ -60,7 +61,8 @@ public class SitesController {
                 request.type(),
                 request.enabled(),
                 request.weatherPlace(),
-                request.timezone()
+                request.timezone(),
+                request.operationState()
         );
         return siteService.getAllSites(authContext.getAccountId()).stream()
                 .filter(item -> item.getId().equals(site.getId()))
@@ -77,7 +79,8 @@ public class SitesController {
                 request.type(),
                 request.enabled(),
                 request.weatherPlace(),
-                request.timezone()
+                request.timezone(),
+                request.operationState()
         );
         return siteService.getAllSites(authContext.getAccountId()).stream()
                 .filter(site -> site.getId().equals(siteId))
@@ -90,7 +93,8 @@ public class SitesController {
             SiteType type,
             boolean enabled,
             String weatherPlace,
-            String timezone
+            String timezone,
+            SiteOperationState operationState
     ) {
     }
 }

@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.entity;
 
 import com.nitramite.porssiohjain.entity.enums.SiteType;
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -38,6 +39,11 @@ public class SiteEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SiteType type;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "operation_state", nullable = false, length = 32)
+    private SiteOperationState operationState = SiteOperationState.NORMAL;
 
     @Builder.Default
     @Column(nullable = false)

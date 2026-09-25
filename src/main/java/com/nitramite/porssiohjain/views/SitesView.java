@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.SiteType;
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.SiteService;
@@ -63,6 +64,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private final ComboBox<String> weatherPlaceField;
     private final ComboBox<String> timezoneField;
     private final ComboBox<SiteType> typeField;
+    private final ComboBox<SiteOperationState> operationStateField;
     private final Checkbox enabledToggle;
     private final Button saveButton;
     private final VerticalLayout weatherInfoSection;
@@ -81,6 +83,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         weatherPlaceField = new ComboBox<>(t("sites.field.weatherPlace"));
         timezoneField = new ComboBox<>(t("sites.field.timezone"));
         typeField = new ComboBox<>(t("sites.field.type"));
+        operationStateField = new ComboBox<>(t("sites.field.operationState"));
         enabledToggle = new Checkbox(t("sites.field.enabled"));
         saveButton = new Button(t("sites.button.create"));
         weatherTimestampField = createReadOnlyField(t("sites.weather.field.time"));
@@ -143,6 +146,11 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         typeField.setItemLabelGenerator(type -> t("siteType." + type.name()));
         typeField.setWidthFull();
 
+        operationStateField.setItems(SiteOperationState.values());
+        operationStateField.setItemLabelGenerator(state -> t("siteOperationState." + state.name()));
+        operationStateField.setValue(SiteOperationState.NORMAL);
+        operationStateField.setWidthFull();
+
         enabledToggle.setValue(true);
 
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -156,7 +164,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private Component createFormLayout() {
-        FormLayout form = new FormLayout(nameField, weatherPlaceField, timezoneField, typeField, enabledToggle);
+        FormLayout form = new FormLayout(nameField, weatherPlaceField, timezoneField, typeField,
+                operationStateField, enabledToggle);
         form.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 2)
@@ -191,6 +200,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         sitesGrid.addColumn(SiteResponse::getName).setHeader(t("sites.grid.name")).setAutoWidth(true);
         sitesGrid.addColumn(site -> t("siteType." + site.getType().name()))
                 .setHeader(t("sites.grid.type")).setAutoWidth(true);
+        sitesGrid.addColumn(site -> t("siteOperationState." + site.getOperationState().name()))
+                .setHeader(t("sites.grid.operationState")).setAutoWidth(true);
         sitesGrid.addColumn(SiteResponse::getWeatherPlace)
                 .setHeader(t("sites.grid.weatherPlace")).setAutoWidth(true);
         sitesGrid.addColumn(SiteResponse::getTimezone)
@@ -219,6 +230,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                 }
                 timezoneField.setValue(selected.getTimezone() != null ? selected.getTimezone() : "Europe/Helsinki");
                 typeField.setValue(selected.getType());
+                operationStateField.setValue(selected.getOperationState());
                 enabledToggle.setValue(selected.getEnabled());
                 saveButton.setText(t("sites.button.update"));
                 refreshWeatherInfo();
@@ -234,7 +246,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                     typeField.getValue(),
                     enabledToggle.getValue(),
                     weatherPlaceField.getValue(),
-                    timezoneField.getValue()
+                    timezoneField.getValue(),
+                    operationStateField.getValue()
             );
             Notification notification = Notification.show(t("sites.notification.created"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
@@ -253,7 +266,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                     typeField.getValue(),
                     enabledToggle.getValue(),
                     weatherPlaceField.getValue(),
-                    timezoneField.getValue()
+                    timezoneField.getValue(),
+                    operationStateField.getValue()
             );
             Notification notification = Notification.show(t("sites.notification.updated"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
@@ -271,6 +285,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         weatherPlaceField.clear();
         timezoneField.setValue("Europe/Helsinki");
         typeField.clear();
+        operationStateField.setValue(SiteOperationState.NORMAL);
         enabledToggle.setValue(true);
         saveButton.setText(t("sites.button.create"));
         sitesGrid.deselectAll();

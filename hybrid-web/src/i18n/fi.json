@@ -199,6 +199,9 @@
   },
   "sitesView": {
     "title": "Kohteet",
+    "operationState": "Toimintatila",
+    "stateNormal": "Normaali toiminta",
+    "statePowerSave": "Energiansäästö",
     "description": "Hallitse fyysisiä kohteita, aikavyöhykkeitä ja säähakupaikkoja, joita muut automaationäkymät käyttävät.",
     "siteName": "Kohteen nimi",
     "weatherPlace": "Säähakupaikka",

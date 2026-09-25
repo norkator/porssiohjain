@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.enums.SiteType;
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.services.fmi.FmiWeatherService;
@@ -38,7 +39,8 @@ public class SiteService {
     private final DemoAccountGuard demoAccountGuard;
 
     public SiteEntity createSite(
-            Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone
+            Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone,
+            SiteOperationState operationState
     ) {
         demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
@@ -46,6 +48,7 @@ public class SiteService {
         SiteEntity site = SiteEntity.builder()
                 .name(name)
                 .type(type)
+                .operationState(operationState == null ? SiteOperationState.NORMAL : operationState)
                 .enabled(enabled)
                 .weatherPlace(normalizeWeatherPlace(weatherPlace))
                 .timezone(normalizeTimezone(timezone))
@@ -56,23 +59,29 @@ public class SiteService {
         return site;
     }
 
-    public SiteEntity updateSite(Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone) {
+    public SiteEntity updateSite(Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace,
+                                 String timezone, SiteOperationState operationState) {
         SiteEntity site = siteRepository.findById(siteId)
                 .orElseThrow(() -> new IllegalArgumentException("Site not found"));
         demoAccountGuard.assertWritable(site.getAccount().getId());
-        return updateSite(site, name, type, enabled, weatherPlace, timezone);
+        return updateSite(site, name, type, enabled, weatherPlace, timezone, operationState);
     }
 
-    public SiteEntity updateSite(Long accountId, Long siteId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone) {
+    public SiteEntity updateSite(Long accountId, Long siteId, String name, SiteType type, Boolean enabled,
+                                 String weatherPlace, String timezone, SiteOperationState operationState) {
         demoAccountGuard.assertWritable(accountId);
         SiteEntity site = siteRepository.findByIdAndAccountId(siteId, accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Site not found"));
-        return updateSite(site, name, type, enabled, weatherPlace, timezone);
+        return updateSite(site, name, type, enabled, weatherPlace, timezone, operationState);
     }
 
-    private SiteEntity updateSite(SiteEntity site, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone) {
+    private SiteEntity updateSite(SiteEntity site, String name, SiteType type, Boolean enabled, String weatherPlace,
+                                  String timezone, SiteOperationState operationState) {
         site.setName(name);
         site.setType(type);
+        if (operationState != null) {
+            site.setOperationState(operationState);
+        }
         site.setEnabled(enabled);
         site.setWeatherPlace(normalizeWeatherPlace(weatherPlace));
         site.setTimezone(normalizeTimezone(timezone));
@@ -109,6 +118,7 @@ public class SiteService {
                 .id(site.getId())
                 .name(site.getName())
                 .type(site.getType())
+                .operationState(site.getOperationState())
                 .enabled(site.getEnabled())
                 .weatherPlace(site.getWeatherPlace())
                 .timezone(site.getTimezone())

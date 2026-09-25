@@ -18,10 +18,12 @@ import {
   fetchSupportedWeatherPlaces,
   formatDate,
   SITE_TYPES,
+  SITE_OPERATION_STATES,
   updateSite,
   type ApiSite,
   type ApiSiteWeatherForecast,
   type SitePayload,
+  type SiteOperationState,
   type SiteType
 } from "@/lib/automation-resources";
 import { useI18n } from "@/lib/i18n";
@@ -45,6 +47,7 @@ export default function SitesView() {
   const [editingSiteId, setEditingSiteId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [type, setType] = useState<SiteType>("HOME");
+  const [operationState, setOperationState] = useState<SiteOperationState>("NORMAL");
   const [weatherPlace, setWeatherPlace] = useState("");
   const [weatherPlaceError, setWeatherPlaceError] = useState<string | null>(null);
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
@@ -94,6 +97,7 @@ export default function SitesView() {
     setEditingSiteId(null);
     setName("");
     setType("HOME");
+    setOperationState("NORMAL");
     setWeatherPlace("");
     setWeatherPlaceError(null);
     setTimezone(DEFAULT_TIMEZONE);
@@ -110,6 +114,7 @@ export default function SitesView() {
     setEditingSiteId(site.id);
     setName(site.name);
     setType(site.type as SiteType);
+    setOperationState(site.operationState ?? "NORMAL");
     setWeatherPlace(site.weatherPlace ?? "");
     setWeatherPlaceError(null);
     setTimezone(site.timezone ?? DEFAULT_TIMEZONE);
@@ -152,6 +157,7 @@ export default function SitesView() {
     const payload: SitePayload = {
       enabled,
       name: name.trim(),
+      operationState,
       timezone: timezone.trim() || DEFAULT_TIMEZONE,
       type,
       weatherPlace: normalizedWeatherPlace
@@ -209,6 +215,7 @@ export default function SitesView() {
               <h3 className="font-headline text-2xl font-bold">{site.name}</h3>
               <p className="mb-6 mt-1 font-mono text-xs text-outline">{common("id", { id: site.id })}</p>
               <div className="mb-6 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-lg bg-surface-container-low p-3"><span className="metric-label">{t("operationState")}</span><p className="font-semibold">{t(site.operationState === "POWER_SAVE" ? "statePowerSave" : "stateNormal")}</p></div>
                 <div className="rounded-lg bg-surface-container-low p-3"><span className="metric-label">{common("timezone")}</span><p className="font-semibold">{site.timezone ?? "-"}</p></div>
                 <div className="rounded-lg bg-surface-container-low p-3"><span className="metric-label">{t("weatherPlace")}</span><p className="font-semibold">{site.weatherPlace ?? "-"}</p></div>
               </div>
@@ -274,6 +281,12 @@ export default function SitesView() {
           <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none" onChange={(event) => setType(event.target.value as SiteType)} value={type}>
             {SITE_TYPES.map((item) => <option key={item} value={item}>{siteTypeLabel(item)}</option>)}
           </select>
+          <label className="flex flex-col gap-1 text-sm font-semibold text-on-surface-variant">
+            {t("operationState")}
+            <select className="rounded-t-lg bg-surface-container-highest px-4 py-4 text-on-surface outline-none" onChange={(event) => setOperationState(event.target.value as SiteOperationState)} value={operationState}>
+              {SITE_OPERATION_STATES.map((state) => <option key={state} value={state}>{t(state === "POWER_SAVE" ? "statePowerSave" : "stateNormal")}</option>)}
+            </select>
+          </label>
           <div className="lg:col-span-1">
             <input
               className="w-full rounded-t-lg bg-surface-container-highest px-4 py-4 outline-none"

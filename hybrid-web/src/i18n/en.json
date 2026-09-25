@@ -199,6 +199,9 @@
   },
   "sitesView": {
     "title": "Sites",
+    "operationState": "Operation state",
+    "stateNormal": "Normal operation",
+    "statePowerSave": "Power saving",
     "description": "Manage physical sites, timezone settings, and weather places used by other automation views.",
     "siteName": "Site name",
     "weatherPlace": "Weather place",

@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.services;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.enums.SiteType;
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.services.fmi.FmiWeatherService;
@@ -23,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -61,7 +63,7 @@ class SiteServiceTest {
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> service.createSite(1L, "Test", SiteType.HOME, true, "Berlin", "Europe/Helsinki")
+                () -> service.createSite(1L, "Test", SiteType.HOME, true, "Berlin", "Europe/Helsinki", null)
         );
 
         assertEquals(
@@ -85,9 +87,33 @@ class SiteServiceTest {
         when(siteRepository.save(org.mockito.ArgumentMatchers.any(SiteEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        SiteEntity site = service.createSite(1L, "Test", SiteType.HOME, true, "helsinki", "Europe/Helsinki");
+        SiteEntity site = service.createSite(1L, "Test", SiteType.HOME, true, "helsinki", "Europe/Helsinki", null);
 
         assertEquals("Helsinki", site.getWeatherPlace());
+        assertEquals(SiteOperationState.NORMAL, site.getOperationState());
         verify(siteWeatherService).fetchForecastForSite(site);
+    }
+
+    @Test
+    void updateSitePersistsPowerSaveAndPreservesItWhenLegacyRequestOmitsState() {
+        SiteService service = new SiteService(
+                siteRepository, accountRepository, fmiWeatherService, siteWeatherService,
+                new FinnishWeatherPlaceService(), demoAccountGuard
+        );
+        AccountEntity account = AccountEntity.builder().id(1L).build();
+        SiteEntity site = SiteEntity.builder().id(2L).account(account).name("Home")
+                .type(SiteType.HOME).operationState(SiteOperationState.NORMAL).build();
+        when(siteRepository.findByIdAndAccountId(2L, 1L)).thenReturn(Optional.of(site));
+        when(siteRepository.findByAccountId(1L)).thenReturn(List.of(site));
+        when(siteRepository.save(org.mockito.ArgumentMatchers.any(SiteEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateSite(1L, 2L, "Home", SiteType.HOME, true, null, "Europe/Helsinki", SiteOperationState.POWER_SAVE);
+        assertEquals(SiteOperationState.POWER_SAVE, site.getOperationState());
+
+        service.updateSite(1L, 2L, "Home", SiteType.HOME, true, null, "Europe/Helsinki", null);
+        assertEquals(SiteOperationState.POWER_SAVE, site.getOperationState());
+        assertEquals(SiteOperationState.POWER_SAVE, service.getAllSites(1L).stream().findFirst()
+                .map(response -> response.getOperationState()).orElse(null));
     }
 }

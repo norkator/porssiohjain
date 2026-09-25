@@ -17,6 +17,7 @@ export type ApiSite = {
   id: number;
   name: string;
   type: string;
+  operationState: SiteOperationState;
   enabled: boolean;
   timezone: string | null;
   weatherPlace: string | null;
@@ -25,10 +26,12 @@ export type ApiSite = {
 };
 
 export type SiteType = "HOME" | "APARTMENT" | "OFFICE" | "WAREHOUSE" | "FACTORY" | "COMMERCIAL" | "SOLAR_PLANT" | "OTHER";
+export type SiteOperationState = "NORMAL" | "POWER_SAVE";
 
 export type SitePayload = {
   name: string;
   type: SiteType;
+  operationState: SiteOperationState;
   enabled: boolean;
   weatherPlace: string | null;
   timezone: string | null;
@@ -324,6 +327,7 @@ export const COMPARISONS: ComparisonType[] = ["GREATER_THAN", "LESS_THAN"];
 export const CONTROL_ACTIONS: ControlAction[] = ["TURN_ON", "TURN_OFF"];
 export const PRODUCTION_API_TYPES: ProductionApiType[] = ["SHELLY", "SOFAR_SOLARMANPV"];
 export const SITE_TYPES: SiteType[] = ["HOME", "APARTMENT", "OFFICE", "WAREHOUSE", "FACTORY", "COMMERCIAL", "SOLAR_PLANT", "OTHER"];
+export const SITE_OPERATION_STATES: SiteOperationState[] = ["NORMAL", "POWER_SAVE"];
 
 export const fetchSites = () => apiGetJson<ApiSite[]>("/api/sites");
 export const fetchSupportedWeatherPlaces = () => apiGetJson<string[]>("/api/sites/weather-places");

@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services.models;
 
 import com.nitramite.porssiohjain.entity.enums.SiteType;
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -23,6 +24,7 @@ public class SiteResponse {
     private Long id;
     private String name;
     private SiteType type;
+    private SiteOperationState operationState;
     private Boolean enabled;
     private String weatherPlace;
     private String timezone;
