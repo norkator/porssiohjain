@@ -158,7 +158,7 @@ public class HeatingPlannerAutomationService {
                 Duration.ofMinutes(settings.getWoodReleaseDurationMinutes()), new BigDecimal("0.35"),
                 settings.getWoodRecommendationBelowTemperature(), availability);
         return new HeatingPlanSimulationService.SimulationRequest(initialFloor, initialRoom, simulationSettings,
-                model, market, stove, floorFresh, roomFresh);
+                model, market, stove, floorFresh, roomFresh, settings.getSite().getOperationState());
     }
 
     private HeatingPlanSimulationService.StoveAvailability availability(HeatingPlannerSettingsEntity settings,

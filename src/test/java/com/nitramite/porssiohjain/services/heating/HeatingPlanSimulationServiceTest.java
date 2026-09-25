@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.services.heating;
 
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -107,6 +108,58 @@ class HeatingPlanSimulationServiceTest {
         assertThat(result.points().getFirst().floorSetpoint()).isEqualByComparingTo("27.0");
         assertThat(result.points().get(2).floorSetpoint()).isEqualByComparingTo("19.0");
         assertThat(result.energyKwh()).isPositive();
+    }
+
+    @Test
+    void powerSaveTreatsCheapPeriodsAsExpensiveWithoutChangingReportedPrices() {
+        Instant start = Instant.parse("2026-01-15T00:00:00Z");
+        var base = request(List.of(
+                point(start, "3.0"), point(start.plus(Duration.ofMinutes(15)), "3.0"),
+                point(start.plus(Duration.ofMinutes(30)), "24.0")));
+        var powerSave = new HeatingPlanSimulationService.SimulationRequest(
+                base.initialFloorTemperature(), base.initialRoomTemperature(), base.settings(), base.model(),
+                base.market(), null, true, true, SiteOperationState.POWER_SAVE);
+
+        var result = service.simulate(powerSave);
+
+        assertThat(result.points()).extracting(HeatingPlanSimulationService.SimulationPoint::mode)
+                .containsOnly(HeatingPlanSimulationService.OperatingMode.DISCHARGE);
+        assertThat(result.points().getFirst().priceCentsPerKwh()).isEqualByComparingTo("3.0");
+        assertThat(result.points().getFirst().reason()).contains("power saving mode");
+    }
+
+    @Test
+    void powerSaveStillHonorsComfortMinimumAndWeatherGate() {
+        Instant start = Instant.parse("2026-01-15T00:00:00Z");
+        var base = request(List.of(point(start, "3.0")));
+        var coldRequest = new HeatingPlanSimulationService.SimulationRequest(
+                base.initialFloorTemperature(), new BigDecimal("19.5"), base.settings(), base.model(),
+                base.market(), null, true, true, SiteOperationState.POWER_SAVE);
+        assertThat(service.simulate(coldRequest).points().getFirst().mode())
+                .isEqualTo(HeatingPlanSimulationService.OperatingMode.COMFORT_RECOVERY);
+
+        var warmPoint = new HeatingPlanSimulationService.MarketPoint(start, new BigDecimal("3.0"),
+                new BigDecimal("8.0"), BigDecimal.ZERO);
+        var warmRequest = new HeatingPlanSimulationService.SimulationRequest(
+                base.initialFloorTemperature(), base.initialRoomTemperature(), base.settings(), base.model(),
+                List.of(warmPoint), null, true, true, SiteOperationState.POWER_SAVE);
+        assertThat(service.simulate(warmRequest).points().getFirst().mode())
+                .isEqualTo(HeatingPlanSimulationService.OperatingMode.INACTIVE);
+    }
+
+    @Test
+    void powerSaveCanRecommendWoodWhenActualPriceIsCheap() {
+        Instant start = Instant.parse("2026-01-15T16:00:00Z");
+        var base = request(List.of(point(start.plus(Duration.ofHours(1)), "3.0")));
+        var stove = new HeatingPlanSimulationService.WoodStoveSettings(
+                true, true, "Normal basket", new BigDecimal("8.0"), Duration.ofMinutes(45),
+                Duration.ofHours(6), new BigDecimal("0.40"), BigDecimal.ZERO,
+                List.of(new HeatingPlanSimulationService.StoveAvailability(start, start.plus(Duration.ofHours(12)))));
+        var powerSave = new HeatingPlanSimulationService.SimulationRequest(
+                base.initialFloorTemperature(), base.initialRoomTemperature(), base.settings(), base.model(),
+                base.market(), stove, true, true, SiteOperationState.POWER_SAVE);
+
+        assertThat(service.simulate(powerSave).woodStoveRecommendation()).isNotNull();
     }
 
     @Test

@@ -5,12 +5,14 @@
 package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.*;
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.ControlPriceService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -46,6 +48,7 @@ class HeatingPlannerAutomationServiceTest {
         now = Instant.parse("2026-01-15T12:00:00Z");
         AccountEntity account = new AccountEntity(); account.setId(7L); account.setMarketIndexName("FI");
         SiteEntity site = new SiteEntity(); site.setId(8L); site.setTimezone("Europe/Helsinki");
+        site.setOperationState(SiteOperationState.POWER_SAVE);
         settings = HeatingPlannerSettingsEntity.builder().id(1L).account(account).site(site).enabled(true)
                 .activeControlEnabled(true).timezone("Europe/Helsinki").build();
         room = HeatingPlannerRoomEntity.builder().id(10L).settings(settings).account(account).site(site)
@@ -92,6 +95,9 @@ class HeatingPlannerAutomationServiceTest {
         verify(simulationService).calculatePriceThresholds(anyList(), eq(new BigDecimal("0.3000")),
                 eq(new BigDecimal("0.6500")), eq(new BigDecimal("5.0000")),
                 eq(new BigDecimal("20.0000")));
+        var request = ArgumentCaptor.forClass(HeatingPlanSimulationService.SimulationRequest.class);
+        verify(simulationService).simulate(request.capture());
+        assertThat(request.getValue().siteOperationState()).isEqualTo(SiteOperationState.POWER_SAVE);
         verify(activeControlService).activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now);
     }
 

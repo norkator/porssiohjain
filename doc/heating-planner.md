@@ -80,6 +80,8 @@ Two independent user-defined weather gates apply:
 
 Both comparisons are strict `below` comparisons. The view must show the configured thresholds, the forecast values used, and the reason when either gate suppresses planning.
 
+The site's operation state also affects price decisions. `NORMAL` uses the configured price thresholds. In `POWER_SAVE`, Heating Planner treats every period as expensive for floor-heating discharge and eligible wood-stove planning, and skips price-driven floor preheating. It keeps actual market prices in charts, persisted points, and cost estimates. The planner weather gate, wood weather gate, sensor freshness, comfort recovery, and thermostat limits still apply. The Vaadin view shows the selected site's operation state above the weather gate.
+
 ## Sensor roles
 
 Floor and room measurements are not interchangeable:

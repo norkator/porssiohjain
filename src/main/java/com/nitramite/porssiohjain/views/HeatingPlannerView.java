@@ -19,6 +19,7 @@ import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ContractType;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ElectricityContractRepository;
@@ -157,6 +158,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         heading.setAlignItems(Alignment.CENTER);
 
         Paragraph summary = new Paragraph("Whole-house plan · coordinate floor heating and heat pumps around comfort and electricity price, and recommend wood burning before expensive periods");
+        Span siteOperationStateStatus = new Span("Select a site to check its operation state.");
+        VerticalLayout siteOperationStatePanel = new VerticalLayout(new H3("Site operation state"), siteOperationStateStatus);
+        siteOperationStatePanel.setPadding(false);
+        siteOperationStatePanel.setSpacing(false);
+        siteOperationStatePanel.setWidthFull();
         Span plannerWeatherGateStatus = new Span("Select a site to check the planner weather gate.");
         VerticalLayout plannerWeatherGatePanel = new VerticalLayout(new H3("Planner weather gate"), plannerWeatherGateStatus);
         plannerWeatherGatePanel.setPadding(false);
@@ -337,7 +343,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         activeControlPanel.setSpacing(false);
         Runnable calculate = () -> {
             planHost.removeAll();
-            SiteEntity selectedSite = siteSelect.getValue();
+            SiteEntity siteSelection = siteSelect.getValue();
+            SiteEntity selectedSite = account != null && siteSelection != null
+                    ? siteRepository.findByIdAndAccountId(siteSelection.getId(), account.getId()).orElse(null)
+                    : siteSelection;
+            refreshSiteOperationStateStatus(siteOperationStateStatus, selectedSite);
             List<SiteWeatherEntity> forecast = forecastForHorizon(selectedSite);
             MarketSeries marketSeries = marketSeries(account, selectedSite, decimalOrDefault(taxPercent.getValue(), "25.50"),
                     transferContract.getValue(), forecast, controlPriceService);
@@ -390,7 +400,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                             measurements.floorMeasurement().fresh()
                                                     || room.heatSource() == HeatingPlannerHeatSourceType.HEAT_PUMP,
                                             priceThresholds, noPreheatWindowEnabled.getValue(),
-                                            noPreheatFrom.getValue(), noPreheatTo.getValue(), zoneForSite(selectedSite))),
+                                            noPreheatFrom.getValue(), noPreheatTo.getValue(), zoneForSite(selectedSite),
+                                            siteOperationStateFor(selectedSite))),
                                     null);
                         } catch (IllegalArgumentException ex) {
                             return new RoomPlan(room.room(), room.heatSource(), room.heatPumpPriceOptimizationEnabled(),
@@ -422,7 +433,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 new BigDecimal("29.00"), new BigDecimal("19.00"), marketSeries.points(),
                                 defaultThermalModel(), false, false, priceThresholds,
                                 noPreheatWindowEnabled.getValue(), noPreheatFrom.getValue(),
-                                noPreheatTo.getValue(), zoneForSite(selectedSite))),
+                                noPreheatTo.getValue(), zoneForSite(selectedSite),
+                                siteOperationStateFor(selectedSite))),
                         null));
             }
             if (account != null && selectedSite != null) {
@@ -790,7 +802,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 siteSelect.getValue(), loadingConfiguration, notifyThermostatChanges, notifyHeatPumpChanges);
         calculate.run();
 
-        card.add(back, heading, summary, plannerWeatherGatePanel, activeControlPanel, siteConfiguration, notifications, roomConfiguration, recentMeasurements, stoveConfiguration,
+        card.add(back, heading, summary, siteOperationStatePanel, plannerWeatherGatePanel, activeControlPanel, siteConfiguration, notifications, roomConfiguration, recentMeasurements, stoveConfiguration,
                 stoveHeatProfileConfiguration, recalculate, planHost);
         add(card);
     }
@@ -1398,6 +1410,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         new EvidenceValue("Weather", weatherText)
                 )),
                 evidenceSection("Prices and gates", evidenceGrid(
+                        new EvidenceValue("Site operation state", siteOperationStateFor(site) == SiteOperationState.POWER_SAVE
+                                ? "POWER SAVE — all periods are treated as expensive for decisions; displayed prices remain actual"
+                                : "NORMAL — decisions use actual combined prices"),
                         new EvidenceValue("Market prices", marketSeries.description()),
                         new EvidenceValue("Cheap limit", "≤ " + priceDisplay(inputs.cheapPriceThreshold())
                                 + " c/kWh combined, percentile " + percentileDisplay(inputs.cheapPricePercentile())
@@ -1707,6 +1722,26 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         status.getElement().getThemeList().add("badge warning");
     }
 
+    private SiteOperationState siteOperationStateFor(SiteEntity site) {
+        return site == null || site.getOperationState() == null
+                ? SiteOperationState.NORMAL : site.getOperationState();
+    }
+
+    private void refreshSiteOperationStateStatus(Span status, SiteEntity site) {
+        status.getElement().getThemeList().clear();
+        status.getStyle().set("display", "inline-block").set("white-space", "normal");
+        if (site == null) {
+            status.setText("Select a site to check its operation state.");
+            status.getElement().getThemeList().add("badge warning");
+        } else if (siteOperationStateFor(site) == SiteOperationState.POWER_SAVE) {
+            status.setText("POWER SAVE — electricity is treated as expensive for planning. Comfort and safety limits still apply.");
+            status.getElement().getThemeList().add("badge warning");
+        } else {
+            status.setText("NORMAL — standard price-based planning is active when the weather gate allows it.");
+            status.getElement().getThemeList().add("badge success");
+        }
+    }
+
     private HeatingPlanSimulationService.SimulationRequest simulationRequest(boolean stoveLoaded, LocalTime availableFrom,
                                                                              LocalTime availableTo, Double woodAmount,
                                                                              Double releaseDelayHours,
@@ -1729,7 +1764,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                                                              boolean noPreheatWindowEnabled,
                                                                              LocalTime noPreheatFrom,
                                                                              LocalTime noPreheatTo,
-                                                                             ZoneId zone) {
+                                                                             ZoneId zone,
+                                                                             SiteOperationState siteOperationState) {
         ZonedDateTime start = LocalDate.now(zone).atStartOfDay(zone);
         BigDecimal initialFloor = initialFloorTemperature == null ? new BigDecimal("22.00") : initialFloorTemperature;
         BigDecimal initialRoom = initialRoomTemperature == null ? new BigDecimal("21.00") : initialRoomTemperature;
@@ -1761,7 +1797,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 Duration.ofMinutes(Math.round(releaseDurationHours * 60)), new BigDecimal("0.35"),
                 BigDecimal.valueOf(woodWeatherThreshold), availability);
         return new HeatingPlanSimulationService.SimulationRequest(initialFloor, initialRoom,
-                settings, model, market, stove, floorMeasurementFresh, roomMeasurementFresh);
+                settings, model, market, stove, floorMeasurementFresh, roomMeasurementFresh, siteOperationState);
     }
 
     private List<HeatingPlanSimulationService.NoPreheatWindow> noPreheatWindows(

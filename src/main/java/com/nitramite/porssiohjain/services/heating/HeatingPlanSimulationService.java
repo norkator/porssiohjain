@@ -11,6 +11,8 @@
 
 package com.nitramite.porssiohjain.services.heating;
 
+import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
+
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -112,12 +114,13 @@ public class HeatingPlanSimulationService {
         List<SimulationPoint> points = new ArrayList<>();
         BigDecimal energyKwh = ZERO;
         BigDecimal energyCost = ZERO;
+        boolean powerSave = request.siteOperationState() == SiteOperationState.POWER_SAVE;
         WoodStoveRecommendation woodRecommendation = plannerActive ? planWoodStove(request, market) : null;
-        Set<Instant> preheatTimes = plannerActive ? planPreheatTimes(request, market) : Set.of();
+        Set<Instant> preheatTimes = plannerActive && !powerSave ? planPreheatTimes(request, market) : Set.of();
 
         for (MarketPoint point : market) {
             OperatingDecision decision = decide(point, roomTemperature, request.settings(), woodRecommendation,
-                    plannerActive, preheatTimes, request.roomMeasurementFresh());
+                    plannerActive, preheatTimes, request.roomMeasurementFresh(), powerSave);
             boolean heating = floorTemperature.compareTo(decision.floorSetpoint()) < 0;
             BigDecimal floorToRoom = request.model().floorToRoomRate()
                     .multiply(floorTemperature.subtract(roomTemperature));
@@ -235,7 +238,8 @@ public class HeatingPlanSimulationService {
             return null;
         }
         MarketPoint expensiveStart = market.stream()
-                .filter(point -> point.priceCentsPerKwh()
+                .filter(point -> request.siteOperationState() == SiteOperationState.POWER_SAVE
+                        || point.priceCentsPerKwh()
                         .compareTo(request.settings().expensivePriceThreshold()) >= 0)
                 .filter(point -> point.outdoorTemperature()
                         .compareTo(stove.woodRecommendationOutdoorTemperature()) < 0)
@@ -273,7 +277,7 @@ public class HeatingPlanSimulationService {
 
     private OperatingDecision decide(MarketPoint current, BigDecimal roomTemperature, Settings settings,
                                      WoodStoveRecommendation woodRecommendation, boolean plannerActive,
-                                     Set<Instant> preheatTimes, boolean roomMeasurementFresh) {
+                                     Set<Instant> preheatTimes, boolean roomMeasurementFresh, boolean powerSave) {
         if (!plannerActive) {
             return new OperatingDecision(settings.normalFloorTemperature(), OperatingMode.INACTIVE,
                     "Forecast stays above the configured Heating Planner activation temperature");
@@ -293,6 +297,10 @@ public class HeatingPlanSimulationService {
         if (woodHeatRateAt(current.time(), woodRecommendation).signum() > 0) {
             return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,
                     "The wood stove is predicted to release heat; suppress electric floor heating");
+        }
+        if (powerSave) {
+            return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,
+                    "Site is in power saving mode; use stored heat and avoid price-driven preheating");
         }
         if (current.priceCentsPerKwh().compareTo(settings.expensivePriceThreshold()) >= 0) {
             return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,
@@ -357,8 +365,22 @@ public class HeatingPlanSimulationService {
             List<MarketPoint> market,
             WoodStoveSettings woodStove,
             boolean floorMeasurementFresh,
-            boolean roomMeasurementFresh
+            boolean roomMeasurementFresh,
+            SiteOperationState siteOperationState
     ) {
+        public SimulationRequest(BigDecimal initialFloorTemperature, BigDecimal initialRoomTemperature,
+                                 Settings settings, ThermalModel model, List<MarketPoint> market,
+                                 WoodStoveSettings woodStove, boolean floorMeasurementFresh,
+                                 boolean roomMeasurementFresh) {
+            this(initialFloorTemperature, initialRoomTemperature, settings, model, market, woodStove,
+                    floorMeasurementFresh, roomMeasurementFresh, SiteOperationState.NORMAL);
+        }
+
+        public SimulationRequest {
+            if (siteOperationState == null) {
+                siteOperationState = SiteOperationState.NORMAL;
+            }
+        }
     }
 
     public record Settings(
