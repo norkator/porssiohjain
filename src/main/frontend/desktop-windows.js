@@ -108,3 +108,17 @@ window.initDesktopIcons = icons => {
     });
     detached.observe(icons.parentElement, { childList: true });
 };
+
+window.initDesktopStatus = widget => {
+    if (widget.desktopStatusCleanup) return;
+    const timer = setInterval(() => {
+        if (!document.hidden && widget.isConnected) {
+            widget.dispatchEvent(new CustomEvent('desktop-status-refresh'));
+        }
+    }, 60000);
+    const detached = new MutationObserver(() => {
+        if (!widget.isConnected) widget.desktopStatusCleanup();
+    });
+    widget.desktopStatusCleanup = () => { clearInterval(timer); detached.disconnect(); };
+    detached.observe(document.body, { childList: true, subtree: true });
+};

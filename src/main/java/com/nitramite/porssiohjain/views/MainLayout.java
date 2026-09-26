@@ -6,6 +6,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.ServiceNoticeService;
 import com.vaadin.flow.component.Component;
@@ -33,6 +34,7 @@ import java.util.Map;
 @JsModule("./desktop-windows.js")
 public class MainLayout extends Div implements RouterLayout, AfterNavigationObserver {
     private final I18nService i18n;
+    private final DesktopDeviceStatus deviceStatus;
     private final Div icons = new Div();
     private final Div startMenu = new Div();
     private final Div menuItems = new Div();
@@ -43,7 +45,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     private HasElement pendingContent;
     private DesktopWindow activeWindow;
 
-    public MainLayout(AuthService authService, I18nService i18n, ServiceNoticeService serviceNoticeService) {
+    public MainLayout(AuthService authService, I18nService i18n, ServiceNoticeService serviceNoticeService, DeviceService deviceService) {
         this.i18n = i18n;
         addClassName("retro-desktop");
         VaadinSession session = VaadinSession.getCurrent();
@@ -55,7 +57,10 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         if (notice.active()) {
             add(serviceNotice(notice.text()));
         }
-        add(icons);
+        deviceStatus = new DesktopDeviceStatus(authService, deviceService, i18n, () -> open(DeviceView.class));
+        Div desktopContent = new Div(icons, deviceStatus);
+        desktopContent.addClassName("retro-desktop-content");
+        add(desktopContent);
 
         routeHost.setVisible(false);
         add(routeHost);
@@ -326,6 +331,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
 
     @Override
     public void afterNavigation(AfterNavigationEvent event) {
+        deviceStatus.refresh();
         String path = event.getLocation().getPath();
         if (!path.equals("desktop") && pendingContent != null) {
             DesktopWindow previous = windows.remove(path);

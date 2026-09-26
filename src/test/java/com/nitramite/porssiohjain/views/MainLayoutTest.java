@@ -1,6 +1,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.ServiceNoticeService;
 import com.nitramite.porssiohjain.services.models.ServiceNoticeResponse;
@@ -35,7 +36,7 @@ class MainLayoutTest {
         when(notices.getNotice(any())).thenReturn(new ServiceNoticeResponse(false, "", null));
         var translations = mock(I18nService.class, invocation -> invocation.getMethod().getName().equals("t")
                 ? invocation.getArgument(0) : null);
-        layout = new MainLayout(mock(AuthService.class), translations, notices);
+        layout = new MainLayout(mock(AuthService.class), translations, notices, mock(DeviceService.class));
     }
 
     @AfterEach
@@ -92,7 +93,7 @@ class MainLayoutTest {
 
     @Test
     void desktopContainsEveryStartFeatureAndLogout() {
-        Component icons = layout.getChildren()
+        Component icons = layout.getChildren().flatMap(Component::getChildren)
                 .filter(c -> c.getElement().getClassList().contains("retro-icons")).findFirst().orElseThrow();
         List<String> labels = icons.getChildren().map(c -> c.getElement().getTextRecursively()).toList();
         assertEquals(List.of("home.myDevices", "home.myControls", "home.weatherControls",
@@ -112,7 +113,7 @@ class MainLayoutTest {
             messages.setDefaultEncoding("UTF-8");
             var notices = mock(ServiceNoticeService.class);
             when(notices.getNotice(any())).thenReturn(new ServiceNoticeResponse(false, "", null));
-            MainLayout finnish = new MainLayout(mock(AuthService.class), new I18nService(messages), notices);
+            MainLayout finnish = new MainLayout(mock(AuthService.class), new I18nService(messages), notices, mock(DeviceService.class));
             String text = finnish.getElement().getTextRecursively();
             assertTrue(text.contains("Käynnistä"));
             assertTrue(text.contains("Omat laitteet"));
