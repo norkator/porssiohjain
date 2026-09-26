@@ -131,6 +131,7 @@ public class LoginView extends VerticalLayout {
                 VaadinSession.getCurrent().setAttribute("expiresAt", response.getExpiresAt());
 
                 Notification notification = Notification.show(t("login.notification.success"));
+                notification.setPosition(Notification.Position.TOP_END);
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 UI.getCurrent().navigate(DesktopView.class);
             } catch (Exception e) {
