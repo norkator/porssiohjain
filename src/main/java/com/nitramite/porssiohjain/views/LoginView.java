@@ -132,7 +132,7 @@ public class LoginView extends VerticalLayout {
 
                 Notification notification = Notification.show(t("login.notification.success"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                UI.getCurrent().navigate(HomeView.class);
+                UI.getCurrent().navigate(DesktopView.class);
             } catch (Exception e) {
                 Notification notification = Notification.show(t("login.notification.failed", e.getMessage()));
                 notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -168,7 +168,7 @@ public class LoginView extends VerticalLayout {
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
         if (ViewAuthUtils.hasValidSession(authService)) {
-            attachEvent.getUI().navigate(HomeView.class);
+            attachEvent.getUI().navigate(DesktopView.class);
         }
     }
 
@@ -294,7 +294,7 @@ public class LoginView extends VerticalLayout {
                 VaadinSession.getCurrent().setAttribute("expiresAt", loginResponse.getExpiresAt());
                 stopQrPolling();
                 qrDialog.close();
-                UI.getCurrent().navigate(HomeView.class);
+                UI.getCurrent().navigate(DesktopView.class);
                 return;
             }
 

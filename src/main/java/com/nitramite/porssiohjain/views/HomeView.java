@@ -30,6 +30,8 @@ import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
@@ -40,11 +42,18 @@ import java.util.stream.Stream;
 @PageTitle("Pörssiohjain - Home")
 @Route("")
 @PermitAll
-public class HomeView extends VerticalLayout {
+public class HomeView extends VerticalLayout implements BeforeEnterObserver {
 
     private final AuthService authService;
     protected final I18nService i18n;
     private final ServiceNoticeService serviceNoticeService;
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        if (ViewAuthUtils.hasValidSession(authService)) {
+            event.forwardTo(DesktopView.class);
+        }
+    }
 
     public HomeView(
             NordpoolService nordpoolService,
