@@ -15,6 +15,7 @@ import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.menubar.MenuBar;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.NativeButton;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
@@ -32,6 +33,7 @@ import java.util.Map;
 @JsModule("./desktop-windows.js")
 public class MainLayout extends Div implements RouterLayout, AfterNavigationObserver {
     private final I18nService i18n;
+    private final Div icons = new Div();
     private final Div startMenu = new Div();
     private final Div menuItems = new Div();
     private final Div tasks = new Div();
@@ -44,22 +46,16 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     public MainLayout(AuthService authService, I18nService i18n, ServiceNoticeService serviceNoticeService) {
         this.i18n = i18n;
         addClassName("retro-desktop");
-        Div icons = new Div();
+        VaadinSession session = VaadinSession.getCurrent();
+        Locale storedLocale = session != null ? session.getAttribute(Locale.class) : null;
+        if (storedLocale != null) UI.getCurrent().setLocale(storedLocale);
         icons.addClassName("retro-icons");
-        shortcut(icons, "home.myDevices", VaadinIcon.DESKTOP, DeviceView.class);
-        shortcut(icons, "home.myControls", VaadinIcon.SLIDERS, ControlsView.class);
-        shortcut(icons, "home.weatherControls", VaadinIcon.CLOUD, WeatherControlsView.class);
-        shortcut(icons, "home.heatingPlanner", VaadinIcon.FIRE, HeatingPlannerView.class);
-        shortcut(icons, "home.dashboard", VaadinIcon.DASHBOARD, DashboardView.class);
-        shortcut(icons, "home.settings", VaadinIcon.COG, SettingsView.class);
-        add(icons);
+        icons.addAttachListener(e -> icons.getElement().executeJs("window.initDesktopIcons(this)"));
         var notice = serviceNoticeService.getNotice(UI.getCurrent().getLocale());
         if (notice.active()) {
-            Div noticePanel = new Div();
-            noticePanel.addClassName("retro-desktop-notice");
-            noticePanel.add(new Span(t("home.serviceNotice")), new Span(notice.text()));
-            add(noticePanel);
+            add(serviceNotice(notice.text()));
         }
+        add(icons);
 
         routeHost.setVisible(false);
         add(routeHost);
@@ -82,20 +78,20 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         brand.addClassName("retro-start-brand");
         menuItems.addClassName("retro-menu-items");
         startMenu.add(brand, menuItems);
-        menu("home.myDevices", VaadinIcon.DESKTOP, DeviceView.class);
-        menu("home.myControls", VaadinIcon.SLIDERS, ControlsView.class);
-        menu("home.weatherControls", VaadinIcon.CLOUD, WeatherControlsView.class);
-        menu("home.heatingPlanner", VaadinIcon.FIRE, HeatingPlannerView.class);
-        menu("home.loadShedding", VaadinIcon.WARNING, LoadSheddingView.class);
-        menu("home.powerplant", VaadinIcon.DASHBOARD, PowerplantView.class);
-        menu("home.solarAnglePlanner", VaadinIcon.SUN_O, SolarAnglePlannerView.class);
-        menu("home.myProduction", VaadinIcon.LIGHTBULB, ProductionSourcesView.class);
-        menu("home.powerLimits", VaadinIcon.FLASH, PowerLimitsView.class);
-        menu("home.dashboard", VaadinIcon.CHART, DashboardView.class);
-        menu("home.settings", VaadinIcon.COG, SettingsView.class);
+        feature("home.myDevices", VaadinIcon.DESKTOP, DeviceView.class);
+        feature("home.myControls", VaadinIcon.SLIDERS, ControlsView.class);
+        feature("home.weatherControls", VaadinIcon.CLOUD, WeatherControlsView.class);
+        feature("home.heatingPlanner", VaadinIcon.FIRE, HeatingPlannerView.class);
+        feature("home.loadShedding", VaadinIcon.WARNING, LoadSheddingView.class);
+        feature("home.powerplant", VaadinIcon.DASHBOARD, PowerplantView.class);
+        feature("home.solarAnglePlanner", VaadinIcon.SUN_O, SolarAnglePlannerView.class);
+        feature("home.myProduction", VaadinIcon.LIGHTBULB, ProductionSourcesView.class);
+        feature("home.powerLimits", VaadinIcon.FLASH, PowerLimitsView.class);
+        feature("home.dashboard", VaadinIcon.CHART, DashboardView.class);
+        feature("home.settings", VaadinIcon.COG, SettingsView.class);
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account != null && account.isAdmin()) {
-            menu("home.admin", VaadinIcon.SHIELD, AdminView.class);
+            feature("home.admin", VaadinIcon.SHIELD, AdminView.class);
         }
         if (ViewAuthUtils.isImpersonating()) {
             action("home.stopImpersonating", VaadinIcon.CLOSE_CIRCLE, () -> {
@@ -107,27 +103,63 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         Div separator = new Div();
         separator.addClassName("retro-menu-separator");
         menuItems.add(separator);
+        if (notice.active()) {
+            action("home.serviceNotice", VaadinIcon.INFO_CIRCLE, () -> {
+                Dialog dialog = new Dialog();
+                dialog.setHeaderTitle(t("home.serviceNotice"));
+                dialog.setWidth("680px");
+                dialog.add(serviceNotice(notice.text()));
+                dialog.getFooter().add(new Button(t("desktop.close"), e -> dialog.close()));
+                dialog.open();
+            });
+        }
+        externalLink("desktop.googlePlay", "https://play.google.com/store/apps/details?id=com.nitramite.energycontroller",
+                "/get_it_on_google_play_badge.svg", "retro-store-icon");
+        externalLink("home.buyMeACoffee", "https://buymeacoffee.com/norkator",
+                "icons/desktop/coffee.svg", "retro-pixel-icon");
         action("lang.english", VaadinIcon.GLOBE, () -> changeLocale("en"));
         action("lang.finnish", VaadinIcon.GLOBE, () -> changeLocale("fi"));
-        action("home.logout", VaadinIcon.SIGN_OUT, () -> {
-            ViewAuthUtils.stopImpersonating();
-            VaadinSession.getCurrent().setAttribute("token", null);
-            VaadinSession.getCurrent().setAttribute("expiresAt", null);
-            UI.getCurrent().navigate(HomeView.class);
-        });
+        action("home.logout", VaadinIcon.SIGN_OUT, this::logout);
+        shortcut("home.logout", VaadinIcon.SIGN_OUT, this::logout);
         startMenu.setVisible(false);
         add(startMenu, taskbar);
     }
 
-    private void shortcut(Div icons, String key, VaadinIcon icon, Class<? extends Component> destination) {
+    private Div serviceNotice(String text) {
+        Span heading = new Span(t("home.serviceNotice"));
+        Span message = new Span(text);
+        message.addClassName("retro-notice-message");
+        Div panel = new Div(heading, message);
+        panel.addClassName("retro-desktop-notice");
+        panel.getElement().setAttribute("role", "note");
+        panel.getElement().setAttribute("aria-label", t("home.serviceNotice"));
+        panel.getElement().setAttribute("tabindex", "0");
+        return panel;
+    }
+
+    private void externalLink(String key, String url, String imagePath, String imageClass) {
+        for (boolean desktop : new boolean[]{true, false}) {
+            Anchor link = new Anchor(url, "");
+            link.setTarget("_blank");
+            link.getElement().setAttribute("rel", "noopener noreferrer");
+            Image icon = new Image(imagePath, "");
+            icon.addClassName(imageClass);
+            link.add(icon, new Span(t(key)));
+            link.addClassName(desktop ? "retro-shortcut" : "retro-menu-item");
+            (desktop ? icons : menuItems).add(link);
+        }
+    }
+
+    private void shortcut(String key, VaadinIcon icon, Runnable runnable) {
         NativeButton button = new NativeButton();
         button.add(pixelIcon(icon), new Span(t(key)));
-        button.addClickListener(e -> open(destination));
+        button.addClickListener(e -> runnable.run());
         button.addClassName("retro-shortcut");
         icons.add(button);
     }
 
-    private void menu(String key, VaadinIcon icon, Class<? extends Component> destination) {
+    private void feature(String key, VaadinIcon icon, Class<? extends Component> destination) {
+        shortcut(key, icon, () -> open(destination));
         action(key, icon, () -> open(destination));
     }
 
@@ -145,6 +177,13 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         button.addClassName("retro-chrome-button");
         button.getElement().setAttribute("aria-label", t(key));
         return button;
+    }
+
+    private void logout() {
+        ViewAuthUtils.stopImpersonating();
+        VaadinSession.getCurrent().setAttribute("token", null);
+        VaadinSession.getCurrent().setAttribute("expiresAt", null);
+        UI.getCurrent().navigate(HomeView.class);
     }
 
     private void changeLocale(String language) {
@@ -177,6 +216,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             case CLOUD -> "weather";
             case FIRE, FLASH, SUN_O, LIGHTBULB -> "energy";
             case MENU -> "start";
+            case SIGN_OUT -> "logout";
             default -> "folder";
         };
         Image image = new Image("icons/desktop/" + name + ".svg", "");
@@ -210,7 +250,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         DesktopWindow(String path, HasElement content) {
             this.content = content;
             String title = titleFor(path);
-            frame.addClassName("retro-window");
+            frame.addClassNames("retro-window", "retro-window-maximized");
             frame.getElement().setAttribute("role", "region");
             frame.getElement().setAttribute("aria-label", title);
             frame.getStyle().set("--window-offset", (windows.size() % 6 * 22) + "px");

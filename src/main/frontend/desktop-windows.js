@@ -89,3 +89,22 @@ window.initDesktopWindow = frame => {
     });
     detached.observe(desktop, { childList: true });
 };
+
+// Keep whole shortcuts within the available desktop, including on small screens.
+window.initDesktopIcons = icons => {
+    if (icons.desktopIconsObserver) return;
+    const fit = () => {
+        const rows = Math.floor(icons.clientHeight / 90);
+        const columns = Math.floor(icons.clientWidth / 104);
+        icons.style.setProperty('--desktop-icon-rows', Math.max(1, rows));
+        [...icons.children].forEach((icon, index) => icon.hidden = index >= rows * columns);
+    };
+    const observer = new ResizeObserver(fit);
+    icons.desktopIconsObserver = observer;
+    observer.observe(icons);
+    fit();
+    const detached = new MutationObserver(() => {
+        if (!icons.isConnected) { observer.disconnect(); detached.disconnect(); }
+    });
+    detached.observe(icons.parentElement, { childList: true });
+};

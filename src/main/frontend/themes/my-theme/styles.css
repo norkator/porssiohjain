@@ -613,7 +613,9 @@ vaadin-grid::part(fresh-control-device-call) {
 /* Authenticated Windows 98 desktop shell. Feature views retain their own styles. */
 .retro-desktop {
     position: relative;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     box-sizing: border-box;
     width: 100%;
     min-height: 100dvh;
@@ -623,31 +625,40 @@ vaadin-grid::part(fresh-control-device-call) {
 }
 
 .retro-icons {
-    display: flex;
-    flex-direction: column;
-    flex-wrap: wrap;
-    align-content: flex-start;
-    gap: 12px 16px;
-    height: calc(100dvh - 82px);
-    max-width: 240px;
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(var(--desktop-icon-rows, 1), 90px);
+    grid-auto-columns: 104px;
+    align-content: start;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
 }
+.retro-icons > [hidden] { display: none !important; }
 
 .retro-desktop-notice {
-    position: absolute;
-    right: 20px;
-    bottom: 58px;
     display: flex;
+    flex: 0 1 auto;
     flex-direction: column;
-    gap: 6px;
-    max-width: min(340px, calc(100vw - 40px));
-    padding: 12px;
-    background: #c0c0c0;
-    color: #000;
-    border: 2px solid;
-    border-color: #fff #404040 #404040 #fff;
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, .25);
+    gap: 8px;
+    box-sizing: border-box;
+    width: 100%;
+    max-height: min(32dvh, 260px);
+    overflow: auto;
+    padding: 16px;
+    background: #fff1b8;
+    color: #241d08;
+    border: 1px solid #b9a456;
+    border-left: 5px solid #a77b00;
+    font: 15px/1.5 Tahoma, Arial, sans-serif;
 }
 .retro-desktop-notice > span:first-child { font-weight: bold; }
+.retro-notice-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+.retro-store-icon { width: 80px; height: 32px; object-fit: contain; flex-shrink: 0; }
+.retro-desktop a.retro-shortcut,
+.retro-desktop a.retro-menu-item { text-decoration: none; box-sizing: border-box; }
+.retro-desktop a.retro-menu-item { align-items: center; gap: 6px; }
 
 .retro-desktop .retro-shortcut {
     display: flex;
@@ -825,16 +836,13 @@ vaadin-grid::part(fresh-control-device-call) {
 .retro-menu-separator { height: 2px; margin: 4px; border-top: 1px solid #808080; border-bottom: 1px solid white; }
 
 @media (max-width: 620px) {
-    .retro-desktop { padding: 0 0 38px; }
-    .retro-icons { display: none; }
-    .retro-desktop-notice { display: none; }
+    .retro-desktop { padding: 12px 8px 38px; }
     .retro-window { top: 0; left: 0; width: 100%; height: calc(100dvh - 38px); }
     .retro-window-body .responsive-card { padding: 14px !important; }
 }
 
 /* Compact Windows 98 chrome; feature content keeps its own typography. */
 .retro-desktop { height: 100dvh; padding: 20px 14px 38px; }
-.retro-icons { gap: 12px; max-width: 120px; }
 .retro-desktop .retro-shortcut {
     width: 90px; height: 78px; font: 12px Tahoma, Arial, sans-serif;
     overflow: visible; align-items: center;
@@ -890,7 +898,7 @@ vaadin-grid::part(fresh-control-device-call) {
 .retro-menu-item .retro-pixel-icon { margin-right: 6px; width: 24px; height: 24px; }
 @media (max-width: 620px) {
     .retro-window { top: 0 !important; left: 0 !important; width: 100%; height: calc(100dvh - 38px); }
-    .retro-desktop { padding: 0 0 38px; }
+    .retro-desktop { padding: 12px 8px 38px; }
     .retro-clock { padding: 5px; }
 }
 

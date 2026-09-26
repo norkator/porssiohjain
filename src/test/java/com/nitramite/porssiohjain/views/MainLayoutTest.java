@@ -15,6 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Locale;
+import com.vaadin.flow.server.VaadinSession;
+import org.springframework.context.support.ResourceBundleMessageSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -79,6 +82,45 @@ class MainLayoutTest {
         assertTrue(first.isVisible());
         assertTrue(first.getElement().getClassList().contains("retro-window-active"));
         assertEquals(2, windows().size());
+    }
+
+    @Test
+    void newWindowsStartMaximized() {
+        navigate("device", new Div());
+        assertTrue(windows().getFirst().getElement().getClassList().contains("retro-window-maximized"));
+    }
+
+    @Test
+    void desktopContainsEveryStartFeatureAndLogout() {
+        Component icons = layout.getChildren()
+                .filter(c -> c.getElement().getClassList().contains("retro-icons")).findFirst().orElseThrow();
+        List<String> labels = icons.getChildren().map(c -> c.getElement().getTextRecursively()).toList();
+        assertEquals(List.of("home.myDevices", "home.myControls", "home.weatherControls",
+                "home.heatingPlanner", "home.loadShedding", "home.powerplant", "home.solarAnglePlanner",
+                "home.myProduction", "home.powerLimits", "home.dashboard", "home.settings", "desktop.googlePlay", "home.buyMeACoffee", "home.logout"), labels);
+    }
+
+    @Test
+    void desktopRestoresFinnishSessionLocaleBeforeBuildingLabels() {
+        VaadinSession session = mock(VaadinSession.class);
+        when(session.getAttribute(Locale.class)).thenReturn(Locale.of("fi", "FI"));
+        VaadinSession.setCurrent(session);
+        try {
+            ui.setLocale(Locale.US);
+            var messages = new ResourceBundleMessageSource();
+            messages.setBasename("translations/messages");
+            messages.setDefaultEncoding("UTF-8");
+            var notices = mock(ServiceNoticeService.class);
+            when(notices.getNotice(any())).thenReturn(new ServiceNoticeResponse(false, "", null));
+            MainLayout finnish = new MainLayout(mock(AuthService.class), new I18nService(messages), notices);
+            String text = finnish.getElement().getTextRecursively();
+            assertTrue(text.contains("Käynnistä"));
+            assertTrue(text.contains("Omat laitteet"));
+            assertTrue(text.contains("Kirjaudu ulos"));
+            assertEquals(Locale.of("fi", "FI"), ui.getLocale());
+        } finally {
+            VaadinSession.setCurrent(null);
+        }
     }
 
     private void navigate(String path, Div content) {
