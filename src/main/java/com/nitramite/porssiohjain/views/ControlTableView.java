@@ -1436,12 +1436,14 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         chartTodayDiv = new Div();
         chartTodayDiv.setId("prices-today-chart");
         chartTodayDiv.setWidthFull();
+        chartTodayDiv.getStyle().set("min-width", "0").set("max-width", "100%");
         chartTodayDiv.setHeight("400px");
         updatePriceChart(chartTodayDiv, controlTableResponses, nordpoolPriceResponses, this.control.getTimezone(), transferContract);
 
         chartTomorrowDiv = new Div();
         chartTomorrowDiv.setId("prices-tomorrow-chart");
         chartTomorrowDiv.setWidthFull();
+        chartTomorrowDiv.getStyle().set("min-width", "0").set("max-width", "100%");
         if (!nordpoolPriceResponsesTomorrow.isEmpty()) {
             chartTomorrowDiv.setHeight("250px");
             updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone(), transferContract);
@@ -1450,6 +1452,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         Div chartsDiv = new Div();
         chartsDiv.setId("charts-div");
         chartsDiv.setWidthFull();
+        chartsDiv.getStyle().set("min-width", "0").set("max-width", "100%");
         chartsDiv.add(chartTodayDiv, chartTomorrowDiv);
         return chartsDiv;
     }
@@ -1567,10 +1570,12 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                 });
                         
                                 if (!container.chartInstance) {
+                                    const initialWidth = container.clientWidth;
                                     const options = {
                                         chart: {
                                             type: 'line',
                                             height: '400px',
+                                            width: initialWidth > 0 ? initialWidth : '100%',
                                             toolbar: { show: true },
                                             zoom: { enabled: false }
                                         },
@@ -1601,6 +1606,15 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                                     };
                                     container.chartInstance = new ApexCharts(container, options);
                                     container.chartInstance.render();
+                                    container.chartWidth = initialWidth;
+                                    container.chartResizeObserver = new ResizeObserver(() => {
+                                        const width = container.clientWidth;
+                                        if (width > 0 && width !== container.chartWidth) {
+                                            container.chartWidth = width;
+                                            container.chartInstance.updateOptions({ chart: { width } }, false, false);
+                                        }
+                                    });
+                                    container.chartResizeObserver.observe(container);
                                 } else {
                                     container.chartInstance.updateOptions({
                                         xaxis: { categories: dataX },
