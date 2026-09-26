@@ -754,12 +754,12 @@ vaadin-grid::part(fresh-control-device-call) {
     flex: 1;
     overflow: auto;
     min-height: 0;
-    background: #f8f8f8;
+    background: #c0c0c0;
     border: 2px solid;
     border-color: #808080 #fff #fff #808080;
 }
 .retro-window-body > * { box-sizing: border-box; min-height: 100%; }
-.retro-window-body .responsive-card { box-shadow: none; }
+.retro-window-body .responsive-card { background-color: #c0c0c0; box-shadow: none; }
 
 .retro-taskbar {
     position: fixed;
@@ -874,7 +874,6 @@ vaadin-grid::part(fresh-control-device-call) {
     color: #000; min-height: 23px; height: 23px; margin: 0; padding: 0 10px; font: inherit;
 }
 .retro-window-menubar vaadin-menu-bar-button:hover { background: #000080; color: #fff; }
-.retro-window-body { background: #fff; }
 .retro-window-body > * { padding: 8px !important; margin: 0 !important; max-width: none !important; width: 100%; }
 .retro-window-body .responsive-card { padding: 8px !important; margin: 0 !important; max-width: none !important; }
 .retro-window-body h2:first-child { margin-top: 4px; }
