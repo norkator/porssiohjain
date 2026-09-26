@@ -831,3 +831,65 @@ vaadin-grid::part(fresh-control-device-call) {
     .retro-window { top: 0; left: 0; width: 100%; height: calc(100dvh - 38px); }
     .retro-window-body .responsive-card { padding: 14px !important; }
 }
+
+/* Compact Windows 98 chrome; feature content keeps its own typography. */
+.retro-desktop { height: 100dvh; padding: 20px 14px 38px; }
+.retro-icons { gap: 12px; max-width: 120px; }
+.retro-desktop .retro-shortcut {
+    width: 90px; height: 78px; font: 12px Tahoma, Arial, sans-serif;
+    overflow: visible; align-items: center;
+}
+.retro-shortcut > span { white-space: normal; line-height: 16px; }
+.retro-pixel-icon { width: 20px; height: 20px; flex-shrink: 0; image-rendering: pixelated; }
+.retro-shortcut .retro-pixel-icon { width: 32px; height: 32px; }
+.retro-window {
+    top: calc(24px + var(--window-offset, 0px));
+    left: calc(clamp(110px, 13.5vw, 180px) + var(--window-offset, 0px));
+    width: calc(100% - clamp(140px, 20vw, 270px));
+    height: calc(100dvh - 108px); min-height: 0;
+}
+.retro-titlebar {
+    min-height: 25px; height: 25px; flex-shrink: 0; padding: 2px 3px;
+    font: bold 12px Tahoma, Arial, sans-serif; user-select: none; touch-action: none;
+    background: linear-gradient(90deg, #808080, #b5b5b5);
+}
+.retro-window-active .retro-titlebar { background: linear-gradient(90deg, #000080, #1084a4); }
+.retro-titlebar > .retro-pixel-icon { width: 16px; height: 16px; }
+.retro-titlebar > span { flex: 1; }
+.retro-window-controls { flex-shrink: 0; }
+.retro-desktop .retro-chrome-button {
+    width: 20px; min-width: 20px; height: 19px; min-height: 19px; margin: 0; font: bold 14px Arial, sans-serif;
+}
+.retro-window-menubar { flex-shrink: 0; padding: 1px 0; font: 12px Tahoma, Arial, sans-serif; }
+.retro-window-menubar vaadin-menu-bar-button {
+    background: transparent; border: 0; box-shadow: none; border-radius: 0;
+    color: #000; min-height: 23px; height: 23px; margin: 0; padding: 0 10px; font: inherit;
+}
+.retro-window-menubar vaadin-menu-bar-button:hover { background: #000080; color: #fff; }
+.retro-window-body { background: #fff; }
+.retro-window-body > * { padding: 8px !important; margin: 0 !important; max-width: none !important; width: 100%; }
+.retro-window-body .responsive-card { padding: 8px !important; margin: 0 !important; max-width: none !important; }
+.retro-window-body h2:first-child { margin-top: 4px; }
+.retro-window-maximized {
+    top: 0 !important; left: 0 !important; width: 100%; height: calc(100dvh - 38px);
+}
+.retro-window-dragging { cursor: grabbing; }
+.retro-taskbar { z-index: 10000; font: 12px Tahoma, Arial, sans-serif; }
+.retro-tasks { display: flex; flex: 1; min-width: 0; gap: 4px; overflow-x: auto; }
+.retro-desktop .retro-task-button { flex: 0 1 190px; min-width: 75px; font: 12px Tahoma, Arial, sans-serif; margin: 0; padding: 2px 6px; }
+.retro-desktop .retro-task-active { background: #ddd; border-color: #404040 #fff #fff #404040; font-weight: bold; }
+.retro-desktop .retro-start-button { margin: 0; padding: 2px 6px; font: bold 13px Tahoma, Arial, sans-serif; flex-shrink: 0; }
+.retro-clock { font: 12px Tahoma, Arial, sans-serif; }
+.retro-start-menu { z-index: 10001; display: flex; width: min(285px, calc(100vw - 6px)); padding: 3px; overflow: hidden; }
+.retro-start-brand {
+    writing-mode: vertical-rl; transform: rotate(180deg); background: #808080; color: #ddd;
+    padding: 8px 5px; font: bold 20px Tahoma, Arial, sans-serif; letter-spacing: .5px; flex-shrink: 0;
+}
+.retro-menu-items { flex: 1; min-width: 0; overflow-y: auto; }
+.retro-desktop .retro-menu-item { height: 36px; min-height: 36px; margin: 0; padding: 3px 9px; font: 12px Tahoma, Arial, sans-serif; }
+.retro-menu-item .retro-pixel-icon { margin-right: 6px; width: 24px; height: 24px; }
+@media (max-width: 620px) {
+    .retro-window { top: 0 !important; left: 0 !important; width: 100%; height: calc(100dvh - 38px); }
+    .retro-desktop { padding: 0 0 38px; }
+    .retro-clock { padding: 5px; }
+}
