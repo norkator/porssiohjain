@@ -240,7 +240,11 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             Div body = new Div();
             body.addClassName("retro-window-body");
             body.getElement().appendChild(content.getElement());
-            frame.add(titleBar, menus, body);
+            NativeButton resize = new NativeButton();
+            resize.addClassName("retro-resize-handle");
+            resize.getElement().setAttribute("aria-label", t("desktop.resize"));
+            resize.getElement().setAttribute("title", t("desktop.resize"));
+            frame.add(titleBar, menus, body, resize);
             task = new Button(title, pixelIcon(VaadinIcon.DESKTOP), e -> {
                 if (activeWindow == this && frame.isVisible()) minimize();
                 else activate(this);

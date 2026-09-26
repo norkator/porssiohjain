@@ -893,3 +893,19 @@ vaadin-grid::part(fresh-control-device-call) {
     .retro-desktop { padding: 0 0 38px; }
     .retro-clock { padding: 5px; }
 }
+
+/* The sizing grip stays outside the scrollable window content. */
+.retro-window { padding-bottom: 16px; }
+.retro-resize-handle {
+    position: absolute; right: 1px; bottom: 1px; width: 14px; height: 14px;
+    padding: 0; border: 0; cursor: nwse-resize; touch-action: none;
+    background: repeating-linear-gradient(135deg, #c0c0c0 0 2px, #808080 2px 3px, #fff 3px 4px);
+    clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.retro-resize-handle:focus-visible { outline: none; background-color: #000080; filter: brightness(.65); }
+.retro-window-maximized { width: 100% !important; height: calc(100dvh - 38px) !important; padding-bottom: 3px; }
+.retro-window-maximized .retro-resize-handle { display: none; }
+@media (max-width: 620px) {
+    .retro-window { width: 100% !important; height: calc(100dvh - 38px) !important; padding-bottom: 3px; }
+    .retro-resize-handle { display: none; }
+}
