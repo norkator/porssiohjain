@@ -10,6 +10,7 @@
  */
 
 import { apiGetJson } from "@/lib/api";
+import { getUserPreview } from "@/lib/impersonation";
 import { getSessionData } from "@/lib/session";
 
 const CONTROL_SAVINGS_CACHE_PREFIX = "porssiohjain.controlSavings.";
@@ -48,7 +49,7 @@ export function fetchControlSavings(input?: { from?: string; to?: string; timezo
 }
 
 export async function fetchCachedControlSavings(input?: { from?: string; to?: string; timezone?: string }) {
-  const accountCacheKey = getSessionData().accountId ?? "unknown-account";
+  const accountCacheKey = getUserPreview()?.accountId ?? getSessionData().accountId ?? "unknown-account";
   const cacheKey = `${CONTROL_SAVINGS_CACHE_PREFIX}${accountCacheKey}|${input?.from ?? ""}|${input?.to ?? ""}|${input?.timezone ?? ""}`;
   const now = Date.now();
 

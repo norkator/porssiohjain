@@ -63,7 +63,7 @@ export default function MarketIndexVerificationDialog() {
     };
   }, []);
 
-  const shouldShow = Boolean(account && !account.demo && !account.marketIndexNameConfirmed);
+  const shouldShow = Boolean(account && !account.demo && !account.impersonating && !account.marketIndexNameConfirmed);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

@@ -29,6 +29,8 @@ public class MeResponse {
     private String marketIndexName;
     private boolean marketIndexNameConfirmed;
     private boolean demo;
+    private boolean admin;
+    private boolean impersonating;
     private boolean notifyPowerLimitExceeded;
     private boolean notifyControlActivated;
     private boolean notifyDeviceOffline;

@@ -23,6 +23,13 @@ import java.util.UUID;
 
 public interface AccountRepository extends JpaRepository<AccountEntity, Long> {
 
+    @Query("SELECT a FROM AccountEntity a WHERE LOWER(COALESCE(a.email, '')) LIKE LOWER(CONCAT('%', :search, '%')) "
+            + "OR CAST(a.id AS string) LIKE CONCAT('%', :search, '%') "
+            + "OR LOWER(CAST(a.uuid AS string)) LIKE LOWER(CONCAT('%', :search, '%'))")
+    org.springframework.data.domain.Page<AccountEntity> searchAdminUsers(
+            @org.springframework.data.repository.query.Param("search") String search,
+            org.springframework.data.domain.Pageable pageable);
+
     Optional<AccountEntity> findByUuid(UUID uuid);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

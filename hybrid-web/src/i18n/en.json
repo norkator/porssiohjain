@@ -73,7 +73,8 @@
     "edit": "Edit",
     "origin": "Origin",
     "licenseText": "This service uses software licensed under the Pörssiohjain Personal Use License v1.0.",
-    "docLink": "Documentation and source code"
+    "docLink": "Documentation and source code",
+    "previewReadOnly": "Read-only preview. Changes and device commands are disabled."
   },
   "marketIndexVerification": {
     "eyebrow": "Market area",
@@ -197,7 +198,9 @@
       "savings": "Savings",
       "ownProduction": "Own Production",
       "powerLimits": "Power Limits"
-    }
+    },
+    "adminUsersTitle": "Users",
+    "adminUsersDescription": "Find accounts and view the app as a user"
   },
   "sitesView": {
     "title": "Sites",
@@ -1287,5 +1290,35 @@
       "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
       "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     }
+  },
+  "adminUsers": {
+    "title": "Users",
+    "description": "Search accounts and preview the app as a user. User previews are read-only.",
+    "back": "Back to menu",
+    "search": "Email, account ID or UUID",
+    "searchButton": "Search",
+    "loadFailed": "Unable to load users. Check your connection and admin access.",
+    "previewFailed": "Unable to open this user preview. Refresh the list and try again.",
+    "retry": "Retry",
+    "loading": "Loading users…",
+    "count": "{count} users",
+    "empty": "No users found.",
+    "noEmail": "No email address",
+    "accountId": "Account #{id}",
+    "admin": "Admin",
+    "user": "User",
+    "blocked": "Blocked",
+    "allowed": "Login allowed",
+    "created": "Created",
+    "updated": "Account updated",
+    "viewAsUser": "View as user",
+    "opening": "Opening…",
+    "pagination": "User list pages",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {page} of {total}",
+    "viewing": "Viewing as {user}",
+    "readOnly": "Read-only preview. Changes and device commands are disabled.",
+    "returnToAdmin": "Return to admin"
   }
 }

@@ -4,6 +4,14 @@ Bundled WebView UI project for the Energy Controller Android app.
 
 Available as web build at https://mobile.porssiohjain.fi
 
+Admin user previews:
+
+- Log in with an admin account, open **Users** from the main menu, search by email, account ID or UUID, and select **View as user**.
+- The preview is read-only and uses the existing admin login. No target-user tokens are issued or placed in URLs.
+- Each API request includes `X-View-As-Account`; the backend revalidates the admin and target account on every request and rejects writes, admin endpoints, credential operations and account exports.
+- The preview is scoped to the current tab/WebView with `sessionStorage`. Starting or returning from preview clears application caches and reloads the UI. **Return to admin** opens the users list again.
+- Deploy the backend and hybrid-web build together. The existing Vaadin impersonation flow remains separate.
+
 Stack:
 
 - Vite

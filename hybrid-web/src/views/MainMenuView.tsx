@@ -123,6 +123,7 @@ export default function MainMenuView() {
   const [sitesCount, setSitesCount] = useState<number | null>(null);
   const [contractsCount, setContractsCount] = useState<number | null>(null);
   const [accountEmail, setAccountEmail] = useState("");
+  const [isAdminAccount, setIsAdminAccount] = useState(false);
   const [accountMarketIndexName, setAccountMarketIndexName] = useState<string | null>(null);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
@@ -223,6 +224,7 @@ export default function MainMenuView() {
       .then((account) => {
         if (!active) return;
         setIsDemoAccount(account.demo);
+        setIsAdminAccount(account.admin && !account.impersonating);
         setAccountEmail(account.email ?? "");
         setAccountMarketIndexName((account.marketIndexName || "FI").trim().toUpperCase());
         setFeedbackContactEmail((current) => current || account.email || "");
@@ -230,6 +232,7 @@ export default function MainMenuView() {
       .catch(() => {
         if (!active) return;
         setIsDemoAccount(false);
+        setIsAdminAccount(false);
         setAccountMarketIndexName(null);
       });
 
@@ -390,6 +393,10 @@ export default function MainMenuView() {
       hasError: false
     }
   ];
+  if (isAdminAccount) {
+    siteOwnTiles.push({ key: "adminUsers", title: t("adminUsersTitle"), detail: t("adminUsersDescription"),
+      to: "/admin/users", icon: "U", hasError: false });
+  }
   const siteOwnTileClassName = "group relative overflow-hidden rounded-xl bg-surface-container-low p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:bg-surface-container-high hover:shadow-soft active:scale-[0.98] sm:p-6";
   const renderSiteOwnTileContent = (tile: typeof siteOwnTiles[number]) => (
     <>

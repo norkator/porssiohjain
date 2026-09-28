@@ -73,7 +73,8 @@
     "edit": "Muokkaa",
     "origin": "Alkuperä",
     "licenseText": "Tämä palvelu käyttää ohjelmistoa, joka on lisensoitu Pörssiohjain Personal Use License v1.0 -lisenssillä.",
-    "docLink": "Dokumentaatio ja lähdekoodi"
+    "docLink": "Dokumentaatio ja lähdekoodi",
+    "previewReadOnly": "Esikatselu: muutokset ja laitekomennot on estetty."
   },
   "marketIndexVerification": {
     "eyebrow": "Markkina-alue",
@@ -197,7 +198,9 @@
       "savings": "Säästöt",
       "ownProduction": "Oma tuotanto",
       "powerLimits": "Tehorajat"
-    }
+    },
+    "adminUsersTitle": "Käyttäjät",
+    "adminUsersDescription": "Hae tilejä ja katsele sovellusta käyttäjänä"
   },
   "sitesView": {
     "title": "Kohteet",
@@ -1287,5 +1290,35 @@
       "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
       "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     }
+  },
+  "adminUsers": {
+    "title": "Käyttäjät",
+    "description": "Hae käyttäjätilejä ja katsele sovellusta käyttäjänä. Esikatselussa ei voi tehdä muutoksia.",
+    "back": "Takaisin valikkoon",
+    "search": "Sähköposti, tilin tunnus tai UUID",
+    "searchButton": "Hae",
+    "loadFailed": "Käyttäjien lataaminen epäonnistui. Tarkista yhteys ja ylläpitäjän oikeudet.",
+    "previewFailed": "Käyttäjän esikatselua ei voitu avata. Päivitä lista ja yritä uudelleen.",
+    "retry": "Yritä uudelleen",
+    "loading": "Ladataan käyttäjiä…",
+    "count": "{count} käyttäjää",
+    "empty": "Käyttäjiä ei löytynyt.",
+    "noEmail": "Ei sähköpostiosoitetta",
+    "accountId": "Tili #{id}",
+    "admin": "Ylläpitäjä",
+    "user": "Käyttäjä",
+    "blocked": "Estetty",
+    "allowed": "Kirjautuminen sallittu",
+    "created": "Luotu",
+    "updated": "Tili päivitetty",
+    "viewAsUser": "Katsele käyttäjänä",
+    "opening": "Avataan…",
+    "pagination": "Käyttäjälistan sivut",
+    "previous": "Edellinen",
+    "next": "Seuraava",
+    "page": "Sivu {page} / {total}",
+    "viewing": "Katselet käyttäjänä {user}",
+    "readOnly": "Esikatselu: muutokset ja laitekomennot on estetty.",
+    "returnToAdmin": "Palaa ylläpitäjäksi"
   }
 }

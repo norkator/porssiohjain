@@ -11,6 +11,7 @@
 
 import { getAndroidBridge, getBootstrapData, type BootstrapData } from "@/lib/android-bridge";
 import { clearApplicationSessionStorage } from "@/lib/session-storage";
+import { getUserPreview } from "@/lib/impersonation";
 
 const DEV_SESSION_STORAGE_KEY = "energy-controller.dev-session";
 let sessionExpiredHandled = false;
@@ -130,6 +131,10 @@ export function setBrowserSession(input: {
   accountId?: number;
   locale?: string;
 }) {
+  const preview = getUserPreview();
+  if (preview && input.accountId !== undefined && preview.adminAccountId !== input.accountId) {
+    clearApplicationSessionStorage();
+  }
   setDevSessionOverride(input);
 
   if (input.refreshToken) {

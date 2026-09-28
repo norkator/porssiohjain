@@ -17,6 +17,24 @@ import org.springframework.stereotype.Component;
 public class AuthContext {
     private static final ThreadLocal<Long> accountIdHolder = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> demoAccountHolder = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> adminAccountHolder = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> impersonatingHolder = new ThreadLocal<>();
+
+    public void setAdminAccount(boolean admin) {
+        adminAccountHolder.set(admin);
+    }
+
+    public boolean isAdminAccount() {
+        return Boolean.TRUE.equals(adminAccountHolder.get());
+    }
+
+    public void setImpersonating(boolean impersonating) {
+        impersonatingHolder.set(impersonating);
+    }
+
+    public boolean isImpersonating() {
+        return Boolean.TRUE.equals(impersonatingHolder.get());
+    }
 
     public void setAccountId(Long accountId) {
         accountIdHolder.set(accountId);
@@ -38,5 +56,7 @@ public class AuthContext {
     public void clear() {
         accountIdHolder.remove();
         demoAccountHolder.remove();
+        adminAccountHolder.remove();
+        impersonatingHolder.remove();
     }
 }

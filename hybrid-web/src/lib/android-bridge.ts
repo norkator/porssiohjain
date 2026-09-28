@@ -9,6 +9,8 @@
  * See LICENSE for details.
  */
 
+import { getUserPreview } from "@/lib/impersonation";
+import { getCommonTranslation } from "@/lib/i18n";
 import { clearApplicationSessionStorage } from "@/lib/session-storage";
 
 export type BootstrapData = {
@@ -75,10 +77,12 @@ export function showNativeToast(message: string) {
 }
 
 export function openNativeScreen(screen: string) {
+  if (blockPreviewAction()) return;
   getAndroidBridge()?.openNativeScreen?.(screen);
 }
 
 export function openNativeQrLoginScanner() {
+  if (blockPreviewAction()) return;
   const bridge = getAndroidBridge();
 
   if (bridge?.scanQrLoginCode) {
@@ -90,6 +94,7 @@ export function openNativeQrLoginScanner() {
 }
 
 export function startGooglePlaySubscriptionPurchase(productId: string) {
+  if (blockPreviewAction()) return false;
   const bridge = getAndroidBridge();
 
   if (!bridge?.startGooglePlaySubscriptionPurchase) {
@@ -107,4 +112,10 @@ export function setNativeTheme(theme: "light" | "dark") {
 export function logoutNative() {
   clearApplicationSessionStorage();
   getAndroidBridge()?.logout?.();
+}
+
+function blockPreviewAction() {
+  if (!getUserPreview()) return false;
+  showNativeToast(getCommonTranslation("previewReadOnly"));
+  return true;
 }

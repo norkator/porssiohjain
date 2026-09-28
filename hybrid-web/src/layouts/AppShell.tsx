@@ -9,6 +9,8 @@
  * See LICENSE for details.
  */
 
+import UserPreviewBanner from "@/components/UserPreviewBanner";
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return <><UserPreviewBanner />{children}</>;
 }

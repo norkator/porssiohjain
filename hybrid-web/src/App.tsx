@@ -11,6 +11,7 @@
 
 import { Navigate, Route, Routes } from "react-router-dom";
 import AccountSettingsView from "@/views/AccountSettingsView";
+import AdminUsersView from "@/views/AdminUsersView";
 import AppShell from "@/layouts/AppShell";
 import MarketIndexVerificationDialog from "@/components/MarketIndexVerificationDialog";
 import ScrollToTop from "@/components/ScrollToTop";
@@ -70,6 +71,7 @@ function ProtectedAppRoutes() {
       <Routes>
         <Route path="/" element={<Navigate to="/menu" replace />} />
         <Route path="/menu" element={<MainMenuView />} />
+        <Route path="/admin/users" element={<AdminUsersView />} />
         <Route path="/account/settings" element={<AccountSettingsView />} />
         <Route path="/devices" element={<DevicesView />} />
         <Route path="/devices/:deviceId" element={<ManageDeviceView />} />

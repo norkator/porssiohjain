@@ -22,6 +22,8 @@ export type MeResponse = {
   marketIndexName: string;
   marketIndexNameConfirmed: boolean;
   demo: boolean;
+  admin: boolean;
+  impersonating: boolean;
   notifyPowerLimitExceeded: boolean;
   notifyControlActivated: boolean;
   notifyDeviceOffline: boolean;

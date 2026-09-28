@@ -60,6 +60,8 @@ public class MeController {
                 .marketIndexName(accountService.getMarketIndexName(accountId))
                 .marketIndexNameConfirmed(accountService.getMarketIndexNameConfirmed(accountId))
                 .demo(accountService.isDemoAccount(accountId))
+                .admin(authContext.isAdminAccount())
+                .impersonating(authContext.isImpersonating())
                 .notifyPowerLimitExceeded(accountService.getNotifyPowerLimitExceeded(accountId))
                 .notifyControlActivated(accountService.getNotifyControlActivated(accountId))
                 .notifyDeviceOffline(accountService.getNotifyDeviceOffline(accountId))

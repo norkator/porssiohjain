@@ -37,6 +37,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             HttpServletResponse response,
             Object handler
     ) throws Exception {
+        authContext.clear();
         if (HttpMethod.OPTIONS.matches(request.getMethod())) {
             return true;
         }
@@ -57,22 +58,60 @@ public class AuthInterceptor implements HandlerInterceptor {
             return false;
         }
 
+        AccountEntity account;
         try {
-            AccountEntity account = authService.authenticate(token);
-            authContext.setAccount(account.getId(), account.isDemo());
-            if (account.isDemo() && isWriteRequest(request) && !isDemoWriteAllowed(request)) {
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.setContentType(MediaType.TEXT_PLAIN_VALUE);
-                response.getWriter().write(DEMO_WRITE_BLOCKED_MESSAGE);
-                return false;
-            }
+            account = authService.authenticate(token);
         } catch (IllegalArgumentException e) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Unauthorized");
             return false;
         }
 
+        String targetHeader = request.getHeader("X-View-As-Account");
+        if (targetHeader != null) {
+            if (!account.isAdmin()) {
+                return rejectPreview(response, "Admin access required");
+            }
+            try {
+                Long targetId = Long.valueOf(targetHeader);
+                AccountEntity target = authService.getAccount(targetId);
+                if (target.isAdmin() || targetId.equals(account.getId())) {
+                    return rejectPreview(response, "Cannot view an admin account");
+                }
+                account = target;
+            } catch (IllegalArgumentException e) {
+                return rejectPreview(response, "Invalid preview account");
+            }
+            // Preview uses the admin token and cannot create user credentials or change data.
+            String path = request.getRequestURI().substring(request.getContextPath().length());
+            if ((!HttpMethod.GET.matches(request.getMethod()) && !HttpMethod.HEAD.matches(request.getMethod()))
+                    || (path.startsWith("/account/") && !path.equals("/account/stats"))
+                    || path.startsWith("/api/admin/")
+                    || path.startsWith("/admin/") || path.equals("/me/export")) {
+                return rejectPreview(response, "View as user is read-only");
+            }
+            authContext.setImpersonating(true);
+        }
+
+        authContext.setAccount(account.getId(), account.isDemo());
+        authContext.setAdminAccount(account.isAdmin());
+        if (account.isDemo() && isWriteRequest(request) && !isDemoWriteAllowed(request)) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType(MediaType.TEXT_PLAIN_VALUE);
+            response.getWriter().write(DEMO_WRITE_BLOCKED_MESSAGE);
+            authContext.clear();
+            return false;
+        }
+
         return true;
+    }
+
+    private boolean rejectPreview(HttpServletResponse response, String message) throws java.io.IOException {
+        authContext.clear();
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setContentType(MediaType.TEXT_PLAIN_VALUE);
+        response.getWriter().write(message);
+        return false;
     }
 
     private boolean isWriteRequest(HttpServletRequest request) {

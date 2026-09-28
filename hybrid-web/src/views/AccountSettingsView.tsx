@@ -12,6 +12,7 @@
 import ModalScrollLock from "@/components/ModalScrollLock";
 import AppDialog from "@/components/AppDialog";
 import PageHeader from "@/components/PageHeader";
+import { getUserPreview } from "@/lib/impersonation";
 import { changePassword, deleteMe, downloadAccountExport, fetchMe, updateMe, type AccountTier } from "@/lib/account";
 import { logoutNative, showNativeToast, startGooglePlaySubscriptionPurchase } from "@/lib/android-bridge";
 import { setCurrentLocale, supportedLocales, useI18n } from "@/lib/i18n";
@@ -65,6 +66,7 @@ export default function AccountSettingsView() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [accountId, setAccountId] = useState<number | null>(null);
   const [isDemoAccount, setIsDemoAccount] = useState(false);
+  const isUserPreview = Boolean(getUserPreview());
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => getThemePreference());
   const [deviceLimit, setDeviceLimit] = useState<number>(0);
   const [controlLimit, setControlLimit] = useState<number | null>(null);
@@ -334,7 +336,7 @@ export default function AccountSettingsView() {
                     return (
                       <button
                         className="w-full rounded-2xl border border-outline-variant bg-surface-container-highest px-4 py-4 text-left text-sm transition-colors hover:border-primary hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
-                        disabled={isDemoAccount || isCurrentTier}
+                        disabled={isUserPreview || isDemoAccount || isCurrentTier}
                         key={product.productId}
                         onClick={() => {
                           if (product.tier === "BUSINESS") {
@@ -406,7 +408,7 @@ export default function AccountSettingsView() {
                     <input
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
                       id="account-email"
-                      disabled={isDemoAccount}
+                      disabled={isUserPreview || isDemoAccount}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder={t("emailPlaceholder")}
                       type="email"
@@ -421,7 +423,7 @@ export default function AccountSettingsView() {
                     <select
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
                       id="account-language"
-                      disabled={isDemoAccount}
+                      disabled={isUserPreview || isDemoAccount}
                       onChange={(event) => setLocaleValue(event.target.value)}
                       value={locale}
                     >
@@ -438,7 +440,7 @@ export default function AccountSettingsView() {
                     <select
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
                       id="account-market"
-                      disabled={isDemoAccount}
+                      disabled={isUserPreview || isDemoAccount}
                       onChange={(event) => setMarketIndexName(event.target.value)}
                       value={marketIndexName}
                     >
@@ -485,7 +487,7 @@ export default function AccountSettingsView() {
                       <span>{t("notifyPowerLimitExceeded")}</span>
                       <input
                         checked={notifyPowerLimitExceeded}
-                        disabled={isDemoAccount}
+                        disabled={isUserPreview || isDemoAccount}
                         onChange={(event) => setNotifyPowerLimitExceeded(event.target.checked)}
                         type="checkbox"
                       />
@@ -495,7 +497,7 @@ export default function AccountSettingsView() {
                         <span>{t("notifyControlActivated")}</span>
                         <input
                           checked={notifyControlActivated}
-                          disabled={isDemoAccount}
+                          disabled={isUserPreview || isDemoAccount}
                           onChange={(event) => setNotifyControlActivated(event.target.checked)}
                           type="checkbox"
                         />
@@ -507,7 +509,7 @@ export default function AccountSettingsView() {
                         <span>{t("notifyDeviceOffline")}</span>
                         <input
                           checked={notifyDeviceOffline}
-                          disabled={isDemoAccount}
+                          disabled={isUserPreview || isDemoAccount}
                           onChange={(event) => setNotifyDeviceOffline(event.target.checked)}
                           type="checkbox"
                         />
@@ -519,7 +521,7 @@ export default function AccountSettingsView() {
                         <span>{t("notifyDeviceOnline")}</span>
                         <input
                           checked={notifyDeviceOnline}
-                          disabled={isDemoAccount}
+                          disabled={isUserPreview || isDemoAccount}
                           onChange={(event) => setNotifyDeviceOnline(event.target.checked)}
                           type="checkbox"
                         />
@@ -534,7 +536,7 @@ export default function AccountSettingsView() {
                       <span>{t("emailNotificationsEnabled")}</span>
                       <input
                         checked={emailNotificationsEnabled}
-                        disabled={isDemoAccount}
+                        disabled={isUserPreview || isDemoAccount}
                         onChange={(event) => setEmailNotificationsEnabled(event.target.checked)}
                         type="checkbox"
                       />
@@ -543,7 +545,7 @@ export default function AccountSettingsView() {
                       <span>{t("pushNotificationsEnabled")}</span>
                       <input
                         checked={pushNotificationsEnabled}
-                        disabled={isDemoAccount}
+                        disabled={isUserPreview || isDemoAccount}
                         onChange={(event) => setPushNotificationsEnabled(event.target.checked)}
                         type="checkbox"
                       />
@@ -552,7 +554,7 @@ export default function AccountSettingsView() {
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isSaving || isDemoAccount} type="submit">
+                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isUserPreview || isSaving || isDemoAccount} type="submit">
                     {isSaving ? t("saving") : t("save")}
                   </button>
                   <Link className="secondary-action justify-center" to="/menu">
@@ -579,7 +581,7 @@ export default function AccountSettingsView() {
                     <input
                       autoComplete="current-password"
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
-                      disabled={isDemoAccount}
+                      disabled={isUserPreview || isDemoAccount}
                       id="account-current-password"
                       onChange={(event) => setCurrentPassword(event.target.value)}
                       type="password"
@@ -594,7 +596,7 @@ export default function AccountSettingsView() {
                     <input
                       autoComplete="new-password"
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
-                      disabled={isDemoAccount}
+                      disabled={isUserPreview || isDemoAccount}
                       id="account-new-password"
                       onChange={(event) => setNewPassword(event.target.value)}
                       type="password"
@@ -610,7 +612,7 @@ export default function AccountSettingsView() {
                     <input
                       autoComplete="new-password"
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
-                      disabled={isDemoAccount}
+                      disabled={isUserPreview || isDemoAccount}
                       id="account-confirm-password"
                       onChange={(event) => setConfirmNewPassword(event.target.value)}
                       type="password"
@@ -620,7 +622,7 @@ export default function AccountSettingsView() {
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isChangingPassword || isDemoAccount} type="submit">
+                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isUserPreview || isChangingPassword || isDemoAccount} type="submit">
                     {isChangingPassword ? t("passwordChanging") : t("passwordChange")}
                   </button>
                 </div>
@@ -639,7 +641,7 @@ export default function AccountSettingsView() {
                 <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
                   <button
                     className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={isDownloadingExport}
+                    disabled={isUserPreview || isDownloadingExport}
                     onClick={handleDownloadExport}
                     type="button"
                   >
@@ -664,7 +666,7 @@ export default function AccountSettingsView() {
                       setDeleteError(null);
                       setIsDeleteDialogOpen(true);
                     }}
-                    disabled={isDemoAccount}
+                    disabled={isUserPreview || isDemoAccount}
                     type="button"
                   >
                     {t("deleteButton")}
