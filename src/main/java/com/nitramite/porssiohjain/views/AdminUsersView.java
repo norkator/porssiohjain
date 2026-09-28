@@ -229,7 +229,9 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
                 dialog.close();
                 Notification notification = Notification.show(t("admin.users.impersonationStarted", account.getId()));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                UI.getCurrent().navigate(HomeView.class);
+                UI.getCurrent().navigate(DesktopView.class);
+                // Rebuild the desktop and discard windows belonging to the previous account.
+                UI.getCurrent().getPage().reload();
             } catch (IllegalArgumentException ex) {
                 Notification notification = Notification.show(t("admin.users.impersonationFailed", ex.getMessage()));
                 notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
