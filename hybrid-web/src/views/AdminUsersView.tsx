@@ -95,23 +95,28 @@ export default function AdminUsersView() {
           {result ? <>
             <p className="text-sm text-on-surface-variant">{t("count", { count: result.totalElements })}</p>
             {result.users.length === 0 ? <p>{t("empty")}</p> : null}
-            <div className="grid gap-4 lg:grid-cols-2">
+            <ul className="divide-y divide-outline-variant rounded-xl border border-outline-variant bg-surface-container-low">
               {result.users.map((user) => (
-                <article className="min-w-0 rounded-xl bg-surface-container-low p-5" key={user.id}>
-                  <h2 className="break-all font-headline text-lg font-bold">{user.email || t("noEmail")}</h2>
-                  <p className="mt-1 text-sm text-on-surface-variant">{t("accountId", { id: user.id })} · {user.tier} · {user.admin ? t("admin") : t("user")} · {user.blocked ? t("blocked") : t("allowed")}</p>
-                  <dl className="my-4 grid gap-2 text-sm">
-                    <div><dt className="font-bold">UUID</dt><dd className="break-all text-on-surface-variant">{user.uuid}</dd></div>
-                    <div><dt className="font-bold">{t("created")}</dt><dd className="text-on-surface-variant">{date(user.createdAt)}</dd></div>
-                    <div><dt className="font-bold">{t("updated")}</dt><dd className="text-on-surface-variant">{date(user.updatedAt)}{user.lastActivitySource ? ` · ${user.lastActivitySource}` : ""}</dd></div>
-                  </dl>
-                  <button className="primary-action px-4 py-3 disabled:cursor-not-allowed disabled:opacity-50"
+                <li className="flex min-w-0 flex-col gap-4 px-4 py-4 sm:px-5 md:flex-row md:items-center md:justify-between" key={user.id}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="break-all font-headline text-lg font-bold">{user.email || t("noEmail")}</span>
+                      <span className="text-sm text-on-surface-variant">{t("accountId", { id: user.id })}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-on-surface-variant">{user.tier} · {user.admin ? t("admin") : t("user")} · {user.blocked ? t("blocked") : t("allowed")} · {t("deviceCount", { count: user.deviceCount })}</p>
+                    <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="min-w-0"><dt className="font-bold">UUID</dt><dd className="break-all text-on-surface-variant">{user.uuid}</dd></div>
+                      <div><dt className="font-bold">{t("created")}</dt><dd className="text-on-surface-variant">{date(user.createdAt)}</dd></div>
+                      <div><dt className="font-bold">{t("updated")}</dt><dd className="text-on-surface-variant">{date(user.updatedAt)}{user.lastActivitySource ? ` · ${user.lastActivitySource}` : ""}</dd></div>
+                    </dl>
+                  </div>
+                  <button className="primary-action shrink-0 self-start px-4 py-3 disabled:cursor-not-allowed disabled:opacity-50 md:self-center"
                     disabled={user.admin || user.id === adminId || previewing !== null} onClick={() => void viewUser(user)} type="button">
                     {previewing === user.id ? t("opening") : t("viewAsUser")}
                   </button>
-                </article>
+                </li>
               ))}
-            </div>
+            </ul>
             <nav aria-label={t("pagination")} className="flex flex-wrap items-center justify-between gap-3">
               <button className="secondary-action px-4 py-2 disabled:opacity-50" disabled={page === 0} onClick={() => setPage((value) => value - 1)} type="button">{t("previous")}</button>
               <span>{t("page", { page: result.page + 1, total: Math.max(result.totalPages, 1) })}</span>

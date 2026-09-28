@@ -2,8 +2,10 @@ package com.nitramite.porssiohjain;
 
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.entity.AccountEntity;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.TokenEntity;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
+import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.TokenRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AdminUsersControllerTest {
     @Autowired MockMvc mvc;
     @Autowired AccountRepository accounts;
+    @Autowired DeviceRepository devices;
     @Autowired TokenRepository tokens;
     @Autowired AuthContext context;
     @MockitoBean MqttService mqttService;
@@ -60,6 +63,19 @@ class AdminUsersControllerTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
         mvc.perform(get("/api/admin/users").header("Authorization", adminToken).param("page", "-1"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void listingOrdersAccountsByIdAndIncludesOwnedDeviceCount() throws Exception {
+        devices.saveAndFlush(DeviceEntity.builder().account(user).deviceName("Owned device")
+                .timezone("Europe/Helsinki").build());
+
+        mvc.perform(get("/api/admin/users").header("Authorization", adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.users[0].id").value(admin.getId()))
+                .andExpect(jsonPath("$.users[0].deviceCount").value(0))
+                .andExpect(jsonPath("$.users[1].id").value(user.getId()))
+                .andExpect(jsonPath("$.users[1].deviceCount").value(1));
     }
 
     @Test

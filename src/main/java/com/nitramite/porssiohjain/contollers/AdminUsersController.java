@@ -6,6 +6,7 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.AccountTier;
 import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
+import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AdminAuthorizationService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.SystemLogService;
@@ -27,6 +28,7 @@ public class AdminUsersController {
     private final AuthContext authContext;
     private final AdminAuthorizationService adminAuthorizationService;
     private final AccountRepository accountRepository;
+    private final AccountLimitService accountLimitService;
     private final AuthService authService;
     private final SystemLogService systemLogService;
 
@@ -38,8 +40,8 @@ public class AdminUsersController {
             throw new IllegalArgumentException("Invalid search or page");
         }
         var users = accountRepository.searchAdminUsers(search.trim(),
-                PageRequest.of(page, 50, Sort.by(Sort.Direction.DESC, "id")));
-        return new UsersPage(users.getContent().stream().map(UserSummary::from).toList(),
+                PageRequest.of(page, 50, Sort.by(Sort.Direction.ASC, "id")));
+        return new UsersPage(users.getContent().stream().map(this::userSummary).toList(),
                 users.getNumber(), users.getTotalPages(), users.getTotalElements());
     }
 
@@ -51,7 +53,13 @@ public class AdminUsersController {
             throw new IllegalArgumentException("Cannot view an admin account");
         }
         systemLogService.log("Admin account " + admin.getId() + " started hybrid-web preview of account " + accountId);
-        return UserSummary.from(target);
+        return userSummary(target);
+    }
+
+    private UserSummary userSummary(AccountEntity account) {
+        return new UserSummary(account.getId(), account.getUuid(), account.getEmail(), account.getTier(),
+                account.isAdmin(), account.isBlocked(), account.getCreatedAt(), account.getUpdatedAt(),
+                account.getLastActivitySource(), accountLimitService.getDeviceCount(account.getId()));
     }
 
     public record UsersPage(List<UserSummary> users, int page, int totalPages, long totalElements) {}
@@ -59,11 +67,5 @@ public class AdminUsersController {
     // Never serialize AccountEntity: it contains the password hash and private account settings.
     public record UserSummary(Long id, UUID uuid, String email, AccountTier tier, boolean admin,
                               boolean blocked, Instant createdAt, Instant updatedAt,
-                              AccountActivitySource lastActivitySource) {
-        static UserSummary from(AccountEntity account) {
-            return new UserSummary(account.getId(), account.getUuid(), account.getEmail(), account.getTier(),
-                    account.isAdmin(), account.isBlocked(), account.getCreatedAt(), account.getUpdatedAt(),
-                    account.getLastActivitySource());
-        }
-    }
+                              AccountActivitySource lastActivitySource, long deviceCount) {}
 }

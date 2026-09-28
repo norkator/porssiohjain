@@ -1305,6 +1305,7 @@
     "empty": "No users found.",
     "noEmail": "No email address",
     "accountId": "Account #{id}",
+    "deviceCount": "Devices: {count}",
     "admin": "Admin",
     "user": "User",
     "blocked": "Blocked",

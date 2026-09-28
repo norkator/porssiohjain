@@ -11,6 +11,7 @@ export type AdminUser = {
   createdAt: string | null;
   updatedAt: string | null;
   lastActivitySource: string | null;
+  deviceCount: number;
 };
 
 export type AdminUsersPage = { users: AdminUser[]; page: number; totalPages: number; totalElements: number };

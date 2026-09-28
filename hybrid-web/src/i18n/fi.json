@@ -1305,6 +1305,7 @@
     "empty": "Käyttäjiä ei löytynyt.",
     "noEmail": "Ei sähköpostiosoitetta",
     "accountId": "Tili #{id}",
+    "deviceCount": "Laitteita: {count}",
     "admin": "Ylläpitäjä",
     "user": "Käyttäjä",
     "blocked": "Estetty",
