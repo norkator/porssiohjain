@@ -33,6 +33,7 @@ import java.util.Map;
 /** Shared Windows 98 desktop shell for authenticated routes. */
 @JsModule("./desktop-windows.js")
 public class MainLayout extends Div implements RouterLayout, AfterNavigationObserver {
+    private final AuthService authService;
     private final I18nService i18n;
     private final DesktopDeviceStatus deviceStatus;
     private final Div icons = new Div();
@@ -46,6 +47,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     private DesktopWindow activeWindow;
 
     public MainLayout(AuthService authService, I18nService i18n, ServiceNoticeService serviceNoticeService, DeviceService deviceService) {
+        this.authService = authService;
         this.i18n = i18n;
         addClassName("retro-desktop");
         VaadinSession session = VaadinSession.getCurrent();
@@ -332,6 +334,17 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     @Override
     public void afterNavigation(AfterNavigationEvent event) {
         deviceStatus.refresh();
+        var effectiveAccount = ViewAuthUtils.findAuthenticatedAccount(authService);
+        if (effectiveAccount == null || !effectiveAccount.isAdmin()) {
+            windows.entrySet().removeIf(entry -> {
+                if (!entry.getKey().startsWith("admin/") && !entry.getKey().equals("admin")) return false;
+                DesktopWindow window = entry.getValue();
+                remove(window.frame);
+                tasks.remove(window.task);
+                if (activeWindow == window) activeWindow = null;
+                return true;
+            });
+        }
         String path = event.getLocation().getPath();
         if (!path.equals("desktop") && pendingContent != null) {
             DesktopWindow previous = windows.remove(path);

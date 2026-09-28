@@ -103,7 +103,7 @@ public final class ViewAuthUtils {
     }
 
     public static boolean rerouteToHomeIfNotAdmin(BeforeEnterEvent event, AuthService authService) {
-        AccountEntity account = findRealAuthenticatedAccount(authService);
+        AccountEntity account = findAuthenticatedAccount(authService);
         if (account == null) {
             event.forwardTo(LoginView.class);
             return true;

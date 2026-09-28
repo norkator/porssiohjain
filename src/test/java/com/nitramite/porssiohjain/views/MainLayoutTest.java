@@ -1,5 +1,6 @@
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicReference;
 import com.vaadin.flow.server.VaadinSession;
 import org.springframework.context.support.ResourceBundleMessageSource;
 
@@ -89,6 +91,26 @@ class MainLayoutTest {
     void newWindowsStartMaximized() {
         navigate("device", new Div());
         assertTrue(windows().getFirst().getElement().getClassList().contains("retro-window-maximized"));
+    }
+
+    @Test
+    void switchingToUserPreviewDiscardsRetainedAdminWindow() {
+        var effective = new AtomicReference<>(AccountEntity.builder().admin(true).build());
+        try (var accounts = mockStatic(ViewAuthUtils.class)) {
+            accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(any(AuthService.class)))
+                    .thenAnswer(invocation -> effective.get());
+            navigate("admin/users", new Div("user listing"));
+            navigate("device", new Div("device state"));
+            assertEquals(2, windows().size());
+
+            effective.set(AccountEntity.builder().admin(false).build());
+            navigate("desktop", new Div());
+
+            assertEquals(1, windows().size());
+            assertEquals(1, tasks().size());
+            assertFalse(layout.getElement().getTextRecursively().contains("user listing"));
+            assertTrue(layout.getElement().getTextRecursively().contains("device state"));
+        }
     }
 
     @Test

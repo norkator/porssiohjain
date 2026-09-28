@@ -62,7 +62,7 @@ public class AdminClientCallLogView extends VerticalLayout implements BeforeEnte
         this.i18n = i18n;
         this.deviceCallLogService = deviceCallLogService;
 
-        var account = ViewAuthUtils.findRealAuthenticatedAccount(authService);
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
             return;
         }

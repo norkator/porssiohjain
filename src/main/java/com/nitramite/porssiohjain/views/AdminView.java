@@ -57,7 +57,7 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         this.i18n = i18n;
         this.systemLogService = systemLogService;
 
-        var account = ViewAuthUtils.findRealAuthenticatedAccount(authService);
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
             return;
         }

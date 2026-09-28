@@ -75,7 +75,7 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         this.i18n = i18n;
         this.factoryProvisioningService = factoryProvisioningService;
 
-        var account = ViewAuthUtils.findRealAuthenticatedAccount(authService);
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
             return;
         }

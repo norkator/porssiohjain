@@ -80,7 +80,7 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         this.adminAccountService = adminAccountService;
         this.systemLogService = systemLogService;
 
-        var account = ViewAuthUtils.findRealAuthenticatedAccount(authService);
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
             return;
         }
