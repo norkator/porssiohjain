@@ -32,7 +32,10 @@ class MainLayoutTest {
 
     @BeforeEach
     void setup() {
-        ui = new UI();
+        ui = spy(new UI());
+        var page = mock(com.vaadin.flow.component.page.Page.class);
+        when(page.getHistory()).thenReturn(mock(com.vaadin.flow.component.page.History.class));
+        doReturn(page).when(ui).getPage();
         UI.setCurrent(ui);
         var notices = mock(ServiceNoticeService.class);
         when(notices.getNotice(any())).thenReturn(new ServiceNoticeResponse(false, "", null));
@@ -145,6 +148,72 @@ class MainLayoutTest {
         } finally {
             VaadinSession.setCurrent(null);
         }
+    }
+
+    @Test
+    void backButtonUsesFeatureParentAndIsDisabledOnList() {
+        navigate("controls/42", new Div());
+        Button back = windows().getFirst().getChildren().flatMap(Component::getChildren)
+                .filter(c -> c instanceof Button button && button.getText().contains("desktop.back"))
+                .map(Button.class::cast).findFirst().orElseThrow();
+        assertTrue(back.isEnabled());
+        assertEquals("controls", MainLayout.parentRoute("controls/42?tab=settings"));
+        assertEquals("production-sources", MainLayout.parentRoute("production-source/2"));
+        navigate("controls", new Div());
+        assertFalse(back.isEnabled());
+    }
+
+    @Test
+    void switchingWindowUpdatesUrlWithoutReplacingItsDraft() {
+        Div draft = new Div("draft");
+        navigate("controls/42?tab=settings", draft);
+        Button task = tasks().getFirst();
+        navigate("device", new Div());
+        UI current = mock(UI.class);
+        var page = mock(com.vaadin.flow.component.page.Page.class);
+        var history = mock(com.vaadin.flow.component.page.History.class);
+        when(current.getPage()).thenReturn(page);
+        when(page.getHistory()).thenReturn(history);
+        UI.setCurrent(current);
+        task.click();
+        verify(history).replaceState(isNull(), eq("controls/42?tab=settings"));
+        assertTrue(draft.getParent().isPresent());
+        assertEquals("draft", draft.getText());
+    }
+
+    @Test
+    void navigationOnlyGuardsTheWindowWhoseContentWillBeReplaced() {
+        var field = new DesktopFormStateTest.ClientTextField();
+        DesktopFormState.watch(field);
+        navigate("controls/42", new Div(field));
+        DesktopFormStateTest.edit(field, "draft");
+        var other = mock(com.vaadin.flow.router.BeforeLeaveEvent.class);
+        when(other.getLocation()).thenReturn(new Location("device"));
+        doReturn(DeviceView.class).when(other).getNavigationTarget();
+        layout.beforeLeave(other);
+        verify(other, never()).postpone();
+
+        var back = mock(com.vaadin.flow.router.BeforeLeaveEvent.class);
+        when(back.getLocation()).thenReturn(new Location("controls"));
+        doReturn(ControlsView.class).when(back).getNavigationTarget();
+        var continuation = mock(com.vaadin.flow.router.BeforeLeaveEvent.ContinueNavigationAction.class);
+        when(back.postpone()).thenReturn(continuation);
+        layout.beforeLeave(back);
+        verify(back).postpone();
+        var dialog = layout.getChildren().filter(c -> c instanceof com.vaadin.flow.component.dialog.Dialog)
+                .map(com.vaadin.flow.component.dialog.Dialog.class::cast).findFirst().orElseThrow();
+        dialog.getFooter().getElement().getChildren().flatMap(element -> element.getComponent().stream()).filter(c -> c instanceof Button button && button.getText().equals("common.cancel"))
+                .map(Button.class::cast).findFirst().orElseThrow().click();
+        verify(continuation).cancel();
+        assertTrue(DesktopFormState.isDirty(field));
+        layout.beforeLeave(back);
+        var discard = layout.getChildren().filter(c -> c instanceof com.vaadin.flow.component.dialog.Dialog)
+                .map(com.vaadin.flow.component.dialog.Dialog.class::cast).findFirst().orElseThrow();
+        discard.getFooter().getElement().getChildren().flatMap(element -> element.getComponent().stream())
+                .filter(c -> c instanceof Button button && button.getText().equals("desktop.discard"))
+                .map(Button.class::cast).findFirst().orElseThrow().click();
+        verify(continuation).proceed();
+        assertFalse(DesktopFormState.isDirty(field));
     }
 
     private void navigate(String path, Div content) {

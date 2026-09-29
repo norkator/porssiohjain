@@ -370,6 +370,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         );
 
         card.add(formLayout, saveButton);
+        DesktopFormState.watch(formLayout);
 
         Runnable updateFieldStates = () -> {
             ControlMode mode = modeCombo.getValue();

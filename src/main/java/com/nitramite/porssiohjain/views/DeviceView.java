@@ -369,6 +369,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         formLayout.setWidthFull();
         formLayout.getStyle().set("margin-top", "20px");
         formLayout.add(nameField, timezoneCombo, deviceTypeCombo, devicePlatformCombo, enabledField);
+        DesktopFormState.watch(formLayout);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 5)
@@ -1122,6 +1123,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
         updateLimitInfo();
+        DesktopFormState.saved(this);
     }
 
     private void updateSelectAcDeviceButton() {

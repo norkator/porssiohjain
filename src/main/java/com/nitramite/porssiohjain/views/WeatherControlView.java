@@ -270,6 +270,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         FormLayout formLayout = new FormLayout(nameField, siteField, saveButton);
+        DesktopFormState.watch(formLayout);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 3)

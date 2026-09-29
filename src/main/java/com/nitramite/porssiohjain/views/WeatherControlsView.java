@@ -155,6 +155,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
 
         createButton.getStyle().set("margin-top", "16px");
         formContainer.add(formLayout, limitInfo, createButton);
+        DesktopFormState.watch(formLayout);
         return formContainer;
     }
 

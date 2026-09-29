@@ -177,6 +177,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
         );
 
         container.add(form, limitInfo, createButton);
+        DesktopFormState.watch(form);
         return container;
     }
 
@@ -266,6 +267,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
             Notification notification = Notification.show(t("productionsources.notification.created"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             clearForm();
+            DesktopFormState.saved(this);
             loadSources();
         } catch (Exception e) {
             Notification notification = Notification.show(t("productionsources.notification.failed", e.getMessage()));

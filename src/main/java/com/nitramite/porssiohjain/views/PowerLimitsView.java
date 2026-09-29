@@ -147,6 +147,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
         );
 
         container.add(form, createButton);
+        DesktopFormState.watch(form);
         return container;
     }
 
@@ -220,6 +221,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
             clearForm();
+            DesktopFormState.saved(this);
             loadLimits();
         } catch (Exception e) {
             Notification notification = Notification.show(t("powerlimits.notification.failed", e.getMessage()));

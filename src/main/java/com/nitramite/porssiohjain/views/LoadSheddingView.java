@@ -250,6 +250,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         actions.setWrap(true);
 
         card.add(title, formLayout, actions);
+        DesktopFormState.watch(formLayout);
         return card;
     }
 
@@ -273,6 +274,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         actions.setWrap(true);
 
         card.add(title, formLayout, actions);
+        DesktopFormState.watch(formLayout);
         return card;
     }
 
@@ -650,6 +652,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         saveNodeButton.setText(t("loadShedding.button.updateNode"));
         deleteNodeButton.setEnabled(true);
         renderBoard();
+        java.util.stream.Stream.of(nodeDeviceCombo, nodeChannelField, nodeXField, nodeYField).forEach(DesktopFormState::saved);
     }
 
     private void selectLink(LoadSheddingLinkResponse link) {
@@ -661,6 +664,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         reverseOnClearCheckbox.setValue(link.isReverseOnClear());
         saveLinkButton.setText(t("loadShedding.button.updateLink"));
         deleteLinkButton.setEnabled(true);
+        java.util.stream.Stream.of(sourceNodeCombo, targetNodeCombo, triggerStateCombo, targetActionCombo, reverseOnClearCheckbox).forEach(DesktopFormState::saved);
     }
 
     private void clearNodeSelection() {
@@ -672,6 +676,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         saveNodeButton.setText(t("loadShedding.button.saveNode"));
         deleteNodeButton.setEnabled(false);
         renderBoard();
+        java.util.stream.Stream.of(nodeDeviceCombo, nodeChannelField, nodeXField, nodeYField).forEach(DesktopFormState::saved);
     }
 
     private void clearLinkSelection() {
@@ -683,6 +688,7 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         reverseOnClearCheckbox.setValue(false);
         saveLinkButton.setText(t("loadShedding.button.saveLink"));
         deleteLinkButton.setEnabled(false);
+        java.util.stream.Stream.of(sourceNodeCombo, targetNodeCombo, triggerStateCombo, targetActionCombo, reverseOnClearCheckbox).forEach(DesktopFormState::saved);
     }
 
     private void refreshSelections() {

@@ -218,6 +218,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         createButton.getStyle().set("margin-top", "16px");
 
         formContainer.add(formLayout, limitInfo, createButton);
+        DesktopFormState.watch(formLayout);
 
         return formContainer;
     }
@@ -295,6 +296,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
             clearForm();
+            DesktopFormState.saved(this);
             loadControls();
         } catch (Exception e) {
             Notification notification = Notification.show(t("control.notification.failed", e.getMessage()));

@@ -240,6 +240,8 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                 .findFirst()
                 .ifPresent(siteBox::setValue);
 
+        Component[] draftFields = new Component[]{name, enabled, timezoneField, appId, appSecret, email, password, stationId, siteBox};
+        java.util.Arrays.stream(draftFields).forEach(DesktopFormState::watch);
         Button save = new Button("Save", e -> {
             SiteResponse site = siteBox.getValue();
             Long siteId = site != null ? site.getId() : null;
@@ -257,6 +259,7 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
                     emptyToNull(stationId.getValue()),
                     siteId
             );
+            java.util.Arrays.stream(draftFields).forEach(DesktopFormState::saved);
             Notification notification = Notification.show("Saved");
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });

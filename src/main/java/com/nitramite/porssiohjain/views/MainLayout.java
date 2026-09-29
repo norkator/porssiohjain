@@ -26,6 +26,8 @@ import com.vaadin.flow.router.AfterNavigationEvent;
 import com.vaadin.flow.router.AfterNavigationObserver;
 import com.vaadin.flow.router.RouterLayout;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.BeforeLeaveObserver;
+import com.vaadin.flow.router.BeforeLeaveEvent;
 import com.vaadin.flow.server.VaadinSession;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -33,7 +35,7 @@ import java.util.Map;
 
 /** Shared Windows 98 desktop shell for authenticated routes. */
 @JsModule("./desktop-windows.js")
-public class MainLayout extends Div implements RouterLayout, AfterNavigationObserver {
+public class MainLayout extends Div implements RouterLayout, AfterNavigationObserver, BeforeLeaveObserver {
     private final AuthService authService;
     private final I18nService i18n;
     private final DesktopDeviceStatus deviceStatus;
@@ -103,11 +105,13 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             feature("home.admin", VaadinIcon.SHIELD, AdminView.class);
         }
         if (ViewAuthUtils.isImpersonating()) {
-            action("home.stopImpersonating", VaadinIcon.CLOSE_CIRCLE, () -> {
-                ViewAuthUtils.stopImpersonating();
-                UI.getCurrent().navigate(DesktopView.class);
-                UI.getCurrent().getPage().reload();
-            });
+            action("home.stopImpersonating", VaadinIcon.CLOSE_CIRCLE, () ->
+                    confirmDiscard(hasUnsavedChanges(), () -> {
+                        windows.values().forEach(w -> DesktopFormState.saved(w.body));
+                        ViewAuthUtils.stopImpersonating();
+                        UI.getCurrent().navigate(DesktopView.class);
+                        UI.getCurrent().getPage().reload();
+                    }));
         }
         Div separator = new Div();
         separator.addClassName("retro-menu-separator");
@@ -190,6 +194,11 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     }
 
     private void logout() {
+        confirmDiscard(hasUnsavedChanges(), this::performLogout);
+    }
+
+    private void performLogout() {
+        windows.values().forEach(w -> DesktopFormState.saved(w.body));
         ViewAuthUtils.stopImpersonating();
         VaadinSession.getCurrent().setAttribute("token", null);
         VaadinSession.getCurrent().setAttribute("expiresAt", null);
@@ -197,6 +206,11 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     }
 
     private void changeLocale(String language) {
+        confirmDiscard(hasUnsavedChanges(), () -> performLocaleChange(language));
+    }
+
+    private void performLocaleChange(String language) {
+        windows.values().forEach(w -> DesktopFormState.saved(w.body));
         Locale locale = Locale.of(language, language.equals("fi") ? "FI" : "US");
         VaadinSession.getCurrent().setAttribute(Locale.class, locale);
         UI.getCurrent().setLocale(locale);
@@ -235,6 +249,9 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     }
 
     private void activate(DesktopWindow target) {
+        if (activeWindow != target) {
+            UI.getCurrent().getPage().getHistory().replaceState(null, target.location);
+        }
         activeWindow = target;
         target.frame.setVisible(true);
         windows.values().forEach(w -> {
@@ -245,20 +262,32 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     }
 
     private void close(DesktopWindow target) {
+        confirmDiscard(DesktopFormState.isDirty(target.body), () -> closeConfirmed(target));
+    }
+
+    private void closeConfirmed(DesktopWindow target) {
         windows.values().remove(target);
         remove(target.frame);
         tasks.remove(target.task);
-        if (activeWindow == target) activeWindow = null;
-        UI.getCurrent().navigate(DesktopView.class);
+        if (activeWindow == target) {
+            activeWindow = null;
+            UI.getCurrent().navigate(DesktopView.class);
+        }
     }
 
     private final class DesktopWindow {
         final Div frame = new Div();
         final Button task;
         final Div body = new Div();
+        final Button back = new Button(t("desktop.back"), VaadinIcon.ARROW_LEFT.create());
+        final Div toolbar = new Div(back);
+        String location;
 
         DesktopWindow(String path, HasElement content) {
+            location = path;
             String title = titleFor(path);
+            var account = ViewAuthUtils.findAuthenticatedAccount(authService);
+            frame.getElement().setAttribute("data-window-key", (account != null ? account.getId() : "guest") + ":" + windowKey(path));
             frame.addClassNames("retro-window", "retro-window-maximized");
             frame.getElement().setAttribute("role", "region");
             frame.getElement().setAttribute("aria-label", title);
@@ -292,7 +321,10 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             resize.addClassName("retro-resize-handle");
             resize.getElement().setAttribute("aria-label", t("desktop.resize"));
             resize.getElement().setAttribute("title", t("desktop.resize"));
-            frame.add(titleBar, menus, body, resize);
+            toolbar.addClassName("retro-window-toolbar");
+            back.addClickListener(e -> UI.getCurrent().navigate(parentRoute(location)));
+            updateLocation(path);
+            frame.add(titleBar, menus, toolbar, body, resize);
             task = new Button(title, pixelIcon(iconFor(path)), e -> {
                 if (activeWindow == this && frame.isVisible()) minimize();
                 else activate(this);
@@ -302,7 +334,17 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
                 if (activeWindow != this) activate(this);
             });
             frame.getElement().addEventListener("desktop-maximize", e -> maximize());
+            frame.getElement().addEventListener("desktop-restore-geometry", e ->
+                    frame.getElement().getClassList().set("retro-window-maximized", e.getEventData().get("event.detail.maximized").asBoolean()))
+                    .addEventData("event.detail.maximized");
             frame.addAttachListener(e -> frame.getElement().executeJs("window.initDesktopWindow(this)"));
+        }
+
+        void updateLocation(String location) {
+            this.location = location;
+            boolean canGoBack = !parentRoute(location).equals("desktop");
+            back.setEnabled(canGoBack);
+            toolbar.setVisible(canGoBack);
         }
 
         void setContent(HasElement content) {
@@ -319,6 +361,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         void maximize() {
             frame.getElement().getClassList().set("retro-window-maximized",
                     !frame.getClassNames().contains("retro-window-maximized"));
+            frame.getElement().executeJs("this.dispatchEvent(new CustomEvent('desktop-save-geometry'))");
             activate(this);
         }
     }
@@ -363,10 +406,69 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             } else {
                 next.setContent(pendingContent);
             }
+            next.updateLocation(event.getLocation().getPathWithQueryParameters());
+            // Routing already changed the URL; only taskbar/Start activation needs to sync it.
+            activeWindow = next;
             activate(next);
         }
         pendingContent = null;
         setStartOpen(false);
+    }
+
+    static String parentRoute(String location) {
+        String path = location.split("\\?", 2)[0];
+        return path.contains("/") ? windowKey(path) : "desktop";
+    }
+
+    private boolean hasUnsavedChanges() {
+        return windows.values().stream().anyMatch(w -> DesktopFormState.isDirty(w.body));
+    }
+
+    private void confirmDiscard(boolean dirty, Runnable proceed) {
+        confirmDiscard(dirty, proceed, () -> {});
+    }
+
+    private void confirmDiscard(boolean dirty, Runnable proceed, Runnable cancel) {
+        if (!dirty) {
+            proceed.run();
+            return;
+        }
+        Dialog dialog = new Dialog();
+        add(dialog);
+        dialog.addOpenedChangeListener(event -> {
+            if (!event.isOpened()) remove(dialog);
+        });
+        dialog.setHeaderTitle(t("desktop.unsavedTitle"));
+        dialog.setCloseOnOutsideClick(false);
+        dialog.setCloseOnEsc(false);
+        dialog.add(new Span(t("desktop.unsavedMessage")));
+        dialog.getFooter().add(new Button(t("common.cancel"), e -> { dialog.close(); cancel.run(); }),
+                new Button(t("desktop.discard"), e -> {
+                    dialog.close();
+                    proceed.run();
+                }));
+        dialog.open();
+    }
+
+    @Override
+    public void beforeLeave(BeforeLeaveEvent event) {
+        String destination = event.getLocation().getPath();
+        boolean leavingDesktop = event.getNavigationTarget().getAnnotation(Route.class) == null
+                || event.getNavigationTarget().getAnnotation(Route.class).layout() != MainLayout.class;
+        DesktopWindow replaced = windows.get(windowKey(destination));
+        boolean dirty = leavingDesktop ? hasUnsavedChanges()
+                : replaced != null && DesktopFormState.isDirty(replaced.body);
+        if (dirty) {
+            var continuation = event.postpone();
+            confirmDiscard(true, () -> {
+                if (leavingDesktop) windows.values().forEach(w -> DesktopFormState.saved(w.body));
+                else DesktopFormState.saved(replaced.body);
+                continuation.proceed();
+            }, () -> {
+                continuation.cancel();
+                if (activeWindow != null) UI.getCurrent().getPage().getHistory().replaceState(null, activeWindow.location);
+            });
+        }
     }
 
     // List and detail routes share a feature window, including direct links and browser Back.

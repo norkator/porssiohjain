@@ -86,6 +86,7 @@ public class AdminServiceNoticeView extends VerticalLayout implements BeforeEnte
 
         card.add(backButton, title, description, active, fields, save);
         add(card);
+        DesktopFormState.watch(card);
     }
 
     @Override
@@ -105,6 +106,7 @@ public class AdminServiceNoticeView extends VerticalLayout implements BeforeEnte
     private void saveNotice(Checkbox active, TextArea finnishText, TextArea englishText) {
         try {
             serviceNoticeService.save(active.getValue(), finnishText.getValue(), englishText.getValue());
+            DesktopFormState.saved(this);
             Notification notification = Notification.show(t("admin.serviceNotice.saved"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         } catch (IllegalArgumentException exception) {

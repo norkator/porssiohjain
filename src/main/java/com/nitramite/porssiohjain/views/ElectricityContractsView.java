@@ -249,6 +249,7 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
         );
 
         container.add(form, saveButton);
+        DesktopFormState.watch(form);
         return container;
     }
 
@@ -291,12 +292,14 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
     private void editContract(ElectricityContractEntity contract) {
         this.editingContract = contract;
         binder.readBean(contract);
+        DesktopFormState.saved(this);
         saveButton.setText(t("electricityContracts.button.update"));
     }
 
     private void clearForm() {
         editingContract = null;
         binder.readBean(new ElectricityContractEntity());
+        DesktopFormState.saved(this);
         saveButton.setText(t("electricityContracts.button.create"));
     }
 

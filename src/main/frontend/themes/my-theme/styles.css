@@ -710,7 +710,7 @@ vaadin-grid::part(fresh-control-device-call) {
     box-shadow: inset 1px 1px #dfdfdf, inset -1px -1px #808080, 3px 4px 0 rgba(0, 0, 0, .25);
 }
 
-.retro-window[hidden], .retro-task-button[hidden], .retro-start-menu[hidden] { display: none !important; }
+.retro-window[hidden], .retro-window-toolbar[hidden], .retro-task-button[hidden], .retro-start-menu[hidden] { display: none !important; }
 .retro-window-maximized {
     top: 0;
     left: 0;
@@ -941,3 +941,62 @@ vaadin-grid::part(fresh-control-device-call) {
 @media (max-width: 620px) {
     .retro-desktop-content { gap: 8px; }
 }
+
+/* Flat Explorer-style navigation strip, with etched separators. */
+.retro-window-toolbar {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 8px;
+    min-height: 40px;
+    box-sizing: border-box;
+    padding: 4px 8px;
+    background: #c0c0c0;
+    border-top: 1px solid #fff;
+    border-bottom: 1px solid #808080;
+    box-shadow: 0 -1px 0 #808080, 0 1px 0 #fff;
+}
+.retro-window-toolbar::after {
+    content: "";
+    width: 0;
+    height: 26px;
+    border-left: 1px solid #808080;
+    border-right: 1px solid #fff;
+}
+.retro-desktop .retro-window-toolbar vaadin-button {
+    margin: 0;
+    min-width: 0;
+    height: 30px;
+    min-height: 30px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #000;
+    font: 12px Tahoma, Arial, sans-serif;
+    text-shadow: none;
+    filter: none;
+}
+.retro-window-toolbar vaadin-button vaadin-icon {
+    width: 14px;
+    height: 14px;
+    color: #000080;
+    margin-right: 4px;
+}
+.retro-desktop .retro-window-toolbar vaadin-button:not([disabled]):hover {
+    border-color: #fff #808080 #808080 #fff;
+}
+.retro-desktop .retro-window-toolbar vaadin-button:not([disabled]):active {
+    border-color: #808080 #fff #fff #808080;
+}
+.retro-desktop .retro-window-toolbar vaadin-button[focus-visible] {
+    outline: 1px dotted #000;
+    outline-offset: -4px;
+}
+.retro-desktop .retro-window-toolbar vaadin-button[disabled] {
+    color: #808080;
+    text-shadow: 1px 1px #fff;
+    opacity: 1;
+}
+.retro-window-toolbar vaadin-button[disabled] vaadin-icon { color: #808080; }

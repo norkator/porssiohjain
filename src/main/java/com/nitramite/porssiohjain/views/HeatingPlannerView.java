@@ -316,6 +316,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     new BigDecimal("23.00"), new BigDecimal("27.00"), new BigDecimal("29.00"),
                     new BigDecimal("19.00"), false, new BigDecimal("2.00"), null, null, null));
             rooms.getDataProvider().refreshAll();
+            DesktopFormState.markDirty(rooms);
         });
         addRoom.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         VerticalLayout roomConfigurationContent = new VerticalLayout(rooms, addRoom);
@@ -555,6 +556,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                         row.floorSensor() == null ? null : row.floorSensor().getId()
                                 ))
                                 .toList());
+                DesktopFormState.saved(rooms);
                 Notification.show("Heating Planner rooms saved").addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 calculate.run();
             } catch (IllegalArgumentException ex) {
@@ -1037,6 +1039,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             room.setValue(row.room());
             room.setWidthFull();
             room.addValueChangeListener(event -> row.setRoom(event.getValue()));
+            DesktopFormState.watchChanges(room, grid);
             return room;
         }).setHeader("Room").setFlexGrow(1);
         grid.addComponentColumn(row -> {
@@ -1059,6 +1062,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 if (selected == HeatingPlannerHeatSourceType.HEAT_PUMP) row.setFloorSensor(null);
                 grid.getDataProvider().refreshItem(row);
             });
+            DesktopFormState.watchChanges(heatSource, grid);
             return heatSource;
         }).setHeader("Heat source").setFlexGrow(1);
         grid.addComponentColumn(row -> {
@@ -1067,6 +1071,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             optimize.setEnabled(row.heatSource() == HeatingPlannerHeatSourceType.HEAT_PUMP);
             optimize.setTooltipText("Raise the request in cheap periods and lower it in expensive periods.");
             optimize.addValueChangeListener(event -> row.setHeatPumpPriceOptimizationEnabled(event.getValue()));
+            DesktopFormState.watchChanges(optimize, grid);
             return optimize;
         }).setHeader("Price shift").setWidth("110px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
@@ -1081,6 +1086,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             adjustment.addValueChangeListener(event -> {
                 if (event.getValue() != null) row.setHeatPumpTemperatureAdjustment(BigDecimal.valueOf(event.getValue()));
             });
+            DesktopFormState.watchChanges(adjustment, grid);
             return adjustment;
         }).setHeader("HP adjustment").setFlexGrow(1);
         grid.addComponentColumn(row -> {
@@ -1096,6 +1102,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     row.setTargetRoomTemperature(BigDecimal.valueOf(event.getValue()));
                 }
             });
+            DesktopFormState.watchChanges(target, grid);
             return target;
         }).setHeader("Comfort target").setFlexGrow(1);
         grid.addComponentColumn(row -> {
@@ -1111,12 +1118,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     row.setMinimumRoomTemperature(BigDecimal.valueOf(event.getValue()));
                 }
             });
+            DesktopFormState.watchChanges(minimum, grid);
             return minimum;
         }).setHeader("Comfort minimum").setFlexGrow(1);
         grid.addComponentColumn(row -> {
             NumberField field = roomTemperatureField(row.maximumPreheatFloorTemperature(), 5, 40,
                     row::setMaximumPreheatFloorTemperature);
             field.setEnabled(row.heatSource() == HeatingPlannerHeatSourceType.FLOOR_HEATING);
+            DesktopFormState.watchChanges(field, grid);
             return field;
         }).setHeader("Floor preheat max").setFlexGrow(1);
         grid.addComponentColumn(row -> {
@@ -1132,6 +1141,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             controller.setClearButtonVisible(true);
             controller.setWidthFull();
             controller.addValueChangeListener(event -> row.setController(event.getValue()));
+            DesktopFormState.watchChanges(controller, grid);
             return controller;
         }).setHeader("Controlling device").setFlexGrow(2);
         grid.addComponentColumn(row -> {
@@ -1143,6 +1153,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             sensor.setClearButtonVisible(true);
             sensor.setWidthFull();
             sensor.addValueChangeListener(event -> row.setRoomSensor(event.getValue()));
+            DesktopFormState.watchChanges(sensor, grid);
             return sensor;
         }).setHeader("Room sensor").setFlexGrow(2);
         grid.addComponentColumn(row -> {
@@ -1158,11 +1169,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             sensor.setClearButtonVisible(true);
             sensor.setWidthFull();
             sensor.addValueChangeListener(event -> row.setFloorSensor(event.getValue()));
+            DesktopFormState.watchChanges(sensor, grid);
             return sensor;
         }).setHeader("Floor sensor").setFlexGrow(2);
         grid.addComponentColumn(row -> {
             Button delete = new Button(VaadinIcon.TRASH.create(), event -> {
                 roomRows.remove(row);
+                DesktopFormState.markDirty(grid);
                 grid.getDataProvider().refreshAll();
             });
             delete.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
@@ -2168,6 +2181,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                    List<DeviceEntity> temperatureSensors,
                                    List<DeviceEntity> floorSensors,
                                    List<ElectricityContractEntity> transferContracts) {
+        DesktopFormState.saved(rooms);
         roomRows.clear();
         loadingConfiguration.set(true);
         if (accountId != null && site != null) {

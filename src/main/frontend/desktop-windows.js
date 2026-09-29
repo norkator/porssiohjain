@@ -1,10 +1,27 @@
-// Window positions belong to this page only; no browser or backend persistence.
+// Geometry stays in this browser and is scoped to the effective account and feature.
+window.addEventListener('beforeunload', event => {
+    if (document.querySelector('[data-desktop-dirty="true"]')) {
+        event.preventDefault();
+        event.returnValue = '';
+    }
+});
 window.initDesktopWindow = frame => {
     if (frame.desktopCleanup) return;
     const desktop = frame.closest('.retro-desktop');
     const title = frame.querySelector('.retro-titlebar');
     const handle = frame.querySelector('.retro-resize-handle');
     const mobile = () => matchMedia('(max-width: 620px)').matches;
+    const storageKey = 'porssiohjain:window:v1:' + frame.dataset.windowKey;
+    const saveGeometry = () => {
+        if (mobile()) return;
+        try {
+            localStorage.setItem(storageKey, JSON.stringify({
+                maximized: frame.classList.contains('retro-window-maximized'),
+                left: parseFloat(frame.style.left), top: parseFloat(frame.style.top),
+                width: parseFloat(frame.style.width), height: parseFloat(frame.style.height)
+            }));
+        } catch (_) { /* Private browsing or full storage must not prevent window use. */ }
+    };
     const raise = () => {
         const frames = [...desktop.querySelectorAll('.retro-window')];
         frames.sort((a, b) => (+a.style.zIndex || 0) - (+b.style.zIndex || 0));
@@ -24,7 +41,7 @@ window.initDesktopWindow = frame => {
         frame.style.top = Math.max(0, Math.min(parseFloat(frame.style.top), desktop.clientHeight - 38 - frame.offsetHeight)) + 'px';
     };
     let drag;
-    const end = () => { drag = null; frame.classList.remove('retro-window-dragging'); };
+    const end = () => { if (drag) saveGeometry(); drag = null; frame.classList.remove('retro-window-dragging'); };
     const down = e => {
         if (e.button !== 0 || e.target.closest('vaadin-button') || mobile() || frame.classList.contains('retro-window-maximized')) return;
         const bounds = frame.getBoundingClientRect();
@@ -61,7 +78,7 @@ window.initDesktopWindow = frame => {
         if (resize) setSize(resize.width + e.clientX - resize.x, resize.height + e.clientY - resize.y);
     });
     for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
-        handle.addEventListener(event, () => { resize = null; });
+        handle.addEventListener(event, () => { if (resize) saveGeometry(); resize = null; });
     }
     handle.addEventListener('keydown', e => {
         if (mobile() || frame.classList.contains('retro-window-maximized')) return;
@@ -69,6 +86,7 @@ window.initDesktopWindow = frame => {
         if (!delta) return;
         e.preventDefault();
         setSize(frame.offsetWidth + delta[0], frame.offsetHeight + delta[1]);
+        saveGeometry();
     });
     const maximize = e => {
         if (!e.target.closest('vaadin-button') && !mobile()) frame.dispatchEvent(new CustomEvent('desktop-maximize'));
@@ -80,7 +98,24 @@ window.initDesktopWindow = frame => {
     title.addEventListener('lostpointercapture', end);
     title.addEventListener('dblclick', maximize);
     frame.addEventListener('desktop-raise', raise);
+    frame.addEventListener('desktop-save-geometry', () => { clamp(); saveGeometry(); });
     frame.addEventListener('pointerdown', raise);
+    if (!mobile()) {
+        try {
+            const saved = JSON.parse(localStorage.getItem(storageKey));
+            if (saved && typeof saved.maximized === 'boolean') {
+                for (const property of ['left', 'top', 'width', 'height']) {
+                    if (Number.isFinite(saved[property]) && saved[property] >= 0
+                            && (!['width', 'height'].includes(property) || saved[property] > 0)) {
+                        frame.style[property] = saved[property] + 'px';
+                    }
+                }
+                frame.classList.toggle('retro-window-maximized', saved.maximized);
+                frame.dispatchEvent(new CustomEvent('desktop-restore-geometry', { detail: { maximized: saved.maximized } }));
+                clamp();
+            }
+        } catch (_) { /* Ignore obsolete or malformed saved geometry. */ }
+    }
     const observer = new ResizeObserver(clamp);
     observer.observe(desktop);
     frame.desktopCleanup = () => observer.disconnect();

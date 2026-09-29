@@ -172,6 +172,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         );
 
         VerticalLayout container = new VerticalLayout(form, saveButton, weatherInfoSection);
+        DesktopFormState.watch(form);
         container.getStyle().set("margin-top", "20px");
 
         return container;
@@ -291,6 +292,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         sitesGrid.deselectAll();
         clearWeatherInfo();
         weatherInfoSection.setVisible(false);
+        DesktopFormState.saved(this);
     }
 
     private void loadSites() {

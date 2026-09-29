@@ -241,6 +241,8 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         localeSelect.setValue(accountService.getLocale(accountId));
         marketIndexSelect.setValue(accountService.getMarketIndexName(accountId));
 
+        Component[] draftFields = new Component[]{emailField, notifyPowerLimitExceeded, notifyControlActivated, notifyDeviceOffline, notifyDeviceOnline, emailNotificationsEnabled, pushNotificationsEnabled, localeSelect, marketIndexSelect};
+        java.util.Arrays.stream(draftFields).forEach(DesktopFormState::watch);
         saveButton.addClickListener(e -> {
             accountService.updateAccountSettings(
                     accountId,
@@ -256,6 +258,7 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
                     true
             );
 
+            java.util.Arrays.stream(draftFields).forEach(DesktopFormState::saved);
             Locale newLocale = Locale.forLanguageTag(localeSelect.getValue());
             VaadinSession.getCurrent().setAttribute(Locale.class, newLocale);
             UI.getCurrent().setLocale(newLocale);

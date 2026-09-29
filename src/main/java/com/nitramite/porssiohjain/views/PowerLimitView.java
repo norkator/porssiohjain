@@ -571,6 +571,8 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
         energyContractCombo.setWidthFull();
         transferContractCombo.setWidthFull();
 
+        Component[] draftFields = new Component[]{nameField, limitKwField, limitIntervalField, enabledField, notifyEnabledField, timezoneField, siteBox, energyContractCombo, transferContractCombo};
+        java.util.Arrays.stream(draftFields).forEach(DesktopFormState::watch);
         Button saveButton = new Button(t("powerlimit.button.save"), e -> {
             SiteResponse site = siteBox.getValue();
             Long siteId = site != null ? site.getId() : null;
@@ -593,6 +595,7 @@ public class PowerLimitView extends VerticalLayout implements BeforeEnterObserve
                     transferId
             );
 
+            java.util.Arrays.stream(draftFields).forEach(DesktopFormState::saved);
             Notification notification = Notification.show(t("powerlimit.notification.saved"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
