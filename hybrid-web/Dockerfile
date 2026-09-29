@@ -1,7 +1,8 @@
 ARG NODE_IMAGE=public.ecr.aws/docker/library/node:22-alpine
 ARG NGINX_IMAGE=public.ecr.aws/docker/library/nginx:1.30.2-alpine
 
-FROM ${NODE_IMAGE} AS build
+# Build architecture-independent static assets natively, avoiding QEMU for Node/npm.
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS build
 WORKDIR /app/hybrid-web
 
 ARG VITE_API_BASE_URL
