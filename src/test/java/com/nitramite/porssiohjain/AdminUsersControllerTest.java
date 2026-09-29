@@ -67,11 +67,17 @@ class AdminUsersControllerTest {
 
     @Test
     void listingOrdersAccountsByIdAndIncludesOwnedDeviceCount() throws Exception {
+        String emailDomain = UUID.randomUUID() + ".example.test";
+        admin.setEmail("admin@" + emailDomain);
+        user.setEmail("target@" + emailDomain);
+        accounts.saveAndFlush(admin);
+        accounts.saveAndFlush(user);
         devices.saveAndFlush(DeviceEntity.builder().account(user).deviceName("Owned device")
                 .timezone("Europe/Helsinki").build());
 
-        mvc.perform(get("/api/admin/users").header("Authorization", adminToken))
+        mvc.perform(get("/api/admin/users").header("Authorization", adminToken).param("search", emailDomain))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(jsonPath("$.users[0].id").value(admin.getId()))
                 .andExpect(jsonPath("$.users[0].deviceCount").value(0))
                 .andExpect(jsonPath("$.users[1].id").value(user.getId()))
