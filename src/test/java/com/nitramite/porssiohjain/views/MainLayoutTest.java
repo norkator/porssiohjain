@@ -60,14 +60,15 @@ class MainLayoutTest {
     }
 
     @Test
-    void sameRouteReplacesOldViewAndTask() {
+    void sameRouteReplacesContentAndRetainsFrameAndTask() {
         Div old = new Div();
         navigate("device", old);
         Component oldFrame = windows().getFirst();
         layout.removeRouterLayoutContent(old);
         navigate("device", new Div());
         assertEquals(1, windows().size());
-        assertTrue(oldFrame.getParent().isEmpty());
+        assertSame(oldFrame, windows().getFirst());
+        assertTrue(old.getParent().isEmpty());
         assertEquals(1, tasks().size());
     }
 

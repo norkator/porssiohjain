@@ -16,7 +16,7 @@ import com.nitramite.porssiohjain.services.AdminClientCallLogService;
 import com.nitramite.porssiohjain.services.AdminClientCallLogService.ClientType;
 import com.nitramite.porssiohjain.services.AdminClientCallLogService.DeviceCallLog;
 import com.nitramite.porssiohjain.services.I18nService;
-import com.vaadin.flow.component.DetachEvent;
+import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
@@ -28,7 +28,6 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.shared.Registration;
 import jakarta.annotation.security.PermitAll;
 
 import java.time.Duration;
@@ -41,6 +40,7 @@ import static com.nitramite.porssiohjain.views.components.Divider.createDivider;
 @PageTitle("Pörssiohjain - Client Call Monitor")
 @Route(value = "admin/client-call-monitor", layout = MainLayout.class)
 @PermitAll
+@JsModule("./client-call-monitor.js")
 public class AdminClientCallLogView extends VerticalLayout implements BeforeEnterObserver {
 
     private static final Duration FRESH_LOG_AGE = Duration.ofMinutes(2);
@@ -51,7 +51,7 @@ public class AdminClientCallLogView extends VerticalLayout implements BeforeEnte
     private final Grid<DeviceCallLog> grid = new Grid<>(DeviceCallLog.class, false);
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
             .withZone(ZoneId.of("Europe/Helsinki"));
-    private Registration pollRegistration;
+    private final Span refreshStatus = new Span();
 
     public AdminClientCallLogView(
             AuthService authService,
@@ -85,28 +85,24 @@ public class AdminClientCallLogView extends VerticalLayout implements BeforeEnte
 
         configureGrid();
         refreshGrid();
-        enablePolling();
+        refreshStatus.getElement().addEventListener("client-call-refresh", event -> {
+            var currentAccount = ViewAuthUtils.findAuthenticatedAccount(authService);
+            if (currentAccount != null && currentAccount.isAdmin()) {
+                refreshGrid();
+                refreshStatus.getElement().executeJs("this.clientCallRefreshComplete?.()");
+            }
+        });
+        refreshStatus.addAttachListener(event -> refreshStatus.getElement().executeJs(
+                "window.initClientCallMonitor(this, $0, $1)",
+                t("admin.clientCalls.nextRefresh", "{seconds}"), t("admin.clientCalls.refreshing")));
 
-        card.add(backButton, title, description, createDivider(), grid);
+        card.add(backButton, title, description, refreshStatus, createDivider(), grid);
         add(card);
     }
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
         ViewAuthUtils.rerouteToHomeIfNotAdmin(event, authService);
-    }
-
-    @Override
-    protected void onDetach(DetachEvent detachEvent) {
-        if (pollRegistration != null) {
-            pollRegistration.remove();
-            pollRegistration = null;
-        }
-        UI ui = detachEvent.getUI();
-        if (ui != null) {
-            ui.setPollInterval(-1);
-        }
-        super.onDetach(detachEvent);
     }
 
     private String t(String key, Object... args) {
@@ -141,12 +137,6 @@ public class AdminClientCallLogView extends VerticalLayout implements BeforeEnte
 
     private void refreshGrid() {
         grid.setItems(deviceCallLogService.findLatest());
-    }
-
-    private void enablePolling() {
-        UI ui = UI.getCurrent();
-        ui.setPollInterval(10_000);
-        pollRegistration = ui.addPollListener(event -> refreshGrid());
     }
 
     private boolean isFresh(DeviceCallLog log) {

@@ -25,6 +25,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.router.AfterNavigationEvent;
 import com.vaadin.flow.router.AfterNavigationObserver;
 import com.vaadin.flow.router.RouterLayout;
+import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -42,6 +43,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     private final Div tasks = new Div();
     private final Div routeHost = new Div();
     private final Map<String, DesktopWindow> windows = new LinkedHashMap<>();
+    private final Map<String, VaadinIcon> featureIcons = new LinkedHashMap<>();
     private final Button startButton = new Button();
     private HasElement pendingContent;
     private DesktopWindow activeWindow;
@@ -166,6 +168,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     }
 
     private void feature(String key, VaadinIcon icon, Class<? extends Component> destination) {
+        featureIcons.put(windowKey(destination.getAnnotation(Route.class).value()), icon);
         shortcut(key, icon, () -> open(destination));
         action(key, icon, () -> open(destination));
     }
@@ -211,9 +214,9 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
 
     private void open(Class<? extends Component> destination) {
         setStartOpen(false);
-        windows.values().stream()
-                .filter(w -> destination.isInstance(w.content)).findFirst()
-                .ifPresentOrElse(this::activate, () -> UI.getCurrent().navigate(destination));
+        DesktopWindow existing = windows.get(windowKey(destination.getAnnotation(Route.class).value()));
+        if (existing != null) activate(existing);
+        else UI.getCurrent().navigate(destination);
     }
 
     private Component pixelIcon(VaadinIcon icon) {
@@ -252,10 +255,9 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     private final class DesktopWindow {
         final Div frame = new Div();
         final Button task;
-        final HasElement content;
+        final Div body = new Div();
 
         DesktopWindow(String path, HasElement content) {
-            this.content = content;
             String title = titleFor(path);
             frame.addClassNames("retro-window", "retro-window-maximized");
             frame.getElement().setAttribute("role", "region");
@@ -263,7 +265,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             frame.getStyle().set("--window-offset", (windows.size() % 6 * 22) + "px");
             Div titleBar = new Div();
             titleBar.addClassName("retro-titlebar");
-            titleBar.add(pixelIcon(VaadinIcon.DESKTOP), new Span(title));
+            titleBar.add(pixelIcon(iconFor(path)), new Span(title));
             Div controls = new Div();
             controls.addClassName("retro-window-controls");
             controls.add(chrome("_", "desktop.minimize", this::minimize),
@@ -284,15 +286,14 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
                 dialog.getFooter().add(new Button(t("desktop.close"), click -> dialog.close()));
                 dialog.open();
             });
-            Div body = new Div();
             body.addClassName("retro-window-body");
-            body.getElement().appendChild(content.getElement());
+            setContent(content);
             NativeButton resize = new NativeButton();
             resize.addClassName("retro-resize-handle");
             resize.getElement().setAttribute("aria-label", t("desktop.resize"));
             resize.getElement().setAttribute("title", t("desktop.resize"));
             frame.add(titleBar, menus, body, resize);
-            task = new Button(title, pixelIcon(VaadinIcon.DESKTOP), e -> {
+            task = new Button(title, pixelIcon(iconFor(path)), e -> {
                 if (activeWindow == this && frame.isVisible()) minimize();
                 else activate(this);
             });
@@ -302,6 +303,11 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             });
             frame.getElement().addEventListener("desktop-maximize", e -> maximize());
             frame.addAttachListener(e -> frame.getElement().executeJs("window.initDesktopWindow(this)"));
+        }
+
+        void setContent(HasElement content) {
+            body.getElement().removeAllChildren();
+            body.getElement().appendChild(content.getElement());
         }
 
         void minimize() {
@@ -347,19 +353,34 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         }
         String path = event.getLocation().getPath();
         if (!path.equals("desktop") && pendingContent != null) {
-            DesktopWindow previous = windows.remove(path);
-            if (previous != null) {
-                remove(previous.frame);
-                tasks.remove(previous.task);
+            String key = windowKey(path);
+            DesktopWindow next = windows.get(key);
+            if (next == null) {
+                next = new DesktopWindow(path, pendingContent);
+                windows.put(key, next);
+                add(next.frame);
+                tasks.add(next.task);
+            } else {
+                next.setContent(pendingContent);
             }
-            DesktopWindow next = new DesktopWindow(path, pendingContent);
-            windows.put(path, next);
-            add(next.frame);
-            tasks.add(next.task);
             activate(next);
         }
         pendingContent = null;
         setStartOpen(false);
+    }
+
+    // List and detail routes share a feature window, including direct links and browser Back.
+    static String windowKey(String path) {
+        String root = path.split("/", 2)[0];
+        return switch (root) {
+            case "production-source" -> "production-sources";
+            case "power-limit" -> "power-limits";
+            default -> root;
+        };
+    }
+
+    private VaadinIcon iconFor(String path) {
+        return featureIcons.getOrDefault(windowKey(path), VaadinIcon.FOLDER);
     }
 
     private String titleFor(String path) {
