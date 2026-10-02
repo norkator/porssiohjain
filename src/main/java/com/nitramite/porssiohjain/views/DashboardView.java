@@ -18,8 +18,6 @@ import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.views.components.EnergyUsagePriceChart;
 import com.nitramite.porssiohjain.views.components.PriceChart;
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dependency.JavaScript;
@@ -115,8 +113,6 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
             deviceLayout.add(createDeviceCard(device));
         }
 
-        Button backButton = new Button("← " + t("dashboard.back"), e -> UI.getCurrent().navigate(HomeView.class));
-
         PriceChart energyForecastChart = new PriceChart();
         String chartTitle = t("dashboard.energyForecast");
         String nowLabel = t("controlTable.chart.now");
@@ -207,7 +203,7 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         }
 
         card.add(
-                backButton, title, createDivider(), deviceTitle, deviceLayout, createDivider(),
+                title, createDivider(), deviceTitle, deviceLayout, createDivider(),
                 energyForecastChart, createDivider(),
                 createControlSavingsSection(accountId), createDivider(),
                 sitePowerUsage, siteBox, siteContentContainer

@@ -10,7 +10,6 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.ServiceNoticeService;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -61,8 +60,6 @@ public class AdminServiceNoticeView extends VerticalLayout implements BeforeEnte
         card.addClassName("responsive-card");
 
         ServiceNoticeService.Configuration configuration = serviceNoticeService.getConfiguration();
-        Button backButton = new Button("← " + t("admin.back"),
-                event -> UI.getCurrent().navigate(AdminView.class));
         H1 title = new H1(t("admin.serviceNotice.title"));
         Span description = new Span(t("admin.serviceNotice.description"));
         description.getStyle().set("color", "var(--lumo-secondary-text-color)");
@@ -84,7 +81,7 @@ public class AdminServiceNoticeView extends VerticalLayout implements BeforeEnte
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         save.addClickListener(event -> saveNotice(active, finnishText, englishText));
 
-        card.add(backButton, title, description, active, fields, save);
+        card.add(title, description, active, fields, save);
         add(card);
         DesktopFormState.watch(card);
     }

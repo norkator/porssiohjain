@@ -1321,5 +1321,28 @@
     "viewing": "Katselet käyttäjänä {user}",
     "readOnly": "Esikatselu: muutokset ja laitekomennot on estetty.",
     "returnToAdmin": "Palaa ylläpitäjäksi"
+  },
+  "featureRequest": {
+    "title": "Ideat ja toiveet",
+    "description": "Kerro, miten käytät Pörssiohjainta ja miten palvelu voisi auttaa sinua paremmin. Kyselyvastaukset ja ominaisuustoiveet lähetetään samalla lomakkeella.",
+    "useCase": "Tilanteesi ja tarpeesi",
+    "useCaseHelp": "Mihin käytät palvelua? Kerro laitteistasi, arjestasi tai ongelmasta, jonka haluat ratkaista.",
+    "changes": "Toivomasi ominaisuudet tai muutokset",
+    "changesHelp": "Mitä palvelun pitäisi tehdä? Kuvaile sinua auttavat ominaisuudet, parannukset tai muutokset.",
+    "email": "Sähköposti (vapaaehtoinen)",
+    "emailHelp": "Esitäytetään tililtäsi, jos saatavilla. Voit muuttaa tai tyhjentää osoitteen. Sitä käytetään vain tähän vastaukseen liittyvään yhteydenottoon.",
+    "review": "Tarkista vastauksesi ennen lähettämistä.",
+    "back": "Takaisin",
+    "next": "Seuraava",
+    "send": "Lähetä toive",
+    "sending": "Lähetetään...",
+    "close": "Sulje",
+    "sent": "Kiitos! Vastauksesi on tallennettu ylläpitäjälle.",
+    "invalid": "Täytä molemmat vastaukset (enintään 5000 merkkiä kumpikin) ja tarkista vapaaehtoinen sähköpostiosoite.",
+    "required": "Kirjoita vastaus ennen jatkamista.",
+    "failed": "Vastausten tallennus epäonnistui. Yritä uudelleen. Luonnoksesi on tallessa.",
+    "menuDescription": "Kerro käyttötarpeistasi ja kehitysideoistasi",
+    "step": "Vaihe {step}/3",
+    "readOnly": "Demotili ja käyttäjän esikatselu ovat vain lukua varten."
   }
 }

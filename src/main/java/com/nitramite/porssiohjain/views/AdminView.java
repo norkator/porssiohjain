@@ -75,7 +75,6 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         card.setSpacing(true);
         card.addClassName("responsive-card");
 
-        Button backButton = new Button("← " + t("admin.back"), e -> UI.getCurrent().navigate(HomeView.class));
         Button provisioningButton = new Button(t("admin.provisioning.button"),
                 e -> UI.getCurrent().navigate(AdminProvisioningView.class));
         provisioningButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -91,6 +90,9 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         Button serviceNoticeButton = new Button(t("admin.serviceNotice.button"),
                 e -> UI.getCurrent().navigate(AdminServiceNoticeView.class));
         serviceNoticeButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button featureRequestsButton = new Button(t("admin.featureRequests.title"),
+                e -> UI.getCurrent().navigate(AdminFeatureRequestsView.class));
+        featureRequestsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button refreshLogsButton = new Button("Refresh logs", e -> refreshLogs());
         FlexLayout actions = new FlexLayout(
                 provisioningButton,
@@ -98,6 +100,7 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
                 usersButton,
                 controlDeviceCallsButton,
                 serviceNoticeButton,
+                featureRequestsButton,
                 refreshLogsButton
         );
         actions.setWidthFull();
@@ -116,7 +119,6 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         refreshLogs();
 
         card.add(
-                backButton,
                 title,
                 actions,
                 createDivider(),

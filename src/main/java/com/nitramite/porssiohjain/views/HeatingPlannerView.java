@@ -148,8 +148,6 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         card.setMaxWidth("none");
         card.setAlignItems(Alignment.STRETCH);
 
-        Button back = new Button("Back", VaadinIcon.ARROW_LEFT.create(), e -> getUI()
-                .ifPresent(ui -> ui.navigate(HomeView.class)));
         H1 title = new H1("Heating Planner");
         title.getStyle().set("margin", "0");
         Checkbox plannerEnabled = new Checkbox("Enabled", false);
@@ -804,7 +802,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 siteSelect.getValue(), loadingConfiguration, notifyThermostatChanges, notifyHeatPumpChanges);
         calculate.run();
 
-        card.add(back, heading, summary, siteOperationStatePanel, plannerWeatherGatePanel, activeControlPanel, siteConfiguration, notifications, roomConfiguration, recentMeasurements, stoveConfiguration,
+        card.add(heading, summary, siteOperationStatePanel, plannerWeatherGatePanel, activeControlPanel, siteConfiguration, notifications, roomConfiguration, recentMeasurements, stoveConfiguration,
                 stoveHeatProfileConfiguration, recalculate, planHost);
         add(card);
     }

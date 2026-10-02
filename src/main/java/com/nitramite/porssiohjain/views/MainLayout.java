@@ -6,6 +6,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.services.AuthService;
+import com.nitramite.porssiohjain.services.FeatureRequestService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.ServiceNoticeService;
@@ -49,8 +50,9 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     private final Button startButton = new Button();
     private HasElement pendingContent;
     private DesktopWindow activeWindow;
+    private FeatureRequestDialog featureRequestDialog;
 
-    public MainLayout(AuthService authService, I18nService i18n, ServiceNoticeService serviceNoticeService, DeviceService deviceService) {
+    public MainLayout(AuthService authService, I18nService i18n, ServiceNoticeService serviceNoticeService, DeviceService deviceService, FeatureRequestService featureRequestService) {
         this.authService = authService;
         this.i18n = i18n;
         addClassName("retro-desktop");
@@ -100,6 +102,17 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         feature("home.powerLimits", VaadinIcon.FLASH, PowerLimitsView.class);
         feature("home.dashboard", VaadinIcon.CHART, DashboardView.class);
         feature("home.settings", VaadinIcon.COG, SettingsView.class);
+        Runnable feedback = () -> {
+            setStartOpen(false);
+            if (ViewAuthUtils.findAuthenticatedAccount(authService) == null) return;
+            if (featureRequestDialog == null) {
+                featureRequestDialog = new FeatureRequestDialog(authService, featureRequestService, i18n);
+                add(featureRequestDialog);
+            }
+            featureRequestDialog.open();
+        };
+        shortcut("featureRequest.title", VaadinIcon.COMMENT, feedback);
+        action("featureRequest.title", VaadinIcon.COMMENT, feedback);
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account != null && account.isAdmin()) {
             feature("home.admin", VaadinIcon.SHIELD, AdminView.class);
@@ -108,6 +121,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             action("home.stopImpersonating", VaadinIcon.CLOSE_CIRCLE, () ->
                     confirmDiscard(hasUnsavedChanges(), () -> {
                         windows.values().forEach(w -> DesktopFormState.saved(w.body));
+                        if (featureRequestDialog != null) DesktopFormState.saved(featureRequestDialog);
                         ViewAuthUtils.stopImpersonating();
                         UI.getCurrent().navigate(DesktopView.class);
                         UI.getCurrent().getPage().reload();
@@ -199,6 +213,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
 
     private void performLogout() {
         windows.values().forEach(w -> DesktopFormState.saved(w.body));
+        if (featureRequestDialog != null) DesktopFormState.saved(featureRequestDialog);
         ViewAuthUtils.stopImpersonating();
         VaadinSession.getCurrent().setAttribute("token", null);
         VaadinSession.getCurrent().setAttribute("expiresAt", null);
@@ -211,6 +226,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
 
     private void performLocaleChange(String language) {
         windows.values().forEach(w -> DesktopFormState.saved(w.body));
+        if (featureRequestDialog != null) DesktopFormState.saved(featureRequestDialog);
         Locale locale = Locale.of(language, language.equals("fi") ? "FI" : "US");
         VaadinSession.getCurrent().setAttribute(Locale.class, locale);
         UI.getCurrent().setLocale(locale);
@@ -239,6 +255,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             case SLIDERS, COG -> "settings";
             case CLOUD -> "weather";
             case FIRE, FLASH, SUN_O, LIGHTBULB -> "energy";
+            case COMMENT -> "feedback";
             case MENU -> "start";
             case SIGN_OUT -> "logout";
             default -> "folder";
@@ -421,7 +438,8 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     }
 
     private boolean hasUnsavedChanges() {
-        return windows.values().stream().anyMatch(w -> DesktopFormState.isDirty(w.body));
+        return (featureRequestDialog != null && DesktopFormState.isDirty(featureRequestDialog))
+                || windows.values().stream().anyMatch(w -> DesktopFormState.isDirty(w.body));
     }
 
     private void confirmDiscard(boolean dirty, Runnable proceed) {
@@ -461,8 +479,10 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         if (dirty) {
             var continuation = event.postpone();
             confirmDiscard(true, () -> {
-                if (leavingDesktop) windows.values().forEach(w -> DesktopFormState.saved(w.body));
-                else DesktopFormState.saved(replaced.body);
+                if (leavingDesktop) {
+                    windows.values().forEach(w -> DesktopFormState.saved(w.body));
+                    if (featureRequestDialog != null) DesktopFormState.saved(featureRequestDialog);
+                } else DesktopFormState.saved(replaced.body);
                 continuation.proceed();
             }, () -> {
                 continuation.cancel();

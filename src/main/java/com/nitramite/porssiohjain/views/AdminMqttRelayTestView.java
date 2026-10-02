@@ -18,7 +18,6 @@ import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.MqttRelayTestService;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -84,7 +83,6 @@ public class AdminMqttRelayTestView extends VerticalLayout implements BeforeEnte
         card.setSpacing(true);
         card.addClassName("responsive-card");
 
-        Button backButton = new Button("← " + t("admin.back"), e -> UI.getCurrent().navigate(AdminView.class));
         H1 title = new H1(t("admin.mqttRelayTest.title"));
         Span description = new Span(t("admin.mqttRelayTest.description"));
         description.getStyle().set("color", "var(--lumo-secondary-text-color)");
@@ -92,7 +90,7 @@ public class AdminMqttRelayTestView extends VerticalLayout implements BeforeEnte
         configureGrid();
         refreshGrid();
 
-        card.add(backButton, title, description, createDivider(), grid);
+        card.add(title, description, createDivider(), grid);
         add(card);
     }
 

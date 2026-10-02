@@ -13,6 +13,7 @@ import ModalScrollLock from "@/components/ModalScrollLock";
 import PageHeader from "@/components/PageHeader";
 import NordpoolTodayChartCard from "@/components/NordpoolTodayChartCard";
 import WindForecastCard from "@/components/WindForecastCard";
+import FeatureRequestDialog from "@/components/FeatureRequestDialog";
 import AppDialog from "@/components/AppDialog";
 import { fetchSites } from "@/lib/automation-resources";
 import { fetchMe } from "@/lib/account";
@@ -125,6 +126,8 @@ export default function MainMenuView() {
   const [accountEmail, setAccountEmail] = useState("");
   const [isAdminAccount, setIsAdminAccount] = useState(false);
   const [accountMarketIndexName, setAccountMarketIndexName] = useState<string | null>(null);
+  const featureRequest = useI18n("featureRequest").t;
+  const [isFeatureRequestOpen, setIsFeatureRequestOpen] = useState(false);
   const [isFeedbackDialogOpen, setIsFeedbackDialogOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackContactEmail, setFeedbackContactEmail] = useState("");
@@ -352,6 +355,14 @@ export default function MainMenuView() {
     savingsChartMaxValue - (savingsChartMaxValue * index) / SAVINGS_CHART_Y_AXIS_STEPS
   );
   const siteOwnTiles: SiteOwnTile[] = [
+    {
+      key: "featureRequests",
+      title: featureRequest("title"),
+      detail: featureRequest("menuDescription"),
+      onClick: () => setIsFeatureRequestOpen(true),
+      icon: "?",
+      hasError: false
+    },
     {
       key: "accountSettings",
       title: t("accountSettingsTitle"),
@@ -1112,6 +1123,8 @@ export default function MainMenuView() {
           )}
         </div>
       </AppDialog>
+
+      <FeatureRequestDialog isOpen={isFeatureRequestOpen} onClose={() => setIsFeatureRequestOpen(false)} />
 
       <AppDialog
         description={t("feedbackDescription")}

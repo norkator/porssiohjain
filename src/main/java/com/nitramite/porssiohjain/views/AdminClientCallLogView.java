@@ -17,8 +17,6 @@ import com.nitramite.porssiohjain.services.AdminClientCallLogService.ClientType;
 import com.nitramite.porssiohjain.services.AdminClientCallLogService.DeviceCallLog;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.vaadin.flow.component.dependency.JsModule;
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
@@ -78,7 +76,6 @@ public class AdminClientCallLogView extends VerticalLayout implements BeforeEnte
         card.setSpacing(true);
         card.addClassName("responsive-card");
 
-        Button backButton = new Button("← " + t("admin.back"), e -> UI.getCurrent().navigate(AdminView.class));
         H1 title = new H1("Device and gateway calls");
         Span description = new Span("Latest in-memory control-device and Zigbee gateway calls. The list keeps up to 30 rows and refreshes every 10 seconds.");
         description.getStyle().set("color", "var(--lumo-secondary-text-color)");
@@ -96,7 +93,7 @@ public class AdminClientCallLogView extends VerticalLayout implements BeforeEnte
                 "window.initClientCallMonitor(this, $0, $1)",
                 t("admin.clientCalls.nextRefresh", "{seconds}"), t("admin.clientCalls.refreshing")));
 
-        card.add(backButton, title, description, refreshStatus, createDivider(), grid);
+        card.add(title, description, refreshStatus, createDivider(), grid);
         add(card);
     }
 
