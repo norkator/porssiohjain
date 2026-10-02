@@ -31,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Locale;
@@ -38,6 +39,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -156,6 +158,45 @@ class PushNotificationServiceTest {
         assertEquals("SYSTEM_ERROR", dataCaptor.getValue().get("type"));
         assertEquals("Error fetching Nordpool data", dataCaptor.getValue().get("context"));
         assertEquals("java.lang.RuntimeException: Nordpool returned 520", dataCaptor.getValue().get("error"));
+    }
+
+    @Test
+    void errorLogAdminPushUsesExistingSystemErrorPayloadAndOriginalEventTime() {
+        PushNotificationService service = spy(new PushNotificationService(messageSource, pushNotificationTokenRepository));
+        doReturn(true).when(service).sendToAdminAccounts(any(), any(), any());
+        Instant detectedAt = Instant.parse("2026-10-02T10:00:00Z");
+
+        service.sendSystemErrorLogAdminNotification("test.service", "Job failed", "java.lang.IllegalStateException: offline", detectedAt);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+        verify(service).sendToAdminAccounts(eq("System error"),
+                eq("test.service: Job failed — java.lang.IllegalStateException: offline"), data.capture());
+        assertEquals("SYSTEM_ERROR", data.getValue().get("type"));
+        assertEquals("test.service", data.getValue().get("loggerName"));
+        assertEquals("Job failed", data.getValue().get("context"));
+        assertEquals(detectedAt.toString(), data.getValue().get("detectedAt"));
+    }
+
+    @Test
+    void errorLogPayloadBoundsUnicodeAndEscapedTextAndHandlesMissingException() {
+        PushNotificationService service = spy(new PushNotificationService(messageSource, pushNotificationTokenRepository));
+        doReturn(true).when(service).sendToAdminAccounts(any(), any(), any());
+        String hugeText = "🔥\n\u0000\"\\".repeat(1000);
+
+        service.sendSystemErrorLogAdminNotification(hugeText, hugeText, hugeText, Instant.EPOCH);
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+        verify(service).sendToAdminAccounts(eq("System error"), body.capture(), data.capture());
+        assertTrue(body.getValue().getBytes(StandardCharsets.UTF_8).length <= 640);
+        assertTrue(data.getValue().get("loggerName").getBytes(StandardCharsets.UTF_8).length <= 160);
+        assertTrue(data.getValue().get("context").getBytes(StandardCharsets.UTF_8).length <= 400);
+        assertTrue(data.getValue().get("error").getBytes(StandardCharsets.UTF_8).length <= 400);
+        assertTrue(body.getValue().codePoints().noneMatch(Character::isISOControl));
+        assertEquals("🔥", PushNotificationService.limitErrorNotificationText("🔥🔥", 5));
+        assertEquals("", PushNotificationService.limitErrorNotificationText(null, 400));
     }
 
     @Test

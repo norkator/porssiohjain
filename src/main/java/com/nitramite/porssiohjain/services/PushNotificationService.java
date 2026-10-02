@@ -388,6 +388,45 @@ public class PushNotificationService {
         return sendToAdminAccounts(title, body, data);
     }
 
+    public boolean sendSystemErrorLogAdminNotification(String loggerName, String message, String error, Instant detectedAt) {
+        String source = limitErrorNotificationText(loggerName, 160);
+        String context = limitErrorNotificationText(message, 400);
+        String errorSummary = limitErrorNotificationText(error, 400);
+        String body = source + ": " + context + (errorSummary.isEmpty() ? "" : " — " + errorSummary);
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "SYSTEM_ERROR");
+        data.put("loggerName", source);
+        data.put("context", context);
+        data.put("error", errorSummary);
+        data.put("detectedAt", detectedAt.toString());
+        return sendToAdminAccounts("System error", limitErrorNotificationText(body, 640), data);
+    }
+
+    // FCM limits the whole payload to 4096 bytes. Bound text by UTF-8 bytes, including emoji.
+    static String limitErrorNotificationText(String value, int maxBytes) {
+        if (value == null) {
+            return "";
+        }
+        int bytes = 0;
+        int end = 0;
+        StringBuilder result = new StringBuilder();
+        while (end < value.length()) {
+            int codePoint = value.codePointAt(end);
+            end += Character.charCount(codePoint);
+            // Control characters otherwise consume up to six bytes each when JSON escaped.
+            if (Character.isISOControl(codePoint)) {
+                codePoint = ' ';
+            }
+            int size = codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
+            if (bytes + size > maxBytes) {
+                break;
+            }
+            bytes += size;
+            result.appendCodePoint(codePoint);
+        }
+        return result.toString();
+    }
+
     @Transactional
     public boolean sendToAdminAccounts(String title, String body, Map<String, String> data) {
         List<PushNotificationTokenEntity> tokens = pushNotificationTokenRepository

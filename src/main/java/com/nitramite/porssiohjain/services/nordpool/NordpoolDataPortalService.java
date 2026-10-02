@@ -102,7 +102,6 @@ public class NordpoolDataPortalService {
                     successfulResponses.add(response);
                 } catch (RestClientException marketError) {
                     log.error("Nordpool fetch failed for market {}", market, marketError);
-                    sendAdminErrorPush("Nordpool market fetch failed for " + market, marketError);
                 }
             }
             if (successfulResponses.isEmpty()) {
