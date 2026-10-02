@@ -35,7 +35,7 @@ class DesktopWindowNavigationTest {
         when(devices.getAllDevices(any())).thenReturn(List.of());
         try (var accounts = mockStatic(ViewAuthUtils.class)) {
             accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth)).thenReturn(account);
-            var layout = new MainLayout(auth, i18n, notices, devices);
+            var layout = new MainLayout(auth, i18n, notices, devices, mock(com.nitramite.porssiohjain.services.FeatureRequestService.class));
             Div list = navigate(layout, "controls");
             Component frame = frames(layout).getFirst();
             frame.getElement().getClassList().remove("retro-window-maximized");

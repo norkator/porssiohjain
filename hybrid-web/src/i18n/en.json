@@ -1321,5 +1321,28 @@
     "viewing": "Viewing as {user}",
     "readOnly": "Read-only preview. Changes and device commands are disabled.",
     "returnToAdmin": "Return to admin"
+  },
+  "featureRequest": {
+    "title": "Ideas & feature requests",
+    "description": "Tell us how you use Pörssiohjain and what would make it more useful. Survey answers and feature requests use the same form.",
+    "useCase": "Your situation and needs",
+    "useCaseHelp": "What do you use the service for? Describe your devices, everyday situation, or the problem you want to solve.",
+    "changes": "Features or changes you would like",
+    "changesHelp": "What should the service do? Describe the features, improvements, or changes that would help you.",
+    "email": "Contact email (optional)",
+    "emailHelp": "Prefilled from your account when available. You can edit or clear it. Only used to contact you about this submission.",
+    "review": "Review your answers before sending.",
+    "back": "Back",
+    "next": "Next",
+    "send": "Send request",
+    "sending": "Sending...",
+    "close": "Close",
+    "sent": "Thank you! Your answers have been saved for the administrator.",
+    "invalid": "Please fill in both answers (up to 5000 characters each) and check your optional email.",
+    "required": "Please write an answer before continuing.",
+    "failed": "Could not save your answers. Please try again. Your draft is still here.",
+    "menuDescription": "Share your use case, needs, and ideas for improvements",
+    "step": "Step {step} of 3",
+    "readOnly": "Demo accounts and user preview are read-only."
   }
 }
