@@ -48,6 +48,17 @@ public class FeatureRequestService {
                 Sort.by(Sort.Direction.DESC, "createdAt", "id")));
     }
 
+    @Transactional
+    public void deleteForAdmin(Long accountId, Long requestId) {
+        AccountEntity admin = account(accountId);
+        if (!admin.isAdmin()) throw new IllegalArgumentException("Admin access required");
+        if (admin.isDemo()) throw new IllegalArgumentException("Demo account is read-only");
+        if (requestId == null) throw new IllegalArgumentException("Request is required");
+        FeatureRequestEntity request = repository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Request not found"));
+        repository.delete(request);
+    }
+
     private AccountEntity account(Long id) {
         if (id == null) throw new IllegalArgumentException("Authentication required");
         return accounts.findById(id).orElseThrow(() -> new IllegalArgumentException("Account not found"));

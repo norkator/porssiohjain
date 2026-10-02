@@ -24,7 +24,6 @@ import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.CreateFactoryDeviceRequest;
 import com.nitramite.porssiohjain.services.models.FactoryDeviceResponse;
 import com.nitramite.porssiohjain.services.models.FactoryTestRunResponse;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -91,7 +90,6 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         card.setWidthFull();
         card.addClassName("responsive-card");
 
-        Button backButton = new Button("← " + t("admin.back"), e -> UI.getCurrent().navigate(AdminView.class));
         H1 title = new H1(t("admin.provisioning.title"));
         H2 createTitle = new H2(t("admin.provisioning.createTitle"));
         H2 listTitle = new H2(t("admin.provisioning.listTitle"));
@@ -100,7 +98,7 @@ public class AdminProvisioningView extends VerticalLayout implements BeforeEnter
         configureGrid();
         refreshGrid();
 
-        card.add(backButton, title, createDivider(), createTitle, createFormLayout(), createDivider(), listTitle, grid);
+        card.add(title, createDivider(), createTitle, createFormLayout(), createDivider(), listTitle, grid);
         add(card);
     }
 

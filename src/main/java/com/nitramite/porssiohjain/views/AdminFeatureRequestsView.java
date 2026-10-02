@@ -9,12 +9,14 @@ import com.nitramite.porssiohjain.entity.FeatureRequestEntity;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.FeatureRequestService;
 import com.nitramite.porssiohjain.services.I18nService;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.*;
@@ -51,14 +53,14 @@ public class AdminFeatureRequestsView extends VerticalLayout implements BeforeEn
         grid.addColumn(row -> row.getContactEmail() == null ? "—" : row.getContactEmail()).setHeader(i18n.t("featureRequest.email"));
         grid.addColumn(row -> row.getRequestedChanges().substring(0, Math.min(120, row.getRequestedChanges().length())))
                 .setHeader(i18n.t("featureRequest.changes"));
-        grid.addComponentColumn(row -> new Button(t("open"), event -> open(row))).setAutoWidth(true);
+        grid.addComponentColumn(row -> new HorizontalLayout(
+                new Button(t("open"), event -> open(row)), deleteButton(row, () -> {}))).setAutoWidth(true);
         previous.setText(i18n.t("featureRequest.back"));
         previous.addClickListener(event -> { page--; refresh(); });
         next.setText(i18n.t("featureRequest.next"));
         next.addClickListener(event -> { page++; refresh(); });
         empty.setText(t("empty"));
-        add(new Button("← " + i18n.t("admin.back"), event -> UI.getCurrent().navigate(AdminView.class)),
-                new H1(t("title")), new Button(t("refresh"), event -> refresh()),
+        add(new H1(t("title")), new Button(t("refresh"), event -> refresh()),
                 empty, grid, new HorizontalLayout(previous, count, next));
         refresh();
     }
@@ -90,7 +92,41 @@ public class AdminFeatureRequestsView extends VerticalLayout implements BeforeEn
                 new Span(i18n.t("featureRequest.useCase")), text(row.getUseCase()),
                 new Span(i18n.t("featureRequest.changes")), text(row.getRequestedChanges()));
         dialog.add(body);
-        dialog.getFooter().add(new Button(i18n.t("featureRequest.close"), event -> dialog.close()));
+        dialog.getFooter().add(deleteButton(row, dialog::close),
+                new Button(i18n.t("featureRequest.close"), event -> dialog.close()));
+        dialog.open();
+    }
+
+    private Button deleteButton(FeatureRequestEntity row, Runnable afterDelete) {
+        Button button = new Button(t("delete"), event -> confirmDelete(row, afterDelete));
+        button.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        return button;
+    }
+
+    private void confirmDelete(FeatureRequestEntity row, Runnable afterDelete) {
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        if (account == null || !account.isAdmin()) return;
+        Dialog dialog = new Dialog();
+        add(dialog);
+        dialog.addOpenedChangeListener(event -> {
+            if (!event.isOpened()) remove(dialog);
+        });
+        dialog.setHeaderTitle(t("deleteConfirmTitle"));
+        dialog.add(new Span(i18n.t("admin.featureRequests.deleteConfirmDescription", row.getId())));
+        Button delete = new Button(t("delete"), event -> {
+            try {
+                var currentAccount = ViewAuthUtils.findAuthenticatedAccount(authService);
+                service.deleteForAdmin(currentAccount == null ? null : currentAccount.getId(), row.getId());
+                dialog.close();
+                afterDelete.run();
+                refresh();
+                Notification.show(t("deleted")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            } catch (IllegalArgumentException exception) {
+                Notification.show(t("deleteFailed")).addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        delete.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+        dialog.getFooter().add(new Button(i18n.t("common.cancel"), event -> dialog.close()), delete);
         dialog.open();
     }
 

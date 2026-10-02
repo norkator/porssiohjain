@@ -100,4 +100,33 @@ class FeatureRequestServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.listForAdmin(99L, 0));
         verifyNoInteractions(repository);
     }
+
+    @Test
+    void adminCanDeleteAnotherAccountsSubmission() {
+        when(accounts.findById(7L)).thenReturn(Optional.of(AccountEntity.builder().id(7L).admin(true).build()));
+        var request = FeatureRequestEntity.builder().id(42L).accountId(9L).build();
+        when(repository.findById(42L)).thenReturn(Optional.of(request));
+
+        service.deleteForAdmin(7L, 42L);
+
+        verify(repository).delete(request);
+    }
+
+    @Test
+    void deletionRequiresAuthenticatedCurrentNonDemoAdmin() {
+        assertThrows(IllegalArgumentException.class, () -> service.deleteForAdmin(null, 42L));
+        assertThrows(IllegalArgumentException.class, () -> service.deleteForAdmin(99L, 42L));
+        assertThrows(IllegalArgumentException.class, () -> service.deleteForAdmin(7L, 42L));
+        when(accounts.findById(7L)).thenReturn(Optional.of(AccountEntity.builder().id(7L).admin(true).demo(true).build()));
+        assertThrows(IllegalArgumentException.class, () -> service.deleteForAdmin(7L, 42L));
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void deletionRejectsMissingSubmissionWithoutDeleting() {
+        when(accounts.findById(7L)).thenReturn(Optional.of(AccountEntity.builder().id(7L).admin(true).build()));
+        assertThrows(IllegalArgumentException.class, () -> service.deleteForAdmin(7L, null));
+        assertThrows(IllegalArgumentException.class, () -> service.deleteForAdmin(7L, 42L));
+        verify(repository, never()).delete(any());
+    }
 }

@@ -140,9 +140,7 @@ public class SolarAnglePlannerView extends VerticalLayout implements BeforeEnter
         calculateButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button apiJsonButton = new Button(t("solarAngle.button.showApiJson"), event -> showApiResponseJson());
         apiJsonButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        Button backButton = new Button(t("solarAngle.button.back"), event -> UI.getCurrent().navigate(HomeView.class));
-        backButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        HorizontalLayout actions = new HorizontalLayout(calculateButton, apiJsonButton, backButton);
+        HorizontalLayout actions = new HorizontalLayout(calculateButton, apiJsonButton);
         actions.setPadding(false);
         actions.setSpacing(true);
 

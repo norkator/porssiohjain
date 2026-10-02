@@ -96,13 +96,12 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         card.setWidthFull();
         card.addClassName("responsive-card");
 
-        Button backButton = new Button("← " + t("admin.back"), e -> UI.getCurrent().navigate(AdminView.class));
         H1 title = new H1(t("admin.users.title"));
 
         configureGrid();
         refreshGrid();
 
-        card.add(backButton, title, createDivider(), grid);
+        card.add(title, createDivider(), grid);
         add(card);
     }
 

@@ -75,7 +75,6 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         card.setSpacing(true);
         card.addClassName("responsive-card");
 
-        Button backButton = new Button("← " + t("admin.back"), e -> UI.getCurrent().navigate(HomeView.class));
         Button provisioningButton = new Button(t("admin.provisioning.button"),
                 e -> UI.getCurrent().navigate(AdminProvisioningView.class));
         provisioningButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -120,7 +119,6 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         refreshLogs();
 
         card.add(
-                backButton,
                 title,
                 actions,
                 createDivider(),
