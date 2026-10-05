@@ -445,11 +445,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     boolean persisted = planService.persistSimulatedPlan(
                             account.getId(), selectedSite.getId(), resultsByRoom);
                     if (persisted) {
-                        try {
-                            activeControlService.activateLatestRecalculatedPlanIfOptedIn(
-                                    account.getId(), selectedSite.getId(), calculationTime);
-                        } catch (IllegalStateException ex) {
-                            Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_WARNING);
+                        var activation = activeControlService.activateLatestRecalculatedPlanIfOptedIn(
+                                account.getId(), selectedSite.getId(), calculationTime);
+                        if (activation.statusMessage() != null) {
+                            Notification.show(activation.statusMessage());
                         }
                     }
                 }
@@ -989,7 +988,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         if (readiness.active() && plannerInactive) {
             status.setText("Opted in, currently inactive — the latest plan is weather-gated off, so existing heating controls keep priority. "
                     + String.join("; ", readiness.issues()));
-            status.getElement().getThemeList().add("badge contrast");
+            status.getElement().getThemeList().addAll(List.of("badge", "contrast"));
         } else if (readiness.active()) {
             String excludedRooms = readiness.issues().stream()
                     .filter(issue -> issue.contains(":"))
@@ -998,18 +997,18 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     + (readiness.lastAutomaticActivationAt() == null ? ""
                     : "; last automatic activation " + formatInstant(readiness.lastAutomaticActivationAt()))
                     + (readiness.lastAutomationError() == null ? ""
-                    : "; latest automation warning: " + readiness.lastAutomationError())
+                    : "; latest automation status: " + readiness.lastAutomationError())
                     + (excludedRooms.isEmpty() ? "" : "; excluded rooms remain on fallback: " + excludedRooms));
-            status.getElement().getThemeList().add("badge success");
+            status.getElement().getThemeList().addAll(List.of("badge", "success"));
         } else if (readiness.ready()) {
             status.setText(readiness.issues().isEmpty()
                     ? "Ready — all activation checks pass. Review and explicitly enable control when desired."
                     : "Partially ready — ready rooms can use active control; excluded rooms remain on fallback. "
                     + String.join("; ", readiness.issues()));
-            status.getElement().getThemeList().add("badge contrast");
+            status.getElement().getThemeList().addAll(List.of("badge", "contrast"));
         } else {
             status.setText("Not ready — " + String.join("; ", readiness.issues()));
-            status.getElement().getThemeList().add("badge warning");
+            status.getElement().getThemeList().addAll(List.of("badge", "warning"));
         }
         enable.setText(readiness.active() ? "Activate latest recalculated plan" : "Enable active thermostat control");
         enable.setEnabled(readiness.ready());
@@ -1286,7 +1285,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         grid.setItems(previews);
         grid.setAllRowsVisible(true);
         Span warning = new Span("Floor commands require Active thermostat control. Heat-pump commands require the site's Control heat pumps switch. Expired or disabled planner control leaves existing controls as fallback.");
-        warning.getElement().getThemeList().add("badge warning");
+        warning.getElement().getThemeList().addAll(List.of("badge", "warning"));
         section.add(new H3("Current planned heating setpoints"), warning, grid);
         return section;
     }
@@ -1708,7 +1707,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .set("overflow-wrap", "anywhere");
         if (market == null || market.isEmpty()) {
             status.setText("WEATHER GATE OFF — no today-and-tomorrow forecast points are available.");
-            status.getElement().getThemeList().add("badge warning");
+            status.getElement().getThemeList().addAll(List.of("badge", "warning"));
             return;
         }
         BigDecimal threshold = BigDecimal.valueOf(plannerWeatherThreshold == null ? 5.0 : plannerWeatherThreshold);
@@ -1719,18 +1718,18 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .orElse(null);
         if (coldest == null) {
             status.setText("WEATHER GATE OFF — no outdoor-temperature forecast value is available.");
-            status.getElement().getThemeList().add("badge warning");
+            status.getElement().getThemeList().addAll(List.of("badge", "warning"));
             return;
         }
         if (coldest.compareTo(threshold) < 0) {
             status.setText("WEATHER GATE ACTIVE — forecast " + decimalDisplay(coldest.doubleValue())
                     + " °C is below configured " + decimalDisplay(threshold.doubleValue()) + " °C.");
-            status.getElement().getThemeList().add("badge success");
+            status.getElement().getThemeList().addAll(List.of("badge", "success"));
             return;
         }
         status.setText("WEATHER GATE OFF — forecast " + decimalDisplay(coldest.doubleValue())
                 + " °C is not below configured " + decimalDisplay(threshold.doubleValue()) + " °C.");
-        status.getElement().getThemeList().add("badge warning");
+        status.getElement().getThemeList().addAll(List.of("badge", "warning"));
     }
 
     private SiteOperationState siteOperationStateFor(SiteEntity site) {
@@ -1743,13 +1742,13 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         status.getStyle().set("display", "inline-block").set("white-space", "normal");
         if (site == null) {
             status.setText("Select a site to check its operation state.");
-            status.getElement().getThemeList().add("badge warning");
+            status.getElement().getThemeList().addAll(List.of("badge", "warning"));
         } else if (siteOperationStateFor(site) == SiteOperationState.POWER_SAVE) {
             status.setText("POWER SAVE — electricity is treated as expensive for planning. Comfort and safety limits still apply.");
-            status.getElement().getThemeList().add("badge warning");
+            status.getElement().getThemeList().addAll(List.of("badge", "warning"));
         } else {
             status.setText("NORMAL — standard price-based planning is active when the weather gate allows it.");
-            status.getElement().getThemeList().add("badge success");
+            status.getElement().getThemeList().addAll(List.of("badge", "success"));
         }
     }
 

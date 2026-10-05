@@ -11,7 +11,9 @@ import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -42,16 +44,29 @@ public class HeatingPlannerAutomationService {
     private final HeatingPlannerPlanService planService;
     private final HeatingPlannerActiveControlService activeControlService;
     private final ControlPriceService controlPriceService;
+    private final PlatformTransactionManager transactionManager;
 
-    @Transactional
     public void runEnabledPlanners(Instant now) {
-        for (HeatingPlannerSettingsEntity settings : settingsRepository.findByEnabledTrueOrderByIdAsc()) {
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        transaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        for (Long settingsId : settingsRepository.findEnabledIds()) {
             try {
-                generateAndMaybeActivate(settings, now);
+                transaction.executeWithoutResult(status -> settingsRepository.findById(settingsId)
+                        .filter(HeatingPlannerSettingsEntity::isEnabled)
+                        .ifPresent(settings -> generateAndMaybeActivate(settings, now)));
             } catch (RuntimeException exception) {
-                settings.setLastAutomationError(truncate(exception.getMessage(), 1024));
-                settingsRepository.save(settings);
-                log.warn("Heating Planner automation failed for settingsId={}: {}", settings.getId(), exception.getMessage());
+                log.error("Heating Planner automation failed for settingsId={}", settingsId, exception);
+                // The failed site's transaction has ended; its error must survive that rollback.
+                try {
+                    transaction.executeWithoutResult(status -> settingsRepository.findById(settingsId)
+                            .ifPresent(settings -> {
+                                settings.setLastAutomationError(truncate(exception.getMessage(), 1024));
+                                settingsRepository.save(settings);
+                            }));
+                } catch (RuntimeException recordingFailure) {
+                    log.error("Could not save Heating Planner automation failure for settingsId={}",
+                            settingsId, recordingFailure);
+                }
             }
         }
     }
@@ -99,21 +114,15 @@ public class HeatingPlannerAutomationService {
         settings.setLastAutomationError(null);
         settingsRepository.save(settings);
         if (settings.isActiveControlEnabled()) {
-            try {
-                boolean activated = activeControlService.activateLatestRecalculatedPlanIfOptedIn(
-                        settings.getAccount().getId(), settings.getSite().getId(), now);
-                if (activated) {
-                    settings.setLastAutomaticActivationAt(now);
-                    settings.setLastAutomationError(null);
-                } else {
-                    var readiness = activeControlService.readiness(settings.getAccount().getId(),
-                            settings.getSite().getId(), now);
-                    settings.setLastAutomationError("Plan generated but Heating Planner is currently inactive: "
-                            + String.join("; ", readiness.issues()));
-                }
-            } catch (IllegalStateException ex) {
-                settings.setLastAutomationError("Plan generated but automatic activation was rejected: "
-                        + ex.getMessage());
+            var activation = activeControlService.activateLatestRecalculatedPlanIfOptedIn(
+                    settings.getAccount().getId(), settings.getSite().getId(), now);
+            if (activation.activated()) {
+                settings.setLastAutomaticActivationAt(now);
+                settings.setLastAutomationError(null);
+            } else if (activation.statusMessage() != null) {
+                settings.setLastAutomationError(truncate(activation.statusMessage(), 1024));
+                log.info("Heating Planner automation status for settingsId={}: {}",
+                        settings.getId(), activation.statusMessage());
             }
             settingsRepository.save(settings);
         }

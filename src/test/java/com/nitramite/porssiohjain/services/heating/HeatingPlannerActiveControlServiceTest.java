@@ -12,11 +12,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.h2.jdbcx.JdbcDataSource;
+import org.springframework.aop.framework.ProxyFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
+import org.springframework.transaction.interceptor.TransactionInterceptor;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -99,7 +107,7 @@ class HeatingPlannerActiveControlServiceTest {
     void automaticallyPromotesRecalculatedPlanWhenControlIsAlreadyOptedIn() {
         settings.setActiveControlEnabled(true);
 
-        assertThat(service.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now)).isTrue();
+        assertThat(service.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now).activated()).isTrue();
 
         assertThat(plan.getStatus()).isEqualTo(HeatingPlannerPlanStatus.ACTIVE);
         assertThat(point.getStatus()).isEqualTo(HeatingPlannerPlanPointStatus.ACTIVE);
@@ -125,7 +133,7 @@ class HeatingPlannerActiveControlServiceTest {
                 .thenReturn(List.of(activePlan));
         when(pointRepository.findByPlanVersion(activePlan.getPlanVersion())).thenReturn(List.of(activePoint));
 
-        assertThat(service.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now)).isFalse();
+        assertThat(service.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now).activated()).isFalse();
 
         assertThat(plan.getStatus()).isEqualTo(HeatingPlannerPlanStatus.SIMULATED);
         assertThat(activePlan.getStatus()).isEqualTo(HeatingPlannerPlanStatus.SUPERSEDED);
@@ -139,7 +147,7 @@ class HeatingPlannerActiveControlServiceTest {
     void leavesRecalculatedPlanSimulatedAfterControlWasDisabled() {
         settings.setActiveControlEnabled(false);
 
-        assertThat(service.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now)).isFalse();
+        assertThat(service.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now).activated()).isFalse();
 
         assertThat(plan.getStatus()).isEqualTo(HeatingPlannerPlanStatus.SIMULATED);
         verify(planRepository, never()).save(any());
@@ -154,6 +162,35 @@ class HeatingPlannerActiveControlServiceTest {
 
         assertThat(readiness.ready()).isFalse();
         assertThat(readiness.issues()).anyMatch(issue -> issue.contains("floor-temperature"));
+    }
+
+    @Test
+    void automaticActivationWithStaleFloorSensorCommitsPlanAndStatusInSharedTransaction() {
+        settings.setActiveControlEnabled(true);
+        when(measurementService.latestFreshFloorTemperature(room, now))
+                .thenReturn(HeatingPlannerMeasurementService.LatestMeasurement.missing());
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:activation-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1");
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.execute("create table automation_evidence (message varchar(2048))");
+        var manager = new DataSourceTransactionManager(dataSource);
+        ProxyFactory factory = new ProxyFactory(service);
+        factory.addAdvice(new TransactionInterceptor(manager, new AnnotationTransactionAttributeSource()));
+        var transactionalService = (HeatingPlannerActiveControlService) factory.getProxy();
+
+        new TransactionTemplate(manager).executeWithoutResult(status -> {
+            jdbc.update("insert into automation_evidence values (?)", "Generated simulated plan");
+            var result = transactionalService.activateLatestRecalculatedPlanIfOptedIn(7L, 8L, now);
+            assertThat(result.activated()).isFalse();
+            assertThat(result.statusMessage()).contains("Automatic activation deferred", "floor-temperature");
+            jdbc.update("insert into automation_evidence values (?)", result.statusMessage());
+        });
+
+        assertThat(jdbc.queryForList("select message from automation_evidence", String.class))
+                .hasSize(2).anyMatch(message -> message.contains("floor-temperature"));
+        assertThat(plan.getStatus()).isEqualTo(HeatingPlannerPlanStatus.SIMULATED);
+        assertThat(settings.isActiveControlEnabled()).isTrue();
+        verify(planRepository, never()).save(any());
     }
 
     @Test

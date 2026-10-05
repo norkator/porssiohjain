@@ -105,6 +105,10 @@ public class HeatingPlannerActiveControlService {
         Readiness readiness = readiness(accountId, siteId, now);
         if (!readiness.ready()) throw new IllegalStateException(String.join("; ", readiness.issues()));
         var settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId).orElseThrow();
+        activateReadyPlan(settings, now);
+    }
+
+    private void activateReadyPlan(HeatingPlannerSettingsEntity settings, Instant now) {
         HeatingPlannerPlanEntity candidate = latestSimulatedPlan(settings.getId());
         List<HeatingPlannerRoomEntity> controlledRooms = roomRepository
                 .findBySettingsIdOrderBySortOrderAscIdAsc(settings.getId()).stream()
@@ -137,22 +141,23 @@ public class HeatingPlannerActiveControlService {
     }
 
     @Transactional
-    public boolean activateLatestRecalculatedPlanIfOptedIn(Long accountId, Long siteId, Instant now) {
+    public AutomaticActivationResult activateLatestRecalculatedPlanIfOptedIn(Long accountId, Long siteId, Instant now) {
         var settings = settingsRepository.findByAccountIdAndSiteId(accountId, siteId).orElse(null);
         if (settings == null || !settings.isActiveControlEnabled()) {
-            return false;
+            return new AutomaticActivationResult(false, null);
         }
         Readiness readiness = readiness(accountId, siteId, now);
         if (!readiness.ready()) {
             if (readiness.issues().stream().anyMatch(issue -> issue.contains("Heating Planner is inactive"))) {
                 suspendActivePlans(settings, now);
-                return false;
+                return new AutomaticActivationResult(false, "Plan generated but Heating Planner is currently inactive: "
+                        + String.join("; ", readiness.issues()));
             }
-            throw new IllegalStateException("The recalculated plan could not be activated automatically: "
+            return new AutomaticActivationResult(false, "Plan generated. Automatic activation deferred: "
                     + String.join("; ", readiness.issues()));
         }
-        activate(accountId, siteId, now);
-        return true;
+        activateReadyPlan(settings, now);
+        return new AutomaticActivationResult(true, null);
     }
 
     @Transactional
@@ -244,6 +249,8 @@ public class HeatingPlannerActiveControlService {
         pointRepository.saveAll(points);
         planRepository.save(plan);
     }
+
+    public record AutomaticActivationResult(boolean activated, String statusMessage) { }
 
     public record Readiness(boolean ready, boolean active, List<String> issues, String candidatePlanVersion,
                             Instant lastAutomaticPlanAt, Instant lastAutomaticActivationAt,

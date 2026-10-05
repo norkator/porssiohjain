@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.entity.repository;
 
 import com.nitramite.porssiohjain.entity.HeatingPlannerSettingsEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,4 +27,7 @@ public interface HeatingPlannerSettingsRepository extends JpaRepository<HeatingP
     Optional<HeatingPlannerSettingsEntity> findByAccountIdAndSiteId(Long accountId, Long siteId);
 
     List<HeatingPlannerSettingsEntity> findByEnabledTrueOrderByIdAsc();
+
+    @Query("select s.id from HeatingPlannerSettingsEntity s where s.enabled = true order by s.id")
+    List<Long> findEnabledIds();
 }
