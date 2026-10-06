@@ -761,6 +761,13 @@ vaadin-grid::part(fresh-control-device-call) {
 .retro-window-body > * { box-sizing: border-box; min-height: 100%; }
 .retro-window-body .responsive-card { background-color: #e6e6e6; box-shadow: none; }
 
+/* List grids grow with their rows; the desktop window owns vertical scrolling. */
+.desktop-list-view,
+.desktop-list-view > .responsive-card,
+.desktop-list-view vaadin-grid {
+    flex-shrink: 0;
+}
+
 .retro-taskbar {
     position: fixed;
     z-index: 5;

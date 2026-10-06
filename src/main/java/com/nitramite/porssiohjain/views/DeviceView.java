@@ -117,6 +117,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final Span userCaStatus;
 
     private final Button saveButton;
+    private final DesktopCreateDialog createDialog;
+    private final VerticalLayout creationForm;
+    private final VerticalLayout claimProvisionedSection;
     private final Span limitInfo;
     private final TextField claimCodeLookupField;
     private final TextField claimDeviceNameField;
@@ -240,12 +243,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 .set("color", "var(--lumo-secondary-text-color)")
                 .set("font-size", "0.9rem");
 
-        setSizeFull();
+        setWidthFull();
         setAlignItems(Alignment.CENTER);
         setJustifyContentMode(JustifyContentMode.START);
-        getStyle()
-                .set("padding-top", "20px")
-                .set("overflow", "auto");
+        getStyle().set("padding-top", "20px");
 
         VerticalLayout card = new VerticalLayout();
         card.setWidthFull();
@@ -342,7 +343,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 .setAutoWidth(true);
 
         deviceGrid.setWidthFull();
-        deviceGrid.setHeight("min(560px, 60vh)");
+        deviceGrid.setAllRowsVisible(true);
         deviceGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 
         timezoneCombo.setItems(ZoneId.getAvailableZoneIds());
@@ -367,24 +368,29 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         FormLayout formLayout = new FormLayout();
         formLayout.setWidthFull();
-        formLayout.getStyle().set("margin-top", "20px");
         formLayout.add(nameField, timezoneCombo, deviceTypeCombo, devicePlatformCombo, enabledField);
         DesktopFormState.watch(formLayout);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 5)
+                new FormLayout.ResponsiveStep("600px", 2)
         );
 
         heatPumpForm.setVisible(false);
 
-        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, limitInfo, saveButton);
+        VerticalLayout actions = new VerticalLayout(selectAcDeviceButton, saveButton);
         actions.setPadding(false);
         actions.setSpacing(true);
         actions.setAlignItems(Alignment.START);
 
-        VerticalLayout claimProvisionedSection = createClaimProvisionedDeviceSection();
+        claimProvisionedSection = createClaimProvisionedDeviceSection();
+        creationForm = new VerticalLayout(formLayout, heatPumpForm, actions);
+        creationForm.setPadding(false);
+        DesktopFormState.watch(creationForm);
+        DesktopFormState.watch(claimProvisionedSection);
+        createDialog = new DesktopCreateDialog(this, t("device.button.addNew"), i18n);
+        createDialog.add(creationForm, Divider.createDivider(), claimProvisionedSection);
 
-        card.add(title, deviceGrid, formLayout, heatPumpForm, actions, Divider.createDivider(), claimProvisionedSection);
+        card.add(title, deviceGrid, createDialog.openButton(), limitInfo);
         add(card);
 
         deviceTypeCombo.addValueChangeListener(event -> {
@@ -699,6 +705,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
             clearForm();
+            createDialog.close();
             loadDevices();
 
         } catch (Exception e) {
@@ -772,6 +779,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             claimTimezoneCombo.setValue(ZoneId.systemDefault().getId());
             provisionedLookupInfo.setText("");
             claimProvisionedDeviceButton.setEnabled(false);
+            DesktopFormState.saved(claimProvisionedSection);
+            createDialog.close();
             loadDevices();
             updateLimitInfo();
         } catch (Exception e) {
@@ -1123,7 +1132,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         saveButton.setText(t("device.button.add"));
         deviceGrid.deselectAll();
         updateLimitInfo();
-        DesktopFormState.saved(this);
+        DesktopFormState.saved(creationForm);
     }
 
     private void updateSelectAcDeviceButton() {
@@ -1163,6 +1172,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         int limit = accountLimitService.getEffectiveDeviceLimit(currentAccount.getId());
         String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(currentAccount.getId()));
         limitInfo.setText(t("accountLimits.devices", count, limit, tier));
+        createDialog.setLimitInfo(limitInfo.getText(), count >= limit);
         limitInfo.getElement().getThemeList().set("badge", true);
         limitInfo.getElement().getThemeList().set("error", count >= limit);
         updateSaveButtonState();

@@ -69,6 +69,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
     private final Checkbox manualOnToggle;
     private final Checkbox alwaysOnBelowMinPriceToggle;
     private final Button createButton;
+    private final DesktopCreateDialog createDialog;
     private final Span limitInfo;
 
     @Autowired
@@ -105,7 +106,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
                 .set("color", "var(--lumo-secondary-text-color)")
                 .set("font-size", "0.9rem");
 
-        setSizeFull();
+        setWidthFull();
         setAlignItems(Alignment.CENTER);
         setJustifyContentMode(JustifyContentMode.START);
         getStyle().set("padding-top", "20px");
@@ -123,7 +124,10 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         configureGrid();
         configureForm();
 
-        card.add(title, controlsGrid, createFormLayout());
+        createDialog = new DesktopCreateDialog(this, t("control.button.addNew"), i18n);
+        createDialog.add(createFormLayout());
+        createDialog.getFooter().add(createButton);
+        card.add(title, controlsGrid, createDialog.openButton(), limitInfo);
         add(card);
 
         AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("control.notification.sessionExpired"));
@@ -188,12 +192,6 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         VerticalLayout formContainer = new VerticalLayout();
         formContainer.setPadding(false);
         formContainer.setSpacing(false);
-        formContainer.getStyle()
-                .set("margin-top", "20px")
-                .set("padding", "16px")
-                .set("border-radius", "12px")
-                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
-                .set("background-color", "var(--lumo-contrast-5pct)");
 
         FormLayout formLayout = new FormLayout();
         formLayout.add(
@@ -215,9 +213,8 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         );
 
         createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        createButton.getStyle().set("margin-top", "16px");
 
-        formContainer.add(formLayout, limitInfo, createButton);
+        formContainer.add(formLayout);
         DesktopFormState.watch(formLayout);
 
         return formContainer;
@@ -249,7 +246,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
 
         controlsGrid.setWidthFull();
         controlsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-        controlsGrid.getStyle().set("max-height", "250px");
+        controlsGrid.setAllRowsVisible(true);
         controlsGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
 
         controlsGrid.asSingleSelect().addValueChangeListener(event -> {
@@ -296,7 +293,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
             clearForm();
-            DesktopFormState.saved(this);
+            createDialog.savedAndClose();
             loadControls();
         } catch (Exception e) {
             Notification notification = Notification.show(t("control.notification.failed", e.getMessage()));
@@ -332,6 +329,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
                 ? t("accountLimits.controls", count, limit, tier)
                 : t("accountLimits.controlsUnlimited", count, tier));
         boolean limitReached = limit != null && count >= limit;
+        createDialog.setLimitInfo(limitInfo.getText(), limitReached);
         limitInfo.getElement().getThemeList().set("badge", true);
         limitInfo.getElement().getThemeList().set("error", limitReached);
         createButton.setEnabled(!limitReached);

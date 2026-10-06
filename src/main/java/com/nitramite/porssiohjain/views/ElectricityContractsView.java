@@ -68,6 +68,7 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
 
     private final Checkbox staticPricingToggle;
     private final Button saveButton;
+    private final DesktopCreateDialog createDialog;
 
     private final Grid<ElectricityContractEntity> grid = new Grid<>(ElectricityContractEntity.class, false);
     private final Binder<ElectricityContractEntity> binder = new Binder<>(ElectricityContractEntity.class);
@@ -107,7 +108,7 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
         staticPricingToggle = new Checkbox(t("electricityContracts.field.staticToggle"));
         saveButton = new Button(t("electricityContracts.button.create"));
 
-        setSizeFull();
+        setWidthFull();
         setAlignItems(Alignment.CENTER);
         getStyle().set("padding-top", "20px");
 
@@ -116,7 +117,18 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
         configureGrid();
         configureForm();
 
-        VerticalLayout card = new VerticalLayout(title, grid, createFormLayout());
+        createDialog = new DesktopCreateDialog(this, t("electricityContracts.button.addNew"), i18n);
+        createDialog.add(createFormLayout());
+        createDialog.getFooter().add(saveButton);
+        createDialog.onCreate(() -> {
+            if (editingContract != null) {
+                createDialog.openPrepared(t("electricityContracts.button.addNew"), this::clearForm);
+            } else {
+                createDialog.setHeaderTitle(t("electricityContracts.button.addNew"));
+                createDialog.open();
+            }
+        });
+        VerticalLayout card = new VerticalLayout(title, grid, createDialog.openButton());
         card.setWidthFull();
         card.setMaxWidth("1400px");
         card.setPadding(true);
@@ -161,11 +173,16 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
         grid.addColumn(ElectricityContractEntity::getTaxAmount)
                 .setHeader(t("electricityContracts.grid.taxAmount"));
 
-        grid.setHeight("300px");
+        grid.setWidthFull();
+        grid.setAllRowsVisible(true);
 
-        grid.asSingleSelect().addValueChangeListener(e -> {
-            if (e.getValue() != null) {
-                editContract(e.getValue());
+        grid.addItemClickListener(e -> {
+            if (e.getItem() != null) {
+                if (editingContract != null && e.getItem().getId().equals(editingContract.getId())) {
+                    createDialog.open();
+                    return;
+                }
+                createDialog.openPrepared(t("electricityContracts.button.update"), () -> editContract(e.getItem()));
             }
         });
     }
@@ -248,7 +265,7 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
                 new FormLayout.ResponsiveStep("900px", 3)
         );
 
-        container.add(form, saveButton);
+        container.add(form);
         DesktopFormState.watch(form);
         return container;
     }
@@ -276,6 +293,7 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
                 Notification notification = Notification.show(t("electricityContracts.notification.saved"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 clearForm();
+                createDialog.savedAndClose();
             }
         } else {
             if (binder.writeBeanIfValid(editingContract)) {
@@ -285,6 +303,7 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
                 Notification notification = Notification.show(t("electricityContracts.notification.updated"));
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 clearForm();
+                createDialog.savedAndClose();
             }
         }
     }
@@ -292,15 +311,16 @@ public class ElectricityContractsView extends VerticalLayout implements BeforeEn
     private void editContract(ElectricityContractEntity contract) {
         this.editingContract = contract;
         binder.readBean(contract);
-        DesktopFormState.saved(this);
+        DesktopFormState.saved(createDialog);
         saveButton.setText(t("electricityContracts.button.update"));
     }
 
     private void clearForm() {
         editingContract = null;
         binder.readBean(new ElectricityContractEntity());
-        DesktopFormState.saved(this);
+        DesktopFormState.saved(createDialog);
         saveButton.setText(t("electricityContracts.button.create"));
+        grid.deselectAll();
     }
 
     private void loadContracts() {
