@@ -64,6 +64,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
     private final TextField nameField;
     private final ComboBox<SiteResponse> siteField;
     private final Button createButton;
+    private final DesktopCreateDialog createDialog;
     private final Span limitInfo;
 
     @Autowired
@@ -93,7 +94,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
                 .set("color", "var(--lumo-secondary-text-color)")
                 .set("font-size", "0.9rem");
 
-        setSizeFull();
+        setWidthFull();
         setAlignItems(Alignment.CENTER);
         setJustifyContentMode(JustifyContentMode.START);
         getStyle().set("padding-top", "20px");
@@ -111,7 +112,10 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
         configureGrid();
         configureForm();
 
-        card.add(title, weatherControlsGrid, createFormLayout());
+        createDialog = new DesktopCreateDialog(this, t("weatherControl.button.addNew"), i18n);
+        createDialog.add(createFormLayout());
+        createDialog.getFooter().add(createButton);
+        card.add(title, weatherControlsGrid, createDialog.openButton(), limitInfo);
         add(card);
 
         AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("weatherControl.notification.sessionExpired"));
@@ -139,12 +143,6 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
         VerticalLayout formContainer = new VerticalLayout();
         formContainer.setPadding(false);
         formContainer.setSpacing(false);
-        formContainer.getStyle()
-                .set("margin-top", "20px")
-                .set("padding", "16px")
-                .set("border-radius", "12px")
-                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
-                .set("background-color", "var(--lumo-contrast-5pct)");
 
         FormLayout formLayout = new FormLayout();
         formLayout.add(nameField, siteField);
@@ -153,8 +151,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
                 new FormLayout.ResponsiveStep("600px", 2)
         );
 
-        createButton.getStyle().set("margin-top", "16px");
-        formContainer.add(formLayout, limitInfo, createButton);
+        formContainer.add(formLayout);
         DesktopFormState.watch(formLayout);
         return formContainer;
     }
@@ -177,7 +174,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
 
         weatherControlsGrid.setWidthFull();
         weatherControlsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-        weatherControlsGrid.getStyle().set("max-height", "250px");
+        weatherControlsGrid.setAllRowsVisible(true);
         weatherControlsGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
 
         weatherControlsGrid.asSingleSelect().addValueChangeListener(event -> {
@@ -214,6 +211,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
 
             nameField.clear();
             siteField.clear();
+            createDialog.savedAndClose();
             loadWeatherControls();
         } catch (Exception ex) {
             Notification notification = Notification.show(t("weatherControl.notification.failed", ex.getMessage()));
@@ -234,6 +232,7 @@ public class WeatherControlsView extends VerticalLayout implements BeforeEnterOb
                 ? t("accountLimits.weatherControls", count, limit, tier)
                 : t("accountLimits.weatherControlsUnlimited", count, tier));
         boolean limitReached = limit != null && count >= limit;
+        createDialog.setLimitInfo(limitInfo.getText(), limitReached);
         limitInfo.getElement().getThemeList().set("badge", true);
         limitInfo.getElement().getThemeList().set("error", limitReached);
         createButton.setEnabled(!limitReached);

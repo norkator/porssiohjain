@@ -67,6 +67,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private final ComboBox<SiteOperationState> operationStateField;
     private final Checkbox enabledToggle;
     private final Button saveButton;
+    private final DesktopCreateDialog createDialog;
     private final VerticalLayout weatherInfoSection;
     private final TextField weatherTimestampField;
     private final TextField temperatureField;
@@ -92,7 +93,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         humidityField = createReadOnlyField(t("sites.weather.field.humidity"));
         weatherInfoSection = createWeatherInfoSection();
 
-        setSizeFull();
+        setWidthFull();
         setAlignItems(Alignment.CENTER);
         getStyle().set("padding-top", "20px");
 
@@ -108,7 +109,18 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         configureGrid();
         configureForm();
 
-        card.add(title, sitesGrid, createFormLayout());
+        createDialog = new DesktopCreateDialog(this, t("sites.button.addNew"), i18n);
+        createDialog.add(createFormLayout());
+        createDialog.getFooter().add(saveButton);
+        createDialog.onCreate(() -> {
+            if (editingSiteId != null) {
+                createDialog.openPrepared(t("sites.button.addNew"), this::clearForm);
+            } else {
+                createDialog.setHeaderTitle(t("sites.button.addNew"));
+                createDialog.open();
+            }
+        });
+        card.add(title, sitesGrid, createDialog.openButton());
         add(card);
 
         AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("sites.notification.sessionExpired"));
@@ -171,9 +183,8 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                 new FormLayout.ResponsiveStep("600px", 2)
         );
 
-        VerticalLayout container = new VerticalLayout(form, saveButton, weatherInfoSection);
+        VerticalLayout container = new VerticalLayout(form, weatherInfoSection);
         DesktopFormState.watch(form);
-        container.getStyle().set("margin-top", "20px");
 
         return container;
     }
@@ -217,24 +228,31 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         }).setHeader(t("sites.grid.enabled")).setAutoWidth(true);
 
         sitesGrid.setWidthFull();
+        sitesGrid.setAllRowsVisible(true);
         sitesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 
-        sitesGrid.asSingleSelect().addValueChangeListener(event -> {
-            SiteResponse selected = event.getValue();
+        sitesGrid.addItemClickListener(event -> {
+            SiteResponse selected = event.getItem();
             if (selected != null) {
-                editingSiteId = selected.getId();
-                nameField.setValue(selected.getName());
-                if (selected.getWeatherPlace() == null || selected.getWeatherPlace().isBlank()) {
-                    weatherPlaceField.clear();
-                } else {
-                    weatherPlaceField.setValue(selected.getWeatherPlace());
+                if (selected.getId().equals(editingSiteId)) {
+                    createDialog.open();
+                    return;
                 }
-                timezoneField.setValue(selected.getTimezone() != null ? selected.getTimezone() : "Europe/Helsinki");
-                typeField.setValue(selected.getType());
-                operationStateField.setValue(selected.getOperationState());
-                enabledToggle.setValue(selected.getEnabled());
-                saveButton.setText(t("sites.button.update"));
-                refreshWeatherInfo();
+                createDialog.openPrepared(t("sites.button.update"), () -> {
+                    editingSiteId = selected.getId();
+                    nameField.setValue(selected.getName());
+                    if (selected.getWeatherPlace() == null || selected.getWeatherPlace().isBlank()) {
+                        weatherPlaceField.clear();
+                    } else {
+                        weatherPlaceField.setValue(selected.getWeatherPlace());
+                    }
+                    timezoneField.setValue(selected.getTimezone() != null ? selected.getTimezone() : "Europe/Helsinki");
+                    typeField.setValue(selected.getType());
+                    operationStateField.setValue(selected.getOperationState());
+                    enabledToggle.setValue(selected.getEnabled());
+                    saveButton.setText(t("sites.button.update"));
+                    refreshWeatherInfo();
+                });
             }
         });
     }
@@ -253,6 +271,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
             Notification notification = Notification.show(t("sites.notification.created"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             clearForm();
+            createDialog.savedAndClose();
             loadSites();
         } catch (Exception e) {
             Notification.show(e.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -274,6 +293,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             refreshWeatherInfo();
             clearForm();
+            createDialog.savedAndClose();
             loadSites();
         } catch (Exception e) {
             Notification.show(e.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -292,7 +312,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         sitesGrid.deselectAll();
         clearWeatherInfo();
         weatherInfoSection.setVisible(false);
-        DesktopFormState.saved(this);
+        DesktopFormState.saved(createDialog);
     }
 
     private void loadSites() {

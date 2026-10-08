@@ -15,6 +15,7 @@ import com.vaadin.flow.component.HasElement;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.menubar.MenuBar;
+import com.vaadin.flow.component.contextmenu.SubMenu;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Anchor;
@@ -298,6 +299,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         final Div body = new Div();
         final Button back = new Button(t("desktop.back"), VaadinIcon.ARROW_LEFT.create());
         final Div toolbar = new Div(back);
+        final SubMenu fileMenu;
         String location;
 
         DesktopWindow(String path, HasElement content) {
@@ -320,8 +322,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             titleBar.add(controls);
             MenuBar menus = new MenuBar();
             menus.addClassName("retro-window-menubar");
-            menus.addItem(t("desktop.file")).getSubMenu()
-                    .addItem(t("desktop.close"), e -> close(this));
+            fileMenu = menus.addItem(t("desktop.file")).getSubMenu();
             var view = menus.addItem(t("desktop.view")).getSubMenu();
             view.addItem(t("desktop.minimize"), e -> minimize());
             view.addItem(t("desktop.maximize"), e -> maximize());
@@ -367,6 +368,14 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         void setContent(HasElement content) {
             body.getElement().removeAllChildren();
             body.getElement().appendChild(content.getElement());
+            fileMenu.removeAll();
+            if (content instanceof Component component) {
+                Button creation = DesktopCreateDialog.creationButton(component);
+                if (creation != null) {
+                    fileMenu.addItem(creation.getText(), event -> creation.click());
+                }
+            }
+            fileMenu.addItem(t("desktop.close"), event -> close(this));
         }
 
         void minimize() {

@@ -10,6 +10,8 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.menubar.MenuBar;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.AfterNavigationEvent;
 import com.vaadin.flow.router.Location;
 import org.junit.jupiter.api.AfterEach;
@@ -216,7 +218,43 @@ class MainLayoutTest {
         assertFalse(DesktopFormState.isDirty(field));
     }
 
-    private void navigate(String path, Div content) {
+    @Test
+    void fileMenuOpensTheRetainedCreationDialogAndTracksContentReplacement() {
+        var translations = mock(I18nService.class, invocation -> invocation.getArgument(0));
+        VerticalLayout list = new VerticalLayout();
+        DesktopCreateDialog dialog = new DesktopCreateDialog(list, "Add new control", translations);
+        list.add(dialog.openButton());
+        navigate("controls", list);
+        MenuBar menu = windows().getFirst().getChildren().filter(MenuBar.class::isInstance)
+                .map(MenuBar.class::cast).findFirst().orElseThrow();
+        var file = menu.getItems().getFirst().getSubMenu();
+        assertEquals(List.of("Add new control", "desktop.close"),
+                file.getItems().stream().map(item -> item.getText()).toList());
+        com.vaadin.flow.component.ComponentUtil.fireEvent(file.getItems().getFirst(),
+                new com.vaadin.flow.component.ClickEvent<>(file.getItems().getFirst()));
+        assertTrue(dialog.isOpened());
+        dialog.close();
+
+        navigate("device", new Div());
+        tasks().getFirst().click();
+        com.vaadin.flow.component.ComponentUtil.fireEvent(file.getItems().getFirst(),
+                new com.vaadin.flow.component.ClickEvent<>(file.getItems().getFirst()));
+        assertTrue(dialog.isOpened());
+        dialog.close();
+
+        navigate("controls/42", new Div());
+        assertEquals(List.of("desktop.close"), file.getItems().stream().map(item -> item.getText()).toList());
+        VerticalLayout replacement = new VerticalLayout();
+        DesktopCreateDialog next = new DesktopCreateDialog(replacement, "Add replacement", translations);
+        replacement.add(next.openButton());
+        navigate("controls", replacement);
+        com.vaadin.flow.component.ComponentUtil.fireEvent(file.getItems().getFirst(),
+                new com.vaadin.flow.component.ClickEvent<>(file.getItems().getFirst()));
+        assertTrue(next.isOpened());
+        assertFalse(dialog.isOpened());
+    }
+
+    private void navigate(String path, Component content) {
         layout.showRouterLayoutContent(content);
         AfterNavigationEvent event = mock(AfterNavigationEvent.class);
         when(event.getLocation()).thenReturn(new Location(path));

@@ -68,6 +68,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
     private final TextField stationIdField;
     private final Checkbox enabledToggle;
     private final Button createButton;
+    private final DesktopCreateDialog createDialog;
     private final Span limitInfo;
 
     @Autowired
@@ -101,7 +102,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
                 .set("color", "var(--lumo-secondary-text-color)")
                 .set("font-size", "0.9rem");
 
-        setSizeFull();
+        setWidthFull();
         setAlignItems(Alignment.CENTER);
         getStyle().set("padding-top", "20px");
 
@@ -117,7 +118,10 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
         configureGrid();
         configureForm();
 
-        card.add(title, sourcesGrid, createFormLayout());
+        createDialog = new DesktopCreateDialog(this, t("productionsources.button.addNew"), i18n);
+        createDialog.add(createFormLayout());
+        createDialog.getFooter().add(createButton);
+        card.add(title, sourcesGrid, createDialog.openButton(), limitInfo);
         add(card);
 
         AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("productionsources.notification.sessionExpired"));
@@ -151,12 +155,6 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
         VerticalLayout container = new VerticalLayout();
         container.setPadding(false);
         container.setSpacing(false);
-        container.getStyle()
-                .set("margin-top", "20px")
-                .set("padding", "16px")
-                .set("border-radius", "12px")
-                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
-                .set("background-color", "var(--lumo-contrast-5pct)");
 
         FormLayout form = new FormLayout();
         form.add(
@@ -176,7 +174,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
                 new FormLayout.ResponsiveStep("900px", 3)
         );
 
-        container.add(form, limitInfo, createButton);
+        container.add(form);
         DesktopFormState.watch(form);
         return container;
     }
@@ -231,7 +229,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
 
         sourcesGrid.setWidthFull();
         sourcesGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-        sourcesGrid.getStyle().set("max-height", "300px");
+        sourcesGrid.setAllRowsVisible(true);
 
         sourcesGrid.asSingleSelect().addValueChangeListener(event -> {
             ProductionSourceResponse selected = event.getValue();
@@ -267,7 +265,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
             Notification notification = Notification.show(t("productionsources.notification.created"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             clearForm();
-            DesktopFormState.saved(this);
+            createDialog.savedAndClose();
             loadSources();
         } catch (Exception e) {
             Notification notification = Notification.show(t("productionsources.notification.failed", e.getMessage()));
@@ -304,6 +302,7 @@ public class ProductionSourcesView extends VerticalLayout implements BeforeEnter
                 ? t("accountLimits.productionSources", count, limit, tier)
                 : t("accountLimits.productionSourcesUnlimited", count, tier));
         boolean limitReached = limit != null && count >= limit;
+        createDialog.setLimitInfo(limitInfo.getText(), limitReached);
         limitInfo.getElement().getThemeList().set("badge", true);
         limitInfo.getElement().getThemeList().set("error", limitReached);
         createButton.setEnabled(!limitReached);

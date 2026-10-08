@@ -58,6 +58,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
     private final NumberField kwLimitField;
     private final Checkbox enabledToggle;
     private final Button createButton;
+    private final DesktopCreateDialog createDialog;
 
     @Autowired
     public PowerLimitsView(
@@ -79,7 +80,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
         enabledToggle = new Checkbox(t("powerlimits.field.enabled"));
         createButton = new Button(t("powerlimits.button.create"));
 
-        setSizeFull();
+        setWidthFull();
         setAlignItems(Alignment.CENTER);
         getStyle().set("padding-top", "20px");
 
@@ -95,7 +96,10 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
         configureGrid();
         configureForm();
 
-        card.add(title, limitsGrid, createFormLayout());
+        createDialog = new DesktopCreateDialog(this, t("powerlimits.button.addNew"), i18n);
+        createDialog.add(createFormLayout());
+        createDialog.getFooter().add(createButton);
+        card.add(title, limitsGrid, createDialog.openButton());
         add(card);
 
         AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("powerlimits.notification.sessionExpired"));
@@ -126,12 +130,6 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
         VerticalLayout container = new VerticalLayout();
         container.setPadding(false);
         container.setSpacing(false);
-        container.getStyle()
-                .set("margin-top", "20px")
-                .set("padding", "16px")
-                .set("border-radius", "12px")
-                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
-                .set("background-color", "var(--lumo-contrast-5pct)");
 
         FormLayout form = new FormLayout();
         form.add(
@@ -146,7 +144,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
                 new FormLayout.ResponsiveStep("900px", 3)
         );
 
-        container.add(form, createButton);
+        container.add(form);
         DesktopFormState.watch(form);
         return container;
     }
@@ -185,7 +183,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
 
         limitsGrid.setWidthFull();
         limitsGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-        limitsGrid.getStyle().set("max-height", "250px");
+        limitsGrid.setAllRowsVisible(true);
 
         limitsGrid.asSingleSelect().addValueChangeListener(event -> {
             PowerLimitResponse selected = event.getValue();
@@ -221,7 +219,7 @@ public class PowerLimitsView extends VerticalLayout implements BeforeEnterObserv
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 
             clearForm();
-            DesktopFormState.saved(this);
+            createDialog.savedAndClose();
             loadLimits();
         } catch (Exception e) {
             Notification notification = Notification.show(t("powerlimits.notification.failed", e.getMessage()));

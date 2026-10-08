@@ -3,6 +3,7 @@ package com.nitramite.porssiohjain.views;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.ComponentUtil;
 import com.vaadin.flow.component.HasValue;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.data.value.HasValueChangeMode;
 import com.vaadin.flow.data.value.ValueChangeMode;
 
@@ -43,6 +44,7 @@ final class DesktopFormState {
     static void markDirty(Component root) {
         ComponentUtil.setData(root, "desktopManualDraft", true);
         root.getElement().setAttribute("data-desktop-dirty", "true");
+        updateDialogMarkers(root);
     }
 
     static void watchChanges(HasValue<?, ?> field, Component owner) {
@@ -61,6 +63,7 @@ final class DesktopFormState {
             state.update();
         }
         root.getChildren().forEach(DesktopFormState::saved);
+        updateDialogMarkers(root);
     }
 
     private boolean dirty() {
@@ -69,5 +72,18 @@ final class DesktopFormState {
 
     private void update() {
         component.getElement().setAttribute("data-desktop-dirty", String.valueOf(dirty()));
+        updateDialogMarkers(component);
+    }
+
+    private static void updateDialogMarkers(Component component) {
+        // Closed dialog overlays are absent from the DOM. Keep a marker on their
+        // attached host so browser reload/close still detects the retained draft.
+        Component current = component;
+        while (current != null) {
+            if (current instanceof Dialog) {
+                current.getElement().setAttribute("data-desktop-dirty", String.valueOf(isDirty(current)));
+            }
+            current = current.getParent().orElse(null);
+        }
     }
 }
