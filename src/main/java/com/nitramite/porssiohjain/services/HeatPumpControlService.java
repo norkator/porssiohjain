@@ -29,6 +29,7 @@ import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpRepository;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerHeatPumpCommandService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerChangeNotificationService;
+import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateHexDecoderService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +52,7 @@ public class HeatPumpControlService {
 
     private static final long CONTROL_LOOKBACK_SECONDS = 30L * 60L;
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ToshibaAcStateHexDecoderService TOSHIBA_DECODER = new ToshibaAcStateHexDecoderService();
 
     private final WeatherControlHeatPumpRepository weatherControlHeatPumpRepository;
     private final ProductionSourceHeatPumpRepository productionSourceHeatPumpRepository;
@@ -243,7 +245,7 @@ public class HeatPumpControlService {
         acCommandDispatchService.dispatchHexState(acData, candidate.stateHex());
         if ("HEATING_PLANNER".equals(candidate.ruleType()) && candidate.targetTemperature() != null
                 && !nullSafe(acData.getLastSentStateHex()).isBlank()
-                && !nullSafe(acData.getLastSentStateHex()).equalsIgnoreCase(nullSafe(previousSentState))) {
+                && !samePlannerSettings(acData.getAcType(), acData.getLastSentStateHex(), previousSentState)) {
             changeNotificationService.heatPumpApplied(candidate.ruleId(), candidate.targetTemperature(), Instant.now());
         }
     }
@@ -316,6 +318,40 @@ public class HeatPumpControlService {
         if (requested.trim().startsWith("{") && sent.trim().startsWith("{")) {
             try {
                 return JSON.readTree(requested).equals(JSON.readTree(sent));
+            } catch (Exception ignored) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    private boolean samePlannerSettings(AcType type, String applied, String previous) {
+        if (sameState(applied, previous)) return true;
+        // Polled state also contains changing telemetry and command metadata. Only the
+        // settings controlled by Heating Planner should trigger its change notification.
+        if (type == AcType.TOSHIBA) {
+            var current = TOSHIBA_DECODER.decode(applied);
+            var before = TOSHIBA_DECODER.decode(previous);
+            return current.isValid() && before.isValid()
+                    && current.getPower().getRawUnsigned().equals(before.getPower().getRawUnsigned())
+                    && current.getMode().getRawUnsigned().equals(before.getMode().getRawUnsigned())
+                    && current.getTargetTemperature().getRawUnsigned()
+                    .equals(before.getTargetTemperature().getRawUnsigned());
+        }
+        if (type == AcType.MITSUBISHI_MELCLOUD || type == AcType.MITSUBISHI_MELCLOUD_HOME) {
+            try {
+                var current = JSON.readTree(applied);
+                var before = JSON.readTree(previous);
+                boolean melCloud = type == AcType.MITSUBISHI_MELCLOUD;
+                String power = melCloud ? "Power" : "power";
+                String mode = melCloud ? "OperationMode" : "operationMode";
+                String temperature = melCloud ? "SetTemperature" : "setTemperature";
+                return current.hasNonNull(power) && current.hasNonNull(mode)
+                        && current.path(temperature).isNumber() && before.path(temperature).isNumber()
+                        && current.get(power).equals(before.get(power))
+                        && current.get(mode).equals(before.get(mode))
+                        && current.get(temperature).decimalValue()
+                        .compareTo(before.get(temperature).decimalValue()) == 0;
             } catch (Exception ignored) {
                 return false;
             }

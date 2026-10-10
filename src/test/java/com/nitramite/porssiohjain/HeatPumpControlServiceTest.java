@@ -38,6 +38,8 @@ import com.nitramite.porssiohjain.services.heating.HeatingPlannerHeatPumpCommand
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -243,6 +245,62 @@ class HeatPumpControlServiceTest {
 
         verify(acCommandDispatchService, never()).dispatchHexState(any(), any());
         verifyNoInteractions(changeNotificationService);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "304315, 304315, false", // Same settings, changed indoor/outdoor readings.
+            "304315, 304314, true",  // 21 -> 20 C.
+            "304314, 304315, true",  // 20 -> 21 C.
+            "304315, 314315, true",  // On -> off at the same temperature.
+            "314315, 304315, true",  // Off -> on at the same temperature.
+            "304215, 304315, true"   // Cool -> heat at the same temperature.
+    })
+    void toshibaPlannerNotifiesOnlyForChangedSettings(String previousSettings, String nextSettings,
+                                                     boolean shouldNotify) {
+        verifyPlannerNotification(AcType.TOSHIBA,
+                previousSettings + "00000000001405000000000000000000",
+                nextSettings + "00000000001608000000000000000000", shouldNotify);
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = AcType.class,
+            names = {"MITSUBISHI_MELCLOUD", "MITSUBISHI_MELCLOUD_HOME"})
+    void melCloudPlannerIgnoresTelemetryMetadataAndNumericFormatting(AcType type) {
+        if (type == AcType.MITSUBISHI_MELCLOUD) {
+            verifyPlannerNotification(type,
+                    "{\"Power\":true,\"OperationMode\":1,\"SetTemperature\":21,\"RoomTemperature\":20}",
+                    "{\"Power\":true,\"OperationMode\":1,\"SetTemperature\":21.0,\"RoomTemperature\":22,\"HasPendingCommand\":true}",
+                    false);
+            return;
+        }
+        verifyPlannerNotification(type,
+                "{\"power\":true,\"operationMode\":\"Heat\",\"setTemperature\":21,\"roomTemperature\":20}",
+                "{\"power\":true,\"operationMode\":\"Heat\",\"setTemperature\":21.0,\"roomTemperature\":22,\"hasPendingCommand\":true}",
+                false);
+    }
+
+    private void verifyPlannerNotification(AcType type, String previous, String next, boolean shouldNotify) {
+        DeviceEntity device = enabledHeatPumpDevice(1L);
+        DeviceAcDataEntity acData = acData(device, previous);
+        acData.setAcType(type);
+        when(heatingPlannerHeatPumpCommandService.currentCommands(any())).thenReturn(List.of(
+                new HeatingPlannerHeatPumpCommandService.HeatPumpPlanCommand(
+                        device, next, 50L, "comfort target", new BigDecimal("21"))));
+        when(deviceAcDataRepository.findByDevice(device)).thenReturn(Optional.of(acData));
+        doAnswer(call -> { acData.setLastSentStateHex(next); return null; })
+                .when(acCommandDispatchService).dispatchHexState(acData, next);
+
+        heatPumpControlService.runScheduledHeatPumpControls();
+        // Repeating the same applied command must never create another notification.
+        heatPumpControlService.runScheduledHeatPumpControls();
+
+        verify(acCommandDispatchService).dispatchHexState(acData, next);
+        if (shouldNotify) {
+            verify(changeNotificationService).heatPumpApplied(eq(50L), eq(new BigDecimal("21")), any());
+        } else {
+            verifyNoInteractions(changeNotificationService);
+        }
     }
 
     @Test

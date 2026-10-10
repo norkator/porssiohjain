@@ -61,6 +61,8 @@ When control is enabled, each heat-pump room uses its explicit room sensor and c
 
 A matching Weather Controls heat-pump rule with **Priority rule** enabled takes precedence over Heating Planner for that pump. A weather rule without priority is used only when Heating Planner has no command for the pump. When the priority rule stops matching, Heating Planner may resume control on the next scheduler run.
 
+Heat-pump change pushes compare the successfully sent power state, operating mode, and target temperature with the previous sent settings. Repeated settings do not send another notification merely because polled indoor/outdoor temperatures or command metadata changed.
+
 ## Planning inputs
 
 The planner deliberately uses only:
