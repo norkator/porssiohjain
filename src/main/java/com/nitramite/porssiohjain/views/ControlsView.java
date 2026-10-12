@@ -37,6 +37,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.PermitAll;
@@ -164,6 +165,9 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
         dailyMinutesField.setStep(1);
         dailyMinutesField.setMin(0);
         dailyMinutesField.setWidthFull();
+        dailyMinutesField.setValueChangeMode(ValueChangeMode.EAGER);
+        dailyMinutesField.addValueChangeListener(event -> dailyMinutesField.setHelperText(event.getValue() == null
+                ? "" : t("control.field.dailyHours", event.getValue() / 60.0)));
 
         taxPercentField.setPlaceholder("25.5");
         taxPercentField.setValue(25.5);

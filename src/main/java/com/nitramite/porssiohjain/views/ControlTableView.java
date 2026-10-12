@@ -41,6 +41,7 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.timepicker.TimePicker;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
@@ -225,6 +226,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         NumberField dailyMinutes = new NumberField(t("controlTable.field.dailyMinutes"));
         dailyMinutes.setValue(control.getDailyOnMinutes().doubleValue());
+        dailyMinutes.setHelperText(t("control.field.dailyHours", dailyMinutes.getValue() / 60.0));
+        dailyMinutes.setValueChangeMode(ValueChangeMode.EAGER);
+        dailyMinutes.addValueChangeListener(event -> dailyMinutes.setHelperText(event.getValue() == null
+                ? "" : t("control.field.dailyHours", event.getValue() / 60.0)));
 
         NumberField taxPercentage = new NumberField(t("controlTable.field.taxPercent"));
         taxPercentage.setValue(control.getTaxPercent().doubleValue());
@@ -1350,7 +1355,10 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         }).setHeader(t("controlTable.grid.endTime"));
         controlTableGrid.addColumn(ControlTableResponse::getPriceSnt).setHeader(t("controlTable.grid.price"));
         controlTableGrid.addColumn(ControlTableResponse::getStatus).setHeader(t("controlTable.grid.status"));
-        controlTableGrid.setAllRowsVisible(true);
+        controlTableGrid.setAllRowsVisible(false);
+        controlTableGrid.setWidthFull();
+        controlTableGrid.setHeight("60vh");
+        controlTableGrid.getColumns().forEach(column -> column.setAutoWidth(true));
 
         Button recalcButton = new Button(t("controlTable.button.recalculate"), e -> {
             controlSchedulerService.generateForControl(controlId);
@@ -1369,7 +1377,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone(), transferContract);
         });
         recalcButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
+        Button showPeriodsButton = new Button(t("controlTable.button.showScheduledPeriods"),
+                e -> openControlTableDialog());
 
         List<ControlTableResponse> controlTableResponses = controlSchedulerService.findByControlId(controlId);
         ControlChartRange chartRange = controlChartRange();
@@ -1387,15 +1396,13 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         VerticalLayout layout = new VerticalLayout(
                 new HorizontalLayout(
                         new H3(t("controlTable.section.title")),
-                        recalcButton
+                        recalcButton,
+                        showPeriodsButton
                 ),
                 new Div(new Text(t("controlTable.section.descriptionCharts"))),
-                consecutiveWarnings,
                 createPriceCharts(controlTableResponses, nordpoolPriceResponsesToday, nordpoolPriceResponsesTomorrow),
-                new InfoBox(t("common.hint"), t("controlTable.chartHint")),
-                createDivider(),
-                new Div(new Text(t("controlTable.section.descriptionList"))),
-                controlTableGrid
+                consecutiveWarnings,
+                new InfoBox(t("common.hint"), t("controlTable.chartHint"))
         );
         layout.setWidthFull();
         layout.setPadding(false);
@@ -1408,10 +1415,23 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 .forEach(h -> {
                     h.setPadding(false);
                     h.setSpacing(true);
+                    h.setWrap(true);
                     h.getStyle().set("margin", "0");
                 });
 
         return layout;
+    }
+
+    private void openControlTableDialog() {
+        refreshControlTable();
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(t("controlTable.dialog.scheduledPeriods.title"));
+        dialog.setWidth("1000px");
+        dialog.setMaxWidth("95vw");
+        dialog.setMaxHeight("90vh");
+        dialog.add(controlTableGrid);
+        dialog.getFooter().add(new Button(t("common.close"), e -> dialog.close()));
+        dialog.open();
     }
 
 

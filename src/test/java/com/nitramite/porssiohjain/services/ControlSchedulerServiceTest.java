@@ -305,7 +305,7 @@ class ControlSchedulerServiceTest {
         List<NordpoolEntity> prices = pricesForDay(date, i -> "-2");
         int minutes = (int) Duration.between(dayStart(date), dayStart(date.plusDays(1))).toMinutes();
         consecutivePrices(prices, minutes);
-        service.generateForControl(2L, dayStart(date));
+        service.generateForControl(2L, dayStart(date.plusDays(1)).minusSeconds(60));
         List<ControlTableEntity> saved = savedEntries();
         assertThat(saved).hasSize(minutes / 15);
         assertThat(saved.getFirst().getStartTime()).isEqualTo(dayStart(date));
@@ -379,13 +379,29 @@ class ControlSchedulerServiceTest {
     }
 
     @Test
-    void consecutiveModeOnlyStartsNewBlocksAtUnelapsedQuarterBoundaries() {
+    void consecutiveModeConsidersElapsedQuarterBoundariesAndPrefersEarlierEqualCostBlock() {
         List<NordpoolEntity> prices = pricesForDay(TODAY, i -> "1");
         consecutivePrices(prices, 60);
         service.generateForControl(2L, dayStart(TODAY).plusSeconds(7 * 60));
         List<ControlTableEntity> saved = savedEntries();
         assertThat(saved).hasSize(4);
-        assertThat(saved.getFirst().getStartTime()).isEqualTo(prices.get(1).getDeliveryStart());
+        assertThat(saved.getFirst().getStartTime()).isEqualTo(dayStart(TODAY));
+        assertContinuous(saved);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {150, 960, 1439})
+    void consecutiveModeCalculatesWholeDayEvenWhenCheapestMorningBlockHasStartedOrFinished(int elapsedMinutes) {
+        List<NordpoolEntity> prices = pricesForDay(TODAY, i -> i >= 8 && i < 20 ? "1" : "20");
+        consecutivePrices(prices, 180);
+
+        service.generateForControl(2L, dayStart(TODAY).plusSeconds(elapsedMinutes * 60L));
+
+        List<ControlTableEntity> saved = savedEntries();
+        assertThat(saved).hasSize(12).allMatch(ControlTableEntity::isConsecutiveBase);
+        assertThat(saved.getFirst().getStartTime()).isEqualTo(prices.get(8).getDeliveryStart());
+        assertThat(saved.getLast().getEndTime()).isEqualTo(prices.get(19).getDeliveryEnd());
+        assertContinuous(saved);
     }
 
     @Test
@@ -415,6 +431,10 @@ class ControlSchedulerServiceTest {
                 .startTime(dayStart(today.plusDays(1))).endTime(dayStart(today.plusDays(1)).plusSeconds(900)).build();
         assertThat(service.missingConsecutiveBlockDates(ControlMode.CHEAPEST_CONSECUTIVE_HOURS, 60,
                 CONTROL_ZONE.getId(), List.of(extra, base))).containsExactly(today);
+        ControlTableResponse todayBase = ControlTableResponse.builder().status(Status.FINAL).consecutiveBase(true)
+                .startTime(dayStart(today)).endTime(dayStart(today).plusSeconds(3600)).build();
+        assertThat(service.missingConsecutiveBlockDates(ControlMode.CHEAPEST_CONSECUTIVE_HOURS, 60,
+                CONTROL_ZONE.getId(), List.of(todayBase, base))).isEmpty();
         assertThat(service.missingConsecutiveBlockDates(ControlMode.CHEAPEST_HOURS, 60,
                 CONTROL_ZONE.getId(), List.of())).isEmpty();
         assertThat(service.missingConsecutiveBlockDates(ControlMode.CHEAPEST_CONSECUTIVE_HOURS, 0,

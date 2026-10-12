@@ -797,7 +797,7 @@
       "SCHEDULED": "Creates a control that can be managed with explicit schedule settings later.",
       "CHEAPEST_CONSECUTIVE_HOURS": "Selects the cheapest continuous block within each local day."
     },
-    "consecutiveHint": "Selects the cheapest continuous block of the configured duration for each day in the control timezone, using the price including tax and transfer. Enter minutes in 15-minute steps; 180 minutes means one three-hour block. Each quarter must stay at or below the maximum price. Equal-cost blocks use the earlier start. New blocks start at the next available quarter boundary; no time is moved between days. Once a block starts, recalculation keeps it for that day, even if duration or price settings change. Always on below minimum price may add extra periods outside the block."
+    "consecutiveHint": "Chooses one cheapest uninterrupted period per day, within your maximum price. Set the duration in 15-minute steps (180 minutes = 3 hours). The whole day is considered, including earlier hours. A period that has already started stays unchanged."
   },
   "charts": {
     "failedLoadChart": "Failed to load chart",
@@ -898,7 +898,7 @@
     "average24h": "24h Average",
     "kwVisibleRange": "kW across the visible range",
     "marketNotifications": "Notifications",
-    "consecutiveMissing": "No complete continuous block is scheduled for this day. Check the maximum price, duration, available prices and time remaining in the day. Extra periods below the minimum price may still run."
+    "consecutiveMissing": "No complete continuous block is scheduled for this day. Check the maximum price, duration and available prices. Extra periods below the minimum price may still run."
   },
   "windForecast": {
     "eyebrow": "Fingrid forecast",
@@ -1210,7 +1210,7 @@
       "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
       "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     },
-    "consecutiveHint": "Selects the cheapest continuous block of the configured duration for each day in the control timezone, using the price including tax and transfer. Enter minutes in 15-minute steps; 180 minutes means one three-hour block. Each quarter must stay at or below the maximum price. Equal-cost blocks use the earlier start. New blocks start at the next available quarter boundary; no time is moved between days. Once a block starts, recalculation keeps it for that day, even if duration or price settings change. Always on below minimum price may add extra periods outside the block."
+    "consecutiveHint": "Chooses one cheapest uninterrupted period per day, within your maximum price. Set the duration in 15-minute steps (180 minutes = 3 hours). The whole day is considered, including earlier hours. A period that has already started stays unchanged."
   },
   "manageWeatherControl": {
     "title": "Manage Weather Control",

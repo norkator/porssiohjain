@@ -797,7 +797,7 @@
       "SCHEDULED": "Luo ohjauksen, jonka tarkat ajastukset voidaan määrittää myöhemmin.",
       "CHEAPEST_CONSECUTIVE_HOURS": "Valitsee vuorokauden edullisimman yhtenäisen päälläolojakson."
     },
-    "consecutiveHint": "Valitsee jokaiselle vuorokaudelle edullisimman yhtenäisen jakson ohjauksen aikavyöhykkeellä. Vertailuhinta sisältää verot ja siirron. Anna päälläoloaika 15 minuutin askelin: 180 minuuttia tarkoittaa yhtä kolmen tunnin jaksoa. Jokaisen vartin hinnan on oltava enintään maksimihinta. Yhtä edullisista jaksoista valitaan aikaisempi. Uusi jakso alkaa aikaisintaan seuraavalta mahdolliselta varttirajalta, eikä aikaa siirretä päivien välillä. Alkanut jakso säilyy kyseiselle päivälle uudelleenlaskennassa, vaikka kestoa tai hintarajoja muutetaan. Aina päällä alle minimihinnan voi lisätä päälläoloa jakson ulkopuolelle."
+    "consecutiveHint": "Valitsee joka päivälle yhden edullisimman yhtenäisen jakson maksimihinnan rajoissa. Anna kesto 15 minuutin askelin (180 minuuttia = 3 tuntia). Laskenta huomioi koko päivän, myös jo kuluneet tunnit. Jo alkanut jakso säilyy ennallaan."
   },
   "charts": {
     "failedLoadChart": "Kaavion lataus epäonnistui",
@@ -898,7 +898,7 @@
     "average24h": "24 h keskiarvo",
     "kwVisibleRange": "kW näkyvällä aikavälillä",
     "marketNotifications": "Ilmoitukset",
-    "consecutiveMissing": "Tälle päivälle ei ole ajastettu kokonaista yhtenäistä jaksoa. Tarkista maksimihinta, kesto, saatavilla olevat hinnat ja vuorokauden jäljellä oleva aika. Minimihinnan alittavat lisäjaksot voivat silti olla päällä."
+    "consecutiveMissing": "Tälle päivälle ei ole ajastettu kokonaista yhtenäistä jaksoa. Tarkista maksimihinta, kesto ja saatavilla olevat hinnat. Minimihinnan alittavat lisäjaksot voivat silti olla päällä."
   },
   "windForecast": {
     "eyebrow": "Fingrid-ennuste",
@@ -1210,7 +1210,7 @@
       "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
       "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
     },
-    "consecutiveHint": "Valitsee jokaiselle vuorokaudelle edullisimman yhtenäisen jakson ohjauksen aikavyöhykkeellä. Vertailuhinta sisältää verot ja siirron. Anna päälläoloaika 15 minuutin askelin: 180 minuuttia tarkoittaa yhtä kolmen tunnin jaksoa. Jokaisen vartin hinnan on oltava enintään maksimihinta. Yhtä edullisista jaksoista valitaan aikaisempi. Uusi jakso alkaa aikaisintaan seuraavalta mahdolliselta varttirajalta, eikä aikaa siirretä päivien välillä. Alkanut jakso säilyy kyseiselle päivälle uudelleenlaskennassa, vaikka kestoa tai hintarajoja muutetaan. Aina päällä alle minimihinnan voi lisätä päälläoloa jakson ulkopuolelle."
+    "consecutiveHint": "Valitsee joka päivälle yhden edullisimman yhtenäisen jakson maksimihinnan rajoissa. Anna kesto 15 minuutin askelin (180 minuuttia = 3 tuntia). Laskenta huomioi koko päivän, myös jo kuluneet tunnit. Jo alkanut jakso säilyy ennallaan."
   },
   "manageWeatherControl": {
     "title": "Hallitse sääohjausta",

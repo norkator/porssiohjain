@@ -245,8 +245,8 @@ public class ControlSchedulerService {
             BigDecimal bestCost = null;
             List<ControlTableEntity> bestBlock = List.of();
             if (requiredMinutes > 0 && requiredMinutes % 15 == 0) {
+                // Rank the whole local day, including elapsed quarters, just like the daily cheapest-hours mode.
                 for (int i = 0; i + count <= candidates.size(); i++) {
-                    if (candidates.get(i).getStartTime().isBefore(now)) continue;
                     BigDecimal cost = BigDecimal.ZERO;
                     Instant expectedStart = candidates.get(i).getStartTime();
                     boolean valid = true;
