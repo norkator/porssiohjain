@@ -26,6 +26,8 @@ import com.nitramite.porssiohjain.services.PushNotificationTokenService;
 import com.nitramite.porssiohjain.services.models.DailyUsageCostResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -37,6 +39,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -227,6 +230,77 @@ public class PowerLimitServiceTest {
 
         assertTrue(powerLimitService.getPowerLimitHistoryWithInterval(accountId, 20L, 24).isEmpty());
         verify(powerLimitHistoryRepository).findByPowerLimitAndCreatedAtBetween(eq(accountId), eq(20L), any(Instant.class), any(Instant.class));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2025-07-01, false, 2025-06-30T21:00:00Z, 2025-07-01T21:00:00Z",
+            "2025-03-30, false, 2025-03-29T22:00:00Z, 2025-03-30T21:00:00Z",
+            "2025-10-26, false, 2025-10-25T21:00:00Z, 2025-10-26T22:00:00Z",
+            "2025-03-30, true, 2025-03-23T22:00:00Z, 2025-03-30T21:00:00Z",
+            "2025-10-26, true, 2025-10-19T21:00:00Z, 2025-10-26T22:00:00Z",
+            "2025-01-01, true, 2024-12-29T22:00:00Z, 2025-01-05T22:00:00Z"
+    })
+    void getPowerLimitHistoryForPeriod_UsesLocalDayAndMondayWeekBoundaries(
+            String date, boolean week, String startValue, String endValue
+    ) {
+        AccountEntity account = new AccountEntity();
+        account.setId(2L);
+        PowerLimitEntity limit = new PowerLimitEntity();
+        limit.setId(20L);
+        limit.setTimezone("Europe/Helsinki");
+        limit.setLimitIntervalMinutes(15);
+        when(accountRepository.findById(2L)).thenReturn(Optional.of(account));
+        when(powerLimitRepository.findByAccountIdAndId(2L, 20L)).thenReturn(Optional.of(limit));
+        Instant start = Instant.parse(startValue);
+        Instant end = Instant.parse(endValue);
+        when(powerLimitHistoryRepository.findByPowerLimitAndCreatedAtBetween(2L, 20L, start, end))
+                .thenReturn(List.of(
+                        getPowerLimitHistoryEntity(1L, limit, account, start, BigDecimal.ONE),
+                        getPowerLimitHistoryEntity(2L, limit, account, start.plusSeconds(60), BigDecimal.valueOf(0.5))
+                ));
+
+        List<PowerLimitHistoryResponse> history = powerLimitService
+                .getPowerLimitHistoryForPeriod(2L, 20L, LocalDate.parse(date), week);
+
+        verify(powerLimitHistoryRepository).findByPowerLimitAndCreatedAtBetween(2L, 20L, start, end);
+        assertEquals(1, history.size());
+        assertEquals(start, history.getFirst().getCreatedAt());
+        assertEquals(BigDecimal.valueOf(1.5), history.getFirst().getKilowatts());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2025-03-30, false, 92", "2025-10-26, false, 100", "2025-03-30, true, 668", "2025-10-26, true, 676"})
+    void getPowerLimitHistoryForPeriod_DemoRespectsDstAndExclusiveEnd(String date, boolean week, int expectedPoints) {
+        AccountEntity account = new AccountEntity();
+        account.setId(1L);
+        account.setUuid(UUID.fromString("78b7823f-d5cc-4376-8910-cd62e7b32400"));
+        PowerLimitEntity limit = new PowerLimitEntity();
+        limit.setId(10L);
+        limit.setTimezone("Europe/Helsinki");
+        limit.setLimitIntervalMinutes(15);
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(powerLimitRepository.findByAccountIdAndId(1L, 10L)).thenReturn(Optional.of(limit));
+
+        List<PowerLimitHistoryResponse> history = powerLimitService
+                .getPowerLimitHistoryForPeriod(1L, 10L, LocalDate.parse(date), week);
+
+        assertEquals(expectedPoints, history.size());
+        assertEquals(0, history.getFirst().getCreatedAt().atZone(ZoneId.of(limit.getTimezone())).getHour());
+        assertEquals(23, history.getLast().getCreatedAt().atZone(ZoneId.of(limit.getTimezone())).getHour());
+        assertEquals(45, history.getLast().getCreatedAt().atZone(ZoneId.of(limit.getTimezone())).getMinute());
+        verifyNoInteractions(powerLimitHistoryRepository);
+    }
+
+    @Test
+    void getPowerLimitHistoryForPeriod_CannotReadAnotherAccountsLimit() {
+        AccountEntity account = new AccountEntity();
+        account.setId(1L);
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> powerLimitService.getPowerLimitHistoryForPeriod(1L, 99L, LocalDate.of(2025, 1, 1), true));
+        verifyNoInteractions(powerLimitHistoryRepository);
     }
 
     private PowerLimitHistoryEntity getPowerLimitHistoryEntity(

@@ -20,9 +20,13 @@ import com.nitramite.porssiohjain.services.models.PowerLimitHistoryResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitNotificationResponse;
 import com.nitramite.porssiohjain.services.models.PowerLimitResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -58,8 +62,21 @@ public class PowerLimitsController {
     @GetMapping("/{powerLimitId}/history")
     public List<PowerLimitHistoryResponse> getHistory(
             @PathVariable Long powerLimitId,
-            @RequestParam(defaultValue = "24") int hours
+            @RequestParam(defaultValue = "24") int hours,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "day") String period
     ) {
+        if (!period.equals("day") && !period.equals("week")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Period must be day or week");
+        }
+        if (date != null) {
+            return powerLimitService.getPowerLimitHistoryForPeriod(
+                    authContext.getAccountId(), powerLimitId, date, period.equals("week")
+            );
+        }
+        if (period.equals("week")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Date is required for a calendar week");
+        }
         return powerLimitService.getPowerLimitHistoryWithInterval(authContext.getAccountId(), powerLimitId, hours);
     }
 

@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -405,20 +406,46 @@ public class PowerLimitService {
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Power limit not found for account " + accountId + " and id " + powerLimitId
                     ));
-            return buildDemoPowerLimitHistory(accountId, powerLimit, hours);
+            Instant end = Instant.now();
+            return buildDemoPowerLimitHistory(accountId, powerLimit, end.minus(hours, ChronoUnit.HOURS), end);
         }
         Instant end = Instant.now();
         Instant start = end.minus(hours, ChronoUnit.HOURS);
         return getPowerLimitHistoryForRange(accountId, powerLimitId, start, end);
     }
 
+    @Transactional(readOnly = true)
+    public List<PowerLimitHistoryResponse> getPowerLimitHistoryForPeriod(
+            Long accountId, Long powerLimitId, LocalDate date, boolean week
+    ) {
+        AccountEntity account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+        PowerLimitEntity powerLimit = powerLimitRepository.findByAccountIdAndId(accountId, powerLimitId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Power limit not found for account " + accountId + " and id " + powerLimitId
+                ));
+        ZoneId zone = ZoneId.of(powerLimit.getTimezone());
+        LocalDate firstDay = week ? date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) : date;
+        Instant start = firstDay.atStartOfDay(zone).toInstant();
+        Instant end = firstDay.plusDays(week ? 7 : 1).atStartOfDay(zone).toInstant();
+        Instant now = Instant.now();
+        if (end.isAfter(now)) {
+            end = now;
+        }
+        if (!start.isBefore(end)) {
+            return List.of();
+        }
+        if (DEMO_ACCOUNT_UUID.equals(account.getUuid())) {
+            return buildDemoPowerLimitHistory(accountId, powerLimit, start, end);
+        }
+        return getPowerLimitHistoryForRange(accountId, powerLimitId, start, end);
+    }
+
     private List<PowerLimitHistoryResponse> buildDemoPowerLimitHistory(
-            Long accountId, PowerLimitEntity powerLimit, int hours
+            Long accountId, PowerLimitEntity powerLimit, Instant start, Instant end
     ) {
         ZoneId zone = ZoneId.of(powerLimit.getTimezone());
         int intervalMinutes = powerLimit.getLimitIntervalMinutes();
-        Instant end = Instant.now();
-        Instant start = end.minus(hours, ChronoUnit.HOURS);
         Instant bucket = Utils.toInterval(start, zone, intervalMinutes);
         if (bucket.isBefore(start)) {
             bucket = bucket.plus(intervalMinutes, ChronoUnit.MINUTES);
@@ -427,7 +454,7 @@ public class PowerLimitService {
         double configuredLimit = powerLimit.getLimitKw() == null ? 5.0 : powerLimit.getLimitKw().doubleValue();
         double scale = Math.max(configuredLimit, 0.5);
         List<PowerLimitHistoryResponse> history = new ArrayList<>();
-        while (!bucket.isAfter(end)) {
+        while (bucket.isBefore(end)) {
             ZonedDateTime localTime = bucket.atZone(zone);
             double hour = localTime.getHour() + localTime.getMinute() / 60.0;
             double baseline = 0.48 + 0.12 * Math.sin(2 * Math.PI * (hour - 6) / 24);

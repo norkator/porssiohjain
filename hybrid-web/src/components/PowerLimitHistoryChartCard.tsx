@@ -11,8 +11,8 @@
 
 import AppDialog from "@/components/AppDialog";
 import { type PointerEvent, useEffect, useState } from "react";
-import { fetchPowerLimitHistory, type PowerLimitHistoryPoint } from "@/lib/automation-resources";
-import { useI18n } from "@/lib/i18n";
+import { fetchPowerLimitHistory, fetchPowerLimitHistoryForPeriod, type PowerLimitHistoryPoint } from "@/lib/automation-resources";
+import { getCurrentIntlLocales, useI18n } from "@/lib/i18n";
 import { formatNordpoolTime } from "@/lib/nordpool";
 
 const COMPACT_CHART_HEIGHT = 300;
@@ -30,7 +30,10 @@ type PowerLimitHistoryChartCardProps = {
   limitKw: number | null;
 };
 
+type HistoryPeriod = "recent" | "day" | "week";
+
 type ChartState = {
+  requestKey: string;
   error: string | null;
   history: PowerLimitHistoryPoint[];
   isLoading: boolean;
@@ -41,11 +44,44 @@ type PowerLimitHistoryChartSurfaceProps = {
   history: PowerLimitHistoryPoint[];
   limitKw: number | null;
   timezone: string;
+  showDates?: boolean;
   variant?: "compact" | "expanded";
   onActivate?: () => void;
   onSelectedPointChange?: (index: number | null) => void;
   selectedPointIndex?: number | null;
 };
+
+// These UTC dates are calendar arithmetic only; the backend resolves midnight in the limit timezone.
+function shiftDate(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function weekStart(date: string) {
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return shiftDate(date, -((weekday + 6) % 7));
+}
+
+function todayInTimezone(timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date());
+  return ["year", "month", "day"].map((type) => parts.find((part) => part.type === type)?.value).join("-");
+}
+
+function formatCalendarDate(date: string) {
+  return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
+    timeZone: "UTC", year: "numeric", month: "short", day: "numeric"
+  }).format(new Date(`${date}T12:00:00Z`));
+}
+
+function formatHistoryTime(value: string, timezone: string, showDate: boolean) {
+  if (!showDate) return formatNordpoolTime(value, timezone);
+  return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
+    timeZone: timezone, month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).format(new Date(value));
+}
 
 function formatKwValue(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -99,9 +135,11 @@ function getCurrentPointIndex(history: PowerLimitHistoryPoint[]) {
   return 0;
 }
 
-function usePowerLimitHistory(powerLimitId: number): ChartState {
+function usePowerLimitHistory(powerLimitId: number, timezone: string, period: HistoryPeriod, date: string): ChartState {
+  const requestKey = `${powerLimitId}:${timezone}:${period}:${date}`;
   const { t } = useI18n("charts");
   const [state, setState] = useState<ChartState>({
+    requestKey,
     error: null,
     history: [],
     isLoading: true
@@ -111,15 +149,20 @@ function usePowerLimitHistory(powerLimitId: number): ChartState {
     let isActive = true;
 
     setState({
+      requestKey,
       error: null,
       history: [],
       isLoading: true
     });
 
-    fetchPowerLimitHistory(powerLimitId, 24)
+    const request = period === "recent"
+      ? fetchPowerLimitHistory(powerLimitId, 24)
+      : fetchPowerLimitHistoryForPeriod(powerLimitId, date, period);
+    request
       .then((history) => {
         if (!isActive) return;
         setState({
+          requestKey,
           error: null,
           history,
           isLoading: false
@@ -128,6 +171,7 @@ function usePowerLimitHistory(powerLimitId: number): ChartState {
       .catch((error: unknown) => {
         if (!isActive) return;
         setState({
+          requestKey,
           error: error instanceof Error ? error.message : t("failedLoadChart"),
           history: [],
           isLoading: false
@@ -137,9 +181,9 @@ function usePowerLimitHistory(powerLimitId: number): ChartState {
     return () => {
       isActive = false;
     };
-  }, [powerLimitId]);
+  }, [requestKey]);
 
-  return state;
+  return state.requestKey === requestKey ? state : { requestKey, error: null, history: [], isLoading: true };
 }
 
 function PowerLimitHistoryChartSurface({
@@ -150,6 +194,7 @@ function PowerLimitHistoryChartSurface({
   onSelectedPointChange,
   selectedPointIndex,
   timezone,
+  showDates = false,
   variant = "compact"
 }: PowerLimitHistoryChartSurfaceProps) {
   const { t } = useI18n("charts");
@@ -169,7 +214,7 @@ function PowerLimitHistoryChartSurface({
   const currentY = CHART_PADDING_TOP + innerHeight - ((currentPoint.kilowatts - minValue) / range) * innerHeight;
   const limitLineY = limitKw === null ? null : CHART_PADDING_TOP + innerHeight - ((limitKw - minValue) / range) * innerHeight;
 
-  const activePointIndex = selectedPointIndex ?? currentIndex;
+  const activePointIndex = Math.min(selectedPointIndex ?? currentIndex, history.length - 1);
   const activePoint = history[activePointIndex];
   const activeX = CHART_PADDING_LEFT + (innerWidth * activePointIndex) / Math.max(history.length - 1, 1);
   const activeY = CHART_PADDING_TOP + innerHeight - ((activePoint.kilowatts - minValue) / range) * innerHeight;
@@ -258,7 +303,7 @@ function PowerLimitHistoryChartSurface({
                   x={x}
                   y={CHART_PADDING_TOP + innerHeight + 24}
                 >
-                  {formatNordpoolTime(point.createdAt, timezone)}
+                  {formatHistoryTime(point.createdAt, timezone, showDates)}
                 </text>
               </g>
             );
@@ -308,7 +353,7 @@ function PowerLimitHistoryChartSurface({
               <circle cx={activeX} cy={activeY} fill="rgb(var(--color-surface-container-lowest))" r="8" stroke="rgb(204 51 51)" strokeWidth="3" />
               <rect fill="rgb(var(--color-surface-container-lowest))" height="42" rx="10" stroke="rgb(var(--color-outline-variant))" width="152" x={activeTooltipX - 76} y={activeTooltipY - 20} />
               <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY - 3}>
-                {formatNordpoolTime(activePoint.createdAt, timezone)}
+                {formatHistoryTime(activePoint.createdAt, timezone, showDates)}
               </text>
               <text fill="rgb(var(--color-on-surface))" fontSize="14" fontWeight="800" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 14}>
                 {formatKwValue(activePoint.kilowatts)} kW
@@ -330,31 +375,73 @@ function PowerLimitHistoryChartSurface({
   );
 }
 
-export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, limitKw }: PowerLimitHistoryChartCardProps) {
+export default function PowerLimitHistoryChartCard(props: PowerLimitHistoryChartCardProps) {
+  const { powerLimitId, timezone } = props;
   const { t } = useI18n("charts");
-  const { history, error, isLoading } = usePowerLimitHistory(powerLimitId);
+  const [period, setPeriod] = useState<HistoryPeriod>("recent");
+  const [date, setDate] = useState(() => todayInTimezone(timezone));
+  const today = todayInTimezone(timezone);
+  const { history, error, isLoading } = usePowerLimitHistory(powerLimitId, timezone, period, date);
+  const firstDay = period === "week" ? weekStart(date) : date;
+  const nextDate = shiftDate(firstDay, period === "week" ? 7 : 1);
+  const rangeLabel = period === "recent" ? t("historyRecent") : period === "day"
+    ? formatCalendarDate(date)
+    : `${formatCalendarDate(firstDay)} – ${formatCalendarDate(shiftDate(firstDay, 6))}`;
+
+  return (
+    <section className="space-y-3">
+      <div className="app-card flex flex-wrap items-end gap-3 p-4">
+        <label className="flex flex-col gap-1 text-sm font-bold text-on-surface">
+          {t("historyPeriod")}
+          <select className="rounded-xl bg-surface-container-highest px-4 py-3" value={period} onChange={(event) => setPeriod(event.target.value as HistoryPeriod)}>
+            <option value="recent">{t("historyRecent")}</option>
+            <option value="day">{t("historyDay")}</option>
+            <option value="week">{t("historyWeek")}</option>
+          </select>
+        </label>
+        {period !== "recent" ? (
+          <>
+            <label className="flex flex-col gap-1 text-sm font-bold text-on-surface">
+              {t("historyDate")}
+              <input className="rounded-xl bg-surface-container-highest px-4 py-3" max={today} type="date" value={date} onChange={(event) => {
+                if (event.target.value && event.target.value <= today) setDate(event.target.value);
+              }} />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button className="secondary-action px-3 py-3 text-sm" type="button" onClick={() => setDate(shiftDate(firstDay, period === "week" ? -7 : -1))}>
+                {period === "week" ? t("previousWeek") : t("previousDay")}
+              </button>
+              <button className="secondary-action px-3 py-3 text-sm disabled:opacity-50" type="button" disabled={nextDate > today} onClick={() => setDate(nextDate)}>
+                {period === "week" ? t("nextWeek") : t("nextDay")}
+              </button>
+              <button className="secondary-action px-3 py-3 text-sm" type="button" onClick={() => setDate(today)}>
+                {period === "week" ? t("thisWeek") : t("historyToday")}
+              </button>
+            </div>
+          </>
+        ) : null}
+        <p className="w-full text-sm text-on-surface-variant">{rangeLabel} · {timezone}</p>
+      </div>
+      {isLoading ? (
+        <div className="app-card p-6 text-sm text-on-surface-variant" role="status">{t("loadingPowerLimitHistory")}</div>
+      ) : error ? (
+        <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container" role="alert">
+          {t("failedPowerLimitHistory", { error })}
+        </div>
+      ) : history.length === 0 ? (
+        <div className="app-card p-6 text-sm text-on-surface-variant" role="status">{t("noPowerLimitHistory")}</div>
+      ) : (
+        <PowerLimitHistoryChartContent {...props} history={history} period={period} key={`${powerLimitId}:${timezone}:${period}:${date}`} />
+      )}
+    </section>
+  );
+}
+
+function PowerLimitHistoryChartContent({ timezone, limitKw, history, period }: PowerLimitHistoryChartCardProps & { history: PowerLimitHistoryPoint[]; period: HistoryPeriod }) {
+  const { t } = useI18n("charts");
   const [isChartDialogOpen, setIsChartDialogOpen] = useState(false);
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
-
-  if (isLoading) {
-    return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingPowerLimitHistory")}</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="app-card border border-error-container bg-error-container/50 p-6 text-sm text-on-error-container">
-        {t("failedPowerLimitHistory", { error })}
-      </div>
-    );
-  }
-
-  if (history.length === 0) {
-    return (
-      <div className="app-card p-6 text-sm text-on-surface-variant">
-        {t("noPowerLimitHistory")}
-      </div>
-    );
-  }
+  const isRecent = period === "recent";
 
   const values = history.map((point) => point.kilowatts);
   const currentIndex = getCurrentPointIndex(history);
@@ -370,7 +457,7 @@ export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, lim
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("powerLimitHistory")}</p>
               <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">{t("powerUsageTimeline")}</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
-                {t("powerLimitDescription", { timezone })}
+                {t(isRecent ? "powerLimitDescription" : "powerLimitPeriodDescription", { timezone })}
               </p>
             </div>
 
@@ -386,11 +473,12 @@ export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, lim
             limitKw={limitKw}
             onActivate={() => setIsChartDialogOpen(true)}
             timezone={timezone}
+            showDates={!isRecent}
           />
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
             <span className="rounded-full bg-surface-container px-3 py-2">
-              {t("now", { time: formatNordpoolTime(currentPoint.createdAt, timezone) })}
+              {t(isRecent ? "now" : "latestHistoryPoint", { time: formatHistoryTime(currentPoint.createdAt, timezone, !isRecent) })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
               {t("kwRange", { min: formatKwValue(Math.min(...values)), max: formatKwValue(Math.max(...values)) })}
@@ -414,12 +502,12 @@ export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, lim
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-1">
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">{t("currentInterval")}</p>
+            <p className="metric-label mb-2">{t(isRecent ? "currentInterval" : "latestInterval")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatKwValue(currentPoint.kilowatts)}</p>
-            <p className="text-xs text-on-surface-variant">{t("kwCurrentBucket")}</p>
+            <p className="text-xs text-on-surface-variant">{t(isRecent ? "kwCurrentBucket" : "kwSelectedPeriodBucket")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-5">
-            <p className="metric-label mb-2">{t("peak24h")}</p>
+            <p className="metric-label mb-2">{t(isRecent ? "peak24h" : period === "week" ? "peakWeek" : "peakDay")}</p>
             <p className="font-headline text-2xl font-black text-on-surface">{formatKwValue(Math.max(...values))}</p>
             <p className="text-xs text-on-surface-variant">{t("highestIntervalSum")}</p>
           </div>
@@ -433,7 +521,7 @@ export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, lim
         </div>
       </div>
       <AppDialog
-        description={t("powerLimitExpandedDescription", { timezone })}
+        description={t(isRecent ? "powerLimitExpandedDescription" : "powerLimitPeriodExpandedDescription", { timezone })}
         eyebrow={t("powerLimitHistory")}
         isOpen={isChartDialogOpen}
         maxWidthClassName="max-w-6xl"
@@ -450,12 +538,13 @@ export default function PowerLimitHistoryChartCard({ powerLimitId, timezone, lim
           onSelectedPointChange={setSelectedPointIndex}
           selectedPointIndex={selectedPointIndex}
           timezone={timezone}
+          showDates={!isRecent}
           variant="expanded"
         />
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("selectedInterval")}</p>
-            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolTime(dialogPoint.createdAt, timezone)}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatHistoryTime(dialogPoint.createdAt, timezone, !isRecent)}</p>
           </div>
           <div className="rounded-2xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("selectedPowerUsage")}</p>

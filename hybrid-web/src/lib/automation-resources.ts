@@ -375,6 +375,10 @@ export const updatePowerLimit = (id: number, payload: PowerLimitPayload) => post
 export const deletePowerLimit = (id: number) => postJson<void>(`/api/power-limits/${id}`, undefined, "DELETE");
 export const fetchPowerLimitDeviceLinks = (id: number) => apiGetJson<PowerLimitDeviceLink[]>(`/api/power-limits/${id}/devices`);
 export const fetchPowerLimitHistory = (id: number, hours = 24) => apiGetJson<PowerLimitHistoryPoint[]>(`/api/power-limits/${id}/history?hours=${hours}`);
+export const fetchPowerLimitHistoryForPeriod = (id: number, date: string, period: "day" | "week") => {
+  const params = new URLSearchParams({ date, period });
+  return apiGetJson<PowerLimitHistoryPoint[]>(`/api/power-limits/${id}/history?${params}`);
+};
 export const addPowerLimitDeviceLink = (id: number, payload: { deviceId: number; deviceChannel: number }) => postJson<void>(`/api/power-limits/${id}/devices`, payload);
 export const deletePowerLimitDeviceLink = (id: number) => postJson<void>(`/api/power-limits/devices/${id}`, undefined, "DELETE");
 export const fetchPowerLimitNotifications = (id: number) => apiGetJson<PowerLimitNotification[]>(`/api/power-limits/${id}/notifications`);
