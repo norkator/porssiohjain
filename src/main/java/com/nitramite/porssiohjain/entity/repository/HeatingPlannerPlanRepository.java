@@ -25,6 +25,9 @@ import java.util.UUID;
 
 public interface HeatingPlannerPlanRepository extends JpaRepository<HeatingPlannerPlanEntity, Long> {
 
+    Optional<HeatingPlannerPlanEntity> findFirstByAccountIdAndSiteIdAndSettingsIdAndStatusOrderByCreatedAtDescIdDesc(
+            Long accountId, Long siteId, Long settingsId, HeatingPlannerPlanStatus status);
+
     Optional<HeatingPlannerPlanEntity> findByPlanVersion(UUID planVersion);
 
     List<HeatingPlannerPlanEntity> findBySettingsIdAndStatusOrderByCreatedAtDesc(

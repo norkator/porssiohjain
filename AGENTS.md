@@ -79,6 +79,7 @@ Current implementation:
 - `views/components/HeatingPlanChart.java` renders its ApexCharts visualization.
 - `entity/ZigbeeDeviceMeasurementEntity.java`, `entity/enums/ZigbeeMeasurementType.java`, and `entity/repository/ZigbeeDeviceMeasurementRepository.java` define normalized Zigbee measurement history for Heating Planner sensor use.
 - `services/heating/HeatingPlannerMeasurementService.java` exposes latest fresh/stale/missing room and floor temperature lookup.
+- `contollers/HeatingPlannerController.java` exposes authenticated, read-only `GET /api/heating-planner/widget-summary?siteId=...&roomId=...` for native Android widgets. `services/heating/HeatingPlannerWidgetQueryService.java` keeps planned activity, measurements, and thermostat read-back separate. Read `doc/heating-planner-widget.md` for the contract and Android handoff; hybrid-web intentionally has no Heating Planner screen.
 - `services/heating/HeatingPlanSimulationServiceTest.java` covers preheat, discharge, comfort, floor-limit, and wood-stove recommendation behaviour.
 - Persisted plans, automatic replanning, wood-stove advisory notifications, and explicit opt-in thermostat control are implemented.
 

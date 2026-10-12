@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ZigbeeGatewayDeviceRepository extends JpaRepository<ZigbeeGatewayDeviceEntity, Long> {
+    List<ZigbeeGatewayDeviceEntity> findByDeviceIdInAndAccountId(List<Long> deviceIds, Long accountId);
     Optional<ZigbeeGatewayDeviceEntity> findByGatewayIdAndZigbeeIeee(UUID gatewayId, String zigbeeIeee);
     Optional<ZigbeeGatewayDeviceEntity> findByDeviceId(Long deviceId);
     List<ZigbeeGatewayDeviceEntity> findByGatewayIdAndAccountId(UUID gatewayId, Long accountId);

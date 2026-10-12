@@ -1,5 +1,7 @@
 # Heating Planner
 
+Native Android widget API and implementation handoff: [heating-planner-widget.md](heating-planner-widget.md). The summary route is read-only; hybrid-web intentionally has no Heating Planner screen.
+
 ## Status
 
 Design specification, live planning, and explicit opt-in active control. The thermostat's configured internal floor-temperature limit remains authoritative and is enforced by the thermostat independently of Heating Planner. The planner adds configurable planning bounds, sensor-freshness checks, latest-plan command publishing for Zigbee gateways, command expiry/rate limiting, and fallback behaviour.
