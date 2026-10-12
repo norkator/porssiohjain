@@ -22,6 +22,8 @@ import com.nitramite.porssiohjain.services.models.ControlResponse;
 import com.nitramite.porssiohjain.services.models.CreateControlRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.math.BigDecimal;
 
@@ -49,8 +51,9 @@ class ControlsControllerTest {
         authContext.clear();
     }
 
-    @Test
-    void createControlGeneratesControlTableForCreatedControl() {
+    @ParameterizedTest
+    @EnumSource(value = ControlMode.class, names = {"CHEAPEST_HOURS_TOMORROW_AWARE", "CHEAPEST_CONSECUTIVE_HOURS"})
+    void createControlGeneratesControlTableForCreatedControl(ControlMode mode) {
         authContext.setAccountId(1L);
 
         CreateControlRequest request = new CreateControlRequest();
@@ -60,7 +63,7 @@ class ControlsControllerTest {
         request.setMinPriceSnt(BigDecimal.valueOf(0.5));
         request.setDailyOnMinutes(180);
         request.setTaxPercent(BigDecimal.valueOf(25.5));
-        request.setMode(ControlMode.CHEAPEST_HOURS_TOMORROW_AWARE);
+        request.setMode(mode);
         request.setManualOn(false);
         request.setAlwaysOnBelowMinPrice(true);
         request.setEnergyContractId(2L);
@@ -84,7 +87,7 @@ class ControlsControllerTest {
                 eq(BigDecimal.valueOf(0.5)),
                 eq(180),
                 eq(BigDecimal.valueOf(25.5)),
-                eq(ControlMode.CHEAPEST_HOURS_TOMORROW_AWARE),
+                eq(mode),
                 eq(false),
                 eq(true),
                 eq(2L),

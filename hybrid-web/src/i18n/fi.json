@@ -786,15 +786,18 @@
       "CHEAPEST_HOURS": "Halvimmat tunnit",
       "CHEAPEST_HOURS_TOMORROW_AWARE": "Halvimmat tunnit, huominen mukana",
       "MANUAL": "Käsiohjaus",
-      "SCHEDULED": "Ajastettu"
+      "SCHEDULED": "Ajastettu",
+      "CHEAPEST_CONSECUTIVE_HOURS": "Edullisin yhtenäinen jakso"
     },
     "modeDescriptions": {
       "BELOW_MAX_PRICE": "Käyttää laitetta, kun yhdistetty ohjaushinta on alle valitun maksimihinnan.",
       "CHEAPEST_HOURS": "Valitsee halvimmat jaksot jokaisen paikallisen kalenteripäivän sisältä.",
       "CHEAPEST_HOURS_TOMORROW_AWARE": "Vertaa tätä päivää ja huomista, kun huomisen hinnat ovat saatavilla, jolloin osa lämmityksestä voidaan siirtää aiemmaksi tai myöhemmäksi säästöjen maksimoimiseksi.",
       "MANUAL": "Pitää ohjauksen valitussa käsiohjaustilassa.",
-      "SCHEDULED": "Luo ohjauksen, jonka tarkat ajastukset voidaan määrittää myöhemmin."
-    }
+      "SCHEDULED": "Luo ohjauksen, jonka tarkat ajastukset voidaan määrittää myöhemmin.",
+      "CHEAPEST_CONSECUTIVE_HOURS": "Valitsee vuorokauden edullisimman yhtenäisen päälläolojakson."
+    },
+    "consecutiveHint": "Valitsee jokaiselle vuorokaudelle edullisimman yhtenäisen jakson ohjauksen aikavyöhykkeellä. Vertailuhinta sisältää verot ja siirron. Anna päälläoloaika 15 minuutin askelin: 180 minuuttia tarkoittaa yhtä kolmen tunnin jaksoa. Jokaisen vartin hinnan on oltava enintään maksimihinta. Yhtä edullisista jaksoista valitaan aikaisempi. Uusi jakso alkaa aikaisintaan seuraavalta mahdolliselta varttirajalta, eikä aikaa siirretä päivien välillä. Alkanut jakso säilyy kyseiselle päivälle uudelleenlaskennassa, vaikka kestoa tai hintarajoja muutetaan. Aina päällä alle minimihinnan voi lisätä päälläoloa jakson ulkopuolelle."
   },
   "charts": {
     "failedLoadChart": "Kaavion lataus epäonnistui",
@@ -894,7 +897,8 @@
     "highestIntervalValue": "suurin jaksoarvo",
     "average24h": "24 h keskiarvo",
     "kwVisibleRange": "kW näkyvällä aikavälillä",
-    "marketNotifications": "Ilmoitukset"
+    "marketNotifications": "Ilmoitukset",
+    "consecutiveMissing": "Tälle päivälle ei ole ajastettu kokonaista yhtenäistä jaksoa. Tarkista maksimihinta, kesto, saatavilla olevat hinnat ja vuorokauden jäljellä oleva aika. Minimihinnan alittavat lisäjaksot voivat silti olla päällä."
   },
   "windForecast": {
     "eyebrow": "Fingrid-ennuste",
@@ -1187,7 +1191,8 @@
       "BELOW_MAX_PRICE": "Alle maksimihinnan",
       "CHEAPEST_HOURS": "Halvimmat tunnit",
       "CHEAPEST_HOURS_TOMORROW_AWARE": "Halvimmat tunnit (huomioi huomisen)",
-      "MANUAL": "Käsiohjaus"
+      "MANUAL": "Käsiohjaus",
+      "CHEAPEST_CONSECUTIVE_HOURS": "Edullisin yhtenäinen jakso"
     },
     "actions": {
       "TURN_ON": "Kytke päälle",
@@ -1204,7 +1209,8 @@
       "TOSHIBA": "Toshiba",
       "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
       "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
-    }
+    },
+    "consecutiveHint": "Valitsee jokaiselle vuorokaudelle edullisimman yhtenäisen jakson ohjauksen aikavyöhykkeellä. Vertailuhinta sisältää verot ja siirron. Anna päälläoloaika 15 minuutin askelin: 180 minuuttia tarkoittaa yhtä kolmen tunnin jaksoa. Jokaisen vartin hinnan on oltava enintään maksimihinta. Yhtä edullisista jaksoista valitaan aikaisempi. Uusi jakso alkaa aikaisintaan seuraavalta mahdolliselta varttirajalta, eikä aikaa siirretä päivien välillä. Alkanut jakso säilyy kyseiselle päivälle uudelleenlaskennassa, vaikka kestoa tai hintarajoja muutetaan. Aina päällä alle minimihinnan voi lisätä päälläoloa jakson ulkopuolelle."
   },
   "manageWeatherControl": {
     "title": "Hallitse sääohjausta",

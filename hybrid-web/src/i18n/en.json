@@ -786,15 +786,18 @@
       "CHEAPEST_HOURS": "Cheapest hours",
       "CHEAPEST_HOURS_TOMORROW_AWARE": "Cheapest hours, tomorrow-aware",
       "MANUAL": "Manual",
-      "SCHEDULED": "Scheduled"
+      "SCHEDULED": "Scheduled",
+      "CHEAPEST_CONSECUTIVE_HOURS": "Cheapest consecutive hours"
     },
     "modeDescriptions": {
       "BELOW_MAX_PRICE": "Runs when the combined control price is below your selected maximum.",
       "CHEAPEST_HOURS": "Chooses the cheapest periods inside each local calendar day.",
       "CHEAPEST_HOURS_TOMORROW_AWARE": "Compares today and tomorrow when tomorrow prices are available, so some heating can be shifted earlier or later to maximize savings.",
       "MANUAL": "Keeps the control in the manual state you choose.",
-      "SCHEDULED": "Creates a control that can be managed with explicit schedule settings later."
-    }
+      "SCHEDULED": "Creates a control that can be managed with explicit schedule settings later.",
+      "CHEAPEST_CONSECUTIVE_HOURS": "Selects the cheapest continuous block within each local day."
+    },
+    "consecutiveHint": "Selects the cheapest continuous block of the configured duration for each day in the control timezone, using the price including tax and transfer. Enter minutes in 15-minute steps; 180 minutes means one three-hour block. Each quarter must stay at or below the maximum price. Equal-cost blocks use the earlier start. New blocks start at the next available quarter boundary; no time is moved between days. Once a block starts, recalculation keeps it for that day, even if duration or price settings change. Always on below minimum price may add extra periods outside the block."
   },
   "charts": {
     "failedLoadChart": "Failed to load chart",
@@ -894,7 +897,8 @@
     "highestIntervalValue": "highest interval value",
     "average24h": "24h Average",
     "kwVisibleRange": "kW across the visible range",
-    "marketNotifications": "Notifications"
+    "marketNotifications": "Notifications",
+    "consecutiveMissing": "No complete continuous block is scheduled for this day. Check the maximum price, duration, available prices and time remaining in the day. Extra periods below the minimum price may still run."
   },
   "windForecast": {
     "eyebrow": "Fingrid forecast",
@@ -1187,7 +1191,8 @@
       "BELOW_MAX_PRICE": "Below Max Price",
       "CHEAPEST_HOURS": "Cheapest Hours",
       "CHEAPEST_HOURS_TOMORROW_AWARE": "Cheapest Hours (Tomorrow-aware)",
-      "MANUAL": "Manual"
+      "MANUAL": "Manual",
+      "CHEAPEST_CONSECUTIVE_HOURS": "Cheapest consecutive hours"
     },
     "actions": {
       "TURN_ON": "Turn On",
@@ -1204,7 +1209,8 @@
       "TOSHIBA": "Toshiba",
       "MITSUBISHI_MELCLOUD": "Mitsubishi - MELCloud",
       "MITSUBISHI_MELCLOUD_HOME": "Mitsubishi - MELCloud Home"
-    }
+    },
+    "consecutiveHint": "Selects the cheapest continuous block of the configured duration for each day in the control timezone, using the price including tax and transfer. Enter minutes in 15-minute steps; 180 minutes means one three-hour block. Each quarter must stay at or below the maximum price. Equal-cost blocks use the earlier start. New blocks start at the next available quarter boundary; no time is moved between days. Once a block starts, recalculation keeps it for that day, even if duration or price settings change. Always on below minimum price may add extra periods outside the block."
   },
   "manageWeatherControl": {
     "title": "Manage Weather Control",

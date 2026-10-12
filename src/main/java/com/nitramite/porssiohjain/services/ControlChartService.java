@@ -70,6 +70,8 @@ public class ControlChartService {
                 .timezone(control.getTimezone())
                 .transferContractName(control.getTransferContract() != null ? control.getTransferContract().getName() : null)
                 .points(points)
+                .missingConsecutiveBlockDates(controlSchedulerService.missingConsecutiveBlockDates(
+                        control.getMode(), control.getDailyOnMinutes(), control.getTimezone(), finalRowsByTimestamp.values()))
                 .build();
     }
 

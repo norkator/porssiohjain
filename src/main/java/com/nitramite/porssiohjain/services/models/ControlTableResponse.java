@@ -31,6 +31,7 @@ public class ControlTableResponse {
     private Integer deviceChannel;
     private BigDecimal priceSnt;
     private Status status;
+    private boolean consecutiveBase;
     private Instant startTime;
     private Instant endTime;
     private DeviceResponse device;

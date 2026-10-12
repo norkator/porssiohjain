@@ -16,8 +16,10 @@ import com.nitramite.porssiohjain.entity.enums.ControlMode;
 import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.ControlService;
+import com.nitramite.porssiohjain.services.ControlSchedulerService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.models.ControlResponse;
+import com.nitramite.porssiohjain.views.components.InfoBox;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -53,6 +55,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
 
     private final Grid<ControlResponse> controlsGrid = new Grid<>(ControlResponse.class, false);
     private final ControlService controlService;
+    private final ControlSchedulerService controlSchedulerService;
     private final AccountLimitService accountLimitService;
     private final AuthService authService;
     protected final I18nService i18n;
@@ -71,15 +74,18 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
     private final Button createButton;
     private final DesktopCreateDialog createDialog;
     private final Span limitInfo;
+    private InfoBox consecutiveHint;
 
     @Autowired
     public ControlsView(
             ControlService controlService,
+            ControlSchedulerService controlSchedulerService,
             AccountLimitService accountLimitService,
             AuthService authService,
             I18nService i18n
     ) {
         this.controlService = controlService;
+        this.controlSchedulerService = controlSchedulerService;
         this.accountLimitService = accountLimitService;
         this.authService = authService;
         this.i18n = i18n;
@@ -140,6 +146,8 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
     }
 
     private void configureForm() {
+        consecutiveHint = new InfoBox(t("control.mode.CHEAPEST_CONSECUTIVE_HOURS"), t("control.consecutiveHint"));
+        consecutiveHint.setVisible(false);
         nameField.setPlaceholder("Enter control name");
         nameField.setWidthFull();
 
@@ -178,6 +186,9 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
             ControlMode selected = e.getValue();
             manualOnToggle.setEnabled(selected == ControlMode.MANUAL);
             boolean isCheapest = selected != null && selected.isCheapestHours();
+            boolean consecutive = selected == ControlMode.CHEAPEST_CONSECUTIVE_HOURS;
+            consecutiveHint.setVisible(consecutive);
+            dailyMinutesField.setStep(consecutive ? 15 : 1);
             alwaysOnBelowMinPriceToggle.setEnabled(isCheapest);
             if (selected != ControlMode.MANUAL) {
                 manualOnToggle.setValue(false);
@@ -214,7 +225,7 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
 
         createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        formContainer.add(formLayout);
+        formContainer.add(formLayout, consecutiveHint);
         DesktopFormState.watch(formLayout);
 
         return formContainer;
@@ -285,10 +296,13 @@ public class ControlsView extends VerticalLayout implements BeforeEnterObserver 
             }
 
 
-            controlService.createControl(
+            var created = controlService.createControl(
                     accountId, name, timezone, maxPrice, minPrice, dailyMinutes,
                     taxPercent, mode, manualOn, alwaysOnBelowMinPrice
             );
+            if (mode == ControlMode.CHEAPEST_CONSECUTIVE_HOURS) {
+                controlSchedulerService.generateForControl(created.getId());
+            }
             Notification notification = Notification.show(t("control.notification.created"));
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 

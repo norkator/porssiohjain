@@ -61,6 +61,7 @@ public class ControlSchedulerService {
                 .controlId(e.getControl().getId())
                 .priceSnt(e.getPriceSnt())
                 .status(e.getStatus())
+                .consecutiveBase(e.isConsecutiveBase())
                 .startTime(e.getStartTime())
                 .endTime(e.getEndTime())
                 .build();
@@ -107,6 +108,9 @@ public class ControlSchedulerService {
                             endTime
                     );
             ControlMode controlMode = control.getMode();
+            List<ControlTableEntity> previousRows = controlMode == ControlMode.CHEAPEST_CONSECUTIVE_HOURS
+                    ? controlTableRepository.findActivePeriodsOverlapping(control.getId(), Status.FINAL, startTime, endTime)
+                    : List.of();
 
             controlTableRepository.deleteByControlAndStartTimeGreaterThanEqualAndStartTimeLessThan(
                     control,
@@ -115,7 +119,11 @@ public class ControlSchedulerService {
             );
             controlTableRepository.flush();
 
-            if (controlMode.equals(ControlMode.BELOW_MAX_PRICE)) {
+            if (controlMode == ControlMode.CHEAPEST_CONSECUTIVE_HOURS) {
+                for (LocalDate date : List.of(today, today.plusDays(1))) {
+                    scheduleConsecutivePeriods(control, prices, previousRows, date, controlZone, now);
+                }
+            } else if (controlMode.equals(ControlMode.BELOW_MAX_PRICE)) {
                 for (NordpoolEntity priceEntry : prices) {
                     BigDecimal combinedPrice = controlPriceService.getCombinedPrice(control, priceEntry);
                     if (combinedPrice.compareTo(control.getMaxPriceSnt()) <= 0) {
@@ -186,6 +194,106 @@ public class ControlSchedulerService {
             }
 
         }
+    }
+
+    private void scheduleConsecutivePeriods(
+            ControlEntity control,
+            List<NordpoolEntity> prices,
+            List<ControlTableEntity> previousRows,
+            LocalDate date,
+            ZoneId zone,
+            Instant now
+    ) {
+        Instant dayStart = date.atStartOfDay(zone).toInstant();
+        Instant dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant();
+        // Use quarter-hour candidates even when the market supplies hourly prices.
+        NavigableMap<Instant, ControlTableEntity> quarters = new TreeMap<>();
+        for (NordpoolEntity price : prices) {
+            if (price.getDeliveryStart().isBefore(dayStart) || !price.getDeliveryStart().isBefore(dayEnd)) continue;
+            BigDecimal combinedPrice = controlPriceService.getCombinedPrice(control, price);
+            for (Instant start = price.getDeliveryStart();
+                 !start.plusSeconds(900).isAfter(price.getDeliveryEnd()) && !start.plusSeconds(900).isAfter(dayEnd);
+                 start = start.plusSeconds(900)) {
+                quarters.put(start, ControlTableEntity.builder()
+                        .control(control).startTime(start).endTime(start.plusSeconds(900))
+                        .priceSnt(combinedPrice).status(Status.FINAL).build());
+            }
+        }
+
+        List<ControlTableEntity> previousBase = previousRows.stream()
+                .filter(ControlTableEntity::isConsecutiveBase)
+                .filter(row -> !row.getStartTime().isBefore(dayStart) && row.getStartTime().isBefore(dayEnd))
+                .sorted(Comparator.comparing(ControlTableEntity::getStartTime))
+                .toList();
+        Map<Instant, ControlTableEntity> selected = new TreeMap<>();
+        boolean baseStarted = previousBase.stream().anyMatch(row -> !row.getStartTime().isAfter(now));
+        if (baseStarted) {
+            // Keep the entire committed block, including completed rows. Do not run a second block today.
+            // Copy before reinserting because the previous entities were deleted during regeneration.
+            for (ControlTableEntity row : previousBase) {
+                ControlTableEntity pricedQuarter = quarters.get(row.getStartTime());
+                selected.put(row.getStartTime(), ControlTableEntity.builder()
+                        .control(control).startTime(row.getStartTime()).endTime(row.getEndTime())
+                        .priceSnt(pricedQuarter == null ? row.getPriceSnt() : pricedQuarter.getPriceSnt())
+                        .status(Status.FINAL).consecutiveBase(true)
+                        .activationPushSentAt(row.getActivationPushSentAt()).build());
+            }
+        } else {
+            List<ControlTableEntity> candidates = new ArrayList<>(quarters.values());
+            int requiredMinutes = control.getDailyOnMinutes() == null ? 0 : control.getDailyOnMinutes();
+            int count = requiredMinutes / 15;
+            BigDecimal bestCost = null;
+            List<ControlTableEntity> bestBlock = List.of();
+            if (requiredMinutes > 0 && requiredMinutes % 15 == 0) {
+                for (int i = 0; i + count <= candidates.size(); i++) {
+                    if (candidates.get(i).getStartTime().isBefore(now)) continue;
+                    BigDecimal cost = BigDecimal.ZERO;
+                    Instant expectedStart = candidates.get(i).getStartTime();
+                    boolean valid = true;
+                    for (int j = i; j < i + count; j++) {
+                        ControlTableEntity row = candidates.get(j);
+                        if (!row.getStartTime().equals(expectedStart)
+                                || row.getPriceSnt().compareTo(control.getMaxPriceSnt()) > 0) {
+                            valid = false;
+                            break;
+                        }
+                        cost = cost.add(row.getPriceSnt());
+                        expectedStart = row.getEndTime();
+                    }
+                    // Strict comparison keeps the earlier start when total costs are equal.
+                    if (valid && (bestCost == null || cost.compareTo(bestCost) < 0)) {
+                        bestCost = cost;
+                        bestBlock = candidates.subList(i, i + count);
+                    }
+                }
+            }
+            for (ControlTableEntity row : bestBlock) {
+                row.setConsecutiveBase(true);
+                selected.put(row.getStartTime(), row);
+            }
+        }
+
+        if (control.isAlwaysOnBelowMinPrice()) {
+            for (ControlTableEntity row : quarters.values()) {
+                if (row.getPriceSnt().compareTo(control.getMinPriceSnt()) <= 0) {
+                    selected.putIfAbsent(row.getStartTime(), row);
+                }
+            }
+        }
+        selected.values().forEach(controlTableRepository::save);
+    }
+
+    public List<LocalDate> missingConsecutiveBlockDates(
+            ControlMode mode, Integer dailyMinutes, String timezone, Collection<ControlTableResponse> rows
+    ) {
+        if (mode != ControlMode.CHEAPEST_CONSECUTIVE_HOURS || dailyMinutes == null || dailyMinutes <= 0) return List.of();
+        ZoneId zone = ZoneId.of(timezone);
+        LocalDate today = LocalDate.now(zone);
+        Set<LocalDate> scheduledDays = rows.stream()
+                .filter(row -> row.getStatus() == Status.FINAL && row.isConsecutiveBase())
+                .map(row -> row.getStartTime().atZone(zone).toLocalDate())
+                .collect(Collectors.toSet());
+        return List.of(today, today.plusDays(1)).stream().filter(date -> !scheduledDays.contains(date)).toList();
     }
 
     private void scheduleCheapestPeriods(

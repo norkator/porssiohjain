@@ -620,7 +620,7 @@ export default function ManageControlView() {
                         id="daily-minutes"
                         min="0"
                         onChange={(event) => setDailyOnMinutes(event.target.value)}
-                        step="1"
+                        step={mode === "CHEAPEST_CONSECUTIVE_HOURS" ? "15" : "1"}
                         type="number"
                         value={dailyOnMinutes}
                       />
@@ -662,6 +662,12 @@ export default function ManageControlView() {
                         ))}
                       </select>
                     </div>
+
+                    {mode === "CHEAPEST_CONSECUTIVE_HOURS" ? (
+                      <div className="rounded-xl border border-primary/30 bg-primary-fixed p-4 text-sm leading-6 text-on-surface md:col-span-2" role="note">
+                        {t("consecutiveHint")}
+                      </div>
+                    ) : null}
 
                     <div className="md:col-span-2">
                       <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="transfer-contract">

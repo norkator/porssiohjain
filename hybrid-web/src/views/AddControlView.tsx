@@ -260,7 +260,13 @@ export default function AddControlView() {
 
               {step === 3 ? (
                 <div className="grid gap-6 md:grid-cols-2">
-                  {mode === "BELOW_MAX_PRICE" ? (
+                  {mode === "CHEAPEST_CONSECUTIVE_HOURS" ? (
+                    <div className="rounded-xl border border-primary/30 bg-primary-fixed p-4 text-sm leading-6 text-on-surface md:col-span-2" role="note">
+                      {t("consecutiveHint")}
+                    </div>
+                  ) : null}
+
+                  {(mode === "BELOW_MAX_PRICE" || mode === "CHEAPEST_CONSECUTIVE_HOURS") ? (
                     <div>
                       <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="max-price">
                         {t("maxPrice")}
@@ -278,7 +284,7 @@ export default function AddControlView() {
                     </div>
                   ) : null}
 
-                  {(mode === "CHEAPEST_HOURS" || mode === "CHEAPEST_HOURS_TOMORROW_AWARE") ? (
+                  {(mode === "CHEAPEST_HOURS" || mode === "CHEAPEST_HOURS_TOMORROW_AWARE" || mode === "CHEAPEST_CONSECUTIVE_HOURS") ? (
                     <div>
                       <label className="mb-3 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="daily-minutes">
                         {t("dailyOnMinutes")}

@@ -82,6 +82,7 @@ public class ControlService {
             Boolean alwaysOnBelowMinPrice, Long energyContractId, Long transferContractId,
             Long siteId
     ) {
+        validateConsecutiveMinutes(mode, dailyOnMinutes);
         demoAccountGuard.assertWritable(accountId);
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
@@ -131,6 +132,7 @@ public class ControlService {
             Boolean alwaysOnBelowMinPrice, Long energyContractId, Long transferContractId,
             Long siteId
     ) {
+        validateConsecutiveMinutes(mode, dailyOnMinutes);
         demoAccountGuard.assertWritable(accountId);
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
@@ -170,6 +172,13 @@ public class ControlService {
             return controlRepository.save(control);
         } else {
             throw new IllegalStateException("Forbidden!");
+        }
+    }
+
+    private void validateConsecutiveMinutes(ControlMode mode, Integer minutes) {
+        if (mode == ControlMode.CHEAPEST_CONSECUTIVE_HOURS
+                && (minutes == null || minutes < 0 || minutes > 1500 || minutes % 15 != 0)) {
+            throw new IllegalArgumentException("Consecutive operating time must be 0–1500 minutes in 15-minute steps.");
         }
     }
 

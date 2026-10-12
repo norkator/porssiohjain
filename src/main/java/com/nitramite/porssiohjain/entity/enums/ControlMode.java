@@ -15,11 +15,13 @@ public enum ControlMode {
     BELOW_MAX_PRICE, // turns ON when price < maxPriceSnt
     CHEAPEST_HOURS,  // daily cheapest hours, control on based on dailyOnMinutes
     CHEAPEST_HOURS_TOMORROW_AWARE, // two-day cheapest hours, allowing today's minutes to move into tomorrow
+    CHEAPEST_CONSECUTIVE_HOURS, // cheapest continuous block within each local calendar day
     MANUAL,          // manual override, use manualOn field
     SCHEDULED;       // user defined schedule
 
     public boolean isCheapestHours() {
-        return this == CHEAPEST_HOURS || this == CHEAPEST_HOURS_TOMORROW_AWARE;
+        return this == CHEAPEST_HOURS || this == CHEAPEST_HOURS_TOMORROW_AWARE
+                || this == CHEAPEST_CONSECUTIVE_HOURS;
     }
 
     public boolean usesGeneratedControlTable() {

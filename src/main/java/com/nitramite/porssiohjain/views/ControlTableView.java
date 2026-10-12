@@ -369,7 +369,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
                 alwaysOnBelowMinPriceToggle
         );
 
-        card.add(formLayout, saveButton);
+        InfoBox consecutiveHint = new InfoBox(t("control.mode.CHEAPEST_CONSECUTIVE_HOURS"), t("control.consecutiveHint"));
+        card.add(formLayout, consecutiveHint, saveButton);
         DesktopFormState.watch(formLayout);
 
         Runnable updateFieldStates = () -> {
@@ -377,6 +378,9 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
             boolean isBelowMax = mode == ControlMode.BELOW_MAX_PRICE;
             boolean isCheapest = mode != null && mode.isCheapestHours();
+            boolean consecutive = mode == ControlMode.CHEAPEST_CONSECUTIVE_HOURS;
+            consecutiveHint.setVisible(consecutive);
+            dailyMinutes.setStep(consecutive ? 15 : 1);
             boolean isManual = mode == ControlMode.MANUAL;
 
             maxPriceField.setEnabled(!isManual);
@@ -1322,6 +1326,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
 
     private VerticalLayout getControlTableSection() {
+        Div consecutiveWarnings = new Div();
         controlTableGrid.removeAllColumns();
         controlTableGrid.addColumn(entry -> {
             ZoneId zone = ZoneId.systemDefault();
@@ -1359,6 +1364,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             );
             refreshControlTable();
             controlTableGrid.setItems(controlTableResponses);
+            updateConsecutiveWarnings(consecutiveWarnings, controlTableResponses);
             updatePriceChart(chartTodayDiv, controlTableResponses, nordpoolPriceResponsesToday, this.control.getTimezone(), transferContract);
             updatePriceChart(chartTomorrowDiv, controlTableResponses, nordpoolPriceResponsesTomorrow, this.control.getTimezone(), transferContract);
         });
@@ -1376,12 +1382,15 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
         refreshControlTable();
 
+        updateConsecutiveWarnings(consecutiveWarnings, controlTableResponses);
+
         VerticalLayout layout = new VerticalLayout(
                 new HorizontalLayout(
                         new H3(t("controlTable.section.title")),
                         recalcButton
                 ),
                 new Div(new Text(t("controlTable.section.descriptionCharts"))),
+                consecutiveWarnings,
                 createPriceCharts(controlTableResponses, nordpoolPriceResponsesToday, nordpoolPriceResponsesTomorrow),
                 new InfoBox(t("common.hint"), t("controlTable.chartHint")),
                 createDivider(),
@@ -1405,6 +1414,17 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         return layout;
     }
 
+
+    private void updateConsecutiveWarnings(Div container, List<ControlTableResponse> rows) {
+        container.removeAll();
+        for (LocalDate date : controlSchedulerService.missingConsecutiveBlockDates(
+                control.getMode(), control.getDailyOnMinutes(), control.getTimezone(), rows)) {
+            InfoBox warning = new InfoBox(date.toString(), t("control.consecutiveMissing"));
+            warning.getStyle().set("background", "#fff8d6").set("border-color", "#d8b65c");
+            container.add(warning);
+        }
+        container.setVisible(container.getComponentCount() > 0);
+    }
 
     private void refreshControlTable() {
         List<ControlTableResponse> list = controlSchedulerService.findByControlId(controlId);

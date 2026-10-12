@@ -51,6 +51,9 @@ public class ControlTableEntity {
     @Column(name = "status", nullable = false)
     private Status status;
 
+    @Column(name = "consecutive_base", nullable = false)
+    private boolean consecutiveBase;
+
     @Column(name = "activation_push_sent_at")
     private Instant activationPushSentAt;
 

@@ -76,7 +76,7 @@ class ListCreationViewsTest {
                         mock(ToshibaLoginService.class), mock(ToshibaAcDevicesService.class),
                         mock(MitsubishiLoginService.class), mock(MitsubishiAcDevicesService.class),
                         mock(MitsubishiMelCloudHomeLoginService.class), mock(MitsubishiMelCloudHomeDevicesService.class), limits),
-                new ControlsView(mock(ControlService.class), limits, auth, i18n),
+                new ControlsView(mock(ControlService.class), mock(ControlSchedulerService.class), limits, auth, i18n),
                 new WeatherControlsView(weather, limits, sites, auth, i18n),
                 new PowerLimitsView(mock(PowerLimitService.class), auth, i18n),
                 new ProductionSourcesView(mock(ProductionSourceService.class), limits, auth, i18n),
@@ -98,6 +98,43 @@ class ListCreationViewsTest {
             assertTrue(dialog.isOpened());
             assertTrue(descendants(dialog).anyMatch(TextField.class::isInstance));
         }
+    }
+
+    @Test
+    void consecutiveModeShowsHintAndGeneratesScheduleWhenCreated() {
+        ControlService controls = mock(ControlService.class);
+        ControlSchedulerService scheduler = mock(ControlSchedulerService.class);
+        ControlsView view = new ControlsView(controls, scheduler, limits, auth, i18n);
+        DesktopCreateDialog dialog = dialog(view);
+        dialog.openButton().click();
+        @SuppressWarnings("unchecked")
+        var mode = (com.vaadin.flow.component.combobox.ComboBox<com.nitramite.porssiohjain.entity.enums.ControlMode>)
+                descendants(dialog).filter(c -> c instanceof com.vaadin.flow.component.combobox.ComboBox<?> box
+                        && box.getLabel().equals("control.field.mode")).findFirst().orElseThrow();
+        var hint = descendants(dialog).filter(com.nitramite.porssiohjain.views.components.InfoBox.class::isInstance)
+                .findFirst().orElseThrow();
+        assertFalse(hint.isVisible());
+        mode.setValue(com.nitramite.porssiohjain.entity.enums.ControlMode.CHEAPEST_CONSECUTIVE_HOURS);
+        assertTrue(hint.isVisible());
+        assertTrue(hint.getElement().getTextRecursively().contains("control.consecutiveHint"));
+        mode.setValue(com.nitramite.porssiohjain.entity.enums.ControlMode.CHEAPEST_HOURS);
+        assertFalse(hint.isVisible());
+        mode.setValue(com.nitramite.porssiohjain.entity.enums.ControlMode.CHEAPEST_CONSECUTIVE_HOURS);
+
+        descendants(dialog).filter(TextField.class::isInstance).map(TextField.class::cast).findFirst().orElseThrow()
+                .setValue("Load");
+        descendants(dialog).filter(com.vaadin.flow.component.textfield.NumberField.class::isInstance)
+                .map(com.vaadin.flow.component.textfield.NumberField.class::cast).forEach(field -> field.setValue(10.0));
+        var minutes = descendants(dialog).filter(com.vaadin.flow.component.textfield.IntegerField.class::isInstance)
+                .map(com.vaadin.flow.component.textfield.IntegerField.class::cast).findFirst().orElseThrow();
+        assertEquals(15, minutes.getStep());
+        minutes.setValue(180);
+        when(controls.createControl(eq(7L), eq("Load"), anyString(), any(), any(), eq(180), any(),
+                eq(com.nitramite.porssiohjain.entity.enums.ControlMode.CHEAPEST_CONSECUTIVE_HOURS), eq(false), eq(false)))
+                .thenReturn(com.nitramite.porssiohjain.entity.ControlEntity.builder().id(42L).build());
+        footerButton(dialog, "control.button.create").click();
+        verify(scheduler).generateForControl(42L);
+        assertFalse(dialog.isOpened());
     }
 
     @Test

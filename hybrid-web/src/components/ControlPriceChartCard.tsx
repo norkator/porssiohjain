@@ -299,10 +299,17 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
     );
   }
 
+  const consecutiveWarnings = chart?.missingConsecutiveBlockDates?.map((date) => (
+    <div className="m-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container" key={date} role="status">
+      <strong>{date}</strong>: {t("consecutiveMissing")}
+    </div>
+  ));
+
   if (!chart || chart.points.length === 0) {
     return (
       <div className="app-card p-6 text-sm text-on-surface-variant">
         {t("noControlChart")}
+        {consecutiveWarnings}
       </div>
     );
   }
@@ -320,6 +327,7 @@ export default function ControlPriceChartCard({ controlId }: ControlPriceChartCa
 
   return (
     <article className="app-card overflow-hidden">
+      {consecutiveWarnings}
       <div className="grid grid-cols-1 gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:p-8">
         <div>
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

@@ -216,6 +216,19 @@ class ControlServiceTest {
     }
 
     @Test
+    void consecutiveModeRejectsPartialQuarterDurationsOnCreateAndUpdate() {
+        for (Integer minutes : new Integer[] {null, -15, 14, 181, 1515}) {
+            assertThrows(IllegalArgumentException.class, () -> controlService.createControl(
+                    1L, "Control", "Europe/Helsinki", BigDecimal.TEN, BigDecimal.ZERO,
+                    minutes, BigDecimal.ZERO, ControlMode.CHEAPEST_CONSECUTIVE_HOURS, false, false));
+            assertThrows(IllegalArgumentException.class, () -> controlService.updateControl(
+                    1L, 2L, "Control", "Europe/Helsinki", BigDecimal.TEN, BigDecimal.ZERO,
+                    minutes, BigDecimal.ZERO, ControlMode.CHEAPEST_CONSECUTIVE_HOURS, false, false,
+                    null, null, null));
+        }
+    }
+
+    @Test
     void updateControlPersistsSelectedTimezone() {
         AccountEntity account = new AccountEntity();
         account.setId(1L);

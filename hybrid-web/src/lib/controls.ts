@@ -17,6 +17,7 @@ export type ControlMode =
   | "BELOW_MAX_PRICE"
   | "CHEAPEST_HOURS"
   | "CHEAPEST_HOURS_TOMORROW_AWARE"
+  | "CHEAPEST_CONSECUTIVE_HOURS"
   | "MANUAL"
   | "SCHEDULED";
 
@@ -67,6 +68,7 @@ export type ControlChart = {
   timezone: string;
   transferContractName: string | null;
   points: ControlChartPoint[];
+  missingConsecutiveBlockDates?: string[];
 };
 
 export type ControlDeviceLink = {
@@ -162,6 +164,7 @@ export const CONTROL_MODES: ControlMode[] = [
   "BELOW_MAX_PRICE",
   "CHEAPEST_HOURS",
   "CHEAPEST_HOURS_TOMORROW_AWARE",
+  "CHEAPEST_CONSECUTIVE_HOURS",
   "MANUAL",
   "SCHEDULED"
 ];
@@ -396,6 +399,8 @@ export function formatControlMode(mode: ControlMode) {
       return "Below Max Price";
     case "CHEAPEST_HOURS":
       return "Cheapest Hours";
+    case "CHEAPEST_CONSECUTIVE_HOURS":
+      return "Cheapest consecutive hours";
     case "CHEAPEST_HOURS_TOMORROW_AWARE":
       return "Cheapest Hours (Tomorrow-aware)";
     case "MANUAL":
@@ -435,6 +440,7 @@ export function getControlAccent(control: ApiControl) {
       return control.manualOn ? "border-primary" : "border-outline";
     case "CHEAPEST_HOURS":
     case "CHEAPEST_HOURS_TOMORROW_AWARE":
+    case "CHEAPEST_CONSECUTIVE_HOURS":
       return "border-primary-container";
     case "SCHEDULED":
       return "border-secondary";

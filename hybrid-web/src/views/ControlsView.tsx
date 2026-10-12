@@ -23,6 +23,7 @@ import { Link } from "react-router-dom";
 export default function ControlsView() {
   const { t } = useI18n("controls");
   const common = useI18n("common").t;
+  const modeLabels = useI18n("addControl").group("modeLabels");
   const { controls, error, isLoading, latestUpdate, manualCount, sharedCount, totalCount } = useControls();
 
   return (
@@ -75,7 +76,7 @@ export default function ControlsView() {
                   >
                     <div className="mb-6 flex items-start justify-between gap-4">
                       <span className="chip bg-surface-container-highest text-primary-container transition-colors duration-300 group-hover:bg-surface-container-lowest">
-                        {formatControlMode(control.mode)}
+                        {modeLabels[control.mode] ?? formatControlMode(control.mode)}
                       </span>
                       <span
                         className={`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold ${

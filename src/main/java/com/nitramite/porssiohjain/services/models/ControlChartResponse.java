@@ -16,6 +16,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -26,4 +27,5 @@ public class ControlChartResponse {
     private String timezone;
     private String transferContractName;
     private List<ControlChartPointResponse> points;
+    private List<LocalDate> missingConsecutiveBlockDates;
 }
