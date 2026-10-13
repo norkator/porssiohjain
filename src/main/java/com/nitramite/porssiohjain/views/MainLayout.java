@@ -129,7 +129,8 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         requestMenuItem = action("featureRequest.title", VaadinIcon.COMMENT, feedback);
         requestShortcut.addClassName("retro-request-shortcut");
         requestShortcut.add(requestShortcutBadge);
-        requestMenuItem.add(requestMenuBadge);
+        requestMenuBadge.getElement().setAttribute("slot", "suffix");
+        requestMenuItem.getElement().appendChild(requestMenuBadge.getElement());
         for (Span badge : new Span[]{requestShortcutBadge, requestMenuBadge, requestTaskbarBadge}) {
             badge.addClassName("retro-request-badge");
             badge.getElement().setAttribute("aria-hidden", "true");

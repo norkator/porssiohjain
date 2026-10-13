@@ -269,10 +269,10 @@ class MainLayoutTest {
         try (var accounts = mockStatic(ViewAuthUtils.class)) {
             accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth)).thenAnswer(invocation -> effective.get());
             var desktop = new MainLayout(auth, new I18nService(messages), notices, mock(DeviceService.class), requests);
-            var badges = children(desktop).filter(c -> c.hasClassName("retro-request-badge")).toList();
+            var badges = children(desktop).filter(c -> c.getElement().getClassList().contains("retro-request-badge")).toList();
             assertEquals(3, badges.size());
             assertTrue(badges.stream().allMatch(c -> c.isVisible() && c.getElement().getTextRecursively().equals("+2")));
-            var notification = children(desktop).filter(c -> c.hasClassName("retro-request-notification"))
+            var notification = children(desktop).filter(c -> c.getElement().getClassList().contains("retro-request-notification"))
                     .map(com.vaadin.flow.component.html.NativeButton.class::cast).findFirst().orElseThrow();
             assertTrue(notification.isVisible());
             assertTrue(notification.getElement().getAttribute("aria-label").contains("Requests with new comments: 2"));
