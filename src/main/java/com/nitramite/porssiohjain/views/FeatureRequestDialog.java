@@ -17,6 +17,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
@@ -28,6 +29,7 @@ public class FeatureRequestDialog extends Dialog {
     private final AuthService authService;
     private final FeatureRequestService service;
     private final I18nService i18n;
+    private final Runnable historyChanged;
     private final TextArea useCase = new TextArea();
     private final TextArea changes = new TextArea();
     private final EmailField email = new EmailField();
@@ -49,11 +51,16 @@ public class FeatureRequestDialog extends Dialog {
     private final Button historyNext = new Button();
 
     public FeatureRequestDialog(AuthService authService, FeatureRequestService service, I18nService i18n) {
+        this(authService, service, i18n, () -> {});
+    }
+
+    public FeatureRequestDialog(AuthService authService, FeatureRequestService service, I18nService i18n, Runnable historyChanged) {
+        this.historyChanged = historyChanged;
         this.authService = authService;
         this.service = service;
         this.i18n = i18n;
         setHeaderTitle(t("title"));
-        setWidth("640px");
+        setWidth("960px");
         setMaxWidth("calc(100vw - 32px)");
         setCloseOnOutsideClick(false);
         history.setPadding(false);
@@ -80,9 +87,9 @@ public class FeatureRequestDialog extends Dialog {
         historyBack.addClickListener(event -> { historyPage--; refreshHistory(); });
         historyNext.setText(t("next"));
         historyNext.addClickListener(event -> { historyPage++; refreshHistory(); });
-        history.add(new Span(t("myRequests")), new Button(t("refresh"), event -> refreshHistory()), historyMessage,
+        history.add(heading("myRequests"), new Button(t("refresh"), event -> refreshHistory()), historyMessage,
                 requests, new HorizontalLayout(historyBack, historyNext));
-        add(history, new Span(t("newRequest")));
+        add(history, heading("newRequest"));
         addOpenedChangeListener(event -> { if (event.isOpened()) refreshHistory(); });
         configure(useCase, "useCase", "useCaseHelp");
         configure(changes, "changes", "changesHelp");
@@ -96,8 +103,8 @@ public class FeatureRequestDialog extends Dialog {
         contact.setWidthFull();
         useCaseReview.getStyle().set("white-space", "pre-wrap").set("overflow-wrap", "anywhere");
         changesReview.getStyle().set("white-space", "pre-wrap").set("overflow-wrap", "anywhere");
-        contact.add(new Span(t("review")), new Span(t("useCase")), useCaseReview,
-                new Span(t("changes")), changesReview, email);
+        contact.add(new Span(t("review")), heading("useCase"), useCaseReview,
+                heading("changes"), changesReview, email);
         error.getStyle().set("color", "var(--lumo-error-text-color)");
         error.getElement().setAttribute("role", "alert");
         VerticalLayout body = new VerticalLayout(new Span(t("description")), progress, useCase, changes, contact, error);
@@ -179,7 +186,14 @@ public class FeatureRequestDialog extends Dialog {
             historyMessage.setText(results.isEmpty() ? t("noRequests") : "");
             historyBack.setEnabled(results.hasPrevious());
             historyNext.setEnabled(results.hasNext());
+            historyChanged.run();
         } catch (Exception exception) { historyMessage.setText(t("loadFailed")); }
+    }
+
+    private H3 heading(String key) {
+        H3 heading = new H3(t(key));
+        heading.addClassName("feature-request-section-title");
+        return heading;
     }
 
     private String t(String key) { return i18n.t("featureRequest." + key); }

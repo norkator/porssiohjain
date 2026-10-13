@@ -12,6 +12,7 @@ import com.nitramite.porssiohjain.services.models.FeatureRequestDetail;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import java.time.ZoneId;
@@ -42,7 +43,7 @@ class FeatureRequestConversationDialog extends Dialog {
         this.adminView = adminView;
         this.changed = changed;
         setHeaderTitle(t("title") + " #" + requestId);
-        setWidth("700px");
+        setWidth("960px");
         setMaxWidth("calc(100vw - 32px)");
         setCloseOnOutsideClick(false);
         conversation.setPadding(false);
@@ -94,15 +95,16 @@ class FeatureRequestConversationDialog extends Dialog {
         conversation.removeAll();
         try {
             FeatureRequestDetail detail = service.detail(accountId(), requestId, adminView);
-            conversation.removeAll();
             isHandled = detail.handled();
             conversation.add(new Span(time.format(detail.createdAt()) + " · " + t(isHandled ? "handled" : "open")));
             if (adminView) conversation.add(new Span(t("email") + ": " + (detail.contactEmail() == null ? "—" : detail.contactEmail())));
-            conversation.add(new Span(t("useCase")), text(detail.useCase()), new Span(t("changes")), text(detail.requestedChanges()), new Span(t("comments")));
+            conversation.add(heading("useCase"), text(detail.useCase()), heading("changes"), text(detail.requestedChanges()), heading("comments"));
             if (detail.comments().isEmpty()) conversation.add(new Span(t("noComments")));
             for (var comment : detail.comments()) {
-                VerticalLayout entry = new VerticalLayout(new Span(t(comment.adminAuthor() ? "adminAuthor" : "userAuthor") + " · " + time.format(comment.createdAt())), text(comment.message()));
-                entry.getStyle().set("border-left", "3px solid var(--lumo-contrast-30pct)");
+                Span author = new Span(t(comment.adminAuthor() ? "adminAuthor" : "userAuthor") + " · " + time.format(comment.createdAt()));
+                author.addClassName("feature-request-comment-author");
+                VerticalLayout entry = new VerticalLayout(author, text(comment.message()));
+                entry.addClassNames("feature-request-comment", comment.adminAuthor() ? "feature-request-comment--admin" : "feature-request-comment--user");
                 conversation.add(entry);
             }
             handled.setText(t(isHandled ? "reopen" : "markHandled"));
@@ -113,6 +115,12 @@ class FeatureRequestConversationDialog extends Dialog {
             if (!adminView && writable()) service.markRead(accountId(), requestId, detail.lastSeenCommentId());
             changed.run();
         } catch (Exception exception) { error.setText(t("loadFailed")); send.setEnabled(false); handled.setEnabled(false); }
+    }
+
+    private H3 heading(String key) {
+        H3 heading = new H3(t(key));
+        heading.addClassName("feature-request-section-title");
+        return heading;
     }
 
     private Span text(String value) {

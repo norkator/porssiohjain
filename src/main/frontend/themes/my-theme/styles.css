@@ -1007,3 +1007,33 @@ vaadin-grid::part(fresh-control-device-call) {
     opacity: 1;
 }
 .retro-window-toolbar vaadin-button[disabled] vaadin-icon { color: #808080; }
+
+/* Request conversations: clear section headings and author-specific colors. */
+.feature-request-section-title {
+    display: block; margin-top: 8px; font-size: 1.1rem; font-weight: 700;
+}
+.feature-request-comment {
+    padding: 12px; gap: 8px; border-left: 4px solid; border-radius: 4px;
+}
+.feature-request-comment-author { font-size: 0.9rem; font-weight: 700; }
+.feature-request-comment--admin { background: #e5f2ff; border-color: #397bb4; color: #173653; }
+.feature-request-comment--user { background: #e8f4e7; border-color: #4b8652; color: #234d29; }
+
+/* Unread request badges remain visible through Start and the taskbar. */
+.retro-request-shortcut { position: relative; }
+.retro-desktop .retro-request-badge {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    min-width: 22px; padding: 1px 4px; box-sizing: border-box;
+    background: #b52222; color: #fff; border: 1px solid #fff; border-radius: 10px;
+    font: bold 11px Tahoma, Arial, sans-serif; line-height: 16px; text-shadow: none;
+}
+.retro-request-shortcut > .retro-request-badge { position: absolute; top: 0; right: 12px; }
+.retro-menu-item > .retro-request-badge { margin-left: auto; }
+.retro-desktop .retro-request-notification {
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    flex-shrink: 0; height: 28px; margin: 0; padding: 2px 5px; cursor: pointer;
+    background: #fff6cc; border: 2px solid; border-color: #fff #404040 #404040 #fff;
+}
+.retro-request-notification:focus-visible { outline: 1px dotted #000080; outline-offset: -4px; }
+.retro-request-notification:active { border-color: #404040 #fff #fff #404040; }
+.retro-request-badge[hidden], .retro-request-notification[hidden] { display: none !important; }

@@ -99,7 +99,7 @@ export default function FeatureRequestHistory({ isOpen, readOnly, reloadVersion 
       </dl>
       <h4 className="font-bold">{t("comments")}</h4>
       {detail.comments.length === 0 ? <p>{t("noComments")}</p> : null}
-      {detail.comments.map(comment => <article className="space-y-2 rounded-lg bg-surface-container-high p-4" key={comment.id}>
+      {detail.comments.map(comment => <article className={`feature-request-comment ${comment.adminAuthor ? "feature-request-comment--admin" : "feature-request-comment--user"} space-y-2 rounded-lg border-l-4 p-4`} key={comment.id}>
         <p className="text-sm font-bold">{t(comment.adminAuthor ? "adminAuthor" : "userAuthor")} · {date(comment.createdAt)}</p>
         <p className="whitespace-pre-wrap break-words">{comment.message}</p>
       </article>)}

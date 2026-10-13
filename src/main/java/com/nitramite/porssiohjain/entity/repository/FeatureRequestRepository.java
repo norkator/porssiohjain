@@ -17,6 +17,8 @@ import java.util.Optional;
 public interface FeatureRequestRepository extends JpaRepository<FeatureRequestEntity, Long> {
     Page<FeatureRequestEntity> findByAccountId(Long accountId, Pageable pageable);
     Page<FeatureRequestEntity> findByHandled(boolean handled, Pageable pageable);
+    @Query("select count(r) from FeatureRequestEntity r where r.accountId = :accountId and r.latestAdminCommentId > r.userReadCommentId")
+    long countUnreadByAccountId(Long accountId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from FeatureRequestEntity r where r.id = :id")
     Optional<FeatureRequestEntity> findLockedById(Long id);

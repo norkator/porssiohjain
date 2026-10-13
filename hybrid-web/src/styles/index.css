@@ -298,3 +298,9 @@
       var(--shadow-soft);
   }
 }
+
+/* Author labels accompany colors so discussions remain clear without color cues. */
+.feature-request-comment--admin { background: #e5f2ff; border-color: #397bb4; color: #173653; }
+.feature-request-comment--user { background: #e8f4e7; border-color: #4b8652; color: #234d29; }
+:root[data-theme="dark"] .feature-request-comment--admin { background: #223a50; border-color: #80b7e5; color: #deefff; }
+:root[data-theme="dark"] .feature-request-comment--user { background: #273d2c; border-color: #91c59a; color: #e1f3df; }

@@ -34,13 +34,22 @@ import com.vaadin.flow.server.VaadinSession;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /** Shared Windows 98 desktop shell for authenticated routes. */
+@Slf4j
 @JsModule("./desktop-windows.js")
 public class MainLayout extends Div implements RouterLayout, AfterNavigationObserver, BeforeLeaveObserver {
     private final AuthService authService;
     private final I18nService i18n;
     private final DesktopDeviceStatus deviceStatus;
+    private final FeatureRequestService featureRequestService;
+    private final Span requestShortcutBadge = new Span();
+    private final Span requestMenuBadge = new Span();
+    private final Span requestTaskbarBadge = new Span();
+    private final NativeButton requestNotification = new NativeButton();
+    private NativeButton requestShortcut;
+    private Button requestMenuItem;
     private final Div icons = new Div();
     private final Div startMenu = new Div();
     private final Div menuItems = new Div();
@@ -56,6 +65,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     public MainLayout(AuthService authService, I18nService i18n, ServiceNoticeService serviceNoticeService, DeviceService deviceService, FeatureRequestService featureRequestService) {
         this.authService = authService;
         this.i18n = i18n;
+        this.featureRequestService = featureRequestService;
         addClassName("retro-desktop");
         VaadinSession session = VaadinSession.getCurrent();
         Locale storedLocale = session != null ? session.getAttribute(Locale.class) : null;
@@ -85,7 +95,10 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         Span clock = new Span();
         clock.addClassName("retro-clock");
         clock.getElement().executeJs("const update=()=>{this.textContent=new Intl.DateTimeFormat(undefined,{hour:'2-digit',minute:'2-digit'}).format(new Date())};update();const timer=setInterval(update,30000);this.addEventListener('disconnected',()=>clearInterval(timer),{once:true})");
-        taskbar.add(startButton, tasks, clock);
+        requestNotification.addClassName("retro-request-notification");
+        requestNotification.add(pixelIcon(VaadinIcon.COMMENT), requestTaskbarBadge);
+        requestNotification.setVisible(false);
+        taskbar.add(startButton, tasks, requestNotification, clock);
 
         startMenu.addClassName("retro-start-menu");
         Span brand = new Span("Pörssiohjain 98");
@@ -107,13 +120,25 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             setStartOpen(false);
             if (ViewAuthUtils.findAuthenticatedAccount(authService) == null) return;
             if (featureRequestDialog == null) {
-                featureRequestDialog = new FeatureRequestDialog(authService, featureRequestService, i18n);
+                featureRequestDialog = new FeatureRequestDialog(authService, featureRequestService, i18n, this::refreshFeatureRequestNotifications);
                 add(featureRequestDialog);
             }
             featureRequestDialog.open();
         };
-        shortcut("featureRequest.title", VaadinIcon.COMMENT, feedback);
-        action("featureRequest.title", VaadinIcon.COMMENT, feedback);
+        requestShortcut = shortcut("featureRequest.title", VaadinIcon.COMMENT, feedback);
+        requestMenuItem = action("featureRequest.title", VaadinIcon.COMMENT, feedback);
+        requestShortcut.addClassName("retro-request-shortcut");
+        requestShortcut.add(requestShortcutBadge);
+        requestMenuItem.add(requestMenuBadge);
+        for (Span badge : new Span[]{requestShortcutBadge, requestMenuBadge, requestTaskbarBadge}) {
+            badge.addClassName("retro-request-badge");
+            badge.getElement().setAttribute("aria-hidden", "true");
+            badge.setVisible(false);
+        }
+        requestNotification.getElement().setAttribute("aria-live", "polite");
+        requestNotification.addClickListener(event -> feedback.run());
+        deviceStatus.getElement().addEventListener("desktop-status-refresh", event -> refreshFeatureRequestNotifications());
+        refreshFeatureRequestNotifications();
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account != null && account.isAdmin()) {
             feature("home.admin", VaadinIcon.SHIELD, AdminView.class);
@@ -153,6 +178,28 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         add(startMenu, taskbar);
     }
 
+    void refreshFeatureRequestNotifications() {
+        long unread = 0;
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        if (account != null && account.getId() != null) {
+            try {
+                unread = featureRequestService.countOwnUnread(account.getId());
+            } catch (Exception exception) {
+                log.warn("Could not refresh feature request notifications for account {}", account.getId(), exception);
+            }
+        }
+        for (Span badge : new Span[]{requestShortcutBadge, requestMenuBadge, requestTaskbarBadge}) {
+            badge.setText(unread > 0 ? "+" + unread : "");
+            badge.setVisible(unread > 0);
+        }
+        String label = t("featureRequest.title") + (unread > 0 ? " — " + i18n.t("featureRequest.unreadRequests", unread) : "");
+        for (Component button : new Component[]{requestShortcut, requestMenuItem, requestNotification}) {
+            button.getElement().setAttribute("aria-label", label);
+            button.getElement().setAttribute("title", label);
+        }
+        requestNotification.setVisible(unread > 0);
+    }
+
     private Div serviceNotice(String text) {
         Span heading = new Span(t("home.serviceNotice"));
         Span message = new Span(text);
@@ -178,12 +225,13 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         }
     }
 
-    private void shortcut(String key, VaadinIcon icon, Runnable runnable) {
+    private NativeButton shortcut(String key, VaadinIcon icon, Runnable runnable) {
         NativeButton button = new NativeButton();
         button.add(pixelIcon(icon), new Span(t(key)));
         button.addClickListener(e -> runnable.run());
         button.addClassName("retro-shortcut");
         icons.add(button);
+        return button;
     }
 
     private void feature(String key, VaadinIcon icon, Class<? extends Component> destination) {
@@ -192,13 +240,14 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         action(key, icon, () -> open(destination));
     }
 
-    private void action(String key, VaadinIcon icon, Runnable runnable) {
+    private Button action(String key, VaadinIcon icon, Runnable runnable) {
         Button button = new Button(t(key), pixelIcon(icon), e -> {
             setStartOpen(false);
             runnable.run();
         });
         button.addClassName("retro-menu-item");
         menuItems.add(button);
+        return button;
     }
 
     private Button chrome(String label, String key, Runnable runnable) {
@@ -409,6 +458,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     @Override
     public void afterNavigation(AfterNavigationEvent event) {
         deviceStatus.refresh();
+        refreshFeatureRequestNotifications();
         var effectiveAccount = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (effectiveAccount == null || !effectiveAccount.isAdmin()) {
             windows.entrySet().removeIf(entry -> {

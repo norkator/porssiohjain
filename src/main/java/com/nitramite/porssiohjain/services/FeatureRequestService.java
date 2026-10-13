@@ -64,6 +64,13 @@ public class FeatureRequestService {
         repository.delete(request);
     }
 
+    /** Number of owned requests with unread administrator replies, including handled requests. */
+    @Transactional(readOnly = true)
+    public long countOwnUnread(Long accountId) {
+        account(accountId);
+        return repository.countUnreadByAccountId(accountId);
+    }
+
     @Transactional(readOnly = true)
     public Page<FeatureRequestSummary> listOwn(Long accountId, int page) {
         account(accountId);
