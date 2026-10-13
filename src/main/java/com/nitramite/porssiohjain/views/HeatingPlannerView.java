@@ -1005,19 +1005,21 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     + String.join("; ", readiness.issues()));
             status.getElement().getThemeList().addAll(List.of("badge", "contrast"));
         } else if (readiness.active()) {
+            boolean activationDeferred = readiness.lastAutomationError() != null
+                    || readiness.issues().contains("No floor-heating room currently passes all active-control checks");
             String excludedRooms = readiness.issues().stream()
                     .filter(issue -> issue.contains(":"))
                     .filter(issue -> readiness.lastAutomationError() == null
                             || !readiness.lastAutomationError().contains(issue))
                     .collect(java.util.stream.Collectors.joining("; "));
-            status.setText((readiness.ready() ? "ACTIVE" : "Opted in, automatic activation deferred")
+            status.setText((activationDeferred ? "Opted in, automatic activation deferred" : "ACTIVE")
                     + " — automatic recalculation runs every 15 minutes"
                     + (readiness.lastAutomaticActivationAt() == null ? ""
                     : "; last automatic activation " + formatInstant(readiness.lastAutomaticActivationAt()))
                     + (readiness.lastAutomationError() == null ? ""
                     : "; latest automation status: " + readiness.lastAutomationError())
                     + (excludedRooms.isEmpty() ? "" : "; excluded rooms remain on fallback: " + excludedRooms));
-            status.getElement().getThemeList().addAll(List.of("badge", readiness.ready() ? "success" : "warning"));
+            status.getElement().getThemeList().addAll(List.of("badge", activationDeferred ? "warning" : "success"));
         } else if (readiness.ready()) {
             status.setText(readiness.issues().isEmpty()
                     ? "Ready — all activation checks pass. Review and explicitly enable control when desired."
