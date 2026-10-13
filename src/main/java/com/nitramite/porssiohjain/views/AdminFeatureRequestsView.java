@@ -13,6 +13,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
@@ -38,7 +39,9 @@ public class AdminFeatureRequestsView extends VerticalLayout implements BeforeEn
     private final Button next = new Button();
     private final DateTimeFormatter time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
             .withZone(ZoneId.of("Europe/Helsinki"));
+    private final java.util.Map<Long, FeatureRequestConversationDialog> conversations = new java.util.HashMap<>();
     private int page;
+    private final Select<String> status = new Select<>();
 
     public AdminFeatureRequestsView(AuthService authService, FeatureRequestService service, I18nService i18n) {
         this.authService = authService;
@@ -49,6 +52,7 @@ public class AdminFeatureRequestsView extends VerticalLayout implements BeforeEn
         setWidthFull();
         grid.setWidthFull();
         grid.addColumn(row -> time.format(row.getCreatedAt())).setHeader(t("received")).setAutoWidth(true);
+        grid.addColumn(row -> i18n.t("featureRequest." + (row.isHandled() ? "handled" : "open"))).setHeader(i18n.t("featureRequest.status"));
         grid.addColumn(FeatureRequestEntity::getAccountId).setHeader(t("account")).setAutoWidth(true);
         grid.addColumn(row -> row.getContactEmail() == null ? "—" : row.getContactEmail()).setHeader(i18n.t("featureRequest.email"));
         grid.addColumn(row -> row.getRequestedChanges().substring(0, Math.min(120, row.getRequestedChanges().length())))
@@ -60,7 +64,12 @@ public class AdminFeatureRequestsView extends VerticalLayout implements BeforeEn
         next.setText(i18n.t("featureRequest.next"));
         next.addClickListener(event -> { page++; refresh(); });
         empty.setText(t("empty"));
-        add(new H1(t("title")), new Button(t("refresh"), event -> refresh()),
+        status.setLabel(i18n.t("featureRequest.status"));
+        status.setItems("open", "handled", "all");
+        status.setItemLabelGenerator(value -> i18n.t("featureRequest." + value));
+        status.setValue("open");
+        status.addValueChangeListener(event -> { page = 0; refresh(); });
+        add(new H1(t("title")), status, new Button(t("refresh"), event -> refresh()),
                 empty, grid, new HorizontalLayout(previous, count, next));
         refresh();
     }
@@ -68,7 +77,7 @@ public class AdminFeatureRequestsView extends VerticalLayout implements BeforeEn
     private void refresh() {
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) { grid.setItems(java.util.List.of()); return; }
-        var results = service.listForAdmin(account.getId(), page);
+        var results = service.listForAdmin(account.getId(), page, "all".equals(status.getValue()) ? null : "handled".equals(status.getValue()));
         if (page > 0 && results.isEmpty()) { page = Math.max(0, results.getTotalPages() - 1); refresh(); return; }
         grid.setItems(results.getContent());
         empty.setVisible(results.getTotalElements() == 0);
@@ -80,20 +89,12 @@ public class AdminFeatureRequestsView extends VerticalLayout implements BeforeEn
     private void open(FeatureRequestEntity row) {
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) return;
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle(t("title") + " #" + row.getId());
-        dialog.setWidth("700px");
-        dialog.setMaxWidth("calc(100vw - 32px)");
-        VerticalLayout body = new VerticalLayout();
-        body.setPadding(false);
-        body.add(new Span(t("received") + ": " + time.format(row.getCreatedAt())),
-                new Span(t("account") + ": " + row.getAccountId()),
-                new Span(i18n.t("featureRequest.email") + ": " + (row.getContactEmail() == null ? "—" : row.getContactEmail())),
-                new Span(i18n.t("featureRequest.useCase")), text(row.getUseCase()),
-                new Span(i18n.t("featureRequest.changes")), text(row.getRequestedChanges()));
-        dialog.add(body);
-        dialog.getFooter().add(deleteButton(row, dialog::close),
-                new Button(i18n.t("featureRequest.close"), event -> dialog.close()));
+        var dialog = conversations.computeIfAbsent(row.getId(), id -> {
+            var created = new FeatureRequestConversationDialog(authService, service, i18n, id, true, this::refresh);
+            created.getFooter().add(deleteButton(row, created::close));
+            add(created);
+            return created;
+        });
         dialog.open();
     }
 
@@ -118,6 +119,8 @@ public class AdminFeatureRequestsView extends VerticalLayout implements BeforeEn
                 var currentAccount = ViewAuthUtils.findAuthenticatedAccount(authService);
                 service.deleteForAdmin(currentAccount == null ? null : currentAccount.getId(), row.getId());
                 dialog.close();
+                var conversation = conversations.remove(row.getId());
+                if (conversation != null) { conversation.close(); remove(conversation); }
                 afterDelete.run();
                 refresh();
                 Notification.show(t("deleted")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
@@ -128,12 +131,6 @@ public class AdminFeatureRequestsView extends VerticalLayout implements BeforeEn
         delete.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
         dialog.getFooter().add(new Button(i18n.t("common.cancel"), event -> dialog.close()), delete);
         dialog.open();
-    }
-
-    private Span text(String value) {
-        Span text = new Span(value);
-        text.getStyle().set("white-space", "pre-wrap").set("overflow-wrap", "anywhere");
-        return text;
     }
 
     @Override

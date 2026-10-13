@@ -23,7 +23,7 @@ class FeatureRequestServiceTest {
     @BeforeEach
     void setup() {
         factory = Validation.buildDefaultValidatorFactory();
-        service = new FeatureRequestService(repository, accounts, factory.getValidator());
+        service = new FeatureRequestService(repository, accounts, factory.getValidator(), mock(com.nitramite.porssiohjain.entity.repository.FeatureRequestCommentRepository.class));
         when(accounts.findById(7L)).thenReturn(Optional.of(AccountEntity.builder().id(7L).email("owner@example.com").build()));
     }
 

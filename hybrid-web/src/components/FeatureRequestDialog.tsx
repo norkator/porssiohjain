@@ -5,6 +5,7 @@
  */
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import AppDialog from "@/components/AppDialog";
+import FeatureRequestHistory from "@/components/FeatureRequestHistory";
 import ProgressHeader from "@/components/ProgressHeader";
 import { fetchMe } from "@/lib/account";
 import { submitFeatureRequest } from "@/lib/feature-requests";
@@ -16,8 +17,10 @@ export default function FeatureRequestDialog({ isOpen, onClose }: { isOpen: bool
   const [useCase, setUseCase] = useState("");
   const [changes, setChanges] = useState("");
   const [email, setEmail] = useState("");
-  const [readOnly, setReadOnly] = useState(false);
+  const [readOnly, setReadOnly] = useState(true);
   const [sending, setSending] = useState(false);
+  const [tab, setTab] = useState<"history" | "new">("history");
+  const [historyVersion, setHistoryVersion] = useState(0);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const emailEdited = useRef(false);
@@ -59,6 +62,7 @@ export default function FeatureRequestDialog({ isOpen, onClose }: { isOpen: bool
       setUseCase("");
       setChanges("");
       setSent(true);
+      setHistoryVersion(value => value + 1);
     } catch {
       setError(t("failed"));
     } finally {
@@ -76,6 +80,14 @@ export default function FeatureRequestDialog({ isOpen, onClose }: { isOpen: bool
   const inputClass = "w-full rounded-lg border border-outline-variant bg-surface-container-highest p-4 text-on-surface outline-none focus:border-primary";
   return (
     <AppDialog description={t("description")} isOpen={isOpen} isDismissible={!sending} maxWidthClassName="max-w-2xl" onClose={close} title={t("title")}>
+      <div className="mb-5 flex flex-wrap gap-3" role="group" aria-label={t("title")}>
+        <button className={`${tab === "history" ? "primary-action" : "secondary-action"} px-4 py-3`} aria-pressed={tab === "history"} disabled={sending} type="button" onClick={() => setTab("history")}>{t("myRequests")}</button>
+        <button className={`${tab === "new" ? "primary-action" : "secondary-action"} px-4 py-3`} aria-pressed={tab === "new"} disabled={sending} type="button" onClick={() => { setTab("new"); if (sent) { setSent(false); setStep(1); } }}>{t("newRequest")}</button>
+      </div>
+      <div hidden={tab !== "history"}>
+        <FeatureRequestHistory reloadVersion={historyVersion} isOpen={isOpen && tab === "history"} readOnly={readOnly} />
+      </div>
+      <div hidden={tab !== "new"}>
       {sent ? (
         <div role="status" className="space-y-5">
           <p>{t("sent")}</p>
@@ -111,6 +123,7 @@ export default function FeatureRequestDialog({ isOpen, onClose }: { isOpen: bool
           </div>
         </form>
       )}
+      </div>
     </AppDialog>
   );
 }

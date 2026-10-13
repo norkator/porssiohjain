@@ -39,7 +39,7 @@ class AdminFeatureRequestsViewTest {
         accounts = mockStatic(ViewAuthUtils.class);
         accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth))
                 .thenReturn(AccountEntity.builder().id(7L).admin(true).build());
-        when(service.listForAdmin(7L, 0)).thenReturn(new PageImpl<>(List.of(row), PageRequest.of(0, 30), 31));
+        when(service.listForAdmin(7L, 0, false)).thenReturn(new PageImpl<>(List.of(row), PageRequest.of(0, 30), 31));
         var i18n = mock(I18nService.class, invocation -> invocation.getMethod().getName().equals("t")
                 ? invocation.getArgument(0) : null);
         view = new AdminFeatureRequestsView(auth, service, i18n);
@@ -63,7 +63,7 @@ class AdminFeatureRequestsViewTest {
 
     @Test
     void deletingLastSubmissionOnLastPageReturnsToPreviousPage() {
-        when(service.listForAdmin(7L, 1))
+        when(service.listForAdmin(7L, 1, false))
                 .thenReturn(new PageImpl<>(List.of(row), PageRequest.of(1, 30), 31))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(1, 30), 30));
         button(view, "featureRequest.next").click();
@@ -71,7 +71,7 @@ class AdminFeatureRequestsViewTest {
         Dialog dialog = confirmation();
         footerButton(dialog, "admin.featureRequests.delete").click();
         verify(service).deleteForAdmin(7L, 42L);
-        verify(service, times(2)).listForAdmin(7L, 0);
+        verify(service, times(2)).listForAdmin(7L, 0, false);
         assertFalse(dialog.isOpened());
         assertFalse(button(view, "featureRequest.back").isEnabled());
     }
@@ -86,7 +86,7 @@ class AdminFeatureRequestsViewTest {
         footerButton(dialog, "admin.featureRequests.delete").click();
         verify(service).deleteForAdmin(9L, 42L);
         assertTrue(dialog.isOpened());
-        verify(service, times(1)).listForAdmin(7L, 0);
+        verify(service, times(1)).listForAdmin(7L, 0, false);
     }
 
     @SuppressWarnings("unchecked")

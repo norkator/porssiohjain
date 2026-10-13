@@ -46,6 +46,37 @@ class FeatureRequestDialogTest {
         } finally { UI.setCurrent(null); }
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void openingShowsOwnHistoryAndUnreadRequestOpensItsConversation() {
+        UI.setCurrent(new UI());
+        try (var auth = mockStatic(ViewAuthUtils.class)) {
+            var authService = mock(AuthService.class);
+            var service = mock(FeatureRequestService.class);
+            var i18n = mock(I18nService.class, invocation -> invocation.getMethod().getName().equals("t") ? invocation.getArgument(0) : null);
+            var account = AccountEntity.builder().id(9L).build();
+            auth.when(() -> ViewAuthUtils.findAuthenticatedAccount(authService)).thenReturn(account);
+            var now = java.time.Instant.now();
+            var row = new com.nitramite.porssiohjain.services.models.FeatureRequestSummary(42L, "My idea", now, true, true);
+            when(service.listOwn(9L, 0)).thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(row)));
+            when(service.detail(9L, 42L, false)).thenReturn(new com.nitramite.porssiohjain.services.models.FeatureRequestDetail(
+                    42L, "Use", "My idea", null, now, true,
+                    java.util.List.of(new com.nitramite.porssiohjain.services.models.FeatureRequestDetail.Comment(12L, true, "Admin reply", now))));
+            var dialog = new FeatureRequestDialog(authService, service, i18n);
+            dialog.open();
+            verify(service).listOwn(9L, 0);
+            var grid = children(dialog).filter(com.vaadin.flow.component.grid.Grid.class::isInstance)
+                    .map(c -> (com.vaadin.flow.component.grid.Grid<com.nitramite.porssiohjain.services.models.FeatureRequestSummary>) c).findFirst().orElseThrow();
+            var renderer = (com.vaadin.flow.data.renderer.ComponentRenderer<?, com.nitramite.porssiohjain.services.models.FeatureRequestSummary>) grid.getColumns().getLast().getRenderer();
+            var open = (Button) renderer.createComponent(row);
+            assertEquals("featureRequest.newComment", open.getText());
+            open.click();
+            verify(service).detail(9L, 42L, false);
+            verify(service).markRead(9L, 42L, 12L);
+            verify(service, times(2)).listOwn(9L, 0);
+        } finally { UI.setCurrent(null); }
+    }
+
     private Stream<Component> children(Component root) {
         return Stream.concat(Stream.of(root), root.getChildren().flatMap(this::children));
     }

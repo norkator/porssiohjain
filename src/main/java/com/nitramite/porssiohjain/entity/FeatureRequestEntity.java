@@ -31,6 +31,15 @@ public class FeatureRequestEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(nullable = false)
+    private boolean handled;
+    @Column(name = "latest_admin_comment_id", nullable = false)
+    private long latestAdminCommentId;
+    @Column(name = "user_read_comment_id", nullable = false)
+    private long userReadCommentId;
+
+    public boolean hasUnreadComments() { return latestAdminCommentId > userReadCommentId; }
+
     @PrePersist
     void onCreate() { createdAt = Instant.now(); }
 }
