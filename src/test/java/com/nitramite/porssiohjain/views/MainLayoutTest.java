@@ -278,7 +278,7 @@ class MainLayoutTest {
             assertTrue(notification.getElement().getAttribute("aria-label").contains("Requests with new comments: 2"));
             when(requests.listOwn(9L, 0)).thenReturn(org.springframework.data.domain.Page.empty());
             when(requests.countOwnUnread(9L)).thenReturn(0L);
-            notification.click();
+            com.vaadin.flow.component.ComponentUtil.fireEvent(notification, new com.vaadin.flow.component.ClickEvent<>(notification));
             assertTrue(desktop.getChildren().filter(FeatureRequestDialog.class::isInstance)
                     .map(FeatureRequestDialog.class::cast).findFirst().orElseThrow().isOpened());
             // Refreshing the request history runs the shell callback immediately.
