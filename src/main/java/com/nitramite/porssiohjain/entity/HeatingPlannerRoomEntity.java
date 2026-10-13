@@ -125,6 +125,9 @@ public class HeatingPlannerRoomEntity {
     @Column(name = "model_trained_at")
     private Instant modelTrainedAt;
 
+    @Column(name = "model_evidence_at")
+    private Instant modelEvidenceAt;
+
     @Builder.Default
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 0;

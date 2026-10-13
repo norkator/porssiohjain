@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,7 +46,9 @@ class HeatingPlannerGatewayCommandServiceTest {
         DeviceEntity controller = new DeviceEntity(); controller.setId(20L); controller.setAccount(account);
         var settings = HeatingPlannerSettingsEntity.builder().id(1L).account(account).site(site)
                 .enabled(true).activeControlEnabled(true).build();
-        room = HeatingPlannerRoomEntity.builder().id(10L).settings(settings).account(account).site(site).name("Kitchen").build();
+        room = HeatingPlannerRoomEntity.builder().id(10L).settings(settings).account(account).site(site).name("Kitchen")
+                .modelParametersLearned(true).modelConfidence(new BigDecimal("0.6"))
+                .modelSampleCount(72).modelEvidenceAt(now.minusSeconds(3600)).build();
         var source = HeatingPlannerRoomHeatSourceEntity.builder().room(room).account(account).site(site).enabled(true)
                 .sourceType(HeatingPlannerHeatSourceType.FLOOR_HEATING).controllingDevice(controller).build();
         plan = HeatingPlannerPlanEntity.builder().settings(settings).account(account).site(site)
@@ -87,6 +90,20 @@ class HeatingPlannerGatewayCommandServiceTest {
     @Test
     void suppressesCommandForExcludedRoomWithSimulatedPoints() {
         point.setStatus(HeatingPlannerPlanPointStatus.SIMULATED);
+
+        assertThat(service.currentCommand(link, now)).isEmpty();
+    }
+
+    @Test
+    void suppressesCommandFromAnExistingActivePlanWhenModelEvidenceExpires() {
+        room.setModelEvidenceAt(now.minus(Duration.ofDays(14)).minusSeconds(1));
+
+        assertThat(service.currentCommand(link, now)).isEmpty();
+    }
+
+    @Test
+    void suppressesCommandWhenTheLearnedModelNoLongerPassesTheConfidenceRequirement() {
+        room.setModelConfidence(new BigDecimal("0.2499"));
 
         assertThat(service.currentCommand(link, now)).isEmpty();
     }

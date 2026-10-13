@@ -68,6 +68,7 @@ import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -90,6 +91,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @PageTitle("Pörssiohjain - Heating Planner")
 @Route(value = "heating-planner", layout = MainLayout.class)
 @PermitAll
+@Slf4j
 public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObserver {
 
     private static final ZoneId ZONE = ZoneId.of("Europe/Helsinki");
@@ -376,7 +378,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 model = resolution.model();
                                 modelEvidence = resolution.learned()
                                         ? "observed cooling model, " + resolution.sampleCount() + " samples, confidence "
-                                        + resolution.confidence().movePointRight(2).setScale(0, RoundingMode.HALF_UP) + "%"
+                                        + resolution.confidence().movePointRight(2).setScale(2, RoundingMode.HALF_UP) + "% · "
+                                        + resolution.reason()
                                         : resolution.reason();
                             }
                             modelEvidence = thermalModelEvidence(modelEvidence, model);
@@ -469,6 +472,17 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         Button recalculate = new Button("Recalculate plan", VaadinIcon.REFRESH.create(), event -> calculate.run());
         recalculate.setWidthFull();
         recalculate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button thermalModels = new Button("Thermal model", VaadinIcon.COG.create(), event -> {
+            if (account == null || siteSelect.getValue() == null) {
+                Notification.show("Select a site to inspect its thermal models")
+                        .addThemeVariants(NotificationVariant.LUMO_WARNING);
+                return;
+            }
+            openThermalModelDialog(thermalModelService, account.getId(), siteSelect.getValue(),
+                    () -> refreshActiveControlState(activeControlService, account.getId(), siteSelect.getValue(),
+                            activeControlStatus, enableActiveControl, disableActiveControl));
+        });
+        activeControlActions.add(thermalModels);
         enableActiveControl.addClickListener(event -> {
             SiteEntity selectedSite = siteSelect.getValue();
             if (account == null || selectedSite == null) return;
@@ -985,6 +999,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         var readiness = service.readiness(accountId, site.getId(), Instant.now());
         boolean plannerInactive = readiness.issues().stream()
                 .anyMatch(issue -> issue.contains("Heating Planner is inactive"));
+        status.getElement().getThemeList().removeAll(List.of("success", "warning", "contrast"));
         if (readiness.active() && plannerInactive) {
             status.setText("Opted in, currently inactive — the latest plan is weather-gated off, so existing heating controls keep priority. "
                     + String.join("; ", readiness.issues()));
@@ -992,14 +1007,17 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         } else if (readiness.active()) {
             String excludedRooms = readiness.issues().stream()
                     .filter(issue -> issue.contains(":"))
+                    .filter(issue -> readiness.lastAutomationError() == null
+                            || !readiness.lastAutomationError().contains(issue))
                     .collect(java.util.stream.Collectors.joining("; "));
-            status.setText("ACTIVE — automatic recalculation runs every 15 minutes"
+            status.setText((readiness.ready() ? "ACTIVE" : "Opted in, automatic activation deferred")
+                    + " — automatic recalculation runs every 15 minutes"
                     + (readiness.lastAutomaticActivationAt() == null ? ""
                     : "; last automatic activation " + formatInstant(readiness.lastAutomaticActivationAt()))
                     + (readiness.lastAutomationError() == null ? ""
                     : "; latest automation status: " + readiness.lastAutomationError())
                     + (excludedRooms.isEmpty() ? "" : "; excluded rooms remain on fallback: " + excludedRooms));
-            status.getElement().getThemeList().addAll(List.of("badge", "success"));
+            status.getElement().getThemeList().addAll(List.of("badge", readiness.ready() ? "success" : "warning"));
         } else if (readiness.ready()) {
             status.setText(readiness.issues().isEmpty()
                     ? "Ready — all activation checks pass. Review and explicitly enable control when desired."
@@ -1013,6 +1031,68 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         enable.setText(readiness.active() ? "Activate latest recalculated plan" : "Enable active thermostat control");
         enable.setEnabled(readiness.ready());
         disable.setEnabled(readiness.active());
+    }
+
+    private void openThermalModelDialog(HeatingPlannerThermalModelService service, Long accountId, SiteEntity site,
+                                        Runnable refreshReadiness) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Thermal models · " + site.getName());
+        dialog.setWidth("1050px");
+        dialog.setMaxWidth("95vw");
+        Grid<HeatingPlannerThermalModelService.ModelStatus> grid = new Grid<>();
+        grid.setWidthFull();
+        grid.setAllRowsVisible(true);
+        grid.addColumn(model -> model.roomName() + (model.enabled() ? "" : " (disabled)"))
+                .setHeader("Room").setFlexGrow(1);
+        grid.addColumn(model -> model.confidence().movePointRight(2).setScale(2, RoundingMode.HALF_UP) + "%")
+                .setHeader("Confidence").setWidth("115px").setFlexGrow(0);
+        grid.addColumn(HeatingPlannerThermalModelService.ModelStatus::sampleCount)
+                .setHeader("Cooling intervals").setWidth("140px").setFlexGrow(0);
+        grid.addComponentColumn(model -> wrappingCell(model.status())).setHeader("Model requirement").setFlexGrow(2);
+        DateTimeFormatter dateTime = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(zoneForSite(site));
+        grid.addComponentColumn(model -> wrappingCell("Trained: "
+                + (model.trainedAt() == null ? "—" : dateTime.format(model.trainedAt()))
+                + " · Last cooling observation: "
+                + (model.evidenceAt() == null ? "—" : dateTime.format(model.evidenceAt()))))
+                .setHeader("Evidence").setFlexGrow(2);
+        VerticalLayout rebuildResults = new VerticalLayout();
+        rebuildResults.setPadding(false);
+        rebuildResults.setSpacing(false);
+        Span summary = new Span();
+        Runnable refresh = () -> {
+            var models = service.modelStatuses(accountId, site.getId(), Instant.now());
+            grid.setItems(models);
+            summary.setText(models.isEmpty() ? "Save rooms and their sensors before rebuilding models."
+                    : models.size() + " saved room models · dates in " + zoneForSite(site));
+        };
+        Button rebuild = new Button("Rebuild from retained measurements", VaadinIcon.REFRESH.create(), event -> {
+            rebuildResults.removeAll();
+            try {
+                var results = service.rebuildModels(accountId, site.getId(), Instant.now());
+                results.forEach(result -> rebuildResults.add(new Paragraph(
+                        result.status().roomName() + ": " + result.reason())));
+                refresh.run();
+                refreshReadiness.run();
+            } catch (RuntimeException exception) {
+                log.error("Heating Planner thermal model rebuild failed for accountId={}, siteId={}",
+                        accountId, site.getId(), exception);
+                Notification.show("Thermal model rebuild failed; try again or check the server logs")
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        rebuild.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        VerticalLayout content = new VerticalLayout(
+                new Paragraph("Confidence describes the learned cooling model. Active floor control requires at least 25%, plus fresh sensors, thermostat state, and a current plan."),
+                new Paragraph("Rebuilding uses up to 14 days of retained room measurements with matching weather. Flat and warming readings do not train the cooling model. A qualifying previous model is retained for up to 14 days after its last cooling observation when a rebuild lacks sufficient confidence."),
+                summary, grid, rebuild,
+                new Paragraph("Rebuilding updates saved models. Use Recalculate plan to apply them to the displayed plan; automatic replanning also uses them on its next run. Save room or sensor changes first."),
+                rebuildResults);
+        content.setPadding(false);
+        content.setWidthFull();
+        dialog.add(content);
+        dialog.getFooter().add(new Button("Close", event -> dialog.close()));
+        refresh.run();
+        dialog.open();
     }
 
     private void showActiveControlIssues(List<String> issues) {

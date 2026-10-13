@@ -14,6 +14,8 @@ package com.nitramite.porssiohjain.entity.repository;
 import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -31,8 +33,9 @@ public interface ZigbeeDeviceMeasurementRepository extends JpaRepository<ZigbeeD
             String measurementKey
     );
 
-    List<ZigbeeDeviceMeasurementEntity> findTop1000ByDeviceIdAndMeasurementTypeAndMeasurementKeyAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
-            Long deviceId, ZigbeeMeasurementType measurementType, String measurementKey, Instant from, Instant to);
+    Slice<ZigbeeDeviceMeasurementEntity> findByDeviceIdAndMeasurementTypeAndMeasurementKeyAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
+            Long deviceId, ZigbeeMeasurementType measurementType, String measurementKey, Instant from, Instant to,
+            Pageable pageable);
 
     @EntityGraph(attributePaths = "device")
     List<ZigbeeDeviceMeasurementEntity> findTop500ByAccountIdAndMeasuredAtAfterOrderByMeasuredAtDescIdDesc(

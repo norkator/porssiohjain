@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,7 +33,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class HeatingPlannerActiveControlService {
 
-    static final BigDecimal MINIMUM_MODEL_CONFIDENCE = new BigDecimal("0.2500");
+    static final BigDecimal MINIMUM_MODEL_CONFIDENCE = HeatingPlannerThermalModelService.MINIMUM_MODEL_CONFIDENCE;
     static final Duration MAXIMUM_PLAN_AGE = Duration.ofMinutes(30);
     static final Duration GATEWAY_FRESHNESS = Duration.ofMinutes(15);
 
@@ -213,8 +214,14 @@ public class HeatingPlannerActiveControlService {
         if (!measurementService.latestFreshFloorTemperature(room, now).fresh())
             issues.add(prefix + "floor-temperature measurement is missing or stale");
         if (!room.isModelParametersLearned() || room.getModelConfidence() == null
-                || room.getModelConfidence().compareTo(MINIMUM_MODEL_CONFIDENCE) < 0)
-            issues.add(prefix + "learned model confidence must be at least 25%");
+                || room.getModelConfidence().compareTo(MINIMUM_MODEL_CONFIDENCE) < 0) {
+            String confidence = room.getModelConfidence() == null ? "unknown"
+                    : room.getModelConfidence().movePointRight(2).setScale(2, RoundingMode.HALF_UP) + "%";
+            issues.add(prefix + "learned model confidence is " + confidence + "; at least 25% is required ("
+                    + (room.getModelSampleCount() == null ? 0 : room.getModelSampleCount()) + " cooling intervals)");
+        } else if (!HeatingPlannerThermalModelService.hasCurrentModelEvidence(room, now)) {
+            issues.add(prefix + "learned cooling model evidence is missing or older than 14 days; rebuild from retained measurements");
+        }
     }
 
     private boolean hasEnabledFloorHeating(HeatingPlannerRoomEntity room) {

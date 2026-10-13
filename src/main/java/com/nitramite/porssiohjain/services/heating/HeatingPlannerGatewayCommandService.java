@@ -56,6 +56,7 @@ public class HeatingPlannerGatewayCommandService {
                 .filter(source -> source.getRoom().getSettings() != null && source.getRoom().getSettings().isEnabled())
                 .filter(source -> source.getRoom().getSettings().isActiveControlEnabled())
                 .filter(source -> source.getAccount() != null && source.getAccount().getId().equals(link.getAccount().getId()))
+                .filter(source -> HeatingPlannerThermalModelService.passesActiveModelChecks(source.getRoom(), now))
                 .filter(source -> measurementService.latestFreshRoomTemperature(source.getRoom(), now).fresh())
                 .filter(source -> measurementService.latestFreshFloorTemperature(source.getRoom(), now).fresh())
                 .flatMap(source -> currentPoint(source.getRoom(), now)

@@ -38,6 +38,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -281,6 +282,19 @@ public class HeatingPlannerConfigurationService {
                     .orElseThrow(() -> new IllegalArgumentException("Selected room sensor not found"));
             if (roomSensor != null && roomSensor.getDeviceType() != DeviceType.TEMPERATURE_SENSOR) {
                 throw new IllegalArgumentException("Selected room sensor is not a temperature sensor");
+            }
+            Long previousSensorId = room.getRoomSensorDevice() == null ? null : room.getRoomSensorDevice().getId();
+            String previousKey = room.getRoomSensorMeasurementKey();
+            if (previousKey == null || previousKey.isBlank()) previousKey = HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY;
+            if (!Objects.equals(previousSensorId, roomSensor == null ? null : roomSensor.getId())
+                    || !HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY.equals(previousKey)) {
+                room.setModelParametersLearned(false);
+                room.setModelConfidence(BigDecimal.ZERO);
+                room.setModelSampleCount(0);
+                room.setModelTrainedAt(null);
+                room.setModelEvidenceAt(null);
+                room.setRoomOutdoorLossRate(null);
+                room.setWindLossRate(null);
             }
             room.setRoomSensorDevice(roomSensor);
             room.setRoomSensorMeasurementKey(roomSensor == null ? null : HeatingPlannerMeasurementService.DEFAULT_TEMPERATURE_KEY);

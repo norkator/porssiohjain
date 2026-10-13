@@ -22,6 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -62,7 +63,8 @@ class HeatingPlannerActiveControlServiceTest {
         DeviceEntity floorSensor = DeviceEntity.builder().id(22L).account(account).deviceType(DeviceType.TEMPERATURE_SENSOR).build();
         room = HeatingPlannerRoomEntity.builder().id(10L).settings(settings).account(account).site(site).name("Kitchen")
                 .roomSensorDevice(roomSensor).floorSensorDevice(floorSensor).modelParametersLearned(true)
-                .modelConfidence(new BigDecimal("0.6000")).build();
+                .modelConfidence(new BigDecimal("0.6000")).modelSampleCount(72)
+                .modelTrainedAt(now.minusSeconds(3600)).modelEvidenceAt(now.minusSeconds(3600)).build();
         source = HeatingPlannerRoomHeatSourceEntity.builder().id(11L).room(room).account(account).site(site)
                 .sourceType(HeatingPlannerHeatSourceType.FLOOR_HEATING).controllingDevice(controller).enabled(true).build();
         room.getHeatSources().add(source);
@@ -258,7 +260,7 @@ class HeatingPlannerActiveControlServiceTest {
 
         var readiness = service.readiness(7L, 8L, now);
         assertThat(readiness.ready()).isTrue();
-        assertThat(readiness.issues()).contains("Shower: learned model confidence must be at least 25%");
+        assertThat(readiness.issues()).contains("Shower: learned model confidence is 20.00%; at least 25% is required (0 cooling intervals)");
 
         service.activate(7L, 8L, now);
 
@@ -266,6 +268,35 @@ class HeatingPlannerActiveControlServiceTest {
         assertThat(showerPoint.getStatus()).isEqualTo(HeatingPlannerPlanPointStatus.SIMULATED);
         assertThat(showerLink.getDesiredExpiresAt()).isEqualTo(now);
         verify(gatewayRepository).save(showerLink);
+    }
+
+    @Test
+    void refusesActivationWhenLearnedEvidenceHasExpiredDespiteRecentRecalculation() {
+        room.setModelEvidenceAt(now.minus(Duration.ofDays(14)).minusSeconds(1));
+        room.setModelTrainedAt(now);
+
+        var readiness = service.readiness(7L, 8L, now);
+
+        assertThat(readiness.ready()).isFalse();
+        assertThat(readiness.issues()).anyMatch(issue -> issue.contains("older than 14 days"));
+    }
+
+    @Test
+    void acceptsEvidenceAtTheFourteenDayBoundary() {
+        room.setModelEvidenceAt(now.minus(Duration.ofDays(14)));
+
+        assertThat(service.readiness(7L, 8L, now).ready()).isTrue();
+    }
+
+    @Test
+    void showsActualConfidenceAndCoolingCountWhenModelIsNotReady() {
+        room.setModelConfidence(new BigDecimal("0.2499"));
+        room.setModelSampleCount(24);
+
+        var readiness = service.readiness(7L, 8L, now);
+
+        assertThat(readiness.ready()).isFalse();
+        assertThat(readiness.issues()).contains("Kitchen: learned model confidence is 24.99%; at least 25% is required (24 cooling intervals)");
     }
 
     @Test
