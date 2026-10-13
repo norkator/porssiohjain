@@ -44,7 +44,7 @@ public class FingridDataService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     @Value("${fingrid.api-enabled}")
-    public boolean apiEnabled;
+    private boolean apiEnabled;
 
     @Value("${fingrid.wind-power-forecast-api-url}")
     private String apiUrl;
@@ -64,6 +64,10 @@ public class FingridDataService {
     ) {
         this.systemLogService = systemLogService;
         this.fingridDataRepository = fingridDataRepository;
+    }
+
+    public boolean isApiEnabled() {
+        return apiEnabled;
     }
 
     public WindForecastResponse fetchData(

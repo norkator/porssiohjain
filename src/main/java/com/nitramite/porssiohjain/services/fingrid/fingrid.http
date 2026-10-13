@@ -1,0 +1,21 @@
+# Set fingrid_api_key in http-client.private.env.json and select that environment.
+# Uses the same rolling 72-hour query and headers as FingridDataService.fetchData().
+
+### Wind power forecast for the next 72 hours
+< {%
+    const start = new Date();
+    request.variables.set("startTime", start.toISOString());
+    request.variables.set("endTime", new Date(start.getTime() + 72 * 60 * 60 * 1000).toISOString());
+%}
+GET https://data.fingrid.fi/api/datasets/245/data?startTime={{startTime}}&endTime={{endTime}}&format=json&pageSize=288&locale=fi&sortBy=startTime&sortOrder=asc
+Accept: application/json
+Cache-Control: no-cache
+x-api-key: {{fingrid_api_key}}
+
+> {%
+    client.test("Fingrid returns forecast data", function () {
+        client.assert(response.status === 200, "Expected HTTP 200, received " + response.status);
+        client.assert(Array.isArray(response.body.data), "Expected a data array");
+        client.assert(response.body.data.length > 0, "No forecast rows returned");
+    });
+%}
