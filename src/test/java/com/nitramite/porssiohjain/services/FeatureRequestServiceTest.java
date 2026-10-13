@@ -98,6 +98,7 @@ class FeatureRequestServiceTest {
     void missingAccountCannotSubmitOrList() {
         assertThrows(IllegalArgumentException.class, () -> service.submit(null, new FeatureRequestInput("Use", "Changes", "")));
         assertThrows(IllegalArgumentException.class, () -> service.listForAdmin(99L, 0));
+        assertThrows(IllegalArgumentException.class, () -> service.countOwnUnread(99L));
         verifyNoInteractions(repository);
     }
 

@@ -115,6 +115,8 @@ class FeatureRequestsControllerTest {
         var admin = accounts.saveAndFlush(AccountEntity.builder().uuid(UUID.randomUUID()).secret("admin").admin(true).build());
         service.comment(admin.getId(), id, "  Could you explain?  ", true);
         long first = comments.findByFeatureRequestIdOrderByIdAsc(id).getFirst().getId();
+        assertEquals(1, service.countOwnUnread(account.getId()));
+        assertEquals(0, service.countOwnUnread(admin.getId()));
         mvc.perform(get("/api/feature-requests").header("Authorization", token)).andExpect(jsonPath("$.items[0].unreadComments").value(true));
         mvc.perform(get("/api/feature-requests/" + id).header("Authorization", token)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.comments[0].message").value("Could you explain?"))
@@ -122,6 +124,7 @@ class FeatureRequestsControllerTest {
         // Merely querying a conversation (including preview) does not consume unread state.
         assertTrue(requests.findById(id).orElseThrow().hasUnreadComments());
         service.comment(admin.getId(), id, "A second thought", true);
+        assertEquals(1, service.countOwnUnread(account.getId()));
         mvc.perform(post("/api/feature-requests/" + id + "/read").header("Authorization", token)
                 .contentType("application/json").content("{\"seenCommentId\":" + first + "}")).andExpect(status().isNoContent());
         assertTrue(requests.findById(id).orElseThrow().hasUnreadComments());
@@ -131,6 +134,7 @@ class FeatureRequestsControllerTest {
         mvc.perform(post("/api/feature-requests/" + id + "/read").header("Authorization", token)
                 .contentType("application/json").content("{\"seenCommentId\":" + first + "}")).andExpect(status().isNoContent());
         assertFalse(requests.findById(id).orElseThrow().hasUnreadComments());
+        assertEquals(0, service.countOwnUnread(account.getId()));
         mvc.perform(post("/api/feature-requests/" + id + "/comments").header("Authorization", token)
                 .contentType("application/json").content("{\"message\":\"Here is my answer\",\"adminAuthor\":true}")).andExpect(status().isNoContent());
         var detail = service.detail(admin.getId(), id, true);
@@ -155,6 +159,8 @@ class FeatureRequestsControllerTest {
         service.setHandled(admin.getId(), id, true);
         assertTrue(service.listForAdmin(admin.getId(), 0, false).isEmpty());
         assertEquals(1, service.listForAdmin(admin.getId(), 0, true).getTotalElements());
+        service.comment(admin.getId(), id, "Handled, with a follow-up", true);
+        assertEquals(1, service.countOwnUnread(account.getId()), "Handled requests with new replies still notify their owner");
         mvc.perform(get("/api/feature-requests").header("Authorization", token)).andExpect(jsonPath("$.items[0].handled").value(true));
         service.setHandled(admin.getId(), id, false);
         assertEquals(1, service.listForAdmin(admin.getId(), 0, false).getTotalElements());

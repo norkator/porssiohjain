@@ -254,6 +254,53 @@ class MainLayoutTest {
         assertFalse(dialog.isOpened());
     }
 
+    @Test
+    void unreadRequestBadgesRefreshForTheEffectiveAccountAndClearAfterReading() {
+        var auth = mock(AuthService.class);
+        var requests = mock(com.nitramite.porssiohjain.services.FeatureRequestService.class);
+        var notices = mock(ServiceNoticeService.class);
+        when(notices.getNotice(any())).thenReturn(new ServiceNoticeResponse(false, "", null));
+        var messages = new ResourceBundleMessageSource();
+        messages.setBasename("translations/messages");
+        messages.setDefaultEncoding("UTF-8");
+        ui.setLocale(Locale.ENGLISH);
+        var effective = new AtomicReference<>(AccountEntity.builder().id(9L).build());
+        when(requests.countOwnUnread(9L)).thenReturn(2L);
+        try (var accounts = mockStatic(ViewAuthUtils.class)) {
+            accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth)).thenAnswer(invocation -> effective.get());
+            var desktop = new MainLayout(auth, new I18nService(messages), notices, mock(DeviceService.class), requests);
+            var badges = children(desktop).filter(c -> c.hasClassName("retro-request-badge")).toList();
+            assertEquals(3, badges.size());
+            assertTrue(badges.stream().allMatch(c -> c.isVisible() && c.getElement().getTextRecursively().equals("+2")));
+            var notification = children(desktop).filter(c -> c.hasClassName("retro-request-notification"))
+                    .map(com.vaadin.flow.component.html.NativeButton.class::cast).findFirst().orElseThrow();
+            assertTrue(notification.isVisible());
+            assertTrue(notification.getElement().getAttribute("aria-label").contains("Requests with new comments: 2"));
+            when(requests.listOwn(9L, 0)).thenReturn(org.springframework.data.domain.Page.empty());
+            when(requests.countOwnUnread(9L)).thenReturn(0L);
+            notification.click();
+            assertTrue(desktop.getChildren().filter(FeatureRequestDialog.class::isInstance)
+                    .map(FeatureRequestDialog.class::cast).findFirst().orElseThrow().isOpened());
+            // Refreshing the request history runs the shell callback immediately.
+            assertFalse(notification.isVisible());
+            assertTrue(badges.stream().noneMatch(Component::isVisible));
+            effective.set(AccountEntity.builder().id(42L).build());
+            when(requests.countOwnUnread(42L)).thenReturn(1L);
+            desktop.refreshFeatureRequestNotifications();
+            assertTrue(notification.isVisible());
+            assertTrue(badges.stream().allMatch(c -> c.getElement().getTextRecursively().equals("+1")));
+            verify(requests).countOwnUnread(42L);
+            effective.set(null);
+            desktop.refreshFeatureRequestNotifications();
+            assertFalse(notification.isVisible());
+            assertTrue(badges.stream().noneMatch(Component::isVisible));
+        }
+    }
+
+    private java.util.stream.Stream<Component> children(Component root) {
+        return java.util.stream.Stream.concat(java.util.stream.Stream.of(root), root.getChildren().flatMap(this::children));
+    }
+
     private void navigate(String path, Component content) {
         layout.showRouterLayoutContent(content);
         AfterNavigationEvent event = mock(AfterNavigationEvent.class);
