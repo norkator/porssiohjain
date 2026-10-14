@@ -40,6 +40,7 @@ import com.nitramite.porssiohjain.services.heating.HeatingPlanSimulationService;
 import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import com.nitramite.porssiohjain.views.components.HeatingPlanChart;
 import com.nitramite.porssiohjain.views.components.SiteWeatherForecastChart;
+import com.nitramite.porssiohjain.views.components.ZigbeeMeasurementHistoryChart;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -81,6 +82,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -841,6 +843,50 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         content.setAlignItems(Alignment.STRETCH);
 
         Span status = new Span();
+        VerticalLayout groups = new VerticalLayout();
+        groups.setPadding(false);
+        groups.setWidthFull();
+        groups.setAlignItems(Alignment.STRETCH);
+
+        Runnable refresh = () -> {
+            groups.removeAll();
+            if (accountId == null) {
+                status.setText("Sign in to see received Zigbee sensor readings.");
+                return;
+            }
+            Instant after = Instant.now().minus(Duration.ofHours(12));
+            List<RecentMeasurementRow> rows = measurementRepository
+                    .findLatestDistinctMeasurements(accountId, after)
+                    .stream()
+                    .map(this::recentMeasurementRow)
+                    .toList();
+            Map<ZigbeeMeasurementType, List<RecentMeasurementRow>> rowsByType = new EnumMap<>(ZigbeeMeasurementType.class);
+            for (RecentMeasurementRow row : rows) {
+                rowsByType.computeIfAbsent(row.measurementType(), type -> new ArrayList<>()).add(row);
+            }
+            for (ZigbeeMeasurementType type : ZigbeeMeasurementType.values()) {
+                List<RecentMeasurementRow> typeRows = rowsByType.get(type);
+                if (typeRows != null) {
+                    groups.add(new H3(measurementTypeLabel(type) + " (" + typeRows.size() + ")"),
+                            recentMeasurementsGrid(accountId, typeRows, measurementRepository));
+                }
+            }
+            status.setText("Showing the latest value for " + rows.size()
+                    + " distinct IEEE address and measurement type combinations from the past 12 hours. Click a row for history.");
+        };
+        Button refreshButton = new Button("Refresh readings", VaadinIcon.REFRESH.create(), event -> refresh.run());
+        refreshButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        refresh.run();
+
+        content.add(status, refreshButton, groups);
+        Details details = new Details("Recent Zigbee sensor readings", content);
+        details.setWidthFull();
+        details.setOpened(false);
+        return details;
+    }
+
+    private Grid<RecentMeasurementRow> recentMeasurementsGrid(Long accountId, List<RecentMeasurementRow> rows,
+                                                            ZigbeeDeviceMeasurementRepository measurementRepository) {
         Grid<RecentMeasurementRow> grid = new Grid<>(RecentMeasurementRow.class, false);
         grid.setWidthFull();
         grid.addColumn(RecentMeasurementRow::measuredAt)
@@ -873,32 +919,24 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         grid.setAllRowsVisible(true);
         grid.addItemClickListener(event -> openMeasurementHistoryDialog(
                 accountId, event.getItem(), measurementRepository));
+        grid.setItems(rows);
+        return grid;
+    }
 
-        Runnable refresh = () -> {
-            if (accountId == null) {
-                grid.setItems(List.of());
-                status.setText("Sign in to see received Zigbee sensor readings.");
-                return;
-            }
-            Instant after = Instant.now().minus(Duration.ofHours(12));
-            List<RecentMeasurementRow> rows = measurementRepository
-                    .findLatestDistinctMeasurements(accountId, after)
-                    .stream()
-                    .map(this::recentMeasurementRow)
-                    .toList();
-            grid.setItems(rows);
-            status.setText("Showing the latest value for " + rows.size()
-                    + " distinct IEEE address and measurement type combinations from the past 12 hours. Click a row for history.");
+    private String measurementTypeLabel(ZigbeeMeasurementType type) {
+        return switch (type) {
+            case TEMPERATURE -> "Temperature";
+            case HUMIDITY -> "Humidity";
+            case BATTERY_PERCENTAGE -> "Battery percentage";
+            case THERMOSTAT_SETPOINT -> "Thermostat setpoint";
         };
-        Button refreshButton = new Button("Refresh readings", VaadinIcon.REFRESH.create(), event -> refresh.run());
-        refreshButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        refresh.run();
+    }
 
-        content.add(status, refreshButton, grid);
-        Details details = new Details("Recent Zigbee sensor readings", content);
-        details.setWidthFull();
-        details.setOpened(false);
-        return details;
+    private String measurementUnit(ZigbeeMeasurementType type) {
+        return switch (type) {
+            case TEMPERATURE, THERMOSTAT_SETPOINT -> "°C";
+            case HUMIDITY, BATTERY_PERCENTAGE -> "%";
+        };
     }
 
     private void showError(String message) {
@@ -931,9 +969,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         if (accountId == null || selected == null) {
             return;
         }
-        List<RecentMeasurementRow> history = measurementRepository
+        List<ZigbeeDeviceMeasurementEntity> measurements = measurementRepository
                 .findTop500ByAccountIdAndZigbeeIeeeAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
-                        accountId, selected.zigbeeIeee(), selected.measurementType(), selected.measurementKey())
+                        accountId, selected.zigbeeIeee(), selected.measurementType(), selected.measurementKey());
+        List<RecentMeasurementRow> history = measurements
                 .stream()
                 .map(this::recentMeasurementRow)
                 .toList();
@@ -943,12 +982,25 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         historyGrid.addColumn(RecentMeasurementRow::value).setHeader("Value").setWidth("120px").setFlexGrow(0);
         historyGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
         historyGrid.setItems(history);
-        historyGrid.setHeight("60vh");
+        historyGrid.setWidthFull();
+        historyGrid.setHeight("320px");
+        historyGrid.getStyle().set("flex-shrink", "0");
+
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+        content.setWidthFull();
+        content.setAlignItems(Alignment.STRETCH);
+        content.add(new Paragraph(selected.device() + " · Newest " + history.size()
+                        + " history values (limited to 500). Times shown in " + ZONE.getId() + "."),
+                new ZigbeeMeasurementHistoryChart(measurements, ZONE,
+                        measurementTypeLabel(selected.measurementType()), measurementUnit(selected.measurementType())),
+                historyGrid);
 
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(selected.zigbeeIeee() + " · " + selected.type());
         dialog.setWidth("min(900px, 95vw)");
-        dialog.add(new Paragraph("Newest " + history.size() + " history values (limited to 500)."), historyGrid);
+        dialog.setMaxHeight("90vh");
+        dialog.add(content);
         dialog.getFooter().add(new Button("Close", event -> dialog.close()));
         dialog.open();
     }
