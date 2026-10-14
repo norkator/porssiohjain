@@ -30,8 +30,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -44,6 +46,24 @@ public class HeatingPlannerPlanService {
     private final HeatingPlannerPlanRepository planRepository;
     private final HeatingPlannerPlanPointRepository pointRepository;
     private final HeatingPlannerWoodRecommendationRepository woodRecommendationRepository;
+
+    @Transactional(readOnly = true)
+    public Map<String, List<HeatingPlanSimulationService.SimulationPoint>> chartHistory(
+            Long accountId, Long siteId, Instant start, Instant end) {
+        if (accountId == null || siteId == null || !start.isBefore(end)) {
+            return Map.of();
+        }
+        Map<String, List<HeatingPlanSimulationService.SimulationPoint>> history = new LinkedHashMap<>();
+        for (var point : pointRepository.findLatestHistoricalPredictions(accountId, siteId, start, end)) {
+            history.computeIfAbsent(point.getRoom().getName(), ignored -> new ArrayList<>()).add(
+                    new HeatingPlanSimulationService.SimulationPoint(point.getPlannedTime(),
+                            point.getPriceCentsPerKwh(), point.getOutdoorTemperature(),
+                            point.getPredictedFloorTemperature(), point.getPredictedRoomTemperature(),
+                            point.getPlannedFloorSetpoint(), point.getPredictedWoodHeatRate(),
+                            point.isHeating(), point.getOperatingMode(), point.getReason()));
+        }
+        return history;
+    }
 
     @Transactional
     public boolean persistSimulatedPlan(Long accountId, Long siteId,

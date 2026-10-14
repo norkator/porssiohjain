@@ -466,8 +466,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     expensivePricePercentile.getValue(), decimalOrDefault(cheapPriceThreshold.getValue(), "5.0000"),
                     decimalOrDefault(expensivePriceThreshold.getValue(), "20.0000"),
                     noPreheatWindowEnabled.getValue(), noPreheatFrom.getValue(), noPreheatTo.getValue());
+            ZoneId chartZone = zoneForSite(selectedSite);
+            var chartHistory = planService.chartHistory(account == null ? null : account.getId(),
+                    selectedSite == null ? null : selectedSite.getId(),
+                    calculationTime.atZone(chartZone).toLocalDate().atStartOfDay(chartZone).toInstant(), calculationTime);
             planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries, evidenceInputs,
-                    heatPumpControlEnabled.getValue()));
+                    heatPumpControlEnabled.getValue(), chartHistory));
             refreshActiveControlState(activeControlService, account == null ? null : account.getId(), selectedSite,
                     activeControlStatus, enableActiveControl, disableActiveControl);
         };
@@ -1007,16 +1011,20 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private VerticalLayout planContent(List<RoomPlan> roomPlans, SiteEntity site,
                                        List<SiteWeatherEntity> forecast, MarketSeries marketSeries,
-                                       PlanEvidenceInputs inputs, boolean heatPumpControlEnabled) {
+                                       PlanEvidenceInputs inputs, boolean heatPumpControlEnabled,
+                                       Map<String, List<HeatingPlanSimulationService.SimulationPoint>> chartHistory) {
         VerticalLayout plan = new VerticalLayout();
         plan.setPadding(false);
         Details evidence = new Details("Inputs used to determine this plan",
                 evidenceContent(roomPlans, site, forecast, marketSeries, inputs, heatPumpControlEnabled));
         evidence.setOpened(false);
         Details calculationBreakdown = roomCalculationBreakdown(roomPlans);
-        LocalDate today = LocalDate.now(ZONE);
-        VerticalLayout todayContent = dayContent(roomPlans, today, true, heatPumpControlEnabled);
-        VerticalLayout tomorrowContent = dayContent(roomPlans, today.plusDays(1), false, heatPumpControlEnabled);
+        ZoneId zone = zoneForSite(site);
+        LocalDate today = inputs.calculatedAt().atZone(zone).toLocalDate();
+        VerticalLayout todayContent = dayContent(roomPlans, today, true, heatPumpControlEnabled,
+                marketSeries, chartHistory, zone, inputs.calculatedAt());
+        VerticalLayout tomorrowContent = dayContent(roomPlans, today.plusDays(1), false, heatPumpControlEnabled,
+                marketSeries, Map.of(), zone, inputs.calculatedAt());
         Tab todayTab = new Tab("Today");
         Tab tomorrowTab = new Tab("Tomorrow");
         Tabs tabs = new Tabs(todayTab, tomorrowTab);
@@ -1337,13 +1345,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private VerticalLayout dayContent(List<RoomPlan> roomPlans, LocalDate date, boolean today,
-                                      boolean heatPumpControlEnabled) {
+                                      boolean heatPumpControlEnabled, MarketSeries marketSeries,
+                                      Map<String, List<HeatingPlanSimulationService.SimulationPoint>> chartHistory,
+                                      ZoneId zone, Instant calculatedAt) {
         VerticalLayout content = new VerticalLayout();
         content.setPadding(false);
         List<RoomDayPlan> plans = roomPlans.stream()
                 .filter(plan -> plan.result() != null)
                 .map(plan -> new RoomDayPlan(plan, plan.result().points().stream()
-                        .filter(point -> point.time().atZone(ZONE).toLocalDate().equals(date))
+                        .filter(point -> point.time().atZone(zone).toLocalDate().equals(date))
                         .toList()))
                 .filter(plan -> !plan.points().isEmpty())
                 .toList();
@@ -1367,9 +1377,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             selectedRoomPlan.removeAll();
             RoomDayPlan selected = roomFilter.getValue();
             if (selected != null) {
-                selectedRoomPlan.add(new HeatingPlanChart(selected.points(), ZONE,
-                                i18n.t("heatingPlanner.chart.now"), Instant.now()),
-                        plannedActions(selected.points(), selected.roomPlan().result(), today));
+                selectedRoomPlan.add(new HeatingPlanChart(marketSeries.points(), selected.points(),
+                                chartHistory.getOrDefault(selected.roomPlan().room(), List.of()), date, zone,
+                                i18n.t("heatingPlanner.chart.now"), calculatedAt));
+                if (today) {
+                    selectedRoomPlan.add(new Paragraph("The chart covers the whole local day. Earlier temperatures and "
+                            + "setpoints are saved predictions, not measurements; gaps mean no saved prediction is available. "
+                            + "The current and future periods use the latest calculation. The current-time line updates every minute."));
+                }
+                selectedRoomPlan.add(plannedActions(selected.points(), selected.roomPlan().result(), zone));
             }
         };
         roomFilter.addValueChangeListener(event -> renderSelectedRoom.run());
@@ -1382,7 +1398,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private VerticalLayout plannedActions(List<HeatingPlanSimulationService.SimulationPoint> points,
-                                          HeatingPlanSimulationService.SimulationResult result, boolean today) {
+                                          HeatingPlanSimulationService.SimulationResult result, ZoneId zone) {
         VerticalLayout section = new VerticalLayout();
         section.setPadding(false);
         Grid<PlanAction> actions = new Grid<>(PlanAction.class, false);
@@ -1398,7 +1414,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .setFlexGrow(3);
         actions.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
         actions.setAllRowsVisible(true);
-        actions.setItems(actions(points, result.woodStoveRecommendation(), today));
+        actions.setItems(actions(points, result.woodStoveRecommendation(), zone));
         section.add(new H3("Planned actions"), actions);
         return section;
     }
@@ -1510,12 +1526,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private List<PlanAction> actions(List<HeatingPlanSimulationService.SimulationPoint> points,
-                                     HeatingPlanSimulationService.WoodStoveRecommendation wood, boolean today) {
+                                     HeatingPlanSimulationService.WoodStoveRecommendation wood, ZoneId zone) {
         List<PlanAction> actions = new ArrayList<>();
         HeatingPlanSimulationService.OperatingMode previous = null;
         for (var point : points) {
             if (point.mode() != previous) {
-                actions.add(new PlanAction(TIME.format(point.time().atZone(ZONE)),
+                actions.add(new PlanAction(TIME.format(point.time().atZone(zone)),
                         switch (point.mode()) {
                             case PREHEAT -> "Preheat floor to " + point.floorSetpoint() + " °C";
                             case DISCHARGE -> "Use stored heat; floor setpoint " + point.floorSetpoint() + " °C";
@@ -1526,9 +1542,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 previous = point.mode();
             }
         }
-        if (wood != null && wood.notifyAt().atZone(ZONE).toLocalDate()
-                .equals(points.getFirst().time().atZone(ZONE).toLocalDate())) {
-            actions.add(new PlanAction(TIME.format(wood.notifyAt().atZone(ZONE)),
+        if (wood != null && wood.notifyAt().atZone(zone).toLocalDate()
+                .equals(points.getFirst().time().atZone(zone).toLocalDate())) {
+            actions.add(new PlanAction(TIME.format(wood.notifyAt().atZone(zone)),
                     "Push notification: light " + wood.loadName() + " (" + wood.woodAmount() + " kg)", wood.reason()));
         }
         actions.sort((left, right) -> left.time().compareTo(right.time()));
@@ -2434,7 +2450,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         if (site == null || !hasWeatherPlace(site)) {
             return List.of();
         }
-        ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
+        ZoneId zone = zoneForSite(site);
+        ZonedDateTime start = LocalDate.now(zone).atStartOfDay(zone);
         return siteWeatherRepository.findBySiteAndForecastTimeBetweenOrderByForecastTimeAsc(
                 site, start.toInstant(), start.plusDays(2).toInstant());
     }

@@ -6,6 +6,7 @@ import com.nitramite.porssiohjain.entity.enums.HeatingPlannerHeatSourceType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.heating.*;
+import com.nitramite.porssiohjain.views.components.HeatingPlanChart;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.grid.Grid;
@@ -13,7 +14,7 @@ import com.vaadin.flow.server.VaadinSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -50,8 +51,8 @@ class HeatingPlannerViewTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"20.00", "18.00"})
-    void manualPlanUsesCurrentReadingAndQuarterHourStepsAndExplainsHeatPumpRequest(String minimum) {
+    @CsvSource({"20.00, Europe/Helsinki", "18.00, Europe/Helsinki", "20.00, America/Los_Angeles"})
+    void manualPlanUsesCurrentReadingAndQuarterHourStepsAndExplainsHeatPumpRequest(String minimum, String timezone) {
         Instant measuredAt = Instant.now().minusSeconds(60);
         var sites = mock(SiteRepository.class);
         var devices = mock(DeviceRepository.class);
@@ -63,7 +64,7 @@ class HeatingPlannerViewTest {
         var plans = mock(HeatingPlannerPlanService.class);
         var combinedPrices = mock(ControlPriceService.class);
         var simulation = spy(new HeatingPlanSimulationService());
-        var site = SiteEntity.builder().id(8L).name("Home").enabled(true).timezone("Europe/Helsinki").build();
+        var site = SiteEntity.builder().id(8L).name("Home").enabled(true).timezone(timezone).build();
         var pump = DeviceEntity.builder().id(9L).deviceName("Heat pump").deviceType(DeviceType.HEAT_PUMP).build();
         var sensor = DeviceEntity.builder().id(10L).deviceName("Room sensor").deviceType(DeviceType.TEMPERATURE_SENSOR).build();
         when(sites.findByAccountId(7L)).thenReturn(List.of(site));
@@ -91,7 +92,7 @@ class HeatingPlannerViewTest {
         when(activeControl.readiness(eq(7L), eq(8L), any())).thenReturn(
                 new HeatingPlannerActiveControlService.Readiness(false, false, List.of(), null, null, null, null));
         when(combinedPrices.getCombinedPrice(any(), any(), any(), any())).thenReturn(BigDecimal.TEN);
-        ZoneId zone = ZoneId.of("Europe/Helsinki");
+        ZoneId zone = ZoneId.of(timezone);
         ZonedDateTime start = LocalDate.now(zone).atStartOfDay(zone);
         List<NordpoolEntity> market = new ArrayList<>();
         for (ZonedDateTime period = start; period.isBefore(start.plusDays(2)); period = period.plusMinutes(15)) {
@@ -134,6 +135,9 @@ class HeatingPlannerViewTest {
         String text = view.getElement().getTextRecursively();
         assertThat(text).contains("15 min steps", "minimum is configured separately")
                 .doesNotContain("1 h simulation step", "target - 1 °C");
+        verify(plans).chartHistory(7L, 8L, start.toInstant(), calculatedAt.getValue());
+        assertThat(descendants(view).filter(HeatingPlanChart.class::isInstance).count()).isEqualTo(2);
+        assertThat(text).contains("whole local day", "saved predictions, not measurements", "updates every minute");
     }
 
     private Stream<Component> descendants(Component root) {

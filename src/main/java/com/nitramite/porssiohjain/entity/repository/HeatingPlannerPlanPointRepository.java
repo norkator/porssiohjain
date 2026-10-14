@@ -36,6 +36,28 @@ public interface HeatingPlannerPlanPointRepository extends JpaRepository<Heating
     List<HeatingPlannerPlanPointEntity> findByPlanVersionAndRoomIdAndPlannedTimeBetweenOrderByPlannedTimeAsc(
             UUID planVersion, Long roomId, Instant start, Instant end);
 
+    /** Latest prediction available when each period began, including superseded plans. */
+    @Query("""
+            select point from HeatingPlannerPlanPointEntity point
+            join fetch point.room
+            join fetch point.plan
+            where point.account.id = :accountId and point.site.id = :siteId
+              and point.plannedTime >= :start and point.plannedTime < :end
+              and point.plan.createdAt <= point.plannedTime
+              and not exists (
+                  select newer.id from HeatingPlannerPlanPointEntity newer
+                  where newer.account.id = :accountId and newer.site.id = :siteId
+                    and newer.room.id = point.room.id and newer.plannedTime = point.plannedTime
+                    and newer.plan.createdAt <= point.plannedTime
+                    and (newer.plan.createdAt > point.plan.createdAt
+                         or (newer.plan.createdAt = point.plan.createdAt and newer.id > point.id))
+              )
+            order by point.plannedTime asc
+            """)
+    List<HeatingPlannerPlanPointEntity> findLatestHistoricalPredictions(
+            @Param("accountId") Long accountId, @Param("siteId") Long siteId,
+            @Param("start") Instant start, @Param("end") Instant end);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             delete from HeatingPlannerPlanPointEntity point
