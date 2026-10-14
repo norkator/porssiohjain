@@ -17,7 +17,10 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,6 +28,63 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class HeatingPlanSimulationServiceTest {
 
     private final HeatingPlanSimulationService service = new HeatingPlanSimulationService();
+
+    @Test
+    void eveningPlanSeedsCurrentPeriodFromFreshReadingWithoutReplayingElapsedCooling() {
+        Instant start = LocalDate.of(2026, 10, 14).atStartOfDay(ZoneId.of("Europe/Helsinki")).toInstant();
+        Instant now = Instant.parse("2026-10-14T17:13:34Z");
+        var market = IntStream.range(0, 192)
+                .mapToObj(index -> point(start.plus(Duration.ofMinutes(index * 15L)), "10.0"))
+                .toList();
+        var request = new HeatingPlanSimulationService.SimulationRequest(
+                new BigDecimal("22.0"), new BigDecimal("22.900"),
+                settings(new BigDecimal("27.0"), new BigDecimal("29.0")), model(), market, null, true, true);
+
+        var result = service.simulate(request, now);
+        var current = result.points().getFirst();
+
+        assertThat(current.time()).isEqualTo(Instant.parse("2026-10-14T17:00:00Z"));
+        assertThat(result.points()).hasSize(112);
+        assertThat(current.mode()).isEqualTo(HeatingPlanSimulationService.OperatingMode.NORMAL);
+        assertThat(current.reason()).doesNotContain("below");
+        // One 15-minute step from 22.900 °C, rather than elapsed-day cooling or a full hour of cooling.
+        assertThat(current.roomTemperature()).isEqualByComparingTo("22.76");
+        assertThat(HeatingPlannerPlanService.plannedHeatPumpSetpoint(new BigDecimal("21.00"),
+                new BigDecimal("20.00"), new BigDecimal("2.00"), true, current))
+                .isEqualByComparingTo("21.00");
+    }
+
+    @Test
+    void livePlanExcludesPeriodEndingExactlyAtCalculationTimeAndKeepsFuturePeriods() {
+        Instant now = Instant.parse("2026-10-14T17:15:00Z");
+        var request = request(List.of(point(now.plusSeconds(900), "10.0"),
+                point(now.minusSeconds(900), "3.0"), point(now, "10.0")));
+
+        var result = service.simulate(request, now);
+
+        assertThat(result.points()).extracting(HeatingPlanSimulationService.SimulationPoint::time)
+                .containsExactly(now, now.plusSeconds(900));
+    }
+
+    @Test
+    void livePlanCannotPreheatInElapsedCheapPeriods() {
+        Instant now = Instant.parse("2026-10-14T17:15:00Z");
+        var request = request(List.of(point(now.minusSeconds(900), "3.0"), point(now, "24.0")));
+
+        var result = service.simulate(request, now);
+
+        assertThat(result.points()).hasSize(1);
+        assertThat(result.points().getFirst().mode()).isEqualTo(HeatingPlanSimulationService.OperatingMode.DISCHARGE);
+    }
+
+    @Test
+    void livePlanRejectsEntirelyElapsedHorizon() {
+        Instant now = Instant.parse("2026-10-14T17:15:00Z");
+        var request = request(List.of(point(now.minusSeconds(900), "3.0")));
+
+        assertThatThrownBy(() -> service.simulate(request, now))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Current or future");
+    }
 
     @Test
     void calculatesPriceLimitsFromLowerAndUpperQuartiles() {
@@ -228,6 +288,8 @@ class HeatingPlanSimulationServiceTest {
 
         assertThat(point.mode()).isEqualTo(HeatingPlanSimulationService.OperatingMode.COMFORT_RECOVERY);
         assertThat(point.floorSetpoint()).isEqualByComparingTo("23.0");
+        assertThat(point.reason()).contains("Predicted room temperature 19.50 °C",
+                "comfort minimum 20.0 °C");
     }
 
     @Test

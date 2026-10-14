@@ -9,6 +9,8 @@ import com.nitramite.porssiohjain.entity.repository.HeatingPlannerWoodRecommenda
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -72,6 +74,58 @@ class HeatingPlannerPlanServiceTest {
         assertThat(HeatingPlannerPlanService.plannedHeatPumpSetpoint(
                 new BigDecimal("22.00"), new BigDecimal("20.00"), new BigDecimal("2.00"), true, expensive))
                 .isEqualByComparingTo("20.00");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "22.90, NORMAL, true, 21.00, Maintain the comfort target",
+            "22.90, PREHEAT, true, 23.00, Selected cheap preheat period",
+            "22.90, DISCHARGE, true, 19.00, Discharge in the simulated plan",
+            "19.90, DISCHARGE, true, 23.00, Comfort recovery in the simulated plan",
+            "20.10, COMFORT_RECOVERY, true, 23.00, Comfort recovery in the simulated plan",
+            "22.90, NORMAL, false, 19.00, above the comfort target",
+            "20.70, NORMAL, false, 23.00, below the comfort target",
+            "21.25, PREHEAT, false, 21.00, Maintain the comfort target",
+            "20.75, DISCHARGE, false, 21.00, Maintain the comfort target",
+            "19.90, NORMAL, false, 23.00, Comfort recovery in the simulated plan",
+            "20.00, NORMAL, true, 21.00, Maintain the comfort target"
+    })
+    void explainsRequestsForTwentyOneDegreeTargetAndTwoDegreeAdjustment(
+            BigDecimal predictedRoomTemperature, HeatingPlanSimulationService.OperatingMode mode,
+            boolean priceShifting, BigDecimal expectedRequest, String expectedReason) {
+        var point = point(predictedRoomTemperature, mode);
+
+        var decision = HeatingPlannerPlanService.plannedHeatPumpDecision(
+                new BigDecimal("21.00"), new BigDecimal("20.00"), new BigDecimal("2.00"), priceShifting, point);
+
+        assertThat(decision.setpoint()).isEqualByComparingTo(expectedRequest);
+        assertThat(decision.reason()).contains(expectedReason, "target 21.00 °C", "adjustment ±2.00 °C")
+                .doesNotContain("floor", "test reason");
+        assertThat(HeatingPlannerPlanService.plannedHeatPumpSetpoint(new BigDecimal("21.00"),
+                new BigDecimal("20.00"), new BigDecimal("2.00"), priceShifting, point))
+                .isEqualByComparingTo(decision.setpoint());
+    }
+
+    @Test
+    void inactiveOrMissingPlanDoesNotRequestHeatPumpSetpoint() {
+        var inactive = point(new BigDecimal("19.00"), HeatingPlanSimulationService.OperatingMode.INACTIVE);
+
+        var decision = HeatingPlannerPlanService.plannedHeatPumpDecision(new BigDecimal("21.00"),
+                new BigDecimal("20.00"), new BigDecimal("2.00"), true, inactive);
+
+        assertThat(decision.setpoint()).isNull();
+        assertThat(decision.reason()).isEqualTo("test reason");
+        assertThat(HeatingPlannerPlanService.plannedHeatPumpDecision(new BigDecimal("21.00"),
+                new BigDecimal("20.00"), new BigDecimal("2.00"), true, null).setpoint()).isNull();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"29.00, PREHEAT, 30.00", "17.00, DISCHARGE, 16.00"})
+    void requestedAdjustmentRespectsDeviceTemperatureLimits(
+            BigDecimal target, HeatingPlanSimulationService.OperatingMode mode, BigDecimal expectedRequest) {
+        assertThat(HeatingPlannerPlanService.plannedHeatPumpSetpoint(target, new BigDecimal("15.00"),
+                new BigDecimal("2.00"), true, point(target, mode)))
+                .isEqualByComparingTo(expectedRequest);
     }
 
     private HeatingPlanSimulationService.SimulationPoint point(

@@ -98,10 +98,23 @@ public class HeatingPlanSimulationService {
     }
 
     public SimulationResult simulate(SimulationRequest request) {
+        return simulate(request, null);
+    }
+
+    /**
+     * Seeds the current period with the supplied measurements, skipping fully elapsed periods.
+     * A null calculation time keeps the complete horizon for standalone simulations.
+     */
+    public SimulationResult simulate(SimulationRequest request, Instant calculationTime) {
         validate(request);
         List<MarketPoint> market = request.market().stream()
+                .filter(point -> calculationTime == null
+                        || point.time().plus(request.settings().step()).isAfter(calculationTime))
                 .sorted(Comparator.comparing(MarketPoint::time))
                 .toList();
+        if (market.isEmpty()) {
+            throw new IllegalArgumentException("Current or future market points are required for live planning");
+        }
         boolean plannerActive = market.stream()
                 .map(MarketPoint::outdoorTemperature)
                 .anyMatch(temperature -> temperature.compareTo(
@@ -288,11 +301,14 @@ public class HeatingPlanSimulationService {
         }
         if (roomTemperature.compareTo(settings.maximumRoomTemperature()) >= 0) {
             return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,
-                    "Room temperature is at the configured comfort maximum; suppress electric heating");
+                    "Predicted room temperature " + roomTemperature.setScale(2, RoundingMode.HALF_UP)
+                            + " °C is at or above the comfort maximum " + settings.maximumRoomTemperature()
+                            + " °C; suppress electric heating");
         }
         if (roomTemperature.compareTo(settings.minimumRoomTemperature()) < 0) {
             return new OperatingDecision(settings.normalFloorTemperature(), OperatingMode.COMFORT_RECOVERY,
-                    "Room temperature is below the configured comfort minimum");
+                    "Predicted room temperature " + roomTemperature.setScale(2, RoundingMode.HALF_UP)
+                            + " °C is below the configured comfort minimum " + settings.minimumRoomTemperature() + " °C");
         }
         if (woodHeatRateAt(current.time(), woodRecommendation).signum() > 0) {
             return new OperatingDecision(settings.dischargeFloorSetpoint(), OperatingMode.DISCHARGE,

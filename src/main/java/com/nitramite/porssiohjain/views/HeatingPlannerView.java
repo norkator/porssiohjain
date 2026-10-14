@@ -403,7 +403,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                                     || room.heatSource() == HeatingPlannerHeatSourceType.HEAT_PUMP,
                                             priceThresholds, noPreheatWindowEnabled.getValue(),
                                             noPreheatFrom.getValue(), noPreheatTo.getValue(), zoneForSite(selectedSite),
-                                            siteOperationStateFor(selectedSite))),
+                                            siteOperationStateFor(selectedSite)), calculationTime),
                                     null);
                         } catch (IllegalArgumentException ex) {
                             return new RoomPlan(room.room(), room.heatSource(), room.heatPumpPriceOptimizationEnabled(),
@@ -436,7 +436,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 defaultThermalModel(), false, false, priceThresholds,
                                 noPreheatWindowEnabled.getValue(), noPreheatFrom.getValue(),
                                 noPreheatTo.getValue(), zoneForSite(selectedSite),
-                                siteOperationStateFor(selectedSite))),
+                                siteOperationStateFor(selectedSite)), calculationTime),
                         null));
             }
             if (account != null && selectedSite != null) {
@@ -1394,9 +1394,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "No command", point.reason());
         }
         if (plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP) {
-            BigDecimal setpoint = HeatingPlannerPlanService.plannedHeatPumpSetpoint(
+            var decision = HeatingPlannerPlanService.plannedHeatPumpDecision(
                     plan.targetRoomTemperature(), plan.minimumRoomTemperature(),
                     plan.heatPumpTemperatureAdjustment(), plan.heatPumpPriceOptimizationEnabled(), point);
+            BigDecimal setpoint = decision.setpoint();
             if (!heatPumpControlEnabled) {
                 return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()), "Observed only",
                         "The site's Control heat pumps switch is off. Planned request would be " + setpoint + " °C.");
@@ -1406,7 +1407,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                         "Room measurement is missing or stale; heat-pump control is suppressed.");
             }
             return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()),
-                    setpoint + " °C", point.reason());
+                    setpoint + " °C", decision.reason());
         }
         return new CurrentCommandPreview(plan.room(), deviceLabel(plan.controller()),
                 point.floorSetpoint() + " °C", point.reason());
@@ -1497,6 +1498,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 evidenceSection("Overview", evidenceGrid(
                         new EvidenceValue("Generated", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
                                 .withZone(zoneForSite(site)).format(inputs.calculatedAt())),
+                        new EvidenceValue("Simulation", "Starts with the latest sensor inputs in the current price period; "
+                                + "later temperatures are predictions. Fully elapsed periods are excluded."),
                         new EvidenceValue("Planner status", plannerStatusText(roomPlans)),
                         new EvidenceValue("Site", siteText),
                         new EvidenceValue("Weather", weatherText)
@@ -1513,7 +1516,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 + " c/kWh combined, percentile " + percentileDisplay(inputs.expensivePricePercentile())
                                 + ", configured min " + priceDisplay(inputs.configuredExpensivePriceThreshold())),
                         new EvidenceValue("Price sample", marketSeries.points().size()
-                                + " today-and-tomorrow combined-price points, 1 h simulation step"),
+                                + " today-and-tomorrow combined-price points; current and future periods are simulated in 15 min steps"),
                         new EvidenceValue("No-preheat window", inputs.noPreheatWindowEnabled()
                                 ? timeOrDefault(inputs.noPreheatFrom(), LocalTime.of(22, 0))
                                 + "–" + timeOrDefault(inputs.noPreheatTo(), LocalTime.of(5, 0))
@@ -1613,8 +1616,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         grid.setAllRowsVisible(true);
         grid.setItems(roomPlans.stream()
                 .map(plan -> new RoomLimitEvidenceRow(plan.room(),
-                        "target " + plan.targetRoomTemperature() + " °C, guard "
-                                + plan.minimumRoomTemperature() + "..."
+                        "comfort target " + plan.targetRoomTemperature() + " °C, configured minimum "
+                                + plan.minimumRoomTemperature() + " °C, simulation maximum "
                                 + plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C",
                         plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP
                                 ? "not applicable to heat-pump control"
@@ -1640,6 +1643,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         grid.addColumn(HeatPumpEvidenceRow::room).setHeader("Room").setFlexGrow(1);
         grid.addComponentColumn(row -> wrappingCell(row.controller())).setHeader("Controller").setFlexGrow(2);
         grid.addComponentColumn(row -> wrappingCell(row.roomSensor())).setHeader("Room sensor input").setFlexGrow(2);
+        grid.addComponentColumn(row -> wrappingCell(row.predictedRoomTemperature()))
+                .setHeader("Predicted room temperature").setFlexGrow(2);
         grid.addComponentColumn(row -> wrappingCell(row.strategy())).setHeader("Setpoint strategy").setFlexGrow(3);
         grid.addComponentColumn(row -> wrappingCell(row.currentRequest())).setHeader("Current planned request").setFlexGrow(2);
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
@@ -1649,20 +1654,21 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .filter(plan -> plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP)
                 .map(plan -> {
                     HeatingPlanSimulationService.SimulationPoint point = currentPoint(plan.result(), now);
-                    BigDecimal request = HeatingPlannerPlanService.plannedHeatPumpSetpoint(
+                    var decision = HeatingPlannerPlanService.plannedHeatPumpDecision(
                             plan.targetRoomTemperature(), plan.minimumRoomTemperature(),
                             plan.heatPumpTemperatureAdjustment(), plan.heatPumpPriceOptimizationEnabled(), point);
+                    BigDecimal request = decision.setpoint();
                     String strategy = "comfort target " + plan.targetRoomTemperature() + " °C, minimum "
                             + plan.minimumRoomTemperature() + " °C, adjustment ±"
                             + plan.heatPumpTemperatureAdjustment() + " °C; price shifting "
                             + (plan.heatPumpPriceOptimizationEnabled()
                             ? "enabled (raise when cheap, lower when expensive)" : "disabled");
-                    String currentRequest = request == null ? "none — "
-                            + (point == null ? "no current plan point" : point.reason())
-                            : request + " °C — " + point.reason();
+                    String currentRequest = request == null ? "none — " + decision.reason()
+                            : request + " °C requested setpoint — " + decision.reason();
                     return new HeatPumpEvidenceRow(plan.room(),
                             plan.controller() == null ? "not configured" : deviceLabel(plan.controller()),
                             measurementText(plan.roomMeasurement(), plan.initialRoomTemperature()),
+                            point == null ? "unavailable" : point.roomTemperature() + " °C after this 15 min step",
                             strategy, currentRequest);
                 }).toList();
         grid.setItems(rows);
@@ -1688,7 +1694,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         VerticalLayout content = new VerticalLayout();
         content.setPadding(false);
         content.setWidthFull();
-        content.add(new Span("The exact configured comfort and floor limits used for each room are shown below. The simulation comfort guard is target - 1 °C to target + 2.5 °C."));
+        content.add(new Span("The comfort minimum is configured separately for each room. "
+                + "The simulation comfort maximum is target + 2.5 °C. "
+                + "Decisions use simulated temperatures seeded from the sensor inputs shown below."));
 
         Grid<RoomCalculationRow> grid = new Grid<>(RoomCalculationRow.class, false);
         grid.setWidthFull();
@@ -1710,19 +1718,33 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private RoomCalculationRow roomCalculationRow(RoomPlan plan) {
         String startingState = "room " + measurementText(plan.roomMeasurement(), plan.initialRoomTemperature())
-                + "; floor " + measurementText(plan.floorMeasurement(), plan.initialFloorTemperature());
-        String limits = "comfort " + plan.targetRoomTemperature() + " °C, comfort guard "
-                + plan.minimumRoomTemperature() + "..." + plan.targetRoomTemperature().add(new BigDecimal("2.50"))
-                + " °C; normal floor " + plan.normalFloorTemperature() + " °C, preheat max "
-                + plan.maximumPreheatFloorTemperature() + " °C, absolute max "
-                + plan.absoluteMaximumFloorTemperature() + " °C, discharge "
-                + plan.dischargeFloorSetpoint() + " °C";
+                + (plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP ? ""
+                : "; floor " + measurementText(plan.floorMeasurement(), plan.initialFloorTemperature()));
+        String limits = "comfort target " + plan.targetRoomTemperature() + " °C, configured minimum "
+                + plan.minimumRoomTemperature() + " °C, simulation maximum "
+                + plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C";
+        if (plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP) {
+            limits += "; heat-pump adjustment ±" + plan.heatPumpTemperatureAdjustment() + " °C";
+        } else {
+            limits += "; normal floor " + plan.normalFloorTemperature() + " °C, preheat max "
+                    + plan.maximumPreheatFloorTemperature() + " °C, absolute max "
+                    + plan.absoluteMaximumFloorTemperature() + " °C, discharge "
+                    + plan.dischargeFloorSetpoint() + " °C";
+        }
         if (plan.result() == null) {
             return new RoomCalculationRow(plan.room(), startingState, limits, "No plan point", plan.planError());
         }
         HeatingPlanSimulationService.SimulationPoint point = currentPoint(plan.result(), Instant.now());
         if (point == null) {
             return new RoomCalculationRow(plan.room(), startingState, limits, "No plan point", "No plan point is available.");
+        }
+        if (plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP) {
+            var decision = HeatingPlannerPlanService.plannedHeatPumpDecision(plan.targetRoomTemperature(),
+                    plan.minimumRoomTemperature(), plan.heatPumpTemperatureAdjustment(),
+                    plan.heatPumpPriceOptimizationEnabled(), point);
+            return new RoomCalculationRow(plan.room(), startingState, limits,
+                    decision.setpoint() == null ? "No planned request" : "Requested heat-pump setpoint "
+                    + decision.setpoint() + " °C", decision.reason());
         }
         String decision = point.mode() + ": floor setpoint " + point.floorSetpoint() + " °C, heating "
                 + (point.heating() ? "on" : "off");
@@ -1869,7 +1891,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         BigDecimal absoluteMaximumFloor = absoluteMaximumFloorTemperature == null
                 ? new BigDecimal("29.00") : absoluteMaximumFloorTemperature;
         BigDecimal dischargeFloor = dischargeFloorSetpoint == null ? new BigDecimal("19.00") : dischargeFloorSetpoint;
-        var settings = new HeatingPlanSimulationService.Settings(Duration.ofHours(1),
+        var settings = new HeatingPlanSimulationService.Settings(Duration.ofMinutes(15),
                 priceThresholds.cheapPriceThreshold(), priceThresholds.expensivePriceThreshold(),
                 normalFloor, maximumPreheatFloor,
                 absoluteMaximumFloor, dischargeFloor, minimumRoom,
@@ -1977,7 +1999,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private MarketSeries marketSeries(com.nitramite.porssiohjain.entity.AccountEntity account, SiteEntity site,
                                       BigDecimal taxPercent, ElectricityContractEntity transferContract,
                                       List<SiteWeatherEntity> forecast, ControlPriceService controlPriceService) {
-        ZonedDateTime start = LocalDate.now(ZONE).atStartOfDay(ZONE);
+        ZoneId zone = zoneForSite(site);
+        ZonedDateTime start = LocalDate.now(zone).atStartOfDay(zone);
         ZonedDateTime end = start.plusDays(2);
         if (account == null) {
             return fallbackMarketSeries(start, forecast, "fallback prices because account is unavailable");
@@ -1987,7 +2010,6 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         if (prices.isEmpty()) {
             return fallbackMarketSeries(start, forecast, "fallback prices because Nordpool rows are missing for " + marketIndex);
         }
-        ZoneId zone = zoneForSite(site);
         List<HeatingPlanSimulationService.MarketPoint> points = prices.stream()
                 .sorted(Comparator.comparing(NordpoolEntity::getDeliveryStart))
                 .map(price -> {
@@ -2006,12 +2028,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private MarketSeries fallbackMarketSeries(ZonedDateTime start, List<SiteWeatherEntity> forecast, String reason) {
         List<HeatingPlanSimulationService.MarketPoint> market = new ArrayList<>();
-        for (int hour = 0; hour < 48; hour++) {
-            int localHour = start.plusHours(hour).getHour();
+        for (ZonedDateTime period = start; period.isBefore(start.plusDays(2)); period = period.plusMinutes(15)) {
+            int localHour = period.getHour();
             BigDecimal price = localHour >= 7 && localHour < 11 ? new BigDecimal("26.0")
                     : localHour >= 17 && localHour < 21 ? new BigDecimal("31.0")
                     : localHour >= 1 && localHour < 6 ? new BigDecimal("3.5") : new BigDecimal("11.0");
-            Instant time = start.plusHours(hour).toInstant();
+            Instant time = period.toInstant();
             WeatherValues weather = weatherAt(forecast, time, localHour);
             market.add(new HeatingPlanSimulationService.MarketPoint(time, price, weather.temperature(), weather.windSpeedMs()));
         }
@@ -2083,7 +2105,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private record HeatPumpEvidenceRow(String room, String controller, String roomSensor,
-                                       String strategy, String currentRequest) {
+                                       String predictedRoomTemperature, String strategy, String currentRequest) {
     }
 
     private record RoomModelEvidenceRow(String room, String model) {

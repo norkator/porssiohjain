@@ -127,28 +127,47 @@ public class HeatingPlannerPlanService {
     public static BigDecimal plannedHeatPumpSetpoint(BigDecimal target, BigDecimal minimumRoomTemperature,
                                                       BigDecimal configuredAdjustment, boolean priceOptimizationEnabled,
                                                       HeatingPlanSimulationService.SimulationPoint point) {
-        if (point == null || point.mode() == HeatingPlanSimulationService.OperatingMode.INACTIVE) return null;
+        return plannedHeatPumpDecision(target, minimumRoomTemperature, configuredAdjustment,
+                priceOptimizationEnabled, point).setpoint();
+    }
+
+    public static HeatPumpSetpointDecision plannedHeatPumpDecision(BigDecimal target, BigDecimal minimumRoomTemperature,
+                                                                   BigDecimal configuredAdjustment, boolean priceOptimizationEnabled,
+                                                                   HeatingPlanSimulationService.SimulationPoint point) {
+        if (point == null || point.mode() == HeatingPlanSimulationService.OperatingMode.INACTIVE) {
+            return new HeatPumpSetpointDecision(null, point == null ? "No current plan point" : point.reason());
+        }
         BigDecimal adjustment = configuredAdjustment == null ? new BigDecimal("2.00") : configuredAdjustment;
         BigDecimal requested = target;
+        String reason = "Maintain the comfort target";
         if (point.roomTemperature().compareTo(minimumRoomTemperature) < 0
                 || point.mode() == HeatingPlanSimulationService.OperatingMode.COMFORT_RECOVERY) {
             requested = target.add(adjustment);
+            reason = "Comfort recovery in the simulated plan; comfort minimum " + minimumRoomTemperature
+                    + " °C; request comfort target + adjustment";
         } else if (priceOptimizationEnabled) {
             if (point.mode() == HeatingPlanSimulationService.OperatingMode.PREHEAT) {
                 requested = target.add(adjustment);
+                reason = "Selected cheap preheat period; request comfort target + adjustment";
             } else if (point.mode() == HeatingPlanSimulationService.OperatingMode.DISCHARGE) {
                 requested = target.subtract(adjustment);
+                reason = "Discharge in the simulated plan; price shifting requests comfort target - adjustment";
             }
         } else {
             BigDecimal deadband = new BigDecimal("0.25");
             if (point.roomTemperature().compareTo(target.subtract(deadband)) < 0) {
                 requested = target.add(adjustment);
+                reason = "Predicted room temperature is below the comfort target's ±0.25 °C band; request comfort target + adjustment";
             } else if (point.roomTemperature().compareTo(target.add(deadband)) > 0) {
                 requested = target.subtract(adjustment);
+                reason = "Predicted room temperature is above the comfort target's ±0.25 °C band; request comfort target - adjustment";
             }
         }
-        return requested.max(new BigDecimal("16.00")).min(new BigDecimal("30.00"));
+        return new HeatPumpSetpointDecision(requested.max(new BigDecimal("16.00")).min(new BigDecimal("30.00")),
+                reason + " (target " + target + " °C, adjustment ±" + adjustment + " °C)");
     }
+
+    public record HeatPumpSetpointDecision(BigDecimal setpoint, String reason) { }
 
     @Transactional
     public CleanupResult cleanupOldPlans(Instant now) {
