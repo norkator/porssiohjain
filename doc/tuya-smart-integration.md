@@ -7,7 +7,7 @@ The connector is implemented in Java. It uses the sharing protocol from Tuya's P
 ## Scope
 
 - One saved Tuya account connection per Pörssiohjain account, reused by all selected Tuya devices.
-- Connection setup, device selection, and manual polling in Vaadin's **Devices** view; background polling every five minutes for enabled imported devices with a saved connection.
+- Connection setup, device selection, and manual polling in Vaadin's **Devices** view; background polling every 30 minutes for enabled imported devices with a saved connection.
 - Imported devices use `DevicePlatform.TUYA_SMART` and `DeviceType.TEMPERATURE_SENSOR`.
 - Read-only device access: temperature, humidity, battery percentage, and reported battery state when exposed by Tuya.
 - Normalized numeric measurement history, retained for one month, and explicit room/floor sensor selection in Heating Planner.
@@ -61,7 +61,7 @@ Numeric readings require integer-type property definitions with a usable scale. 
 
 A device can be imported when its discovery data exposes a supported temperature property, its category is `wsdcg` or `qxj`, or its property definitions expose a supported temperature property. This permits selecting a recognized sensor before it reports a value. Other models and properties depend on what the sharing API exposes, which can differ from the Tuya app's capabilities. [Home Assistant's Tuya documentation](https://www.home-assistant.io/integrations/tuya/) describes that API limitation.
 
-Cloud requests from the dialog run on background threads, with UI polling used only to deliver results. The background scheduler starts a polling pass every five minutes, starting 15 seconds after application startup. A separate worker keeps slow cloud requests off the shared control scheduler; an unfinished pass prevents overlapping passes. Each device is handled in its own transaction so one failed account does not stop other sensors. Pending QR attempts are never used by the scheduler.
+Cloud requests from the dialog run on background threads, with UI polling used only to deliver results. The background scheduler starts a polling pass every 30 minutes, starting 15 seconds after application startup. A separate worker keeps slow cloud requests off the shared control scheduler; an unfinished pass prevents overlapping passes. Each device is handled in its own transaction so one failed account does not stop other sensors. Pending QR attempts are never used by the scheduler.
 
 ## Measurement storage, freshness, and status
 
@@ -75,8 +75,8 @@ Timestamp and connectivity rules:
 
 - A valid property-level `t` timestamp, when supplied, is retained as the sensor report time. Re-reading the same report does not create a new observation or renew its measurement time. Invalid/future report timestamps are excluded; device-wide `update_time` is not used as a temperature timestamp.
 - Without a property report timestamp, the reading is a **cloud snapshot**, with `measured_at = NULL` and observation time equal to fetch time. Heating Planner labels this explicitly. It uses Tuya's latest online cloud state, whose actual sensor measurement age is unknown; polling does not prove that a new measurement occurred.
-- A cloud snapshot is usable for ten minutes. Timestamped sensor readings retain the planner's existing 60-minute measurement freshness. Both also require an enabled Tuya device with API Online and successful cloud contact within ten minutes. A failed poll or cloud-reported offline state immediately makes existing Tuya readings unavailable to the planner.
-- A successful cloud read updates **Last communication**, even if Tuya reports the physical device offline. **API Online** requires both a successful poll and Tuya's device-online flag. Failure clears API Online without changing the last successful contact time. The existing offline check also expires API Online after ten minutes without contact. **MQTT Online** remains **Offline** for Tuya devices. Disabling the device or disconnecting its account clears its online state.
+- A cloud snapshot is usable for one hour. Timestamped sensor readings retain the planner's existing 60-minute measurement freshness. Both also require an enabled Tuya device with API Online and successful cloud contact within one hour. A failed poll or cloud-reported offline state immediately makes existing Tuya readings unavailable to the planner.
+- A successful cloud read updates **Last communication**, even if Tuya reports the physical device offline. **API Online** requires both a successful poll and Tuya's device-online flag. Failure clears API Online without changing the last successful contact time. Tuya's offline check and dashboard indicator use the same one-hour contact limit as snapshot/contact freshness rather than the generic ten-minute timeout. **MQTT Online** remains **Offline** for Tuya devices. Disabling the device or disconnecting its account clears its online state.
 - The scheduler deletes generic measurements received more than one calendar month ago every day at 12:00 Europe/Helsinki, matching Zigbee's retention period. Zigbee cleanup continues independently.
 
 Fresh floor input still requires explicit selection; stale/missing input disables preheating. Heating Planner active-control opt-in, model readiness, Zigbee thermostat acknowledgement/read-back, and the thermostat's independent internal floor-temperature limit remain in force. Importing a sensor does not opt into thermostat control.
@@ -90,7 +90,7 @@ Fresh floor input still requires explicit selection; stale/missing input disable
 | [TuyaDevicePicker](../src/main/java/com/nitramite/porssiohjain/views/TuyaDevicePicker.java) | Home and device discovery/selection. |
 | [TuyaTask](../src/main/java/com/nitramite/porssiohjain/views/TuyaTask.java) | Background requests and delivery of results to the attached Vaadin UI. |
 | [TuyaService](../src/main/java/com/nitramite/porssiohjain/services/tuya/TuyaService.java) | Account ownership, login attempts, saved sessions, token refresh, import validation, and reading conversion. |
-| [TuyaScheduler](../src/main/java/com/nitramite/porssiohjain/scheduled/TuyaScheduler.java) | Five-minute sensor polling and daily generic measurement cleanup. |
+| [TuyaScheduler](../src/main/java/com/nitramite/porssiohjain/scheduled/TuyaScheduler.java) | Thirty-minute sensor polling and daily generic measurement cleanup. |
 | [DeviceMeasurementService](../src/main/java/com/nitramite/porssiohjain/services/DeviceMeasurementService.java) | Common read contract over Zigbee history and generic measurements for Heating Planner. |
 | [TuyaApiClient](../src/main/java/com/nitramite/porssiohjain/services/tuya/TuyaApiClient.java) and [TuyaSharingCodec](../src/main/java/com/nitramite/porssiohjain/services/tuya/TuyaSharingCodec.java) | Tuya HTTP requests, signing, encryption, and response handling. |
 
@@ -137,7 +137,7 @@ Automated checks cover SDK signing/encryption reference vectors, HTTP handling, 
 
 Live account linking, home/device discovery, import, and polling were confirmed on 2026-10-15 with one physical temperature/humidity sensor. The reported results were temperature **20.9 °C**, humidity **51%**, and battery **100%**. This validates the flow for that account and sensor; it does not establish support for every Tuya model.
 
-Additional live checks remain: deploy V112, observe automatic readings over several five-minute intervals, select a Tuya room/floor sensor in Heating Planner, verify cloud-snapshot labels and offline/stale behavior, token refresh after expiry, reuse after an application restart, and explicit disconnect/reconnect. Compare returned units/values with the Tuya app and repeat polling after the sensor reports a change.
+Additional live checks remain: deploy V112, observe automatic readings over several 30-minute intervals, select a Tuya room/floor sensor in Heating Planner, verify cloud-snapshot labels and offline/stale behavior, token refresh after expiry, reuse after an application restart, and explicit disconnect/reconnect. Compare returned units/values with the Tuya app and repeat polling after the sensor reports a change.
 
 [sdk-user]: https://github.com/tuya/tuya-device-sharing-sdk/blob/170cfd9ee7aefb48c14e27d9ee4a45c6bc6b15c4/tuya_sharing/user.py
 [sdk-api]: https://github.com/tuya/tuya-device-sharing-sdk/blob/170cfd9ee7aefb48c14e27d9ee4a45c6bc6b15c4/tuya_sharing/customerapi.py

@@ -45,7 +45,8 @@ public class TuyaService {
     private final DemoAccountGuard demoGuard;
     private final DeviceMeasurementRepository measurements;
     private final DeviceOfflineNotificationService notifications;
-    public static final Duration POLL_FRESHNESS = Duration.ofMinutes(10);
+    // Shared by cloud-snapshot freshness, planner contact checks, and API offline detection.
+    public static final Duration POLL_FRESHNESS = Duration.ofHours(1);
     private final Map<Long, PendingLogin> pendingLogins = new ConcurrentHashMap<>();
     private static final Set<String> TEMPERATURE_CODES = Set.of("va_temperature", "temp_current", "temp_current_f",
             "ext_temp", "temp_current_external", "temp_current_external_1", "temp_current_external_2", "temp_current_external_3");

@@ -33,8 +33,8 @@ public class TuyaScheduler {
     private final AtomicBoolean polling = new AtomicBoolean();
     private final ExecutorService worker = Executors.newSingleThreadExecutor(Thread.ofVirtual().name("tuya-poll-", 0).factory());
 
-    // Five minutes gives the planner several observations between its 15-minute replans.
-    @Scheduled(fixedDelay = 300_000, initialDelay = 15_000)
+    // Battery sensors may report only hourly; reuse the latest cloud state between half-hour polls.
+    @Scheduled(fixedDelay = 1_800_000, initialDelay = 15_000)
     public void schedulePolling() {
         if (!polling.compareAndSet(false, true)) return;
         try {

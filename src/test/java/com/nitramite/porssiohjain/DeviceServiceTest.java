@@ -43,6 +43,8 @@ import com.nitramite.porssiohjain.services.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -274,6 +276,40 @@ class DeviceServiceTest {
                 eq("API"),
                 any()
         );
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "TUYA_SMART, 11, true",
+            "TUYA_SMART, 30, true",
+            "TUYA_SMART, 59, true",
+            "TUYA_SMART, 61, false",
+            "ANDROID_ZIGBEE, 11, false"
+    })
+    void checksTemperatureSensorApiTimeoutForPlatform(DevicePlatform platform, long minutesSinceContact,
+                                                     boolean expectedOnline) {
+        DeviceEntity device = new DeviceEntity();
+        device.setId(9L);
+        device.setDeviceType(DeviceType.TEMPERATURE_SENSOR);
+        device.setDevicePlatform(platform);
+        device.setApiOnline(true);
+        device.setLastCommunication(Instant.now().minusSeconds(minutesSinceContact * 60));
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of(device));
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(any()))
+                .thenReturn(List.of());
+
+        deviceService.checkOfflineDevices();
+
+        assertThat(device.isApiOnline()).isEqualTo(expectedOnline);
+        if (expectedOnline) {
+            verify(deviceRepository, never()).save(device);
+            verify(deviceOfflineNotificationService, never()).sendIfDeviceWentOffline(
+                    eq(device), eq(true), eq(false), eq("API"), any());
+        } else {
+            verify(deviceRepository).save(device);
+            verify(deviceOfflineNotificationService).sendIfDeviceWentOffline(
+                    eq(device), eq(true), eq(false), eq("API"), any());
+        }
     }
 
     @Test

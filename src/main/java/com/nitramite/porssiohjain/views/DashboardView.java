@@ -12,9 +12,10 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.models.*;
+import com.nitramite.porssiohjain.services.tuya.TuyaService;
 import com.nitramite.porssiohjain.views.components.EnergyUsagePriceChart;
 import com.nitramite.porssiohjain.views.components.PriceChart;
 import com.vaadin.flow.component.Component;
@@ -235,17 +236,24 @@ public class DashboardView extends VerticalLayout implements BeforeEnterObserver
         statusCircle.getStyle().set("border-radius", "50%");
         statusCircle.getStyle().set("margin-top", "8px");
 
-        boolean online = isDeviceOnline(device.getDeviceType(), device.getLastCommunication());
+        boolean online = isDeviceOnline(device);
         statusCircle.getStyle().set("background-color", online ? "green" : "red");
 
         card.add(name, statusCircle);
         return card;
     }
 
-    private boolean isDeviceOnline(DeviceType deviceType, Instant lastCommunication) {
+    private boolean isDeviceOnline(DeviceResponse device) {
+        Instant lastCommunication = device.getLastCommunication();
         if (lastCommunication == null) return false;
-        Duration diff = Duration.between(lastCommunication, Instant.now());
-        Duration threshold = switch (deviceType) {
+        Instant now = Instant.now();
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) {
+            return Boolean.TRUE.equals(device.getEnabled()) && Boolean.TRUE.equals(device.getApiOnline())
+                    && !lastCommunication.isAfter(now)
+                    && !lastCommunication.isBefore(now.minus(TuyaService.POLL_FRESHNESS));
+        }
+        Duration diff = Duration.between(lastCommunication, now);
+        Duration threshold = switch (device.getDeviceType()) {
             case HEAT_PUMP -> HEAT_PUMP_ONLINE_THRESHOLD;
             case STANDARD, THERMOSTAT, TEMPERATURE_SENSOR -> STANDARD_ONLINE_THRESHOLD;
         };

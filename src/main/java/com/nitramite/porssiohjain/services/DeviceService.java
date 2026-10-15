@@ -20,6 +20,7 @@ import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.tuya.TuyaService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -506,6 +507,9 @@ public class DeviceService {
         Instant lastCommunication = device.getLastCommunication();
         if (lastCommunication == null) {
             return true;
+        }
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) {
+            return lastCommunication.isBefore(now.minus(TuyaService.POLL_FRESHNESS));
         }
         long offlineSeconds = switch (device.getDeviceType()) {
             case HEAT_PUMP -> HEAT_PUMP_API_OFFLINE_SECONDS;

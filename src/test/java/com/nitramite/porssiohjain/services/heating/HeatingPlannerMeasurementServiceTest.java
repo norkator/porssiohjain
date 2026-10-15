@@ -21,6 +21,8 @@ import com.nitramite.porssiohjain.entity.enums.DeviceMeasurementType;
 import com.nitramite.porssiohjain.services.DeviceMeasurementService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -124,24 +126,54 @@ class HeatingPlannerMeasurementServiceTest {
         device.setDevicePlatform(DevicePlatform.TUYA_SMART);
         device.setEnabled(true);
         device.setApiOnline(true);
-        device.setLastCommunication(now.minusSeconds(300));
+        device.setLastCommunication(now.minusSeconds(1800));
         room.setFloorSensorDevice(device);
         when(measurements.latest(device, DeviceMeasurementType.TEMPERATURE, "temperature"))
                 .thenReturn(Optional.of(DeviceMeasurementEntity.builder().value(new BigDecimal("24.1"))
-                        .observedAt(now.minusSeconds(300)).receivedAt(now.minusSeconds(300)).build()));
+                        .observedAt(now.minusSeconds(1800)).receivedAt(now.minusSeconds(1800)).build()));
 
         var latest = service.latestFreshFloorTemperature(room, now);
         assertTrue(latest.fresh());
         assertTrue(latest.cloudSnapshot());
         assertNull(latest.measuredAt());
-        assertEquals(now.minusSeconds(300), latest.observedAt());
+        assertEquals(now.minusSeconds(1800), latest.observedAt());
 
         device.setApiOnline(false);
         assertFalse(service.latestFreshFloorTemperature(room, now).fresh());
         device.setApiOnline(true);
-        assertFalse(service.latestFreshFloorTemperature(room, now.plusSeconds(301)).fresh());
+        assertTrue(service.latestFreshFloorTemperature(room, now.plusSeconds(1800)).fresh());
+        assertFalse(service.latestFreshFloorTemperature(room, now.plusSeconds(1801)).fresh());
         device.setEnabled(false);
         assertFalse(service.latestFreshFloorTemperature(room, now).fresh());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "true, 1800, 1800, true",
+            "true, 3600, 3600, true",
+            "true, 3601, 0, false",
+            "true, 0, 3601, false",
+            "false, 2700, 1800, true",
+            "false, 3600, 3600, true",
+            "false, 3601, 0, false",
+            "false, 0, 3601, false"
+    })
+    void tuyaRoomReadingsAndCloudContactMustBothBeWithinOneHour(boolean cloudSnapshot, long readingAgeSeconds,
+                                                              long contactAgeSeconds, boolean expectedFresh) {
+        var service = new HeatingPlannerMeasurementService(measurements);
+        var room = room(14L);
+        var device = room.getRoomSensorDevice();
+        Instant now = Instant.parse("2026-01-01T12:00:00Z");
+        device.setDevicePlatform(DevicePlatform.TUYA_SMART);
+        device.setEnabled(true);
+        device.setApiOnline(true);
+        device.setLastCommunication(now.minusSeconds(contactAgeSeconds));
+        Instant readingTime = now.minusSeconds(readingAgeSeconds);
+        when(measurements.latest(device, DeviceMeasurementType.TEMPERATURE, "temperature"))
+                .thenReturn(Optional.of(DeviceMeasurementEntity.builder().value(new BigDecimal("21"))
+                        .measuredAt(cloudSnapshot ? null : readingTime).observedAt(readingTime).build()));
+
+        assertEquals(expectedFresh, service.latestFreshRoomTemperature(room, now).fresh());
     }
 
     @Test void roomSensorIsNeverUsedAsFloorSensorImplicitly() {

@@ -8,11 +8,14 @@ import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
 import com.nitramite.porssiohjain.entity.DeviceMeasurementEntity;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.DeviceMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerRoomRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.services.DeviceMeasurementService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.SliceImpl;
@@ -61,6 +64,36 @@ class HeatingPlannerThermalModelServiceTest {
         assertThat(estimate.sampleCount()).isGreaterThanOrEqualTo(35);
         assertThat(estimate.outdoorLossRate()).isBetween(new BigDecimal("0.010"), new BigDecimal("0.014"));
         assertThat(estimate.confidence()).isPositive();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {30, 60})
+    void learnsCoolingModelFromHalfHourlyAndHourlyTuyaSnapshots(int intervalMinutes) {
+        var savedRoom = newRoom();
+        savedRoom.getRoomSensorDevice().setDevicePlatform(DevicePlatform.TUYA_SMART);
+        Instant start = now.minus(Duration.ofMinutes(intervalMinutes * 48L));
+        List<DeviceMeasurementEntity> readings = new ArrayList<>();
+        List<SiteWeatherEntity> weather = new ArrayList<>();
+        BigDecimal roomTemperature = new BigDecimal("21");
+        BigDecimal outside = new BigDecimal("-5");
+        BigDecimal hours = BigDecimal.valueOf(intervalMinutes).divide(BigDecimal.valueOf(60));
+        for (int i = 0; i <= 48; i++) {
+            Instant time = start.plus(Duration.ofMinutes(intervalMinutes * (long) i));
+            readings.add(DeviceMeasurementEntity.builder().value(roomTemperature).observedAt(time).build());
+            weather.add(weather(time, outside));
+            roomTemperature = roomTemperature.subtract(roomTemperature.subtract(outside)
+                    .multiply(new BigDecimal("0.012")).multiply(hours));
+        }
+        givenTraining(savedRoom, readings, weather);
+
+        var result = service.learnAndResolve(7L, 8L, "Kitchen", configured, now);
+
+        assertThat(result.learned()).isTrue();
+        assertThat(result.sampleCount()).isEqualTo(48);
+        assertThat(result.confidence()).isGreaterThan(new BigDecimal("0.25"));
+        assertThat(savedRoom.getRoomOutdoorLossRate()).isBetween(new BigDecimal("0.0119"), new BigDecimal("0.0121"));
+        assertThat(savedRoom.getModelEvidenceAt()).isEqualTo(now);
+        assertThat(HeatingPlannerThermalModelService.passesActiveModelChecks(savedRoom, now)).isTrue();
     }
 
     @Test
