@@ -136,6 +136,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private DeviceResponse selectedDevice;
     private String pendingAcDeviceId;
     private String pendingBuildingId;
+    private String defaultTimezone = ZoneId.systemDefault().getId();
 
     @Autowired
     public DeviceView(
@@ -348,7 +349,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         timezoneCombo.setItems(ZoneId.getAvailableZoneIds());
         timezoneCombo.setWidth("250px");
-        timezoneCombo.setValue(ZoneId.systemDefault().getId());
+        timezoneCombo.setValue(defaultTimezone);
 
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         saveButton.addClickListener(e -> handleSave());
@@ -356,7 +357,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         claimTimezoneCombo.setItems(ZoneId.getAvailableZoneIds());
         claimTimezoneCombo.setWidth("250px");
-        claimTimezoneCombo.setValue(ZoneId.systemDefault().getId());
+        claimTimezoneCombo.setValue(defaultTimezone);
         claimDeviceNameField.setValue("");
 
         lookupProvisionedDeviceButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
@@ -405,7 +406,30 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             updateSaveButtonState();
         });
 
+        addAttachListener(event -> {
+            var details = event.getUI().getPage().getExtendedClientDetails();
+            if (details.getTimeZoneId() != null) {
+                applyBrowserTimezone(details.getTimeZoneId());
+            } else {
+                details.refresh(refreshed -> applyBrowserTimezone(refreshed.getTimeZoneId()));
+            }
+        });
+
         loadDevices();
+    }
+
+    private void applyBrowserTimezone(String timezone) {
+        if (timezone == null || !ZoneId.getAvailableZoneIds().contains(timezone)) {
+            return;
+        }
+        defaultTimezone = timezone;
+        // Browser details can arrive after the user has selected another timezone.
+        if (!DesktopFormState.isDirty(timezoneCombo)) {
+            timezoneCombo.setValue(defaultTimezone);
+        }
+        if (!DesktopFormState.isDirty(claimTimezoneCombo)) {
+            claimTimezoneCombo.setValue(defaultTimezone);
+        }
     }
 
     private VerticalLayout createCertificateSection() {
@@ -776,7 +800,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             Notification.show(t("device.claim.claimed")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
             claimCodeLookupField.clear();
             claimDeviceNameField.clear();
-            claimTimezoneCombo.setValue(ZoneId.systemDefault().getId());
+            claimTimezoneCombo.setValue(defaultTimezone);
             provisionedLookupInfo.setText("");
             claimProvisionedDeviceButton.setEnabled(false);
             DesktopFormState.saved(claimProvisionedSection);
@@ -1120,7 +1144,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         pendingAcDeviceId = null;
         pendingBuildingId = null;
         nameField.clear();
-        timezoneCombo.setValue(ZoneId.systemDefault().getId());
+        timezoneCombo.setValue(defaultTimezone);
         deviceTypeCombo.setValue(DeviceType.STANDARD);
         devicePlatformCombo.setValue(DevicePlatform.GENERIC_MQTT);
         enabledField.setValue(true);
