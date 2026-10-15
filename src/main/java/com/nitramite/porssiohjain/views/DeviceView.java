@@ -211,6 +211,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         tuyaConnectionDialog = new TuyaConnectionDialog(tuyaService, authService, i18n, () -> {
             pendingTuyaDevice = null;
             tuyaDevicePickerReset();
+            loadDevices();
         });
         add(tuyaConnectionDialog);
         tuyaDevicePicker = new TuyaDevicePicker(tuyaService, i18n, this::tuyaAccountId,
@@ -344,14 +345,18 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             return badge;
         }).setHeader(t("common.origin")).setAutoWidth(true);
         deviceGrid.addComponentColumn(device -> {
-            if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) return new Span(t("tuya.pollToCheck"));
             Span badge = new Span(device.getApiOnline() != null && device.getApiOnline() ? "Online" : "Offline");
             badge.getElement().getThemeList().add("badge");
             badge.getElement().getThemeList().add(device.getApiOnline() != null && device.getApiOnline() ? "success" : "error");
             return badge;
         }).setHeader(t("device.grid.apiOnline")).setAutoWidth(true);
         deviceGrid.addComponentColumn(device -> {
-            if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) return new Span("—");
+            if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) {
+                Span badge = new Span("Offline");
+                badge.getElement().getThemeList().add("badge");
+                badge.getElement().getThemeList().add("error");
+                return badge;
+            }
             Span badge = new Span(device.getMqttOnline() != null && device.getMqttOnline() ? "Online" : "Offline");
             badge.getElement().getThemeList().add("badge");
             badge.getElement().getThemeList().add(device.getMqttOnline() != null && device.getMqttOnline() ? "success" : "error");
@@ -1399,10 +1404,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 status.setText(t("tuya.poll.result", t(snapshot.online() ? "tuya.online" : "tuya.offline"),
                         ZonedDateTime.ofInstant(snapshot.fetchedAt(), ZoneId.of(device.getTimezone())).format(formatter)));
                 poll.setEnabled(true);
+                loadDevices();
             }, error -> {
                 if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
                 status.setText(TuyaTask.error(i18n, error));
                 poll.setEnabled(true);
+                loadDevices();
             });
         });
         return section;

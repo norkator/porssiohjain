@@ -19,11 +19,14 @@ import com.nitramite.porssiohjain.entity.enums.*;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.DemoAccountGuard;
 import com.nitramite.porssiohjain.services.DeviceService;
+import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.*;
@@ -40,6 +43,9 @@ public class TuyaService {
     private final DeviceRepository deviceRepository;
     private final DeviceService deviceService;
     private final DemoAccountGuard demoGuard;
+    private final DeviceMeasurementRepository measurements;
+    private final DeviceOfflineNotificationService notifications;
+    public static final Duration POLL_FRESHNESS = Duration.ofMinutes(10);
     private final Map<Long, PendingLogin> pendingLogins = new ConcurrentHashMap<>();
     private static final Set<String> TEMPERATURE_CODES = Set.of("va_temperature", "temp_current", "temp_current_f",
             "ext_temp", "temp_current_external", "temp_current_external_1", "temp_current_external_2", "temp_current_external_3");
@@ -104,6 +110,11 @@ public class TuyaService {
         connection.setSessionData(null);
         connections.save(connection);
         pendingLogins.remove(accountId);
+        for (TuyaDeviceEntity link : devices.findByConnectionId(connection.getId())) {
+            link.getDevice().setApiOnline(false);
+            link.getDevice().setMqttOnline(false);
+            deviceRepository.save(link.getDevice());
+        }
     }
 
     @Transactional(noRollbackFor = TuyaException.class)
@@ -158,11 +169,96 @@ public class TuyaService {
                 .orElseThrow(() -> new TuyaException("tuya.error.device"));
         if (link.getDevice().getDevicePlatform() != DevicePlatform.TUYA_SMART
                 || !Objects.equals(link.getDevice().getAccount().getId(), accountId)) throw new TuyaException("tuya.error.device");
-        TuyaSession session = refresh(requireConnection(accountId));
-        JsonNode detail = detail(session, link.getTuyaDeviceId());
-        JsonNode specs = specifications(session, link.getTuyaDeviceId());
-        // Readings remain in the returned snapshot only. Poll time is not measurement time.
-        return new Snapshot(detail.path("online").asBoolean(false), Instant.now(), decodeReadings(detail, specs));
+        try {
+            TuyaSession session = refresh(requireConnection(accountId));
+            JsonNode detail = detail(session, link.getTuyaDeviceId());
+            JsonNode specs = specifications(session, link.getTuyaDeviceId());
+            Instant fetchedAt = Instant.now();
+            List<Reading> readings = decodeReadings(detail, specs);
+            boolean online = detail.path("online").asBoolean(false);
+            recordConnectivity(link.getDevice(), online && link.getDevice().isEnabled(), fetchedAt);
+            // Offline devices can still return cached state. Do not turn it into fresh observations.
+            if (online && link.getDevice().isEnabled()) saveMeasurements(link.getDevice(), detail, readings, fetchedAt);
+            return new Snapshot(online, fetchedAt, readings);
+        } catch (TuyaException error) {
+            recordConnectivity(link.getDevice(), false, null);
+            throw error;
+        }
+    }
+
+    private void recordConnectivity(DeviceEntity device, boolean online, Instant fetchedAt) {
+        boolean wasApiOnline = device.isApiOnline();
+        boolean wasMqttOnline = device.isMqttOnline();
+        device.setApiOnline(online);
+        device.setMqttOnline(false);
+        if (fetchedAt != null) device.setLastCommunication(fetchedAt);
+        deviceRepository.save(device);
+        if (online) notifications.sendIfDeviceCameOnline(device, wasApiOnline, wasMqttOnline, "API", Instant.now());
+        else notifications.sendIfDeviceWentOffline(device, wasApiOnline, wasMqttOnline, "API", Instant.now());
+    }
+
+    private void saveMeasurements(DeviceEntity device, JsonNode detail, List<Reading> readings, Instant fetchedAt) {
+        Map<String, JsonNode> statuses = new HashMap<>();
+        for (JsonNode status : detail.path("status")) statuses.put(status.path("code").asText(), status);
+        // The device picker selects a sensor, not a thermostat channel. Prefer the standard ambient code.
+        Reading temperature = null;
+        for (String code : List.of("va_temperature", "temp_current", "temp_current_f")) {
+            temperature = readings.stream().filter(r -> r.code().equals(code) && validTemperature(r)).findFirst().orElse(null);
+            if (temperature != null) break;
+        }
+        if (temperature == null) {
+            List<Reading> candidates = readings.stream().filter(r -> TEMPERATURE_CODES.contains(r.code()) && validTemperature(r)).toList();
+            if (candidates.size() == 1) temperature = candidates.getFirst();
+        }
+        for (Reading reading : readings) {
+            if (reading.value().isBlank()) continue;
+            DeviceMeasurementType type;
+            String key;
+            String unit;
+            BigDecimal value;
+            try { value = new BigDecimal(reading.value()); } catch (NumberFormatException ignored) { continue; }
+            if (TEMPERATURE_CODES.contains(reading.code()) && validTemperature(reading)) {
+                type = DeviceMeasurementType.TEMPERATURE;
+                key = reading == temperature ? "temperature" : reading.code();
+                unit = "°C";
+                if (reading.unit().equals("°F")) value = value.subtract(new BigDecimal("32"))
+                        .multiply(new BigDecimal("5")).divide(new BigDecimal("9"), 3, RoundingMode.HALF_UP);
+                if (value.compareTo(new BigDecimal("-100")) < 0 || value.compareTo(new BigDecimal("150")) > 0) continue;
+            } else if (HUMIDITY_CODES.contains(reading.code()) && reading.unit().equals("%")) {
+                type = DeviceMeasurementType.HUMIDITY; key = "humidity"; unit = "%";
+            } else if (reading.code().equals("battery_percentage") && reading.unit().equals("%")) {
+                type = DeviceMeasurementType.BATTERY_PERCENTAGE; key = "batteryPercentage"; unit = "%";
+            } else continue;
+            if (type != DeviceMeasurementType.TEMPERATURE && (value.signum() < 0 || value.compareTo(new BigDecimal("100")) > 0)) continue;
+            JsonNode status = statuses.get(reading.code());
+            Instant measuredAt = reportTime(status, fetchedAt);
+            // Invalid/future provider timestamps must not become fresh timestamp-free snapshots.
+            if (status != null && status.has("t") && measuredAt == null) continue;
+            Instant observedAt = measuredAt == null ? fetchedAt : measuredAt;
+            Optional<DeviceMeasurementEntity> previous = measurements
+                    .findFirstByDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByObservedAtDescIdDesc(device.getId(), type, key);
+            // Repeated reads of the same timestamped report do not create new evidence.
+            if (measuredAt != null && previous.isPresent() && previous.get().getMeasuredAt() != null
+                    && !measuredAt.isAfter(previous.get().getMeasuredAt())) continue;
+            measurements.save(DeviceMeasurementEntity.builder().account(device.getAccount()).device(device)
+                    .source(DevicePlatform.TUYA_SMART).sourceKey(reading.code()).measurementType(type).measurementKey(key)
+                    .value(value.setScale(3, RoundingMode.HALF_UP)).unit(unit).measuredAt(measuredAt)
+                    .observedAt(observedAt).receivedAt(fetchedAt).build());
+        }
+    }
+
+    private boolean validTemperature(Reading reading) {
+        return !reading.value().isBlank() && Set.of("°C", "°F").contains(reading.unit());
+    }
+
+    private Instant reportTime(JsonNode status, Instant fetchedAt) {
+        // Only use a property report timestamp. Device update_time can describe unrelated changes.
+        if (status == null || !status.path("t").isIntegralNumber()) return null;
+        long timestamp = status.path("t").asLong();
+        try {
+            Instant time = timestamp < 100_000_000_000L ? Instant.ofEpochSecond(timestamp) : Instant.ofEpochMilli(timestamp);
+            return timestamp > 0 && !time.isAfter(fetchedAt) ? time : null;
+        } catch (RuntimeException ignored) { return null; }
     }
 
     private TuyaConnectionEntity requireConnection(Long accountId) {

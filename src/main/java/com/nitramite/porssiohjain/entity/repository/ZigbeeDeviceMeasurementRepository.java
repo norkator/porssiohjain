@@ -27,6 +27,10 @@ import java.util.Optional;
 
 public interface ZigbeeDeviceMeasurementRepository extends JpaRepository<ZigbeeDeviceMeasurementEntity, Long> {
 
+    @EntityGraph(attributePaths = "device")
+    List<ZigbeeDeviceMeasurementEntity> findTop500ByAccountIdAndDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
+            Long accountId, Long deviceId, ZigbeeMeasurementType measurementType, String measurementKey);
+
     Optional<ZigbeeDeviceMeasurementEntity> findFirstByDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
             Long deviceId,
             ZigbeeMeasurementType measurementType,

@@ -423,4 +423,18 @@ class DeviceServiceTest {
                 true, null, null, null, null, null, null));
         verify(deviceRepository, never()).save(any());
     }
+
+    @Test
+    void disablingTuyaSensorClearsApiStatusAndAlwaysKeepsMqttOffline() {
+        AccountEntity account = AccountEntity.builder().id(1L).build();
+        DeviceEntity sensor = DeviceEntity.builder().id(10L).account(account).deviceType(DeviceType.TEMPERATURE_SENSOR)
+                .devicePlatform(DevicePlatform.TUYA_SMART).apiOnline(true).mqttOnline(true).enabled(true).build();
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(deviceRepository.findByIdAndAccount(10L, account)).thenReturn(Optional.of(sensor));
+        deviceService.updateDevice(1L, 10L, "Sensor", "Europe/Helsinki", DeviceType.TEMPERATURE_SENSOR,
+                DevicePlatform.TUYA_SMART, false, null, null, null, null, null, null);
+        assertThat(sensor.isApiOnline()).isFalse();
+        assertThat(sensor.isMqttOnline()).isFalse();
+        assertThat(sensor.isEnabled()).isFalse();
+    }
 }

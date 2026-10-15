@@ -51,8 +51,9 @@ class HeatingPlannerViewTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"20.00, Europe/Helsinki", "18.00, Europe/Helsinki", "20.00, America/Los_Angeles"})
-    void manualPlanUsesCurrentReadingAndQuarterHourStepsAndExplainsHeatPumpRequest(String minimum, String timezone) {
+    @CsvSource({"20.00, Europe/Helsinki, false", "18.00, Europe/Helsinki, false", "20.00, America/Los_Angeles, false",
+            "20.00, Europe/Helsinki, true"})
+    void manualPlanUsesCurrentReadingAndQuarterHourStepsAndExplainsHeatPumpRequest(String minimum, String timezone, boolean cloudSnapshot) {
         Instant measuredAt = Instant.now().minusSeconds(60);
         var sites = mock(SiteRepository.class);
         var devices = mock(DeviceRepository.class);
@@ -66,7 +67,8 @@ class HeatingPlannerViewTest {
         var simulation = spy(new HeatingPlanSimulationService());
         var site = SiteEntity.builder().id(8L).name("Home").enabled(true).timezone(timezone).build();
         var pump = DeviceEntity.builder().id(9L).deviceName("Heat pump").deviceType(DeviceType.HEAT_PUMP).build();
-        var sensor = DeviceEntity.builder().id(10L).deviceName("Room sensor").deviceType(DeviceType.TEMPERATURE_SENSOR).build();
+        var sensor = DeviceEntity.builder().id(10L).deviceName("Room sensor").deviceType(DeviceType.TEMPERATURE_SENSOR)
+                .devicePlatform(com.nitramite.porssiohjain.entity.enums.DevicePlatform.TUYA_SMART).build();
         when(sites.findByAccountId(7L)).thenReturn(List.of(site));
         when(sites.findByIdAndAccountId(8L, 7L)).thenReturn(java.util.Optional.of(site));
         when(devices.findByAccountIdOrderByIdAsc(7L)).thenReturn(List.of(pump, sensor));
@@ -82,8 +84,8 @@ class HeatingPlannerViewTest {
         when(configuration.changeNotifications(7L, 8L))
                 .thenReturn(new HeatingPlannerConfigurationService.ChangeNotifications(false, false));
         when(measurements.latestFreshRoomTemperature(any(), any())).thenReturn(
-                new HeatingPlannerMeasurementService.LatestMeasurement(new BigDecimal("22.900"), measuredAt,
-                        HeatingPlannerMeasurementService.Freshness.FRESH));
+                new HeatingPlannerMeasurementService.LatestMeasurement(new BigDecimal("22.900"), cloudSnapshot ? null : measuredAt,
+                        HeatingPlannerMeasurementService.Freshness.FRESH, measuredAt));
         when(measurements.latestFreshFloorTemperature(any(), any()))
                 .thenReturn(HeatingPlannerMeasurementService.LatestMeasurement.missing());
         when(models.learnAndResolve(eq(7L), eq(8L), eq("Living room"), any(), any()))
@@ -106,7 +108,7 @@ class HeatingPlannerViewTest {
         var view = new HeatingPlannerView(auth, mock(I18nService.class, invocation -> invocation.getArgument(0)),
                 simulation, sites, mock(SiteWeatherRepository.class), devices, prices,
                 mock(ElectricityContractRepository.class), configuration, measurements, models, activeControl, plans,
-                combinedPrices, mock(PushNotificationService.class), mock(ZigbeeDeviceMeasurementRepository.class));
+                combinedPrices, mock(PushNotificationService.class), mock(com.nitramite.porssiohjain.services.DeviceMeasurementService.class));
 
         var request = ArgumentCaptor.forClass(HeatingPlanSimulationService.SimulationRequest.class);
         var calculatedAt = ArgumentCaptor.forClass(Instant.class);
@@ -126,7 +128,11 @@ class HeatingPlannerViewTest {
                 .flatMap(grid -> grid.getListDataView().getItems())
                 .filter(item -> item.getClass().getSimpleName().equals("HeatPumpEvidenceRow"))
                 .findFirst().orElseThrow();
-        assertThat((String) ReflectionTestUtils.invokeMethod(row, "roomSensor")).contains("22.900 °C fresh");
+        assertThat((String) ReflectionTestUtils.invokeMethod(row, "roomSensor"))
+                .contains(cloudSnapshot ? "22.900 °C · cloud snapshot fetched at" : "22.900 °C fresh");
+        if (cloudSnapshot) {
+            assertThat((String) ReflectionTestUtils.invokeMethod(row, "roomSensor")).contains("sensor report time unknown");
+        }
         assertThat((String) ReflectionTestUtils.invokeMethod(row, "predictedRoomTemperature"))
                 .contains("22.82 °C after this 15 min step");
         assertThat((String) ReflectionTestUtils.invokeMethod(row, "currentRequest"))

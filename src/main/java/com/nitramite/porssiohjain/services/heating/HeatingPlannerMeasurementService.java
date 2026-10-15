@@ -13,9 +13,11 @@ package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
-import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
-import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
-import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
+import com.nitramite.porssiohjain.entity.DeviceMeasurementEntity;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+import com.nitramite.porssiohjain.entity.enums.DeviceMeasurementType;
+import com.nitramite.porssiohjain.services.DeviceMeasurementService;
+import com.nitramite.porssiohjain.services.tuya.TuyaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +34,7 @@ public class HeatingPlannerMeasurementService {
     public static final Duration DEFAULT_FRESHNESS = Duration.ofMinutes(60);
     public static final String DEFAULT_TEMPERATURE_KEY = "temperature";
 
-    private final ZigbeeDeviceMeasurementRepository measurementRepository;
+    private final DeviceMeasurementService measurements;
 
     @Transactional(readOnly = true)
     public LatestMeasurement latestFreshRoomTemperature(HeatingPlannerRoomEntity room, Instant now) {
@@ -62,15 +64,23 @@ public class HeatingPlannerMeasurementService {
             return LatestMeasurement.missing();
         }
         String measurementKey = key == null || key.isBlank() ? DEFAULT_TEMPERATURE_KEY : key;
-        Optional<ZigbeeDeviceMeasurementEntity> measurement =
-                measurementRepository.findFirstByDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
-                        device.getId(), ZigbeeMeasurementType.TEMPERATURE, measurementKey);
+        Optional<DeviceMeasurementEntity> measurement = measurements.latest(
+                device, DeviceMeasurementType.TEMPERATURE, measurementKey);
         if (measurement.isEmpty()) {
             return LatestMeasurement.missing();
         }
-        ZigbeeDeviceMeasurementEntity entity = measurement.get();
-        boolean fresh = !entity.getMeasuredAt().isBefore(now.minus(DEFAULT_FRESHNESS));
-        return new LatestMeasurement(entity.getValue(), entity.getMeasuredAt(), fresh ? Freshness.FRESH : Freshness.STALE);
+        DeviceMeasurementEntity entity = measurement.get();
+        boolean cloudSnapshot = entity.getMeasuredAt() == null;
+        Duration freshness = cloudSnapshot ? TuyaService.POLL_FRESHNESS : DEFAULT_FRESHNESS;
+        boolean fresh = entity.getObservedAt() != null && !entity.getObservedAt().isAfter(now)
+                && !entity.getObservedAt().isBefore(now.minus(freshness));
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) {
+            fresh &= device.isEnabled() && device.isApiOnline() && device.getLastCommunication() != null
+                    && !device.getLastCommunication().isAfter(now)
+                    && !device.getLastCommunication().isBefore(now.minus(TuyaService.POLL_FRESHNESS));
+        }
+        return new LatestMeasurement(entity.getValue(), entity.getMeasuredAt(),
+                fresh ? Freshness.FRESH : Freshness.STALE, entity.getObservedAt());
     }
 
     public enum Freshness {
@@ -82,8 +92,17 @@ public class HeatingPlannerMeasurementService {
     public record LatestMeasurement(
             BigDecimal value,
             Instant measuredAt,
-            Freshness freshness
+            Freshness freshness,
+            Instant observedAt
     ) {
+        public LatestMeasurement(BigDecimal value, Instant measuredAt, Freshness freshness) {
+            this(value, measuredAt, freshness, measuredAt);
+        }
+
+        public boolean cloudSnapshot() {
+            return value != null && measuredAt == null;
+        }
+
         public static LatestMeasurement missing() {
             return new LatestMeasurement(null, null, Freshness.MISSING);
         }

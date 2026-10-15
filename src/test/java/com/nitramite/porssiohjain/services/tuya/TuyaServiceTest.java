@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.math.BigDecimal;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,6 +38,8 @@ class TuyaServiceTest {
     private final DeviceRepository devices = mock(DeviceRepository.class);
     private final DeviceService deviceService = mock(DeviceService.class);
     private final DemoAccountGuard demo = mock(DemoAccountGuard.class);
+    private final DeviceMeasurementRepository measurements = mock(DeviceMeasurementRepository.class);
+    private final DeviceOfflineNotificationService notifications = mock(DeviceOfflineNotificationService.class);
     private TuyaService service;
     private TuyaConnectionEntity connection;
     private final TuyaSession session = new TuyaSession("code", "https://apigw.tuyaeu.com", "terminal", "user-1",
@@ -44,7 +47,7 @@ class TuyaServiceTest {
 
     @BeforeEach
     void setup() {
-        service = new TuyaService(api, mapper, connections, links, accounts, devices, deviceService, demo);
+        service = new TuyaService(api, mapper, connections, links, accounts, devices, deviceService, demo, measurements, notifications);
         connection = new TuyaConnectionEntity();
         connection.setId(10L);
         connection.setAccount(AccountEntity.builder().id(7L).build());
@@ -57,7 +60,7 @@ class TuyaServiceTest {
     void linksOnceAndRestoresSavedSessionInNewServiceInstance() throws Exception {
         linkAccount();
         assertTrue(connection.getSessionData().contains("refresh-token")); // JPA encrypts this entire field via CryptoConverter.
-        TuyaService restarted = new TuyaService(api, mapper, connections, links, accounts, devices, deviceService, demo);
+        TuyaService restarted = new TuyaService(api, mapper, connections, links, accounts, devices, deviceService, demo, measurements, notifications);
         when(api.get(any(), eq("/v1.0/m/life/users/homes"), anyMap()))
                 .thenReturn(json("[{\"ownerId\":123,\"name\":\"Home\"}]"));
         assertEquals("123", restarted.homes(7L).getFirst().id());
@@ -164,6 +167,115 @@ class TuyaServiceTest {
         when(api.sessionFromLogin(eq("code"), any())).thenReturn(session);
         var qr = service.beginLogin(7L, "code");
         service.finishLogin(7L, qr.id());
+    }
+
+    @Test
+    void pollingStoresNormalizedReadingsAndUpdatesApiCommunicationWithMqttOffline() throws Exception {
+        var device = givenSensor(true, """
+                [{"code":"va_temperature","value":209},{"code":"va_humidity","value":51},
+                 {"code":"battery_percentage","value":100}]
+                """);
+        device.setMqttOnline(true);
+        Instant before = Instant.now();
+        var snapshot = service.poll(7L, 21L);
+        assertTrue(device.isApiOnline());
+        assertFalse(device.isMqttOnline());
+        assertFalse(device.getLastCommunication().isBefore(before));
+        assertEquals(snapshot.fetchedAt(), device.getLastCommunication());
+        var saved = org.mockito.ArgumentCaptor.forClass(DeviceMeasurementEntity.class);
+        verify(measurements, times(3)).save(saved.capture());
+        var temperature = saved.getAllValues().stream().filter(m -> m.getMeasurementType() == DeviceMeasurementType.TEMPERATURE)
+                .findFirst().orElseThrow();
+        assertEquals(new BigDecimal("20.900"), temperature.getValue());
+        assertEquals("°C", temperature.getUnit());
+        assertEquals("temperature", temperature.getMeasurementKey());
+        assertEquals("va_temperature", temperature.getSourceKey());
+        assertEquals(DevicePlatform.TUYA_SMART, temperature.getSource());
+        assertSame(device.getAccount(), temperature.getAccount());
+        assertNull(temperature.getMeasuredAt());
+        assertEquals(snapshot.fetchedAt(), temperature.getObservedAt());
+    }
+
+    @Test
+    void offlineCloudValuesAreDisplayedButNotStoredAsNewObservations() throws Exception {
+        var device = givenSensor(false, "[{\"code\":\"va_temperature\",\"value\":209}]");
+        device.setApiOnline(true);
+        var snapshot = service.poll(7L, 21L);
+        assertFalse(snapshot.online());
+        assertFalse(device.isApiOnline());
+        assertNotNull(device.getLastCommunication());
+        assertEquals("20.9", snapshot.readings().getFirst().value());
+        verify(measurements, never()).save(any());
+        verify(notifications).sendIfDeviceWentOffline(eq(device), eq(true), eq(false), eq("API"), any());
+    }
+
+    @Test
+    void failedPollClearsApiStatusAndPreservesLastSuccessfulCommunication() throws Exception {
+        var device = givenSensor(true, "[]");
+        device.setApiOnline(true);
+        device.setMqttOnline(true);
+        Instant previous = Instant.now().minusSeconds(300);
+        device.setLastCommunication(previous);
+        when(api.get(any(), eq("/v1.0/m/life/ha/devices/detail"), anyMap())).thenThrow(new TuyaException("tuya.error.request"));
+        assertThrows(TuyaException.class, () -> service.poll(7L, 21L));
+        assertFalse(device.isApiOnline());
+        assertFalse(device.isMqttOnline());
+        assertEquals(previous, device.getLastCommunication());
+        verify(measurements, never()).save(any());
+    }
+
+    @Test
+    void reportedTimestampIsPreservedAndPollingTheSameReportDoesNotRenewIt() throws Exception {
+        Instant reported = Instant.now().minusSeconds(7200).truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+        givenSensor(true, "[{\"code\":\"va_temperature\",\"value\":209,\"t\":" + reported.getEpochSecond() + "}]");
+        service.poll(7L, 21L);
+        var saved = org.mockito.ArgumentCaptor.forClass(DeviceMeasurementEntity.class);
+        verify(measurements).save(saved.capture());
+        assertEquals(reported, saved.getValue().getMeasuredAt());
+        assertEquals(reported, saved.getValue().getObservedAt());
+        when(measurements.findFirstByDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByObservedAtDescIdDesc(
+                21L, DeviceMeasurementType.TEMPERATURE, "temperature")).thenReturn(Optional.of(saved.getValue()));
+        service.poll(7L, 21L);
+        verify(measurements, times(1)).save(any());
+    }
+
+    @Test
+    void fahrenheitCloudTemperatureIsConvertedToCelsiusForPlanner() throws Exception {
+        givenSensor(true, "[{\"code\":\"temp_current_f\",\"value\":680}]");
+        when(api.get(any(), eq("/v1.1/m/life/sensor-1/specifications"), anyMap())).thenReturn(json("""
+                {"status":[{"code":"temp_current_f","type":"Integer","values":{"scale":1,"unit":"F"}}]}
+                """));
+        service.poll(7L, 21L);
+        var saved = org.mockito.ArgumentCaptor.forClass(DeviceMeasurementEntity.class);
+        verify(measurements).save(saved.capture());
+        assertEquals(new BigDecimal("20.000"), saved.getValue().getValue());
+        assertEquals("°C", saved.getValue().getUnit());
+    }
+
+    @Test
+    void futureReportTimeNeverBecomesFreshCloudSnapshot() throws Exception {
+        givenSensor(true, "[{\"code\":\"va_temperature\",\"value\":209,\"t\":" + Instant.now().plusSeconds(3600).toEpochMilli() + "}]");
+        service.poll(7L, 21L);
+        verify(measurements, never()).save(any());
+    }
+
+    private DeviceEntity givenSensor(boolean online, String status) throws Exception {
+        linkAccount();
+        var device = DeviceEntity.builder().id(21L).account(connection.getAccount())
+                .devicePlatform(DevicePlatform.TUYA_SMART).deviceType(DeviceType.TEMPERATURE_SENSOR).enabled(true).build();
+        var link = new TuyaDeviceEntity();
+        link.setConnection(connection);
+        link.setDevice(device);
+        link.setTuyaDeviceId("sensor-1");
+        when(links.findByDeviceIdAndConnectionAccountId(21L, 7L)).thenReturn(Optional.of(link));
+        when(api.get(any(), eq("/v1.0/m/life/ha/devices/detail"), anyMap()))
+                .thenReturn(json("[{\"id\":\"sensor-1\",\"online\":" + online + ",\"status\":" + status + "}]"));
+        when(api.get(any(), eq("/v1.1/m/life/sensor-1/specifications"), anyMap())).thenReturn(json("""
+                {"status":[{"code":"va_temperature","type":"Integer","values":{"scale":1,"unit":"C"}},
+                 {"code":"va_humidity","type":"Integer","values":{"scale":0,"unit":"%"}},
+                 {"code":"battery_percentage","type":"Integer","values":{"scale":0,"unit":"%"}}]}
+                """));
+        return device;
     }
 
     private JsonNode json(String value) throws Exception { return mapper.readTree(value); }

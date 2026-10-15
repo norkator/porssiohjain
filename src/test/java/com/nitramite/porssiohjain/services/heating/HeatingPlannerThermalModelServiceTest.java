@@ -7,11 +7,11 @@ package com.nitramite.porssiohjain.services.heating;
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
-import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
-import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
+import com.nitramite.porssiohjain.entity.DeviceMeasurementEntity;
+import com.nitramite.porssiohjain.entity.enums.DeviceMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerRoomRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
-import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
+import com.nitramite.porssiohjain.services.DeviceMeasurementService;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 class HeatingPlannerThermalModelServiceTest {
 
     private final HeatingPlannerRoomRepository rooms = mock();
-    private final ZigbeeDeviceMeasurementRepository measurements = mock();
+    private final DeviceMeasurementService measurements = mock();
     private final SiteWeatherRepository forecasts = mock();
     private final HeatingPlannerThermalModelService service = new HeatingPlannerThermalModelService(rooms, measurements, forecasts);
     private final Instant now = Instant.parse("2026-01-15T12:00:00Z");
@@ -43,7 +43,7 @@ class HeatingPlannerThermalModelServiceTest {
     void estimatesFasterCoolingForLargerIndoorOutdoorDifference() {
         HeatingPlannerThermalModelService service = new HeatingPlannerThermalModelService(mock(), mock(), mock());
         Instant start = Instant.parse("2026-01-15T00:00:00Z");
-        List<ZigbeeDeviceMeasurementEntity> temperatures = new ArrayList<>();
+        List<DeviceMeasurementEntity> temperatures = new ArrayList<>();
         List<SiteWeatherEntity> weather = new ArrayList<>();
         BigDecimal room = new BigDecimal("21.00");
         temperatures.add(temperature(start, room));
@@ -77,7 +77,7 @@ class HeatingPlannerThermalModelServiceTest {
     @Test
     void flatAndWarmingReadingsDoNotInventCoolingEvidence() {
         Instant start = now.minus(Duration.ofHours(12));
-        List<ZigbeeDeviceMeasurementEntity> readings = new ArrayList<>();
+        List<DeviceMeasurementEntity> readings = new ArrayList<>();
         for (int i = 0; i <= 720; i++) {
             readings.add(temperature(start.plusSeconds(i * 60L),
                     new BigDecimal("21").add(BigDecimal.valueOf(Math.max(0, i - 360), 3))));
@@ -92,7 +92,7 @@ class HeatingPlannerThermalModelServiceTest {
 
     @Test
     void ignoresCoolingWithoutMatchingWeatherAndGapsLongerThanTwoHours() {
-        List<ZigbeeDeviceMeasurementEntity> readings = List.of(
+        List<DeviceMeasurementEntity> readings = List.of(
                 temperature(now.minus(Duration.ofHours(4)), new BigDecimal("21")),
                 temperature(now, new BigDecimal("20")));
 
@@ -109,7 +109,7 @@ class HeatingPlannerThermalModelServiceTest {
         Instant trainedAt = room.getModelTrainedAt();
         Instant evidenceAt = room.getModelEvidenceAt();
         Instant start = now.minus(Duration.ofHours(12));
-        List<ZigbeeDeviceMeasurementEntity> readings = new ArrayList<>();
+        List<DeviceMeasurementEntity> readings = new ArrayList<>();
         for (int i = 0; i <= 720; i++) readings.add(temperature(start.plusSeconds(i * 60L), new BigDecimal("21")));
         givenTraining(room, readings, weatherHistory(start, 720));
 
@@ -189,8 +189,8 @@ class HeatingPlannerThermalModelServiceTest {
         var readings = coolingReadings(start, 1800, 1000);
         givenTraining(room, List.of(), weatherHistory(start, 1800));
         when(rooms.findByAccountIdAndSiteIdOrderBySortOrderAscIdAsc(7L, 8L)).thenReturn(List.of(room));
-        when(measurements.findByDeviceIdAndMeasurementTypeAndMeasurementKeyAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
-                eq(21L), eq(ZigbeeMeasurementType.TEMPERATURE), eq("temperature"), any(), any(), any(Pageable.class)))
+        when(measurements.history(
+                eq(room.getRoomSensorDevice()), eq(DeviceMeasurementType.TEMPERATURE), eq("temperature"), any(), any(), any(Pageable.class)))
                 .thenReturn(new SliceImpl<>(readings.subList(0, 1000), PageRequest.of(0, 1000), true),
                         new SliceImpl<>(readings.subList(1000, readings.size()), PageRequest.of(1, 1000), false));
 
@@ -202,8 +202,8 @@ class HeatingPlannerThermalModelServiceTest {
         assertThat(room.getModelSampleCount()).isGreaterThanOrEqualTo(50);
         assertThat(room.getModelConfidence()).isGreaterThan(new BigDecimal("0.25"));
         assertThat(room.getModelEvidenceAt()).isEqualTo(now);
-        verify(measurements).findByDeviceIdAndMeasurementTypeAndMeasurementKeyAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
-                eq(21L), eq(ZigbeeMeasurementType.TEMPERATURE), eq("temperature"), any(), eq(now), eq(PageRequest.of(1, 1000)));
+        verify(measurements).history(
+                eq(room.getRoomSensorDevice()), eq(DeviceMeasurementType.TEMPERATURE), eq("temperature"), any(), eq(now), eq(PageRequest.of(1, 1000)));
     }
 
     @Test
@@ -214,8 +214,8 @@ class HeatingPlannerThermalModelServiceTest {
 
         service.learnAndResolve(7L, 8L, "Kitchen", configured, now);
 
-        verify(measurements).findByDeviceIdAndMeasurementTypeAndMeasurementKeyAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
-                eq(21L), eq(ZigbeeMeasurementType.TEMPERATURE), eq("temperature"),
+        verify(measurements).history(
+                eq(room.getRoomSensorDevice()), eq(DeviceMeasurementType.TEMPERATURE), eq("temperature"),
                 eq(firstWeather.minus(Duration.ofMinutes(90))), eq(now), any(Pageable.class));
     }
 
@@ -261,18 +261,18 @@ class HeatingPlannerThermalModelServiceTest {
         return room;
     }
 
-    private void givenTraining(HeatingPlannerRoomEntity room, List<ZigbeeDeviceMeasurementEntity> readings,
+    private void givenTraining(HeatingPlannerRoomEntity room, List<DeviceMeasurementEntity> readings,
                                List<SiteWeatherEntity> weather) {
         when(rooms.findByAccountIdAndSiteIdAndNameIgnoreCase(7L, 8L, "Kitchen")).thenReturn(Optional.of(room));
         when(forecasts.findBySiteAndForecastTimeBetweenOrderByForecastTimeAsc(eq(room.getSite()), any(), any()))
                 .thenReturn(weather);
-        when(measurements.findByDeviceIdAndMeasurementTypeAndMeasurementKeyAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
-                eq(21L), eq(ZigbeeMeasurementType.TEMPERATURE), eq("temperature"), any(), any(), any(Pageable.class)))
+        when(measurements.history(
+                eq(room.getRoomSensorDevice()), eq(DeviceMeasurementType.TEMPERATURE), eq("temperature"), any(), any(), any(Pageable.class)))
                 .thenReturn(new SliceImpl<>(readings));
     }
 
-    private List<ZigbeeDeviceMeasurementEntity> coolingReadings(Instant start, int minutes, int stableMinutes) {
-        List<ZigbeeDeviceMeasurementEntity> readings = new ArrayList<>();
+    private List<DeviceMeasurementEntity> coolingReadings(Instant start, int minutes, int stableMinutes) {
+        List<DeviceMeasurementEntity> readings = new ArrayList<>();
         for (int i = 0; i <= minutes; i++) readings.add(temperature(start.plusSeconds(i * 60L),
                 new BigDecimal("21").subtract(new BigDecimal("0.005").multiply(BigDecimal.valueOf(Math.max(0, i - stableMinutes))))));
         return readings;
@@ -284,8 +284,8 @@ class HeatingPlannerThermalModelServiceTest {
         return weather;
     }
 
-    private ZigbeeDeviceMeasurementEntity temperature(Instant time, BigDecimal value) {
-        return ZigbeeDeviceMeasurementEntity.builder().measuredAt(time).value(value).build();
+    private DeviceMeasurementEntity temperature(Instant time, BigDecimal value) {
+        return DeviceMeasurementEntity.builder().measuredAt(time).observedAt(time).value(value).build();
     }
 
     private SiteWeatherEntity weather(Instant time, BigDecimal temperature) {

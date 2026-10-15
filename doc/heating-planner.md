@@ -97,6 +97,18 @@ Floor and room measurements are not interchangeable:
 
 The UI must require the user to state which measurement is the floor measurement. Device/model defaults may assist but must not silently infer this for unknown devices.
 
+### Tuya Smart sensors
+
+Imported Tuya temperature sensors are available in the Vaadin room and floor sensor selectors. Save the selected role explicitly; selecting a room sensor does not also select a floor sensor. Sensor import never enables active thermostat control.
+
+`DeviceMeasurementService` provides the common read contract used by latest-temperature lookup, recent-reading/history UI, and thermal-model learning. Zigbee continues to write only to `zigbee_device_measurement`; Tuya and future integrations use `device_measurement`. No existing Zigbee history is moved or copied. Both stores retain one month of history with daily cleanup.
+
+Enabled Tuya sensors with a saved account connection are polled every five minutes. Values are normalized to Celsius. If Tuya supplies a property report timestamp, it is preserved and the existing 60-minute measurement freshness applies; polling the same report never renews its timestamp. Otherwise the value is explicitly labeled as an online **cloud snapshot**, with an unknown sensor report time and a ten-minute observation freshness limit. Its timestamp indicates when the cloud state was fetched, not when the sensor measured it. Thermal learning uses these observation times for cloud snapshots and report times for timestamped readings, retaining the existing 15-minute sampling and cooling-evidence requirements.
+
+Every Tuya input also requires an enabled device, API Online, and successful cloud contact within ten minutes. Failed polls, cloud-reported offline status, disconnection, and disabling the device make its readings unavailable to planning. Offline cached values may still be displayed in the Devices dialog but are not stored as fresh observations. Missing/stale floor input continues to disable preheating; device-level thermostat floor limits remain independent and authoritative.
+
+See [tuya-smart-integration.md](tuya-smart-integration.md) for account setup, property selection, storage/timestamp fields, status semantics, and live validation steps.
+
 ## Planning horizon
 
 Use a today-and-tomorrow horizon in the site's timezone with 15-minute simulation steps. Tomorrow remains visibly unavailable until both tomorrow's market prices and sufficient weather forecast data exist. Replan when any of these occurs:
@@ -196,7 +208,7 @@ Wood monetary cost is intentionally not stored or considered by the planner.
 - operating mode and human-readable reason;
 - whether the point is simulated, active, superseded, or completed.
 
-Do not overload `DeviceEntity.lastTelemetry` as historical storage. Zigbee temperature/humidity reporting needs a normalized measurement/history contract before monitoring is enabled.
+Do not overload `DeviceEntity.lastTelemetry` as historical storage. Normalized history lives in `zigbee_device_measurement` for existing Zigbee reporting and `device_measurement` for Tuya/future integrations, read through the common measurement service.
 
 ## Device limits and fail-safe behaviour
 

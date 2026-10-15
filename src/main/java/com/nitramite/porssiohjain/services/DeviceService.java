@@ -355,6 +355,10 @@ public class DeviceService {
                 resolvedDevicePlatform
         ));
         device.setEnabled(enabled);
+        if (resolvedDevicePlatform == DevicePlatform.TUYA_SMART) {
+            device.setMqttOnline(false);
+            if (!enabled) device.setApiOnline(false);
+        }
         deviceRepository.save(device);
 
         if (resolvedDeviceType == DeviceType.HEAT_PUMP) {
