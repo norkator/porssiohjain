@@ -37,6 +37,7 @@ import com.nitramite.porssiohjain.services.models.ProvisionedDeviceLookupRespons
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcDevicesService;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcMappingResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaLoginService;
+import com.nitramite.porssiohjain.services.tuya.TuyaService;
 import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.UI;
@@ -99,6 +100,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final MitsubishiMelCloudHomeLoginService mitsubishiMelCloudHomeLoginService;
     private final MitsubishiMelCloudHomeDevicesService mitsubishiMelCloudHomeDevicesService;
     private final AccountLimitService accountLimitService;
+    private final TuyaService tuyaService;
+    private final TuyaConnectionDialog tuyaConnectionDialog;
+    private final TuyaDevicePicker tuyaDevicePicker;
+    private final TuyaTask tuyaCreateTask;
+    private TuyaService.CloudDevice pendingTuyaDevice;
+    private boolean tuyaSaving;
     protected final I18nService i18n;
 
     private final TextField nameField;
@@ -153,7 +160,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             MitsubishiAcDevicesService mitsubishiAcDevicesService,
             MitsubishiMelCloudHomeLoginService mitsubishiMelCloudHomeLoginService,
             MitsubishiMelCloudHomeDevicesService mitsubishiMelCloudHomeDevicesService,
-            AccountLimitService accountLimitService
+            AccountLimitService accountLimitService,
+            TuyaService tuyaService
     ) {
         this.deviceService = deviceService;
         this.controlService = controlService;
@@ -169,6 +177,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         this.mitsubishiMelCloudHomeLoginService = mitsubishiMelCloudHomeLoginService;
         this.mitsubishiMelCloudHomeDevicesService = mitsubishiMelCloudHomeDevicesService;
         this.accountLimitService = accountLimitService;
+        this.tuyaService = tuyaService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -188,7 +197,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case STANDARD -> t("device.type.standard");
             case HEAT_PUMP -> t("device.type.heatPump");
             case THERMOSTAT -> t("device.type.thermostat");
-            case TEMPERATURE_SENSOR -> "Temperature sensor";
+            case TEMPERATURE_SENSOR -> t("device.type.temperatureSensor");
         });
         deviceTypeCombo.setValue(DeviceType.STANDARD);
         deviceTypeCombo.setHelperText(t("device.type.helper"));
@@ -198,6 +207,19 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         devicePlatformCombo.setItemLabelGenerator(this::formatDevicePlatform);
         devicePlatformCombo.setValue(DevicePlatform.GENERIC_MQTT);
         devicePlatformCombo.setHelperText(t("device.platform.helper"));
+
+        tuyaConnectionDialog = new TuyaConnectionDialog(tuyaService, authService, i18n, () -> {
+            pendingTuyaDevice = null;
+            tuyaDevicePickerReset();
+        });
+        add(tuyaConnectionDialog);
+        tuyaDevicePicker = new TuyaDevicePicker(tuyaService, i18n, this::tuyaAccountId,
+                tuyaConnectionDialog::open, device -> {
+                    pendingTuyaDevice = device;
+                    if (device != null) nameField.setValue(device.name());
+                    updateSaveButtonState();
+                });
+        tuyaDevicePicker.setVisible(false);
 
         saveButton = new Button(t("device.button.add"));
         limitInfo = new Span();
@@ -281,7 +303,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 case STANDARD -> t("device.type.standard");
                 case HEAT_PUMP -> t("device.type.heatPump");
                 case THERMOSTAT -> t("device.type.thermostat");
-                case TEMPERATURE_SENSOR -> "Temperature sensor";
+                case TEMPERATURE_SENSOR -> t("device.type.temperatureSensor");
             };
         }).setHeader(t("device.grid.type")).setAutoWidth(true);
         deviceGrid.addColumn(device -> formatDevicePlatform(device.getDevicePlatform()))
@@ -322,21 +344,23 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             return badge;
         }).setHeader(t("common.origin")).setAutoWidth(true);
         deviceGrid.addComponentColumn(device -> {
+            if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) return new Span(t("tuya.pollToCheck"));
             Span badge = new Span(device.getApiOnline() != null && device.getApiOnline() ? "Online" : "Offline");
             badge.getElement().getThemeList().add("badge");
             badge.getElement().getThemeList().add(device.getApiOnline() != null && device.getApiOnline() ? "success" : "error");
             return badge;
         }).setHeader(t("device.grid.apiOnline")).setAutoWidth(true);
         deviceGrid.addComponentColumn(device -> {
+            if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) return new Span("—");
             Span badge = new Span(device.getMqttOnline() != null && device.getMqttOnline() ? "Online" : "Offline");
             badge.getElement().getThemeList().add("badge");
             badge.getElement().getThemeList().add(device.getMqttOnline() != null && device.getMqttOnline() ? "success" : "error");
             return badge;
         }).setHeader(t("device.grid.mqttOnline")).setAutoWidth(true);
-        deviceGrid.addColumn(DeviceResponse::getMqttUsername)
+        deviceGrid.addColumn(device -> device.getDevicePlatform() == DevicePlatform.TUYA_SMART ? "" : device.getMqttUsername())
                 .setHeader(t("device.grid.mqttUsername"))
                 .setAutoWidth(true);
-        deviceGrid.addColumn(DeviceResponse::getMqttPassword)
+        deviceGrid.addColumn(device -> device.getDevicePlatform() == DevicePlatform.TUYA_SMART ? "" : device.getMqttPassword())
                 .setHeader(t("device.grid.mqttPassword"))
                 .setAutoWidth(true);
         deviceGrid.addColumn(DeviceResponse::getAcDeviceId)
@@ -384,14 +408,18 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         actions.setAlignItems(Alignment.START);
 
         claimProvisionedSection = createClaimProvisionedDeviceSection();
-        creationForm = new VerticalLayout(formLayout, heatPumpForm, actions);
+        creationForm = new VerticalLayout(formLayout, heatPumpForm, tuyaDevicePicker, actions);
         creationForm.setPadding(false);
         DesktopFormState.watch(creationForm);
         DesktopFormState.watch(claimProvisionedSection);
         createDialog = new DesktopCreateDialog(this, t("device.button.addNew"), i18n);
+        tuyaCreateTask = new TuyaTask(this);
         createDialog.add(creationForm, Divider.createDivider(), claimProvisionedSection);
 
-        card.add(title, deviceGrid, createDialog.openButton(), limitInfo);
+        Button tuyaConnectionButton = new Button(t("tuya.connection.title"), event -> tuyaConnectionDialog.open());
+        HorizontalLayout deviceActions = new HorizontalLayout(createDialog.openButton(), tuyaConnectionButton);
+        deviceActions.setWrap(true);
+        card.add(title, deviceGrid, deviceActions, limitInfo);
         add(card);
 
         deviceTypeCombo.addValueChangeListener(event -> {
@@ -403,6 +431,19 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 pendingBuildingId = null;
             }
             updateSelectAcDeviceButton();
+            updateSaveButtonState();
+        });
+
+        devicePlatformCombo.addValueChangeListener(event -> {
+            boolean tuya = event.getValue() == DevicePlatform.TUYA_SMART;
+            tuyaDevicePicker.setVisible(tuya);
+            deviceTypeCombo.setReadOnly(tuya);
+            if (tuya) deviceTypeCombo.setValue(DeviceType.TEMPERATURE_SENSOR);
+            else {
+                pendingTuyaDevice = null;
+                tuyaDevicePicker.reset();
+            }
+            claimProvisionedSection.setVisible(!tuya);
             updateSaveButtonState();
         });
 
@@ -697,6 +738,34 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 return;
             }
 
+            if (devicePlatform == DevicePlatform.TUYA_SMART) {
+                if (pendingTuyaDevice == null || tuyaSaving) return;
+                String externalId = pendingTuyaDevice.id();
+                tuyaSaving = true;
+                updateSaveButtonState();
+                tuyaCreateTask.run(() -> {
+                    tuyaService.importDevice(accountId, externalId, deviceName, timezone, enabled);
+                    return true;
+                }, ignored -> {
+                    tuyaSaving = false;
+                    if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
+                    Notification.show(t("device.notification.created")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    if (pendingTuyaDevice != null && externalId.equals(pendingTuyaDevice.id())
+                            && deviceName.equals(nameField.getValue()) && timezone.equals(timezoneCombo.getValue())
+                            && enabled == enabledField.getValue()) {
+                        clearForm();
+                        createDialog.close();
+                    }
+                    loadDevices();
+                }, error -> {
+                    tuyaSaving = false;
+                    if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
+                    updateSaveButtonState();
+                    Notification.show(TuyaTask.error(i18n, error)).addThemeVariants(NotificationVariant.LUMO_ERROR);
+                });
+                return;
+            }
+
             String hpName = hpNameField.getValue();
             AcType acType = acTypeCombo.getValue();
             String acUsername = acUsernameField.getValue();
@@ -838,6 +907,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         content.add(meta);
 
         boolean shared = Boolean.TRUE.equals(device.getShared());
+        boolean tuya = device.getDevicePlatform() == DevicePlatform.TUYA_SMART;
 
         TextField dialogNameField = new TextField(t("device.field.name"));
         dialogNameField.setValue(device.getDeviceName() != null ? device.getDeviceName() : "");
@@ -854,16 +924,17 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case STANDARD -> t("device.type.standard");
             case HEAT_PUMP -> t("device.type.heatPump");
             case THERMOSTAT -> t("device.type.thermostat");
-            case TEMPERATURE_SENSOR -> "Temperature sensor";
+            case TEMPERATURE_SENSOR -> t("device.type.temperatureSensor");
         });
         dialogDeviceTypeCombo.setValue(device.getDeviceType());
-        dialogDeviceTypeCombo.setReadOnly(shared);
+        dialogDeviceTypeCombo.setReadOnly(shared || tuya);
 
         ComboBox<DevicePlatform> dialogDevicePlatformCombo = new ComboBox<>(t("device.field.platform"));
-        dialogDevicePlatformCombo.setItems(DevicePlatform.values());
+        dialogDevicePlatformCombo.setItems(java.util.Arrays.stream(DevicePlatform.values())
+                .filter(platform -> tuya || platform != DevicePlatform.TUYA_SMART).toList());
         dialogDevicePlatformCombo.setItemLabelGenerator(this::formatDevicePlatform);
         dialogDevicePlatformCombo.setValue(device.getDevicePlatform() != null ? device.getDevicePlatform() : DevicePlatform.GENERIC_MQTT);
-        dialogDevicePlatformCombo.setReadOnly(shared);
+        dialogDevicePlatformCombo.setReadOnly(shared || tuya);
 
         Checkbox dialogEnabledField = new Checkbox(t("device.field.enabled"));
         dialogEnabledField.setValue(device.getEnabled() == null || device.getEnabled());
@@ -878,6 +949,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         );
         content.add(editForm);
 
+        if (tuya && !shared) content.add(createTuyaPollSection(device));
+
         FormLayout dialogMqttCredentialsForm = new FormLayout(
                 createDialogCopyableReadOnlyField(t("device.grid.uuid"), device.getUuid() != null ? device.getUuid().toString() : ""),
                 createDialogCopyableReadOnlyField(t("device.grid.mqttUsername"), device.getMqttUsername() != null ? device.getMqttUsername() : ""),
@@ -888,7 +961,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("720px", 3)
         );
-        content.add(Divider.createDivider(), new H2(t("device.manage.mqttTitle")), dialogMqttCredentialsForm);
+        if (!tuya) content.add(Divider.createDivider(), new H2(t("device.manage.mqttTitle")), dialogMqttCredentialsForm);
 
         TextField dialogHpNameField = new TextField(t("device.hp.name"));
         dialogHpNameField.setValue(device.getHpName() != null ? device.getHpName() : "");
@@ -1143,6 +1216,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         selectedDevice = null;
         pendingAcDeviceId = null;
         pendingBuildingId = null;
+        pendingTuyaDevice = null;
+        tuyaSaving = false;
+        tuyaDevicePicker.reset();
         nameField.clear();
         timezoneCombo.setValue(defaultTimezone);
         deviceTypeCombo.setValue(DeviceType.STANDARD);
@@ -1174,7 +1250,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         boolean creatingHeatPump = deviceTypeCombo.getValue() == DeviceType.HEAT_PUMP;
         boolean hasAcSelection = pendingAcDeviceId != null && !pendingAcDeviceId.isBlank();
         boolean createLimitReached = isDeviceLimitReached();
-        saveButton.setEnabled(!createLimitReached && (!creatingHeatPump || hasAcSelection));
+        boolean creatingTuya = devicePlatformCombo.getValue() == DevicePlatform.TUYA_SMART;
+        saveButton.setEnabled(!tuyaSaving && !createLimitReached && (!creatingHeatPump || hasAcSelection)
+                && (!creatingTuya || pendingTuyaDevice != null));
     }
 
     private boolean isDeviceLimitReached() {
@@ -1272,7 +1350,62 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case ESPHOME -> t("device.platform.esphome");
             case GENERIC_MQTT -> t("device.platform.genericMqtt");
             case ANDROID_ZIGBEE -> "Android Zigbee";
+            case TUYA_SMART -> "Tuya Smart";
         };
+    }
+
+    private Long tuyaAccountId() {
+        AccountEntity account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        return account == null ? null : account.getId();
+    }
+
+    private void tuyaDevicePickerReset() {
+        tuyaDevicePicker.reset();
+        updateSaveButtonState();
+    }
+
+    private String formatTuyaReading(String code) {
+        return switch (code) {
+            case "va_humidity", "humidity_value" -> t("tuya.reading.humidity");
+            case "battery_percentage" -> t("tuya.reading.batteryPercentage");
+            case "battery_state" -> t("tuya.reading.batteryState");
+            case "ext_temp", "temp_current_external" -> t("tuya.reading.externalTemperature");
+            case "temp_current_external_1", "temp_current_external_2", "temp_current_external_3" ->
+                    t("tuya.reading.externalTemperature") + " " + code.charAt(code.length() - 1);
+            default -> t("tuya.reading.temperature");
+        };
+    }
+
+    private VerticalLayout createTuyaPollSection(DeviceResponse device) {
+        Span status = new Span(t("tuya.poll.help"));
+        Grid<TuyaService.Reading> readings = new Grid<>(TuyaService.Reading.class, false);
+        readings.addColumn(reading -> formatTuyaReading(reading.code())).setHeader(t("tuya.reading"));
+        readings.addColumn(reading -> reading.value().isBlank() ? t("tuya.unavailable") : reading.value()).setHeader(t("tuya.value"));
+        readings.addColumn(TuyaService.Reading::unit).setHeader(t("tuya.unit"));
+        readings.setAllRowsVisible(true);
+        readings.setWidthFull();
+        Button poll = new Button(t("tuya.poll"));
+        VerticalLayout section = new VerticalLayout(new H2("Tuya Smart"), status, poll, readings);
+        section.setPadding(false);
+        TuyaTask task = new TuyaTask(section);
+        poll.addClickListener(event -> {
+            Long accountId = tuyaAccountId();
+            if (accountId == null) return;
+            poll.setEnabled(false);
+            status.setText(t("tuya.loading"));
+            task.run(() -> tuyaService.poll(accountId, device.getId()), snapshot -> {
+                if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
+                readings.setItems(snapshot.readings());
+                status.setText(t("tuya.poll.result", t(snapshot.online() ? "tuya.online" : "tuya.offline"),
+                        ZonedDateTime.ofInstant(snapshot.fetchedAt(), ZoneId.of(device.getTimezone())).format(formatter)));
+                poll.setEnabled(true);
+            }, error -> {
+                if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
+                status.setText(TuyaTask.error(i18n, error));
+                poll.setEnabled(true);
+            });
+        });
+        return section;
     }
 
     private void openAcCommandLogDialog() {

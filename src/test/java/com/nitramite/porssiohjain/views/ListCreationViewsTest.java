@@ -75,7 +75,8 @@ class ListCreationViewsTest {
                         auth, mock(FileService.class), mock(FactoryProvisioningService.class), i18n,
                         mock(ToshibaLoginService.class), mock(ToshibaAcDevicesService.class),
                         mock(MitsubishiLoginService.class), mock(MitsubishiAcDevicesService.class),
-                        mock(MitsubishiMelCloudHomeLoginService.class), mock(MitsubishiMelCloudHomeDevicesService.class), limits),
+                        mock(MitsubishiMelCloudHomeLoginService.class), mock(MitsubishiMelCloudHomeDevicesService.class), limits,
+                        mock(com.nitramite.porssiohjain.services.tuya.TuyaService.class)),
                 new ControlsView(mock(ControlService.class), mock(ControlSchedulerService.class), limits, auth, i18n),
                 new WeatherControlsView(weather, limits, sites, auth, i18n),
                 new PowerLimitsView(mock(PowerLimitService.class), auth, i18n),
@@ -138,6 +139,39 @@ class ListCreationViewsTest {
     }
 
     @Test
+    void tuyaPlatformShowsPickerLocksSensorTypeAndRequiresSelection() {
+        DeviceView view = new DeviceView(mock(DeviceService.class), mock(ControlService.class), mock(DeviceAcCommandLogService.class),
+                auth, mock(FileService.class), mock(FactoryProvisioningService.class), i18n,
+                mock(ToshibaLoginService.class), mock(ToshibaAcDevicesService.class),
+                mock(MitsubishiLoginService.class), mock(MitsubishiAcDevicesService.class),
+                mock(MitsubishiMelCloudHomeLoginService.class), mock(MitsubishiMelCloudHomeDevicesService.class), limits,
+                mock(com.nitramite.porssiohjain.services.tuya.TuyaService.class));
+        DesktopCreateDialog dialog = dialog(view);
+        @SuppressWarnings("unchecked")
+        var platform = (com.vaadin.flow.component.combobox.ComboBox<com.nitramite.porssiohjain.entity.enums.DevicePlatform>)
+                descendants(dialog).filter(c -> c instanceof com.vaadin.flow.component.combobox.ComboBox<?> box
+                        && box.getLabel().equals("device.field.platform")).findFirst().orElseThrow();
+        @SuppressWarnings("unchecked")
+        var type = (com.vaadin.flow.component.combobox.ComboBox<com.nitramite.porssiohjain.entity.enums.DeviceType>)
+                descendants(dialog).filter(c -> c instanceof com.vaadin.flow.component.combobox.ComboBox<?> box
+                        && box.getLabel().equals("device.grid.type")).findFirst().orElseThrow();
+        TuyaDevicePicker picker = descendants(dialog).filter(TuyaDevicePicker.class::isInstance)
+                .map(TuyaDevicePicker.class::cast).findFirst().orElseThrow();
+        assertFalse(picker.isVisible());
+        platform.setValue(com.nitramite.porssiohjain.entity.enums.DevicePlatform.TUYA_SMART);
+        assertTrue(picker.isVisible());
+        assertEquals(com.nitramite.porssiohjain.entity.enums.DeviceType.TEMPERATURE_SENSOR, type.getValue());
+        assertTrue(type.isReadOnly());
+        Button save = descendants(dialog).filter(c -> c instanceof Button button && button.getText().equals("device.button.add"))
+                .map(Button.class::cast).findFirst().orElseThrow();
+        assertFalse(save.isEnabled());
+        platform.setValue(com.nitramite.porssiohjain.entity.enums.DevicePlatform.GENERIC_MQTT);
+        assertFalse(picker.isVisible());
+        assertFalse(type.isReadOnly());
+        assertTrue(save.isEnabled());
+    }
+
+    @Test
     void validationAndFailedSaveKeepDialogOpenAndSuccessfulSaveRefreshesList() {
         WeatherControlsView view = new WeatherControlsView(weather, limits, sites, auth, i18n);
         DesktopCreateDialog dialog = dialog(view);
@@ -170,6 +204,35 @@ class ListCreationViewsTest {
         assertFalse(DesktopFormState.isDirty(view));
         verify(weather, times(2)).getAllWeatherControls(7L);
         verify(weather, times(2)).createWeatherControl(7L, "Weather control", 9L);
+    }
+
+    @Test
+    void tuyaQrGenerationRequiresUserCodeBeforeContactingTuya() {
+        var tuya = mock(com.nitramite.porssiohjain.services.tuya.TuyaService.class);
+        when(tuya.connectionStatus(7L)).thenReturn(new com.nitramite.porssiohjain.services.tuya.TuyaService.ConnectionStatus(false, ""));
+        TuyaConnectionDialog dialog = new TuyaConnectionDialog(tuya, auth, i18n, () -> { });
+        dialog.open();
+        TextField code = descendants(dialog).filter(TextField.class::isInstance).map(TextField.class::cast)
+                .findFirst().orElseThrow();
+        Button generate = descendants(dialog).filter(c -> c instanceof Button button && button.getText().equals("tuya.qr.generate"))
+                .map(Button.class::cast).findFirst().orElseThrow();
+
+        assertTrue(code.isRequiredIndicatorVisible());
+        assertEquals("tuya.error.userCode", code.getErrorMessage());
+        assertFalse(generate.isEnabled());
+        code.setValue("   ");
+        assertFalse(generate.isEnabled());
+        generate.click();
+        verify(tuya, never()).beginLogin(any(), anyString());
+
+        code.setValue("my-user-code");
+        assertTrue(generate.isEnabled());
+        assertFalse(code.isInvalid());
+        code.clear();
+        assertFalse(generate.isEnabled());
+        dialog.close();
+        dialog.open();
+        assertFalse(generate.isEnabled());
     }
 
     @Test

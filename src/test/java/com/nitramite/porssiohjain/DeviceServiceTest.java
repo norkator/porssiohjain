@@ -407,4 +407,20 @@ class DeviceServiceTest {
         assertThat(device.getMqttDeviceProfile()).isEqualTo(MqttDeviceProfile.TASMOTA_RELAY);
         verify(deviceRepository).save(device);
     }
+
+    @Test
+    void tuyaCannotBeCreatedOrConvertedIntoRelay() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> deviceService.createDevice(
+                1L, 1L, "Cloud relay", "Europe/Helsinki", DeviceType.STANDARD, DevicePlatform.TUYA_SMART,
+                true, null, null, null, null, null, null));
+        AccountEntity account = AccountEntity.builder().id(1L).build();
+        DeviceEntity sensor = DeviceEntity.builder().id(10L).account(account).deviceType(DeviceType.TEMPERATURE_SENSOR)
+                .devicePlatform(DevicePlatform.TUYA_SMART).build();
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(deviceRepository.findByIdAndAccount(10L, account)).thenReturn(Optional.of(sensor));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> deviceService.updateDevice(
+                1L, 10L, "Sensor", "Europe/Helsinki", DeviceType.STANDARD, DevicePlatform.GENERIC_MQTT,
+                true, null, null, null, null, null, null));
+        verify(deviceRepository, never()).save(any());
+    }
 }

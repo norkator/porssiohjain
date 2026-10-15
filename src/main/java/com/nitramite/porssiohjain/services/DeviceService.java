@@ -78,6 +78,9 @@ public class DeviceService {
         demoAccountGuard.assertWritable(authAccountId);
         DeviceType resolvedDeviceType = deviceType == null ? DeviceType.STANDARD : deviceType;
         DevicePlatform resolvedDevicePlatform = devicePlatform == null ? DevicePlatform.GENERIC_MQTT : devicePlatform;
+        if (resolvedDevicePlatform == DevicePlatform.TUYA_SMART && resolvedDeviceType != DeviceType.TEMPERATURE_SENSOR) {
+            throw new IllegalArgumentException("Tuya Smart currently supports temperature sensors only");
+        }
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
@@ -336,6 +339,10 @@ public class DeviceService {
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
         DeviceType previousType = device.getDeviceType();
         DevicePlatform previousPlatform = device.getDevicePlatform();
+        if ((previousPlatform == DevicePlatform.TUYA_SMART || resolvedDevicePlatform == DevicePlatform.TUYA_SMART)
+                && (previousPlatform != resolvedDevicePlatform || resolvedDeviceType != DeviceType.TEMPERATURE_SENSOR)) {
+            throw new IllegalArgumentException("Keep the linked Tuya Smart platform and temperature sensor type");
+        }
         device.setDeviceName(newName);
         device.setTimezone(newTimezone);
         device.setDeviceType(resolvedDeviceType);
@@ -515,7 +522,7 @@ public class DeviceService {
             case OPENBEKEN -> MqttDeviceProfile.OPENBEKEN_RELAY;
             case TASMOTA -> MqttDeviceProfile.TASMOTA_RELAY;
             case ESPHOME -> MqttDeviceProfile.ESPHOME_RELAY;
-            case GENERIC_MQTT, ANDROID_ZIGBEE -> MqttDeviceProfile.GENERIC_RELAY;
+            case GENERIC_MQTT, ANDROID_ZIGBEE, TUYA_SMART -> MqttDeviceProfile.GENERIC_RELAY;
         };
     }
 

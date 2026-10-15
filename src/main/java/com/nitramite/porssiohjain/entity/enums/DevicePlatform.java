@@ -5,5 +5,6 @@ public enum DevicePlatform {
     TASMOTA,
     ESPHOME,
     GENERIC_MQTT,
-    ANDROID_ZIGBEE
+    ANDROID_ZIGBEE,
+    TUYA_SMART
 }
