@@ -15,11 +15,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
+import com.nitramite.porssiohjain.entity.enums.SiteType;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.AccountService;
@@ -39,9 +42,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import java.util.zip.ZipInputStream;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -74,6 +83,9 @@ class AccountControllerTest {
 
     @Autowired
     private DeviceRepository deviceRepository;
+
+    @Autowired
+    private SiteRepository siteRepository;
 
     @Autowired
     private ZigbeeDeviceMeasurementRepository zigbeeDeviceMeasurementRepository;
@@ -405,7 +417,8 @@ class AccountControllerTest {
     void shouldDownloadAccountDataExport() throws Exception {
         AccountEntity created = accountService.createAccount("70.70.70.70", true);
         AccountEntity other = accountService.createAccount("70.70.70.72", true);
-        DeviceEntity ownDevice = deviceRepository.save(exportTestDevice(created, "Export own device"));
+        String deviceName = "Oma laite: \"Lämmitys\"\nSecond line";
+        DeviceEntity ownDevice = deviceRepository.save(exportTestDevice(created, deviceName));
         DeviceEntity otherDevice = deviceRepository.save(exportTestDevice(other, "Export other device"));
         zigbeeDeviceMeasurementRepository.save(exportTestMeasurement(created, ownDevice));
         zigbeeDeviceMeasurementRepository.save(exportTestMeasurement(other, otherDevice));
@@ -421,25 +434,68 @@ class AccountControllerTest {
                 .getResponse()
                 .getContentAsByteArray();
 
-        JsonNode export = objectMapper.readTree(readZipEntry(content, "account-data.json"));
-        assertThat(export.get("schemaVersion").asInt()).isEqualTo(1);
-        assertThat(export.get("accountId").asLong()).isEqualTo(created.getId());
+        Map<String, byte[]> files = readZipEntries(content);
+        assertThat(files).containsOnlyKeys("README.txt", "data.jsonl");
+        Map<String, List<JsonNode>> records = readExportRecords(files.get("data.jsonl"));
+        assertThat(records).containsKeys("account", "device", "history-summary");
+        assertThat(records).doesNotContainKey("zigbee-device-measurement");
+        assertThat(records.keySet()).noneMatch(name -> name.contains("Entity"));
 
-        JsonNode accountRows = export.get("tables").findValues("entity").stream()
-                .filter(node -> node.asText().equals("AccountEntity"))
-                .findFirst()
-                .orElseThrow();
-        assertThat(accountRows.asText()).isEqualTo("AccountEntity");
+        List<JsonNode> accounts = records.get("account");
+        assertThat(accounts).hasSize(1);
+        assertThat(accounts.getFirst().get("id").asLong()).isEqualTo(created.getId());
+        assertThat(accounts.getFirst().get("uuid").asText()).isEqualTo(created.getUuid().toString());
 
-        JsonNode deviceTable = findTable(export, "DeviceEntity");
-        assertThat(deviceTable.get("rows").findValues("id").stream().map(JsonNode::asLong).toList())
-                .contains(ownDevice.getId())
-                .doesNotContain(otherDevice.getId());
+        List<JsonNode> devices = records.get("device");
+        assertThat(devices).hasSize(1);
+        JsonNode device = devices.getFirst();
+        assertThat(device.get("id").asLong()).isEqualTo(ownDevice.getId()).isNotEqualTo(otherDevice.getId());
+        assertThat(device.get("account").isIntegralNumber()).isTrue();
+        assertThat(device.get("account").asLong()).isEqualTo(created.getId());
+        assertThat(device.get("deviceName").asText()).isEqualTo(deviceName);
+        assertThat(device.get("lastTelemetry").isNull()).isTrue();
+        assertThat(device.get("apiOnline").asBoolean()).isFalse();
+        assertThat(new String(files.get("data.jsonl"), StandardCharsets.UTF_8))
+                .doesNotContain("\n ", "\"entity\":", "\"rows\":", "DeviceEntity", "AccountEntity");
 
-        assertThat(hasTable(export, "ZigbeeDeviceMeasurementEntity")).isFalse();
-        JsonNode measurementSummary = findOmittedHighVolumeTable(export, "ZigbeeDeviceMeasurementEntity");
+        List<JsonNode> summaries = records.get("history-summary");
+        assertThat(summaries).hasSize(1);
+        JsonNode measurementSummary = summaries.getFirst();
+        assertThat(measurementSummary.get("data").asText()).isEqualTo("zigbee-device-measurement");
         assertThat(measurementSummary.get("rowCount").asLong()).isEqualTo(1L);
-        assertThat(measurementSummary.get("reason").asText()).contains("High-volume");
+        JsonNode measuredAt = objectMapper.readTree(objectMapper.writeValueAsBytes(Instant.parse("2026-08-15T10:00:00Z")));
+        assertThat(measurementSummary.get("earliest")).isEqualTo(measuredAt);
+        assertThat(measurementSummary.get("latest")).isEqualTo(measuredAt);
+    }
+
+    @Test
+    @DisplayName("Should export every record across data batches and omit empty history summaries")
+    void shouldExportAllDataBatches() throws Exception {
+        AccountEntity created = accountService.createAccount("70.70.70.73", true);
+        siteRepository.save(SiteEntity.builder().account(created).name("Export site").type(SiteType.HOME).build());
+        List<DeviceEntity> devices = deviceRepository.saveAll(IntStream.range(0, 501)
+                .mapToObj(index -> exportTestDevice(created, "Export batch device " + index))
+                .toList());
+        String token = authService.login("70.70.70.74", created.getUuid(), created.getSecret()).getToken();
+
+        byte[] content = mockMvc.perform(get("/me/export").header("Authorization", token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+
+        Map<String, byte[]> files = readZipEntries(content);
+        Map<String, List<JsonNode>> records = readExportRecords(files.get("data.jsonl"));
+        List<JsonNode> exportedDevices = records.get("device");
+        assertThat(exportedDevices.stream().map(row -> row.get("id").asLong()).toList())
+                .containsExactlyInAnyOrderElementsOf(devices.stream().map(DeviceEntity::getId).toList());
+        assertThat(records).doesNotContainKey("history-summary");
+
+        List<JsonNode> sites = records.get("site");
+        assertThat(sites).hasSize(1);
+        for (JsonNode site : sites) {
+            assertThat(site.has("controls")).isFalse();
+            assertThat(site.has("powerLimits")).isFalse();
+            assertThat(site.has("productionSources")).isFalse();
+        }
     }
 
     private DeviceEntity exportTestDevice(AccountEntity account, String name) {
@@ -468,44 +524,28 @@ class AccountControllerTest {
                 .build();
     }
 
-    private JsonNode findTable(JsonNode export, String entityName) {
-        for (JsonNode table : export.get("tables")) {
-            if (entityName.equals(table.get("entity").asText())) {
-                return table;
-            }
+    private Map<String, List<JsonNode>> readExportRecords(byte[] content) throws IOException {
+        Map<String, List<JsonNode>> records = new LinkedHashMap<>();
+        for (String line : new String(content, StandardCharsets.UTF_8).lines().toList()) {
+            JsonNode record = objectMapper.readTree(line);
+            assertThat(record.isObject()).isTrue();
+            assertThat(record.size()).isEqualTo(1);
+            var entry = record.fields().next();
+            records.computeIfAbsent(entry.getKey(), ignored -> new ArrayList<>()).add(entry.getValue());
         }
-        throw new AssertionError("Missing export table " + entityName);
+        return records;
     }
 
-    private boolean hasTable(JsonNode export, String entityName) {
-        for (JsonNode table : export.get("tables")) {
-            if (entityName.equals(table.get("entity").asText())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private JsonNode findOmittedHighVolumeTable(JsonNode export, String entityName) {
-        for (JsonNode table : export.get("omittedHighVolumeTables")) {
-            if (entityName.equals(table.get("entity").asText())) {
-                return table;
-            }
-        }
-        throw new AssertionError("Missing high-volume export summary " + entityName);
-    }
-
-    private byte[] readZipEntry(byte[] zipBytes, String entryName) throws IOException {
+    private Map<String, byte[]> readZipEntries(byte[] zipBytes) throws IOException {
+        Map<String, byte[]> files = new LinkedHashMap<>();
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
             var entry = zip.getNextEntry();
             while (entry != null) {
-                if (entryName.equals(entry.getName())) {
-                    return zip.readAllBytes();
-                }
+                files.put(entry.getName(), zip.readAllBytes());
                 entry = zip.getNextEntry();
             }
         }
-        throw new AssertionError("Missing ZIP entry " + entryName);
+        return files;
     }
 
 }

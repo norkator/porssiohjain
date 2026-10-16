@@ -343,7 +343,7 @@
     "passwordFailed": "Password change failed",
     "exportEyebrow": "Data export",
     "exportTitle": "Download stored information",
-    "exportDescription": "Download a ZIP file containing your account and related stored data.",
+    "exportDescription": "Download a compact ZIP file of your stored account data. Large history datasets are included as summaries.",
     "exportButton": "Download data",
     "exportDownloading": "Preparing download...",
     "exportFailed": "Failed to download account data.",

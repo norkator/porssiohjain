@@ -343,7 +343,7 @@
     "passwordFailed": "Salasanan vaihto epäonnistui",
     "exportEyebrow": "Tietojen vienti",
     "exportTitle": "Lataa tallennetut tiedot",
-    "exportDescription": "Lataa ZIP-tiedosto, joka sisältää tilisi ja siihen liittyvät tallennetut tiedot.",
+    "exportDescription": "Lataa pieni ZIP-tiedosto tilisi tallennetuista tiedoista. Laajat historiatiedot ovat mukana yhteenvetoina.",
     "exportButton": "Lataa tiedot",
     "exportDownloading": "Valmistellaan latausta...",
     "exportFailed": "Tilidatan lataaminen epäonnistui.",

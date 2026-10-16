@@ -144,13 +144,20 @@ class FeatureRequestsControllerTest {
             java.util.zip.ZipEntry entry;
             boolean found = false;
             while ((entry = zip.getNextEntry()) != null) {
-                if (!entry.getName().equals("account-data.json")) continue;
-                var data = new com.fasterxml.jackson.databind.ObjectMapper().readTree(zip.readAllBytes());
-                for (var table : data.get("tables")) {
-                    if (!table.get("entity").asText().equals("FeatureRequestCommentEntity")) continue;
-                    assertEquals(3, table.get("rowCount").asInt());
-                    found = true;
+                if (!entry.getName().equals("data.jsonl")) continue;
+                var lines = new String(zip.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).lines().toList();
+                var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                var exportedComments = new java.util.ArrayList<com.fasterxml.jackson.databind.JsonNode>();
+                for (String line : lines) {
+                    var comment = mapper.readTree(line).get("feature-request-comment");
+                    if (comment != null) exportedComments.add(comment);
                 }
+                assertEquals(3, exportedComments.size());
+                for (var comment : exportedComments) {
+                    assertEquals(id.longValue(), comment.get("featureRequestId").asLong());
+                }
+                assertTrue(exportedComments.stream().anyMatch(comment -> comment.get("message").asText().equals("Could you explain?")));
+                found = true;
             }
             assertTrue(found, "Account export includes the full request discussion, including administrator replies");
         }

@@ -11,7 +11,9 @@
 
 package com.nitramite.porssiohjain.services;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceAcCommandLogEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerPlanPointEntity;
@@ -50,6 +52,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -71,7 +74,8 @@ public class AccountDataExportService {
 
     private final EntityManager entityManager;
     private final EntityManagerFactory entityManagerFactory;
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules()
+            .disable(SerializationFeature.FLUSH_AFTER_WRITE_VALUE);
 
     @Transactional(readOnly = true)
     public byte[] exportAccountData(Long accountId) {
@@ -112,46 +116,50 @@ public class AccountDataExportService {
             }
         } while (changed);
 
-        Map<String, Object> export = new LinkedHashMap<>();
-        export.put("schemaVersion", 1);
-        export.put("generatedAt", Instant.now());
-        export.put("accountId", accountId);
-        export.put("tables", buildTables(entityTypes, ownedIds, persistenceUnitUtil));
-        export.put("omittedHighVolumeTables", buildHighVolumeTableSummaries(entityTypes, exportableEntityClasses, accountId));
-
         try {
-            return buildZipExport(export);
+            return buildZipExport(entityTypes, ownedIds, persistenceUnitUtil, exportableEntityClasses, accountId);
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to serialize account data export", ex);
         }
     }
 
-    private byte[] buildZipExport(Map<String, Object> export) throws IOException {
+    private byte[] buildZipExport(
+            List<EntityType<?>> entityTypes,
+            Map<Class<?>, Set<Object>> ownedIds,
+            PersistenceUnitUtil persistenceUnitUtil,
+            Set<Class<?>> exportableEntityClasses,
+            Long accountId
+    ) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
             zip.putNextEntry(new ZipEntry("README.txt"));
             zip.write("""
                     Pörssiohjain account data export
 
-                    account-data.json contains account settings, devices, controls, planner settings, and other account-owned configuration data.
-                    Some high-volume time-series data is summarized in omittedHighVolumeTables with row counts and time ranges instead of being included row by row.
-                    This export is intended for reviewing the personal information and configuration data stored for your account.
+                    data.jsonl is UTF-8 text with one JSON record per line, labeled by data category.
+                    Related records are linked by ID. Child collections are separate records.
+                    history-summary records list counts and time ranges for high-volume history omitted from this export.
                     """.getBytes(StandardCharsets.UTF_8));
             zip.closeEntry();
 
-            zip.putNextEntry(new ZipEntry("account-data.json"));
-            zip.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(export));
+            zip.putNextEntry(new ZipEntry("data.jsonl"));
+            try (JsonGenerator json = jsonLinesGenerator(zip)) {
+                writeData(json, entityTypes, ownedIds, persistenceUnitUtil);
+                for (Map<String, Object> summary : buildHighVolumeSummaries(entityTypes, exportableEntityClasses, accountId)) {
+                    writeRecord(json, "history-summary", summary);
+                }
+            }
             zip.closeEntry();
         }
         return output.toByteArray();
     }
 
-    private List<Map<String, Object>> buildTables(
+    private void writeData(
+            JsonGenerator json,
             List<EntityType<?>> entityTypes,
             Map<Class<?>, Set<Object>> ownedIds,
             PersistenceUnitUtil persistenceUnitUtil
-    ) {
-        List<Map<String, Object>> tables = new ArrayList<>();
+    ) throws IOException {
         for (EntityType<?> entityType : entityTypes) {
             Class<?> entityClass = entityType.getJavaType();
             Set<Object> ids = ownedIds.get(entityClass);
@@ -159,21 +167,43 @@ public class AccountDataExportService {
                 continue;
             }
 
-            List<Map<String, Object>> rows = findRowsByIds(entityType, ids).stream()
-                    .sorted(Comparator.comparing(row -> String.valueOf(persistenceUnitUtil.getIdentifier(row))))
-                    .map(row -> serializeEntity(row, entityClass, persistenceUnitUtil))
+            List<Field> fields = getFields(entityClass).stream()
+                    .filter(field -> !Modifier.isStatic(field.getModifiers()))
+                    .filter(field -> !Collection.class.isAssignableFrom(field.getType()))
+                    .filter(field -> !Map.class.isAssignableFrom(field.getType()))
                     .toList();
-
-            Map<String, Object> table = new LinkedHashMap<>();
-            table.put("entity", entityClass.getSimpleName());
-            table.put("rowCount", rows.size());
-            table.put("rows", rows);
-            tables.add(table);
+            List<Object> idList = new ArrayList<>(ids);
+            String name = exportName(entityClass);
+            for (int start = 0; start < idList.size(); start += ID_BATCH_SIZE) {
+                List<Object> batch = idList.subList(start, Math.min(start + ID_BATCH_SIZE, idList.size()));
+                for (Object row : findRowsByIds(entityType, batch)) {
+                    writeRecord(json, name, serializeEntity(row, fields, persistenceUnitUtil));
+                }
+            }
         }
-        return tables;
     }
 
-    private List<Map<String, Object>> buildHighVolumeTableSummaries(
+    private void writeRecord(JsonGenerator json, String name, Map<String, Object> record) throws IOException {
+        json.writeStartObject();
+        json.writeObjectField(name, record);
+        json.writeEndObject();
+        json.writeRaw('\n');
+    }
+
+    private JsonGenerator jsonLinesGenerator(ZipOutputStream zip) throws IOException {
+        JsonGenerator json = objectMapper.getFactory().createGenerator(zip);
+        json.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+        json.setRootValueSeparator(null);
+        return json;
+    }
+
+    private String exportName(Class<?> entityClass) {
+        return entityClass.getSimpleName().replaceFirst("Entity$", "")
+                .replaceAll("([a-z0-9])([A-Z])", "$1-$2")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private List<Map<String, Object>> buildHighVolumeSummaries(
             List<EntityType<?>> entityTypes,
             Set<Class<?>> exportableEntityClasses,
             Long accountId
@@ -190,10 +220,14 @@ public class AccountDataExportService {
                 continue;
             }
 
+            long rowCount = countRows(entityType, accountPredicate, accountId);
+            if (rowCount == 0) {
+                continue;
+            }
+
             Map<String, Object> summary = new LinkedHashMap<>();
-            summary.put("entity", entityClass.getSimpleName());
-            summary.put("reason", "High-volume time-series data is omitted from account information export to avoid excessive memory and file size.");
-            summary.put("rowCount", countRows(entityType, accountPredicate, accountId));
+            summary.put("data", exportName(entityClass));
+            summary.put("rowCount", rowCount);
 
             String timeField = summaryTimeField(entityClass);
             if (timeField != null) {
@@ -301,24 +335,18 @@ public class AccountDataExportService {
         return ids;
     }
 
-    private List<Object> findRowsByIds(EntityType<?> entityType, Set<Object> ids) {
+    private List<Object> findRowsByIds(EntityType<?> entityType, List<Object> ids) {
         String idFieldName = getIdFieldName(entityType);
         if (idFieldName == null) {
             return List.of();
         }
 
-        List<Object> rows = new ArrayList<>();
-        List<Object> idList = new ArrayList<>(ids);
-        for (int start = 0; start < idList.size(); start += ID_BATCH_SIZE) {
-            List<Object> batch = idList.subList(start, Math.min(start + ID_BATCH_SIZE, idList.size()));
-            rows.addAll(entityManager.createQuery(
-                            "select e from " + entityType.getName() + " e where e." + idFieldName + " in :ids",
-                            Object.class
-                    )
-                    .setParameter("ids", batch)
-                    .getResultList());
-        }
-        return rows;
+        return entityManager.createQuery(
+                        "select e from " + entityType.getName() + " e where e." + idFieldName + " in :ids",
+                        Object.class
+                )
+                .setParameter("ids", ids)
+                .getResultList();
     }
 
     private String getIdFieldName(EntityType<?> entityType) {
@@ -383,13 +411,9 @@ public class AccountDataExportService {
         return false;
     }
 
-    private Map<String, Object> serializeEntity(Object row, Class<?> entityClass, PersistenceUnitUtil persistenceUnitUtil) {
+    private Map<String, Object> serializeEntity(Object row, List<Field> fields, PersistenceUnitUtil persistenceUnitUtil) {
         Map<String, Object> output = new LinkedHashMap<>();
-        for (Field field : getFields(entityClass)) {
-            if (Modifier.isStatic(field.getModifiers())) {
-                continue;
-            }
-
+        for (Field field : fields) {
             Object value = readField(field, row);
             output.put(field.getName(), serializeValue(field, value, persistenceUnitUtil));
         }
@@ -397,19 +421,12 @@ public class AccountDataExportService {
     }
 
     private Object serializeValue(Field field, Object value, PersistenceUnitUtil persistenceUnitUtil) {
-        if (value instanceof Collection<?> || value instanceof Map<?, ?>) {
-            return "collection exported through related entity rows";
-        }
-
         if (value == null || isSimpleValue(value)) {
             return value;
         }
 
         if (isEntityReference(field)) {
-            Map<String, Object> reference = new LinkedHashMap<>();
-            reference.put("entity", field.getType().getSimpleName());
-            reference.put("id", persistenceUnitUtil.getIdentifier(value));
-            return reference;
+            return persistenceUnitUtil.getIdentifier(value);
         }
 
         return String.valueOf(value);
