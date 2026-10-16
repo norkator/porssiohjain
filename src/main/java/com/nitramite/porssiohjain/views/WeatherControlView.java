@@ -30,6 +30,7 @@ import com.nitramite.porssiohjain.services.models.WeatherControlDeviceResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlHeatPumpResponse;
 import com.nitramite.porssiohjain.services.models.WeatherControlResponse;
 import com.nitramite.porssiohjain.views.components.InfoBox;
+import com.nitramite.porssiohjain.views.components.SiteWeatherForecastChart;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -40,6 +41,7 @@ import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
@@ -62,6 +64,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -98,6 +101,7 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
     private TextField temperatureField;
     private TextField windSpeedField;
     private TextField humidityField;
+    private VerticalLayout weatherForecastLayout;
     private ComboBox<DeviceResponse> standardDeviceSelect;
     private NumberField standardChannelField;
     private ComboBox<WeatherMetricType> standardMetricCombo;
@@ -295,7 +299,13 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
                 new FormLayout.ResponsiveStep("600px", 2),
                 new FormLayout.ResponsiveStep("900px", 4)
         );
-        return formLayout;
+        weatherForecastLayout = new VerticalLayout();
+        weatherForecastLayout.setPadding(false);
+        weatherForecastLayout.setWidthFull();
+        VerticalLayout section = new VerticalLayout(formLayout, weatherForecastLayout);
+        section.setPadding(false);
+        section.setWidthFull();
+        return section;
     }
 
     private Component createTabsSection() {
@@ -651,7 +661,31 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
             return;
         }
 
-        SiteWeatherForecastPointResponse point = getCurrentWeatherPoint(siteId);
+        ZoneId zone = ZoneId.of(getSiteTimezone(siteId));
+        Instant now = Instant.now();
+        LocalDate today = now.atZone(zone).toLocalDate();
+        Instant start = today.atStartOfDay(zone).toInstant();
+        Instant end = today.plusDays(1).atStartOfDay(zone).toInstant();
+        SiteWeatherForecastResponse response = siteId.equals(weatherControl.getSiteId())
+                ? weatherControlService.getStoredWeatherForecast(accountId, weatherControlId, start, end)
+                : siteService.getStoredSiteWeatherForecast(accountId, siteId, start, end);
+        List<SiteWeatherForecastPointResponse> points = response.getPoints() == null ? List.of()
+                : response.getPoints().stream()
+                .filter(point -> point.getTime() != null && !point.getTime().isBefore(start) && point.getTime().isBefore(end))
+                .toList();
+
+        weatherForecastLayout.removeAll();
+        weatherForecastLayout.add(new H3(t("weatherControl.weather.chart.title")));
+        if (points.isEmpty()) {
+            weatherForecastLayout.add(new Paragraph(t("weatherControl.weather.chart.empty")));
+        } else {
+            weatherForecastLayout.add(new SiteWeatherForecastChart(points, today, zone,
+                    new SiteWeatherForecastChart.Labels(t("weatherControl.weather.field.temperature"),
+                            t("weatherControl.weather.field.windSpeed"), t("weatherControl.weather.field.humidity"),
+                            t("weatherControl.weather.chart.time"), t("weatherControl.weather.chart.now"))));
+        }
+
+        SiteWeatherForecastPointResponse point = getCurrentWeatherPoint(points, now);
         if (point == null) {
             weatherTimestampField.setValue(t("weatherControl.weather.notAvailable"));
             temperatureField.setValue("-");
@@ -671,16 +705,12 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         temperatureField.clear();
         windSpeedField.clear();
         humidityField.clear();
+        weatherForecastLayout.removeAll();
+        weatherForecastLayout.add(new Paragraph(t("weatherControl.weather.chart.selectSite")));
     }
 
-    private SiteWeatherForecastPointResponse getCurrentWeatherPoint(Long siteId) {
-        SiteWeatherForecastResponse response = weatherControlService.getStoredWeatherForecast(accountId, weatherControlId, null, null);
-        if (response.getPoints() == null || response.getPoints().isEmpty()) {
-            return null;
-        }
-
-        Instant now = Instant.now();
-        return response.getPoints().stream()
+    private SiteWeatherForecastPointResponse getCurrentWeatherPoint(List<SiteWeatherForecastPointResponse> points, Instant now) {
+        return points.stream()
                 .min((left, right) -> {
                     long leftDistance = Math.abs(left.getTime().toEpochMilli() - now.toEpochMilli());
                     long rightDistance = Math.abs(right.getTime().toEpochMilli() - now.toEpochMilli());
