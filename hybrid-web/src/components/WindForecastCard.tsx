@@ -238,20 +238,16 @@ export default function WindForecastCard() {
   if(error) return <div className="app-card p-6 text-on-error-container">{t("failed")}: {error}</div>;
   if(!data) return <div className="app-card p-6 text-on-surface-variant">{t("loading")}</div>;
   const values=data.points.map(p=>p.megawatts);
-  const forecastEnd = data.points[data.points.length - 1]?.endTime;
-  const availableUntil = forecastEnd ? t("availableUntil", { time: formatForecastTimestamp(forecastEnd, data.timezone), timezone: data.timezone }) : null;
   return <article className="app-card overflow-hidden">
     <div className="grid grid-cols-1 gap-6 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_17rem]">
       <div>
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-primary">{t("eyebrow")}</p><h3 className="font-headline text-3xl font-black">{t("title")}</h3><p className="mt-2 text-sm text-on-surface-variant">{t("description",{timezone:data.timezone})}</p></div><button className="secondary-action justify-center px-4 py-2 text-sm" onClick={()=>setOpen(true)}>{t("notifications")}</button></div>
-        {availableUntil ? <p className="mb-4 text-sm font-medium text-on-surface">{availableUntil}</p> : null}
         {values.length ? <WindChartSurface chartHeight={COMPACT_CHART_HEIGHT} data={data} onActivate={()=>setChartOpen(true)}/> : <p>{t("empty")}</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1"><Stat label={t("todayAverage")} value={`${number(data.todayAverage)} MW`}/><Stat label={t("tomorrowAverage")} value={`${number(data.tomorrowAverage)} MW`}/><Stat label={t("drop")} value={data.tomorrowDropPercent==null?"–":`${number(data.tomorrowDropPercent,1)} %`}/></div>
     </div>
     <WindDialog open={open} close={()=>setOpen(false)} timezone={timezone}/>
     <AppDialog description={t("expandedDescription",{timezone:data.timezone})} eyebrow={t("eyebrow")} isOpen={chartOpen} maxWidthClassName="max-w-6xl" onClose={()=>{setChartOpen(false);setSelectedPointIndex(null)}} title={t("expandedTitle")}>
-      {availableUntil ? <p className="mb-4 text-sm font-medium text-on-surface">{availableUntil}</p> : null}
       <WindChartSurface chartHeight={EXPANDED_CHART_HEIGHT} data={data} onSelectedPointChange={setSelectedPointIndex} selectedPointIndex={selectedPointIndex} variant="expanded"/>
       <div className="mt-4 grid gap-3 sm:grid-cols-3"><Stat label={t("todayAverage")} value={`${number(data.todayAverage)} MW`}/><Stat label={t("tomorrowAverage")} value={`${number(data.tomorrowAverage)} MW`}/><Stat label={t("drop")} value={data.tomorrowDropPercent==null?"–":`${number(data.tomorrowDropPercent,1)} %`}/></div>
     </AppDialog>

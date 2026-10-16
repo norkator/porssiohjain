@@ -11,11 +11,10 @@
 
 import { useEffect, useState } from "react";
 import { getCurrentTimezone } from "@/lib/add-device-flow";
-import { fetchCachedNordpoolTodayChart, fetchCachedNordpoolTomorrowChart, type NordpoolTodayChart } from "@/lib/nordpool";
+import { fetchCachedNordpoolTodayChart, fetchCachedNordpoolTomorrowChart, mergeNordpoolCharts, type NordpoolTodayChart } from "@/lib/nordpool";
 
 type UseNordpoolTodayChartState = {
   chart: NordpoolTodayChart | null;
-  tomorrowChart: NordpoolTodayChart | null;
   isLoading: boolean;
   error: string | null;
 };
@@ -23,7 +22,6 @@ type UseNordpoolTodayChartState = {
 export function useNordpoolTodayChart() {
   const [state, setState] = useState<UseNordpoolTodayChartState>({
     chart: null,
-    tomorrowChart: null,
     isLoading: true,
     error: null
   });
@@ -34,8 +32,16 @@ export function useNordpoolTodayChart() {
 
     async function loadChart() {
       try {
-        const chart = await fetchCachedNordpoolTodayChart(timezone);
-        const tomorrowChart = await fetchCachedNordpoolTomorrowChart(timezone).catch(() => null);
+        const results = await Promise.allSettled([
+          fetchCachedNordpoolTodayChart(timezone),
+          fetchCachedNordpoolTomorrowChart(timezone)
+        ]);
+        const charts = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+        if (!charts.length) {
+          const failure = results.find((result) => result.status === "rejected");
+          throw failure?.reason ?? new Error("Failed to load Nord Pool pricing");
+        }
+        const chart = mergeNordpoolCharts(charts);
 
         if (!isActive) {
           return;
@@ -43,7 +49,6 @@ export function useNordpoolTodayChart() {
 
         setState({
           chart,
-          tomorrowChart,
           isLoading: false,
           error: null
         });
@@ -54,7 +59,6 @@ export function useNordpoolTodayChart() {
 
         setState({
           chart: null,
-          tomorrowChart: null,
           isLoading: false,
           error: error instanceof Error ? error.message : "Failed to load Nord Pool pricing"
         });

@@ -10,14 +10,15 @@
  */
 
 import { useNordpoolTodayChart } from "@/hooks/useNordpoolTodayChart";
-import { useI18n } from "@/lib/i18n";
+import { getCurrentIntlLocales, useI18n } from "@/lib/i18n";
 import { formatNordpoolPrice, formatNordpoolTime, type NordpoolTodayChart } from "@/lib/nordpool";
 import MarketNotificationsDialog from "@/components/MarketNotificationsDialog";
 import AppDialog from "@/components/AppDialog";
 import { type PointerEvent, useState } from "react";
 
 const CHART_WIDTH = 960;
-const CHART_PADDING_X = 44;
+const CHART_PADDING_LEFT = 86;
+const CHART_PADDING_RIGHT = 22;
 const CHART_PADDING_TOP = 18;
 const CHART_PADDING_BOTTOM = 34;
 const Y_AXIS_STEPS = 4;
@@ -31,18 +32,25 @@ type NordpoolChartSurfaceProps = {
   onSelectedPointChange?: (index: number | null) => void;
 };
 
-function buildChartPath(values: number[], innerWidth: number, innerHeight: number) {
-  if (values.length === 0) {
+function getX(timestamp: number, chart: NordpoolTodayChart, innerWidth: number) {
+  const start = Date.parse(chart.points[0].timestamp);
+  const end = Date.parse(chart.points[chart.points.length - 1].timestamp);
+  return CHART_PADDING_LEFT + ((timestamp - start) / (end - start || 1)) * innerWidth;
+}
+
+function buildChartPath(chart: NordpoolTodayChart, innerWidth: number, innerHeight: number) {
+  if (chart.points.length === 0) {
     return "";
   }
 
+  const values = chart.points.map((point) => point.price);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const range = maxValue - minValue || 1;
 
   return values
     .map((value, index) => {
-      const x = CHART_PADDING_X + (innerWidth * index) / Math.max(values.length - 1, 1);
+      const x = getX(Date.parse(chart.points[index].timestamp), chart, innerWidth);
       const y = CHART_PADDING_TOP + innerHeight - ((value - minValue) / range) * innerHeight;
 
       return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
@@ -50,16 +58,16 @@ function buildChartPath(values: number[], innerWidth: number, innerHeight: numbe
     .join(" ");
 }
 
-function buildAreaPath(values: number[], innerWidth: number, innerHeight: number) {
-  if (values.length === 0) {
+function buildAreaPath(chart: NordpoolTodayChart, innerWidth: number, innerHeight: number) {
+  if (chart.points.length === 0) {
     return "";
   }
 
-  const linePath = buildChartPath(values, innerWidth, innerHeight);
-  const lastX = CHART_PADDING_X + innerWidth;
+  const linePath = buildChartPath(chart, innerWidth, innerHeight);
+  const lastX = CHART_PADDING_LEFT + innerWidth;
   const baselineY = CHART_PADDING_TOP + innerHeight;
 
-  return `${linePath} L ${lastX.toFixed(2)} ${baselineY.toFixed(2)} L ${CHART_PADDING_X} ${baselineY.toFixed(2)} Z`;
+  return `${linePath} L ${lastX.toFixed(2)} ${baselineY.toFixed(2)} L ${CHART_PADDING_LEFT} ${baselineY.toFixed(2)} Z`;
 }
 
 function getTimeLabelPoints(chart: NordpoolTodayChart, targetLabels: number) {
@@ -79,25 +87,54 @@ function getTimeLabelPoints(chart: NordpoolTodayChart, targetLabels: number) {
 }
 
 function getCurrentPointIndex(chart: NordpoolTodayChart) {
+  const now = Date.now();
   for (let index = chart.points.length - 1; index >= 0; index -= 1) {
-    if (new Date(chart.points[index].timestamp).getTime() <= Date.now()) {
-      return index;
+    const timestamp = Date.parse(chart.points[index].timestamp);
+    if (timestamp <= now) {
+      return now < timestamp + chart.resolutionMinutes * 60_000 ? index : null;
     }
   }
 
-  return 0;
+  return null;
 }
 
-function getPointCoordinates(values: number[], index: number, innerWidth: number, innerHeight: number) {
+function getPointCoordinates(chart: NordpoolTodayChart, index: number, innerWidth: number, innerHeight: number) {
+  const values = chart.points.map((point) => point.price);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const range = maxValue - minValue || 1;
   const value = values[index];
 
   return {
-    x: CHART_PADDING_X + (innerWidth * index) / Math.max(values.length - 1, 1),
+    x: getX(Date.parse(chart.points[index].timestamp), chart, innerWidth),
     y: CHART_PADDING_TOP + innerHeight - ((value - minValue) / range) * innerHeight
   };
+}
+
+function formatPriceTimestamp(timestamp: string, timezone: string) {
+  return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
+    weekday: "short", day: "numeric", month: "short",
+    hour: "2-digit", minute: "2-digit", hour12: false, timeZone: timezone
+  }).format(new Date(timestamp));
+}
+
+function getDayBands(chart: NordpoolTodayChart, innerWidth: number) {
+  const dayKeyFormatter = new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric", month: "2-digit", day: "2-digit", timeZone: chart.timezone
+  });
+  const labelFormatter = new Intl.DateTimeFormat(getCurrentIntlLocales(), {
+    weekday: "short", day: "numeric", month: "short", timeZone: chart.timezone
+  });
+  const bands: { dayKey: string; label: string; startX: number; endX: number }[] = [];
+  for (const point of chart.points) {
+    const timestamp = new Date(point.timestamp);
+    const dayKey = dayKeyFormatter.format(timestamp);
+    if (bands[bands.length - 1]?.dayKey !== dayKey) {
+      bands.push({ dayKey, label: labelFormatter.format(timestamp),
+        startX: getX(timestamp.getTime(), chart, innerWidth), endX: CHART_PADDING_LEFT + innerWidth });
+    }
+  }
+  return bands.map((band, index) => ({ ...band, endX: bands[index + 1]?.startX ?? CHART_PADDING_LEFT + innerWidth }));
 }
 
 function NordpoolChartSurface({
@@ -110,21 +147,22 @@ function NordpoolChartSurface({
 }: NordpoolChartSurfaceProps) {
   const { t } = useI18n("charts");
   const values = chart.points.map((point) => point.price);
-  const innerWidth = CHART_WIDTH - CHART_PADDING_X * 2;
+  const innerWidth = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
   const innerHeight = chartHeight - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
-  const linePath = buildChartPath(values, innerWidth, innerHeight);
-  const areaPath = buildAreaPath(values, innerWidth, innerHeight);
+  const linePath = buildChartPath(chart, innerWidth, innerHeight);
+  const areaPath = buildAreaPath(chart, innerWidth, innerHeight);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const range = maxValue - minValue || 1;
   const currentPointIndex = getCurrentPointIndex(chart);
-  const currentPointCoordinates = getPointCoordinates(values, currentPointIndex, innerWidth, innerHeight);
-  const activePointIndex = selectedPointIndex ?? currentPointIndex;
+  const currentPointCoordinates = currentPointIndex === null ? null : getPointCoordinates(chart, currentPointIndex, innerWidth, innerHeight);
+  const activePointIndex = selectedPointIndex ?? currentPointIndex ?? 0;
   const activePoint = chart.points[activePointIndex];
-  const activePointCoordinates = getPointCoordinates(values, activePointIndex, innerWidth, innerHeight);
+  const activePointCoordinates = getPointCoordinates(chart, activePointIndex, innerWidth, innerHeight);
   const yAxisValues = Array.from({ length: Y_AXIS_STEPS + 1 }, (_, index) => maxValue - (range * index) / Y_AXIS_STEPS);
-  const timeLabels = getTimeLabelPoints(chart, variant === "expanded" ? 9 : 5);
-  const activeTooltipX = Math.min(Math.max(activePointCoordinates.x, CHART_PADDING_X + 76), CHART_PADDING_X + innerWidth - 76);
+  const timeLabels = getTimeLabelPoints(chart, variant === "expanded" ? 9 : 6);
+  const dayBands = getDayBands(chart, innerWidth);
+  const activeTooltipX = Math.min(Math.max(activePointCoordinates.x, CHART_PADDING_LEFT + 76), CHART_PADDING_LEFT + innerWidth - 76);
   const activeTooltipY = Math.max(activePointCoordinates.y - 44, CHART_PADDING_TOP + 22);
 
   function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
@@ -134,9 +172,14 @@ function NordpoolChartSurface({
 
     const rect = event.currentTarget.getBoundingClientRect();
     const relativeX = ((event.clientX - rect.left) / rect.width) * CHART_WIDTH;
-    const boundedX = Math.min(Math.max(relativeX, CHART_PADDING_X), CHART_PADDING_X + innerWidth);
-    const index = Math.round(((boundedX - CHART_PADDING_X) / innerWidth) * Math.max(chart.points.length - 1, 1));
-    onSelectedPointChange(Math.min(Math.max(index, 0), chart.points.length - 1));
+    const progress = Math.min(Math.max((relativeX - CHART_PADDING_LEFT) / innerWidth, 0), 1);
+    const start = Date.parse(chart.points[0].timestamp);
+    const end = Date.parse(chart.points[chart.points.length - 1].timestamp);
+    const timestamp = start + progress * (end - start);
+    let index = chart.points.findIndex((point) => Date.parse(point.timestamp) >= timestamp);
+    if (index < 0) index = chart.points.length - 1;
+    if (index > 0 && timestamp - Date.parse(chart.points[index - 1].timestamp) < Date.parse(chart.points[index].timestamp) - timestamp) index--;
+    onSelectedPointChange(index);
   }
 
   return (
@@ -166,9 +209,24 @@ function NordpoolChartSurface({
             height={innerHeight}
             rx="18"
             width={innerWidth}
-            x={CHART_PADDING_X}
+            x={CHART_PADDING_LEFT}
             y={CHART_PADDING_TOP}
           />
+
+          {dayBands.map((band, index) => (
+            <g key={band.dayKey}>
+              {index % 2 === 1 ? (
+                <rect fill="rgb(var(--color-primary) / 0.055)" height={innerHeight}
+                  width={Math.max(band.endX - band.startX, 0)} x={band.startX} y={CHART_PADDING_TOP} />
+              ) : null}
+              {index > 0 ? (
+                <line stroke="rgb(var(--color-primary) / 0.42)" strokeDasharray="4 6" strokeWidth="1.5"
+                  x1={band.startX} x2={band.startX} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
+              ) : null}
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700"
+                textAnchor="start" x={band.startX + 8} y={CHART_PADDING_TOP + 18}>{band.label}</text>
+            </g>
+          ))}
 
           {yAxisValues.map((value, index) => {
             const y = CHART_PADDING_TOP + (innerHeight * index) / Y_AXIS_STEPS;
@@ -179,12 +237,12 @@ function NordpoolChartSurface({
                   stroke="rgb(var(--color-outline-variant) / 0.6)"
                   strokeDasharray="6 8"
                   strokeWidth="1"
-                  x1={CHART_PADDING_X}
-                  x2={CHART_PADDING_X + innerWidth}
+                  x1={CHART_PADDING_LEFT}
+                  x2={CHART_PADDING_LEFT + innerWidth}
                   y1={y}
                   y2={y}
                 />
-                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor="end" x={CHART_PADDING_X - 8} y={y + 4}>
+                <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" textAnchor="end" x={CHART_PADDING_LEFT - 8} y={y + 4}>
                   {formatNordpoolPrice(value)}
                 </text>
               </g>
@@ -193,7 +251,7 @@ function NordpoolChartSurface({
 
           {timeLabels.map((point) => {
             const index = chart.points.findIndex((candidate) => candidate.timestamp === point.timestamp);
-            const x = CHART_PADDING_X + (innerWidth * index) / Math.max(chart.points.length - 1, 1);
+            const x = getX(Date.parse(point.timestamp), chart, innerWidth);
 
             return (
               <g key={point.timestamp}>
@@ -221,23 +279,27 @@ function NordpoolChartSurface({
           <path d={areaPath} fill={`url(#nordpool-area-${variant})`} />
           <path d={linePath} fill="none" stroke="rgb(var(--color-primary))" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
 
-          <line
-            stroke="rgb(var(--color-secondary) / 0.45)"
-            strokeDasharray="5 7"
-            strokeWidth="2"
-            x1={currentPointCoordinates.x}
-            x2={currentPointCoordinates.x}
-            y1={CHART_PADDING_TOP}
-            y2={CHART_PADDING_TOP + innerHeight}
-          />
-          <circle
-            cx={currentPointCoordinates.x}
-            cy={currentPointCoordinates.y}
-            fill="rgb(var(--color-secondary-container))"
-            r="7"
-            stroke="rgb(var(--color-primary))"
-            strokeWidth="3"
-          />
+          {currentPointCoordinates ? (
+            <>
+              <line
+                stroke="rgb(var(--color-secondary) / 0.45)"
+                strokeDasharray="5 7"
+                strokeWidth="2"
+                x1={currentPointCoordinates.x}
+                x2={currentPointCoordinates.x}
+                y1={CHART_PADDING_TOP}
+                y2={CHART_PADDING_TOP + innerHeight}
+              />
+              <circle
+                cx={currentPointCoordinates.x}
+                cy={currentPointCoordinates.y}
+                fill="rgb(var(--color-secondary-container))"
+                r="7"
+                stroke="rgb(var(--color-primary))"
+                strokeWidth="3"
+              />
+            </>
+          ) : null}
 
           {variant === "expanded" ? (
             <g>
@@ -268,12 +330,12 @@ function NordpoolChartSurface({
                 y={activeTooltipY - 20}
               />
               <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY - 3}>
-                {formatNordpoolTime(activePoint.timestamp, chart.timezone)}
+                {formatPriceTimestamp(activePoint.timestamp, chart.timezone)}
               </text>
               <text fill="rgb(var(--color-on-surface))" fontSize="14" fontWeight="800" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 14}>
                 {formatNordpoolPrice(activePoint.price)} snt/kWh
               </text>
-              <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_X + innerWidth / 2} y={chartHeight - 6}>
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={chartHeight - 6}>
                 {t("timeInTimezone", { timezone: chart.timezone })}
               </text>
             </g>
@@ -292,12 +354,10 @@ function NordpoolChartSurface({
 
 export default function NordpoolTodayChartCard() {
   const { t } = useI18n("charts");
-  const { chart, tomorrowChart, error, isLoading } = useNordpoolTodayChart();
+  const { chart, error, isLoading } = useNordpoolTodayChart();
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [isChartDialogOpen, setIsChartDialogOpen] = useState(false);
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
-  const [selectedDay, setSelectedDay] = useState<"today" | "tomorrow">("today");
-  const [tomorrowNotice, setTomorrowNotice] = useState(false);
 
   if (isLoading) {
     return <div className="app-card p-6 text-sm text-on-surface-variant">{t("loadingNordpool")}</div>;
@@ -319,26 +379,10 @@ export default function NordpoolTodayChartCard() {
     );
   }
 
-  const hasTomorrowChart = Boolean(tomorrowChart && tomorrowChart.points.length > 0);
-  const activeDay = selectedDay === "tomorrow" && hasTomorrowChart ? "tomorrow" : "today";
-  const activeChart = activeDay === "tomorrow" ? tomorrowChart! : chart;
-  const currentPointIndex = getCurrentPointIndex(activeChart);
-  const currentPoint = activeChart.points[currentPointIndex];
-  const dialogPointIndex = selectedPointIndex ?? currentPointIndex;
-  const dialogPoint = activeChart.points[dialogPointIndex];
-  const activeDayLabel = activeDay === "tomorrow" ? t("tomorrow") : t("today");
-  const activePriceDayLabel = activeDay === "tomorrow" ? t("tomorrowPriceDay") : t("todayPriceDay");
-
-  function selectDay(day: "today" | "tomorrow") {
-    if (day === "tomorrow" && !hasTomorrowChart) {
-      setTomorrowNotice(true);
-      return;
-    }
-
-    setSelectedDay(day);
-    setSelectedPointIndex(null);
-    setTomorrowNotice(false);
-  }
+  const currentPointIndex = getCurrentPointIndex(chart);
+  const currentPoint = currentPointIndex === null ? null : chart.points[currentPointIndex];
+  const dialogPointIndex = selectedPointIndex ?? currentPointIndex ?? 0;
+  const dialogPoint = chart.points[dialogPointIndex];
 
   return (
     <article className="app-card overflow-hidden">
@@ -349,7 +393,7 @@ export default function NordpoolTodayChartCard() {
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">{t("nordpoolTitle")}</p>
               <h3 className="font-headline text-3xl font-black tracking-tight text-on-surface">{t("nordpoolHeadline")}</h3>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-on-surface-variant">
-                {t("nordpoolDescription", { day: activePriceDayLabel, timezone: activeChart.timezone })}
+                {t("nordpoolDescription", { timezone: chart.timezone })}
               </p>
             </div>
             <button
@@ -361,71 +405,46 @@ export default function NordpoolTodayChartCard() {
             </button>
           </div>
 
-          <div className="mb-4">
-            <div className="inline-flex rounded-full bg-surface-container p-1">
-              <button
-                className={`rounded-full px-4 py-2 text-sm font-bold transition ${activeDay === "today" ? "bg-primary text-on-primary shadow-sm" : "text-on-surface-variant hover:text-on-surface"}`}
-                onClick={() => selectDay("today")}
-                type="button"
-              >
-                {t("today")}
-              </button>
-              <button
-                aria-disabled={!hasTomorrowChart}
-                className={`rounded-full px-4 py-2 text-sm font-bold transition ${activeDay === "tomorrow" ? "bg-primary text-on-primary shadow-sm" : hasTomorrowChart ? "text-on-surface-variant hover:text-on-surface" : "text-on-surface-variant/45"}`}
-                onClick={() => selectDay("tomorrow")}
-                type="button"
-              >
-                {t("tomorrow")}
-              </button>
-            </div>
-            {tomorrowNotice ? (
-              <p className="mt-2 text-sm font-medium text-on-surface-variant">
-                {t("tomorrowNotAvailable")}
-              </p>
-            ) : null}
-          </div>
-
           <NordpoolChartSurface
-            chart={activeChart}
+            chart={chart}
             chartHeight={240}
             onActivate={() => setIsChartDialogOpen(true)}
           />
 
           <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
+            {currentPoint ? (
+              <span className="rounded-full bg-surface-container px-3 py-2">
+                {t("now", { time: formatNordpoolTime(currentPoint.timestamp, chart.timezone) })}
+              </span>
+            ) : null}
             <span className="rounded-full bg-surface-container px-3 py-2">
-              {activeDay === "today"
-                ? t("now", { time: formatNordpoolTime(currentPoint.timestamp, activeChart.timezone) })
-                : t("firstIntervalAt", { time: formatNordpoolTime(currentPoint.timestamp, activeChart.timezone) })}
+              {t("resolution", { minutes: chart.resolutionMinutes })}
             </span>
             <span className="rounded-full bg-surface-container px-3 py-2">
-              {t("resolution", { minutes: activeChart.resolutionMinutes })}
-            </span>
-            <span className="rounded-full bg-surface-container px-3 py-2">
-              {t("range", { min: formatNordpoolPrice(activeChart.min), max: formatNordpoolPrice(activeChart.max) })}
+              {t("range", { min: formatNordpoolPrice(chart.min), max: formatNordpoolPrice(chart.max) })}
             </span>
           </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-1">
           <div className="rounded-3xl bg-surface-container-low p-4">
-            <p className="metric-label mb-2">{activeDay === "today" ? t("current") : t("firstInterval")}</p>
-            <p className="font-headline text-2xl font-black text-primary">{formatNordpoolPrice(activeChart.current)}</p>
+            <p className="metric-label mb-2">{t("current")}</p>
+            <p className="font-headline text-2xl font-black text-primary">{currentPoint ? formatNordpoolPrice(currentPoint.price) : "–"}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("minimum")}</p>
-            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.min)}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.min)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("average")}</p>
-            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.avg)}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.avg)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
           <div className="rounded-3xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("maximum")}</p>
-            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(activeChart.max)}</p>
+            <p className="font-headline text-2xl font-black text-on-surface">{formatNordpoolPrice(chart.max)}</p>
             <p className="text-xs text-on-surface-variant">{t("priceUnitTax")}</p>
           </div>
         </div>
@@ -433,11 +452,11 @@ export default function NordpoolTodayChartCard() {
       <MarketNotificationsDialog
         isOpen={isNotificationDialogOpen}
         onClose={() => setIsNotificationDialogOpen(false)}
-        timezone={activeChart.timezone}
+        timezone={chart.timezone}
       />
       <AppDialog
-        description={t("nordpoolExpandedDescription", { day: activePriceDayLabel, timezone: activeChart.timezone })}
-        eyebrow={activeDayLabel}
+        description={t("nordpoolExpandedDescription", { timezone: chart.timezone })}
+        eyebrow={t("nordpoolTitle")}
         isOpen={isChartDialogOpen}
         maxWidthClassName="max-w-6xl"
         onClose={() => {
@@ -447,7 +466,7 @@ export default function NordpoolTodayChartCard() {
         title={t("nordpoolExpandedTitle")}
       >
         <NordpoolChartSurface
-          chart={activeChart}
+          chart={chart}
           chartHeight={420}
           onSelectedPointChange={setSelectedPointIndex}
           selectedPointIndex={selectedPointIndex}
@@ -456,8 +475,8 @@ export default function NordpoolTodayChartCard() {
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-2xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("selectedInterval")}</p>
-            <p className="font-headline text-2xl font-black text-on-surface">
-              {formatNordpoolTime(dialogPoint.timestamp, activeChart.timezone)}
+            <p className="font-headline text-lg font-black text-on-surface">
+              {formatPriceTimestamp(dialogPoint.timestamp, chart.timezone)}
             </p>
           </div>
           <div className="rounded-2xl bg-surface-container-low p-4">
@@ -470,9 +489,9 @@ export default function NordpoolTodayChartCard() {
           <div className="rounded-2xl bg-surface-container-low p-4">
             <p className="metric-label mb-2">{t("visibleRange")}</p>
             <p className="font-headline text-lg font-black text-on-surface">
-              {formatNordpoolPrice(activeChart.min)} - {formatNordpoolPrice(activeChart.max)}
+              {formatNordpoolPrice(chart.min)} - {formatNordpoolPrice(chart.max)}
             </p>
-            <p className="text-xs text-on-surface-variant">{t("pointsCount", { count: activeChart.points.length })}</p>
+            <p className="text-xs text-on-surface-variant">{t("pointsCount", { count: chart.points.length })}</p>
           </div>
         </div>
       </AppDialog>

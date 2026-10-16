@@ -12,7 +12,7 @@
 import { apiFetch, apiGetJson } from "@/lib/api";
 import { getCurrentIntlLocales } from "@/lib/i18n";
 
-const NORDPOOL_CHART_CACHE_PREFIX = "porssiohjain.nordpoolChart.";
+const NORDPOOL_CHART_CACHE_PREFIX = "porssiohjain.nordpoolChart.v2.";
 const NORDPOOL_CHART_CACHE_TTL_MS = 15 * 60 * 1000;
 
 export type NordpoolTodayChartPoint = {
@@ -30,6 +30,24 @@ export type NordpoolTodayChart = {
   current: number;
   points: NordpoolTodayChartPoint[];
 };
+
+export function mergeNordpoolCharts(charts: NordpoolTodayChart[]): NordpoolTodayChart | null {
+  const first = charts.find((chart) => chart.points.length > 0) ?? charts[0];
+  if (!first) return null;
+
+  const pointsByTime = new Map(charts.flatMap((chart) => chart.points)
+    .map((point) => [Date.parse(point.timestamp), point]));
+  const points = [...pointsByTime.entries()].sort(([left], [right]) => left - right).map(([, point]) => point);
+  const prices = points.map((point) => point.price);
+
+  return {
+    ...first,
+    points,
+    min: prices.length ? Math.min(...prices) : 0,
+    max: prices.length ? Math.max(...prices) : 0,
+    avg: prices.length ? prices.reduce((sum, price) => sum + price, 0) / prices.length : 0
+  };
+}
 
 export type MarketNotificationMetric = "CURRENT_PRICE" | "DAILY_AVERAGE";
 export type MarketNotificationComparison = "GREATER_THAN" | "LESS_THAN";
@@ -91,8 +109,11 @@ async function fetchNordpoolChart(path: string, timezone: string) {
 }
 
 async function fetchCachedNordpoolChart(day: "today" | "tomorrow", path: string, timezone: string) {
-  const cacheKey = `${NORDPOOL_CHART_CACHE_PREFIX}${day}.${timezone}`;
   const now = Date.now();
+  const localDate = new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric", month: "2-digit", day: "2-digit", timeZone: timezone || undefined
+  }).format(new Date(now));
+  const cacheKey = `${NORDPOOL_CHART_CACHE_PREFIX}${day}.${timezone}.${localDate}`;
 
   try {
     const cached = window.sessionStorage.getItem(cacheKey);
