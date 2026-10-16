@@ -424,6 +424,9 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
                 if (creation != null) {
                     fileMenu.addItem(creation.getText(), event -> creation.click());
                 }
+                if (component instanceof DeviceView devices) {
+                    fileMenu.addItem(t("tuya.connection.title"), event -> devices.openTuyaConnection());
+                }
             }
             fileMenu.addItem(t("desktop.close"), event -> close(this));
         }

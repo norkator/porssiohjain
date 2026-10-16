@@ -421,10 +421,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         tuyaCreateTask = new TuyaTask(this);
         createDialog.add(creationForm, Divider.createDivider(), claimProvisionedSection);
 
-        Button tuyaConnectionButton = new Button(t("tuya.connection.title"), event -> tuyaConnectionDialog.open());
-        HorizontalLayout deviceActions = new HorizontalLayout(createDialog.openButton(), tuyaConnectionButton);
-        deviceActions.setWrap(true);
-        card.add(title, deviceGrid, deviceActions, limitInfo);
+        card.add(title, deviceGrid, createDialog.openButton(), limitInfo);
         add(card);
 
         deviceTypeCombo.addValueChangeListener(event -> {
@@ -462,6 +459,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         });
 
         loadDevices();
+    }
+
+    void openTuyaConnection() {
+        tuyaConnectionDialog.open();
     }
 
     private void applyBrowserTimezone(String timezone) {
