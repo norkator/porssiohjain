@@ -23,6 +23,7 @@ import com.nitramite.porssiohjain.views.components.Divider;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -349,49 +350,65 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
 
         ProgressBar preparingIndicator = new ProgressBar();
         preparingIndicator.setIndeterminate(true);
-        preparingIndicator.setVisible(false);
-        preparingIndicator.setWidth("160px");
-        preparingIndicator.getElement().setAttribute("data-export-progress", "true");
+        preparingIndicator.setWidthFull();
+        preparingIndicator.getElement().setAttribute("aria-label", t("settings.export.preparing"));
 
         Span preparingText = new Span(t("settings.export.preparing"));
-        preparingText.setVisible(false);
-        preparingText.getElement().setAttribute("data-export-status", "true");
+        Div preparingStatus = new Div(preparingIndicator, preparingText);
+        preparingStatus.getElement().setAttribute("role", "status");
+        preparingStatus.getElement().setAttribute("aria-live", "polite");
+        preparingStatus.setWidthFull();
+        // Keep the status in the DOM so the browser can show it before the download request.
+        preparingStatus.getStyle().set("display", "none").set("max-width", "480px");
+
+        Span exportError = new Span(t("settings.export.failed"));
+        exportError.getElement().setAttribute("role", "alert");
+        exportError.getElement().setAttribute("hidden", true);
+        exportError.getStyle().set("color", "var(--lumo-error-text-color)");
 
         downloadLink.getElement().executeJs("""
                 const link = this;
-                const section = link.parentElement;
                 const button = link.querySelector('vaadin-button');
-                const status = section.querySelector('[data-export-status]');
-                const progress = section.querySelector('[data-export-progress]');
-                link.addEventListener('click', () => {
-                    if (button) {
-                        button.disabled = true;
-                    }
-                    if (status) {
-                        status.hidden = false;
-                    }
-                    if (progress) {
-                        progress.hidden = false;
-                    }
-                    window.setTimeout(() => {
-                        if (button) {
-                            button.disabled = false;
+                const status = $0;
+                const error = $1;
+                let downloading = false;
+                link.addEventListener('click', async event => {
+                    event.preventDefault();
+                    if (downloading) return;
+                    downloading = true;
+                    button.disabled = true;
+                    button.setAttribute('aria-busy', 'true');
+                    error.hidden = true;
+                    status.style.display = 'block';
+                    try {
+                        const response = await fetch(link.href);
+                        if (!response.ok || !response.headers.get('Content-Type')?.startsWith('application/zip')) {
+                            throw new Error('Account export failed');
                         }
-                        if (status) {
-                            status.hidden = true;
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const download = document.createElement('a');
+                        download.href = url;
+                        download.download = link.download;
+                        document.body.appendChild(download);
+                        try {
+                            download.click();
+                        } finally {
+                            download.remove();
+                            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
                         }
-                        if (progress) {
-                            progress.hidden = true;
-                        }
-                    }, 120000);
+                    } catch (failure) {
+                        error.hidden = false;
+                    } finally {
+                        downloading = false;
+                        button.disabled = false;
+                        button.removeAttribute('aria-busy');
+                        status.style.display = 'none';
+                    }
                 });
-                """);
+                """, preparingStatus.getElement(), exportError.getElement());
 
-        HorizontalLayout downloadRow = new HorizontalLayout(downloadLink, preparingIndicator, preparingText);
-        downloadRow.setAlignItems(Alignment.CENTER);
-        downloadRow.setSpacing(true);
-
-        section.add(title, description, downloadRow);
+        section.add(title, description, downloadLink, preparingStatus, exportError);
         return section;
     }
 

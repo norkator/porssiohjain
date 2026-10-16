@@ -260,6 +260,7 @@ export default function AccountSettingsView() {
   };
 
   const handleDownloadExport = async () => {
+    if (isDownloadingExport) return;
     setIsDownloadingExport(true);
     setExportError(null);
 
@@ -641,6 +642,7 @@ export default function AccountSettingsView() {
                 <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
                   <button
                     className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-busy={isDownloadingExport}
                     disabled={isUserPreview || isDownloadingExport}
                     onClick={handleDownloadExport}
                     type="button"
@@ -649,7 +651,14 @@ export default function AccountSettingsView() {
                   </button>
                 </div>
 
-                {exportError ? <div className="mt-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container">{exportError}</div> : null}
+                {isDownloadingExport ? (
+                  <div className="mt-4 flex items-center gap-3 rounded-xl border border-outline-variant bg-surface-container p-4 text-sm font-medium leading-6 text-on-surface" role="status" aria-live="polite">
+                    <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-primary/25 border-t-primary motion-reduce:animate-none" aria-hidden="true" />
+                    <p>{t("exportPreparing")}</p>
+                  </div>
+                ) : null}
+
+                {exportError ? <div className="mt-4 rounded-xl border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container" role="alert">{exportError}</div> : null}
               </section>
 
               <section className="app-card border border-error-container/70 bg-error-container/20 p-4 sm:p-6 lg:p-8">

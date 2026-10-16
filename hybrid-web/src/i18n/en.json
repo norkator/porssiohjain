@@ -346,6 +346,7 @@
     "exportDescription": "Download a compact ZIP file of your stored account data. Large history datasets are included as summaries.",
     "exportButton": "Download data",
     "exportDownloading": "Preparing download...",
+    "exportPreparing": "Preparing your account data. This may take a few minutes. The download will start automatically.",
     "exportFailed": "Failed to download account data.",
     "availableNow": "Available in hybrid web",
     "availableNowDescription": "This view currently supports account tier details, email updates, and language selection.",

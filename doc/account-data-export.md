@@ -2,6 +2,8 @@
 
 Vaadin Settings and Hybrid-web Account settings use `AccountDataExportService`. The REST download is `GET /me/export`; both interfaces download a ZIP archive.
 
+Both interfaces show an indeterminate loading indicator while the account data is prepared and received, and disable repeat downloads until the request finishes. The download starts automatically when the archive is ready. Failed requests show an error and allow retrying; the indicator follows the request rather than a fixed timer.
+
 The archive contains `README.txt` and `data.jsonl`, a compact UTF-8 JSON Lines file. Each line is one stored record labeled with a short data category:
 
 ```json

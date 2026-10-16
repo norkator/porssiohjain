@@ -346,6 +346,7 @@
     "exportDescription": "Lataa pieni ZIP-tiedosto tilisi tallennetuista tiedoista. Laajat historiatiedot ovat mukana yhteenvetoina.",
     "exportButton": "Lataa tiedot",
     "exportDownloading": "Valmistellaan latausta...",
+    "exportPreparing": "Valmistellaan tilisi tietoja. Tämä voi kestää muutaman minuutin. Lataus alkaa automaattisesti.",
     "exportFailed": "Tilidatan lataaminen epäonnistui.",
     "availableNow": "Saatavilla hybridiverkossa",
     "availableNowDescription": "Tässä näkymässä voi tällä hetkellä tarkastella tilitasoa sekä päivittää sähköpostin ja kielen.",
