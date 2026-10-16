@@ -48,12 +48,15 @@ public class FingridService {
     }
 
     public WindForecastChartResponse getWindForecastChart(String timezone) {
+        return getWindForecastChart(timezone, Instant.now());
+    }
+
+    WindForecastChartResponse getWindForecastChart(String timezone, Instant now) {
         ZoneId zone = ZoneId.of(timezone == null || timezone.isBlank() ? ZoneId.systemDefault().getId() : timezone);
-        LocalDate today = LocalDate.now(zone);
+        LocalDate today = now.atZone(zone).toLocalDate();
         Instant start = today.atStartOfDay(zone).toInstant();
-        Instant end = today.plusDays(2).atStartOfDay(zone).toInstant();
         List<FingridDataEntity> rows = fingridDataRepository
-                .findByDatasetIdAndStartTimeBetweenOrderByStartTimeAsc(245, start, end);
+                .findByDatasetIdAndStartTimeGreaterThanEqualOrderByStartTimeAsc(245, start);
         BigDecimal todayAverage = average(rows, today, zone);
         BigDecimal tomorrowAverage = average(rows, today.plusDays(1), zone);
         BigDecimal drop = todayAverage != null && tomorrowAverage != null && todayAverage.signum() > 0

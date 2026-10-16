@@ -315,7 +315,7 @@ public class Scheduler {
         marketNotificationService.sendDueNotifications();
     }
 
-    @Scheduled(cron = "0 5 * * * *", zone = "Europe/Helsinki")
+    @Scheduled(cron = "0 * * * * *", zone = "Europe/Helsinki")
     public void windNotifications() { windNotificationService.sendDueNotifications(); }
 
     @Scheduled(fixedDelayString = "${heatpump.control-interval}")

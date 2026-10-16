@@ -1,7 +1,7 @@
 import { FormEvent, type PointerEvent, useEffect, useState } from "react";
 import AppDialog from "@/components/AppDialog";
 import { getCurrentTimezone } from "@/lib/add-device-flow";
-import { useI18n } from "@/lib/i18n";
+import { getCurrentIntlLocales, useI18n } from "@/lib/i18n";
 import { formatNordpoolTime } from "@/lib/nordpool";
 import { createWindNotification, deleteWindNotification, fetchCachedWindForecast, fetchWindNotifications, updateWindNotification, type WindForecast, type WindNotification, type WindRuleType } from "@/lib/wind";
 
@@ -128,11 +128,23 @@ function getPointCoordinates(point: WindForecast["points"][number], minValue: nu
 }
 
 function formatDayLabel(timestamp: string, timezone: string) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
     day: "numeric",
     month: "short",
     timeZone: timezone,
     weekday: "short"
+  }).format(new Date(timestamp));
+}
+
+function formatForecastTimestamp(timestamp: string, timezone: string) {
+  return new Intl.DateTimeFormat(getCurrentIntlLocales(), {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: timezone
   }).format(new Date(timestamp));
 }
 
@@ -212,7 +224,7 @@ function WindChartSurface({ chartHeight, data, onActivate, onSelectedPointChange
         <path d={buildAreaPath(data.points,min,range,innerWidth,innerHeight)} fill={`url(#wind-forecast-fill-${variant})`} stroke="none"/>
         <path d={buildLinePath(data.points,min,range,innerWidth,innerHeight)} fill="none" stroke="rgb(var(--color-primary))" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4"/>
         {currentMarker?<><line stroke="rgb(var(--color-secondary) / 0.45)" strokeDasharray="5 7" strokeWidth="2" x1={currentMarker.x} x2={currentMarker.x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP+innerHeight}/><circle cx={currentMarker.x} cy={currentMarker.y} fill="rgb(var(--color-secondary-container))" r="7" stroke="rgb(var(--color-primary))" strokeWidth="3"/></>:null}
-        {variant==="expanded"&&activePoint&&activePointCoordinates?<g><line stroke="rgb(204 51 51 / 0.65)" strokeDasharray="4 6" strokeWidth="2" x1={activePointCoordinates.x} x2={activePointCoordinates.x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP+innerHeight}/><circle cx={activePointCoordinates.x} cy={activePointCoordinates.y} fill="rgb(var(--color-surface-container-lowest))" r="8" stroke="rgb(204 51 51)" strokeWidth="3"/><rect fill="rgb(var(--color-surface-container-lowest))" height="42" rx="10" stroke="rgb(var(--color-outline-variant))" width="152" x={activeTooltipX-76} y={activeTooltipY-20}/><text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY-3}>{formatNordpoolTime(activePoint.startTime,data.timezone)}</text><text fill="rgb(var(--color-on-surface))" fontSize="14" fontWeight="800" textAnchor="middle" x={activeTooltipX} y={activeTooltipY+14}>{formatMw(activePoint.megawatts)}</text></g>:null}
+        {variant==="expanded"&&activePoint&&activePointCoordinates?<g><line stroke="rgb(204 51 51 / 0.65)" strokeDasharray="4 6" strokeWidth="2" x1={activePointCoordinates.x} x2={activePointCoordinates.x} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP+innerHeight}/><circle cx={activePointCoordinates.x} cy={activePointCoordinates.y} fill="rgb(var(--color-surface-container-lowest))" r="8" stroke="rgb(204 51 51)" strokeWidth="3"/><rect fill="rgb(var(--color-surface-container-lowest))" height="42" rx="10" stroke="rgb(var(--color-outline-variant))" width="152" x={activeTooltipX-76} y={activeTooltipY-20}/><text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700" textAnchor="middle" x={activeTooltipX} y={activeTooltipY-3}>{formatForecastTimestamp(activePoint.startTime,data.timezone)}</text><text fill="rgb(var(--color-on-surface))" fontSize="14" fontWeight="800" textAnchor="middle" x={activeTooltipX} y={activeTooltipY+14}>{formatMw(activePoint.megawatts)}</text></g>:null}
       </svg>
     </div>
     {onActivate ? <span className="absolute right-5 top-5 rounded-full bg-surface-container-lowest/90 px-3 py-1 text-xs font-bold text-primary shadow-sm">{chartT("openDetailedChart")}</span> : null}
@@ -226,16 +238,20 @@ export default function WindForecastCard() {
   if(error) return <div className="app-card p-6 text-on-error-container">{t("failed")}: {error}</div>;
   if(!data) return <div className="app-card p-6 text-on-surface-variant">{t("loading")}</div>;
   const values=data.points.map(p=>p.megawatts);
+  const forecastEnd = data.points[data.points.length - 1]?.endTime;
+  const availableUntil = forecastEnd ? t("availableUntil", { time: formatForecastTimestamp(forecastEnd, data.timezone), timezone: data.timezone }) : null;
   return <article className="app-card overflow-hidden">
     <div className="grid grid-cols-1 gap-6 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_17rem]">
       <div>
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="mb-2 text-xs font-bold uppercase tracking-[.18em] text-primary">{t("eyebrow")}</p><h3 className="font-headline text-3xl font-black">{t("title")}</h3><p className="mt-2 text-sm text-on-surface-variant">{t("description",{timezone:data.timezone})}</p></div><button className="secondary-action justify-center px-4 py-2 text-sm" onClick={()=>setOpen(true)}>{t("notifications")}</button></div>
+        {availableUntil ? <p className="mb-4 text-sm font-medium text-on-surface">{availableUntil}</p> : null}
         {values.length ? <WindChartSurface chartHeight={COMPACT_CHART_HEIGHT} data={data} onActivate={()=>setChartOpen(true)}/> : <p>{t("empty")}</p>}
       </div>
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1"><Stat label={t("todayAverage")} value={`${number(data.todayAverage)} MW`}/><Stat label={t("tomorrowAverage")} value={`${number(data.tomorrowAverage)} MW`}/><Stat label={t("drop")} value={data.tomorrowDropPercent==null?"–":`${number(data.tomorrowDropPercent,1)} %`}/></div>
     </div>
     <WindDialog open={open} close={()=>setOpen(false)} timezone={timezone}/>
     <AppDialog description={t("expandedDescription",{timezone:data.timezone})} eyebrow={t("eyebrow")} isOpen={chartOpen} maxWidthClassName="max-w-6xl" onClose={()=>{setChartOpen(false);setSelectedPointIndex(null)}} title={t("expandedTitle")}>
+      {availableUntil ? <p className="mb-4 text-sm font-medium text-on-surface">{availableUntil}</p> : null}
       <WindChartSurface chartHeight={EXPANDED_CHART_HEIGHT} data={data} onSelectedPointChange={setSelectedPointIndex} selectedPointIndex={selectedPointIndex} variant="expanded"/>
       <div className="mt-4 grid gap-3 sm:grid-cols-3"><Stat label={t("todayAverage")} value={`${number(data.todayAverage)} MW`}/><Stat label={t("tomorrowAverage")} value={`${number(data.tomorrowAverage)} MW`}/><Stat label={t("drop")} value={data.tomorrowDropPercent==null?"–":`${number(data.tomorrowDropPercent,1)} %`}/></div>
     </AppDialog>
@@ -245,16 +261,18 @@ function Stat({label,value}:{label:string,value:string}) { return <div className
 function WindDialog({open,close,timezone}:{open:boolean;close:()=>void;timezone:string}) {
  const {t}=useI18n("windNotifications"), common=useI18n("common").t;
  const [items,setItems]=useState<WindNotification[]>([]), [editing,setEditing]=useState<WindNotification|null>(null), [name,setName]=useState(""), [description,setDescription]=useState(""), [rule,setRule]=useState<WindRuleType>("TOMORROW_AVERAGE_ABOVE"), [threshold,setThreshold]=useState("3000"), [error,setError]=useState<string|null>(null);
+ const [notificationTime,setNotificationTime]=useState("09:00");
+ const notificationTimezone=editing?.timezone??timezone;
  useEffect(()=>{if(open) fetchWindNotifications().then(setItems).catch(e=>setError(String(e)));},[open]);
  if(!open)return null;
- const reset=()=>{setEditing(null);setName("");setDescription("");setRule("TOMORROW_AVERAGE_ABOVE");setThreshold("3000")};
- const edit=(n:WindNotification)=>{setEditing(n);setName(n.name);setDescription(n.description??"");setRule(n.ruleType);setThreshold(String(n.threshold))};
+ const reset=()=>{setEditing(null);setName("");setDescription("");setRule("TOMORROW_AVERAGE_ABOVE");setThreshold("3000");setNotificationTime("09:00")};
+ const edit=(n:WindNotification)=>{setEditing(n);setName(n.name);setDescription(n.description??"");setRule(n.ruleType);setThreshold(String(n.threshold));setNotificationTime((n.notificationTime??"09:00").slice(0,5))};
   const thresholdLabel=rule==="TOMORROW_DROP_PERCENT"?t("percentThreshold"):rule==="TOMORROW_AVERAGE_ABOVE"?t("mwAboveThreshold"):t("mwBelowThreshold");
  async function remove(id:number){try{await deleteWindNotification(id);setItems(await fetchWindNotifications());if(editing?.id===id)reset()}catch(x){setError(String(x))}}
- async function submit(e:FormEvent){e.preventDefault();try{const payload={name:name.trim(),description:description.trim()||null,ruleType:rule,threshold:Number(threshold),timezone,enabled:true};const saved=editing?await updateWindNotification(editing.id,payload):await createWindNotification(payload);setItems(old=>editing?old.map(x=>x.id===saved.id?saved:x):[...old,saved]);reset()}catch(x){setError(String(x))}}
+ async function submit(e:FormEvent){e.preventDefault();try{const payload={name:name.trim(),description:description.trim()||null,ruleType:rule,threshold:Number(threshold),timezone:notificationTimezone,notificationTime,enabled:editing?.enabled??true};const saved=editing?await updateWindNotification(editing.id,payload):await createWindNotification(payload);setItems(old=>editing?old.map(x=>x.id===saved.id?saved:x):[...old,saved]);reset()}catch(x){setError(String(x))}}
  return <AppDialog isOpen={open} onClose={close} eyebrow={t("eyebrow")} title={t("title")} description={t("description")} maxWidthClassName="max-w-5xl">
   <div className="grid gap-5 lg:grid-cols-[1fr_22rem]">
-   <div className="space-y-3">{items.length===0?<p className="rounded-xl bg-surface-container p-4 text-sm">{t("empty")}</p>:items.map(n=><article key={n.id} className="rounded-xl bg-surface-container p-4"><h4 className="font-headline text-lg font-bold">{n.name}</h4><p className="mt-1 text-sm text-on-surface-variant">{t(n.ruleType,{threshold:number(n.threshold,1)})}</p><div className="mt-3 flex gap-2"><button className="secondary-action px-3 py-2 text-xs" onClick={()=>edit(n)} type="button">{common("edit")}</button><button className="secondary-action px-3 py-2 text-xs" onClick={()=>remove(n.id)} type="button">{common("remove")}</button></div></article>)}</div>
+   <div className="space-y-3">{items.length===0?<p className="rounded-xl bg-surface-container p-4 text-sm">{t("empty")}</p>:items.map(n=><article key={n.id} className="rounded-xl bg-surface-container p-4"><h4 className="font-headline text-lg font-bold">{n.name}</h4><p className="mt-1 text-sm text-on-surface-variant">{t(n.ruleType,{threshold:number(n.threshold,1)})}</p><p className="mt-2 text-sm font-medium text-on-surface">{t("sendAt",{time:(n.notificationTime??"09:00").slice(0,5),timezone:n.timezone})}</p><div className="mt-3 flex gap-2"><button className="secondary-action px-3 py-2 text-xs" onClick={()=>edit(n)} type="button">{common("edit")}</button><button className="secondary-action px-3 py-2 text-xs" onClick={()=>remove(n.id)} type="button">{common("remove")}</button></div></article>)}</div>
    <form className="space-y-4 rounded-xl bg-surface-container p-4" onSubmit={submit}>
     <h4 className="font-headline text-xl font-bold">{editing?t("edit"):t("add")}</h4>
     <input required className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3" placeholder={t("name")} value={name} onChange={e=>setName(e.target.value)}/>
@@ -265,6 +283,11 @@ function WindDialog({open,close,timezone}:{open:boolean;close:()=>void;timezone:
      <option value="TOMORROW_DROP_PERCENT">{t("dropRule")}</option>
     </select>
     <label className="block text-sm font-bold">{thresholdLabel}<input min="0" required type="number" step="0.1" className="mt-2 w-full rounded-t-lg bg-surface-container-highest px-4 py-3" value={threshold} onChange={e=>setThreshold(e.target.value)}/></label>
+    <div>
+     <label className="mb-2 block text-sm font-bold text-on-surface" htmlFor="wind-notification-time">{t("notificationTime")}</label>
+     <input className="w-full rounded-t-lg bg-surface-container-highest px-4 py-3 text-on-surface" id="wind-notification-time" type="time" step="60" required value={notificationTime} onChange={e=>setNotificationTime(e.target.value)} aria-describedby="wind-notification-time-help"/>
+     <p className="mt-2 text-sm text-on-surface-variant" id="wind-notification-time-help">{t("notificationTimeHelp",{timezone:notificationTimezone})}</p>
+    </div>
     <button className="primary-action w-full justify-center" type="submit">{common("save")}</button>
     {editing?<button className="secondary-action w-full justify-center" type="button" onClick={reset}>{common("cancel")}</button>:null}
    </form>

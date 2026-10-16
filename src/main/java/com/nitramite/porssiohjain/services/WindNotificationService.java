@@ -30,12 +30,14 @@ public class WindNotificationService {
         AccountEntity account = accountRepository.findById(accountId).orElseThrow(() -> new EntityNotFoundException("Account not found"));
         return response(repository.save(WindNotificationEntity.builder().account(account).name(request.getName().trim())
                 .description(text(request.getDescription())).ruleType(request.getRuleType()).threshold(BigDecimal.valueOf(request.getThreshold()))
-                .timezone(zone(request.getTimezone()).getId()).enabled(request.getEnabled() == null || request.getEnabled()).build()));
+                .timezone(zone(request.getTimezone()).getId()).notificationTime(notificationTime(request.getNotificationTime()))
+                .enabled(request.getEnabled() == null || request.getEnabled()).build()));
     }
     public WindNotificationResponse update(Long accountId, Long id, WindNotificationRequest request) {
         demoGuard.assertWritable(accountId); validate(request); WindNotificationEntity e = owned(accountId, id);
         e.setName(request.getName().trim()); e.setDescription(text(request.getDescription())); e.setRuleType(request.getRuleType());
         e.setThreshold(BigDecimal.valueOf(request.getThreshold())); e.setTimezone(zone(request.getTimezone()).getId());
+        if (request.getNotificationTime() != null) e.setNotificationTime(request.getNotificationTime());
         e.setEnabled(request.getEnabled() == null || request.getEnabled()); e.setLastSentAt(null); return response(repository.save(e));
     }
     public void delete(Long accountId, Long id) { demoGuard.assertWritable(accountId); repository.delete(owned(accountId, id)); }
@@ -46,6 +48,8 @@ public class WindNotificationService {
     }
     private void send(WindNotificationEntity e, Instant now) {
         ZoneId zone = zone(e.getTimezone()); LocalDate date = now.atZone(zone).toLocalDate();
+        Instant scheduledAt = date.atTime(notificationTime(e.getNotificationTime())).atZone(zone).toInstant();
+        if (now.isBefore(scheduledAt) || !now.isBefore(scheduledAt.plusSeconds(60))) return;
         if (e.getLastSentAt() != null && e.getLastSentAt().atZone(zone).toLocalDate().equals(date)) return;
         WindForecastChartResponse chart = fingridService.getWindForecastChart(zone.getId());
         if (chart.getTomorrowAverage() == null) return;
@@ -68,6 +72,8 @@ public class WindNotificationService {
         if (r.getName() == null || r.getName().isBlank()) throw new IllegalArgumentException("Notification name cannot be empty");
         if (r.getRuleType() == null || r.getThreshold() == null || !Double.isFinite(r.getThreshold()) || r.getThreshold() < 0)
             throw new IllegalArgumentException("Valid rule and non-negative threshold are required");
+        if (r.getNotificationTime() != null && (r.getNotificationTime().getSecond() != 0 || r.getNotificationTime().getNano() != 0))
+            throw new IllegalArgumentException("Notification time must use whole minutes");
         zone(r.getTimezone());
     }
     private BigDecimal observedValue(WindNotificationRuleType ruleType, WindForecastChartResponse chart) {
@@ -83,9 +89,11 @@ public class WindNotificationService {
         };
     }
     private ZoneId zone(String value) { return ZoneId.of(value == null || value.isBlank() ? ZoneId.systemDefault().getId() : value.trim()); }
+    private LocalTime notificationTime(LocalTime value) { return value == null ? LocalTime.of(9, 0) : value; }
     private String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private WindNotificationEntity owned(Long accountId, Long id) { return repository.findByIdAndAccountId(id, accountId).orElseThrow(() -> new EntityNotFoundException("Wind notification not found: " + id)); }
     private WindNotificationResponse response(WindNotificationEntity e) { return WindNotificationResponse.builder().id(e.getId()).name(e.getName()).description(e.getDescription())
-            .ruleType(e.getRuleType()).threshold(e.getThreshold()).timezone(e.getTimezone()).enabled(e.isEnabled()).lastSentAt(e.getLastSentAt())
+            .ruleType(e.getRuleType()).threshold(e.getThreshold()).timezone(e.getTimezone()).notificationTime(e.getNotificationTime())
+            .enabled(e.isEnabled()).lastSentAt(e.getLastSentAt())
             .createdAt(e.getCreatedAt()).updatedAt(e.getUpdatedAt()).build(); }
 }

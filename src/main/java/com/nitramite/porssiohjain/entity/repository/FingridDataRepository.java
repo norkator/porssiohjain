@@ -21,7 +21,7 @@ public interface FingridDataRepository extends JpaRepository<FingridDataEntity, 
 
     List<FingridDataEntity> findByDatasetIdAndStartTimeAfter(Integer datasetId, Instant startTime);
 
-    List<FingridDataEntity> findByDatasetIdAndStartTimeBetweenOrderByStartTimeAsc(Integer datasetId, Instant start, Instant end);
+    List<FingridDataEntity> findByDatasetIdAndStartTimeGreaterThanEqualOrderByStartTimeAsc(Integer datasetId, Instant start);
 
     boolean existsByDatasetIdAndStartTimeBetween(Integer datasetId, Instant start, Instant end);
 

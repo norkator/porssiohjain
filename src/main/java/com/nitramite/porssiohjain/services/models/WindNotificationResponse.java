@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalTime;
 
 @Data @Builder
 public class WindNotificationResponse {
@@ -14,6 +15,7 @@ public class WindNotificationResponse {
     private WindNotificationRuleType ruleType;
     private BigDecimal threshold;
     private String timezone;
+    private LocalTime notificationTime;
     private boolean enabled;
     private Instant lastSentAt;
     private Instant createdAt;
