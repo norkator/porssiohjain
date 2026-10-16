@@ -43,6 +43,8 @@ import com.nitramite.porssiohjain.services.SystemLogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -276,6 +278,40 @@ class DeviceServiceTest {
         );
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "TUYA_SMART, 11, true",
+            "TUYA_SMART, 30, true",
+            "TUYA_SMART, 59, true",
+            "TUYA_SMART, 61, false",
+            "ANDROID_ZIGBEE, 11, false"
+    })
+    void checksTemperatureSensorApiTimeoutForPlatform(DevicePlatform platform, long minutesSinceContact,
+                                                     boolean expectedOnline) {
+        DeviceEntity device = new DeviceEntity();
+        device.setId(9L);
+        device.setDeviceType(DeviceType.TEMPERATURE_SENSOR);
+        device.setDevicePlatform(platform);
+        device.setApiOnline(true);
+        device.setLastCommunication(Instant.now().minusSeconds(minutesSinceContact * 60));
+        when(deviceRepository.findWithAccountByApiOnlineTrue()).thenReturn(List.of(device));
+        when(deviceRepository.findWithAccountByMqttOnlineTrueAndLastCommunicationBefore(any()))
+                .thenReturn(List.of());
+
+        deviceService.checkOfflineDevices();
+
+        assertThat(device.isApiOnline()).isEqualTo(expectedOnline);
+        if (expectedOnline) {
+            verify(deviceRepository, never()).save(device);
+            verify(deviceOfflineNotificationService, never()).sendIfDeviceWentOffline(
+                    eq(device), eq(true), eq(false), eq("API"), any());
+        } else {
+            verify(deviceRepository).save(device);
+            verify(deviceOfflineNotificationService).sendIfDeviceWentOffline(
+                    eq(device), eq(true), eq(false), eq("API"), any());
+        }
+    }
+
     @Test
     void keepsThermostatApiOnlineWithinTenMinutes() {
         DeviceEntity device = new DeviceEntity();
@@ -406,5 +442,35 @@ class DeviceServiceTest {
         assertThat(device.getDevicePlatform()).isEqualTo(DevicePlatform.TASMOTA);
         assertThat(device.getMqttDeviceProfile()).isEqualTo(MqttDeviceProfile.TASMOTA_RELAY);
         verify(deviceRepository).save(device);
+    }
+
+    @Test
+    void tuyaCannotBeCreatedOrConvertedIntoRelay() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> deviceService.createDevice(
+                1L, 1L, "Cloud relay", "Europe/Helsinki", DeviceType.STANDARD, DevicePlatform.TUYA_SMART,
+                true, null, null, null, null, null, null));
+        AccountEntity account = AccountEntity.builder().id(1L).build();
+        DeviceEntity sensor = DeviceEntity.builder().id(10L).account(account).deviceType(DeviceType.TEMPERATURE_SENSOR)
+                .devicePlatform(DevicePlatform.TUYA_SMART).build();
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(deviceRepository.findByIdAndAccount(10L, account)).thenReturn(Optional.of(sensor));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> deviceService.updateDevice(
+                1L, 10L, "Sensor", "Europe/Helsinki", DeviceType.STANDARD, DevicePlatform.GENERIC_MQTT,
+                true, null, null, null, null, null, null));
+        verify(deviceRepository, never()).save(any());
+    }
+
+    @Test
+    void disablingTuyaSensorClearsApiStatusAndAlwaysKeepsMqttOffline() {
+        AccountEntity account = AccountEntity.builder().id(1L).build();
+        DeviceEntity sensor = DeviceEntity.builder().id(10L).account(account).deviceType(DeviceType.TEMPERATURE_SENSOR)
+                .devicePlatform(DevicePlatform.TUYA_SMART).apiOnline(true).mqttOnline(true).enabled(true).build();
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(deviceRepository.findByIdAndAccount(10L, account)).thenReturn(Optional.of(sensor));
+        deviceService.updateDevice(1L, 10L, "Sensor", "Europe/Helsinki", DeviceType.TEMPERATURE_SENSOR,
+                DevicePlatform.TUYA_SMART, false, null, null, null, null, null, null);
+        assertThat(sensor.isApiOnline()).isFalse();
+        assertThat(sensor.isMqttOnline()).isFalse();
+        assertThat(sensor.isEnabled()).isFalse();
     }
 }

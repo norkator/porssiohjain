@@ -72,12 +72,15 @@ For future automation, keep motor safety, calibration, limit switches, and physi
 
 Read `doc/heating-planner.md` before changing the Heating Planner. It is the authoritative feature specification and contains the persistence, thermostat-limit, telemetry, push-notification, and active-control design.
 
+Tuya measurement integration work is tracked in [doc/tuya-heating-planner-work.md](doc/tuya-heating-planner-work.md). Read that checkpoint before continuing the task. Keep existing Zigbee measurement storage unchanged; the new `device_measurement` table is for Tuya and future integrations, with a common read service for Heating Planner and no duplicate Zigbee writes.
+
 Current implementation:
 
 - `services/heating/HeatingPlanSimulationService.java` is the pure deterministic simulation/planning foundation.
 - `views/HeatingPlannerView.java` provides configuration, planning, evidence, and active-control opt-in at `/heating-planner`.
 - `views/components/HeatingPlanChart.java` renders its ApexCharts visualization.
-- `entity/ZigbeeDeviceMeasurementEntity.java`, `entity/enums/ZigbeeMeasurementType.java`, and `entity/repository/ZigbeeDeviceMeasurementRepository.java` define normalized Zigbee measurement history for Heating Planner sensor use.
+- `entity/ZigbeeDeviceMeasurementEntity.java` and its repository retain existing Zigbee history. `entity/DeviceMeasurementEntity.java` and `entity/repository/DeviceMeasurementRepository.java` store Tuya/future integration readings in `device_measurement`; do not dual-write Zigbee readings. `services/DeviceMeasurementService.java` adapts both stores for Heating Planner latest readings, history and thermal-model learning.
+- `scheduled/TuyaScheduler.java` polls enabled linked Tuya sensors every 30 minutes and cleans generic measurements daily with one-month retention. Tuya cloud snapshots have null `measuredAt` and explicit `observedAt`; do not fabricate report times from cloud fetches or device-wide `update_time`. Snapshots and API contact expire after one hour; Tuya API offline detection uses the same one-hour timeout. All Tuya inputs require online/enabled state. See `doc/tuya-smart-integration.md`.
 - `services/heating/HeatingPlannerMeasurementService.java` exposes latest fresh/stale/missing room and floor temperature lookup.
 - `contollers/HeatingPlannerController.java` exposes authenticated, read-only `GET /api/heating-planner/widget-summary?siteId=...&roomId=...` for native Android widgets. `services/heating/HeatingPlannerWidgetQueryService.java` keeps planned activity, measurements, and thermostat read-back separate. Read `doc/heating-planner-widget.md` for the contract and Android handoff; hybrid-web intentionally has no Heating Planner screen.
 - `services/heating/HeatingPlanSimulationServiceTest.java` covers preheat, discharge, comfort, floor-limit, and wood-stove recommendation behaviour.

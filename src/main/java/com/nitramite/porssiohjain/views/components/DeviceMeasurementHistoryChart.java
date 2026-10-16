@@ -8,7 +8,7 @@
 
 package com.nitramite.porssiohjain.views.components;
 
-import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
+import com.nitramite.porssiohjain.entity.DeviceMeasurementEntity;
 import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.html.Div;
 
@@ -18,18 +18,18 @@ import java.util.DoubleSummaryStatistics;
 import java.util.List;
 
 @JavaScript("context://js/apexcharts.min.js")
-public class ZigbeeMeasurementHistoryChart extends Div {
+public class DeviceMeasurementHistoryChart extends Div {
 
-    public ZigbeeMeasurementHistoryChart(List<ZigbeeDeviceMeasurementEntity> history, ZoneId zone,
+    public DeviceMeasurementHistoryChart(List<DeviceMeasurementEntity> history, ZoneId zone,
                                         String seriesName, String unit) {
         setWidthFull();
         setHeight("300px");
         getStyle().set("position", "relative").set("flex-shrink", "0");
 
         List<List<Number>> points = history.stream()
-                .sorted(Comparator.comparing(ZigbeeDeviceMeasurementEntity::getMeasuredAt)
-                        .thenComparing(ZigbeeDeviceMeasurementEntity::getId))
-                .map(point -> List.<Number>of(point.getMeasuredAt().toEpochMilli(), point.getValue().doubleValue()))
+                .sorted(Comparator.comparing(DeviceMeasurementEntity::getObservedAt)
+                        .thenComparing(DeviceMeasurementEntity::getId))
+                .map(point -> List.<Number>of(point.getObservedAt().toEpochMilli(), point.getValue().doubleValue()))
                 .toList();
         DoubleSummaryStatistics values = history.stream()
                 .mapToDouble(point -> point.getValue().doubleValue())
@@ -54,7 +54,7 @@ public class ZigbeeMeasurementHistoryChart extends Div {
                   chart: { height: 290, type: 'line', toolbar: { show: hasData }, animations: { enabled: false } },
                   series: [{ name: $1, data: data, type: 'line' }],
                   xaxis: {
-                    type: 'datetime', title: { text: hasData ? 'Measured time' : undefined },
+                    type: 'datetime', title: { text: hasData ? 'Report / cloud snapshot time' : undefined },
                     min: singleTime ? data[0][0] - 15 * 60 * 1000 : undefined,
                     max: singleTime ? data[0][0] + 15 * 60 * 1000 : undefined,
                     axisBorder: { show: hasData }, axisTicks: { show: hasData },

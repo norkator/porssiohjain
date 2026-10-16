@@ -15,11 +15,14 @@ import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomHeatSourceEntity;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
-import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
-import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
-import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+import com.nitramite.porssiohjain.entity.DeviceMeasurementEntity;
+import com.nitramite.porssiohjain.entity.enums.DeviceMeasurementType;
+import com.nitramite.porssiohjain.services.DeviceMeasurementService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -33,17 +36,17 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class HeatingPlannerMeasurementServiceTest {
 
-    @Mock ZigbeeDeviceMeasurementRepository measurements;
+    @Mock DeviceMeasurementService measurements;
 
     @Test void returnsFreshLatestRoomTemperature() {
         HeatingPlannerMeasurementService service = new HeatingPlannerMeasurementService(measurements);
         HeatingPlannerRoomEntity room = room(14L);
         Instant now = Instant.parse("2026-01-01T12:00:00Z");
-        when(measurements.findFirstByDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
-                14L, ZigbeeMeasurementType.TEMPERATURE, "temperature"))
-                .thenReturn(Optional.of(ZigbeeDeviceMeasurementEntity.builder()
+        when(measurements.latest(
+                room.getRoomSensorDevice(), DeviceMeasurementType.TEMPERATURE, "temperature"))
+                .thenReturn(Optional.of(DeviceMeasurementEntity.builder()
                         .value(new BigDecimal("21.50"))
-                        .measuredAt(now.minusSeconds(120))
+                        .measuredAt(now.minusSeconds(120)).observedAt(now.minusSeconds(120))
                         .build()));
 
         HeatingPlannerMeasurementService.LatestMeasurement latest =
@@ -58,11 +61,11 @@ class HeatingPlannerMeasurementServiceTest {
         HeatingPlannerMeasurementService service = new HeatingPlannerMeasurementService(measurements);
         HeatingPlannerRoomEntity room = room(14L);
         Instant now = Instant.parse("2026-01-01T12:00:00Z");
-        when(measurements.findFirstByDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
-                14L, ZigbeeMeasurementType.TEMPERATURE, "temperature"))
-                .thenReturn(Optional.of(ZigbeeDeviceMeasurementEntity.builder()
+        when(measurements.latest(
+                room.getRoomSensorDevice(), DeviceMeasurementType.TEMPERATURE, "temperature"))
+                .thenReturn(Optional.of(DeviceMeasurementEntity.builder()
                         .value(new BigDecimal("20.00"))
-                        .measuredAt(now.minusSeconds(7200))
+                        .measuredAt(now.minusSeconds(7200)).observedAt(now.minusSeconds(7200))
                         .build()));
 
         HeatingPlannerMeasurementService.LatestMeasurement latest =
@@ -93,11 +96,11 @@ class HeatingPlannerMeasurementServiceTest {
                 .controllingDevice(thermostat)
                 .build());
         Instant now = Instant.parse("2026-01-01T12:00:00Z");
-        when(measurements.findFirstByDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
-                22L, ZigbeeMeasurementType.TEMPERATURE, "temperature"))
-                .thenReturn(Optional.of(ZigbeeDeviceMeasurementEntity.builder()
+        when(measurements.latest(
+                thermostat, DeviceMeasurementType.TEMPERATURE, "temperature"))
+                .thenReturn(Optional.of(DeviceMeasurementEntity.builder()
                         .value(new BigDecimal("20.75"))
-                        .measuredAt(now.minusSeconds(60))
+                        .measuredAt(now.minusSeconds(60)).observedAt(now.minusSeconds(60))
                         .build()));
 
         HeatingPlannerMeasurementService.LatestMeasurement latest =
@@ -113,5 +116,88 @@ class HeatingPlannerMeasurementServiceTest {
         HeatingPlannerRoomEntity room = new HeatingPlannerRoomEntity();
         room.setRoomSensorDevice(device);
         return room;
+    }
+
+    @Test void onlineTuyaCloudSnapshotCanBeUsedAsExplicitFloorSensorWithoutInventingMeasuredAt() {
+        var service = new HeatingPlannerMeasurementService(measurements);
+        var room = room(14L);
+        var device = room.getRoomSensorDevice();
+        Instant now = Instant.parse("2026-01-01T12:00:00Z");
+        device.setDevicePlatform(DevicePlatform.TUYA_SMART);
+        device.setEnabled(true);
+        device.setApiOnline(true);
+        device.setLastCommunication(now.minusSeconds(1800));
+        room.setFloorSensorDevice(device);
+        when(measurements.latest(device, DeviceMeasurementType.TEMPERATURE, "temperature"))
+                .thenReturn(Optional.of(DeviceMeasurementEntity.builder().value(new BigDecimal("24.1"))
+                        .observedAt(now.minusSeconds(1800)).receivedAt(now.minusSeconds(1800)).build()));
+
+        var latest = service.latestFreshFloorTemperature(room, now);
+        assertTrue(latest.fresh());
+        assertTrue(latest.cloudSnapshot());
+        assertNull(latest.measuredAt());
+        assertEquals(now.minusSeconds(1800), latest.observedAt());
+
+        device.setApiOnline(false);
+        assertFalse(service.latestFreshFloorTemperature(room, now).fresh());
+        device.setApiOnline(true);
+        assertTrue(service.latestFreshFloorTemperature(room, now.plusSeconds(1800)).fresh());
+        assertFalse(service.latestFreshFloorTemperature(room, now.plusSeconds(1801)).fresh());
+        device.setEnabled(false);
+        assertFalse(service.latestFreshFloorTemperature(room, now).fresh());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "true, 1800, 1800, true",
+            "true, 3600, 3600, true",
+            "true, 3601, 0, false",
+            "true, 0, 3601, false",
+            "false, 2700, 1800, true",
+            "false, 3600, 3600, true",
+            "false, 3601, 0, false",
+            "false, 0, 3601, false"
+    })
+    void tuyaRoomReadingsAndCloudContactMustBothBeWithinOneHour(boolean cloudSnapshot, long readingAgeSeconds,
+                                                              long contactAgeSeconds, boolean expectedFresh) {
+        var service = new HeatingPlannerMeasurementService(measurements);
+        var room = room(14L);
+        var device = room.getRoomSensorDevice();
+        Instant now = Instant.parse("2026-01-01T12:00:00Z");
+        device.setDevicePlatform(DevicePlatform.TUYA_SMART);
+        device.setEnabled(true);
+        device.setApiOnline(true);
+        device.setLastCommunication(now.minusSeconds(contactAgeSeconds));
+        Instant readingTime = now.minusSeconds(readingAgeSeconds);
+        when(measurements.latest(device, DeviceMeasurementType.TEMPERATURE, "temperature"))
+                .thenReturn(Optional.of(DeviceMeasurementEntity.builder().value(new BigDecimal("21"))
+                        .measuredAt(cloudSnapshot ? null : readingTime).observedAt(readingTime).build()));
+
+        assertEquals(expectedFresh, service.latestFreshRoomTemperature(room, now).fresh());
+    }
+
+    @Test void roomSensorIsNeverUsedAsFloorSensorImplicitly() {
+        var service = new HeatingPlannerMeasurementService(measurements);
+        assertEquals(HeatingPlannerMeasurementService.Freshness.MISSING,
+                service.latestFreshFloorTemperature(room(14L), Instant.now()).freshness());
+    }
+
+    @Test void futureAndOldReportedTuyaReadingsDoNotBecomeFreshFromPolling() {
+        var service = new HeatingPlannerMeasurementService(measurements);
+        var room = room(14L);
+        var device = room.getRoomSensorDevice();
+        Instant now = Instant.parse("2026-01-01T12:00:00Z");
+        device.setDevicePlatform(DevicePlatform.TUYA_SMART);
+        device.setApiOnline(true);
+        device.setEnabled(true);
+        device.setLastCommunication(now);
+        var reading = DeviceMeasurementEntity.builder().value(new BigDecimal("21"))
+                .measuredAt(now.minusSeconds(7200)).observedAt(now.minusSeconds(7200)).receivedAt(now).build();
+        when(measurements.latest(device, DeviceMeasurementType.TEMPERATURE, "temperature"))
+                .thenReturn(Optional.of(reading));
+        assertFalse(service.latestFreshRoomTemperature(room, now).fresh());
+        reading.setMeasuredAt(now.plusSeconds(1));
+        reading.setObservedAt(now.plusSeconds(1));
+        assertFalse(service.latestFreshRoomTemperature(room, now).fresh());
     }
 }

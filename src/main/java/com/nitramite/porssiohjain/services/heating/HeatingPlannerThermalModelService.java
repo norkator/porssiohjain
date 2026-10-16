@@ -6,11 +6,12 @@ package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
 import com.nitramite.porssiohjain.entity.SiteWeatherEntity;
-import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
-import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
+import com.nitramite.porssiohjain.entity.DeviceMeasurementEntity;
+import com.nitramite.porssiohjain.entity.enums.DeviceMeasurementType;
 import com.nitramite.porssiohjain.entity.repository.HeatingPlannerRoomRepository;
 import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
-import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
+import com.nitramite.porssiohjain.services.DeviceMeasurementService;
+import com.nitramite.porssiohjain.entity.DeviceEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -40,7 +41,7 @@ public class HeatingPlannerThermalModelService {
     private static final int PAGE_SIZE = 1000;
 
     private final HeatingPlannerRoomRepository roomRepository;
-    private final ZigbeeDeviceMeasurementRepository measurementRepository;
+    private final DeviceMeasurementService measurements;
     private final SiteWeatherRepository weatherRepository;
 
     @Transactional
@@ -84,8 +85,8 @@ public class HeatingPlannerThermalModelService {
                 .map(SiteWeatherEntity::getForecastTime).min(Comparator.naturalOrder()).orElse(null);
         if (weatherFrom != null && weatherFrom.minus(MAX_WEATHER_GAP).isAfter(from))
             from = weatherFrom.minus(MAX_WEATHER_GAP);
-        List<ZigbeeDeviceMeasurementEntity> temperatures = weatherFrom == null ? List.of()
-                : trainingTemperatures(room.getRoomSensorDevice().getId(), key, from, now);
+        List<DeviceMeasurementEntity> temperatures = weatherFrom == null ? List.of()
+                : trainingTemperatures(room.getRoomSensorDevice(), key, from, now);
         Estimate estimate = estimate(temperatures, weather);
         boolean learned = estimate.sampleCount() >= MIN_SAMPLES;
         String candidateReason = weatherFrom == null ? "No retained weather is available to match room measurements"
@@ -110,38 +111,36 @@ public class HeatingPlannerThermalModelService {
                 "Configured model: " + candidateReason);
     }
 
-    private List<ZigbeeDeviceMeasurementEntity> trainingTemperatures(Long deviceId, String key, Instant from, Instant now) {
-        List<ZigbeeDeviceMeasurementEntity> sampled = new ArrayList<>();
+    private List<DeviceMeasurementEntity> trainingTemperatures(DeviceEntity device, String key, Instant from, Instant now) {
+        List<DeviceMeasurementEntity> sampled = new ArrayList<>();
         Pageable page = PageRequest.of(0, PAGE_SIZE);
-        Slice<ZigbeeDeviceMeasurementEntity> rows;
+        Slice<DeviceMeasurementEntity> rows;
         do {
-            rows = measurementRepository
-                    .findByDeviceIdAndMeasurementTypeAndMeasurementKeyAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
-                            deviceId, ZigbeeMeasurementType.TEMPERATURE, key, from, now, page);
+            rows = measurements.history(device, DeviceMeasurementType.TEMPERATURE, key, from, now, page);
             rows.forEach(row -> appendSample(sampled, row));
             page = rows.nextPageable();
         } while (rows.hasNext());
         return sampled;
     }
 
-    private void appendSample(List<ZigbeeDeviceMeasurementEntity> sampled, ZigbeeDeviceMeasurementEntity row) {
-        if (sampled.isEmpty() || !row.getMeasuredAt().isBefore(
-                sampled.getLast().getMeasuredAt().plus(SAMPLE_INTERVAL))) sampled.add(row);
+    private void appendSample(List<DeviceMeasurementEntity> sampled, DeviceMeasurementEntity row) {
+        if (sampled.isEmpty() || !row.getObservedAt().isBefore(
+                sampled.getLast().getObservedAt().plus(SAMPLE_INTERVAL))) sampled.add(row);
     }
 
-    Estimate estimate(List<ZigbeeDeviceMeasurementEntity> temperatures, List<SiteWeatherEntity> weather) {
-        List<ZigbeeDeviceMeasurementEntity> sampled = new ArrayList<>();
+    Estimate estimate(List<DeviceMeasurementEntity> temperatures, List<SiteWeatherEntity> weather) {
+        List<DeviceMeasurementEntity> sampled = new ArrayList<>();
         temperatures.forEach(row -> appendSample(sampled, row));
         List<CoolingSample> samples = new ArrayList<>();
         Instant evidenceAt = null;
         for (int i = 1; i < sampled.size(); i++) {
-            ZigbeeDeviceMeasurementEntity before = sampled.get(i - 1);
-            ZigbeeDeviceMeasurementEntity after = sampled.get(i);
-            Duration elapsed = Duration.between(before.getMeasuredAt(), after.getMeasuredAt());
+            DeviceMeasurementEntity before = sampled.get(i - 1);
+            DeviceMeasurementEntity after = sampled.get(i);
+            Duration elapsed = Duration.between(before.getObservedAt(), after.getObservedAt());
             if (elapsed.compareTo(MAX_SAMPLE_GAP) > 0) continue;
             BigDecimal change = after.getValue().subtract(before.getValue());
             if (change.signum() >= 0 || change.abs().compareTo(new BigDecimal("3.0")) > 0) continue;
-            SiteWeatherEntity nearest = nearestWeather(weather, midpoint(before.getMeasuredAt(), after.getMeasuredAt()));
+            SiteWeatherEntity nearest = nearestWeather(weather, midpoint(before.getObservedAt(), after.getObservedAt()));
             if (nearest == null || nearest.getTemperature() == null) continue;
             BigDecimal hours = BigDecimal.valueOf(elapsed.toMillis()).divide(BigDecimal.valueOf(3_600_000), 8, RoundingMode.HALF_UP);
             BigDecimal coolingPerHour = change.negate().divide(hours, 8, RoundingMode.HALF_UP);
@@ -150,7 +149,7 @@ public class HeatingPlannerThermalModelService {
             BigDecimal wind = nearest.getWindSpeedMs() == null ? BigDecimal.ZERO : nearest.getWindSpeedMs().max(BigDecimal.ZERO);
             if (deltaOutdoor.signum() > 0) {
                 samples.add(new CoolingSample(deltaOutdoor, wind, coolingPerHour));
-                evidenceAt = after.getMeasuredAt();
+                evidenceAt = after.getObservedAt();
             }
         }
         if (samples.isEmpty()) return new Estimate(BigDecimal.ZERO, BigDecimal.ZERO, 0, BigDecimal.ZERO, null);

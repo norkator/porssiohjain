@@ -20,6 +20,7 @@ import com.nitramite.porssiohjain.entity.enums.MqttDeviceProfile;
 import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
+import com.nitramite.porssiohjain.services.tuya.TuyaService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -78,6 +79,9 @@ public class DeviceService {
         demoAccountGuard.assertWritable(authAccountId);
         DeviceType resolvedDeviceType = deviceType == null ? DeviceType.STANDARD : deviceType;
         DevicePlatform resolvedDevicePlatform = devicePlatform == null ? DevicePlatform.GENERIC_MQTT : devicePlatform;
+        if (resolvedDevicePlatform == DevicePlatform.TUYA_SMART && resolvedDeviceType != DeviceType.TEMPERATURE_SENSOR) {
+            throw new IllegalArgumentException("Tuya Smart currently supports temperature sensors only");
+        }
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
@@ -336,6 +340,10 @@ public class DeviceService {
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
         DeviceType previousType = device.getDeviceType();
         DevicePlatform previousPlatform = device.getDevicePlatform();
+        if ((previousPlatform == DevicePlatform.TUYA_SMART || resolvedDevicePlatform == DevicePlatform.TUYA_SMART)
+                && (previousPlatform != resolvedDevicePlatform || resolvedDeviceType != DeviceType.TEMPERATURE_SENSOR)) {
+            throw new IllegalArgumentException("Keep the linked Tuya Smart platform and temperature sensor type");
+        }
         device.setDeviceName(newName);
         device.setTimezone(newTimezone);
         device.setDeviceType(resolvedDeviceType);
@@ -348,6 +356,10 @@ public class DeviceService {
                 resolvedDevicePlatform
         ));
         device.setEnabled(enabled);
+        if (resolvedDevicePlatform == DevicePlatform.TUYA_SMART) {
+            device.setMqttOnline(false);
+            if (!enabled) device.setApiOnline(false);
+        }
         deviceRepository.save(device);
 
         if (resolvedDeviceType == DeviceType.HEAT_PUMP) {
@@ -496,6 +508,9 @@ public class DeviceService {
         if (lastCommunication == null) {
             return true;
         }
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) {
+            return lastCommunication.isBefore(now.minus(TuyaService.POLL_FRESHNESS));
+        }
         long offlineSeconds = switch (device.getDeviceType()) {
             case HEAT_PUMP -> HEAT_PUMP_API_OFFLINE_SECONDS;
             case STANDARD, THERMOSTAT, TEMPERATURE_SENSOR -> STANDARD_API_OFFLINE_SECONDS;
@@ -515,7 +530,7 @@ public class DeviceService {
             case OPENBEKEN -> MqttDeviceProfile.OPENBEKEN_RELAY;
             case TASMOTA -> MqttDeviceProfile.TASMOTA_RELAY;
             case ESPHOME -> MqttDeviceProfile.ESPHOME_RELAY;
-            case GENERIC_MQTT, ANDROID_ZIGBEE -> MqttDeviceProfile.GENERIC_RELAY;
+            case GENERIC_MQTT, ANDROID_ZIGBEE, TUYA_SMART -> MqttDeviceProfile.GENERIC_RELAY;
         };
     }
 
