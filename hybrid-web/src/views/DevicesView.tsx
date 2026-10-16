@@ -44,10 +44,29 @@ function formatDeviceTypeWithPlatform(device: ApiDevice) {
   return platformLabel ? `${typeLabel} - ${platformLabel}` : typeLabel;
 }
 
+function groupDevicesByType(devices: ApiDevice[]) {
+  const groups = new Map<string, ApiDevice[]>([
+    ["STANDARD", []],
+    ["THERMOSTAT", []],
+    ["TEMPERATURE_SENSOR", []],
+    ["HEAT_PUMP", []]
+  ]);
+
+  for (const device of devices) {
+    const group = groups.get(device.deviceType) ?? [];
+    group.push(device);
+    groups.set(device.deviceType, group);
+  }
+
+  return [...groups].filter(([, devices]) => devices.length > 0);
+}
+
 export default function DevicesView() {
-  const { t } = useI18n("devices");
+  const { t, group } = useI18n("devices");
   const common = useI18n("common").t;
+  const typeHeadings: Record<string, string> = group("typeHeadings");
   const { devices, error, isLoading, latestCommunication, onlineCount, totalCount } = useDevices();
+  const deviceGroups = groupDevicesByType(devices);
   const [relayDialogDevice, setRelayDialogDevice] = useState<ApiDevice | null>(null);
   const [relayStates, setRelayStates] = useState<boolean[]>([false, false, false, false]);
   const [isSendingRelayChannel, setIsSendingRelayChannel] = useState<number | null>(null);
@@ -156,7 +175,7 @@ export default function DevicesView() {
           </Link>
         </section>
 
-        <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-10">
           {isLoading ? (
             <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loadingDevices")}</div>
           ) : null}
@@ -168,61 +187,77 @@ export default function DevicesView() {
           ) : null}
 
           {!isLoading && !error
-            ? devices.map((device) => {
-                const connection = getDeviceConnectionState(device);
+            ? deviceGroups.map(([deviceType, devices]) => (
+              <section aria-labelledby={`device-type-${deviceType}`} key={deviceType}>
+                <div className="mb-5 flex items-center gap-3 border-b border-outline-variant pb-3">
+                  <h2 className="font-headline text-2xl font-bold text-on-surface" id={`device-type-${deviceType}`}>
+                    {typeHeadings[deviceType] ?? formatDeviceType(deviceType)}
+                  </h2>
+                  <span className="rounded-full bg-surface-container px-3 py-1 text-sm font-semibold text-on-surface-variant">
+                    {devices.length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {devices.map((device) => {
+                    const connection = getDeviceConnectionState(device);
 
-                return (
-                  <DeviceCard
-                    key={device.id}
-                    accent={getDeviceAccent(device)}
-                    actions={[
-                      ...(device.deviceType === "HEAT_PUMP" ? [{
-                        label: t("test"),
-                        onClick: () => {
-                          void handleOpenHeatPumpDialog(device);
-                        }
-                      }] : []),
-                      ...(device.deviceType === "STANDARD" && device.mqttOnline ? [{
-                        label: t("relays"),
-                        onClick: () => {
-                          setRelayDialogDevice(device);
-                          setRelayStates(getInitialRelayStates(device));
-                          setRelayError(null);
-                        }
-                      }] : [])
-                    ]}
-                    detailLabel={t("lastSeen")}
-                    detailValue={formatDeviceLastCommunication(device.lastCommunication)}
-                    manageTo={`/devices/${device.id}`}
-                    channelStatus={device.deviceType === "STANDARD"
-                      ? {
-                          label: device.hasActiveChannels ? t("on") : t("off"),
-                          tone: device.hasActiveChannels ? "active" : "inactive"
-                        }
-                      : undefined}
-                    status={connection.label}
-                    statusTone={connection.tone}
-                    subtitle={t("uuid", { uuid: device.uuid })}
-                    title={device.deviceName}
-                    type={formatDeviceTypeWithPlatform(device)}
-                  />
-                );
-              })
+                    return (
+                      <DeviceCard
+                        key={device.id}
+                        accent={getDeviceAccent(device)}
+                        actions={[
+                          ...(device.deviceType === "HEAT_PUMP" ? [{
+                            label: t("test"),
+                            onClick: () => {
+                              void handleOpenHeatPumpDialog(device);
+                            }
+                          }] : []),
+                          ...(device.deviceType === "STANDARD" && device.mqttOnline ? [{
+                            label: t("relays"),
+                            onClick: () => {
+                              setRelayDialogDevice(device);
+                              setRelayStates(getInitialRelayStates(device));
+                              setRelayError(null);
+                            }
+                          }] : [])
+                        ]}
+                        detailLabel={t("lastSeen")}
+                        detailValue={formatDeviceLastCommunication(device.lastCommunication)}
+                        manageTo={`/devices/${device.id}`}
+                        channelStatus={device.deviceType === "STANDARD"
+                          ? {
+                              label: device.hasActiveChannels ? t("on") : t("off"),
+                              tone: device.hasActiveChannels ? "active" : "inactive"
+                            }
+                          : undefined}
+                        status={connection.label}
+                        statusTone={connection.tone}
+                        subtitle={t("uuid", { uuid: device.uuid })}
+                        title={device.deviceName}
+                        type={formatDeviceTypeWithPlatform(device)}
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+            ))
             : null}
 
-          <Link
-            className="group flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:bg-surface-container-high hover:shadow-soft sm:p-6"
-            to="/devices/add/type"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest font-headline text-xl font-black text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-surface-container-lowest">
-              +
-            </div>
-            <div>
-              <h3 className="font-headline text-lg font-bold text-on-surface">{t("provisionUnit")}</h3>
-              <p className="px-8 text-xs text-on-surface-variant">{t("provisionDescription")}</p>
-            </div>
-          </Link>
-        </section>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Link
+              className="group flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-4 text-center transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:bg-surface-container-high hover:shadow-soft sm:p-6"
+              to="/devices/add/type"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-container-highest font-headline text-xl font-black text-primary transition-all duration-300 group-hover:scale-110 group-hover:bg-surface-container-lowest">
+                +
+              </div>
+              <div>
+                <h3 className="font-headline text-lg font-bold text-on-surface">{t("provisionUnit")}</h3>
+                <p className="px-8 text-xs text-on-surface-variant">{t("provisionDescription")}</p>
+              </div>
+            </Link>
+          </div>
+        </div>
 
         <section className="mt-20 grid grid-cols-1 gap-8 items-center md:grid-cols-12">
           <div className="group relative overflow-hidden rounded-3xl bg-primary-container p-4 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,67,66,0.22)] sm:p-6 md:col-span-4">

@@ -376,6 +376,12 @@
   },
   "devices": {
     "title": "Infrastruktuuri",
+    "typeHeadings": {
+      "STANDARD": "Vakiolaitteet",
+      "THERMOSTAT": "Termostaatit",
+      "TEMPERATURE_SENSOR": "Lämpötila-anturit",
+      "HEAT_PUMP": "Lämpöpumput"
+    },
     "description": "Hallitse ja seuraa energiaverkon laitteita. Reaaliaikainen tila kaikille verkkoon liitetyille yksiköille.",
     "addNewDevice": "Lisää uusi laite",
     "loadingDevices": "Ladataan laitteita...",

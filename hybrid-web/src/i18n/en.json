@@ -376,6 +376,12 @@
   },
   "devices": {
     "title": "Your Infrastructure",
+    "typeHeadings": {
+      "STANDARD": "Standard devices",
+      "THERMOSTAT": "Thermostats",
+      "TEMPERATURE_SENSOR": "Temperature sensors",
+      "HEAT_PUMP": "Heat pumps"
+    },
     "description": "Manage and monitor your precision energy grid components. Real-time status for every connected unit across your network.",
     "addNewDevice": "Add New Device",
     "loadingDevices": "Loading devices...",
