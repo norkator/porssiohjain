@@ -59,6 +59,11 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(
             CorsRegistry registry
     ) {
+        registry.addMapping("/fingrid/wind-forecast")
+                .allowedMethods("GET", "HEAD", "OPTIONS")
+                .allowedOriginPatterns("*")
+                .allowCredentials(false);
+
         for (String path : MOBILE_API_PATHS) {
             registry.addMapping(path)
                     .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
