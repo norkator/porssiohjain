@@ -23,6 +23,34 @@ is no background daemon or local web server.
 Target: GNOME Shell 46, as shipped in Ubuntu 24.04. Other Shell versions are not
 declared compatible until their menu, chart, and preference APIs are verified.
 
+### Automatic installation
+
+From a terminal in your GNOME desktop, run this from the repository root:
+
+```sh
+./gnome/install.sh --install-deps
+```
+
+The script installs missing Ubuntu packages using `sudo`, installs Rust for your
+user via the official rustup installer when needed, builds the extension, installs
+it for your user, and configures activation for the next login. Run the script
+without `sudo`. Log out and back in when it finishes; no separate enable command
+is needed. Existing extension preferences and other extensions are preserved.
+
+If prerequisites are already installed, use `./gnome/install.sh`. To install the
+existing archive without Rust or a build:
+
+```sh
+./gnome/install.sh --archive "gnome/dist/$(uname -m)/electricity-prices@porssiohjain.fi.shell-extension.zip"
+```
+
+Use `--no-enable` to install without changing activation settings. The script
+checks GNOME compatibility and the helper's CPU architecture before installing.
+Run `./gnome/install.sh --help` for all options. Re-run the same command to update,
+then log out and back in to load the new code.
+
+### Manual installation
+
 If building from source, install a current stable Rust toolchain (Rust 1.85 or
 later) using [rustup](https://rustup.rs/), and install the build tools:
 

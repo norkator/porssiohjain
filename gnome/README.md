@@ -8,12 +8,30 @@ and lockfile. Building does not install or enable anything in your desktop sessi
 | --- | --- | --- |
 | Electricity prices | [extensions/electricity-prices](extensions/electricity-prices) | 46 (Ubuntu 24.04) |
 
+## Install
+
+From the repository root, run:
+
+```sh
+./gnome/install.sh --install-deps
+```
+
+This installs missing Ubuntu dependencies and Rust when needed, builds the
+electricity-price extension, installs it for your user, and configures activation
+at the next login. Run without `sudo`, then log out and back in. Use `--extension
+<name>` for another extension, `--archive <path>` for an existing build, or
+`--no-enable` to leave activation settings unchanged. Omit `--install-deps` when
+prerequisites are already available. See `./gnome/install.sh --help` for details.
+
 ## Build and verify
 
 Install Rust with Cargo, a C linker (`build-essential` on Ubuntu), Python 3, Make,
 GJS, and GLib tools (`libglib2.0-bin`). The native helper uses Rustls, so OpenSSL
 development packages are not needed. Ubuntu's GNOME desktop already supplies the
 Shell, GJS, GTK 4, and libadwaita runtime.
+
+For `make check`, also install the Rust developer components with
+`rustup component add rustfmt clippy` if using a minimal Rust toolchain.
 
 From this folder:
 
@@ -29,7 +47,8 @@ repository license. Build on the target architecture and an Ubuntu version no
 newer than the installation target; the bundled helper is a native Linux executable.
 
 `make check` runs Rust formatting, Clippy, Rust tests, GJS syntax/model checks, and
-strict schema validation. It needs no live backend and does not touch GNOME settings.
+strict schema validation. Installer tests use temporary GNOME data and settings;
+no live backend is needed.
 
 See the [electricity prices README](extensions/electricity-prices/README.md) for
 installation, settings, behavior, and manual verification.

@@ -2,9 +2,15 @@
 """Check schemas and JavaScript for every extension, then run its GJS tests."""
 
 import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+subprocess.run(["sh", "-n", str(ROOT / "install.sh")], check=True)
+subprocess.run([
+    sys.executable, "-m", "unittest", "discover", "-s", str(ROOT / "tools" / "tests"), "-p", "test_*.py",
+], check=True)
 
 for project in sorted((ROOT / "extensions").iterdir()):
     if not (project / "extension.json").is_file():
