@@ -253,15 +253,7 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
         dialog.add(content);
         dialog.getFooter().add(new Button(t("common.close"), event -> dialog.close()));
         dialog.addOpenedChangeListener(event -> {
-            if (event.isOpened()) {
-                // Recalculate the canvas after the overlay has its final, visible width.
-                chart.getElement().executeJs("""
-                        requestAnimationFrame(() => this.chartInstance?.updateOptions(
-                            { chart: { width: '100%' } }, false, false));
-                        """);
-            } else {
-                remove(dialog);
-            }
+            if (!event.isOpened()) remove(dialog);
         });
         add(dialog);
         dialog.open();

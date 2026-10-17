@@ -102,7 +102,26 @@ public class DeviceMeasurementHistoryChart extends Div {
                   noData: { text: $7 }
                 };
                 this.chartInstance = new ApexCharts(this, options);
-                this.chartInstance.render();
+                const chart = this.chartInstance;
+                chart.render().then(() => {
+                  let lastWidth = 0;
+                  const resizeObserver = new ResizeObserver(entries => {
+                    const width = Math.floor(entries[0].contentRect.width);
+                    if (this.isConnected && width > 0 && width !== lastWidth) {
+                      lastWidth = width;
+                      chart.updateOptions({ chart: { width } }, false, false);
+                    }
+                  });
+                  resizeObserver.observe(this);
+                  const detached = new MutationObserver(() => {
+                    if (!this.isConnected) {
+                      resizeObserver.disconnect();
+                      detached.disconnect();
+                      chart.destroy();
+                    }
+                  });
+                  detached.observe(document.body, { childList: true, subtree: true });
+                });
                 """, points, seriesName, min, max, zone.getId(), unit, timeLabel, noDataLabel, locale,
                 from == null ? null : from.toEpochMilli(), to == null ? null : to.toEpochMilli());
     }
