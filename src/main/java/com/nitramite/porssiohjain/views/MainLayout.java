@@ -106,6 +106,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         menuItems.addClassName("retro-menu-items");
         startMenu.add(brand, menuItems);
         feature("home.myDevices", VaadinIcon.DESKTOP, DeviceView.class);
+        feature("home.measurements", VaadinIcon.LINE_CHART, MeasurementsView.class);
         feature("home.myControls", VaadinIcon.SLIDERS, ControlsView.class);
         feature("home.weatherControls", VaadinIcon.CLOUD, WeatherControlsView.class);
         feature("home.heatingPlanner", VaadinIcon.FIRE, HeatingPlannerView.class);
@@ -307,6 +308,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             case CLOUD -> "weather";
             case FIRE, FLASH, SUN_O, LIGHTBULB -> "energy";
             case COMMENT -> "feedback";
+            case LINE_CHART -> "measurements";
             case MENU -> "start";
             case SIGN_OUT -> "logout";
             default -> "folder";
@@ -572,6 +574,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         if (path.startsWith("admin")) return t("home.admin");
         if (path.startsWith("weather-controls")) return t("home.weatherControls");
         if (path.startsWith("heating-planner")) return t("home.heatingPlanner");
+        if (path.startsWith("measurements")) return t("home.measurements");
         if (path.startsWith("load-shedding")) return t("home.loadShedding");
         if (path.startsWith("powerplant")) return t("home.powerplant");
         if (path.startsWith("solar-angle-planner")) return t("home.solarAnglePlanner");

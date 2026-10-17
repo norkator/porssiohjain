@@ -124,7 +124,7 @@ class MainLayoutTest {
         Component icons = layout.getChildren().flatMap(Component::getChildren)
                 .filter(c -> c.getElement().getClassList().contains("retro-icons")).findFirst().orElseThrow();
         List<String> labels = icons.getChildren().map(c -> c.getElement().getTextRecursively()).toList();
-        assertEquals(List.of("home.myDevices", "home.myControls", "home.weatherControls",
+        assertEquals(List.of("home.myDevices", "home.measurements", "home.myControls", "home.weatherControls",
                 "home.heatingPlanner", "home.loadShedding", "home.powerplant", "home.solarAnglePlanner",
                 "home.myProduction", "home.powerLimits", "home.dashboard", "home.settings", "featureRequest.title", "desktop.googlePlay", "home.buyMeACoffee", "home.logout"), labels);
     }

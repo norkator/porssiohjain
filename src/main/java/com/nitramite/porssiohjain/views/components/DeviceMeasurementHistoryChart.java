@@ -22,6 +22,12 @@ public class DeviceMeasurementHistoryChart extends Div {
 
     public DeviceMeasurementHistoryChart(List<DeviceMeasurementEntity> history, ZoneId zone,
                                         String seriesName, String unit) {
+        this(history, zone, seriesName, unit, "Report / cloud snapshot time", "No history values available.", "en-GB");
+    }
+
+    public DeviceMeasurementHistoryChart(List<DeviceMeasurementEntity> history, ZoneId zone,
+                                        String seriesName, String unit, String timeLabel, String noDataLabel,
+                                        String locale) {
         setWidthFull();
         setHeight("300px");
         getStyle().set("position", "relative").set("flex-shrink", "0");
@@ -42,11 +48,11 @@ public class DeviceMeasurementHistoryChart extends Div {
                 const data = $0;
                 const hasData = data.length > 0;
                 const singleTime = hasData && data[0][0] === data[data.length - 1][0];
-                const timeFormat = new Intl.DateTimeFormat('en-GB', {
+                const timeFormat = new Intl.DateTimeFormat($8, {
                   timeZone: $4, month: '2-digit', day: '2-digit',
                   hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
                 });
-                const tooltipTimeFormat = new Intl.DateTimeFormat('en-GB', {
+                const tooltipTimeFormat = new Intl.DateTimeFormat($8, {
                   timeZone: $4, year: 'numeric', month: '2-digit', day: '2-digit',
                   hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
                 });
@@ -54,7 +60,7 @@ public class DeviceMeasurementHistoryChart extends Div {
                   chart: { height: 290, type: 'line', toolbar: { show: hasData }, animations: { enabled: false } },
                   series: [{ name: $1, data: data, type: 'line' }],
                   xaxis: {
-                    type: 'datetime', title: { text: hasData ? 'Report / cloud snapshot time' : undefined },
+                    type: 'datetime', title: { text: hasData ? $6 : undefined },
                     min: singleTime ? data[0][0] - 15 * 60 * 1000 : undefined,
                     max: singleTime ? data[0][0] + 15 * 60 * 1000 : undefined,
                     axisBorder: { show: hasData }, axisTicks: { show: hasData },
@@ -78,10 +84,10 @@ public class DeviceMeasurementHistoryChart extends Div {
                     y: { formatter: value => Number(value.toFixed(3)) + ' ' + $5 }
                   },
                   legend: { show: hasData, position: 'top', showForSingleSeries: true },
-                  noData: { text: 'No history values available.' }
+                  noData: { text: $7 }
                 };
                 this.chartInstance = new ApexCharts(this, options);
                 this.chartInstance.render();
-                """, points, seriesName, min, max, zone.getId(), unit);
+                """, points, seriesName, min, max, zone.getId(), unit, timeLabel, noDataLabel, locale);
     }
 }
