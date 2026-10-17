@@ -8,6 +8,18 @@ and lockfile. Building does not install or enable anything in your desktop sessi
 | --- | --- | --- |
 | Electricity prices | [extensions/electricity-prices](extensions/electricity-prices) | 46 (Ubuntu 24.04) |
 
+## Download a ready package
+
+After the first successful workflow run, downloads are available from the
+[GNOME extensions prerelease](https://github.com/norkator/porssiohjain/releases/tag/gnome-extensions-latest).
+Choose the `x86_64` or `aarch64` package matching `uname -m`.
+
+Each extension has a `.shell-extension.zip` for direct GNOME installation and a
+`.tar.gz` bundle containing the prebuilt extension and an installer. Extract the
+bundle and run `./install.sh` inside it, then log out and back in. Use
+`./install.sh --install-deps` if Ubuntu runtime tools are missing. These bundles
+install without a Rust toolchain or repository checkout.
+
 ## Install
 
 From the repository root, run:
@@ -53,6 +65,28 @@ no live backend is needed.
 See the [electricity prices README](extensions/electricity-prices/README.md) for
 installation, settings, behavior, and manual verification.
 
+## Release workflow
+
+[gnome-extensions.yml](../.github/workflows/gnome-extensions.yml) runs only on pushes
+to the `extensions` branch. Merge or commit the desired changes there and push
+that branch. It checks and builds every registered extension on native Ubuntu
+24.04 x86_64 and ARM64 runners. After both builds succeed, it updates the dedicated
+`gnome-extensions-latest` prerelease with ZIPs, standalone installation bundles,
+SHA256 checksums, and the source commit. Packages are also kept as workflow
+artifacts for 30 days. The last published packages remain available if a build fails.
+
+The workflow uses the repository's built-in `GITHUB_TOKEN` with release write
+permission in the publishing job. No additional secrets are needed. Publication
+updates the dedicated rolling tag and replaces assets with the same filenames.
+
+To prepare the same packages locally, from `gnome/`:
+
+```sh
+make release EXTENSION=electricity-prices
+```
+
+Downloads are generated in `dist/release/`, which is covered by `.gitignore`.
+
 ## Adding another extension
 
 1. Create `extensions/<name>/shell/` with its own `metadata.json`, unique UUID,
@@ -63,6 +97,7 @@ installation, settings, behavior, and manual verification.
    the root `Cargo.toml`. Keep the helper's stdout as JSON and diagnostics on stderr.
 4. Put GJS tests in `extensions/<name>/tests/*.test.js`; `make check` discovers them.
 5. Run `make build EXTENSION=<name>` to package that extension independently.
+   Registered extensions are also included automatically in the release workflow.
 
 GNOME Shell's menu and drawing APIs use GJS. Rust helpers run as asynchronous
 subprocesses; extension UI modules must not block the Shell or import GTK. GTK and

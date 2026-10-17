@@ -23,6 +23,29 @@ is no background daemon or local web server.
 Target: GNOME Shell 46, as shipped in Ubuntu 24.04. Other Shell versions are not
 declared compatible until their menu, chart, and preference APIs are verified.
 
+### Prebuilt release
+
+After a successful build of the `extensions` branch, download the matching package
+from the [GNOME extensions prerelease](https://github.com/norkator/porssiohjain/releases/tag/gnome-extensions-latest).
+Use `uname -m` to choose `x86_64` (Intel/AMD) or `aarch64` (ARM64).
+
+For the installation bundle, open a terminal where you downloaded it and run:
+
+```sh
+tar -xzf "porssiohjain-electricity-prices-linux-$(uname -m).tar.gz"
+cd "porssiohjain-electricity-prices-linux-$(uname -m)"
+./install.sh
+```
+
+If Ubuntu runtime tools are missing, use `./install.sh --install-deps`. The bundle
+includes the compiled extension, so Rust and a source checkout are not required.
+Run without `sudo`, then log out and back in. Existing preferences are preserved.
+
+The release also offers `.shell-extension.zip` files for direct installation with
+`gnome-extensions install --force /path/to/downloaded.shell-extension.zip` and a
+`SHA256SUMS` file. ZIP-only installation requires enabling the extension in GNOME
+Extensions after the next login.
+
 ### Automatic installation
 
 From a terminal in your GNOME desktop, run this from the repository root:
