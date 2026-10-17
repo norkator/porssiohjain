@@ -19,12 +19,13 @@ from release import prepare_release
 
 
 class ReleasePackagingTest(unittest.TestCase):
+    extension = "electricity-prices"
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="gnome release test ")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.workspace = self.root / "checkout/gnome"
-        self.extension = "electricity-prices"
         self.project = self.workspace / "extensions" / self.extension
         self.project.mkdir(parents=True)
         shutil.copytree(WORKSPACE / "extensions" / self.extension / "shell", self.project / "shell")
@@ -36,7 +37,8 @@ class ReleasePackagingTest(unittest.TestCase):
         self.architecture = platform.machine()
         self.archive = self.workspace / "dist" / self.architecture / f"{self.uuid}.shell-extension.zip"
         self.archive.parent.mkdir(parents=True)
-        helper = self.project / "shell/libexec/porssiohjain-prices"
+        self.binary = json.loads((self.project / "extension.json").read_text())["binary"]
+        helper = self.project / "shell/libexec" / self.binary
         helper.parent.mkdir()
         header = bytearray(64)
         header[:6] = b"\x7fELF\x02\x01"
@@ -89,4 +91,8 @@ class ReleasePackagingTest(unittest.TestCase):
         self.assertNotIn("Building", result.stdout)
         installed = self.root / "data/gnome-shell/extensions" / self.uuid
         self.assertTrue((installed / "extension.js").is_file())
-        self.assertTrue(os.access(installed / "libexec/porssiohjain-prices", os.X_OK))
+        self.assertTrue(os.access(installed / "libexec" / self.binary, os.X_OK))
+
+
+class WindReleasePackagingTest(ReleasePackagingTest):
+    extension = "wind-forecast"

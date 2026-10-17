@@ -1,0 +1,9 @@
+{
+  "uuid": "wind-forecast@porssiohjain.fi",
+  "name": "Pörssiohjain Wind Forecast",
+  "description": "Finnish wind-power production forecast in the top bar, with an interactive Fingrid forecast graph.",
+  "shell-version": ["46"],
+  "settings-schema": "org.gnome.shell.extensions.porssiohjain-wind",
+  "url": "https://github.com/norkator/porssiohjain/tree/main/gnome/extensions/wind-forecast",
+  "version": 1
+}

@@ -1,5 +1,5 @@
 [workspace]
-members = ["extensions/electricity-prices/helper"]
+members = ["extensions/electricity-prices/helper", "extensions/wind-forecast/helper"]
 resolver = "3"
 
 [workspace.package]

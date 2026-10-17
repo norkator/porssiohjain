@@ -1,0 +1,49 @@
+.porssiohjain-wind-panel {
+    spacing: 6px;
+}
+
+.porssiohjain-wind-content {
+    spacing: 12px;
+    padding: 12px 16px;
+}
+
+.porssiohjain-wind-heading {
+    font-size: 1.25em;
+    font-weight: bold;
+}
+
+.porssiohjain-wind-caption {
+    font-size: 0.85em;
+    opacity: 0.65;
+}
+
+.porssiohjain-wind-status {
+    font-size: 0.85em;
+}
+
+.porssiohjain-wind-warning {
+    color: #e5a950;
+}
+
+.porssiohjain-wind-chart {
+    height: 244px;
+    border-radius: 12px;
+    background-color: rgba(128, 128, 128, 0.06);
+}
+
+.porssiohjain-wind-metrics {
+    spacing: 16px;
+}
+
+.porssiohjain-wind-metric {
+    spacing: 4px;
+}
+
+.porssiohjain-wind-value {
+    font-size: 1.15em;
+    font-weight: bold;
+}
+
+.porssiohjain-wind-inspection {
+    min-height: 1.5em;
+}

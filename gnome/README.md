@@ -7,6 +7,7 @@ and lockfile. Building does not install or enable anything in your desktop sessi
 | Extension | Folder | GNOME Shell |
 | --- | --- | --- |
 | Electricity prices | [extensions/electricity-prices](extensions/electricity-prices) | 46 (Ubuntu 24.04) |
+| Wind forecast | [extensions/wind-forecast](extensions/wind-forecast) | 46 (Ubuntu 24.04) |
 
 ## Download a ready package
 
@@ -35,6 +36,14 @@ at the next login. Run without `sudo`, then log out and back in. Use `--extensio
 `--no-enable` to leave activation settings unchanged. Omit `--install-deps` when
 prerequisites are already available. See `./gnome/install.sh --help` for details.
 
+To install the Finnish wind-power forecast indicator instead:
+
+```sh
+./gnome/install.sh --extension wind-forecast --install-deps
+```
+
+Both indicators can be installed and enabled together. Their settings are independent.
+
 ## Build and verify
 
 Install Rust with Cargo, a C linker (`build-essential` on Ubuntu), Python 3, Make,
@@ -62,8 +71,9 @@ newer than the installation target; the bundled helper is a native Linux executa
 strict schema validation. Installer tests use temporary GNOME data and settings;
 no live backend is needed.
 
-See the [electricity prices README](extensions/electricity-prices/README.md) for
-installation, settings, behavior, and manual verification.
+See the [electricity prices README](extensions/electricity-prices/README.md) and
+[wind forecast README](extensions/wind-forecast/README.md) for installation,
+settings, behavior, and manual verification.
 
 ## Release workflow
 
