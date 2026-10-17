@@ -1,0 +1,9 @@
+{
+  "uuid": "electricity-prices@porssiohjain.fi",
+  "name": "Pörssiohjain Electricity Prices",
+  "description": "Current electricity spot price in the top bar and an interactive today/tomorrow graph in its menu. Powered by a Rust helper.",
+  "shell-version": ["46"],
+  "settings-schema": "org.gnome.shell.extensions.porssiohjain-prices",
+  "url": "https://github.com/norkator/porssiohjain/tree/main/gnome",
+  "version": 1
+}
