@@ -15,6 +15,9 @@ Official Pörssiohjain services are available at:
 * Marketing page: https://www.porssiohjain.fi
 * Hybrid web project for webview also available at https://mobile.porssiohjain.fi
 
+GNOME Shell extensions, including the Rust-powered electricity-price top-bar
+indicator, live in the separate [gnome workspace](gnome/README.md).
+
 Only domains listed here should be treated as official service domains.
 
 ⚠️ Pörssiohjain may be used free of charge with limitations by private individuals for their own household use

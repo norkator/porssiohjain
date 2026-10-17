@@ -1,0 +1,181 @@
+name: Build and Release GNOME Extensions
+
+on:
+  push:
+    branches:
+      - extensions
+
+permissions:
+  contents: read
+
+# Serialize pushes so release updates cannot interleave.
+concurrency:
+  group: gnome-extensions-release
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTUP_TOOLCHAIN: stable
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/extensions'
+    name: Build Linux ${{ matrix.architecture }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            architecture: x86_64
+          - runner: ubuntu-24.04-arm
+            architecture: aarch64
+    defaults:
+      run:
+        working-directory: gnome
+        shell: bash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install build and GNOME test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential python3 gjs libglib2.0-bin gnome-shell
+
+      - name: Set up Rust
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+
+      - name: Cache Rust dependencies and builds
+        uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            gnome/target
+          key: ${{ runner.os }}-${{ matrix.architecture }}-gnome-rust-${{ hashFiles('gnome/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.architecture }}-gnome-rust-
+
+      - name: Check extensions
+        run: make check
+
+      - name: Build release packages
+        run: |
+          python3 tools/package.py --list |
+          while IFS= read -r extension; do
+            make release EXTENSION="$extension"
+          done
+
+      - name: Verify checksums
+        working-directory: gnome/dist/release
+        run: |
+          cat SHA256SUMS-*.txt > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Upload installable packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: gnome-extensions-linux-${{ matrix.architecture }}
+          path: |
+            gnome/dist/release/*.shell-extension.zip
+            gnome/dist/release/*.tar.gz
+            gnome/dist/release/SHA256SUMS-*.txt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  release:
+    if: github.ref == 'refs/heads/extensions'
+    name: Publish latest GNOME packages
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: gnome-extensions-latest
+
+    steps:
+      - name: Download packages for both architectures
+        uses: actions/download-artifact@v8
+        with:
+          pattern: gnome-extensions-linux-*
+          path: release
+          merge-multiple: true
+
+      - name: Verify release packages
+        working-directory: release
+        run: |
+          cat SHA256SUMS-*.txt > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Write release notes
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          source = f"{os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/commit/{os.environ['GITHUB_SHA']}"
+          notes = f"""Latest successful build from the `extensions` branch.
+
+          Source: [{os.environ['GITHUB_SHA']}]({source})
+
+          Built on Ubuntu 24.04 for GNOME Shell 46. Choose **x86_64** for Intel/AMD
+          PCs or **aarch64** for ARM64 systems (`uname -m` shows your architecture).
+
+          ### Install bundle
+
+          Download the matching `.tar.gz`, extract it, and run `./install.sh` from
+          the extracted folder. Use `./install.sh --install-deps` if runtime tools
+          are missing. Rust and a repository checkout are not required.
+
+          Run as your normal desktop user, then log out and back in.
+
+          ### Extension ZIP
+
+          The `.shell-extension.zip` files can also be installed directly with
+          `gnome-extensions install --force /path/to/downloaded.shell-extension.zip`.
+          After logging out and back in, enable the extension in GNOME Extensions.
+
+          SHA256 checksums are in `SHA256SUMS`. These downloads are replaced after
+          each successful push to `extensions`.
+          """
+          Path(os.environ['RUNNER_TEMP'], 'gnome-release-notes.md').write_text(notes)
+          PY
+
+      - name: Update dedicated GNOME prerelease
+        working-directory: release
+        shell: bash
+        run: |
+          branch_head=$(gh api "repos/$GH_REPO/branches/extensions" --jq '.commit.sha')
+          if [ "$branch_head" != "$GITHUB_SHA" ]; then
+            printf 'The extensions branch has advanced; this build remains available as workflow artifacts.\n'
+            exit 0
+          fi
+
+          if gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" > /dev/null 2>&1; then
+            gh api --method PATCH "repos/$GH_REPO/git/refs/tags/$RELEASE_TAG" \
+              --raw-field "sha=$GITHUB_SHA" --field force=true > /dev/null
+          else
+            gh api --method POST "repos/$GH_REPO/git/refs" \
+              --raw-field "ref=refs/tags/$RELEASE_TAG" --raw-field "sha=$GITHUB_SHA" > /dev/null
+          fi
+
+          if ! gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --target "$GITHUB_SHA" \
+              --draft --prerelease --latest=false --title "GNOME extensions (latest build)" \
+              --notes-file "$RUNNER_TEMP/gnome-release-notes.md"
+          fi
+
+          gh release upload "$RELEASE_TAG" ./*.shell-extension.zip ./*.tar.gz SHA256SUMS --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease --latest=false \
+            --title "GNOME extensions (latest build)" --notes-file "$RUNNER_TEMP/gnome-release-notes.md"

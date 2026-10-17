@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.porssiohjain-prices" path="/org/gnome/shell/extensions/porssiohjain-prices/">
+    <key name="server-url" type="s">
+      <default>'https://app.porssiohjain.fi'</default>
+      <summary>Pörssiohjain server URL</summary>
+    </key>
+    <key name="timezone" type="s">
+      <default>'Europe/Helsinki'</default>
+      <summary>IANA timezone for price days</summary>
+    </key>
+    <key name="market-index" type="s">
+      <default>'FI'</default>
+      <summary>Nord Pool market index</summary>
+    </key>
+    <key name="refresh-minutes" type="i">
+      <default>5</default>
+      <range min="1" max="60"/>
+      <summary>Price refresh interval in minutes</summary>
+    </key>
+    <key name="show-unit" type="b">
+      <default>true</default>
+      <summary>Show cents per kWh in the top bar</summary>
+    </key>
+  </schema>
+</schemalist>

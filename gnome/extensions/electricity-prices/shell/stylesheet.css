@@ -1,0 +1,49 @@
+.porssiohjain-panel {
+    spacing: 6px;
+}
+
+.porssiohjain-content {
+    spacing: 12px;
+    padding: 12px 16px;
+}
+
+.porssiohjain-heading {
+    font-size: 1.25em;
+    font-weight: bold;
+}
+
+.porssiohjain-caption {
+    font-size: 0.85em;
+    opacity: 0.65;
+}
+
+.porssiohjain-status {
+    font-size: 0.85em;
+}
+
+.porssiohjain-warning {
+    color: #e5a950;
+}
+
+.porssiohjain-chart {
+    height: 244px;
+    border-radius: 12px;
+    background-color: rgba(128, 128, 128, 0.06);
+}
+
+.porssiohjain-metrics {
+    spacing: 24px;
+}
+
+.porssiohjain-metric {
+    spacing: 4px;
+}
+
+.porssiohjain-value {
+    font-size: 1.15em;
+    font-weight: bold;
+}
+
+.porssiohjain-inspection {
+    min-height: 1.5em;
+}
