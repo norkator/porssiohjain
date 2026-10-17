@@ -32,6 +32,8 @@ public interface AccountRepository extends JpaRepository<AccountEntity, Long> {
 
     Optional<AccountEntity> findByUuid(UUID uuid);
 
+    Optional<AccountEntity> findByPublicMeasurementsUuidAndBlockedFalse(UUID publicMeasurementsUuid);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<AccountEntity> findWithLockById(Long id);
 

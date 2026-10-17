@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -58,6 +59,25 @@ public class DeviceMeasurementService {
                         zigbeeMeasurements.findTop500ByAccountIdAndDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(
                                 accountId, deviceId, ZigbeeMeasurementType.valueOf(type.name()), key).stream().map(this::fromZigbee))
                 .sorted(Comparator.comparing(DeviceMeasurementEntity::getObservedAt).reversed()).limit(500).toList();
+    }
+
+    public boolean existsForAccount(Long accountId, Long deviceId, DeviceMeasurementType type, String key) {
+        return measurements.existsByAccountIdAndDeviceIdAndMeasurementTypeAndMeasurementKey(accountId, deviceId, type, key)
+                || zigbeeMeasurements.existsByAccountIdAndDeviceIdAndMeasurementTypeAndMeasurementKey(
+                accountId, deviceId, ZigbeeMeasurementType.valueOf(type.name()), key);
+    }
+
+    /** Account-scoped, complete time window for public charts; never applies the recent-history 500-row cap. */
+    public List<DeviceMeasurementEntity> accountHistory(Long accountId, Long deviceId, DeviceMeasurementType type,
+                                                       String key, Instant from, Instant to) {
+        if (!from.isBefore(to) || Duration.between(from, to).compareTo(Duration.ofDays(7)) > 0) {
+            throw new IllegalArgumentException("History window must be positive and at most seven days");
+        }
+        return Stream.concat(measurements.findAccountHistory(accountId, deviceId, type, key, from, to).stream(),
+                        zigbeeMeasurements.findAccountHistory(accountId, deviceId, ZigbeeMeasurementType.valueOf(type.name()),
+                                key, from, to).stream().map(this::fromZigbee))
+                .sorted(Comparator.comparing(DeviceMeasurementEntity::getObservedAt)
+                        .thenComparing(DeviceMeasurementEntity::getId)).toList();
     }
 
     private DeviceMeasurementEntity fromZigbee(ZigbeeDeviceMeasurementEntity row) {

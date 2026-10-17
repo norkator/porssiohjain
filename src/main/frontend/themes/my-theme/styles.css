@@ -58,6 +58,12 @@ body {
     padding: 32px;
 }
 
+.public-measurement-card {
+    border: 1px solid var(--lumo-contrast-30pct);
+    background: var(--lumo-base-color);
+    min-width: 0;
+}
+
 @media (max-width: 767px) {
     .responsive-card {
         padding: 16px !important;

@@ -136,6 +136,10 @@ Focused verification:
 
 The Android Zigbee gateway is maintained in the separate `energy-controller-android` repository. Read that repository's `AGENTS.md` before coordinating backend contracts with the native gateway.
 
+## Measurements and public sharing
+
+Read `doc/measurements.md` before changing measurement publishing. `/measurements` manages explicit device/type/key selections. Anonymous `/public-measurements/{pageId}` pages show rolling 24-hour charts; individual published items offer up to seven days. Keep the public page identifier separate from account credentials, enforce current device ownership and account-scoped history, and preserve removal controls for sources without retained readings. Public history must not inherit the private history dialog's 500-row cap.
+
 ## Authenticated Vaadin desktop
 
 - `DesktopView` is the authenticated landing route (`/desktop`). Public `HomeView` and `LoginView` remain separate; valid sessions reaching `/` are forwarded to the desktop.

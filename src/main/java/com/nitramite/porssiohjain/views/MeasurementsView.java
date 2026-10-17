@@ -10,19 +10,25 @@ import com.nitramite.porssiohjain.entity.enums.DeviceMeasurementType;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceMeasurementService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.PublicMeasurementService;
+import com.nitramite.porssiohjain.services.DemoAccountMutationException;
 import com.nitramite.porssiohjain.views.components.DeviceMeasurementHistoryChart;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
@@ -47,16 +53,21 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
     private final AuthService authService;
     private final I18nService i18n;
     private final DeviceMeasurementService measurements;
+    private final PublicMeasurementService publicMeasurements;
     private final TextField search = new TextField();
     private final ComboBox<String> timezone = new ComboBox<>();
     private final Span status = new Span();
     private final VerticalLayout groups = new VerticalLayout();
+    private final VerticalLayout sharingPanel = new VerticalLayout();
+    private PublicMeasurementService.OwnerSettings sharing = new PublicMeasurementService.OwnerSettings(null, List.of());
     private List<DeviceMeasurementEntity> latest = List.of();
 
-    public MeasurementsView(AuthService authService, I18nService i18n, DeviceMeasurementService measurements) {
+    public MeasurementsView(AuthService authService, I18nService i18n, DeviceMeasurementService measurements,
+                            PublicMeasurementService publicMeasurements) {
         this.authService = authService;
         this.i18n = i18n;
         this.measurements = measurements;
+        this.publicMeasurements = publicMeasurements;
         VaadinSession session = VaadinSession.getCurrent();
         Locale locale = session == null ? null : session.getAttribute(Locale.class);
         if (locale != null) UI.getCurrent().setLocale(locale);
@@ -81,12 +92,14 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
         toolbar.getStyle().set("gap", "var(--lumo-space-m)");
         groups.setPadding(false);
         groups.setAlignItems(Alignment.STRETCH);
+        sharingPanel.setPadding(false);
+        sharingPanel.setAlignItems(Alignment.STRETCH);
         search.addValueChangeListener(event -> renderGroups());
         timezone.addValueChangeListener(event -> {
             if (event.getValue() == null) timezone.setValue(event.getOldValue());
             else renderGroups();
         });
-        add(toolbar, status, groups);
+        add(toolbar, sharingPanel, status, groups);
         refresh();
     }
 
@@ -94,6 +107,54 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         // Include every retained series, even if its sensor has been silent for more than 12 hours.
         latest = account == null ? List.of() : measurements.latestForAccount(account.getId(), Instant.EPOCH);
+        sharing = account == null ? new PublicMeasurementService.OwnerSettings(null, List.of())
+                : publicMeasurements.ownerSettings(account.getId());
+        renderSharing();
+        renderGroups();
+    }
+
+    private void renderSharing() {
+        sharingPanel.removeAll();
+        sharingPanel.add(new H3(t("measurements.sharing.title")), new Paragraph(t("measurements.sharing.description")));
+        if (sharing.pageId() != null) {
+            Anchor link = new Anchor(PublicMeasurementsView.path(sharing.pageId()), t("measurements.sharing.open"));
+            link.setTarget("_blank");
+            link.getElement().setAttribute("rel", "noopener noreferrer");
+            Button copy = new Button(t("measurements.sharing.copy"), VaadinIcon.COPY.create(), event ->
+                    link.getElement().executeJs("navigator.clipboard.writeText(this.href)"));
+            FlexLayout links = new FlexLayout(link, copy);
+            links.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+            links.setAlignItems(Alignment.CENTER);
+            links.getStyle().set("gap", "var(--lumo-space-m)");
+            sharingPanel.add(links);
+        }
+        if (sharing.selections().isEmpty()) sharingPanel.add(new Paragraph(t("measurements.sharing.empty")));
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        boolean writable = account != null && !account.isDemo() && !ViewAuthUtils.isImpersonating();
+        for (var selected : sharing.selections()) {
+            Button remove = new Button(t("measurements.sharing.remove"), event -> changePublication(
+                    selected.deviceId(), selected.type(), selected.key(), false));
+            remove.setEnabled(writable);
+            FlexLayout item = new FlexLayout(new Span(selected.deviceName() + " · " + typeLabel(selected.type())
+                    + " · " + selected.key()), remove);
+            item.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+            item.setAlignItems(Alignment.CENTER);
+            item.getStyle().set("gap", "var(--lumo-space-m)");
+            sharingPanel.add(item);
+        }
+    }
+
+    private void changePublication(Long deviceId, DeviceMeasurementType type, String key, boolean published) {
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        if (account == null || account.isDemo() || ViewAuthUtils.isImpersonating()) return;
+        try {
+            publicMeasurements.setPublished(account.getId(), deviceId, type, key, published);
+        } catch (IllegalArgumentException | DemoAccountMutationException exception) {
+            Notification.show(t("measurements.sharing.failed"), 5000, Notification.Position.BOTTOM_CENTER)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+        sharing = publicMeasurements.ownerSettings(account.getId());
+        renderSharing();
         renderGroups();
     }
 
@@ -130,13 +191,26 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
         grid.addColumn(DeviceMeasurementEntity::getSource).setHeader(t("measurements.source")).setAutoWidth(true);
         grid.addColumn(row -> row.getMeasurementKey() + " · " + row.getSourceKey())
                 .setHeader(t("measurements.property")).setAutoWidth(true);
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        var publishColumn = grid.addComponentColumn(row -> {
+            Checkbox checkbox = new Checkbox(t("measurements.sharing.public"));
+            checkbox.setAriaLabel(t("measurements.sharing.public") + " · " + deviceName(row)
+                    + " · " + typeLabel(row.getMeasurementType()) + " · " + row.getMeasurementKey());
+            checkbox.setValue(sharing.selections().stream().anyMatch(selected ->
+                    selected.deviceId().equals(row.getDevice().getId()) && selected.type() == row.getMeasurementType()
+                            && selected.key().equals(row.getMeasurementKey())));
+            checkbox.setEnabled(account != null && !account.isDemo() && !ViewAuthUtils.isImpersonating());
+            checkbox.addValueChangeListener(event -> changePublication(row.getDevice().getId(), row.getMeasurementType(),
+                    row.getMeasurementKey(), event.getValue()));
+            return checkbox;
+        }).setKey("public").setAutoWidth(true).setFlexGrow(0);
         var plotColumn = grid.addComponentColumn(row -> {
             Button plot = new Button(t("measurements.plot"), VaadinIcon.LINE_CHART.create(), event -> openHistory(row));
             plot.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
             return plot;
         }).setAutoWidth(true).setFlexGrow(0);
         grid.addItemClickListener(event -> {
-            if (event.getColumn() != plotColumn) openHistory(event.getItem());
+            if (event.getColumn() != plotColumn && event.getColumn() != publishColumn) openHistory(event.getItem());
         });
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
         grid.setAllRowsVisible(true);

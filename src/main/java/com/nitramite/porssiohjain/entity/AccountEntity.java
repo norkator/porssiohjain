@@ -36,6 +36,10 @@ public class AccountEntity {
     @Column(nullable = false, unique = true, updatable = false)
     private UUID uuid;
 
+    /** Public measurement page identifier, separate from account authentication credentials. */
+    @Column(name = "public_measurements_uuid", unique = true)
+    private UUID publicMeasurementsUuid;
+
     @Column(nullable = false, unique = true)
     private String secret;
 

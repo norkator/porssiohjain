@@ -12,11 +12,14 @@ import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepos
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceMeasurementService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.PublicMeasurementService;
 import com.nitramite.porssiohjain.views.components.DeviceMeasurementHistoryChart;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H3;
@@ -34,6 +37,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +45,7 @@ import static org.mockito.Mockito.*;
 
 class MeasurementsViewTest {
     private final AuthService auth = mock();
+    private final PublicMeasurementService publicMeasurements = mock();
     private final DeviceMeasurementRepository generic = mock();
     private final ZigbeeDeviceMeasurementRepository zigbee = mock();
     private final DeviceMeasurementService service = new DeviceMeasurementService(generic, zigbee);
@@ -66,6 +71,7 @@ class MeasurementsViewTest {
         messages.setBasename("translations/messages");
         messages.setDefaultEncoding("UTF-8");
         i18n = new I18nService(messages);
+        when(publicMeasurements.ownerSettings(anyLong())).thenReturn(new PublicMeasurementService.OwnerSettings(null, List.of()));
     }
 
     @AfterEach
@@ -88,10 +94,10 @@ class MeasurementsViewTest {
         when(generic.findLatestDistinctMeasurements(7L, Instant.EPOCH)).thenReturn(List.of(snapshot));
         when(zigbee.findLatestDistinctMeasurements(7L, Instant.EPOCH)).thenReturn(List.of(temperature, humidity));
 
-        var view = new MeasurementsView(auth, i18n, service);
+        var view = new MeasurementsView(auth, i18n, service, publicMeasurements);
 
         assertThat(descendants(view).filter(H3.class::isInstance).map(H3.class::cast).map(H3::getText))
-                .containsExactly("Temperature (2)", "Humidity (1)");
+                .containsExactly("Public sharing", "Temperature (2)", "Humidity (1)");
         assertThat(grids(view).getFirst().getListDataView().getItems()).hasSize(2);
         assertThat(grids(view).getLast().getListDataView().getItems()).hasSize(1);
         TextField search = descendants(view).filter(TextField.class::isInstance).map(TextField.class::cast)
@@ -114,7 +120,7 @@ class MeasurementsViewTest {
         when(generic.findLatestDistinctMeasurements(7L, Instant.EPOCH)).thenReturn(List.of(snapshot));
         when(generic.findTop500ByAccountIdAndDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByObservedAtDescIdDesc(
                 7L, 13L, DeviceMeasurementType.TEMPERATURE, "temperature")).thenReturn(List.of(snapshot));
-        var view = new MeasurementsView(auth, i18n, service);
+        var view = new MeasurementsView(auth, i18n, service, publicMeasurements);
         var timezone = (ComboBox<String>) descendants(view).filter(ComboBox.class::isInstance).findFirst().orElseThrow();
         timezone.setValue("America/Los_Angeles");
         Grid<DeviceMeasurementEntity> grid = grids(view).getFirst();
@@ -142,7 +148,7 @@ class MeasurementsViewTest {
     @Test
     void refreshUsesTheCurrentEffectiveAccountAndReplacesThePreviousReadings() {
         when(generic.findLatestDistinctMeasurements(7L, Instant.EPOCH)).thenReturn(List.of(snapshot));
-        var view = new MeasurementsView(auth, i18n, service);
+        var view = new MeasurementsView(auth, i18n, service, publicMeasurements);
         accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth))
                 .thenReturn(AccountEntity.builder().id(42L).build());
 
@@ -158,7 +164,7 @@ class MeasurementsViewTest {
     @Test
     void unauthenticatedViewDoesNotReadMeasurementsAndUsesTheRouteGuard() {
         accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth)).thenReturn(null);
-        var view = new MeasurementsView(auth, i18n, service);
+        var view = new MeasurementsView(auth, i18n, service, publicMeasurements);
         BeforeEnterEvent event = mock();
         view.beforeEnter(event);
         accounts.verify(() -> ViewAuthUtils.rerouteToLoginIfUnauthenticated(event, auth));
@@ -168,9 +174,45 @@ class MeasurementsViewTest {
     @Test
     void restoresFinnishLocaleBeforeCreatingTheView() {
         when(VaadinSession.getCurrent().getAttribute(Locale.class)).thenReturn(Locale.of("fi"));
-        var view = new MeasurementsView(auth, i18n, service);
+        var view = new MeasurementsView(auth, i18n, service, publicMeasurements);
         assertThat(view.getElement().getTextRecursively()).contains("Mittaukset", "Päivitä lukemat",
                 "Ei vielä tallennettuja mittauksia");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publicCheckboxPersistsOnlyItsPropertyAndExposesTheAccountShareLink() {
+        when(generic.findLatestDistinctMeasurements(7L, Instant.EPOCH)).thenReturn(List.of(snapshot));
+        var selected = new PublicMeasurementService.PublishedMeasurement(13L, "Living room",
+                DeviceMeasurementType.TEMPERATURE, "temperature");
+        UUID token = UUID.randomUUID();
+        when(publicMeasurements.ownerSettings(7L)).thenReturn(
+                new PublicMeasurementService.OwnerSettings(null, List.of()),
+                new PublicMeasurementService.OwnerSettings(token, List.of(selected)));
+        var view = new MeasurementsView(auth, i18n, service, publicMeasurements);
+        var column = grids(view).getFirst().getColumnByKey("public");
+        var renderer = (ComponentRenderer<?, DeviceMeasurementEntity>) column.getRenderer();
+        var checkbox = (Checkbox) renderer.createComponent(snapshot);
+        assertThat(checkbox.getValue()).isFalse();
+        checkbox.setValue(true);
+        verify(publicMeasurements).setPublished(7L, 13L, DeviceMeasurementType.TEMPERATURE, "temperature", true);
+        assertThat(descendants(view).filter(Anchor.class::isInstance).map(Anchor.class::cast).map(Anchor::getHref))
+                .containsExactly("public-measurements/" + token);
+        assertThat(view.getElement().getTextRecursively()).contains("Remove from public page");
+    }
+
+    @Test
+    void publicationCanBeRemovedEvenWhenTheDeviceHasNoRetainedReadings() {
+        var selected = new PublicMeasurementService.PublishedMeasurement(13L, "Living room",
+                DeviceMeasurementType.TEMPERATURE, "temperature");
+        when(publicMeasurements.ownerSettings(7L)).thenReturn(
+                new PublicMeasurementService.OwnerSettings(UUID.randomUUID(), List.of(selected)),
+                new PublicMeasurementService.OwnerSettings(UUID.randomUUID(), List.of()));
+        var view = new MeasurementsView(auth, i18n, service, publicMeasurements);
+        assertThat(grids(view)).isEmpty();
+        descendants(view).filter(c -> c instanceof Button b && b.getText().equals("Remove from public page"))
+                .map(Button.class::cast).findFirst().orElseThrow().click();
+        verify(publicMeasurements).setPublished(7L, 13L, DeviceMeasurementType.TEMPERATURE, "temperature", false);
     }
 
     @SuppressWarnings("unchecked")

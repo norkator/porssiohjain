@@ -13,6 +13,7 @@ import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.html.Div;
 
 import java.time.ZoneId;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.DoubleSummaryStatistics;
 import java.util.List;
@@ -28,17 +29,31 @@ public class DeviceMeasurementHistoryChart extends Div {
     public DeviceMeasurementHistoryChart(List<DeviceMeasurementEntity> history, ZoneId zone,
                                         String seriesName, String unit, String timeLabel, String noDataLabel,
                                         String locale) {
+        this(history.stream().sorted(Comparator.comparing(DeviceMeasurementEntity::getObservedAt)
+                        .thenComparing(DeviceMeasurementEntity::getId))
+                        .map(row -> new HistoryPoint(row.getObservedAt(), row.getValue().doubleValue())).toList(),
+                zone, seriesName, unit, timeLabel, noDataLabel, locale, null, null);
+    }
+
+    public static DeviceMeasurementHistoryChart publicHistory(List<HistoryPoint> history, ZoneId zone,
+            String seriesName, String unit, String timeLabel, String noDataLabel, String locale,
+            Instant from, Instant to) {
+        return new DeviceMeasurementHistoryChart(history, zone, seriesName, unit, timeLabel, noDataLabel, locale, from, to);
+    }
+
+    private DeviceMeasurementHistoryChart(List<HistoryPoint> history, ZoneId zone,
+            String seriesName, String unit, String timeLabel, String noDataLabel, String locale,
+            Instant from, Instant to) {
         setWidthFull();
         setHeight("300px");
         getStyle().set("position", "relative").set("flex-shrink", "0");
 
         List<List<Number>> points = history.stream()
-                .sorted(Comparator.comparing(DeviceMeasurementEntity::getObservedAt)
-                        .thenComparing(DeviceMeasurementEntity::getId))
-                .map(point -> List.<Number>of(point.getObservedAt().toEpochMilli(), point.getValue().doubleValue()))
+                .sorted(Comparator.comparing(HistoryPoint::observedAt))
+                .map(point -> List.<Number>of(point.observedAt().toEpochMilli(), point.value()))
                 .toList();
         DoubleSummaryStatistics values = history.stream()
-                .mapToDouble(point -> point.getValue().doubleValue())
+                .mapToDouble(HistoryPoint::value)
                 .summaryStatistics();
         double padding = Math.max(0.1, (values.getMax() - values.getMin()) * 0.12);
         double min = history.isEmpty() ? 0 : Math.floor((values.getMin() - padding) * 10.0) / 10.0;
@@ -61,8 +76,8 @@ public class DeviceMeasurementHistoryChart extends Div {
                   series: [{ name: $1, data: data, type: 'line' }],
                   xaxis: {
                     type: 'datetime', title: { text: hasData ? $6 : undefined },
-                    min: singleTime ? data[0][0] - 15 * 60 * 1000 : undefined,
-                    max: singleTime ? data[0][0] + 15 * 60 * 1000 : undefined,
+                    min: $9 ?? (singleTime ? data[0][0] - 15 * 60 * 1000 : undefined),
+                    max: $10 ?? (singleTime ? data[0][0] + 15 * 60 * 1000 : undefined),
                     axisBorder: { show: hasData }, axisTicks: { show: hasData },
                     labels: {
                       show: hasData,
@@ -88,6 +103,9 @@ public class DeviceMeasurementHistoryChart extends Div {
                 };
                 this.chartInstance = new ApexCharts(this, options);
                 this.chartInstance.render();
-                """, points, seriesName, min, max, zone.getId(), unit, timeLabel, noDataLabel, locale);
+                """, points, seriesName, min, max, zone.getId(), unit, timeLabel, noDataLabel, locale,
+                from == null ? null : from.toEpochMilli(), to == null ? null : to.toEpochMilli());
     }
+
+    public record HistoryPoint(Instant observedAt, double value) {}
 }

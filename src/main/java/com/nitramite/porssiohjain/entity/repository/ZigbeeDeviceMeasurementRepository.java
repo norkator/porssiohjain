@@ -26,6 +26,19 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ZigbeeDeviceMeasurementRepository extends JpaRepository<ZigbeeDeviceMeasurementEntity, Long> {
+    boolean existsByAccountIdAndDeviceIdAndMeasurementTypeAndMeasurementKey(
+            Long accountId, Long deviceId, ZigbeeMeasurementType type, String key);
+
+    @Query("""
+            select m from ZigbeeDeviceMeasurementEntity m
+            where m.account.id = :accountId and m.device.id = :deviceId
+              and m.measurementType = :type and m.measurementKey = :key
+              and m.measuredAt >= :from and m.measuredAt < :to
+            order by m.measuredAt, m.id
+            """)
+    List<ZigbeeDeviceMeasurementEntity> findAccountHistory(Long accountId, Long deviceId, ZigbeeMeasurementType type,
+                                                            String key, Instant from, Instant to);
+
 
     @EntityGraph(attributePaths = "device")
     List<ZigbeeDeviceMeasurementEntity> findTop500ByAccountIdAndDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(

@@ -17,6 +17,19 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DeviceMeasurementRepository extends JpaRepository<DeviceMeasurementEntity, Long> {
+    boolean existsByAccountIdAndDeviceIdAndMeasurementTypeAndMeasurementKey(
+            Long accountId, Long deviceId, DeviceMeasurementType type, String key);
+
+    @Query("""
+            select m from DeviceMeasurementEntity m
+            where m.account.id = :accountId and m.device.id = :deviceId
+              and m.measurementType = :type and m.measurementKey = :key
+              and m.observedAt >= :from and m.observedAt < :to
+            order by m.observedAt, m.id
+            """)
+    List<DeviceMeasurementEntity> findAccountHistory(Long accountId, Long deviceId, DeviceMeasurementType type,
+                                                      String key, Instant from, Instant to);
+
     Optional<DeviceMeasurementEntity> findFirstByDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByObservedAtDescIdDesc(
             Long deviceId, DeviceMeasurementType measurementType, String measurementKey);
 
