@@ -162,6 +162,17 @@ A rebuild with too few intervals or confidence below 25% retains a previously qu
 
 The Vaadin **Thermal model** dialog shows each saved room's actual confidence, cooling interval count, training time, last cooling observation and model readiness. **Rebuild from retained measurements** updates these saved models and reports whether each was rebuilt, retained or left on configured defaults. It uses saved sensors and room settings, does not activate a plan or send thermostat commands, and does not lower the confidence requirement. Recalculate the displayed plan afterwards, or let the next automatic replan use the updated models. Legacy qualifying models receive a bounded transition based on their old training time; previously overwritten confidence is not invented or recovered by migration.
 
+Opening the Vaadin view and recalculating its displayed plan reuse qualifying saved
+cooling models without rescanning measurement or weather history for learning.
+Missing, expired or invalid saved models use the configured conservative defaults;
+viewing never renews the learning or evidence timestamps. The existing 15-minute
+automatic planning pass for enabled sites and **Rebuild from retained measurements**
+continue to perform learning. Current room/floor sensor freshness and active-control
+readiness are still checked independently. The collapsed **Recent sensor readings**
+panel queries its latest-per-series readings only when first opened; **Refresh readings**
+explicitly updates it afterwards. V115 adds indexes for these lists and Zigbee
+device/type/key history lookups.
+
 Preheating requires a fresh explicitly selected floor sensor. Price-driven discharge requires a fresh room sensor. Missing or stale inputs leave optimization inactive for the affected decision and preserve the existing controller as fallback.
 
 The Java foundation is `HeatingPlanSimulationService`. It is pure and deterministic: a Vaadin view can submit a scenario and chart the returned snapshots without activating a physical device.

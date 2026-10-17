@@ -44,6 +44,23 @@ public class HeatingPlannerThermalModelService {
     private final DeviceMeasurementService measurements;
     private final SiteWeatherRepository weatherRepository;
 
+    /** View calculations reuse persisted learning; history scans belong to automation or an explicit rebuild. */
+    @Transactional(readOnly = true)
+    public ModelResolution resolveSaved(Long accountId, Long siteId, String roomName,
+                                        HeatingPlanSimulationService.ThermalModel configured, Instant now) {
+        var room = roomRepository.findByAccountIdAndSiteIdAndNameIgnoreCase(accountId, siteId, roomName).orElse(null);
+        if (room == null || room.getRoomSensorDevice() == null) {
+            return ModelResolution.configured(configured, "No persisted room sensor is available for learning");
+        }
+        if (!retainedModelUsable(room, now)) {
+            return ModelResolution.configured(configured,
+                    "Configured model: no current qualifying saved cooling model. Background planning or Rebuild from retained measurements updates learning");
+        }
+        return resolve(configured, room.getRoomOutdoorLossRate(), room.getWindLossRate(),
+                room.getModelSampleCount(), room.getModelConfidence(),
+                "Saved observed cooling model; evidence remains valid until " + room.getModelEvidenceAt().plus(MAX_MODEL_EVIDENCE_AGE));
+    }
+
     @Transactional
     public ModelResolution learnAndResolve(Long accountId, Long siteId, String roomName,
                                            HeatingPlanSimulationService.ThermalModel configured, Instant now) {

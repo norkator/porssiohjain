@@ -16,6 +16,7 @@ import java.time.Instant;
 /** Normalized readings shared by planners and integrations. Null measuredAt means a polled cloud snapshot. */
 @Entity
 @Table(name = "device_measurement", indexes = {
+        @Index(name = "idx_device_measurement_account_series_latest", columnList = "account_id, device_id, measurement_type, measurement_key, observed_at DESC, id DESC"),
         @Index(name = "idx_device_measurement_device_key_time", columnList = "device_id, measurement_type, measurement_key, observed_at DESC, id DESC"),
         @Index(name = "idx_device_measurement_account_time", columnList = "account_id, observed_at DESC"),
         @Index(name = "idx_device_measurement_received_time", columnList = "received_at")

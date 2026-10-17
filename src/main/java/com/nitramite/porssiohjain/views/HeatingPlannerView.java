@@ -126,15 +126,16 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         List<SiteEntity> sites = account == null ? List.of() : siteRepository.findByAccountId(account.getId());
-        List<DeviceEntity> thermostats = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId()).stream()
+        List<DeviceEntity> devices = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId());
+        List<DeviceEntity> thermostats = devices.stream()
                 .filter(device -> device.getDeviceType() == DeviceType.THERMOSTAT)
                 .toList();
-        List<DeviceEntity> heatPumps = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId()).stream()
+        List<DeviceEntity> heatPumps = devices.stream()
                 .filter(device -> device.getDeviceType() == DeviceType.HEAT_PUMP)
                 .toList();
         List<DeviceEntity> heatingControllers = java.util.stream.Stream.concat(thermostats.stream(), heatPumps.stream())
                 .toList();
-        List<DeviceEntity> temperatureSensors = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId()).stream()
+        List<DeviceEntity> temperatureSensors = devices.stream()
                 .filter(device -> device.getDeviceType() == DeviceType.TEMPERATURE_SENSOR)
                 .toList();
         List<DeviceEntity> floorSensors = java.util.stream.Stream.concat(thermostats.stream(), temperatureSensors.stream())
@@ -375,7 +376,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             HeatingPlanSimulationService.ThermalModel model = defaultThermalModel();
                             String modelEvidence = "configured conservative thermal defaults";
                             if (account != null && selectedSite != null) {
-                                var resolution = thermalModelService.learnAndResolve(account.getId(), selectedSite.getId(),
+                                var resolution = thermalModelService.resolveSaved(account.getId(), selectedSite.getId(),
                                         room.room(), model, calculationTime);
                                 model = resolution.model();
                                 modelEvidence = resolution.learned()
@@ -880,12 +881,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         };
         Button refreshButton = new Button("Refresh readings", VaadinIcon.REFRESH.create(), event -> refresh.run());
         refreshButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        refresh.run();
-
         content.add(status, refreshButton, groups);
         Details details = new Details("Recent sensor readings", content);
         details.setWidthFull();
         details.setOpened(false);
+        AtomicBoolean initialized = new AtomicBoolean(false);
+        details.addOpenedChangeListener(event -> {
+            if (event.isOpened() && initialized.compareAndSet(false, true)) refresh.run();
+        });
         return details;
     }
 

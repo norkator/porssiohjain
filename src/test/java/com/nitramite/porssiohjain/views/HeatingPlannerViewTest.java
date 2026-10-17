@@ -9,6 +9,8 @@ import com.nitramite.porssiohjain.services.heating.*;
 import com.nitramite.porssiohjain.views.components.HeatingPlanChart;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.details.Details;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.server.VaadinSession;
 import org.junit.jupiter.api.AfterEach;
@@ -60,6 +62,7 @@ class HeatingPlannerViewTest {
         var prices = mock(NordpoolRepository.class);
         var configuration = mock(HeatingPlannerConfigurationService.class);
         var measurements = mock(HeatingPlannerMeasurementService.class);
+        var measurementHistory = mock(DeviceMeasurementService.class);
         var models = mock(HeatingPlannerThermalModelService.class);
         var activeControl = mock(HeatingPlannerActiveControlService.class);
         var plans = mock(HeatingPlannerPlanService.class);
@@ -88,7 +91,7 @@ class HeatingPlannerViewTest {
                         HeatingPlannerMeasurementService.Freshness.FRESH, measuredAt));
         when(measurements.latestFreshFloorTemperature(any(), any()))
                 .thenReturn(HeatingPlannerMeasurementService.LatestMeasurement.missing());
-        when(models.learnAndResolve(eq(7L), eq(8L), eq("Living room"), any(), any()))
+        when(models.resolveSaved(eq(7L), eq(8L), eq("Living room"), any(), any()))
                 .thenAnswer(invocation -> new HeatingPlannerThermalModelService.ModelResolution(
                         invocation.getArgument(3), false, 0, BigDecimal.ZERO, "Configured defaults"));
         when(activeControl.readiness(eq(7L), eq(8L), any())).thenReturn(
@@ -108,7 +111,12 @@ class HeatingPlannerViewTest {
         var view = new HeatingPlannerView(auth, mock(I18nService.class, invocation -> invocation.getArgument(0)),
                 simulation, sites, mock(SiteWeatherRepository.class), devices, prices,
                 mock(ElectricityContractRepository.class), configuration, measurements, models, activeControl, plans,
-                combinedPrices, mock(PushNotificationService.class), mock(com.nitramite.porssiohjain.services.DeviceMeasurementService.class));
+                combinedPrices, mock(PushNotificationService.class), measurementHistory);
+
+        verify(models).resolveSaved(eq(7L), eq(8L), eq("Living room"), any(), any());
+        verify(models, never()).learnAndResolve(any(), any(), any(), any(), any());
+        verify(devices).findByAccountIdOrderByIdAsc(7L);
+        verifyNoInteractions(measurementHistory);
 
         var request = ArgumentCaptor.forClass(HeatingPlanSimulationService.SimulationRequest.class);
         var calculatedAt = ArgumentCaptor.forClass(Instant.class);
@@ -144,6 +152,17 @@ class HeatingPlannerViewTest {
         verify(plans).chartHistory(7L, 8L, start.toInstant(), calculatedAt.getValue());
         assertThat(descendants(view).filter(HeatingPlanChart.class::isInstance).count()).isEqualTo(2);
         assertThat(text).contains("whole local day", "saved predictions, not measurements", "updates every minute");
+
+        Details recent = descendants(view).filter(Details.class::isInstance).map(Details.class::cast)
+                .filter(details -> details.getSummaryText().equals("Recent sensor readings")).findFirst().orElseThrow();
+        recent.setOpened(true);
+        verify(measurementHistory).latestForAccount(eq(7L), any());
+        recent.setOpened(false);
+        recent.setOpened(true);
+        verify(measurementHistory, times(1)).latestForAccount(eq(7L), any());
+        descendants(recent).filter(Button.class::isInstance).map(Button.class::cast)
+                .filter(button -> button.getText().equals("Refresh readings")).findFirst().orElseThrow().click();
+        verify(measurementHistory, times(2)).latestForAccount(eq(7L), any());
     }
 
     private Stream<Component> descendants(Component root) {

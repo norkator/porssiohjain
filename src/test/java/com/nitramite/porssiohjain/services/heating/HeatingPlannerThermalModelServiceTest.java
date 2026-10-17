@@ -43,6 +43,48 @@ class HeatingPlannerThermalModelServiceTest {
             new BigDecimal("0.012"), new BigDecimal("0.001"));
 
     @Test
+    void viewResolutionReusesSavedModelWithoutScanningHistoryOrRenewingEvidence() {
+        var room = learnedRoom();
+        Instant trainedAt = room.getModelTrainedAt();
+        Instant evidenceAt = room.getModelEvidenceAt();
+        when(rooms.findByAccountIdAndSiteIdAndNameIgnoreCase(7L, 8L, "Kitchen")).thenReturn(Optional.of(room));
+
+        var result = service.resolveSaved(7L, 8L, "Kitchen", configured, now);
+
+        assertThat(result.learned()).isTrue();
+        assertThat(result.confidence()).isEqualByComparingTo("0.6");
+        assertThat(result.sampleCount()).isEqualTo(72);
+        assertThat(result.model().roomOutdoorLossRate()).isEqualByComparingTo("0.0168");
+        assertThat(result.reason()).contains("Saved observed cooling model", evidenceAt.plus(Duration.ofDays(14)).toString());
+        assertThat(room.getModelTrainedAt()).isEqualTo(trainedAt);
+        assertThat(room.getModelEvidenceAt()).isEqualTo(evidenceAt);
+        verifyNoInteractions(measurements, forecasts);
+        verify(rooms, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"expired", "future", "low-confidence", "invalid-rates", "missing-sensor", "missing-room"})
+    void viewResolutionFallsBackWithoutRebuildingUnusableModels(String state) {
+        var room = learnedRoom();
+        switch (state) {
+            case "expired" -> room.setModelEvidenceAt(now.minus(Duration.ofDays(14)).minusSeconds(1));
+            case "future" -> room.setModelEvidenceAt(now.plusSeconds(1));
+            case "low-confidence" -> room.setModelConfidence(new BigDecimal("0.1"));
+            case "invalid-rates" -> room.setRoomOutdoorLossRate(new BigDecimal("9"));
+            case "missing-sensor" -> room.setRoomSensorDevice(null);
+        }
+        when(rooms.findByAccountIdAndSiteIdAndNameIgnoreCase(7L, 8L, "Kitchen"))
+                .thenReturn(state.equals("missing-room") ? Optional.empty() : Optional.of(room));
+
+        var result = service.resolveSaved(7L, 8L, "Kitchen", configured, now);
+
+        assertThat(result.learned()).isFalse();
+        assertThat(result.model()).isSameAs(configured);
+        verifyNoInteractions(measurements, forecasts);
+        verify(rooms, never()).save(any());
+    }
+
+    @Test
     void estimatesFasterCoolingForLargerIndoorOutdoorDifference() {
         HeatingPlannerThermalModelService service = new HeatingPlannerThermalModelService(mock(), mock(), mock());
         Instant start = Instant.parse("2026-01-15T00:00:00Z");

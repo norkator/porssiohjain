@@ -60,23 +60,25 @@ public interface ZigbeeDeviceMeasurementRepository extends JpaRepository<ZigbeeD
             Instant measuredAfter
     );
 
+    // Keep the existing account/IEEE series identity, including devices seen through multiple gateways.
+    @Query(value = """
+            select latest.id from (
+                select distinct on (zigbee_ieee, measurement_type, measurement_key)
+                    id, zigbee_ieee, measurement_type, measurement_key, measured_at
+                from zigbee_device_measurement
+                where account_id = :accountId and measured_at >= :measuredAfter
+                order by zigbee_ieee, measurement_type, measurement_key, measured_at desc, id desc
+            ) latest
+            """, nativeQuery = true)
+    List<Long> findLatestDistinctMeasurementIds(Long accountId, Instant measuredAfter);
+
     @EntityGraph(attributePaths = "device")
-    @Query("""
-            select m from ZigbeeDeviceMeasurementEntity m
-            where m.account.id = :accountId
-              and m.measuredAt >= :measuredAfter
-              and not exists (
-                  select newer.id from ZigbeeDeviceMeasurementEntity newer
-                  where newer.account.id = m.account.id
-                    and newer.zigbeeIeee = m.zigbeeIeee
-                    and newer.measurementType = m.measurementType
-                    and newer.measurementKey = m.measurementKey
-                    and (newer.measuredAt > m.measuredAt
-                         or (newer.measuredAt = m.measuredAt and newer.id > m.id))
-              )
-            order by m.measuredAt desc, m.id desc
-            """)
-    List<ZigbeeDeviceMeasurementEntity> findLatestDistinctMeasurements(Long accountId, Instant measuredAfter);
+    List<ZigbeeDeviceMeasurementEntity> findByIdInOrderByMeasuredAtDescIdDesc(List<Long> ids);
+
+    default List<ZigbeeDeviceMeasurementEntity> findLatestDistinctMeasurements(Long accountId, Instant measuredAfter) {
+        List<Long> ids = findLatestDistinctMeasurementIds(accountId, measuredAfter);
+        return ids.isEmpty() ? List.of() : findByIdInOrderByMeasuredAtDescIdDesc(ids);
+    }
 
     @EntityGraph(attributePaths = "device")
     List<ZigbeeDeviceMeasurementEntity> findTop500ByAccountIdAndZigbeeIeeeAndMeasurementTypeAndMeasurementKeyOrderByMeasuredAtDescIdDesc(

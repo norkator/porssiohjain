@@ -21,6 +21,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "zigbee_device_measurement", indexes = {
+        @Index(name = "idx_zigbee_measurement_account_series_latest", columnList = "account_id, zigbee_ieee, measurement_type, measurement_key, measured_at DESC, id DESC"),
+        @Index(name = "idx_zigbee_measurement_device_key_time", columnList = "device_id, measurement_type, measurement_key, measured_at DESC, id DESC"),
         @Index(name = "idx_zigbee_measurement_device_type_time", columnList = "device_id, measurement_type, measured_at DESC"),
         @Index(name = "idx_zigbee_measurement_account_time", columnList = "account_id, measured_at DESC"),
         @Index(name = "idx_zigbee_measurement_gateway_ieee_time", columnList = "gateway_id, zigbee_ieee, measured_at DESC")

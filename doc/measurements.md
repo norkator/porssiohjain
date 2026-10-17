@@ -5,6 +5,13 @@ groups the latest retained readings by measurement type. It reads both
 `zigbee_device_measurement` and `device_measurement` through `DeviceMeasurementService`.
 Private history dialogs show the newest 500 values for the selected device/type/key.
 
+Latest-reading lists select one ID per series using PostgreSQL `DISTINCT ON` and
+the account/series/time indexes added by V115, then fetch those readings and their
+devices together. They do not compare every retained history row with newer rows
+or load history into the view. Timestamp ties prefer the higher row ID. The
+Measurements view still includes silent sensors with retained readings; no recent-time
+cutoff or history truncation is used to accelerate the list.
+
 Select **Public** beside a measurement to add that device/type/key to the account's
 share page. Choices are saved immediately. The sharing panel provides the page link,
 a copy button, and removal controls that remain available when a sensor has no retained

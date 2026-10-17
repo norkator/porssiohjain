@@ -36,19 +36,25 @@ public interface DeviceMeasurementRepository extends JpaRepository<DeviceMeasure
     Slice<DeviceMeasurementEntity> findByDeviceIdAndMeasurementTypeAndMeasurementKeyAndObservedAtBetweenOrderByObservedAtAscIdAsc(
             Long deviceId, DeviceMeasurementType measurementType, String measurementKey, Instant from, Instant to, Pageable pageable);
 
+    // Select IDs in one ordered pass through this account's series index, then fetch only the winners and devices.
+    @Query(value = """
+            select latest.id from (
+                select distinct on (device_id, measurement_type, measurement_key)
+                    id, device_id, measurement_type, measurement_key, observed_at
+                from device_measurement
+                where account_id = :accountId and observed_at >= :observedAfter
+                order by device_id, measurement_type, measurement_key, observed_at desc, id desc
+            ) latest
+            """, nativeQuery = true)
+    List<Long> findLatestDistinctMeasurementIds(Long accountId, Instant observedAfter);
+
     @EntityGraph(attributePaths = "device")
-    @Query("""
-            select m from DeviceMeasurementEntity m
-            where m.account.id = :accountId and m.observedAt >= :observedAfter
-              and not exists (
-                select newer.id from DeviceMeasurementEntity newer
-                where newer.device.id = m.device.id and newer.measurementType = m.measurementType
-                  and newer.measurementKey = m.measurementKey
-                  and (newer.observedAt > m.observedAt or (newer.observedAt = m.observedAt and newer.id > m.id))
-              )
-            order by m.observedAt desc, m.id desc
-            """)
-    List<DeviceMeasurementEntity> findLatestDistinctMeasurements(Long accountId, Instant observedAfter);
+    List<DeviceMeasurementEntity> findByIdInOrderByObservedAtDescIdDesc(List<Long> ids);
+
+    default List<DeviceMeasurementEntity> findLatestDistinctMeasurements(Long accountId, Instant observedAfter) {
+        List<Long> ids = findLatestDistinctMeasurementIds(accountId, observedAfter);
+        return ids.isEmpty() ? List.of() : findByIdInOrderByObservedAtDescIdDesc(ids);
+    }
 
     @EntityGraph(attributePaths = "device")
     List<DeviceMeasurementEntity> findTop500ByAccountIdAndDeviceIdAndMeasurementTypeAndMeasurementKeyOrderByObservedAtDescIdDesc(
