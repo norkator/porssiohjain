@@ -178,6 +178,12 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         shortcut("home.logout", VaadinIcon.SIGN_OUT, this::logout);
         startMenu.setVisible(false);
         add(startMenu, taskbar);
+        getElement().addEventListener("click", event -> setStartOpen(false))
+                .setFilter("""
+                        event.currentTarget.querySelector('.retro-start-button')?.getAttribute('aria-expanded') === 'true'
+                        && !event.composedPath().some(node => node.classList?.contains('retro-start-menu')
+                            || node.classList?.contains('retro-start-button'))
+                        """);
     }
 
     void refreshFeatureRequestNotifications() {
