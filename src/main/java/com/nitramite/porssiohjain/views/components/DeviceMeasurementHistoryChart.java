@@ -46,7 +46,7 @@ public class DeviceMeasurementHistoryChart extends Div {
             Instant from, Instant to) {
         setWidthFull();
         setHeight("300px");
-        getStyle().set("position", "relative").set("flex-shrink", "0");
+        getStyle().set("position", "relative").set("flex-shrink", "0").set("min-width", "0");
 
         List<List<Number>> points = history.stream()
                 .sorted(Comparator.comparing(HistoryPoint::observedAt))
@@ -72,7 +72,7 @@ public class DeviceMeasurementHistoryChart extends Div {
                   hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
                 });
                 const options = {
-                  chart: { height: 290, type: 'line', toolbar: { show: hasData }, animations: { enabled: false } },
+                  chart: { width: '100%', height: 290, type: 'line', toolbar: { show: hasData }, animations: { enabled: false } },
                   series: [{ name: $1, data: data, type: 'line' }],
                   xaxis: {
                     type: 'datetime', title: { text: hasData ? $6 : undefined },

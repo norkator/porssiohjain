@@ -47,11 +47,11 @@ public class PublicMeasurementsView extends VerticalLayout implements BeforeEnte
         VaadinSession session = VaadinSession.getCurrent();
         Locale locale = session == null ? null : session.getAttribute(Locale.class);
         if (locale != null) UI.getCurrent().setLocale(locale);
-        setWidthFull();
+        setWidth("calc(100% - 2 * var(--lumo-space-m, 16px))");
         setMaxWidth("1100px");
         setAlignItems(Alignment.STRETCH);
-        getStyle().set("margin", "0 auto");
-        addClassName("public-measurements-view");
+        getStyle().set("margin", "var(--lumo-space-m, 16px) auto");
+        addClassNames("public-measurements-view", "responsive-card");
     }
 
     public static String path(UUID pageId) {

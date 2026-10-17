@@ -236,12 +236,15 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
 
         VerticalLayout content = new VerticalLayout();
         content.setPadding(false);
+        content.setWidthFull();
+        content.getStyle().set("min-width", "0");
         content.setAlignItems(Alignment.STRETCH);
+        DeviceMeasurementHistoryChart chart = new DeviceMeasurementHistoryChart(history, zone(),
+                typeLabel(selected.getMeasurementType()), selected.getUnit(), t("measurements.chartTime"),
+                t("measurements.noHistory"), UI.getCurrent().getLocale().toLanguageTag());
         content.add(new Paragraph(t("measurements.historySummary", history.size(), timezone.getValue())),
                 new Paragraph(t("measurements.snapshotHint")),
-                new DeviceMeasurementHistoryChart(history, zone(), typeLabel(selected.getMeasurementType()),
-                        selected.getUnit(), t("measurements.chartTime"), t("measurements.noHistory"),
-                        UI.getCurrent().getLocale().toLanguageTag()), table);
+                chart, table);
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(deviceName(selected) + " · " + typeLabel(selected.getMeasurementType())
                 + " · " + selected.getMeasurementKey());
@@ -250,7 +253,15 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
         dialog.add(content);
         dialog.getFooter().add(new Button(t("common.close"), event -> dialog.close()));
         dialog.addOpenedChangeListener(event -> {
-            if (!event.isOpened()) remove(dialog);
+            if (event.isOpened()) {
+                // Recalculate the canvas after the overlay has its final, visible width.
+                chart.getElement().executeJs("""
+                        requestAnimationFrame(() => this.chartInstance?.updateOptions(
+                            { chart: { width: '100%' } }, false, false));
+                        """);
+            } else {
+                remove(dialog);
+            }
         });
         add(dialog);
         dialog.open();
