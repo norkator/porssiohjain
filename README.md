@@ -15,9 +15,6 @@ Official Pörssiohjain services are available at:
 * Marketing page: https://www.porssiohjain.fi
 * Hybrid web project for webview also available at https://mobile.porssiohjain.fi
 
-GNOME Shell extensions, including the Rust-powered electricity-price top-bar
-indicator, live in the separate [gnome workspace](gnome/README.md).
-
 Only domains listed here should be treated as official service domains.
 
 ⚠️ Pörssiohjain may be used free of charge with limitations by private individuals for their own household use
@@ -28,6 +25,19 @@ parties is not allowed without a separate written commercial license. I am devel
 with broader functionality and different service tiers.
 
 If Pörssiohjain has helped you financially, consider [donating coffee money](https://buymeacoffee.com/norkator).
+
+## GNOME Shell extensions
+
+The [gnome workspace](gnome/README.md) contains desktop extensions for GNOME Shell 46
+(Ubuntu 24.04), with Rust helpers and interactive graphs in their top-bar dropdown menus:
+
+* [Electricity prices](gnome/extensions/electricity-prices/README.md): current spot price and a graph of today’s and tomorrow’s prices.
+* [Wind forecast](gnome/extensions/wind-forecast/README.md): Finnish wind-power production forecast in MW, with daily averages and a graph of the available forecast days.
+
+Both can run together, and no account or API token is required. Each extension’s README
+includes screenshots and installation instructions. Ready-to-install packages are available
+from the [GNOME extensions prerelease](https://github.com/norkator/porssiohjain/releases/tag/gnome-extensions-latest),
+updated after successful builds of the `extensions` branch.
 
 ## UML Diagrams
 

@@ -9,6 +9,17 @@ and lockfile. Building does not install or enable anything in your desktop sessi
 | Electricity prices | [extensions/electricity-prices](extensions/electricity-prices) | 46 (Ubuntu 24.04) |
 | Wind forecast | [extensions/wind-forecast](extensions/wind-forecast) | 46 (Ubuntu 24.04) |
 
+## Compatibility and development handoff
+
+GNOME Shell 46 / Ubuntu 24.04 remains the tested and supported target. Ubuntu
+26.04 / GNOME 50 support is deferred until the user installs Ubuntu 26.04 and
+resumes compatibility testing. Both extensions currently declare only Shell 46;
+an upgrade requires a compatibility update before they can be enabled there.
+
+For a fresh development session, read [AGENTS.md](AGENTS.md) for the implementation
+map, data contracts, installer details, release constraints, previous verification,
+and the deferred compatibility work.
+
 ## Download a ready package
 
 After the first successful workflow run, downloads are available from the

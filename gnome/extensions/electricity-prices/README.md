@@ -3,6 +3,8 @@
 A GNOME top-bar indicator with the current electricity price and an interactive
 graph in its dropdown menu, based on the chart in `hybrid-web`.
 
+![Electricity prices extension showing the top-bar price and dropdown graph](../../../doc/gnome_electricity_prices.png)
+
 - Displays prices in cents/kWh, including the public API's VAT.
 - Shows today and tomorrow on the same axis when tomorrow's prices are published.
 - Shows the current price and the visible range's minimum, average, and maximum.

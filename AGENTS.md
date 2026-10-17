@@ -12,6 +12,16 @@ Use the repository Gradle wrapper with Java 21, for example:
 
 Preserve unrelated worktree changes. Use the existing Java, Spring, Vaadin, repository, translation, and Flyway conventions.
 
+## GNOME extensions handoff
+
+Read [gnome/AGENTS.md](gnome/AGENTS.md) before changing the GNOME extensions,
+installer, packaging tools, or `.github/workflows/gnome-extensions.yml`. The
+workspace contains electricity-price and Finnish wind-power forecast indicators,
+with Rust helpers and native GJS menus. GNOME Shell 46 / Ubuntu 24.04 is the
+current tested target. The user explicitly deferred Ubuntu 26.04 / GNOME 50
+compatibility work until they install that Ubuntu version; do not start that port
+as part of unrelated maintenance.
+
 ## Control Table handoff
 
 `ControlSchedulerService` generates persisted `FINAL` control-table rows for price-based controls. `CHEAPEST_HOURS` retains its strict per-local-calendar-day quota. When complete tomorrow prices are available, `CHEAPEST_HOURS_TOMORROW_AWARE` treats today and tomorrow as one price horizon with this base budget:

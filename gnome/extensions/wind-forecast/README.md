@@ -3,6 +3,8 @@
 A GNOME top-bar indicator for **Finnish wind-power production forecasts in MW**,
 using the same Fingrid data as the `hybrid-web` main-menu chart.
 
+![Wind forecast extension showing the top-bar estimate and dropdown graph](../../../doc/gnome_wind_forecast.png)
+
 - Shows the current forecast estimate in the top bar.
 - Opens a line/area graph covering all available forecast days, with local-date
   bands and a marker for now. Point to the graph to inspect forecast samples, or
