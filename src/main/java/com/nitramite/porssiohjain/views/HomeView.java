@@ -16,7 +16,7 @@ import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.NordpoolService;
 import com.nitramite.porssiohjain.services.ServiceNoticeService;
 import com.nitramite.porssiohjain.services.models.ServiceNoticeResponse;
-import com.nitramite.porssiohjain.views.components.Divider;
+import com.nitramite.porssiohjain.views.components.PublicAccessWindow;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -78,32 +78,23 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void buildContent() {
-        getStyle().set("display", "flex");
-        getStyle().set("flex-direction", "column");
-        getStyle().set("align-items", "center");
-        getStyle().set("justify-content", "center");
-        getStyle().set("min-height", "100vh");
-        getStyle().set("overflow", "auto");
+        addClassNames("public-access-view", "public-access-home");
+        setPadding(false);
+        setSpacing(false);
 
         VerticalLayout contentBox = new VerticalLayout();
-        contentBox.setMaxWidth("760px");
-        contentBox.setWidthFull();
-        contentBox.setPadding(true);
-        contentBox.setSpacing(true);
-        contentBox.setAlignItems(Alignment.CENTER);
-        contentBox.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        contentBox.getStyle().set("border-radius", "12px");
-        contentBox.getStyle().set("padding", "32px");
-        contentBox.getStyle().set("background-color", "var(--lumo-base-color)");
 
         H1 title = new H1(t("home.title"));
-        title.getStyle().set("margin-top", "0");
-        title.getStyle().set("font-size", "1.8em");
 
         Button fiButton = new Button(t("lang.finnish"), e -> switchLocale("fi"));
         Button enButton = new Button(t("lang.english"), e -> switchLocale("en"));
         HorizontalLayout langButtons = new HorizontalLayout(enButton, fiButton);
-        langButtons.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+        langButtons.addClassName("public-access-languages");
+        langButtons.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
+        fiButton.getElement().setAttribute("lang", "fi");
+        enButton.getElement().setAttribute("lang", "en");
+        fiButton.getElement().setAttribute("aria-pressed", String.valueOf("fi".equals(UI.getCurrent().getLocale().getLanguage())));
+        enButton.getElement().setAttribute("aria-pressed", String.valueOf("en".equals(UI.getCurrent().getLocale().getLanguage())));
 
         Button loginButton = new Button(t("home.login"), e -> UI.getCurrent().navigate(LoginView.class));
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -175,15 +166,6 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         });
         stopImpersonatingButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_PRIMARY);
 
-        Stream.of(
-                loginButton, createAccountButton, devicesButton, controlsButton, weatherControlsButton, heatingPlannerButton, loadSheddingButton, powerplantButton, solarAnglePlannerButton, myProductionButton, powerLimitsButton,
-                dashboardButton, settingsButton, adminButton, logoutButton
-        ).forEach(btn -> {
-            btn.getStyle().set("transition", "transform 0.1s ease-in-out");
-            btn.getElement().addEventListener("mouseover", e -> btn.getStyle().set("transform", "scale(1.03)"));
-            btn.getElement().addEventListener("mouseout", e -> btn.getStyle().remove("transform"));
-        });
-
         var authenticatedAccount = ViewAuthUtils.findAuthenticatedAccount(authService);
         boolean loggedIn = authenticatedAccount != null;
         boolean admin = loggedIn && authenticatedAccount.isAdmin();
@@ -214,9 +196,8 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
         coffeeLink.getElement().setAttribute("rel", "noopener noreferrer");
         coffeeLink.getStyle().set("font-weight", "600");
         supportProject.add(coffeeLink);
-        supportProject.getStyle()
-                .set("margin", "0")
-                .set("text-align", "center");
+        Div support = new Div(googlePlayBadgeLink, supportProject);
+        support.addClassName("public-access-support");
 
         if (loggedIn) {
             configureActionButton(devicesButton, VaadinIcon.DESKTOP);
@@ -257,21 +238,25 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
                         .set("text-align", "center");
                 contentBox.add(impersonationNotice);
             }
-            contentBox.add(actionGrid, googlePlayBadgeLink, supportProject, logoutButton);
+            contentBox.add(actionGrid, support, logoutButton);
             if (ViewAuthUtils.isImpersonating()) {
                 contentBox.add(stopImpersonatingButton);
             }
         } else {
-            contentBox.add(loginButton, createAccountButton, mobileAppButton, googlePlayBadgeLink, supportProject);
+            Div actions = new Div(loginButton, createAccountButton, mobileAppButton);
+            actions.addClassName("public-access-actions");
+            contentBox.add(actions, support);
         }
 
         Paragraph docLink = new Paragraph(t("home.licenseText") + " ");
         Anchor link = new Anchor("https://github.com/norkator/porssiohjain", t("home.docLink"));
         link.setTarget("_blank");
+        link.getElement().setAttribute("rel", "noopener noreferrer");
         docLink.add(link);
-        contentBox.add(Divider.createDivider(), docLink);
+        docLink.addClassName("public-access-license");
+        contentBox.add(docLink);
 
-        add(contentBox);
+        add(new PublicAccessWindow(t("home.subtitle"), contentBox));
     }
 
     private void switchLocale(String langTag) {
@@ -316,23 +301,13 @@ public class HomeView extends VerticalLayout implements BeforeEnterObserver {
 
     private Div createServiceNotice(String text) {
         Span label = new Span(t("home.serviceNotice"));
-        label.getStyle()
-                .set("display", "block")
-                .set("font-weight", "700")
-                .set("margin-bottom", "0.35rem");
         Paragraph message = new Paragraph(text);
         message.getStyle()
                 .set("margin", "0")
                 .set("white-space", "pre-wrap");
         Div notice = new Div(label, message);
+        notice.addClassName("public-access-notice");
         notice.setWidthFull();
-        notice.getStyle()
-                .set("box-sizing", "border-box")
-                .set("padding", "1rem")
-                .set("border", "1px solid var(--lumo-warning-color-50pct)")
-                .set("border-radius", "8px")
-                .set("background-color", "var(--lumo-warning-color-10pct)")
-                .set("color", "var(--lumo-body-text-color)");
         return notice;
     }
 

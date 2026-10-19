@@ -16,6 +16,7 @@ import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.nitramite.porssiohjain.services.AccountService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.TermsOfServiceService;
+import com.nitramite.porssiohjain.views.components.PublicAccessWindow;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -69,30 +70,16 @@ public class CreateAccountView extends VerticalLayout {
 
         createButton = new Button(t("createAccount.button.create"));
 
-        getStyle().set("display", "flex");
-        getStyle().set("flex-direction", "column");
-        getStyle().set("align-items", "center");
-        getStyle().set("justify-content", "center");
-        getStyle().set("min-height", "100vh");
-        getStyle().set("overflow", "auto");
+        addClassNames("public-access-view", "public-access-create");
+        setPadding(false);
+        setSpacing(false);
 
         VerticalLayout contentBox = new VerticalLayout();
-        contentBox.setMaxWidth("600px");
-        contentBox.setPadding(true);
-        contentBox.setSpacing(true);
-        contentBox.setAlignItems(Alignment.CENTER);
-        contentBox.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        contentBox.getStyle().set("border-radius", "12px");
-        contentBox.getStyle().set("padding", "32px");
-        contentBox.getStyle().set("background-color", "var(--lumo-base-color)");
 
         H1 title = new H1(t("createAccount.title"));
-        title.getStyle().set("margin-top", "0");
-        title.getStyle().set("font-size", "1.8em");
 
         Paragraph description = new Paragraph(t("createAccount.description"));
-        description.getStyle().set("color", "var(--lumo-secondary-text-color)");
-        description.getStyle().set("text-align", "center");
+        description.addClassName("public-access-description");
 
         createButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         createButton.addClickListener(e -> openTermsDialog());
@@ -100,14 +87,16 @@ public class CreateAccountView extends VerticalLayout {
         resultLayout.setSpacing(false);
         resultLayout.setPadding(false);
         resultLayout.setVisible(false);
+        resultLayout.addClassName("public-access-result");
+        resultLayout.getElement().setAttribute("aria-live", "polite");
 
         Button backButton = new Button(t("createAccount.button.back"), event ->
                 UI.getCurrent().navigate(HomeView.class)
         );
-        backButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        backButton.addClassName("public-access-back");
 
         contentBox.add(title, description, createButton, resultLayout, backButton);
-        add(contentBox);
+        add(new PublicAccessWindow(t("createAccount.button.create"), contentBox));
     }
 
     private void handleCreateAccount() {
@@ -131,6 +120,7 @@ public class CreateAccountView extends VerticalLayout {
         }
 
         Dialog dialog = new Dialog();
+        dialog.addClassName("public-access-dialog");
         dialog.setHeaderTitle(t("createAccount.terms.dialog.title"));
         dialog.setCloseOnEsc(true);
         dialog.setCloseOnOutsideClick(true);
@@ -144,6 +134,7 @@ public class CreateAccountView extends VerticalLayout {
         markdownComponent.addClassName("terms-markdown");
 
         Div scrollContainer = new Div(markdownComponent);
+        scrollContainer.addClassName("public-access-terms");
         scrollContainer.setWidthFull();
         scrollContainer.getStyle()
                 .set("max-height", "60vh")
@@ -181,16 +172,9 @@ public class CreateAccountView extends VerticalLayout {
         resultLayout.setVisible(true);
 
         H3 successTitle = new H3(t("createAccount.success.title"));
-        successTitle.getStyle().set("color", "var(--lumo-success-text-color)");
-        successTitle.getStyle().set("margin-bottom", "0.5em");
 
         Div infoBox = new Div();
-        infoBox.getStyle()
-                .set("padding", "16px")
-                .set("border-radius", "8px")
-                .set("background-color", "var(--lumo-contrast-10pct)")
-                .set("font-family", "monospace")
-                .set("word-break", "break-all");
+        infoBox.addClassName("public-access-credentials");
 
         infoBox.add(
                 new Paragraph(t("createAccount.info.uuid", account.getUuid())),
@@ -198,10 +182,10 @@ public class CreateAccountView extends VerticalLayout {
         );
 
         Paragraph note = new Paragraph("⚠️" + t("createAccount.note"));
-        note.getStyle().set("color", "var(--lumo-error-text-color)");
-        note.getStyle().set("margin-top", "1em");
+        note.addClassName("public-access-notice");
 
-        resultLayout.add(successTitle, infoBox, note);
+        Button loginButton = new Button(t("login.button.login"), event -> UI.getCurrent().navigate(LoginView.class));
+        resultLayout.add(successTitle, infoBox, note, loginButton);
     }
 
     protected String t(String key, Object... args) {

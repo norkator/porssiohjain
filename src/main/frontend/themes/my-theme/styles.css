@@ -173,6 +173,239 @@ vaadin-grid::part(fresh-control-device-call) {
     margin-top: 0;
 }
 
+/* Public welcome, login and account windows share the desktop's Windows 98 palette. */
+.public-access-view {
+    min-height: 100vh;
+    min-height: 100dvh;
+    box-sizing: border-box;
+    padding: 32px 20px;
+    align-items: center;
+    background: #008080;
+}
+
+.public-access-window {
+    flex-shrink: 0;
+    width: min(780px, 100%);
+    margin-block: auto;
+    box-sizing: border-box;
+    padding: 3px;
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #fff #404040 #404040 #fff;
+    box-shadow: inset 1px 1px #dfdfdf, inset -1px -1px #808080, 3px 4px 0 rgb(0 0 0 / 25%);
+    color: #000;
+    font: 14px/1.5 Tahoma, Arial, sans-serif;
+    --lumo-primary-text-color: #000080;
+    --lumo-secondary-text-color: #333;
+}
+
+.public-access-login .public-access-window { width: min(640px, 100%); }
+
+.public-access-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 25px;
+    padding: 2px 5px;
+    background: linear-gradient(90deg, #000080, #1084a4);
+    color: #fff;
+    font: bold 12px/1.5 Tahoma, Arial, sans-serif;
+}
+
+.public-access-titlebar .retro-pixel-icon { width: 16px; height: 16px; }
+
+.public-access-main {
+    display: grid;
+    grid-template-columns: 154px minmax(0, 1fr);
+    padding-top: 3px;
+}
+
+.public-access-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 6px;
+    padding: 22px 14px;
+    background: linear-gradient(160deg, #000080 20%, #075b90 80%, #1084a4);
+    color: #fff;
+    font-size: 17px;
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+.public-access-brand img {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 28px;
+    image-rendering: pixelated;
+}
+
+.public-access-edition { font-size: 52px; font-weight: normal; color: #b8dce9; }
+
+.public-access-window .public-access-content {
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 24px;
+    gap: 18px;
+}
+
+.public-access-content h1 {
+    margin: 0;
+    color: #000;
+    font: bold 23px/1.25 Tahoma, Arial, sans-serif;
+    overflow-wrap: anywhere;
+}
+
+.public-access-content p { margin: 0; }
+.public-access-content a { color: #000080; text-decoration: underline; }
+.public-access-content a:focus-visible { outline: 1px dotted #000; outline-offset: 3px; }
+.public-access-description { white-space: pre-line; }
+
+.public-access-languages { gap: 6px; flex-wrap: wrap; }
+.public-access-actions { display: flex; flex-direction: column; gap: 10px; }
+
+:is(.public-access-view, .public-access-dialog) vaadin-button {
+    box-sizing: border-box;
+    min-height: 34px;
+    height: auto;
+    margin: 0;
+    padding: 5px 14px;
+    background: #c0c0c0;
+    color: #000;
+    border: 2px solid;
+    border-color: #fff #404040 #404040 #fff;
+    box-shadow: inset 1px 1px #dfdfdf, inset -1px -1px #808080;
+    font: 13px/1.4 Tahoma, Arial, sans-serif;
+    white-space: normal;
+    text-align: center;
+    cursor: pointer;
+    transition: none;
+}
+
+:is(.public-access-view, .public-access-dialog) vaadin-button::part(label) { white-space: normal; }
+:is(.public-access-view, .public-access-dialog) vaadin-button:hover { filter: none; }
+:is(.public-access-view, .public-access-dialog) vaadin-button[theme~="primary"] {
+    outline: 1px solid #000;
+    outline-offset: 1px;
+    font-weight: bold;
+}
+
+:is(.public-access-view, .public-access-dialog) vaadin-button:active,
+.public-access-languages vaadin-button[aria-pressed="true"] {
+    border-color: #404040 #fff #fff #404040;
+    box-shadow: inset 1px 1px #808080;
+    filter: none;
+}
+
+:is(.public-access-view, .public-access-dialog) vaadin-button[focus-ring]::part(label) {
+    outline: 1px dotted #000;
+    outline-offset: 3px;
+}
+
+:is(.public-access-view, .public-access-dialog) vaadin-button[disabled] {
+    color: #666;
+    text-shadow: 1px 1px #fff;
+    cursor: default;
+}
+
+.public-access-languages vaadin-button { min-height: 28px; padding: 2px 10px; font-size: 12px; }
+.public-access-actions vaadin-button { min-height: 40px; }
+.public-access-content .public-access-back { align-self: flex-start; margin-top: 4px; }
+.public-access-content .public-access-demo { align-self: flex-start; color: #000080; text-decoration: underline; }
+
+.public-access-content :is(vaadin-text-field, vaadin-password-field) { width: 100%; padding-top: 0; }
+.public-access-content :is(vaadin-text-field, vaadin-password-field)::part(label) { color: #000; font-size: 13px; }
+.public-access-content :is(vaadin-text-field, vaadin-password-field)::part(input-field) {
+    background: #fff;
+    border: 2px solid;
+    border-color: #808080 #fff #fff #808080;
+    box-shadow: inset 1px 1px #404040, inset -1px -1px #dfdfdf;
+    color: #000;
+    font: 14px Tahoma, Arial, sans-serif;
+}
+
+.public-access-support {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: #e6e6e6;
+    border: 2px solid;
+    border-color: #808080 #fff #fff #808080;
+    text-align: center;
+    font-size: 13px;
+}
+
+.public-access-content .public-access-license {
+    padding-top: 14px;
+    border-top: 1px solid #808080;
+    box-shadow: inset 0 1px #fff;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.public-access-notice {
+    box-sizing: border-box;
+    padding: 12px;
+    background: #ffffdf;
+    border: 1px solid #808060;
+    color: #292900;
+    white-space: pre-line;
+}
+
+.public-access-notice > span { display: block; margin-bottom: 5px; font-weight: bold; }
+.public-access-result { gap: 16px; min-width: 0; }
+.public-access-result h3 { margin: 0; font-size: 17px; color: #006000; }
+.public-access-credentials {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 14px;
+    background: #fff;
+    border: 2px solid;
+    border-color: #808080 #fff #fff #808080;
+    font: 13px/1.7 monospace;
+    overflow-wrap: anywhere;
+}
+
+.public-access-credentials p + p { margin-top: 10px; }
+
+.public-access-dialog {
+    --lumo-border-radius-m: 0;
+    --lumo-border-radius-l: 0;
+    --vaadin-dialog-border-radius: 0;
+    --vaadin-dialog-title-color: #fff;
+}
+
+.public-access-dialog::part(overlay) {
+    padding: 3px;
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #fff #404040 #404040 #fff;
+    border-radius: 0;
+    box-shadow: inset 1px 1px #dfdfdf, inset -1px -1px #808080, 3px 4px 0 rgb(0 0 0 / 25%);
+    color: #000;
+}
+
+.public-access-dialog::part(header) { min-height: 28px; padding: 4px 8px; background: linear-gradient(90deg, #000080, #1084a4); }
+.public-access-dialog::part(title) { color: #fff; font: bold 13px/1.5 Tahoma, Arial, sans-serif; }
+.public-access-dialog > [slot="title"] { margin: 0; color: #fff; font: bold 13px/1.5 Tahoma, Arial, sans-serif; }
+.public-access-dialog::part(content) { padding: 18px; font: 14px/1.5 Tahoma, Arial, sans-serif; }
+.public-access-terms { box-sizing: border-box; background: #fff; border: 2px inset #dfdfdf; }
+.public-access-dialog .public-access-qr { box-sizing: border-box; background: #fff; padding: 12px; border: 2px inset #dfdfdf; }
+
+@media (max-width: 620px) {
+    .public-access-view { padding: 16px 10px; }
+    .public-access-main { grid-template-columns: minmax(0, 1fr); }
+    .public-access-brand { flex-direction: row; align-items: center; gap: 10px; padding: 12px; font-size: 18px; }
+    .public-access-brand img { width: 36px; height: 36px; margin: 0; }
+    .public-access-edition { margin-left: auto; font-size: 30px; }
+    .public-access-window .public-access-content { padding: 18px 14px; gap: 16px; }
+    .public-access-content h1 { font-size: 21px; }
+    .public-access-dialog::part(content) { padding: 12px; }
+}
+
 .load-shedding-editor {
     min-width: 320px;
 }
