@@ -25,13 +25,14 @@ import com.nitramite.porssiohjain.services.models.QrLoginChallengeResponse;
 import com.nitramite.porssiohjain.services.models.QrLoginStatusResponse;
 import com.nitramite.porssiohjain.services.QrLoginService;
 import com.nitramite.porssiohjain.services.models.CreateQrLoginChallengeRequest;
+import com.nitramite.porssiohjain.views.components.PublicAccessWindow;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
@@ -96,25 +97,13 @@ public class LoginView extends VerticalLayout {
             VaadinSession.getCurrent().setAttribute(Locale.class, defaultLocale);
         }
 
-        getStyle().set("display", "flex");
-        getStyle().set("flex-direction", "column");
-        getStyle().set("align-items", "center");
-        getStyle().set("justify-content", "center");
-        getStyle().set("min-height", "100vh");
-        getStyle().set("overflow", "auto");
+        addClassNames("public-access-view", "public-access-login");
+        setPadding(false);
+        setSpacing(false);
 
         VerticalLayout formLayout = new VerticalLayout();
-        formLayout.setMaxWidth("400px");
-        formLayout.setPadding(true);
-        formLayout.setSpacing(true);
-        formLayout.setAlignItems(Alignment.STRETCH);
-        formLayout.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-        formLayout.getStyle().set("border-radius", "12px");
-        formLayout.getStyle().set("padding", "24px");
-        formLayout.getStyle().set("background-color", "var(--lumo-base-color)");
 
-        H2 title = new H2(t("login.title"));
-        title.getStyle().set("margin-bottom", "0");
+        H1 title = new H1(t("login.title"));
 
         TextField uuidField = new TextField(t("login.field.uuid"));
         PasswordField secretField = new PasswordField(t("login.field.secret"));
@@ -145,20 +134,20 @@ public class LoginView extends VerticalLayout {
         Button qrLoginButton = new Button(t("login.button.qr"), event -> openQrLoginDialog());
         qrLoginButton.setWidthFull();
 
-        Span demoLink = new Span(t("login.demoAccount"));
-        demoLink.getStyle()
-                .set("color", "var(--lumo-primary-text-color)")
-                .set("cursor", "pointer")
-                .set("font-size", "0.9em")
-                .set("text-decoration", "underline");
+        Button demoLink = new Button(t("login.demoAccount"));
+        demoLink.addClassName("public-access-demo");
+        demoLink.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         demoLink.addClickListener(e -> {
             uuidField.setValue(DEMO_UUID);
             secretField.setValue(DEMO_SECRET);
             loginButton.focus();
         });
 
-        formLayout.add(title, uuidField, secretField, loginButton, qrLoginButton, demoLink);
-        add(formLayout);
+        Button backButton = new Button(t("createAccount.button.back"), event -> UI.getCurrent().navigate(HomeView.class));
+        backButton.addClassName("public-access-back");
+
+        formLayout.add(title, uuidField, secretField, loginButton, qrLoginButton, demoLink, backButton);
+        add(new PublicAccessWindow(t("login.title"), formLayout));
     }
 
     protected String t(String key, Object... args) {
@@ -203,6 +192,7 @@ public class LoginView extends VerticalLayout {
 
     private Dialog buildQrDialog(QrLoginChallengeResponse challenge) throws IOException, WriterException {
         Dialog dialog = new Dialog();
+        dialog.addClassName("public-access-dialog");
         dialog.setHeaderTitle(t("login.qr.title"));
         dialog.setCloseOnEsc(true);
         dialog.setCloseOnOutsideClick(false);
@@ -217,9 +207,7 @@ public class LoginView extends VerticalLayout {
 
         Image qrImage = new Image(createQrCodeBytes(challenge.getQrPayload()), t("login.qr.imageAlt"), "image/png");
         qrImage.setWidthFull();
-        qrImage.getStyle().set("background", "white");
-        qrImage.getStyle().set("border-radius", "12px");
-        qrImage.getStyle().set("padding", "12px");
+        qrImage.addClassName("public-access-qr");
 
         Paragraph description = new Paragraph(t("login.qr.description"));
         description.getStyle().set("margin", "0");
