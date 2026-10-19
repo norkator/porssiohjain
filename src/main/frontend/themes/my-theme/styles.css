@@ -286,9 +286,26 @@ vaadin-grid::part(fresh-control-device-call) {
 :is(.public-access-view, .public-access-dialog) vaadin-button::part(label) { white-space: normal; }
 :is(.public-access-view, .public-access-dialog) vaadin-button:hover { filter: none; }
 :is(.public-access-view, .public-access-dialog) vaadin-button[theme~="primary"] {
+    background: var(--lumo-primary-color, #0080ff);
+    color: var(--lumo-primary-contrast-color, white);
     outline: 1px solid #000;
     outline-offset: 1px;
     font-weight: bold;
+}
+
+:is(.public-access-view, .public-access-dialog) vaadin-button[theme~="success"] {
+    background: var(--lumo-success-color, #4caf50);
+    color: var(--lumo-success-contrast-color, white);
+}
+
+:is(.public-access-view, .public-access-dialog) vaadin-button[theme~="error"] {
+    background: var(--lumo-error-color, #f44336);
+    color: var(--lumo-error-contrast-color, white);
+}
+
+:is(.public-access-view, .public-access-dialog) vaadin-button[theme~="contrast"] {
+    background: var(--lumo-contrast-color, #333333);
+    color: var(--lumo-base-color, white);
 }
 
 :is(.public-access-view, .public-access-dialog) vaadin-button:active,
@@ -299,11 +316,12 @@ vaadin-grid::part(fresh-control-device-call) {
 }
 
 :is(.public-access-view, .public-access-dialog) vaadin-button[focus-ring]::part(label) {
-    outline: 1px dotted #000;
+    outline: 1px dotted currentColor;
     outline-offset: 3px;
 }
 
 :is(.public-access-view, .public-access-dialog) vaadin-button[disabled] {
+    background: #e0e0e0;
     color: #666;
     text-shadow: 1px 1px #fff;
     cursor: default;
