@@ -84,9 +84,12 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
         Button usersButton = new Button(t("admin.users.button"),
                 e -> UI.getCurrent().navigate(AdminUsersView.class));
         usersButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        Button controlDeviceCallsButton = new Button("Client call monitor",
+        Button controlDeviceCallsButton = new Button(t("admin.clientCalls.title"),
                 e -> UI.getCurrent().navigate(AdminClientCallLogView.class));
         controlDeviceCallsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button connectionMapButton = new Button(t("admin.connectionMap.title"),
+                e -> UI.getCurrent().navigate(AdminDeviceConnectionMapView.class));
+        connectionMapButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button serviceNoticeButton = new Button(t("admin.serviceNotice.button"),
                 e -> UI.getCurrent().navigate(AdminServiceNoticeView.class));
         serviceNoticeButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
@@ -99,6 +102,7 @@ public class AdminView extends VerticalLayout implements BeforeEnterObserver {
                 mqttRelayTestButton,
                 usersButton,
                 controlDeviceCallsButton,
+                connectionMapButton,
                 serviceNoticeButton,
                 featureRequestsButton,
                 refreshLogsButton

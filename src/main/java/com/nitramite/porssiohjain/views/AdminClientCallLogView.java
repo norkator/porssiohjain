@@ -17,6 +17,8 @@ import com.nitramite.porssiohjain.services.AdminClientCallLogService.ClientType;
 import com.nitramite.porssiohjain.services.AdminClientCallLogService.DeviceCallLog;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.vaadin.flow.component.dependency.JsModule;
+import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
@@ -93,7 +95,9 @@ public class AdminClientCallLogView extends VerticalLayout implements BeforeEnte
                 "window.initClientCallMonitor(this, $0, $1)",
                 t("admin.clientCalls.nextRefresh", "{seconds}"), t("admin.clientCalls.refreshing")));
 
-        card.add(title, description, refreshStatus, createDivider(), grid);
+        Button connectionMap = new Button(t("admin.connectionMap.title"),
+                event -> UI.getCurrent().navigate(AdminDeviceConnectionMapView.class));
+        card.add(title, description, connectionMap, refreshStatus, createDivider(), grid);
         add(card);
     }
 
