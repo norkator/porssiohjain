@@ -49,6 +49,12 @@ class SiteServiceTest {
     @Mock
     private DemoAccountGuard demoAccountGuard;
 
+    @Mock
+    private AccountLimitService accountLimitService;
+
+    @Mock
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
     @Test
     void createSiteRejectsUnsupportedWeatherPlace() {
         SiteService service = new SiteService(
@@ -57,9 +63,9 @@ class SiteServiceTest {
                 fmiWeatherService,
                 siteWeatherService,
                 new FinnishWeatherPlaceService(),
-                demoAccountGuard
+                demoAccountGuard, accountLimitService, transactionManager
         );
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(AccountEntity.builder().id(1L).build()));
+        when(accountRepository.findWithLockById(1L)).thenReturn(Optional.of(AccountEntity.builder().id(1L).build()));
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
@@ -80,10 +86,10 @@ class SiteServiceTest {
                 fmiWeatherService,
                 siteWeatherService,
                 new FinnishWeatherPlaceService(),
-                demoAccountGuard
+                demoAccountGuard, accountLimitService, transactionManager
         );
         AccountEntity account = AccountEntity.builder().id(1L).build();
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(accountRepository.findWithLockById(1L)).thenReturn(Optional.of(account));
         when(siteRepository.save(org.mockito.ArgumentMatchers.any(SiteEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -98,7 +104,7 @@ class SiteServiceTest {
     void updateSitePersistsPowerSaveAndPreservesItWhenLegacyRequestOmitsState() {
         SiteService service = new SiteService(
                 siteRepository, accountRepository, fmiWeatherService, siteWeatherService,
-                new FinnishWeatherPlaceService(), demoAccountGuard
+                new FinnishWeatherPlaceService(), demoAccountGuard, accountLimitService, transactionManager
         );
         AccountEntity account = AccountEntity.builder().id(1L).build();
         SiteEntity site = SiteEntity.builder().id(2L).account(account).name("Home")

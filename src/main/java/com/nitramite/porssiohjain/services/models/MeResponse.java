@@ -39,6 +39,7 @@ public class MeResponse {
     private boolean pushNotificationsEnabled;
     private Instant createdAt;
     private Integer deviceLimit;
+    private Integer siteLimit;
     private Integer controlLimit;
     private Integer productionSourceLimit;
     private Integer weatherControlLimit;

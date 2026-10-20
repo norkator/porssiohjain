@@ -12,6 +12,7 @@
 import PageHeader from "@/components/PageHeader";
 import AppDialog from "@/components/AppDialog";
 import { getAvailableTimezones } from "@/lib/add-device-flow";
+import { fetchMe, type AccountTier } from "@/lib/account";
 import {
   createSite,
   fetchSiteWeather,
@@ -36,6 +37,9 @@ const DEFAULT_TIMEZONE = "Europe/Helsinki";
 export default function SitesView() {
   const { t } = useI18n("sitesView");
   const common = useI18n("common").t;
+  const tierLabels = useI18n("accountSettings").group("tierLabels");
+  const [siteLimit, setSiteLimit] = useState<number | null | undefined>(undefined);
+  const [tier, setTier] = useState<AccountTier>("FREE");
   const siteTypeLabels: Record<SiteType, string> = {
     HOME: t("siteTypeHome"),
     APARTMENT: t("siteTypeApartment"),
@@ -66,6 +70,8 @@ export default function SitesView() {
   const [enabled, setEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const limitReached = siteLimit != null && sites.length >= siteLimit;
+  const limitText = siteLimit === undefined ? t("loading") : t("siteUsage", { count: sites.length, limit: siteLimit === null ? t("unlimited") : siteLimit, tier: tierLabels[tier] });
 
   async function loadSiteWeather(sitesToLoad: ApiSite[]) {
     const weatherEntries = await Promise.all(
@@ -87,11 +93,14 @@ export default function SitesView() {
     setIsLoading(true);
     setError(null);
     try {
-      const [siteResponse, weatherPlaceResponse] = await Promise.all([
+      const [siteResponse, weatherPlaceResponse, accountResponse] = await Promise.all([
         fetchSites(),
-        fetchSupportedWeatherPlaces()
+        fetchSupportedWeatherPlaces(),
+        fetchMe()
       ]);
       setSites(siteResponse);
+      setSiteLimit(accountResponse.siteLimit);
+      setTier(accountResponse.tier);
       setSupportedWeatherPlaces(weatherPlaceResponse);
       await loadSiteWeather(siteResponse);
     } catch (loadError) {
@@ -160,6 +169,7 @@ export default function SitesView() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!name.trim()) return;
+    if (editingSiteId === null && (siteLimit === undefined || limitReached)) return;
     const normalizedWeatherPlace = normalizeSupportedWeatherPlace(weatherPlace);
     if (weatherPlace.trim() && !normalizedWeatherPlace) {
       setWeatherPlaceError(t("unsupportedWeatherPlace"));
@@ -216,6 +226,12 @@ export default function SitesView() {
 
         {isLoading ? <div className="app-card p-4 text-sm text-on-surface-variant sm:p-6">{t("loading")}</div> : null}
         {error ? <div className="app-card mb-6 border border-error-container bg-error-container/50 p-4 text-sm text-on-error-container sm:p-6">{error}</div> : null}
+        {!isLoading && siteLimit !== undefined ? (
+          <div className={`app-card mb-6 p-4 text-sm ${limitReached ? "border border-error-container bg-error-container/50 text-on-error-container" : "text-on-surface-variant"}`}>
+            <p>{limitText}</p>
+            {limitReached ? <Link className="mt-2 inline-block font-semibold underline underline-offset-2" to="/account/settings">{t("limitUpgrade")}</Link> : null}
+          </div>
+        ) : null}
 
         <section className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {!isLoading && sites.map((site) => (
@@ -289,6 +305,10 @@ export default function SitesView() {
         title={editingSiteId === null ? t("createSite") : t("update")}
       >
         <form className="grid gap-x-5 gap-y-5 sm:grid-cols-2" onSubmit={handleSubmit}>
+          <div className="sm:col-span-2 text-sm text-on-surface-variant">
+            <p>{limitText}</p>
+            {limitReached && editingSiteId === null ? <Link className="mt-2 inline-block font-semibold text-primary underline underline-offset-2" to="/account/settings">{t("limitUpgrade")}</Link> : null}
+          </div>
           <div className="sm:col-span-2">
             <label className="mb-2 block text-sm font-semibold text-on-surface" htmlFor="site-name">{t("siteName")}</label>
             <input className="w-full rounded-lg bg-surface-container-highest px-4 py-3 text-on-surface outline-none focus:ring-2 focus:ring-primary" id="site-name" onChange={(event) => setName(event.target.value)} required type="text" value={name} />
@@ -350,7 +370,7 @@ export default function SitesView() {
             >
               {common("cancel")}
             </button>
-            <button className="primary-action justify-center disabled:opacity-60" disabled={isSaving || !name.trim()} type="submit">
+            <button className="primary-action justify-center disabled:opacity-60" disabled={isSaving || isLoading || !name.trim() || (editingSiteId === null && (siteLimit === undefined || limitReached))} type="submit">
               {isSaving ? (editingSiteId === null ? common("creating") : common("save")) : editingSiteId === null ? t("add") : t("update")}
             </button>
           </div>

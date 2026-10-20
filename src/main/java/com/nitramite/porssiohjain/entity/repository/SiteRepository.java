@@ -21,6 +21,8 @@ public interface SiteRepository extends JpaRepository<SiteEntity, Long> {
 
     List<SiteEntity> findByAccountId(Long accountId);
 
+    long countByAccountId(Long accountId);
+
     Optional<SiteEntity> findByIdAndAccountId(Long id, Long accountId);
 
     List<SiteEntity> findByEnabledTrueAndWeatherPlaceIsNotNull();

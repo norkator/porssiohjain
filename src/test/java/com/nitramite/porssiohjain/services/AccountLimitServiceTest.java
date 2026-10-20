@@ -18,9 +18,12 @@ import com.nitramite.porssiohjain.entity.repository.ControlRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ProductionSourceRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlRepository;
+import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -49,6 +52,9 @@ class AccountLimitServiceTest {
     @Mock
     private WeatherControlRepository weatherControlRepository;
 
+    @Mock
+    private SiteRepository siteRepository;
+
     private AccountLimitService accountLimitService;
 
     @BeforeEach
@@ -58,7 +64,7 @@ class AccountLimitServiceTest {
                 deviceRepository,
                 controlRepository,
                 productionSourceRepository,
-                weatherControlRepository
+                weatherControlRepository, siteRepository
         );
     }
 
@@ -113,6 +119,30 @@ class AccountLimitServiceTest {
         assertEquals(50, account.getWeeklyPushNotificationCount());
         assertEquals(LocalDate.parse("2026-04-27"), account.getWeeklyPushNotificationWeekStart());
         assertEquals(50, accountLimitService.getEffectiveWeeklyPushNotificationLimit(1L));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"FREE, 1", "PRO, 5"})
+    void siteQuotaAllowsTheLastSlotAndRejectsAccountsAtOrAboveTheirAllowance(AccountTier tier, int limit) {
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account(tier, null, 0)));
+        assertEquals(limit, accountLimitService.getEffectiveSiteLimit(1L));
+        when(siteRepository.countByAccountId(1L)).thenReturn((long) limit - 1);
+        assertDoesNotThrow(() -> accountLimitService.assertCanCreateSite(1L));
+        when(siteRepository.countByAccountId(1L)).thenReturn((long) limit);
+        assertEquals("Site limit reached for this account (" + limit + ").",
+                assertThrows(IllegalArgumentException.class, () -> accountLimitService.assertCanCreateSite(1L)).getMessage());
+        when(siteRepository.countByAccountId(1L)).thenReturn((long) limit + 10);
+        assertThrows(IllegalArgumentException.class, () -> accountLimitService.assertCanCreateSite(1L));
+    }
+
+    @Test
+    void businessHasNoSiteLimitAndDoesNotUseTheDeviceOverrideAsASiteAllowance() {
+        AccountEntity business = account(AccountTier.BUSINESS, null, 0);
+        business.setDeviceLimit(1);
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(business));
+        assertNull(accountLimitService.getEffectiveSiteLimit(1L));
+        assertDoesNotThrow(() -> accountLimitService.assertCanCreateSite(1L));
+        org.mockito.Mockito.verifyNoInteractions(siteRepository);
     }
 
     private AccountEntity account(AccountTier tier, LocalDate weekStart, int count) {

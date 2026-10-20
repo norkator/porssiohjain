@@ -32,6 +32,7 @@ export type MeResponse = {
   pushNotificationsEnabled: boolean;
   createdAt: string | null;
   deviceLimit: number;
+  siteLimit: number | null;
   controlLimit: number | null;
   productionSourceLimit: number | null;
   weatherControlLimit: number | null;

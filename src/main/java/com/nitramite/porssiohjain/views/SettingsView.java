@@ -765,13 +765,28 @@ public class SettingsView extends VerticalLayout implements BeforeEnterObserver 
         H4 title = new H4(t("settings.account.limits"));
         title.getStyle().set("margin", "0 0 8px 0");
         Span deviceLimit = new Span(t("settings.account.deviceLimit", accountLimitService.getEffectiveDeviceLimit(accountId)));
+        Span siteLimit = new Span(t("settings.account.siteLimit", formatLimit(accountLimitService.getEffectiveSiteLimit(accountId))));
         Span controlLimit = new Span(t("settings.account.controlLimit", formatLimit(accountLimitService.getEffectiveControlLimit(accountId))));
         Span productionLimit = new Span(t("settings.account.productionSourceLimit", formatLimit(accountLimitService.getEffectiveProductionSourceLimit(accountId))));
         Span weatherLimit = new Span(t("settings.account.weatherControlLimit", formatLimit(accountLimitService.getEffectiveWeatherControlLimit(accountId))));
         Span weeklyEmailNotificationLimit = new Span(t("settings.account.weeklyEmailNotificationLimit", accountLimitService.getEffectiveWeeklyEmailNotificationLimit(accountId)));
         Span weeklyPushNotificationLimit = new Span(t("settings.account.weeklyPushNotificationLimit", formatLimit(accountLimitService.getEffectiveWeeklyPushNotificationLimit(accountId))));
-        card.add(title, deviceLimit, controlLimit, productionLimit, weatherLimit, weeklyEmailNotificationLimit, weeklyPushNotificationLimit);
+        card.add(title,
+                deviceLimit, tierLimits("device"),
+                siteLimit, tierLimits("site"),
+                controlLimit, tierLimits("control"),
+                productionLimit, tierLimits("productionSource"),
+                weatherLimit, tierLimits("weatherControl"),
+                weeklyEmailNotificationLimit, tierLimits("weeklyEmailNotification"),
+                weeklyPushNotificationLimit, tierLimits("weeklyPushNotification"));
         return card;
+    }
+
+    private Span tierLimits(String resource) {
+        Span description = new Span(t("settings.account." + resource + "TierLimits"));
+        description.getStyle().set("font-size", "0.8rem")
+                .set("color", "var(--lumo-secondary-text-color)").set("margin-bottom", "8px");
+        return description;
     }
 
     private String formatLimit(Integer limit) {

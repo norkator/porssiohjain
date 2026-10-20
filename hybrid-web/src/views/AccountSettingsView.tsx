@@ -69,6 +69,7 @@ export default function AccountSettingsView() {
   const isUserPreview = Boolean(getUserPreview());
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => getThemePreference());
   const [deviceLimit, setDeviceLimit] = useState<number>(0);
+  const [siteLimit, setSiteLimit] = useState<number | null>(null);
   const [controlLimit, setControlLimit] = useState<number | null>(null);
   const [productionSourceLimit, setProductionSourceLimit] = useState<number | null>(null);
   const [weatherControlLimit, setWeatherControlLimit] = useState<number | null>(null);
@@ -113,6 +114,7 @@ export default function AccountSettingsView() {
         setLocaleValue(response.locale || "en");
         setMarketIndexName(response.marketIndexName || "FI");
         setDeviceLimit(response.deviceLimit);
+        setSiteLimit(response.siteLimit);
         setControlLimit(response.controlLimit);
         setProductionSourceLimit(response.productionSourceLimit);
         setWeatherControlLimit(response.weatherControlLimit);
@@ -170,6 +172,7 @@ export default function AccountSettingsView() {
       setLocaleValue(response.locale || "en");
       setMarketIndexName(response.marketIndexName || "FI");
       setDeviceLimit(response.deviceLimit);
+      setSiteLimit(response.siteLimit);
       setControlLimit(response.controlLimit);
       setProductionSourceLimit(response.productionSourceLimit);
       setWeatherControlLimit(response.weatherControlLimit);
@@ -364,30 +367,55 @@ export default function AccountSettingsView() {
               <article className="app-card p-4 sm:p-6">
                 <p className="metric-label mb-3">{t("limitsEyebrow")}</p>
                 <h2 className="font-headline text-2xl font-extrabold text-primary">{t("limitsTitle")}</h2>
-                <div className="mt-5 space-y-3 text-sm text-on-surface">
-                  <div className="flex items-center justify-between gap-4 border-b border-outline-variant/50 pb-3">
-                    <span className="text-on-surface-variant">{t("deviceLimit")}</span>
-                    <span className="font-bold">{deviceLimit}</span>
+                <div className="mt-5 divide-y divide-outline-variant/50 text-sm text-on-surface">
+                  <div className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-on-surface-variant">{t("deviceLimit")}</span>
+                      <span className="font-bold">{deviceLimit}</span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">{t("deviceTierLimits")}</p>
                   </div>
-                  <div className="flex items-center justify-between gap-4 border-b border-outline-variant/50 pb-3">
-                    <span className="text-on-surface-variant">{t("controlLimit")}</span>
-                    <span className="font-bold">{formatLimit(controlLimit)}</span>
+                  <div className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-on-surface-variant">{t("siteLimit")}</span>
+                      <span className="font-bold">{formatLimit(siteLimit)}</span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">{t("siteTierLimits")}</p>
                   </div>
-                  <div className="flex items-center justify-between gap-4 border-b border-outline-variant/50 pb-3">
-                    <span className="text-on-surface-variant">{t("productionSourceLimit")}</span>
-                    <span className="font-bold">{formatLimit(productionSourceLimit)}</span>
+                  <div className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-on-surface-variant">{t("controlLimit")}</span>
+                      <span className="font-bold">{formatLimit(controlLimit)}</span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">{t("controlTierLimits")}</p>
                   </div>
-                  <div className="flex items-center justify-between gap-4 border-b border-outline-variant/50 pb-3">
-                    <span className="text-on-surface-variant">{t("weatherControlLimit")}</span>
-                    <span className="font-bold">{formatLimit(weatherControlLimit)}</span>
+                  <div className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-on-surface-variant">{t("productionSourceLimit")}</span>
+                      <span className="font-bold">{formatLimit(productionSourceLimit)}</span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">{t("productionSourceTierLimits")}</p>
                   </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-on-surface-variant">{t("weeklyEmailNotificationLimit")}</span>
-                    <span className="font-bold">{weeklyEmailNotificationLimit}</span>
+                  <div className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-on-surface-variant">{t("weatherControlLimit")}</span>
+                      <span className="font-bold">{formatLimit(weatherControlLimit)}</span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">{t("weatherControlTierLimits")}</p>
                   </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-on-surface-variant">{t("weeklyPushNotificationLimit")}</span>
-                    <span className="font-bold">{formatLimit(weeklyPushNotificationLimit)}</span>
+                  <div className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-on-surface-variant">{t("weeklyEmailNotificationLimit")}</span>
+                      <span className="font-bold">{weeklyEmailNotificationLimit}</span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">{t("weeklyEmailNotificationTierLimits")}</p>
+                  </div>
+                  <div className="space-y-2 py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-on-surface-variant">{t("weeklyPushNotificationLimit")}</span>
+                      <span className="font-bold">{formatLimit(weeklyPushNotificationLimit)}</span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant">{t("weeklyPushNotificationTierLimits")}</p>
                   </div>
                 </div>
               </article>

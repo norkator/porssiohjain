@@ -56,6 +56,7 @@ class ListCreationViewsTest {
                 .thenReturn(AccountEntity.builder().id(7L).build());
         when(limits.getTier(7L)).thenReturn(AccountTier.FREE);
         when(limits.getEffectiveDeviceLimit(7L)).thenReturn(10);
+        when(limits.getEffectiveSiteLimit(7L)).thenReturn(1);
         when(limits.getEffectiveControlLimit(7L)).thenReturn(10);
         when(limits.getEffectiveWeatherControlLimit(7L)).thenReturn(10);
         when(limits.getEffectiveProductionSourceLimit(7L)).thenReturn(10);
@@ -81,7 +82,7 @@ class ListCreationViewsTest {
                 new WeatherControlsView(weather, limits, sites, auth, i18n),
                 new PowerLimitsView(mock(PowerLimitService.class), auth, i18n),
                 new ProductionSourcesView(mock(ProductionSourceService.class), limits, auth, i18n),
-                new SitesView(sites, auth, i18n),
+                new SitesView(sites, auth, i18n, limits),
                 new ElectricityContractsView(auth, i18n, mock(ElectricityContractRepository.class),
                         mock(AccountRepository.class), mock(DemoAccountGuard.class)));
         for (VerticalLayout view : views) {
@@ -245,6 +246,36 @@ class ListCreationViewsTest {
         assertFalse(footerButton(dialog, "weatherControl.button.create").isEnabled());
         assertTrue(dialog.getElement().getTextRecursively().contains("accountLimits.weatherControls"));
         verify(weather, never()).createWeatherControl(any(), any(), any());
+    }
+
+    @Test
+    void siteLimitShowsUpgradeGuidanceAndDisablesCreationWhileAllowingExistingSiteEdits() {
+        when(limits.getSiteCount(7L)).thenReturn(1L);
+        var site = com.nitramite.porssiohjain.services.models.SiteResponse.builder().id(9L).name("Home")
+                .type(com.nitramite.porssiohjain.entity.enums.SiteType.HOME).timezone("Europe/Helsinki")
+                .operationState(com.nitramite.porssiohjain.entity.enums.SiteOperationState.NORMAL).enabled(true).build();
+        when(sites.getAllSites(7L)).thenReturn(List.of(site));
+        when(sites.getStoredSiteWeatherForecast(7L, 9L, null, null)).thenReturn(
+                com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse.builder().points(List.of()).build());
+        var view = new SitesView(sites, auth, i18n, limits);
+        DesktopCreateDialog dialog = dialog(view);
+        dialog.openButton().click();
+        Button submit = footerButton(dialog, "sites.button.create");
+        assertFalse(submit.isEnabled());
+        assertTrue(dialog.getElement().getTextRecursively().contains("accountLimits.sites"));
+        assertTrue(descendants(dialog).anyMatch(component -> component instanceof Button button
+                && button.getText().equals("sites.limitUpgrade") && button.isVisible()));
+        descendants(dialog).filter(component -> component instanceof Button button
+                && button.getText().equals("sites.limitUpgrade")).map(Button.class::cast).findFirst().orElseThrow().click();
+        assertFalse(dialog.isOpened());
+        @SuppressWarnings("unchecked")
+        Grid<com.nitramite.porssiohjain.services.models.SiteResponse> grid = (Grid<com.nitramite.porssiohjain.services.models.SiteResponse>)
+                descendants(view).filter(Grid.class::isInstance).findFirst().orElseThrow();
+        clickRow(grid, site);
+        assertTrue(footerButton(dialog, "sites.button.update").isEnabled());
+        dialog.close();
+        dialog.openButton().click();
+        assertFalse(footerButton(dialog, "sites.button.create").isEnabled());
     }
 
     @Test

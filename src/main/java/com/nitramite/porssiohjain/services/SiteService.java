@@ -22,6 +22,8 @@ import com.nitramite.porssiohjain.services.models.SiteResponse;
 import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -37,24 +39,28 @@ public class SiteService {
     private final SiteWeatherService siteWeatherService;
     private final FinnishWeatherPlaceService finnishWeatherPlaceService;
     private final DemoAccountGuard demoAccountGuard;
+    private final AccountLimitService accountLimitService;
+    private final PlatformTransactionManager transactionManager;
 
     public SiteEntity createSite(
             Long accountId, String name, SiteType type, Boolean enabled, String weatherPlace, String timezone,
             SiteOperationState operationState
     ) {
         demoAccountGuard.assertWritable(accountId);
-        AccountEntity account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
-        SiteEntity site = SiteEntity.builder()
-                .name(name)
-                .type(type)
-                .operationState(operationState == null ? SiteOperationState.NORMAL : operationState)
-                .enabled(enabled)
-                .weatherPlace(normalizeWeatherPlace(weatherPlace))
-                .timezone(normalizeTimezone(timezone))
-                .account(account)
-                .build();
-        site = siteRepository.save(site);
+        SiteEntity site = new TransactionTemplate(transactionManager).execute(status -> {
+            AccountEntity account = accountRepository.findWithLockById(accountId)
+                    .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+            accountLimitService.assertCanCreateSite(accountId);
+            return siteRepository.save(SiteEntity.builder()
+                    .name(name)
+                    .type(type)
+                    .operationState(operationState == null ? SiteOperationState.NORMAL : operationState)
+                    .enabled(enabled)
+                    .weatherPlace(normalizeWeatherPlace(weatherPlace))
+                    .timezone(normalizeTimezone(timezone))
+                    .account(account)
+                    .build());
+        });
         siteWeatherService.fetchForecastForSite(site);
         return site;
     }

@@ -70,6 +70,7 @@ public class MeController {
                 .pushNotificationsEnabled(accountService.getPushNotificationsEnabled(accountId))
                 .createdAt(accountService.getCreatedAt(accountId))
                 .deviceLimit(accountLimitService.getEffectiveDeviceLimit(accountId))
+                .siteLimit(accountLimitService.getEffectiveSiteLimit(accountId))
                 .controlLimit(accountLimitService.getEffectiveControlLimit(accountId))
                 .productionSourceLimit(accountLimitService.getEffectiveProductionSourceLimit(accountId))
                 .weatherControlLimit(accountLimitService.getEffectiveWeatherControlLimit(accountId))

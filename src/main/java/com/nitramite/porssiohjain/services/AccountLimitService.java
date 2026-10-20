@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.entity.repository.ControlRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.entity.repository.ProductionSourceRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlRepository;
+import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,8 @@ public class AccountLimitService {
     private static final int FREE_DEVICE_LIMIT = 4;
     private static final int PRO_DEVICE_LIMIT = 50;
     private static final int BUSINESS_DEVICE_LIMIT = 99;
+    private static final int FREE_SITE_LIMIT = 1;
+    private static final int PRO_SITE_LIMIT = 5;
     private static final int FREE_WEEKLY_EMAIL_NOTIFICATION_LIMIT = 3;
     private static final int PAID_WEEKLY_EMAIL_NOTIFICATION_LIMIT = 100;
     private static final int FREE_WEEKLY_PUSH_NOTIFICATION_LIMIT = 50;
@@ -47,6 +50,29 @@ public class AccountLimitService {
     private final ControlRepository controlRepository;
     private final ProductionSourceRepository productionSourceRepository;
     private final WeatherControlRepository weatherControlRepository;
+    private final SiteRepository siteRepository;
+
+    @Transactional(readOnly = true)
+    public Integer getEffectiveSiteLimit(Long accountId) {
+        return switch (getAccount(accountId).getTier()) {
+            case FREE -> FREE_SITE_LIMIT;
+            case PRO -> PRO_SITE_LIMIT;
+            case BUSINESS -> null;
+        };
+    }
+
+    @Transactional(readOnly = true)
+    public long getSiteCount(Long accountId) {
+        return siteRepository.countByAccountId(accountId);
+    }
+
+    @Transactional(readOnly = true)
+    public void assertCanCreateSite(Long accountId) {
+        Integer limit = getEffectiveSiteLimit(accountId);
+        if (limit != null && getSiteCount(accountId) >= limit) {
+            throw new IllegalArgumentException("Site limit reached for this account (" + limit + ").");
+        }
+    }
 
     @Transactional(readOnly = true)
     public int getEffectiveDeviceLimit(Long accountId) {

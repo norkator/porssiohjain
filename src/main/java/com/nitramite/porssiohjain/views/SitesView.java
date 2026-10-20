@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.SiteService;
+import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.models.SiteResponse;
 import com.nitramite.porssiohjain.services.models.SiteWeatherForecastPointResponse;
 import com.nitramite.porssiohjain.services.models.SiteWeatherForecastResponse;
@@ -55,6 +56,10 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private final SiteService siteService;
     private final AuthService authService;
     private final I18nService i18n;
+    private final AccountLimitService accountLimitService;
+    private final Span limitInfo = new Span();
+    private final Button upgradeButton;
+    private final Button dialogUpgradeButton;
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private Long accountId;
@@ -75,10 +80,15 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
     private final TextField humidityField;
 
     @Autowired
-    public SitesView(SiteService siteService, AuthService authService, I18nService i18n) {
+    public SitesView(SiteService siteService, AuthService authService, I18nService i18n,
+                     AccountLimitService accountLimitService) {
         this.siteService = siteService;
         this.authService = authService;
         this.i18n = i18n;
+        this.accountLimitService = accountLimitService;
+        upgradeButton = upgradeButton();
+        dialogUpgradeButton = upgradeButton();
+        limitInfo.getStyle().set("color", "var(--lumo-secondary-text-color)").set("font-size", "0.9rem");
 
         nameField = new TextField(t("sites.field.name"));
         weatherPlaceField = new ComboBox<>(t("sites.field.weatherPlace"));
@@ -111,16 +121,18 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
 
         createDialog = new DesktopCreateDialog(this, t("sites.button.addNew"), i18n);
         createDialog.add(createFormLayout());
+        createDialog.add(dialogUpgradeButton);
         createDialog.getFooter().add(saveButton);
         createDialog.onCreate(() -> {
             if (editingSiteId != null) {
                 createDialog.openPrepared(t("sites.button.addNew"), this::clearForm);
             } else {
+                updateLimitInfo();
                 createDialog.setHeaderTitle(t("sites.button.addNew"));
                 createDialog.open();
             }
         });
-        card.add(title, sitesGrid, createDialog.openButton());
+        card.add(title, sitesGrid, createDialog.openButton(), limitInfo, upgradeButton);
         add(card);
 
         AccountEntity account = ViewAuthUtils.getAuthenticatedAccount(authService, t("sites.notification.sessionExpired"));
@@ -251,6 +263,7 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
                     operationStateField.setValue(selected.getOperationState());
                     enabledToggle.setValue(selected.getEnabled());
                     saveButton.setText(t("sites.button.update"));
+                    updateLimitInfo();
                     refreshWeatherInfo();
                 });
             }
@@ -313,10 +326,39 @@ public class SitesView extends VerticalLayout implements BeforeEnterObserver {
         clearWeatherInfo();
         weatherInfoSection.setVisible(false);
         DesktopFormState.saved(createDialog);
+        updateLimitInfo();
     }
 
     private void loadSites() {
         sitesGrid.setItems(siteService.getAllSites(accountId));
+        updateLimitInfo();
+    }
+
+    private Button upgradeButton() {
+        Button button = new Button(t("sites.limitUpgrade"),
+                event -> {
+                    createDialog.close();
+                    getUI().ifPresent(ui -> ui.navigate(SettingsView.class));
+                });
+        button.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        button.setVisible(false);
+        return button;
+    }
+
+    private void updateLimitInfo() {
+        if (accountId == null) return;
+        long count = accountLimitService.getSiteCount(accountId);
+        Integer limit = accountLimitService.getEffectiveSiteLimit(accountId);
+        String tier = AccountTierLabels.label(i18n, accountLimitService.getTier(accountId));
+        limitInfo.setText(limit == null ? t("accountLimits.sitesUnlimited", count, tier)
+                : t("accountLimits.sites", count, limit, tier));
+        boolean reached = limit != null && count >= limit;
+        limitInfo.getElement().getThemeList().set("badge", true);
+        limitInfo.getElement().getThemeList().set("error", reached);
+        createDialog.setLimitInfo(limitInfo.getText(), reached);
+        saveButton.setEnabled(editingSiteId != null || !reached);
+        upgradeButton.setVisible(reached);
+        dialogUpgradeButton.setVisible(reached && editingSiteId == null);
     }
 
     private TextField createReadOnlyField(String label) {

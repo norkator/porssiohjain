@@ -12,6 +12,8 @@ Use the repository Gradle wrapper with Java 21, for example:
 
 Preserve unrelated worktree changes. Use the existing Java, Spring, Vaadin, repository, translation, and Flyway conventions.
 
+Read [doc/account-tier-limits.md](doc/account-tier-limits.md) before changing account tiers, resource quotas, creation-limit UI, or the account limits shown in Settings. It records the shared backend rules, client/API contracts, site-creation enforcement, and downgrade behavior.
+
 ## GNOME extensions handoff
 
 Read [gnome/AGENTS.md](gnome/AGENTS.md) before changing the GNOME extensions,
