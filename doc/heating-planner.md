@@ -98,6 +98,8 @@ The scheduled target is resolved separately for each planned period in both manu
 
 Flyway V116 adds `heating_planner_comfort_schedule`, its daily periods, an optional room schedule reference, and a `comfort_target` snapshot on plan points. Saving a room revalidates the schedule's account/site ownership. Historical plan targets are preserved when the schedule is later changed. The room table keeps explicit column widths and scrolls horizontally within its available width on small screens.
 
+Flyway V117 aligns the room-limit database check with configuration and simulation validation: the independent comfort minimum may equal or exceed a target, but must stay strictly below the simulation maximum (target + 2.5 °C), including the lowest scheduled target's maximum. The target must remain at or below the stored maximum. Existing room values are preserved.
+
 ## Sensor roles
 
 Floor and room measurements are not interchangeable:

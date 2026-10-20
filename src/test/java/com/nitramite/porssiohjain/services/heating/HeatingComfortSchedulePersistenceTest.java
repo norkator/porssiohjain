@@ -9,6 +9,8 @@ import com.nitramite.porssiohjain.services.models.HeatingComfortSchedule;
 import jakarta.persistence.Entity;
 import org.hibernate.cfg.Configuration;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.io.ClassPathResource;
@@ -19,6 +21,7 @@ import org.springframework.orm.jpa.hibernate.SpringBeanContainer;
 
 import java.math.BigDecimal;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.time.*;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,14 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 class HeatingComfortSchedulePersistenceTest {
+    private static final String LEGACY_ROOM_LIMITS = """
+            ALTER TABLE heating_planner_room
+                ADD CONSTRAINT chk_heating_planner_room_limits CHECK (
+                    minimum_room_temperature < target_room_temperature
+                        AND target_room_temperature <= maximum_room_temperature
+                )
+            """;
+
     @Test
     void migrationKeepsExistingRoomsConstantAndAddsScheduleAndPlanPointStorage() throws Exception {
         try (var connection = DriverManager.getConnection("jdbc:h2:mem:comfort-migration-" + UUID.randomUUID()
@@ -47,7 +58,48 @@ class HeatingComfortSchedulePersistenceTest {
     }
 
     @Test
-    void savesSharedSchedulesRoundTripsRoomSelectionAndIsolatesOwnershipAndSites() throws Exception {
+    void roomLimitsMigrationAllowsIndependentMinimumAndPreservesMaximumBounds() throws Exception {
+        try (var connection = DriverManager.getConnection("jdbc:h2:mem:room-limits-" + UUID.randomUUID()
+                + ";MODE=PostgreSQL"); var sql = connection.createStatement()) {
+            sql.execute("""
+                    CREATE TABLE heating_planner_room (
+                        id BIGINT PRIMARY KEY,
+                        minimum_room_temperature NUMERIC(10, 2) NOT NULL,
+                        target_room_temperature NUMERIC(10, 2) NOT NULL,
+                        maximum_room_temperature NUMERIC(10, 2) NOT NULL
+                    )
+                    """);
+            sql.execute(LEGACY_ROOM_LIMITS);
+            sql.execute("INSERT INTO heating_planner_room VALUES (47, 20, 21, 23.5)");
+            assertThatThrownBy(() -> sql.execute("UPDATE heating_planner_room SET minimum_room_temperature = 21 WHERE id = 47"))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("CHK_HEATING_PLANNER_ROOM_LIMITS");
+
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V117__align_heating_planner_room_limits.sql"));
+
+            try (var row = sql.executeQuery("SELECT * FROM heating_planner_room WHERE id = 47")) {
+                assertThat(row.next()).isTrue();
+                assertThat(row.getBigDecimal("minimum_room_temperature")).isEqualByComparingTo("20");
+                assertThat(row.getBigDecimal("target_room_temperature")).isEqualByComparingTo("21");
+                assertThat(row.getBigDecimal("maximum_room_temperature")).isEqualByComparingTo("23.5");
+            }
+            for (String minimum : List.of("21", "22", "23.49")) {
+                assertThat(sql.executeUpdate("UPDATE heating_planner_room SET minimum_room_temperature = " + minimum + " WHERE id = 47"))
+                        .isEqualTo(1);
+            }
+            for (String minimum : List.of("23.5", "24")) {
+                assertThatThrownBy(() -> sql.execute("UPDATE heating_planner_room SET minimum_room_temperature = " + minimum + " WHERE id = 47"))
+                        .isInstanceOf(SQLException.class).hasMessageContaining("CHK_HEATING_PLANNER_ROOM_LIMITS");
+            }
+            assertThatThrownBy(() -> sql.execute("UPDATE heating_planner_room SET target_room_temperature = 24 WHERE id = 47"))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("CHK_HEATING_PLANNER_ROOM_LIMITS");
+            assertThat(sql.executeUpdate("UPDATE heating_planner_room SET target_room_temperature = 23.5 WHERE id = 47"))
+                    .isEqualTo(1);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"20", "21", "22"})
+    void savesSharedSchedulesRoundTripsRoomSelectionAndIsolatesOwnershipAndSites(String minimum) throws Exception {
         var configuration = new Configuration();
         var beans = new DefaultListableBeanFactory();
         beans.registerSingleton("testCryptoKey", "comfort-test-key");
@@ -61,6 +113,13 @@ class HeatingComfortSchedulePersistenceTest {
         configuration.setProperty("hibernate.connection.url", "jdbc:h2:mem:comfort-" + UUID.randomUUID() + ";MODE=PostgreSQL");
         configuration.setProperty("hibernate.hbm2ddl.auto", "create-drop");
         try (var factory = configuration.buildSessionFactory(); var session = factory.openSession()) {
+            // Hibernate schema generation omits Flyway checks. Exercise the upgraded production constraint.
+            session.doWork(connection -> {
+                try (var sql = connection.createStatement()) {
+                    sql.execute(LEGACY_ROOM_LIMITS);
+                }
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V117__align_heating_planner_room_limits.sql"));
+            });
             var tx = session.beginTransaction();
             var account = AccountEntity.builder().uuid(UUID.randomUUID()).secret(UUID.randomUUID().toString()).build();
             session.persist(account);
@@ -78,13 +137,15 @@ class HeatingComfortSchedulePersistenceTest {
                     LocalTime.of(6, 0), LocalTime.of(9, 0), new BigDecimal("22"))));
             var saved = service.saveComfortSchedule(account.getId(), site.getId(), new ComfortScheduleConfiguration(null, "Morning", daily));
             var room = new HeatingPlannerConfigurationService.RoomConfiguration("Living room", HeatingPlannerHeatSourceType.HEAT_PUMP,
-                    false, new BigDecimal("2"), new BigDecimal("21"), new BigDecimal("20"), new BigDecimal("23"),
+                    false, new BigDecimal("2"), new BigDecimal("21"), new BigDecimal(minimum), new BigDecimal("23"),
                     new BigDecimal("27"), new BigDecimal("29"), new BigDecimal("19"), null, null, null, saved);
             service.save(account.getId(), site.getId(), settingsConfiguration(), List.of(room));
             session.flush();
             session.clear();
 
             var restored = service.configuration(account.getId(), site.getId()).rooms().getFirst();
+            assertThat(restored.minimumRoomTemperature()).isEqualByComparingTo(minimum);
+            assertThat(restored.targetRoomTemperature()).isEqualByComparingTo("21");
             assertThat(restored.comfortSchedule()).isEqualTo(new ComfortScheduleConfiguration(saved.id(), "Morning",
                     new HeatingComfortSchedule(new BigDecimal("21.00"), List.of(new HeatingComfortSchedule.Period(
                             LocalTime.of(6, 0), LocalTime.of(9, 0), new BigDecimal("22.00"))))));
@@ -121,6 +182,19 @@ class HeatingComfortSchedulePersistenceTest {
             assertThat(service.configuration(account.getId(), site.getId()).rooms().getFirst().comfortSchedule().schedule()
                     .targetAt(point.time(), ZoneId.of("Europe/Helsinki"))).isEqualByComparingTo("23");
             assertThat(points.findAll().getFirst().getComfortTarget()).isEqualByComparingTo("22");
+
+            // Switching an existing room back to a constant target uses the same minimum rules.
+            service.save(account.getId(), site.getId(), settingsConfiguration(), List.of(
+                    new HeatingPlannerConfigurationService.RoomConfiguration("Living room", room.sourceType(),
+                            false, room.heatPumpTemperatureAdjustment(), room.targetRoomTemperature(),
+                            room.minimumRoomTemperature(), room.normalFloorTemperature(), room.maximumPreheatFloorTemperature(),
+                            room.absoluteMaximumFloorTemperature(), room.dischargeFloorSetpoint(), null, null, null)));
+            session.flush();
+            session.clear();
+            var constant = service.configuration(account.getId(), site.getId()).rooms().getFirst();
+            assertThat(constant.comfortSchedule()).isNull();
+            assertThat(constant.minimumRoomTemperature()).isEqualByComparingTo(minimum);
+            assertThat(constant.targetRoomTemperature()).isEqualByComparingTo("21");
             tx.rollback();
         }
     }
