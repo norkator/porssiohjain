@@ -1261,7 +1261,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         grid.addComponentColumn(row -> {
             ComboBox<HeatingPlannerConfigurationService.ComfortScheduleConfiguration> schedule = new ComboBox<>();
             schedule.setItems(comfortSchedules);
-            schedule.setItemLabelGenerator(HeatingPlannerConfigurationService.ComfortScheduleConfiguration::name);
+            schedule.setItemLabelGenerator(item -> item.name() + " (default "
+                    + item.schedule().defaultTarget().stripTrailingZeros().toPlainString() + " °C)");
             schedule.setPlaceholder(i18n.t("heatingPlanner.comfort.constant"));
             schedule.setClearButtonVisible(true);
             schedule.setWidthFull();
