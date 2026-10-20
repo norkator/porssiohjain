@@ -13,6 +13,7 @@ import com.nitramite.porssiohjain.views.components.InfoBox;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -45,8 +46,9 @@ public class HeatPumpControlPreviewDialog extends Dialog {
         setHeaderTitle(t("title"));
         setWidth("1200px");
         setMaxWidth("96vw");
-        setMaxHeight("92vh");
-        add(new Paragraph(t("description")), new Paragraph(t("timing", format(preview.generatedAt()), preview.timezone())));
+        setMaxHeight("92dvh");
+        Paragraph timing = new Paragraph(t("timing", format(preview.generatedAt()), preview.timezone()));
+        timing.getStyle().set("margin", "0").set("font-size", "var(--lumo-font-size-s)");
         pump.setLabel(t("pump"));
         pump.setItems(preview.pumps());
         pump.setItemLabelGenerator(Pump::name);
@@ -61,8 +63,11 @@ public class HeatPumpControlPreviewDialog extends Dialog {
         selectors.setFlexGrow(1, pump, day);
         content.setPadding(false);
         content.setWidthFull();
-        content.getStyle().set("min-width", "0");
-        add(selectors, content);
+        content.getStyle().set("min-width", "0").set("flex-shrink", "0");
+        VerticalLayout body = new VerticalLayout(selectors, timing, content);
+        body.setPadding(false);
+        body.getStyle().set("min-width", "0");
+        add(body);
         getFooter().add(new Button(i18n.t("common.close"), event -> close()));
         pump.addValueChangeListener(event -> render());
         day.addValueChangeListener(event -> render());
@@ -91,7 +96,10 @@ public class HeatPumpControlPreviewDialog extends Dialog {
                         period.state() == null ? null : period.state().temperature(),
                         period.state() == null ? null : period.state().mode(), period.assumed(), summary(period), reason(period)))
                 .toList(), date, zone, preview.generatedAt(), i18n));
-        content.add(new Paragraph(t("legend")));
+        Details explanation = new Details(t("explanation"),
+                new Paragraph(t("description")), new Paragraph(t("legend")));
+        explanation.setWidthFull();
+        content.add(explanation);
 
         Grid<Period> changes = new Grid<>(Period.class, false);
         changes.setItems(periods);
