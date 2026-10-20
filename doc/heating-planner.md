@@ -88,6 +88,8 @@ The site's operation state also affects price decisions. `NORMAL` uses the confi
 
 ## Daily comfort schedules
 
+Heating Planner is still in development. Keep the new comfort schedule text in English, including when the UI language is Finnish; use the base message bundle until the feature is ready for translation.
+
 **Rooms and heat sources → Comfort schedules** manages named, site-specific schedules. A schedule has one default target (for example 21 °C) and optional daily time windows (for example 06:00–09:00 at 22 °C). Select the schedule in a room's **Comfort schedule** column and save the rooms. Clearing the selection returns to a constant target. Existing rooms remain on their original constant targets.
 
 Times use the site's timezone, repeat every day, include the start and exclude the end. Windows may cross midnight and must not overlap. Gaps use the default target. Local-clock resolution also applies on 23/25-hour DST days; repeated local times use the same target. Times can be entered to the minute, while planner decisions continue to use 15-minute steps. A schedule may be shared by several rooms in the same site. Editing it affects those rooms on the next manual or automatic plan calculation. A schedule in use must be deselected and the rooms saved before it can be deleted.
