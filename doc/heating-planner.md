@@ -86,6 +86,16 @@ Both comparisons are strict `below` comparisons. The view must show the configur
 
 The site's operation state also affects price decisions. `NORMAL` uses the configured price thresholds. In `POWER_SAVE`, Heating Planner treats every period as expensive for floor-heating discharge and eligible wood-stove planning, and skips price-driven floor preheating. It keeps actual market prices in charts, persisted points, and cost estimates. The planner weather gate, wood weather gate, sensor freshness, comfort recovery, and thermostat limits still apply. The Vaadin view shows the selected site's operation state above the weather gate.
 
+## Daily comfort schedules
+
+**Rooms and heat sources → Comfort schedules** manages named, site-specific schedules. A schedule has one default target (for example 21 °C) and optional daily time windows (for example 06:00–09:00 at 22 °C). Select the schedule in a room's **Comfort schedule** column and save the rooms. Clearing the selection returns to a constant target. Existing rooms remain on their original constant targets.
+
+Times use the site's timezone, repeat every day, include the start and exclude the end. Windows may cross midnight and must not overlap. Gaps use the default target. Local-clock resolution also applies on 23/25-hour DST days; repeated local times use the same target. Times can be entered to the minute, while planner decisions continue to use 15-minute steps. A schedule may be shared by several rooms in the same site. Editing it affects those rooms on the next manual or automatic plan calculation. A schedule in use must be deselected and the rooms saved before it can be deleted.
+
+The scheduled target is resolved separately for each planned period in both manual and automatic planning. The room's independently configured comfort minimum stays fixed. The simulation maximum follows the period's target + 2.5 °C. Normal and discharge floor setpoints use the existing target + 2 °C / target − 2 °C offsets, capped by the configured preheat maximum; preheat and absolute floor limits remain unchanged. Existing heat-pump planning also uses the period's target. Temperature predictions remain predictions, and active control retains its existing opt-in and freshness requirements.
+
+Flyway V116 adds `heating_planner_comfort_schedule`, its daily periods, an optional room schedule reference, and a `comfort_target` snapshot on plan points. Saving a room revalidates the schedule's account/site ownership. Historical plan targets are preserved when the schedule is later changed. The room table keeps explicit column widths and scrolls horizontally within its available width on small screens.
+
 ## Sensor roles
 
 Floor and room measurements are not interchangeable:

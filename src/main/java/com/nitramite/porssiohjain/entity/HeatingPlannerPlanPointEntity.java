@@ -73,6 +73,9 @@ public class HeatingPlannerPlanPointEntity {
     @Column(name = "predicted_floor_temperature", precision = 10, scale = 2)
     private BigDecimal predictedFloorTemperature;
 
+    @Column(name = "comfort_target", precision = 10, scale = 2)
+    private BigDecimal comfortTarget;
+
     @Column(name = "predicted_room_temperature", precision = 10, scale = 2)
     private BigDecimal predictedRoomTemperature;
 

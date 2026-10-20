@@ -11,6 +11,10 @@
 
 package com.nitramite.porssiohjain.services.heating;
 
+import com.nitramite.porssiohjain.entity.HeatingPlannerComfortScheduleEntity;
+import com.nitramite.porssiohjain.entity.HeatingPlannerComfortPeriod;
+import com.nitramite.porssiohjain.entity.repository.HeatingPlannerComfortScheduleRepository;
+import com.nitramite.porssiohjain.services.models.HeatingComfortSchedule;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
@@ -51,6 +55,7 @@ public class HeatingPlannerConfigurationService {
     private final ElectricityContractRepository electricityContractRepository;
     private final HeatingPlannerSettingsRepository settingsRepository;
     private final HeatingPlannerRoomRepository roomRepository;
+    private final HeatingPlannerComfortScheduleRepository comfortScheduleRepository;
 
     @Transactional(readOnly = true)
     public Optional<Long> preferredSiteId(Long accountId) {
@@ -95,7 +100,8 @@ public class HeatingPlannerConfigurationService {
                             source == null || source.getControllingDevice() == null
                                     ? null : source.getControllingDevice().getId(),
                             room.getRoomSensorDevice() == null ? null : room.getRoomSensorDevice().getId(),
-                            room.getFloorSensorDevice() == null ? null : room.getFloorSensorDevice().getId()
+                            room.getFloorSensorDevice() == null ? null : room.getFloorSensorDevice().getId(),
+                            comfortConfiguration(room.getComfortSchedule())
                     );
                 })
                 .toList();
@@ -108,6 +114,74 @@ public class HeatingPlannerConfigurationService {
                 settingsEntity.getExpensivePriceThreshold(), settingsEntity.getCheapPricePercentile(),
                 settingsEntity.getExpensivePricePercentile(), settingsEntity.isNoPreheatWindowEnabled(),
                 settingsEntity.getNoPreheatFrom(), settingsEntity.getNoPreheatTo(), rooms);
+    }
+
+    public record ComfortScheduleConfiguration(Long id, String name, HeatingComfortSchedule schedule) { }
+
+    private static ComfortScheduleConfiguration comfortConfiguration(HeatingPlannerComfortScheduleEntity entity) {
+        return entity == null ? null : new ComfortScheduleConfiguration(entity.getId(), entity.getName(), entity.schedule());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ComfortScheduleConfiguration> comfortSchedules(Long accountId, Long siteId) {
+        siteRepository.findByIdAndAccountId(siteId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Site not found"));
+        return comfortScheduleRepository.findByAccountIdAndSiteIdOrderByNameAsc(accountId, siteId).stream()
+                .map(HeatingPlannerConfigurationService::comfortConfiguration).toList();
+    }
+
+    private HeatingPlannerComfortScheduleEntity requireComfortSchedule(Long accountId, Long siteId, Long id) {
+        return comfortScheduleRepository.findByIdAndAccountIdAndSiteId(id, accountId, siteId)
+                .orElseThrow(() -> new IllegalArgumentException("heatingPlanner.comfort.notFound"));
+    }
+
+    private static void validateComfortMinimum(HeatingComfortSchedule schedule, BigDecimal minimum) {
+        if (minimum.compareTo(schedule.lowestTarget().add(new BigDecimal("2.50"))) >= 0) {
+            throw new IllegalArgumentException("heatingPlanner.comfort.minimumConflict");
+        }
+    }
+
+    @Transactional
+    public ComfortScheduleConfiguration saveComfortSchedule(Long accountId, Long siteId,
+                                                             ComfortScheduleConfiguration configuration) {
+        var site = siteRepository.findByIdAndAccountId(siteId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Site not found"));
+        String name = configuration.name() == null ? "" : configuration.name().trim();
+        if (name.isBlank() || name.length() > 128) {
+            throw new IllegalArgumentException("heatingPlanner.comfort.invalidName");
+        }
+        var schedule = Objects.requireNonNull(configuration.schedule());
+        if (comfortScheduleRepository.findByAccountIdAndSiteIdOrderByNameAsc(accountId, siteId).stream()
+                .anyMatch(existing -> !Objects.equals(existing.getId(), configuration.id())
+                        && existing.getName().equalsIgnoreCase(name))) {
+            throw new IllegalArgumentException("heatingPlanner.comfort.duplicateName");
+        }
+        var entity = configuration.id() == null ? new HeatingPlannerComfortScheduleEntity()
+                : requireComfortSchedule(accountId, siteId, configuration.id());
+        if (entity.getId() != null) {
+            roomRepository.findByAccountIdAndSiteIdOrderBySortOrderAscIdAsc(accountId, siteId).stream()
+                    .filter(room -> room.getComfortSchedule() != null
+                            && entity.getId().equals(room.getComfortSchedule().getId()))
+                    .forEach(room -> validateComfortMinimum(schedule, room.getMinimumRoomTemperature()));
+        }
+        entity.setAccount(site.getAccount());
+        entity.setSite(site);
+        entity.setName(name);
+        entity.setDefaultTarget(schedule.defaultTarget());
+        entity.getPeriods().clear();
+        schedule.periods().forEach(period -> entity.getPeriods().add(
+                new HeatingPlannerComfortPeriod(period.from(), period.to(), period.target())));
+        return comfortConfiguration(comfortScheduleRepository.save(entity));
+    }
+
+    @Transactional
+    public void deleteComfortSchedule(Long accountId, Long siteId, Long id) {
+        var entity = requireComfortSchedule(accountId, siteId, id);
+        if (roomRepository.findByAccountIdAndSiteIdOrderBySortOrderAscIdAsc(accountId, siteId).stream()
+                .anyMatch(room -> room.getComfortSchedule() != null && id.equals(room.getComfortSchedule().getId()))) {
+            throw new IllegalArgumentException("heatingPlanner.comfort.inUse");
+        }
+        comfortScheduleRepository.delete(entity);
     }
 
     @Transactional
@@ -237,7 +311,9 @@ public class HeatingPlannerConfigurationService {
             if (roomName.isBlank()) {
                 throw new IllegalArgumentException("Room name is required");
             }
-            BigDecimal target = roomConfiguration.targetRoomTemperature() == null
+            HeatingPlannerComfortScheduleEntity comfortSchedule = roomConfiguration.comfortSchedule() == null ? null
+                    : requireComfortSchedule(accountId, siteId, roomConfiguration.comfortSchedule().id());
+            BigDecimal target = comfortSchedule != null ? comfortSchedule.getDefaultTarget() : roomConfiguration.targetRoomTemperature() == null
                     ? new BigDecimal("21.00") : roomConfiguration.targetRoomTemperature();
             BigDecimal minimumRoom = roomConfiguration.minimumRoomTemperature() == null
                     ? target.subtract(BigDecimal.ONE) : roomConfiguration.minimumRoomTemperature();
@@ -252,6 +328,7 @@ public class HeatingPlannerConfigurationService {
             if (minimumRoom.compareTo(target.add(new BigDecimal("2.50"))) >= 0) {
                 throw new IllegalArgumentException("Comfort minimum must be below the room comfort maximum");
             }
+            if (comfortSchedule != null) validateComfortMinimum(comfortSchedule.schedule(), minimumRoom);
             HeatingPlannerHeatSourceType sourceType = roomConfiguration.sourceType() == null
                     ? HeatingPlannerHeatSourceType.OTHER : roomConfiguration.sourceType();
             HeatingPlannerRoomEntity room = existingByName.remove(roomName.toLowerCase(Locale.ROOT));
@@ -260,6 +337,7 @@ public class HeatingPlannerConfigurationService {
             }
             room.setName(roomName);
             room.setTargetRoomTemperature(target);
+            room.setComfortSchedule(comfortSchedule);
             room.setMinimumRoomTemperature(minimumRoom);
             room.setNormalFloorTemperature(normalFloor);
             room.setMaximumPreheatFloorTemperature(maximumPreheatFloor);
@@ -410,7 +488,19 @@ public class HeatingPlannerConfigurationService {
             BigDecimal dischargeFloorSetpoint,
             Long controllingDeviceId,
             Long roomSensorDeviceId,
-            Long floorSensorDeviceId
+            Long floorSensorDeviceId,
+            ComfortScheduleConfiguration comfortSchedule
     ) {
+        public RoomConfiguration(String name, HeatingPlannerHeatSourceType sourceType,
+                boolean heatPumpPriceOptimizationEnabled, BigDecimal heatPumpTemperatureAdjustment,
+                BigDecimal targetRoomTemperature, BigDecimal minimumRoomTemperature,
+                BigDecimal normalFloorTemperature, BigDecimal maximumPreheatFloorTemperature,
+                BigDecimal absoluteMaximumFloorTemperature, BigDecimal dischargeFloorSetpoint,
+                Long controllingDeviceId, Long roomSensorDeviceId, Long floorSensorDeviceId) {
+            this(name, sourceType, heatPumpPriceOptimizationEnabled, heatPumpTemperatureAdjustment,
+                    targetRoomTemperature, minimumRoomTemperature, normalFloorTemperature,
+                    maximumPreheatFloorTemperature, absoluteMaximumFloorTemperature, dischargeFloorSetpoint,
+                    controllingDeviceId, roomSensorDeviceId, floorSensorDeviceId, null);
+        }
     }
 }

@@ -53,9 +53,9 @@ class HeatingPlannerViewTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"20.00, Europe/Helsinki, false", "18.00, Europe/Helsinki, false", "20.00, America/Los_Angeles, false",
-            "20.00, Europe/Helsinki, true"})
-    void manualPlanUsesCurrentReadingAndQuarterHourStepsAndExplainsHeatPumpRequest(String minimum, String timezone, boolean cloudSnapshot) {
+    @CsvSource({"20.00, Europe/Helsinki, false, false", "18.00, Europe/Helsinki, false, false", "20.00, America/Los_Angeles, false, false",
+            "20.00, Europe/Helsinki, true, false", "20.00, Europe/Helsinki, false, true"})
+    void manualPlanUsesCurrentReadingAndQuarterHourStepsAndExplainsHeatPumpRequest(String minimum, String timezone, boolean cloudSnapshot, boolean scheduled) {
         Instant measuredAt = Instant.now().minusSeconds(60);
         var sites = mock(SiteRepository.class);
         var devices = mock(DeviceRepository.class);
@@ -75,10 +75,13 @@ class HeatingPlannerViewTest {
         when(sites.findByAccountId(7L)).thenReturn(List.of(site));
         when(sites.findByIdAndAccountId(8L, 7L)).thenReturn(java.util.Optional.of(site));
         when(devices.findByAccountIdOrderByIdAsc(7L)).thenReturn(List.of(pump, sensor));
+        var comfortSchedule = scheduled ? new HeatingPlannerConfigurationService.ComfortScheduleConfiguration(12L, "Morning",
+                new com.nitramite.porssiohjain.services.models.HeatingComfortSchedule(new BigDecimal("22"), List.of())) : null;
+        when(configuration.comfortSchedules(7L, 8L)).thenReturn(scheduled ? List.of(comfortSchedule) : List.of());
         var room = new HeatingPlannerConfigurationService.RoomConfiguration("Living room",
                 HeatingPlannerHeatSourceType.HEAT_PUMP, true, new BigDecimal("2.00"),
                 new BigDecimal("21.00"), new BigDecimal(minimum), new BigDecimal("23.00"),
-                new BigDecimal("27.00"), new BigDecimal("29.00"), new BigDecimal("19.00"), 9L, 10L, null);
+                new BigDecimal("27.00"), new BigDecimal("29.00"), new BigDecimal("19.00"), 9L, 10L, null, comfortSchedule);
         when(configuration.configuration(7L, 8L)).thenReturn(new HeatingPlannerConfigurationService.Configuration(
                 true, true, new BigDecimal("5.00"), BigDecimal.ZERO, BigDecimal.ZERO, null, false,
                 LocalTime.of(6, 0), LocalTime.of(22, 0), new BigDecimal("8.00"), 45, 360,
@@ -121,6 +124,28 @@ class HeatingPlannerViewTest {
         var request = ArgumentCaptor.forClass(HeatingPlanSimulationService.SimulationRequest.class);
         var calculatedAt = ArgumentCaptor.forClass(Instant.class);
         verify(simulation).simulate(request.capture(), calculatedAt.capture());
+        assertThat(request.getValue().settings().comfortSchedule()).isEqualTo(scheduled ? comfortSchedule.schedule() : null);
+        var roomGrid = descendants(view).filter(Grid.class::isInstance).map(Grid.class::cast)
+                .filter(grid -> grid.hasClassName("heating-planner-rooms")).findFirst().orElseThrow();
+        assertThat(roomGrid.getWidth()).isEqualTo("100%");
+        roomGrid.getColumns().forEach(column -> {
+            Grid.Column<?> typed = (Grid.Column<?>) column;
+            assertThat(typed.getFlexGrow()).isZero();
+            assertThat(typed.getWidth()).endsWith("px");
+        });
+        if (scheduled) {
+            Object editableRoom = roomGrid.getListDataView().getItems().findFirst().orElseThrow();
+            var high = new HeatingPlannerConfigurationService.ComfortScheduleConfiguration(13L, "High",
+                    new com.nitramite.porssiohjain.services.models.HeatingComfortSchedule(new BigDecimal("35"), List.of()));
+            ReflectionTestUtils.invokeMethod(editableRoom, "setComfortSchedule", high);
+            assertThat((BigDecimal) ReflectionTestUtils.invokeMethod(editableRoom, "maximumPreheatFloorTemperature"))
+                    .isEqualByComparingTo("27");
+            assertThat((BigDecimal) ReflectionTestUtils.invokeMethod(editableRoom, "normalFloorTemperature"))
+                    .isEqualByComparingTo("27");
+            ReflectionTestUtils.invokeMethod(editableRoom, "setComfortSchedule", comfortSchedule);
+            assertThat((BigDecimal) ReflectionTestUtils.invokeMethod(editableRoom, "normalFloorTemperature"))
+                    .isEqualByComparingTo("24");
+        }
         assertThat(request.getValue().settings().step()).isEqualTo(Duration.ofMinutes(15));
         assertThat(request.getValue().initialRoomTemperature()).isEqualByComparingTo("22.900");
         @SuppressWarnings("unchecked")
@@ -144,7 +169,7 @@ class HeatingPlannerViewTest {
         assertThat((String) ReflectionTestUtils.invokeMethod(row, "predictedRoomTemperature"))
                 .contains("22.82 °C after this 15 min step");
         assertThat((String) ReflectionTestUtils.invokeMethod(row, "currentRequest"))
-                .contains("21.00 °C requested setpoint", "Maintain the comfort target")
+                .contains((scheduled ? "22" : "21.00") + " °C requested setpoint", "Maintain the comfort target")
                 .doesNotContain("below", "floor");
         String text = view.getElement().getTextRecursively();
         assertThat(text).contains("15 min steps", "minimum is configured separately")

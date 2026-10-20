@@ -100,6 +100,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
     private final AuthService authService;
     private final I18nService i18n;
+    private final List<HeatingPlannerConfigurationService.ComfortScheduleConfiguration> comfortSchedules = new ArrayList<>();
     private final SiteWeatherRepository siteWeatherRepository;
     private final NordpoolRepository nordpoolRepository;
 
@@ -322,7 +323,28 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             DesktopFormState.markDirty(rooms);
         });
         addRoom.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        VerticalLayout roomConfigurationContent = new VerticalLayout(rooms, addRoom);
+        Button manageComfortSchedules = new Button(i18n.t("heatingPlanner.comfort.schedules"), event -> {
+            if (account == null || siteSelect.getValue() == null) return;
+            var dialog = new HeatingComfortSchedulesDialog(configurationService, i18n, account.getId(), siteSelect.getValue().getId(),
+                    () -> {
+                        comfortSchedules.clear();
+                        comfortSchedules.addAll(configurationService.comfortSchedules(account.getId(), siteSelect.getValue().getId()));
+                        roomRows.forEach(row -> {
+                            if (row.comfortSchedule != null) {
+                                row.setComfortSchedule(comfortSchedules.stream()
+                                        .filter(schedule -> schedule.id().equals(row.comfortSchedule.id())).findFirst().orElse(null));
+                            }
+                        });
+                        rooms.getDataProvider().refreshAll();
+                    }, id -> roomRows.stream().anyMatch(row -> row.comfortSchedule != null
+                            && id.equals(row.comfortSchedule.id())));
+            add(dialog);
+            dialog.addOpenedChangeListener(opened -> { if (!opened.isOpened()) dialog.removeFromParent(); });
+            dialog.open();
+        });
+        HorizontalLayout roomActions = new HorizontalLayout(addRoom, manageComfortSchedules);
+        roomActions.setWrap(true);
+        VerticalLayout roomConfigurationContent = new VerticalLayout(rooms, roomActions);
         roomConfigurationContent.setPadding(false);
         roomConfigurationContent.setWidthFull();
         roomConfigurationContent.setAlignItems(Alignment.STRETCH);
@@ -406,8 +428,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                                     || room.heatSource() == HeatingPlannerHeatSourceType.HEAT_PUMP,
                                             priceThresholds, noPreheatWindowEnabled.getValue(),
                                             noPreheatFrom.getValue(), noPreheatTo.getValue(), zoneForSite(selectedSite),
-                                            siteOperationStateFor(selectedSite)), calculationTime),
-                                    null);
+                                            siteOperationStateFor(selectedSite)).withComfortSchedule(
+                                            room.comfortSchedule == null ? null : room.comfortSchedule.schedule(),
+                                            zoneForSite(selectedSite)), calculationTime),
+                                    null, room.comfortSchedule);
                         } catch (IllegalArgumentException ex) {
                             return new RoomPlan(room.room(), room.heatSource(), room.heatPumpPriceOptimizationEnabled(),
                                     room.heatPumpTemperatureAdjustment(), room.controller(),
@@ -416,7 +440,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                     room.targetRoomTemperature(), room.minimumRoomTemperature(), room.normalFloorTemperature(),
                                     room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
                                     room.dischargeFloorSetpoint(), "Model unavailable because plan inputs are invalid",
-                                    null, ex.getMessage());
+                                    null, ex.getMessage().startsWith("heatingPlanner.") ? i18n.t(ex.getMessage()) : ex.getMessage(), room.comfortSchedule);
                         }
                     })
                     .toList();
@@ -440,7 +464,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                 noPreheatWindowEnabled.getValue(), noPreheatFrom.getValue(),
                                 noPreheatTo.getValue(), zoneForSite(selectedSite),
                                 siteOperationStateFor(selectedSite)), calculationTime),
-                        null));
+                        null, null));
             }
             if (account != null && selectedSite != null) {
                 Map<String, HeatingPlanSimulationService.SimulationResult> resultsByRoom = new LinkedHashMap<>();
@@ -571,14 +595,15 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                         row.absoluteMaximumFloorTemperature(), row.dischargeFloorSetpoint(),
                                         row.controller() == null ? null : row.controller().getId(),
                                         row.roomSensor() == null ? null : row.roomSensor().getId(),
-                                        row.floorSensor() == null ? null : row.floorSensor().getId()
+                                        row.floorSensor() == null ? null : row.floorSensor().getId(), row.comfortSchedule
                                 ))
                                 .toList());
                 DesktopFormState.saved(rooms);
                 Notification.show("Heating Planner rooms saved").addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 calculate.run();
             } catch (IllegalArgumentException ex) {
-                Notification.show(ex.getMessage()).addThemeVariants(NotificationVariant.LUMO_ERROR);
+                String message = ex.getMessage().startsWith("heatingPlanner.") ? i18n.t(ex.getMessage()) : ex.getMessage();
+                Notification.show(message).addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
         saveConfiguration.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_PRIMARY);
@@ -1176,6 +1201,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                                 List<DeviceEntity> floorSensors) {
         Grid<RoomOverview> grid = new Grid<>(RoomOverview.class, false);
         grid.setWidthFull();
+        grid.setMinWidth("0");
+        grid.addClassName("heating-planner-rooms");
         grid.addComponentColumn(row -> {
             com.vaadin.flow.component.textfield.TextField room = new com.vaadin.flow.component.textfield.TextField();
             room.setValue(row.room());
@@ -1183,7 +1210,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             room.addValueChangeListener(event -> row.setRoom(event.getValue()));
             DesktopFormState.watchChanges(room, grid);
             return room;
-        }).setHeader("Room").setFlexGrow(1);
+        }).setHeader("Room").setWidth("210px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             ComboBox<HeatingPlannerHeatSourceType> heatSource = new ComboBox<>();
             heatSource.setItems(java.util.Arrays.stream(HeatingPlannerHeatSourceType.values())
@@ -1206,7 +1233,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             });
             DesktopFormState.watchChanges(heatSource, grid);
             return heatSource;
-        }).setHeader("Heat source").setFlexGrow(1);
+        }).setHeader("Heat source").setWidth("230px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             Checkbox optimize = new Checkbox();
             optimize.setValue(row.heatPumpPriceOptimizationEnabled());
@@ -1230,7 +1257,22 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             });
             DesktopFormState.watchChanges(adjustment, grid);
             return adjustment;
-        }).setHeader("HP adjustment").setFlexGrow(1);
+        }).setHeader("HP adjustment").setWidth("200px").setFlexGrow(0);
+        grid.addComponentColumn(row -> {
+            ComboBox<HeatingPlannerConfigurationService.ComfortScheduleConfiguration> schedule = new ComboBox<>();
+            schedule.setItems(comfortSchedules);
+            schedule.setItemLabelGenerator(HeatingPlannerConfigurationService.ComfortScheduleConfiguration::name);
+            schedule.setPlaceholder(i18n.t("heatingPlanner.comfort.constant"));
+            schedule.setClearButtonVisible(true);
+            schedule.setWidthFull();
+            schedule.setValue(row.comfortSchedule);
+            schedule.addValueChangeListener(event -> {
+                row.setComfortSchedule(event.getValue());
+                grid.getDataProvider().refreshItem(row);
+            });
+            DesktopFormState.watchChanges(schedule, grid);
+            return schedule;
+        }).setHeader(i18n.t("heatingPlanner.comfort.schedule")).setWidth("260px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             NumberField target = new NumberField();
             target.setValue(row.targetRoomTemperature().doubleValue());
@@ -1239,6 +1281,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             target.setStep(0.25);
             target.setSuffixComponent(new Span("°C"));
             target.setWidthFull();
+            target.setEnabled(row.comfortSchedule == null);
+            target.setTooltipText(i18n.t("heatingPlanner.comfort.targetHelp"));
             target.addValueChangeListener(event -> {
                 if (event.getValue() != null) {
                     row.setTargetRoomTemperature(BigDecimal.valueOf(event.getValue()));
@@ -1246,7 +1290,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             });
             DesktopFormState.watchChanges(target, grid);
             return target;
-        }).setHeader("Comfort target").setFlexGrow(1);
+        }).setHeader("Comfort target").setWidth("200px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             NumberField minimum = new NumberField();
             minimum.setValue(row.minimumRoomTemperature().doubleValue());
@@ -1262,14 +1306,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             });
             DesktopFormState.watchChanges(minimum, grid);
             return minimum;
-        }).setHeader("Comfort minimum").setFlexGrow(1);
+        }).setHeader("Comfort minimum").setWidth("200px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             NumberField field = roomTemperatureField(row.maximumPreheatFloorTemperature(), 5, 40,
                     row::setMaximumPreheatFloorTemperature);
             field.setEnabled(row.heatSource() == HeatingPlannerHeatSourceType.FLOOR_HEATING);
             DesktopFormState.watchChanges(field, grid);
             return field;
-        }).setHeader("Floor preheat max").setFlexGrow(1);
+        }).setHeader("Floor preheat max").setWidth("200px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             ComboBox<DeviceEntity> controller = new ComboBox<>();
             controller.setItems(heatingControllers.stream()
@@ -1285,7 +1329,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             controller.addValueChangeListener(event -> row.setController(event.getValue()));
             DesktopFormState.watchChanges(controller, grid);
             return controller;
-        }).setHeader("Controlling device").setFlexGrow(2);
+        }).setHeader("Controlling device").setWidth("280px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             ComboBox<DeviceEntity> sensor = new ComboBox<>();
             sensor.setItems(temperatureSensors);
@@ -1297,7 +1341,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             sensor.addValueChangeListener(event -> row.setRoomSensor(event.getValue()));
             DesktopFormState.watchChanges(sensor, grid);
             return sensor;
-        }).setHeader("Room sensor").setFlexGrow(2);
+        }).setHeader("Room sensor").setWidth("280px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             ComboBox<DeviceEntity> sensor = new ComboBox<>();
             sensor.setItems(floorSensors);
@@ -1313,7 +1357,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             sensor.addValueChangeListener(event -> row.setFloorSensor(event.getValue()));
             DesktopFormState.watchChanges(sensor, grid);
             return sensor;
-        }).setHeader("Floor sensor").setFlexGrow(2);
+        }).setHeader("Floor sensor").setWidth("280px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             Button delete = new Button(VaadinIcon.TRASH.create(), event -> {
                 roomRows.remove(row);
@@ -1466,7 +1510,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         }
         if (plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP) {
             var decision = HeatingPlannerPlanService.plannedHeatPumpDecision(
-                    plan.targetRoomTemperature(), plan.minimumRoomTemperature(),
+                    targetForPoint(plan, point), plan.minimumRoomTemperature(),
                     plan.heatPumpTemperatureAdjustment(), plan.heatPumpPriceOptimizationEnabled(), point);
             BigDecimal setpoint = decision.setpoint();
             if (!heatPumpControlEnabled) {
@@ -1687,9 +1731,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         grid.setAllRowsVisible(true);
         grid.setItems(roomPlans.stream()
                 .map(plan -> new RoomLimitEvidenceRow(plan.room(),
-                        "comfort target " + plan.targetRoomTemperature() + " °C, configured minimum "
+                        comfortDescription(plan) + ", configured minimum "
                                 + plan.minimumRoomTemperature() + " °C, simulation maximum "
-                                + plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C",
+                                + comfortMaximumDescription(plan),
                         plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP
                                 ? "not applicable to heat-pump control"
                                 : "normal " + plan.normalFloorTemperature() + " °C, preheat max "
@@ -1726,10 +1770,10 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .map(plan -> {
                     HeatingPlanSimulationService.SimulationPoint point = currentPoint(plan.result(), now);
                     var decision = HeatingPlannerPlanService.plannedHeatPumpDecision(
-                            plan.targetRoomTemperature(), plan.minimumRoomTemperature(),
+                            targetForPoint(plan, point), plan.minimumRoomTemperature(),
                             plan.heatPumpTemperatureAdjustment(), plan.heatPumpPriceOptimizationEnabled(), point);
                     BigDecimal request = decision.setpoint();
-                    String strategy = "comfort target " + plan.targetRoomTemperature() + " °C, minimum "
+                    String strategy = comfortDescription(plan) + ", minimum "
                             + plan.minimumRoomTemperature() + " °C, adjustment ±"
                             + plan.heatPumpTemperatureAdjustment() + " °C; price shifting "
                             + (plan.heatPumpPriceOptimizationEnabled()
@@ -1767,6 +1811,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         content.setWidthFull();
         content.add(new Span("The comfort minimum is configured separately for each room. "
                 + "The simulation comfort maximum is target + 2.5 °C. "
+                + "With a comfort schedule, normal and discharge floor setpoints follow target changes, capped by the preheat maximum; the floor values shown are the defaults. "
                 + "Decisions use simulated temperatures seeded from the sensor inputs shown below."));
 
         Grid<RoomCalculationRow> grid = new Grid<>(RoomCalculationRow.class, false);
@@ -1791,9 +1836,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         String startingState = "room " + measurementText(plan.roomMeasurement(), plan.initialRoomTemperature())
                 + (plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP ? ""
                 : "; floor " + measurementText(plan.floorMeasurement(), plan.initialFloorTemperature()));
-        String limits = "comfort target " + plan.targetRoomTemperature() + " °C, configured minimum "
+        String limits = comfortDescription(plan) + ", configured minimum "
                 + plan.minimumRoomTemperature() + " °C, simulation maximum "
-                + plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C";
+                + comfortMaximumDescription(plan);
         if (plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP) {
             limits += "; heat-pump adjustment ±" + plan.heatPumpTemperatureAdjustment() + " °C";
         } else {
@@ -1810,7 +1855,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             return new RoomCalculationRow(plan.room(), startingState, limits, "No plan point", "No plan point is available.");
         }
         if (plan.sourceType() == HeatingPlannerHeatSourceType.HEAT_PUMP) {
-            var decision = HeatingPlannerPlanService.plannedHeatPumpDecision(plan.targetRoomTemperature(),
+            var decision = HeatingPlannerPlanService.plannedHeatPumpDecision(targetForPoint(plan, point),
                     plan.minimumRoomTemperature(), plan.heatPumpTemperatureAdjustment(),
                     plan.heatPumpPriceOptimizationEnabled(), point);
             return new RoomCalculationRow(plan.room(), startingState, limits,
@@ -2041,9 +2086,9 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     }
 
     private String roomLimitEvidence(RoomPlan plan) {
-        return plan.room() + " target " + plan.targetRoomTemperature() + " °C, comfort guard "
+        return plan.room() + " " + comfortDescription(plan) + ", comfort guard "
                 + plan.minimumRoomTemperature() + "…"
-                + plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C, floor normal "
+                + comfortMaximumDescription(plan) + ", floor normal "
                 + plan.normalFloorTemperature() + " °C, preheat max "
                 + plan.maximumPreheatFloorTemperature() + " °C, absolute max "
                 + plan.absoluteMaximumFloorTemperature() + " °C, discharge "
@@ -2141,6 +2186,24 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
     private record PlanAction(String time, String action, String reason) {
     }
 
+    private BigDecimal targetForPoint(RoomPlan plan, HeatingPlanSimulationService.SimulationPoint point) {
+        return point == null || point.comfortTarget() == null ? plan.targetRoomTemperature() : point.comfortTarget();
+    }
+
+    private String comfortMaximumDescription(RoomPlan plan) {
+        return plan.comfortSchedule() == null ? plan.targetRoomTemperature().add(new BigDecimal("2.50")) + " °C"
+                : "scheduled target + 2.5 °C";
+    }
+
+    private String comfortDescription(RoomPlan plan) {
+        if (plan.comfortSchedule() == null) return "comfort target " + plan.targetRoomTemperature() + " °C";
+        var schedule = plan.comfortSchedule();
+        return schedule.name() + " · default " + schedule.schedule().defaultTarget() + " °C"
+                + schedule.schedule().periods().stream().map(period -> " · " + TIME.format(period.from())
+                        + "–" + TIME.format(period.to()) + " " + period.target() + " °C")
+                .collect(java.util.stream.Collectors.joining());
+    }
+
     private record RoomPlan(String room, HeatingPlannerHeatSourceType sourceType,
                             boolean heatPumpPriceOptimizationEnabled,
                             BigDecimal heatPumpTemperatureAdjustment,
@@ -2157,7 +2220,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                             BigDecimal dischargeFloorSetpoint,
                             String modelEvidence,
                             HeatingPlanSimulationService.SimulationResult result,
-                            String planError) {
+                            String planError,
+                            HeatingPlannerConfigurationService.ComfortScheduleConfiguration comfortSchedule) {
     }
 
     private record RoomDayPlan(RoomPlan roomPlan, List<HeatingPlanSimulationService.SimulationPoint> points) {
@@ -2359,6 +2423,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                    List<ElectricityContractEntity> transferContracts) {
         DesktopFormState.saved(rooms);
         roomRows.clear();
+        comfortSchedules.clear();
+        if (accountId != null && site != null) comfortSchedules.addAll(configurationService.comfortSchedules(accountId, site.getId()));
         loadingConfiguration.set(true);
         if (accountId != null && site != null) {
             HeatingPlannerConfigurationService.Configuration configuration = configurationService.configuration(accountId, site.getId());
@@ -2387,7 +2453,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             noPreheatFrom.setValue(timeOrDefault(configuration.noPreheatFrom(), LocalTime.of(22, 0)));
             noPreheatTo.setValue(timeOrDefault(configuration.noPreheatTo(), LocalTime.of(5, 0)));
             configuration.rooms().stream()
-                    .map(room -> new RoomOverview(
+                    .map(room -> {
+                        RoomOverview row = new RoomOverview(
                             room.name(),
                             room.sourceType(),
                             room.targetRoomTemperature(),
@@ -2412,7 +2479,16 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                     .filter(device -> room.floorSensorDeviceId() != null
                                             && device.getId().equals(room.floorSensorDeviceId()))
                                     .findFirst().orElse(null)
-                    ))
+                        );
+                        if (room.comfortSchedule() != null) {
+                            row.normalFloorTemperature = room.normalFloorTemperature();
+                            row.maximumPreheatFloorTemperature = room.maximumPreheatFloorTemperature();
+                            row.absoluteMaximumFloorTemperature = room.absoluteMaximumFloorTemperature();
+                            row.dischargeFloorSetpoint = room.dischargeFloorSetpoint();
+                            row.setComfortSchedule(room.comfortSchedule());
+                        }
+                        return row;
+                    })
                     .forEach(roomRows::add);
         } else {
             plannerEnabled.setValue(false);
@@ -2525,6 +2601,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         private String room;
         private HeatingPlannerHeatSourceType heatSource;
         private BigDecimal targetRoomTemperature;
+        private HeatingPlannerConfigurationService.ComfortScheduleConfiguration comfortSchedule;
         private BigDecimal minimumRoomTemperature;
         private BigDecimal normalFloorTemperature;
         private BigDecimal maximumPreheatFloorTemperature;
@@ -2577,6 +2654,16 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             return targetRoomTemperature;
         }
 
+        private void setComfortSchedule(HeatingPlannerConfigurationService.ComfortScheduleConfiguration schedule) {
+            comfortSchedule = schedule;
+            if (schedule != null) {
+                BigDecimal target = schedule.schedule().defaultTarget();
+                normalFloorTemperature = target.add(NORMAL_FLOOR_OFFSET).min(maximumPreheatFloorTemperature);
+                dischargeFloorSetpoint = target.subtract(DISCHARGE_OFFSET).min(maximumPreheatFloorTemperature);
+                targetRoomTemperature = target;
+            }
+        }
+
         private void setTargetRoomTemperature(BigDecimal targetRoomTemperature) {
             this.targetRoomTemperature = targetRoomTemperature;
             deriveHiddenFloorSetpoints();
@@ -2604,7 +2691,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
         private void setMaximumPreheatFloorTemperature(BigDecimal maximumPreheatFloorTemperature) {
             this.maximumPreheatFloorTemperature = maximumPreheatFloorTemperature;
-            deriveHiddenFloorSetpoints();
+            if (comfortSchedule == null) {
+                deriveHiddenFloorSetpoints();
+            } else {
+                absoluteMaximumFloorTemperature = maximumPreheatFloorTemperature.add(ABSOLUTE_MAXIMUM_OFFSET);
+                setComfortSchedule(comfortSchedule);
+            }
         }
 
         private BigDecimal absoluteMaximumFloorTemperature() {

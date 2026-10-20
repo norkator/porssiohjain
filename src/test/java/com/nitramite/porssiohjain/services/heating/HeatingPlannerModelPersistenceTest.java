@@ -92,7 +92,7 @@ class HeatingPlannerModelPersistenceTest {
         DeviceRepository devices = mock();
         HeatingPlannerSettingsRepository settingsRepository = mock();
         HeatingPlannerRoomRepository rooms = mock();
-        var service = new HeatingPlannerConfigurationService(accounts, sites, devices, mock(), settingsRepository, rooms);
+        var service = new HeatingPlannerConfigurationService(accounts, sites, devices, mock(), settingsRepository, rooms, mock());
         var account = AccountEntity.builder().id(7L).build();
         var site = SiteEntity.builder().id(8L).account(account).timezone("Europe/Helsinki").build();
         var settings = HeatingPlannerSettingsEntity.builder().id(1L).account(account).site(site).build();

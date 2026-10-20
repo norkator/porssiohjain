@@ -60,7 +60,7 @@ public class HeatingPlannerPlanService {
                             point.getPriceCentsPerKwh(), point.getOutdoorTemperature(),
                             point.getPredictedFloorTemperature(), point.getPredictedRoomTemperature(),
                             point.getPlannedFloorSetpoint(), point.getPredictedWoodHeatRate(),
-                            point.isHeating(), point.getOperatingMode(), point.getReason()));
+                            point.isHeating(), point.getOperatingMode(), point.getReason(), point.getComfortTarget()));
         }
         return history;
     }
@@ -123,7 +123,7 @@ public class HeatingPlannerPlanService {
                     .planVersion(plan.getPlanVersion()).plannedTime(point.time())
                     .priceCentsPerKwh(point.priceCentsPerKwh()).outdoorTemperature(point.outdoorTemperature())
                     .predictedFloorTemperature(point.floorTemperature())
-                    .predictedRoomTemperature(point.roomTemperature()).plannedFloorSetpoint(point.floorSetpoint())
+                    .predictedRoomTemperature(point.roomTemperature()).plannedFloorSetpoint(point.floorSetpoint()).comfortTarget(point.comfortTarget())
                     .plannedHeatPumpSetpoint(heatPumpSetpoint(room, heatPump, point))
                     .predictedWoodHeatRate(point.woodRoomHeatingRate()).heating(point.heating())
                     .operatingMode(point.mode()).reason(point.reason())
@@ -140,7 +140,7 @@ public class HeatingPlannerPlanService {
         if (heatPump == null) {
             return null;
         }
-        return plannedHeatPumpSetpoint(room.getTargetRoomTemperature(), room.getMinimumRoomTemperature(),
+        return plannedHeatPumpSetpoint(point.comfortTarget() == null ? room.getTargetRoomTemperature() : point.comfortTarget(), room.getMinimumRoomTemperature(),
                 heatPump.getHeatPumpTemperatureAdjustment(), heatPump.isHeatPumpPriceOptimizationEnabled(), point);
     }
 

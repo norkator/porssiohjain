@@ -12,6 +12,8 @@
 package com.nitramite.porssiohjain.services.heating;
 
 import com.nitramite.porssiohjain.entity.enums.SiteOperationState;
+import com.nitramite.porssiohjain.services.models.HeatingComfortSchedule;
+import java.time.ZoneId;
 
 import org.springframework.stereotype.Service;
 
@@ -132,7 +134,7 @@ public class HeatingPlanSimulationService {
         Set<Instant> preheatTimes = plannerActive && !powerSave ? planPreheatTimes(request, market) : Set.of();
 
         for (MarketPoint point : market) {
-            OperatingDecision decision = decide(point, roomTemperature, request.settings(), woodRecommendation,
+            OperatingDecision decision = decide(point, roomTemperature, request.settings().atTime(point.time()), woodRecommendation,
                     plannerActive, preheatTimes, request.roomMeasurementFresh(), powerSave);
             boolean heating = floorTemperature.compareTo(decision.floorSetpoint()) < 0;
             BigDecimal floorToRoom = request.model().floorToRoomRate()
@@ -161,7 +163,10 @@ public class HeatingPlanSimulationService {
                     floorTemperature.setScale(2, RoundingMode.HALF_UP),
                     roomTemperature.setScale(2, RoundingMode.HALF_UP),
                     decision.floorSetpoint(), woodHeatRate.setScale(3, RoundingMode.HALF_UP),
-                    heating, decision.mode(), decision.reason()
+                    heating, decision.mode(), decision.reason() + (request.settings().comfortSchedule() == null ? ""
+                            : "; scheduled comfort target " + request.settings().comfortSchedule().targetAt(point.time(), request.settings().zone()) + " °C"),
+                    request.settings().comfortSchedule() == null ? null
+                            : request.settings().comfortSchedule().targetAt(point.time(), request.settings().zone())
             ));
         }
 
@@ -259,7 +264,7 @@ public class HeatingPlanSimulationService {
                 .findFirst()
                 .orElse(null);
         if (expensiveStart == null
-                || request.initialRoomTemperature().compareTo(request.settings().maximumRoomTemperature()) >= 0) {
+                || request.initialRoomTemperature().compareTo(request.settings().atTime(expensiveStart.time()).maximumRoomTemperature()) >= 0) {
             return null;
         }
         Instant releaseStartsAt = expensiveStart.time();
@@ -336,6 +341,11 @@ public class HeatingPlanSimulationService {
             throw new IllegalArgumentException("Simulation request, settings, model, and market points are required");
         }
         Settings settings = request.settings();
+        if (settings.comfortSchedule() != null && (settings.zone() == null
+                || settings.minimumRoomTemperature().compareTo(
+                        settings.comfortSchedule().lowestTarget().add(new BigDecimal("2.50"))) >= 0)) {
+            throw new IllegalArgumentException("heatingPlanner.comfort.minimumConflict");
+        }
         if (settings.step().isZero() || settings.step().isNegative()) {
             throw new IllegalArgumentException("Simulation step must be positive");
         }
@@ -384,6 +394,12 @@ public class HeatingPlanSimulationService {
             boolean roomMeasurementFresh,
             SiteOperationState siteOperationState
     ) {
+        public SimulationRequest withComfortSchedule(HeatingComfortSchedule schedule, ZoneId zone) {
+            return new SimulationRequest(initialFloorTemperature, initialRoomTemperature,
+                    settings.withComfortSchedule(schedule, zone), model, market, woodStove,
+                    floorMeasurementFresh, roomMeasurementFresh, siteOperationState);
+        }
+
         public SimulationRequest(BigDecimal initialFloorTemperature, BigDecimal initialRoomTemperature,
                                  Settings settings, ThermalModel model, List<MarketPoint> market,
                                  WoodStoveSettings woodStove, boolean floorMeasurementFresh,
@@ -410,8 +426,38 @@ public class HeatingPlanSimulationService {
             BigDecimal minimumRoomTemperature,
             BigDecimal maximumRoomTemperature,
             BigDecimal plannerActivationOutdoorTemperature,
-            List<NoPreheatWindow> noPreheatWindows
+            List<NoPreheatWindow> noPreheatWindows,
+            HeatingComfortSchedule comfortSchedule,
+            ZoneId zone
     ) {
+        public Settings(Duration step, BigDecimal cheapPriceThreshold, BigDecimal expensivePriceThreshold,
+                        BigDecimal normalFloorTemperature, BigDecimal maximumPreheatFloorTemperature,
+                        BigDecimal absoluteMaximumFloorTemperature, BigDecimal dischargeFloorSetpoint,
+                        BigDecimal minimumRoomTemperature, BigDecimal maximumRoomTemperature,
+                        BigDecimal plannerActivationOutdoorTemperature, List<NoPreheatWindow> noPreheatWindows) {
+            this(step, cheapPriceThreshold, expensivePriceThreshold, normalFloorTemperature,
+                    maximumPreheatFloorTemperature, absoluteMaximumFloorTemperature, dischargeFloorSetpoint,
+                    minimumRoomTemperature, maximumRoomTemperature, plannerActivationOutdoorTemperature,
+                    noPreheatWindows, null, null);
+        }
+
+        public Settings withComfortSchedule(HeatingComfortSchedule schedule, ZoneId zone) {
+            return new Settings(step, cheapPriceThreshold, expensivePriceThreshold, normalFloorTemperature,
+                    maximumPreheatFloorTemperature, absoluteMaximumFloorTemperature, dischargeFloorSetpoint,
+                    minimumRoomTemperature, maximumRoomTemperature, plannerActivationOutdoorTemperature,
+                    noPreheatWindows, schedule, zone);
+        }
+
+        Settings atTime(Instant time) {
+            if (comfortSchedule == null) return this;
+            BigDecimal target = comfortSchedule.targetAt(time, zone);
+            BigDecimal maximum = target.add(new BigDecimal("2.50"));
+            return new Settings(step, cheapPriceThreshold, expensivePriceThreshold,
+                    target.add(new BigDecimal("2.00")).min(maximumPreheatFloorTemperature),
+                    maximumPreheatFloorTemperature, absoluteMaximumFloorTemperature,
+                    target.subtract(new BigDecimal("2.00")).min(maximumPreheatFloorTemperature),
+                    minimumRoomTemperature, maximum, plannerActivationOutdoorTemperature, noPreheatWindows);
+        }
     }
 
     public record NoPreheatWindow(
@@ -469,8 +515,15 @@ public class HeatingPlanSimulationService {
             BigDecimal woodRoomHeatingRate,
             boolean heating,
             OperatingMode mode,
-            String reason
+            String reason,
+            BigDecimal comfortTarget
     ) {
+        public SimulationPoint(Instant time, BigDecimal priceCentsPerKwh, BigDecimal outdoorTemperature,
+                               BigDecimal floorTemperature, BigDecimal roomTemperature, BigDecimal floorSetpoint,
+                               BigDecimal woodRoomHeatingRate, boolean heating, OperatingMode mode, String reason) {
+            this(time, priceCentsPerKwh, outdoorTemperature, floorTemperature, roomTemperature, floorSetpoint,
+                    woodRoomHeatingRate, heating, mode, reason, null);
+        }
     }
 
     public record SimulationResult(

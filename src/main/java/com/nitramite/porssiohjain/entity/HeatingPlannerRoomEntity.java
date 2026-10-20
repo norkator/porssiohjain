@@ -91,6 +91,10 @@ public class HeatingPlannerRoomEntity {
     @Column(name = "target_room_temperature", nullable = false, precision = 10, scale = 2)
     private BigDecimal targetRoomTemperature = new BigDecimal("21.00");
 
+    @ManyToOne
+    @JoinColumn(name = "comfort_schedule_id")
+    private HeatingPlannerComfortScheduleEntity comfortSchedule;
+
     @Builder.Default
     @Column(name = "maximum_room_temperature", nullable = false, precision = 10, scale = 2)
     private BigDecimal maximumRoomTemperature = new BigDecimal("23.50");
