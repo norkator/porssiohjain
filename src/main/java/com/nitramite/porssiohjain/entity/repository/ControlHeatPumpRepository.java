@@ -24,4 +24,6 @@ public interface ControlHeatPumpRepository extends JpaRepository<ControlHeatPump
 
     List<ControlHeatPumpEntity> findByDevice(DeviceEntity device);
 
+    List<ControlHeatPumpEntity> findByControlIdOrderByIdAsc(Long controlId);
+
 }

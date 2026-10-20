@@ -37,8 +37,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -50,7 +48,6 @@ import java.util.Optional;
 @Transactional
 public class HeatPumpControlService {
 
-    private static final long CONTROL_LOOKBACK_SECONDS = 30L * 60L;
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final ToshibaAcStateHexDecoderService TOSHIBA_DECODER = new ToshibaAcStateHexDecoderService();
 
@@ -169,48 +166,11 @@ public class HeatPumpControlService {
             ControlHeatPumpEntity rule,
             Instant now
     ) {
-        DeviceEntity device = rule.getDevice();
-        if (!isEligibleDevice(device)) {
-            return Optional.empty();
-        }
-
-        if (rule.getComparisonType() != null && rule.getPriceLimit() != null) {
-            Optional<BigDecimal> currentPrice = getCurrentControlPrice(rule.getControl(), now);
-            if (currentPrice.isEmpty()) {
-                log.debug("Skipping control heat pump rule {} because no current price was found", rule.getId());
-                return Optional.empty();
-            }
-            if (!matches(currentPrice.get(), rule.getComparisonType(), rule.getPriceLimit())) {
-                return Optional.empty();
-            }
-
-            return Optional.of(new HeatPumpCommandCandidate(
-                    device,
-                    rule.getStateHex(),
-                    3,
-                    "CONTROL",
-                    rule.getId(),
-                    String.format(
-                            "price %s %s (actual=%s)",
-                            rule.getComparisonType(),
-                            rule.getPriceLimit(),
-                            currentPrice.get()
-                    ), null
-            ));
-        }
-
-        if (!isControlActive(rule.getControl(), now)) {
-            return Optional.empty();
-        }
-
-        return Optional.of(new HeatPumpCommandCandidate(
-                device,
-                rule.getStateHex(),
-                3,
-                "CONTROL",
-                rule.getId(),
-                "control schedule currently active", null
-        ));
+        return ControlHeatPumpRuleEvaluator.evaluate(rule,
+                        () -> getCurrentControlPrice(rule.getControl(), now),
+                        () -> isControlActive(rule.getControl(), now))
+                .map(match -> new HeatPumpCommandCandidate(rule.getDevice(), rule.getStateHex(), 3,
+                        "CONTROL", rule.getId(), match.schedulerReason(rule), null));
     }
 
     private void dispatchCandidate(HeatPumpCommandCandidate candidate) {
@@ -278,19 +238,11 @@ public class HeatPumpControlService {
             return false;
         }
 
-        ZoneId controlZone = ZoneId.of(control.getTimezone());
-        ZonedDateTime nowInControlZone = now.atZone(controlZone);
-
-        return controlTableRepository.findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
+        return ControlHeatPumpRuleEvaluator.controlActive(control, now,
+                controlTableRepository.findByControlIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
                         control.getId(),
                         Status.FINAL,
-                        now.minusSeconds(CONTROL_LOOKBACK_SECONDS)
-                ).stream()
-                .anyMatch(controlTable -> {
-                    ZonedDateTime start = controlTable.getStartTime().atZone(controlZone);
-                    ZonedDateTime end = controlTable.getEndTime().atZone(controlZone);
-                    return !nowInControlZone.isBefore(start) && !nowInControlZone.isAfter(end);
-                });
+                        now.minusSeconds(ControlHeatPumpRuleEvaluator.CONTROL_LOOKBACK_SECONDS)));
     }
 
     private boolean matches(BigDecimal actualValue, ComparisonType comparisonType, BigDecimal thresholdValue) {
@@ -305,7 +257,7 @@ public class HeatPumpControlService {
     }
 
     private boolean isEligibleDevice(DeviceEntity device) {
-        return device != null && device.isEnabled() && device.getDeviceType() == DeviceType.HEAT_PUMP;
+        return ControlHeatPumpRuleEvaluator.eligible(device);
     }
 
     private String nullSafe(String value) {

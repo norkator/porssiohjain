@@ -82,6 +82,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final HeatPumpStateDialogService heatPumpStateDialogService;
     private final ControlNotificationService controlNotificationService;
     private final ThermostatCurveService thermostatCurveService;
+    private final HeatPumpControlPreviewService heatPumpControlPreviewService;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
     private final Grid<ControlHeatPumpResponse> heatPumpGrid = new Grid<>(ControlHeatPumpResponse.class, false);
@@ -128,7 +129,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
             SiteService siteService,
             HeatPumpStateDialogService heatPumpStateDialogService,
             ControlNotificationService controlNotificationService,
-            ThermostatCurveService thermostatCurveService
+            ThermostatCurveService thermostatCurveService,
+            HeatPumpControlPreviewService heatPumpControlPreviewService
     ) {
         this.authService = authService;
         this.controlService = controlService;
@@ -141,6 +143,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         this.heatPumpStateDialogService = heatPumpStateDialogService;
         this.controlNotificationService = controlNotificationService;
         this.thermostatCurveService = thermostatCurveService;
+        this.heatPumpControlPreviewService = heatPumpControlPreviewService;
 
         Locale storedLocale = VaadinSession.getCurrent().getAttribute(Locale.class);
         if (storedLocale != null) {
@@ -413,7 +416,16 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         standardLayout.setPadding(false);
         standardLayout.setSpacing(true);
 
-        VerticalLayout heatPumpLayout = new VerticalLayout(heatPumpGrid, createAddHeatPumpLayout());
+        Button heatPumpPreview = new Button(t("controlTable.heatPumpPreview.button"), event -> {
+            try {
+                new HeatPumpControlPreviewDialog(heatPumpControlPreviewService.preview(getAccountId(), controlId),
+                        i18n, this::openHeatPumpStateHexDialog).open();
+            } catch (Exception e) {
+                Notification.show(t("controlTable.heatPumpPreview.error"), 5000, Notification.Position.MIDDLE)
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        VerticalLayout heatPumpLayout = new VerticalLayout(heatPumpPreview, heatPumpGrid, createAddHeatPumpLayout());
         heatPumpLayout.setPadding(false);
         heatPumpLayout.setSpacing(true);
         heatPumpLayout.setVisible(false);
