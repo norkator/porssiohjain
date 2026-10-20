@@ -71,6 +71,28 @@ class HeatingComfortSchedulesDialogTest {
         assertThat(DesktopFormState.isDirty(manager)).isFalse();
     }
 
+    @Test
+    void featureUsesEnglishMessagesWithoutChangingFinnishDesktopLocale() {
+        java.util.Locale previous = java.util.Locale.getDefault();
+        try {
+            java.util.Locale.setDefault(java.util.Locale.forLanguageTag("fi"));
+            var desktopUi = new UI();
+            desktopUi.setLocale(java.util.Locale.forLanguageTag("fi"));
+            UI.setCurrent(desktopUi);
+            var messages = new org.springframework.context.support.ResourceBundleMessageSource();
+            messages.setBasename("translations/messages");
+            messages.setDefaultEncoding("UTF-8");
+            var english = new I18nService(messages);
+            var dialog = new HeatingComfortSchedulesDialog(service, english, 7L, 8L, onSaved, id -> false);
+            assertThat(dialog.getHeaderTitle()).isEqualTo("Comfort schedules");
+            assertThat(english.tEnglish("heatingPlanner.chart.now")).isEqualTo("Now");
+            assertThat(english.t("heatingPlanner.chart.now")).isEqualTo("Nyt");
+            assertThat(desktopUi.getLocale().getLanguage()).isEqualTo("fi");
+        } finally {
+            java.util.Locale.setDefault(previous);
+        }
+    }
+
     private Dialog editor() {
         button(manager, "addSchedule").click();
         return descendants(manager).filter(Dialog.class::isInstance).map(Dialog.class::cast)

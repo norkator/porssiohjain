@@ -44,6 +44,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -59,12 +61,35 @@ public class HeatingPlannerConfigurationService {
 
     @Transactional(readOnly = true)
     public Optional<Long> preferredSiteId(Long accountId) {
-        List<HeatingPlannerSettingsEntity> settings = settingsRepository.findByAccountIdOrderByUpdatedAtDesc(accountId);
-        return settings.stream()
-                .filter(HeatingPlannerSettingsEntity::isEnabled)
-                .findFirst()
+        Optional<Long> savedDefault = defaultSiteId(accountId);
+        if (savedDefault.isPresent()) return savedDefault;
+        List<SiteEntity> sites = siteRepository.findByAccountId(accountId).stream()
+                .sorted(Comparator.comparing(SiteEntity::getId)).toList();
+        Set<Long> siteIds = sites.stream().map(SiteEntity::getId).collect(Collectors.toSet());
+        List<HeatingPlannerSettingsEntity> settings = settingsRepository.findByAccountIdOrderByIdAsc(accountId).stream()
+                .filter(value -> siteIds.contains(value.getSite().getId())).toList();
+        return settings.stream().filter(HeatingPlannerSettingsEntity::isEnabled).findFirst()
                 .or(() -> settings.stream().findFirst())
-                .map(settingsEntity -> settingsEntity.getSite().getId());
+                .map(value -> value.getSite().getId())
+                .or(() -> sites.stream().filter(site -> Boolean.TRUE.equals(site.getEnabled())).findFirst().map(SiteEntity::getId))
+                .or(() -> sites.stream().findFirst().map(SiteEntity::getId));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Long> defaultSiteId(Long accountId) {
+        return accountRepository.findById(accountId).map(AccountEntity::getDefaultHeatingPlannerSite)
+                .flatMap(site -> siteRepository.findByIdAndAccountId(site.getId(), accountId))
+                .map(SiteEntity::getId);
+    }
+
+    @Transactional
+    public void setDefaultSite(Long accountId, Long siteId) {
+        SiteEntity site = siteRepository.findByIdAndAccountId(siteId, accountId)
+                .orElseThrow(() -> new IllegalArgumentException("heatingPlanner.site.notFound"));
+        AccountEntity account = accountRepository.findWithLockById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found"));
+        account.setDefaultHeatingPlannerSite(site);
+        accountRepository.save(account);
     }
 
     @Transactional(readOnly = true)
@@ -354,6 +379,9 @@ public class HeatingPlannerConfigurationService {
                 throw new IllegalArgumentException(sourceType == HeatingPlannerHeatSourceType.HEAT_PUMP
                         ? "Selected controlling device is not a heat pump"
                         : "Selected controlling device is not a thermostat");
+            }
+            if (controller != null && roomRepository.isControllerAssignedToAnotherSite(accountId, siteId, controller.getId())) {
+                throw new IllegalArgumentException("heatingPlanner.site.controllerInUse");
             }
             DeviceEntity roomSensor = roomConfiguration.roomSensorDeviceId() == null ? null
                     : deviceRepository.findByIdAndAccount(roomConfiguration.roomSensorDeviceId(), account)

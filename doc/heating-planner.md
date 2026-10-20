@@ -6,6 +6,16 @@ Native Android widget API and implementation handoff: [heating-planner-widget.md
 
 Design specification, live planning, and explicit opt-in active control. The thermostat's configured internal floor-temperature limit remains authoritative and is enforced by the thermostat independently of Heating Planner. The planner adds configurable planning bounds, sensor-freshness checks, latest-plan command publishing for Zigbee gateways, command expiry/rate limiting, and fallback behaviour.
 
+## Sites and navigation
+
+Heating Planner settings, rooms, comfort schedules, plans and active-control opt-ins belong to an account and site. Opening `/heating-planner` automatically shows the account's default Heating Planner site. The **Site** dropdown above the planner switches to another owned site without a separate selection page. **Make default** saves the current site as the account-wide Heating Planner default, shared across browsers and sessions. Browsing another site does not change this preference. The feature's own labels, dialogs and chart labels remain English independently of the desktop locale.
+
+Until a default is explicitly saved, use the first enabled configured planner, then the first configured planner, then the first enabled site, then the first defined site. Settings/site ID order makes these fallbacks stable across automatic replans. A saved default can also be a disabled site. With no sites, the view links to Sites so a site can be created first. Flyway V118 adds the nullable `account.default_heating_planner_site_id` reference; deleting that site clears the preference and the normal fallback applies. Default selection never creates planner settings or enables control.
+
+Direct links at `/heating-planner/{siteId}` validate effective-account ownership before loading or calculating a plan. Site changes navigate within the same desktop window and use its existing unsaved-room-edit guard; canceling leaves both the view and dropdown on the current site. The desktop Back-to-list toolbar is hidden because there is no separate site selection page. Start/taskbar switching continues to preserve the retained view.
+
+Device selectors list the account's devices because devices have no direct site assignment. Select the devices belonging to the current site's rooms explicitly. A controller already assigned to another site's planner must be removed there and saved before it can be assigned here. Recent sensor readings show only devices selected in the current site's rooms and remain lazy-loaded; refresh them after changing device selections. Each enabled site's background planning continues independently of the site currently open in the browser.
+
 ## Goal
 
 Coordinate two forms of stored heat:

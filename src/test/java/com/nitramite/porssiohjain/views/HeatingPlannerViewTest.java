@@ -13,6 +13,8 @@ import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.RouteParameters;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -115,6 +117,10 @@ class HeatingPlannerViewTest {
                 simulation, sites, mock(SiteWeatherRepository.class), devices, prices,
                 mock(ElectricityContractRepository.class), configuration, measurements, models, activeControl, plans,
                 combinedPrices, mock(PushNotificationService.class), measurementHistory);
+        var navigation = mock(BeforeEnterEvent.class);
+        when(navigation.getRouteParameters()).thenReturn(new RouteParameters("siteId", "8"));
+        verifyNoInteractions(configuration, devices, simulation, models, plans, measurementHistory);
+        view.beforeEnter(navigation);
 
         verify(models).resolveSaved(eq(7L), eq(8L), eq("Living room"), any(), any());
         verify(models, never()).learnAndResolve(any(), any(), any(), any(), any());

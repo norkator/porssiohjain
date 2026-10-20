@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 class HeatingPlannerModelPersistenceTest {
@@ -87,6 +88,16 @@ class HeatingPlannerModelPersistenceTest {
     }
 
     private HeatingPlannerRoomEntity saveWithSensor(Long sensorId) {
+        return saveWithSensor(sensorId, false);
+    }
+
+    @Test
+    void controllerAssignedToAnotherSiteCannotBeSaved() {
+        assertThatThrownBy(() -> saveWithSensor(21L, true))
+                .isInstanceOf(IllegalArgumentException.class).hasMessage("heatingPlanner.site.controllerInUse");
+    }
+
+    private HeatingPlannerRoomEntity saveWithSensor(Long sensorId, boolean conflictingController) {
         AccountRepository accounts = mock();
         SiteRepository sites = mock();
         DeviceRepository devices = mock();
@@ -110,6 +121,11 @@ class HeatingPlannerModelPersistenceTest {
         when(settingsRepository.save(settings)).thenReturn(settings);
         when(rooms.findBySettingsIdOrderBySortOrderAscIdAsc(1L)).thenReturn(List.of(room));
         when(devices.findByIdAndAccount(sensorId, account)).thenReturn(Optional.of(selectedSensor));
+        if (conflictingController) {
+            when(devices.findByIdAndAccount(99L, account)).thenReturn(Optional.of(DeviceEntity.builder()
+                    .id(99L).account(account).deviceType(DeviceType.THERMOSTAT).build()));
+            when(rooms.isControllerAssignedToAnotherSite(7L, 8L, 99L)).thenReturn(true);
+        }
         var configuration = new HeatingPlannerConfigurationService.SettingsConfiguration(true,
                 new BigDecimal("5"), BigDecimal.ZERO, new BigDecimal("25.5"), null,
                 false, LocalTime.of(6, 0), LocalTime.of(22, 0), new BigDecimal("8"), 45, 360,
@@ -118,7 +134,7 @@ class HeatingPlannerModelPersistenceTest {
         var roomConfiguration = new HeatingPlannerConfigurationService.RoomConfiguration("Kitchen",
                 HeatingPlannerHeatSourceType.FLOOR_HEATING, false, new BigDecimal("2"),
                 new BigDecimal("21"), new BigDecimal("20"), new BigDecimal("23"), new BigDecimal("27"),
-                new BigDecimal("29"), new BigDecimal("19"), null, sensorId, null);
+                new BigDecimal("29"), new BigDecimal("19"), conflictingController ? 99L : null, sensorId, null);
 
         service.save(7L, 8L, configuration, List.of(roomConfiguration));
 

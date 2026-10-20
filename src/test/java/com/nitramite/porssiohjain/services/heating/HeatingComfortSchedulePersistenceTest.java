@@ -195,8 +195,47 @@ class HeatingComfortSchedulePersistenceTest {
             assertThat(constant.comfortSchedule()).isNull();
             assertThat(constant.minimumRoomTemperature()).isEqualByComparingTo(minimum);
             assertThat(constant.targetRoomTemperature()).isEqualByComparingTo("21");
+
+            // Same-named rooms and settings remain independent within one account.
+            service.save(account.getId(), otherSite.getId(), settingsConfiguration(), List.of(roomWithNoSchedule(room)));
+            service.setEnabled(account.getId(), site.getId(), false);
+            session.flush();
+            session.clear();
+            assertThat(settings.findByAccountIdOrderByIdAsc(account.getId())).hasSize(2);
+            assertThat(service.configuration(account.getId(), site.getId()).enabled()).isFalse();
+            assertThat(service.configuration(account.getId(), otherSite.getId()).enabled()).isTrue();
+            var homeRoom = rooms.findByAccountIdAndSiteIdOrderBySortOrderAscIdAsc(account.getId(), site.getId()).getFirst();
+            var cottageRoom = rooms.findByAccountIdAndSiteIdOrderBySortOrderAscIdAsc(account.getId(), otherSite.getId()).getFirst();
+            assertThat(homeRoom.getId()).isNotEqualTo(cottageRoom.getId());
+
+            service.setDefaultSite(account.getId(), otherSite.getId());
+            session.flush();
+            session.clear();
+            assertThat(service.defaultSiteId(account.getId())).contains(otherSite.getId());
+            assertThat(service.preferredSiteId(account.getId())).contains(otherSite.getId());
+            assertThatThrownBy(() -> service.setDefaultSite(account.getId() + 1000, otherSite.getId()))
+                    .hasMessage("heatingPlanner.site.notFound");
+            assertThat(settings.findByAccountIdOrderByIdAsc(account.getId())).hasSize(2);
+            homeRoom = rooms.findByAccountIdAndSiteIdOrderBySortOrderAscIdAsc(account.getId(), site.getId()).getFirst();
+
+            var controller = DeviceEntity.builder().account(homeRoom.getAccount()).deviceName("Home heat pump")
+                    .deviceType(com.nitramite.porssiohjain.entity.enums.DeviceType.HEAT_PUMP).timezone(site.getTimezone()).build();
+            session.persist(controller);
+            homeRoom.getHeatSources().getFirst().setControllingDevice(controller);
+            session.flush();
+            assertThat(rooms.isControllerAssignedToAnotherSite(account.getId(), site.getId(), controller.getId())).isFalse();
+            assertThat(rooms.isControllerAssignedToAnotherSite(account.getId(), otherSite.getId(), controller.getId())).isTrue();
+            assertThat(rooms.isControllerAssignedToAnotherSite(account.getId() + 1000, otherSite.getId(), controller.getId())).isFalse();
             tx.rollback();
         }
+    }
+
+    private HeatingPlannerConfigurationService.RoomConfiguration roomWithNoSchedule(
+            HeatingPlannerConfigurationService.RoomConfiguration room) {
+        return new HeatingPlannerConfigurationService.RoomConfiguration(room.name(), room.sourceType(),
+                room.heatPumpPriceOptimizationEnabled(), room.heatPumpTemperatureAdjustment(), room.targetRoomTemperature(),
+                room.minimumRoomTemperature(), room.normalFloorTemperature(), room.maximumPreheatFloorTemperature(),
+                room.absoluteMaximumFloorTemperature(), room.dischargeFloorSetpoint(), null, null, null);
     }
 
     private HeatingPlannerConfigurationService.SettingsConfiguration settingsConfiguration() {

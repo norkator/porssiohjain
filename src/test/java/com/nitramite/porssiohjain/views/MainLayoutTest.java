@@ -17,6 +17,8 @@ import com.vaadin.flow.router.Location;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.Locale;
@@ -166,6 +168,18 @@ class MainLayoutTest {
     }
 
     @Test
+    void plannerDoesNotShowBackToASeparateSiteSelectionPage() {
+        var planner = new HeatingPlannerView(mock(), mock(), mock(), mock(), mock(), mock(), mock(), mock(),
+                mock(), mock(), mock(), mock(), mock(), mock(), mock(), mock());
+        navigate("heating-planner/8", planner);
+        Button back = windows().getFirst().getChildren().flatMap(Component::getChildren)
+                .filter(c -> c instanceof Button button && button.getText().contains("desktop.back"))
+                .map(Button.class::cast).findFirst().orElseThrow();
+        assertFalse(back.isEnabled());
+        assertFalse(back.getParent().orElseThrow().isVisible());
+    }
+
+    @Test
     void switchingWindowUpdatesUrlWithoutReplacingItsDraft() {
         Div draft = new Div("draft");
         navigate("controls/42?tab=settings", draft);
@@ -216,6 +230,32 @@ class MainLayoutTest {
                 .map(Button.class::cast).findFirst().orElseThrow().click();
         verify(continuation).proceed();
         assertFalse(DesktopFormState.isDirty(field));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"heating-planner", "heating-planner/9"})
+    void changingPlannerSiteProtectsUnsavedRoomEditsInTheSameWindow(String destination) {
+        Div rooms = new Div("Unsaved home rooms");
+        navigate("heating-planner/8", rooms);
+        DesktopFormState.markDirty(rooms);
+        var navigation = mock(com.vaadin.flow.router.BeforeLeaveEvent.class);
+        when(navigation.getLocation()).thenReturn(new Location(destination));
+        doReturn(HeatingPlannerView.class)
+                .when(navigation).getNavigationTarget();
+        var continuation = mock(com.vaadin.flow.router.BeforeLeaveEvent.ContinueNavigationAction.class);
+        when(navigation.postpone()).thenReturn(continuation);
+        layout.beforeLeave(navigation);
+        verify(navigation).postpone();
+        var dialog = layout.getChildren().filter(com.vaadin.flow.component.dialog.Dialog.class::isInstance)
+                .map(com.vaadin.flow.component.dialog.Dialog.class::cast).findFirst().orElseThrow();
+        dialog.getFooter().getElement().getChildren().flatMap(element -> element.getComponent().stream())
+                .filter(c -> c instanceof Button button && button.getText().equals("common.cancel"))
+                .map(Button.class::cast).findFirst().orElseThrow().click();
+        verify(continuation).cancel();
+        assertTrue(DesktopFormState.isDirty(rooms));
+        assertEquals("heating-planner", MainLayout.windowKey(destination));
+        assertEquals("heating-planner", MainLayout.parentRoute("heating-planner/8"));
+        assertEquals(1, windows().size());
     }
 
     @Test

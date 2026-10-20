@@ -40,6 +40,10 @@ public class AccountEntity {
     @Column(name = "public_measurements_uuid", unique = true)
     private UUID publicMeasurementsUuid;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "default_heating_planner_site_id")
+    private SiteEntity defaultHeatingPlannerSite;
+
     @Column(nullable = false, unique = true)
     private String secret;
 

@@ -418,7 +418,8 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
 
         void updateLocation(String location) {
             this.location = location;
-            boolean canGoBack = !parentRoute(location).equals("desktop");
+            boolean canGoBack = !parentRoute(location).equals("desktop")
+                    && body.getChildren().noneMatch(component -> component instanceof HeatingPlannerView);
             back.setEnabled(canGoBack);
             toolbar.setVisible(canGoBack);
         }

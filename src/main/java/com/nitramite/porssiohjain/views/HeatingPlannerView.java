@@ -8,6 +8,7 @@
 
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.ElectricityContractEntity;
 import com.nitramite.porssiohjain.entity.HeatingPlannerRoomEntity;
@@ -68,6 +69,7 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.RouteParameters;
 import jakarta.annotation.security.PermitAll;
 import lombok.extern.slf4j.Slf4j;
 
@@ -88,21 +90,37 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @PageTitle("Pörssiohjain - Heating Planner")
-@Route(value = "heating-planner", layout = MainLayout.class)
+@Route(value = "heating-planner/:siteId?", layout = MainLayout.class)
 @PermitAll
 @Slf4j
 public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObserver {
 
     private static final ZoneId ZONE = ZoneId.of("Europe/Helsinki");
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
+    private ZoneId displayZone = ZONE;
     private final AuthService authService;
     private final I18nService i18n;
     private final List<HeatingPlannerConfigurationService.ComfortScheduleConfiguration> comfortSchedules = new ArrayList<>();
     private final SiteWeatherRepository siteWeatherRepository;
     private final NordpoolRepository nordpoolRepository;
+    private final SiteRepository siteRepository;
+    private final DeviceRepository deviceRepository;
+    private final ElectricityContractRepository contractRepository;
+    private final HeatingPlanSimulationService simulationService;
+    private final HeatingPlannerConfigurationService configurationService;
+    private final HeatingPlannerMeasurementService measurementService;
+    private final HeatingPlannerThermalModelService thermalModelService;
+    private final HeatingPlannerActiveControlService activeControlService;
+    private final HeatingPlannerPlanService planService;
+    private final ControlPriceService controlPriceService;
+    private final PushNotificationService pushNotificationService;
+    private final DeviceMeasurementService measurementRepository;
 
     public HeatingPlannerView(AuthService authService, I18nService i18n,
                               HeatingPlanSimulationService simulationService,
@@ -122,12 +140,25 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         this.i18n = i18n;
         this.siteWeatherRepository = siteWeatherRepository;
         this.nordpoolRepository = nordpoolRepository;
+        this.siteRepository = siteRepository;
+        this.deviceRepository = deviceRepository;
+        this.contractRepository = contractRepository;
+        this.simulationService = simulationService;
+        this.configurationService = configurationService;
+        this.measurementService = measurementService;
+        this.thermalModelService = thermalModelService;
+        this.activeControlService = activeControlService;
+        this.planService = planService;
+        this.controlPriceService = controlPriceService;
+        this.pushNotificationService = pushNotificationService;
+        this.measurementRepository = measurementRepository;
         setSizeFull();
         setAlignItems(Alignment.CENTER);
+    }
 
-        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
-        List<SiteEntity> sites = account == null ? List.of() : siteRepository.findByAccountId(account.getId());
-        List<DeviceEntity> devices = account == null ? List.of() : deviceRepository.findByAccountIdOrderByIdAsc(account.getId());
+    private void buildPlanner(AccountEntity account, SiteEntity site, List<SiteEntity> sites) {
+        displayZone = zoneForSite(site);
+        List<DeviceEntity> devices = deviceRepository.findByAccountIdOrderByIdAsc(account.getId());
         List<DeviceEntity> thermostats = devices.stream()
                 .filter(device -> device.getDeviceType() == DeviceType.THERMOSTAT)
                 .toList();
@@ -141,8 +172,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .toList();
         List<DeviceEntity> floorSensors = java.util.stream.Stream.concat(thermostats.stream(), temperatureSensors.stream())
                 .distinct().toList();
-        List<ElectricityContractEntity> transferContracts = account == null ? List.of()
-                : contractRepository.findByAccountId(account.getId()).stream()
+        List<ElectricityContractEntity> transferContracts = contractRepository.findByAccountId(account.getId()).stream()
                 .filter(contract -> contract.getType() == ContractType.TRANSFER)
                 .toList();
         List<RoomOverview> roomRows = new ArrayList<>();
@@ -174,15 +204,43 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         plannerWeatherGatePanel.setWidthFull();
         plannerWeatherGatePanel.getStyle().set("margin", "var(--lumo-space-s) 0 var(--lumo-space-m) 0");
 
-        ComboBox<SiteEntity> siteSelect = new ComboBox<>("Site");
+        ComboBox<SiteEntity> siteSelect = new ComboBox<>(i18n.tEnglish("heatingPlanner.site.select"));
         siteSelect.setItems(sites);
-        siteSelect.setItemLabelGenerator(site -> site.getName() + " · " + site.getTimezone());
-        siteSelect.setWidthFull();
-        siteSelect.setHelperText("Weather forecast comes from this site's configured weather place.");
+        siteSelect.setItemLabelGenerator(value -> value.getName() + " · " + value.getTimezone());
+        SiteEntity currentOption = sites.stream().filter(value -> value.getId().equals(site.getId())).findFirst().orElseThrow();
+        siteSelect.setValue(currentOption);
+        siteSelect.setWidth("min(100%, 400px)");
+        siteSelect.addValueChangeListener(event -> {
+            SiteEntity next = event.getValue();
+            if (next != null && next.getId().equals(site.getId())) return;
+            // Keep the current site's selection if desktop navigation is canceled for unsaved edits.
+            siteSelect.setValue(currentOption);
+            if (next == null) return;
+            getUI().ifPresent(ui -> ui.navigate(HeatingPlannerView.class,
+                    new RouteParameters("siteId", next.getId().toString())));
+        });
+        boolean isDefault = configurationService.defaultSiteId(account.getId()).filter(site.getId()::equals).isPresent();
+        Span defaultStatus = new Span(isDefault ? i18n.tEnglish("heatingPlanner.site.default") : "");
+        Button makeDefault = new Button(i18n.tEnglish("heatingPlanner.site.setDefault"));
+        makeDefault.setEnabled(!isDefault);
+        makeDefault.addClickListener(event -> {
+            try {
+                configurationService.setDefaultSite(account.getId(), site.getId());
+                defaultStatus.setText(i18n.tEnglish("heatingPlanner.site.default"));
+                makeDefault.setEnabled(false);
+                Notification.show(i18n.tEnglish("heatingPlanner.site.defaultSaved"));
+            } catch (IllegalArgumentException exception) {
+                Notification.show(exception.getMessage().startsWith("heatingPlanner.")
+                        ? i18n.tEnglish(exception.getMessage()) : exception.getMessage())
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        siteSelect.setHelperText(i18n.tEnglish("heatingPlanner.site.defaultHelp"));
+        HorizontalLayout siteContext = new HorizontalLayout(siteSelect, makeDefault, defaultStatus);
+        siteContext.setAlignItems(Alignment.CENTER);
+        siteContext.setWrap(true);
         Checkbox heatPumpControlEnabled = new Checkbox("Control heat pumps", false);
         heatPumpControlEnabled.setHelperText("Off observes heat-pump effects only. On lets Heating Planner adjust configured heat-pump setpoints.");
-        preferredSite(sites, account == null ? Optional.empty() : configurationService.preferredSiteId(account.getId()))
-                .ifPresentOrElse(siteSelect::setValue, () -> sites.stream().findFirst().ifPresent(siteSelect::setValue));
         NumberField taxPercent = numberField("Market VAT (%)", 25.5, 0, 100);
         NumberField cheapPriceThreshold = numberField("Cheap electricity at or below (c/kWh)", 5, 0, 200);
         cheapPriceThreshold.setStep(0.25);
@@ -216,7 +274,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         VerticalLayout siteWarnings = new VerticalLayout(siteWeatherStatus, configureSiteWeather);
         siteWarnings.setPadding(false);
         siteWarnings.setSpacing(false);
-        FormLayout siteForm = new FormLayout(siteSelect, heatPumpControlEnabled, taxPercent, transferContract,
+        FormLayout siteForm = new FormLayout(heatPumpControlEnabled, taxPercent, transferContract,
                 cheapPriceThreshold, expensivePriceThreshold, cheapPricePercentile, expensivePricePercentile,
                 noPreheatWindowEnabled, noPreheatFrom, noPreheatTo,
                 siteWarnings);
@@ -244,14 +302,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         notifications.setWidthFull();
         notifications.setOpened(false);
         notifyThermostatChanges.addValueChangeListener(event -> {
-            if (!loadingConfiguration.get() && account != null && siteSelect.getValue() != null) {
-                configurationService.setChangeNotifications(account.getId(), siteSelect.getValue().getId(),
+            if (!loadingConfiguration.get() && account != null && site != null) {
+                configurationService.setChangeNotifications(account.getId(), site.getId(),
                         event.getValue(), notifyHeatPumpChanges.getValue());
             }
         });
         notifyHeatPumpChanges.addValueChangeListener(event -> {
-            if (!loadingConfiguration.get() && account != null && siteSelect.getValue() != null) {
-                configurationService.setChangeNotifications(account.getId(), siteSelect.getValue().getId(),
+            if (!loadingConfiguration.get() && account != null && site != null) {
+                configurationService.setChangeNotifications(account.getId(), site.getId(),
                         notifyThermostatChanges.getValue(), event.getValue());
             }
         });
@@ -269,7 +327,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         testWoodNotification.getElement().setAttribute("title",
                 "Sends the real wood-burning command notification to your registered devices without changing a plan.");
         testWoodNotification.addClickListener(event -> {
-            SiteEntity selectedSite = siteSelect.getValue();
+            SiteEntity selectedSite = site;
             if (account == null || selectedSite == null) {
                 showError("Select a site before sending a test notification.");
                 return;
@@ -323,12 +381,12 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             DesktopFormState.markDirty(rooms);
         });
         addRoom.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        Button manageComfortSchedules = new Button(i18n.t("heatingPlanner.comfort.schedules"), event -> {
-            if (account == null || siteSelect.getValue() == null) return;
-            var dialog = new HeatingComfortSchedulesDialog(configurationService, i18n, account.getId(), siteSelect.getValue().getId(),
+        Button manageComfortSchedules = new Button(i18n.tEnglish("heatingPlanner.comfort.schedules"), event -> {
+            if (account == null || site == null) return;
+            var dialog = new HeatingComfortSchedulesDialog(configurationService, i18n, account.getId(), site.getId(),
                     () -> {
                         comfortSchedules.clear();
-                        comfortSchedules.addAll(configurationService.comfortSchedules(account.getId(), siteSelect.getValue().getId()));
+                        comfortSchedules.addAll(configurationService.comfortSchedules(account.getId(), site.getId()));
                         roomRows.forEach(row -> {
                             if (row.comfortSchedule != null) {
                                 row.setComfortSchedule(comfortSchedules.stream()
@@ -345,13 +403,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         HorizontalLayout roomActions = new HorizontalLayout(addRoom, manageComfortSchedules);
         roomActions.setWrap(true);
         VerticalLayout roomConfigurationContent = new VerticalLayout(rooms, roomActions);
+        roomConfigurationContent.addComponentAsFirst(new Paragraph(i18n.tEnglish("heatingPlanner.site.devices")));
         roomConfigurationContent.setPadding(false);
         roomConfigurationContent.setWidthFull();
         roomConfigurationContent.setAlignItems(Alignment.STRETCH);
         Details roomConfiguration = new Details("Rooms and heat sources", roomConfigurationContent);
         roomConfiguration.setWidthFull();
         roomConfiguration.setOpened(false);
-        Details recentMeasurements = recentMeasurementsDetails(account == null ? null : account.getId(), measurementRepository);
+        Details recentMeasurements = recentMeasurementsDetails(account.getId(), roomRows, measurementRepository);
 
         VerticalLayout planHost = new VerticalLayout();
         planHost.setPadding(false);
@@ -369,10 +428,11 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         activeControlPanel.setSpacing(false);
         Runnable calculate = () -> {
             planHost.removeAll();
-            SiteEntity siteSelection = siteSelect.getValue();
-            SiteEntity selectedSite = account != null && siteSelection != null
-                    ? siteRepository.findByIdAndAccountId(siteSelection.getId(), account.getId()).orElse(null)
-                    : siteSelection;
+            SiteEntity selectedSite = siteRepository.findByIdAndAccountId(site.getId(), account.getId()).orElse(null);
+            if (selectedSite == null) {
+                planHost.add(new Paragraph(i18n.tEnglish("heatingPlanner.site.notFound")));
+                return;
+            }
             refreshSiteOperationStateStatus(siteOperationStateStatus, selectedSite);
             List<SiteWeatherEntity> forecast = forecastForHorizon(selectedSite);
             MarketSeries marketSeries = marketSeries(account, selectedSite, decimalOrDefault(taxPercent.getValue(), "25.50"),
@@ -440,7 +500,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                                     room.targetRoomTemperature(), room.minimumRoomTemperature(), room.normalFloorTemperature(),
                                     room.maximumPreheatFloorTemperature(), room.absoluteMaximumFloorTemperature(),
                                     room.dischargeFloorSetpoint(), "Model unavailable because plan inputs are invalid",
-                                    null, ex.getMessage().startsWith("heatingPlanner.") ? i18n.t(ex.getMessage()) : ex.getMessage(), room.comfortSchedule);
+                                    null, ex.getMessage().startsWith("heatingPlanner.") ? i18n.tEnglish(ex.getMessage()) : ex.getMessage(), room.comfortSchedule);
                         }
                     })
                     .toList();
@@ -492,30 +552,30 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     decimalOrDefault(expensivePriceThreshold.getValue(), "20.0000"),
                     noPreheatWindowEnabled.getValue(), noPreheatFrom.getValue(), noPreheatTo.getValue());
             ZoneId chartZone = zoneForSite(selectedSite);
-            var chartHistory = planService.chartHistory(account == null ? null : account.getId(),
+            var chartHistory = planService.chartHistory(account.getId(),
                     selectedSite == null ? null : selectedSite.getId(),
                     calculationTime.atZone(chartZone).toLocalDate().atStartOfDay(chartZone).toInstant(), calculationTime);
             planHost.add(planContent(roomPlans, selectedSite, forecast, marketSeries, evidenceInputs,
                     heatPumpControlEnabled.getValue(), chartHistory));
-            refreshActiveControlState(activeControlService, account == null ? null : account.getId(), selectedSite,
+            refreshActiveControlState(activeControlService, account.getId(), selectedSite,
                     activeControlStatus, enableActiveControl, disableActiveControl);
         };
         Button recalculate = new Button("Recalculate plan", VaadinIcon.REFRESH.create(), event -> calculate.run());
         recalculate.setWidthFull();
         recalculate.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button thermalModels = new Button("Thermal model", VaadinIcon.COG.create(), event -> {
-            if (account == null || siteSelect.getValue() == null) {
+            if (account == null || site == null) {
                 Notification.show("Select a site to inspect its thermal models")
                         .addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
             }
-            openThermalModelDialog(thermalModelService, account.getId(), siteSelect.getValue(),
-                    () -> refreshActiveControlState(activeControlService, account.getId(), siteSelect.getValue(),
+            openThermalModelDialog(thermalModelService, account.getId(), site,
+                    () -> refreshActiveControlState(activeControlService, account.getId(), site,
                             activeControlStatus, enableActiveControl, disableActiveControl));
         });
         activeControlActions.add(thermalModels);
         enableActiveControl.addClickListener(event -> {
-            SiteEntity selectedSite = siteSelect.getValue();
+            SiteEntity selectedSite = site;
             if (account == null || selectedSite == null) return;
             var readiness = activeControlService.readiness(account.getId(), selectedSite.getId(), Instant.now());
             if (!readiness.ready()) {
@@ -551,7 +611,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             confirmation.open();
         });
         disableActiveControl.addClickListener(event -> {
-            SiteEntity selectedSite = siteSelect.getValue();
+            SiteEntity selectedSite = site;
             if (account == null || selectedSite == null) return;
             activeControlService.disable(account.getId(), selectedSite.getId(), Instant.now());
             Notification.show("Active control disabled; Heating Planner commands were expired")
@@ -560,7 +620,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                     activeControlStatus, enableActiveControl, disableActiveControl);
         });
         Button saveConfiguration = new Button("Save rooms", VaadinIcon.CHECK.create(), event -> {
-            SiteEntity selectedSite = siteSelect.getValue();
+            SiteEntity selectedSite = site;
             if (account == null || selectedSite == null) {
                 Notification.show("Select a site before saving").addThemeVariants(NotificationVariant.LUMO_WARNING);
                 return;
@@ -602,7 +662,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 Notification.show("Heating Planner rooms saved").addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 calculate.run();
             } catch (IllegalArgumentException ex) {
-                String message = ex.getMessage().startsWith("heatingPlanner.") ? i18n.t(ex.getMessage()) : ex.getMessage();
+                String message = ex.getMessage().startsWith("heatingPlanner.") ? i18n.tEnglish(ex.getMessage()) : ex.getMessage();
                 Notification.show(message).addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
@@ -612,7 +672,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             if (loadingConfiguration.get()) {
                 return;
             }
-            SiteEntity selectedSite = siteSelect.getValue();
+            SiteEntity selectedSite = site;
             if (account == null || selectedSite == null) {
                 Notification.show("Select a site before changing Heating Planner status")
                         .addThemeVariants(NotificationVariant.LUMO_WARNING);
@@ -639,7 +699,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         heatPumpControlEnabled.addValueChangeListener(event -> {
             if (loadingConfiguration.get()) return;
-            SiteEntity selectedSite = siteSelect.getValue();
+            SiteEntity selectedSite = site;
             if (account == null || selectedSite == null) return;
             configurationService.setHeatPumpControlEnabled(account.getId(), selectedSite.getId(), event.getValue());
             Notification.show(event.getValue() ? "Heating Planner heat-pump control enabled"
@@ -647,8 +707,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         plannerWeatherThreshold.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -657,8 +717,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         woodWeatherThreshold.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -667,8 +727,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         taxPercent.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -677,8 +737,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         cheapPriceThreshold.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -687,8 +747,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         expensivePriceThreshold.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -697,8 +757,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         cheapPricePercentile.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -707,8 +767,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         expensivePricePercentile.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -717,8 +777,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         noPreheatWindowEnabled.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -727,8 +787,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         noPreheatFrom.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -737,8 +797,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         noPreheatTo.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -747,8 +807,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         transferContract.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -757,8 +817,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         loaded.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -767,8 +827,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         availableFrom.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -777,8 +837,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         availableTo.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -787,8 +847,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         woodAmount.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -797,8 +857,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         releaseDelay.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
@@ -807,47 +867,28 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         });
         releaseDuration.addValueChangeListener(event -> {
             if (!loadingConfiguration.get()) {
-                savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                        siteSelect.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
+                savePlannerSettingsSilently(configurationService, account.getId(),
+                        site, plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                         taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                         releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                         cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
                 calculate.run();
             }
         });
-        siteSelect.addValueChangeListener(event -> {
-            updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, event.getValue());
-            updateWeatherForecastChart(weatherForecastChartHost, event.getValue());
-            loadConfiguration(configurationService, account == null ? null : account.getId(), event.getValue(),
-                    loadingConfiguration, plannerEnabled, heatPumpControlEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                    taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
-                    releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                    cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled,
-                    noPreheatFrom, noPreheatTo, roomRows, rooms,
-                    heatingControllers, temperatureSensors, floorSensors, transferContracts);
-            loadNotificationOptions(configurationService, account == null ? null : account.getId(),
-                    event.getValue(), loadingConfiguration, notifyThermostatChanges, notifyHeatPumpChanges);
-            savePlannerSettingsSilently(configurationService, account == null ? null : account.getId(),
-                    event.getValue(), plannerEnabled, plannerWeatherThreshold, woodWeatherThreshold,
-                    taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
-                    releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
-                    cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled, noPreheatFrom, noPreheatTo);
-            calculate.run();
-        });
-        updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, siteSelect.getValue());
-        updateWeatherForecastChart(weatherForecastChartHost, siteSelect.getValue());
-        loadConfiguration(configurationService, account == null ? null : account.getId(), siteSelect.getValue(),
+        updateSiteWeatherStatus(siteWeatherStatus, configureSiteWeather, site);
+        updateWeatherForecastChart(weatherForecastChartHost, site);
+        loadConfiguration(configurationService, account.getId(), site,
                 loadingConfiguration, plannerEnabled, heatPumpControlEnabled, plannerWeatherThreshold, woodWeatherThreshold,
                 taxPercent, transferContract, loaded, availableFrom, availableTo, woodAmount,
                 releaseDelay, releaseDuration, cheapPriceThreshold, expensivePriceThreshold,
                 cheapPricePercentile, expensivePricePercentile, noPreheatWindowEnabled,
                 noPreheatFrom, noPreheatTo, roomRows, rooms,
                 heatingControllers, temperatureSensors, floorSensors, transferContracts);
-        loadNotificationOptions(configurationService, account == null ? null : account.getId(),
-                siteSelect.getValue(), loadingConfiguration, notifyThermostatChanges, notifyHeatPumpChanges);
+        loadNotificationOptions(configurationService, account.getId(),
+                site, loadingConfiguration, notifyThermostatChanges, notifyHeatPumpChanges);
         calculate.run();
 
-        card.add(heading, summary, siteOperationStatePanel, plannerWeatherGatePanel, activeControlPanel, siteConfiguration, notifications, roomConfiguration, recentMeasurements, stoveConfiguration,
+        card.add(heading, siteContext, summary, siteOperationStatePanel, plannerWeatherGatePanel, activeControlPanel, siteConfiguration, notifications, roomConfiguration, recentMeasurements, stoveConfiguration,
                 stoveHeatProfileConfiguration, recalculate, planHost);
         add(card);
     }
@@ -866,7 +907,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         }
     }
 
-    private Details recentMeasurementsDetails(Long accountId, DeviceMeasurementService measurementRepository) {
+    private Details recentMeasurementsDetails(Long accountId, List<RoomOverview> roomRows,
+                                               DeviceMeasurementService measurementRepository) {
         VerticalLayout content = new VerticalLayout();
         content.setPadding(false);
         content.setWidthFull();
@@ -885,9 +927,14 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 return;
             }
             Instant after = Instant.now().minus(Duration.ofHours(12));
+            var deviceIds = roomRows.stream()
+                    .flatMap(row -> Stream.of(row.controller(), row.roomSensor(), row.floorSensor()))
+                    .filter(Objects::nonNull).map(DeviceEntity::getId).collect(Collectors.toSet());
             List<RecentMeasurementRow> rows = measurementRepository
                     .latestForAccount(accountId, after)
                     .stream()
+                    .filter(measurement -> measurement.getDevice() != null
+                            && deviceIds.contains(measurement.getDevice().getId()))
                     .map(this::recentMeasurementRow)
                     .toList();
             Map<DeviceMeasurementType, List<RecentMeasurementRow>> rowsByType = new EnumMap<>(DeviceMeasurementType.class);
@@ -906,7 +953,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         };
         Button refreshButton = new Button("Refresh readings", VaadinIcon.REFRESH.create(), event -> refresh.run());
         refreshButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        content.add(status, refreshButton, groups);
+        content.add(new Paragraph(i18n.tEnglish("heatingPlanner.site.readings")), status, refreshButton, groups);
         Details details = new Details("Recent sensor readings", content);
         details.setWidthFull();
         details.setOpened(false);
@@ -1023,8 +1070,8 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         content.setWidthFull();
         content.setAlignItems(Alignment.STRETCH);
         content.add(new Paragraph(selected.device() + " · Newest " + history.size()
-                        + " history values (limited to 500). Times shown in " + ZONE.getId() + "."),
-                new DeviceMeasurementHistoryChart(measurements, ZONE,
+                        + " history values (limited to 500). Times shown in " + displayZone.getId() + "."),
+                new DeviceMeasurementHistoryChart(measurements, displayZone,
                         measurementTypeLabel(selected.measurementType()), measurementUnit(selected.measurementType())),
                 historyGrid);
 
@@ -1263,7 +1310,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             schedule.setItems(comfortSchedules);
             schedule.setItemLabelGenerator(item -> item.name() + " (default "
                     + item.schedule().defaultTarget().stripTrailingZeros().toPlainString() + " °C)");
-            schedule.setPlaceholder(i18n.t("heatingPlanner.comfort.constant"));
+            schedule.setPlaceholder(i18n.tEnglish("heatingPlanner.comfort.constant"));
             schedule.setClearButtonVisible(true);
             schedule.setWidthFull();
             schedule.setValue(row.comfortSchedule);
@@ -1273,7 +1320,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             });
             DesktopFormState.watchChanges(schedule, grid);
             return schedule;
-        }).setHeader(i18n.t("heatingPlanner.comfort.schedule")).setWidth("260px").setFlexGrow(0);
+        }).setHeader(i18n.tEnglish("heatingPlanner.comfort.schedule")).setWidth("260px").setFlexGrow(0);
         grid.addComponentColumn(row -> {
             NumberField target = new NumberField();
             target.setValue(row.targetRoomTemperature().doubleValue());
@@ -1283,7 +1330,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             target.setSuffixComponent(new Span("°C"));
             target.setWidthFull();
             target.setEnabled(row.comfortSchedule == null);
-            target.setTooltipText(i18n.t("heatingPlanner.comfort.targetHelp"));
+            target.setTooltipText(i18n.tEnglish("heatingPlanner.comfort.targetHelp"));
             target.addValueChangeListener(event -> {
                 if (event.getValue() != null) {
                     row.setTargetRoomTemperature(BigDecimal.valueOf(event.getValue()));
@@ -1427,7 +1474,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
             if (selected != null) {
                 selectedRoomPlan.add(new HeatingPlanChart(marketSeries.points(), selected.points(),
                                 chartHistory.getOrDefault(selected.roomPlan().room(), List.of()), date, zone,
-                                i18n.t("heatingPlanner.chart.now"), calculatedAt));
+                                i18n.tEnglish("heatingPlanner.chart.now"), calculatedAt));
                 if (today) {
                     selectedRoomPlan.add(new Paragraph("The chart covers the whole local day. Earlier temperatures and "
                             + "setpoints are saved predictions, not measurements; gaps mean no saved prediction is available. "
@@ -2179,9 +2226,40 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     @Override
     public void beforeEnter(BeforeEnterEvent event) {
-        if (ViewAuthUtils.findAuthenticatedAccount(authService) == null) {
+        AccountEntity account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        if (account == null) {
             event.forwardTo(LoginView.class);
+            return;
         }
+        List<SiteEntity> sites = siteRepository.findByAccountId(account.getId());
+        if (sites.isEmpty()) {
+            removeAll();
+            comfortSchedules.clear();
+            Button createSite = new Button(i18n.tEnglish("heatingPlanner.site.create"),
+                    click -> getUI().ifPresent(ui -> ui.navigate(SitesView.class)));
+            add(new H1("Heating Planner"), new Paragraph(i18n.tEnglish("heatingPlanner.site.empty")), createSite);
+            return;
+        }
+        Optional<String> parameter = event.getRouteParameters().get("siteId");
+        Long siteId;
+        try {
+            siteId = parameter.isPresent() ? Long.valueOf(parameter.get())
+                    : configurationService.preferredSiteId(account.getId()).orElseGet(() -> sites.stream()
+                    .map(SiteEntity::getId).min(Long::compareTo).orElseThrow());
+        } catch (IllegalArgumentException exception) {
+            event.forwardTo(HeatingPlannerView.class);
+            return;
+        }
+        SiteEntity site = siteRepository.findByIdAndAccountId(siteId, account.getId()).orElse(null);
+        if (site == null) {
+            Notification.show(i18n.tEnglish("heatingPlanner.site.notFound"))
+                    .addThemeVariants(NotificationVariant.LUMO_WARNING);
+            event.forwardTo(HeatingPlannerView.class);
+            return;
+        }
+        removeAll();
+        comfortSchedules.clear();
+        buildPlanner(account, site, sites);
     }
 
     private record PlanAction(String time, String action, String reason) {
@@ -2327,18 +2405,6 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
 
     private LocalTime timeOrDefault(LocalTime value, LocalTime fallback) {
         return value == null ? fallback : value;
-    }
-
-    private Optional<SiteEntity> preferredSite(List<SiteEntity> sites, Optional<Long> preferredSiteId) {
-        if (preferredSiteId.isPresent()) {
-            Optional<SiteEntity> preferred = sites.stream()
-                    .filter(site -> site.getId().equals(preferredSiteId.get()))
-                    .findFirst();
-            if (preferred.isPresent()) {
-                return preferred;
-            }
-        }
-        return sites.stream().filter(SiteEntity::getEnabled).findFirst();
     }
 
     private void savePlannerSettingsSilently(HeatingPlannerConfigurationService configurationService, Long accountId,
@@ -2573,7 +2639,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
                 .max(Instant::compareTo).orElse(null);
         String range = min == null || max == null ? "temperature unavailable" : min + "…" + max + " °C";
         String fetched = fetchedAt == null ? "fetch time unavailable"
-                : "fetched " + DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZONE).format(fetchedAt);
+                : "fetched " + DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(displayZone).format(fetchedAt);
         return "Using " + forecast.size() + " stored forecast rows for today and tomorrow, " + range + ", " + fetched + ".";
     }
 
@@ -2585,7 +2651,7 @@ public class HeatingPlannerView extends VerticalLayout implements BeforeEnterObs
         if (instant == null) {
             return "-";
         }
-        return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZONE).format(instant);
+        return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(displayZone).format(instant);
     }
 
     private String deviceLabel(DeviceEntity device) {
