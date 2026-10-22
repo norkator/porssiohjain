@@ -148,6 +148,24 @@ Focused verification:
 
 The Android Zigbee gateway is maintained in the separate `energy-controller-android` repository. Read that repository's `AGENTS.md` before coordinating backend contracts with the native gateway.
 
+## Water meters
+
+Read `doc/wrm-wmd-water-meters.md` before changing Water meters / Vesimittarit.
+The Vaadin `/water-meters` desktop feature stores account-owned meters with an
+explicit provider and encrypted generic login fields. `WaterMeterClient` is the
+provider adapter contract; the first adapter, `WrmWmdService`, performs
+an isolated CSRF/cookie login and reads `/cards/watermeter-info`; the daily poller
+runs at 12:00 Europe/Helsinki, with an explicit manual read action. The reported
+cubic-metre value is a cumulative total. The card has no measurement timestamp;
+`observedAt` is only the fetch time. Failed polls preserve the previous total and
+fetch time. V121 adds `water_measurement` history and per-meter daily/weekly push
+settings. Successful reads append history; the graph is account/meter scoped.
+Push uses the cached total and original fetch time, respects the account's push
+opt-in/token/quota, and does not contact the provider. Keep this feature generic
+across water companies and future APIs; do not prefill a particular company.
+Keep credentials/session cookies out of UI DTOs, logs and fixtures;
+repository-root `wrm.json` is ignored and is for local investigation only.
+
 ## Measurements and public sharing
 
 Read `doc/measurements.md` before changing measurement publishing. `/measurements` manages explicit device/type/key selections. Anonymous `/public-measurements/{pageId}` pages show rolling 24-hour charts; individual published items offer up to seven days. Keep the public page identifier separate from account credentials, enforce current device ownership and account-scoped history, and preserve removal controls for sources without retained readings. Public history must not inherit the private history dialog's 500-row cap.

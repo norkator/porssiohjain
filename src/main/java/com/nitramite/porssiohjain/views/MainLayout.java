@@ -106,7 +106,6 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         menuItems.addClassName("retro-menu-items");
         startMenu.add(brand, menuItems);
         feature("home.myDevices", VaadinIcon.DESKTOP, DeviceView.class);
-        feature("home.measurements", VaadinIcon.LINE_CHART, MeasurementsView.class);
         feature("home.myControls", VaadinIcon.SLIDERS, ControlsView.class);
         feature("home.weatherControls", VaadinIcon.CLOUD, WeatherControlsView.class);
         feature("home.heatingPlanner", VaadinIcon.FIRE, HeatingPlannerView.class);
@@ -116,6 +115,8 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         feature("home.myProduction", VaadinIcon.LIGHTBULB, ProductionSourcesView.class);
         feature("home.powerLimits", VaadinIcon.FLASH, PowerLimitsView.class);
         feature("home.dashboard", VaadinIcon.CHART, DashboardView.class);
+        feature("home.measurements", VaadinIcon.LINE_CHART, MeasurementsView.class);
+        feature("home.waterMeters", VaadinIcon.DROP, WaterMetersView.class);
         feature("home.settings", VaadinIcon.COG, SettingsView.class);
         Runnable feedback = () -> {
             setStartOpen(false);
@@ -315,6 +316,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             case FIRE, FLASH, SUN_O, LIGHTBULB -> "energy";
             case COMMENT -> "feedback";
             case LINE_CHART -> "measurements";
+            case DROP -> "water-meters";
             case MENU -> "start";
             case SIGN_OUT -> "logout";
             default -> "folder";
@@ -582,6 +584,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         if (path.startsWith("weather-controls")) return t("home.weatherControls");
         if (path.startsWith("heating-planner")) return t("home.heatingPlanner");
         if (path.startsWith("measurements")) return t("home.measurements");
+        if (path.startsWith("water-meters")) return t("home.waterMeters");
         if (path.startsWith("load-shedding")) return t("home.loadShedding");
         if (path.startsWith("powerplant")) return t("home.powerplant");
         if (path.startsWith("solar-angle-planner")) return t("home.solarAnglePlanner");

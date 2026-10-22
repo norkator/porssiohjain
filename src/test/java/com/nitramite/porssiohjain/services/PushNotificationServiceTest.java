@@ -57,6 +57,40 @@ class PushNotificationServiceTest {
     private PushNotificationTokenRepository pushNotificationTokenRepository;
 
     @Test
+    void waterMeterPushUsesLocalizedCachedTotalAndItsOriginalFetchTimeWithoutCredentials() {
+        var messages = new org.springframework.context.support.ResourceBundleMessageSource();
+        messages.setBasename("translations/messages");
+        messages.setDefaultEncoding("UTF-8");
+        for (String language : java.util.List.of("en", "fi")) {
+            var service = spy(new PushNotificationService(messages, pushNotificationTokenRepository));
+            doReturn(true).when(service).sendToAccount(any(), any(), any(), any());
+            var account = AccountEntity.builder().id(7L).locale(language).build();
+            var meter = new com.nitramite.porssiohjain.entity.WaterMeterEntity();
+            meter.setId(9L);
+            meter.setName("Home");
+            meter.setUsername("private-username");
+            meter.setPassword("private-password");
+            meter.setLatestTotalCubicMeters(new BigDecimal("140.800000"));
+            meter.setObservedAt(Instant.parse("2026-10-21T09:00:00Z"));
+            ZonedDateTime detected = ZonedDateTime.parse("2026-10-22T12:05:45+03:00[Europe/Helsinki]");
+            assertTrue(service.sendWaterMeterNotification(account, meter, detected));
+            ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<Map<String, String>> data = ArgumentCaptor.forClass(Map.class);
+            verify(service).sendToAccount(eq(7L), any(), body.capture(), data.capture());
+            assertTrue(body.getValue().contains(language.equals("fi") ? "140,8" : "140.8"));
+            assertTrue(body.getValue().contains("21.10.2026 12:00"));
+            assertTrue(body.getValue().contains("m³"));
+            assertEquals("WATER_METER_NOTIFICATION", data.getValue().get("type"));
+            assertEquals("9", data.getValue().get("waterMeterId"));
+            assertEquals("140.8", data.getValue().get("totalCubicMeters"));
+            assertEquals("2026-10-21T09:00:00Z", data.getValue().get("observedAt"));
+            org.junit.jupiter.api.Assertions.assertFalse(data.getValue().toString().contains("private"));
+            org.junit.jupiter.api.Assertions.assertFalse(body.getValue().contains("private"));
+        }
+    }
+
+    @Test
     void newAccountAdminPushUsesAccountDetails() {
         PushNotificationService pushNotificationService = spy(new PushNotificationService(
                 messageSource,

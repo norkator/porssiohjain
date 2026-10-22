@@ -35,6 +35,11 @@ public class DeviceMeasurementHistoryChart extends Div {
                 zone, seriesName, unit, timeLabel, noDataLabel, locale, null, null);
     }
 
+    public static DeviceMeasurementHistoryChart history(List<HistoryPoint> history, ZoneId zone,
+            String seriesName, String unit, String timeLabel, String noDataLabel, String locale) {
+        return new DeviceMeasurementHistoryChart(history, zone, seriesName, unit, timeLabel, noDataLabel, locale, null, null);
+    }
+
     public static DeviceMeasurementHistoryChart publicHistory(List<HistoryPoint> history, ZoneId zone,
             String seriesName, String unit, String timeLabel, String noDataLabel, String locale,
             Instant from, Instant to) {

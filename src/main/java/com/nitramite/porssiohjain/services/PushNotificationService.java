@@ -21,6 +21,7 @@ import com.nitramite.porssiohjain.entity.ControlNotificationEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.MarketNotificationEntity;
 import com.nitramite.porssiohjain.entity.WindNotificationEntity;
+import com.nitramite.porssiohjain.entity.WaterMeterEntity;
 import com.nitramite.porssiohjain.entity.PowerLimitEntity;
 import com.nitramite.porssiohjain.entity.PowerLimitNotificationEntity;
 import com.nitramite.porssiohjain.entity.ProductionNotificationEntity;
@@ -37,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
@@ -190,6 +192,26 @@ public class PushNotificationService {
         data.put("comparisonType", notification.getComparisonType().name());
         data.put("observedPrice", observedPrice.toPlainString());
         data.put("thresholdPrice", notification.getThresholdPrice().toPlainString());
+        data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+        return sendToAccount(account.getId(), title, body, data);
+    }
+
+    public boolean sendWaterMeterNotification(AccountEntity account, WaterMeterEntity meter, ZonedDateTime detectedAt) {
+        Locale locale = Locale.forLanguageTag(account.getLocale() == null ? "en" : account.getLocale());
+        NumberFormat numbers = NumberFormat.getNumberInstance(locale);
+        numbers.setMaximumFractionDigits(6);
+        String fetchedAt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm z", locale)
+                .format(meter.getObservedAt().atZone(detectedAt.getZone()));
+        String title = messageSource.getMessage("push.waterMeter.title", null, locale);
+        String body = messageSource.getMessage("push.waterMeter.body", new Object[]{meter.getName(),
+                numbers.format(meter.getLatestTotalCubicMeters()), fetchedAt}, locale);
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put("type", "WATER_METER_NOTIFICATION");
+        data.put("waterMeterId", String.valueOf(meter.getId()));
+        data.put("waterMeterName", meter.getName());
+        data.put("totalCubicMeters", meter.getLatestTotalCubicMeters().stripTrailingZeros().toPlainString());
+        data.put("observedAt", meter.getObservedAt().toString());
+        data.put("frequency", meter.getPushFrequency().name());
         data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         return sendToAccount(account.getId(), title, body, data);
     }
