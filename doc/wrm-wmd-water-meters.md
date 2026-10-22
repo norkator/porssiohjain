@@ -37,8 +37,9 @@ credential fields on edit preserve saved values.
 
 V120 creates `water_meter`; V121 adds `water_measurement`, the provider discriminator
 and push settings. V121 renames the encrypted credential columns to `username`
-and `password` without changing their ciphertext. It backfills an existing total
-and its actual `observed_at` as the first history point when both are available.
+and `password` without changing their ciphertext. It leaves the existing latest
+snapshot intact but does not backfill history. History starts with successful
+reads after the migration.
 
 Every successful automatic or manual read appends a history point and updates
 `water_meter.latest_total_cubic_meters` in the same transaction. Repeated equal

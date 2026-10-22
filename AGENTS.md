@@ -159,7 +159,8 @@ runs at 12:00 Europe/Helsinki, with an explicit manual read action. The reported
 cubic-metre value is a cumulative total. The card has no measurement timestamp;
 `observedAt` is only the fetch time. Failed polls preserve the previous total and
 fetch time. V121 adds `water_measurement` history and per-meter daily/weekly push
-settings. Successful reads append history; the graph is account/meter scoped.
+settings. The migration does not backfill history; successful reads after it
+append history. The graph is account/meter scoped.
 Push uses the cached total and original fetch time, respects the account's push
 opt-in/token/quota, and does not contact the provider. Keep this feature generic
 across water companies and future APIs; do not prefill a particular company.

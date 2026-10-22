@@ -86,7 +86,7 @@ class WaterMeterPersistenceTest {
     }
 
     @Test
-    void newMigrationPreservesCredentialsSeedsHistoryAndCascadesAccountRemoval() throws Exception {
+    void newMigrationPreservesSnapshotWithoutBackfillAndCascadesAccountRemoval() throws Exception {
         try (var connection = DriverManager.getConnection("jdbc:h2:mem:water-migration-" + UUID.randomUUID() + ";MODE=PostgreSQL")) {
             var sql = connection.createStatement();
             sql.execute("create table account (id bigint primary key)");
@@ -95,19 +95,29 @@ class WaterMeterPersistenceTest {
             sql.execute("insert into water_meter (account_id,name,portal_url,payer_number,water_meter_number,latest_total_cubic_meters,observed_at)"
                     + " values (1,'Home','https://wmd.wrm-systems.fi/water-company','encrypted-payer','encrypted-meter',140.8,current_timestamp)");
             ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V121__create_water_measurement.sql"));
-            try (var result = sql.executeQuery("select w.username,w.password,w.provider,w.push_enabled,m.total_cubic_meters,"
-                    + " m.observed_at = w.observed_at from water_meter w join water_measurement m on m.water_meter_id = w.id")) {
+            try (var result = sql.executeQuery("select username,password,provider,push_enabled,latest_total_cubic_meters,"
+                    + " observed_at from water_meter")) {
                 assertTrue(result.next());
                 assertEquals("encrypted-payer", result.getString(1));
                 assertEquals("encrypted-meter", result.getString(2));
                 assertEquals("WRM_SYSTEMS_WMD", result.getString(3));
                 assertFalse(result.getBoolean(4));
                 assertEquals(0, new BigDecimal("140.8").compareTo(result.getBigDecimal(5)));
-                assertTrue(result.getBoolean(6));
+                assertNotNull(result.getTimestamp(6));
                 assertFalse(result.next());
             }
+            try (var result = sql.executeQuery("select count(*) from water_measurement")) {
+                assertTrue(result.next());
+                assertEquals(0, result.getInt(1));
+            }
+            sql.execute("insert into water_measurement (water_meter_id,total_cubic_meters,observed_at)"
+                    + " select id,141.2,current_timestamp from water_meter");
             sql.execute("delete from account where id = 2");
             try (var result = sql.executeQuery("select count(*) from water_meter")) {
+                assertTrue(result.next());
+                assertEquals(1, result.getInt(1));
+            }
+            try (var result = sql.executeQuery("select count(*) from water_measurement")) {
                 assertTrue(result.next());
                 assertEquals(1, result.getInt(1));
             }
