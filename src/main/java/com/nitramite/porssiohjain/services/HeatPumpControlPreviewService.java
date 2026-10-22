@@ -120,7 +120,7 @@ public class HeatPumpControlPreviewService {
             Map<Long, State> states = new HashMap<>();
             if (acData != null) deviceRules.forEach(rule -> states.put(rule.getId(),
                     stateDecoder.decode(acData.getAcType(), rule.getStateHex())));
-            List<Period> periods = project(control, device, deviceRules, schedule, prices, states, acData != null, now);
+            List<Period> periods = project(control, device, deviceRules, schedule, prices, states, acData != null);
             boolean competing = rules.findByDevice(device).stream()
                     .anyMatch(rule -> !Objects.equals(rule.getControl().getId(), controlId))
                     || !weatherRules.findByDevice(device).isEmpty() || !productionRules.findByDevice(device).isEmpty();
@@ -131,18 +131,18 @@ public class HeatPumpControlPreviewService {
 
     private List<Period> project(ControlEntity control, DeviceEntity device, List<ControlHeatPumpEntity> deviceRules,
                                  List<ControlTableEntity> schedule, List<PricePeriod> prices, Map<Long, State> states,
-                                 boolean hasAcData, Instant now) {
+                                 boolean hasAcData) {
         List<Period> result = new ArrayList<>();
         State lastState = null;
         String lastRaw = null;
         for (PricePeriod price : prices) {
-            if (price.start().isBefore(now)) continue;
             ControlHeatPumpEntity winner = null;
             Reason reason;
             if (!ControlHeatPumpRuleEvaluator.eligible(device)) reason = Reason.DISABLED;
             else if (!hasAcData) reason = Reason.NO_AC_DATA;
             else {
-                // Live scheduling processes control rules in ascending ID order; the first match wins.
+                // Recalculate the complete local day using the current rules, including elapsed periods.
+                // This illustrates the rule set; it does not reconstruct measured device history.
                 winner = deviceRules.stream().filter(rule -> ControlHeatPumpRuleEvaluator.evaluate(rule, price.start(),
                         () -> Optional.ofNullable(price.price()),
                         () -> ControlHeatPumpRuleEvaluator.controlActive(control, price.start(), schedule)).isPresent())

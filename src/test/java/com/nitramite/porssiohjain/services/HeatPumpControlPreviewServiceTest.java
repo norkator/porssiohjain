@@ -130,8 +130,8 @@ class HeatPumpControlPreviewServiceTest {
 
         assertThat(preview.prices().stream().filter(p -> p.start().equals(now)).findFirst().orElseThrow().price())
                 .isEqualByComparingTo("15.55");
-        var first = preview.pumps().getFirst().periods().getFirst();
-        assertThat(first.start()).isEqualTo(now);
+        var first = periodAt(preview, now);
+        assertThat(first.start()).isEqualTo(now.minusSeconds(420));
         assertThat(first.reason()).isEqualTo(Reason.PRICE);
         assertThat(first.ruleId()).isEqualTo(10L);
         assertThat(first.state().temperature()).isEqualTo(22);
@@ -149,7 +149,8 @@ class HeatPumpControlPreviewServiceTest {
                 price(boundary, boundary.plusSeconds(900), "150"),
                 price(boundary.plusSeconds(900), boundary.plusSeconds(1800), "250")));
 
-        var periods = service.preview(7L, 5L, now).pumps().getFirst().periods();
+        var periods = service.preview(7L, 5L, now).pumps().getFirst().periods().stream()
+                .filter(period -> period.end().isAfter(now)).toList();
 
         assertThat(periods.get(0).state().power()).isTrue();
         assertThat(periods.get(1).reason()).isEqualTo(Reason.NO_MATCH);
@@ -169,7 +170,8 @@ class HeatPumpControlPreviewServiceTest {
                 rule(11L, ComparisonType.GREATER_THAN, "10", false, 18)));
         prices(List.of(price(now.minusSeconds(420), now.plusSeconds(480), "100")));
 
-        var periods = service.preview(7L, 5L, now).pumps().getFirst().periods();
+        var periods = service.preview(7L, 5L, now).pumps().getFirst().periods().stream()
+                .filter(period -> period.end().isAfter(now)).toList();
 
         assertThat(periods.getFirst().reason()).isEqualTo(Reason.NO_MATCH);
         assertThat(periods.getFirst().state()).isNull();
@@ -193,7 +195,8 @@ class HeatPumpControlPreviewServiceTest {
         when(schedule.findActivePeriodsOverlapping(eq(5L), eq(Status.FINAL), any(), any())).thenReturn(List.of(row));
         assertThat(service.preview(7L, 5L, now).pumps().getFirst().periods().getFirst().reason()).isEqualTo(Reason.NO_MATCH);
         row.setStatus(Status.FINAL);
-        var periods = service.preview(7L, 5L, now).pumps().getFirst().periods();
+        var periods = service.preview(7L, 5L, now).pumps().getFirst().periods().stream()
+                .filter(period -> period.end().isAfter(now)).toList();
         assertThat(periods.getFirst().reason()).isEqualTo(Reason.SCHEDULE);
         assertThat(periods.get(1).start()).isEqualTo(row.getEndTime());
         assertThat(periods.get(1).reason()).isEqualTo(Reason.NO_MATCH);
@@ -231,7 +234,8 @@ class HeatPumpControlPreviewServiceTest {
 
         assertThat(pumps).hasSize(2);
         assertThat(pumps.getFirst().competingRules()).isTrue();
-        assertThat(pumps.getFirst().periods().getFirst().state().power()).isTrue();
+        assertThat(pumps.getFirst().periods().stream().filter(period -> !now.isBefore(period.start()) && now.isBefore(period.end()))
+                .findFirst().orElseThrow().state().power()).isTrue();
         assertThat(pumps.getLast().periods().getFirst().state()).isNull();
     }
 
@@ -265,6 +269,31 @@ class HeatPumpControlPreviewServiceTest {
         assertThatThrownBy(() -> service.preview(7L, 5L, now)).isInstanceOf(SecurityException.class);
 
         verifyNoInteractions(controlRepository, rules, schedule, market, acData, weather, production);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2026-03-29, Europe/Helsinki", "2026-10-25, Europe/Helsinki", "2026-10-20, America/Los_Angeles"})
+    void middayPreviewIncludesElapsedOperationFromExactLocalMidnight(LocalDate day, String timezone) {
+        control.setTimezone(timezone);
+        ZoneId zone = ZoneId.of(timezone);
+        Instant start = day.atStartOfDay(zone).toInstant();
+        Instant end = day.plusDays(2).atStartOfDay(zone).toInstant();
+        Instant midday = day.atTime(12, 7).atZone(zone).toInstant();
+        when(rules.findByControlIdOrderByIdAsc(5L)).thenReturn(List.of(rule(10L, ComparisonType.LESS_THAN, "10", true, 23)));
+        prices(List.of(price(start, end, "50")));
+
+        var preview = service.preview(7L, 5L, midday);
+
+        assertThat(preview.pumps().getFirst().periods().getFirst().start()).isEqualTo(start);
+        assertThat(preview.pumps().getFirst().periods().getLast().end()).isEqualTo(end);
+        assertThat(periodAt(preview, start).state().power()).isTrue();
+        assertThat(periodAt(preview, midday).state().power()).isTrue();
+        assertThat(preview.generatedAt()).isEqualTo(midday);
+    }
+
+    private HeatPumpControlPreviewResponse.Period periodAt(HeatPumpControlPreviewResponse preview, Instant time) {
+        return preview.pumps().getFirst().periods().stream()
+                .filter(period -> !time.isBefore(period.start()) && time.isBefore(period.end())).findFirst().orElseThrow();
     }
 
     private void prices(List<NordpoolEntity> values) {

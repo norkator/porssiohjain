@@ -11,7 +11,9 @@ existing FINAL control timeline / manual control state. The combined price inclu
 the control's tax and transfer contract. Equal prices do not satisfy either strict
 comparison. When no action matches, no command is sent; the preview marks a
 previous projected setting as assumed, or shows an unknown state if none exists.
-It does not claim to show measured device operation.
+The preview recalculates the whole local day today and tomorrow, including elapsed
+periods, using the current rule set. Earlier periods illustrate those rules and do
+not reconstruct recorded device operation.
 
 Each action retains a separately polled and edited command state, including the
 outside-window action. The action label describes the intention; it does not
@@ -54,3 +56,13 @@ uses control-local day boundaries, authoritative market delivery intervals,
 quarter-hour points, exact minute window boundaries and timezone transitions.
 Missing prices suppress price rules rather than fabricating an OFF command.
 Legacy individual-link endpoints remain available for existing clients.
+
+## Cloud state queries
+
+`GET /devices/{deviceId}/heat-pump/state` still checks device ownership before
+querying the cloud. Cloud failures return `currentState: null`, `queryFailed: true`
+and an optional vendor HTTP `queryStatus`, while preserving the device type and
+`lastPolledState`. A saved state is never presented as a successful fresh query.
+Hybrid editors show the query warning and keep the saved state available for
+explicit reuse and editing, as in Vaadin. Application authorization errors still
+fail normally; they are not converted into cloud-query warnings.

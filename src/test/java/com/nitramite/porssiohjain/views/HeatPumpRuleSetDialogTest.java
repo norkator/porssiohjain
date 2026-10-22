@@ -7,6 +7,7 @@ import com.nitramite.porssiohjain.services.models.HeatPumpControlPreviewResponse
 import com.nitramite.porssiohjain.views.components.HeatPumpControlPreviewChart;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import org.junit.jupiter.api.*;
@@ -76,6 +77,44 @@ class HeatPumpRuleSetDialogTest {
         assertThat(request.getValue().rules().getFirst().priceLimit()).isEqualByComparingTo("12.5");
         assertThat(descendants(dialog).filter(HeatPumpControlPreviewChart.class::isInstance)).hasSize(2);
         verifyNoInteractions(controls);
+    }
+
+    @Test
+    void enablingDailyWindowImmediatelyExplainsThatOutsideSettingsAreRequired() {
+        descendants(dialog).filter(Checkbox.class::isInstance).map(Checkbox.class::cast).findFirst().orElseThrow().setValue(true);
+
+        assertThat(dialog.getElement().getTextRecursively()).contains("Required: poll and save the settings for the outside-hours action");
+        button("Save all rules").click();
+        verifyNoInteractions(controls);
+    }
+
+    @Test
+    void dailyWindowSavesAfterItsOwnOutsideActionIsCaptured() {
+        descendants(dialog).filter(Checkbox.class::isInstance).map(Checkbox.class::cast).findFirst().orElseThrow().setValue(true);
+        doAnswer(call -> {
+            TextField field = call.getArgument(1);
+            field.setValue("outside-off-state");
+            return null;
+        }).when(states).openStateDialog(eq(pump), any());
+        var capture = descendants(dialog).filter(Button.class::isInstance).map(Button.class::cast)
+                .filter(value -> value.getText().equals("Poll and edit settings")).toList();
+        capture.getLast().click();
+        button("Save all rules").click();
+
+        var request = org.mockito.ArgumentCaptor.forClass(ControlHeatPumpRulesRequest.class);
+        verify(controls).saveHeatPumpRules(eq(1L), eq(10L), eq(20L), request.capture());
+        assertThat(request.getValue().activeFrom()).isEqualTo(java.time.LocalTime.of(7, 0));
+        assertThat(request.getValue().activeUntil()).isEqualTo(java.time.LocalTime.of(22, 0));
+        assertThat(request.getValue().rules()).hasSize(3);
+        assertThat(request.getValue().rules().getLast().outsideActiveTime()).isTrue();
+        assertThat(request.getValue().rules().getLast().stateHex()).isEqualTo("outside-off-state");
+        assertThat(request.getValue().rules().getFirst().stateHex()).isEqualTo("on-state");
+        assertThat(dialog.getElement().getTextRecursively()).doesNotContain("Required: poll and save");
+    }
+
+    private Button button(String text) {
+        return descendants(dialog).filter(Button.class::isInstance).map(Button.class::cast)
+                .filter(button -> button.getText().equals(text)).findFirst().orElseThrow();
     }
 
     private Stream<Component> descendants(Component component) {

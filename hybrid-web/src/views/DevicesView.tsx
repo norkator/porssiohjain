@@ -14,7 +14,7 @@ import DeviceCard from "@/components/DeviceCard";
 import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
 import PageHeader from "@/components/PageHeader";
 import { useDevices } from "@/hooks/useDevices";
-import { fetchHeatPumpState, formatAcType, formatDeviceLastCommunication, formatDeviceType, getDeviceAccent, getDeviceConnectionState, sendHeatPumpCommand, sendMqttRelayDebugCommand, type AcType, type ApiDevice, type DevicePlatform } from "@/lib/devices";
+import { fetchHeatPumpState, heatPumpStateQueryWarning, formatAcType, formatDeviceLastCommunication, formatDeviceType, getDeviceAccent, getDeviceConnectionState, sendHeatPumpCommand, sendMqttRelayDebugCommand, type AcType, type ApiDevice, type DevicePlatform } from "@/lib/devices";
 import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -104,6 +104,7 @@ export default function DevicesView() {
     setHeatPumpError(null);
     try {
       const response = await fetchHeatPumpState(device.id);
+      setHeatPumpError(heatPumpStateQueryWarning(response));
       const bestState = response.currentState || response.lastPolledState || "";
       setHeatPumpDialogAcType(response.acType);
       setHeatPumpCurrentState(response.currentState);

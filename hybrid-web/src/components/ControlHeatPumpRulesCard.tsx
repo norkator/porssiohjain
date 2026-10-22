@@ -14,7 +14,7 @@ import AppDialog from "@/components/AppDialog";
 import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
 import HeatPumpRuleTimeline from "@/components/HeatPumpRuleTimeline";
 import { previewHeatPumpRules, saveHeatPumpRules, type ControlHeatPumpLink, type HeatPumpRulesPayload, type HeatPumpPreview, type HeatPumpRule } from "@/lib/controls";
-import { fetchHeatPumpState, type ApiDevice, type AcType } from "@/lib/devices";
+import { fetchHeatPumpState, heatPumpStateQueryWarning, type ApiDevice, type AcType } from "@/lib/devices";
 import { useI18n } from "@/lib/i18n";
 
 type Props = {
@@ -121,6 +121,7 @@ export default function ControlHeatPumpRulesCard({ controlId, timezone, links, d
     try {
       const response = await fetchHeatPumpState(Number(deviceId));
       if (version !== requestVersion.current) return;
+      setError(heatPumpStateQueryWarning(response));
       setAcType(response.acType);
       setCurrentState(response.currentState);
       setLastPolled(response.lastPolledState);
@@ -134,7 +135,7 @@ export default function ControlHeatPumpRulesCard({ controlId, timezone, links, d
     setStateValue(rule.stateHex);
     setCurrentState(null);
     setLastPolled(null);
-    setAcType("NONE");
+    setAcType((devices.find((device) => device.id === Number(deviceId))?.acType as AcType | null) ?? "NONE");
     void poll(rule);
   }
   async function save() {
@@ -188,7 +189,9 @@ export default function ControlHeatPumpRulesCard({ controlId, timezone, links, d
         {Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select></label>
       <button className="secondary-action w-full justify-center" type="button" disabled={!deviceId} onClick={() => capture(rule)}>{t("capture")}</button>
-      <p className={`text-xs ${rule.stateHex ? "text-primary" : "text-on-surface-variant"}`}>{rule.stateHex ? t("captured") : t("notCaptured")}</p>
+      <p role="status" className={`text-xs ${rule.stateHex ? "text-primary" : "rounded-lg bg-error-container p-2 text-on-error-container"}`}>
+        {rule.stateHex ? t("captured") : rule.outsideActiveTime ? t("outsideCaptureRequired") : t("notCaptured")}
+      </p>
       <details><summary className="cursor-pointer text-xs">{t("state")}</summary>
         <pre className="max-h-28 overflow-auto whitespace-pre-wrap break-all p-2 text-xs">{rule.stateHex || "—"}</pre>
         <label className="block text-sm">{manage.t("estimatedKw")}<input className="rounded-lg bg-surface-container-highest px-3 py-2 text-on-surface mt-1 w-full" type="number" min="0" step="0.1" value={rule.power}

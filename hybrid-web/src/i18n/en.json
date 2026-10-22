@@ -74,7 +74,11 @@
     "origin": "Origin",
     "licenseText": "This service uses software licensed under the Pörssiohjain Personal Use License v1.0.",
     "docLink": "Documentation and source code",
-    "previewReadOnly": "Read-only preview. Changes and device commands are disabled."
+    "previewReadOnly": "Read-only preview. Changes and device commands are disabled.",
+    "heatPumpStateQueryFailedStatus": "The heat-pump cloud rejected the current-state query (HTTP {status}).",
+    "heatPumpStateQueryFailed": "The current heat-pump state could not be queried.",
+    "heatPumpLastPolledAvailable": "Previously polled settings are available below. They are saved settings, not a new measurement.",
+    "heatPumpNoSavedState": "No previously polled settings are available. Retry the query to capture settings."
   },
   "marketIndexVerification": {
     "eyebrow": "Market area",
@@ -1446,7 +1450,7 @@
     "captureHelp": "Poll and edit each action separately, including the outside-window action. The pump receives these saved settings; the action label does not change them.",
     "captureHint": "Choose a pump and capture settings for every action to see the timeline here.",
     "preview": "Operating preview",
-    "previewHelp": "Preview of the current draft from now through tomorrow. Uses the control’s price including tax and transfer. Actual operation may differ if other controls or manual changes take priority.",
+    "previewHelp": "Full-day calculation of the current rules for today and tomorrow, using the control’s price including tax and transfer. Earlier periods illustrate these rules, not recorded operation. Other controls and manual changes can affect actual operation.",
     "previewError": "Could not load the preview. Try again.",
     "invalid": "Complete every rule and capture its settings. Set distinct start/end times and capture the outside-window settings when using a daily window.",
     "save": "Save all rules",
@@ -1468,6 +1472,7 @@
     "retry": "Retry preview",
     "discard": "Discard unsaved rule changes?",
     "saveError": "Could not save the rules. Please try again.",
-    "changes": "View changes and reasons"
+    "changes": "View changes and reasons",
+    "outsideCaptureRequired": "Required: poll and save the settings for the outside-hours action. Selecting Turn Off alone does not capture the pump settings."
   }
 }

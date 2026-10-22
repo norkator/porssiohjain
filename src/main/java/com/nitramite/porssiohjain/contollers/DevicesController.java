@@ -31,8 +31,11 @@ import com.nitramite.porssiohjain.services.models.ProvisionedDeviceLookupRespons
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateResponse;
 import com.nitramite.porssiohjain.services.toshiba.ToshibaAcStateService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 
@@ -40,6 +43,7 @@ import java.util.List;
 @RequestMapping("/devices")
 @RequiredArgsConstructor
 @RequireAuth
+@Slf4j
 public class DevicesController {
 
     private final AuthContext authContext;
@@ -139,22 +143,34 @@ public class DevicesController {
     ) {
         DeviceAcDataEntity acData = deviceService.getDeviceAcData(authContext.getAccountId(), deviceId);
         String currentState = null;
+        Integer queryStatus = null;
 
-        if (acData.getAcType() == AcType.TOSHIBA) {
-            ToshibaAcStateResponse response = toshibaAcStateService.getAcState(acData);
-            if (response != null && response.getResObj() != null) {
-                currentState = response.getResObj().getAcStateData();
+        // Ownership checks above must fail normally. A cloud query failure must not hide
+        // the device type and saved settings needed to edit a rule, as in Vaadin.
+        try {
+            if (acData.getAcType() == AcType.TOSHIBA) {
+                ToshibaAcStateResponse response = toshibaAcStateService.getAcState(acData);
+                if (response != null && response.isSuccess() && response.getResObj() != null) {
+                    currentState = response.getResObj().getAcStateData();
+                }
+            } else if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD) {
+                MitsubishiAcStateResponse response = mitsubishiAcStateService.getAcState(acData);
+                if (response != null) {
+                    currentState = acData.getLastPolledStateHex();
+                }
+            } else {
+                throw new IllegalArgumentException("Device is not a supported heat pump");
             }
-        } else if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD) {
-            MitsubishiAcStateResponse response = mitsubishiAcStateService.getAcState(acData);
-            if (response != null) {
-                currentState = acData.getLastPolledStateHex();
-            }
-        } else {
-            throw new IllegalArgumentException("Device is not a supported heat pump");
+        } catch (RestClientResponseException ex) {
+            queryStatus = ex.getStatusCode().value();
+            log.warn("Heat pump cloud query failed. deviceId={}, type={}, status={}", deviceId, acData.getAcType(), queryStatus);
+        } catch (RestClientException ex) {
+            log.warn("Heat pump cloud query unavailable. deviceId={}, type={}", deviceId, acData.getAcType());
         }
 
-        return new HeatPumpStateResponse(acData.getAcType(), currentState, acData.getLastPolledStateHex());
+        boolean queryFailed = currentState == null || currentState.isBlank();
+        return new HeatPumpStateResponse(acData.getAcType(), queryFailed ? null : currentState,
+                acData.getLastPolledStateHex(), queryFailed, queryStatus);
     }
 
     @PostMapping("/{deviceId}/mqtt-relays/{channel}")
@@ -186,7 +202,9 @@ public class DevicesController {
     public record HeatPumpStateResponse(
             AcType acType,
             String currentState,
-            String lastPolledState
+            String lastPolledState,
+            boolean queryFailed,
+            Integer queryStatus
     ) {
     }
 

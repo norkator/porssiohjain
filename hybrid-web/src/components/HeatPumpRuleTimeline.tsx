@@ -64,7 +64,9 @@ export default function HeatPumpRuleTimeline({ preview, deviceId }: { preview: H
       default: return t("noMatch");
     }
   };
-  const selected = periods[selection ?? 0];
+  const now = Date.parse(preview.generatedAt);
+  const currentIndex = periods.findIndex((period) => Date.parse(period.start) <= now && now < Date.parse(period.end));
+  const selected = periods[selection ?? Math.max(0, currentIndex)];
   const axisTime = (value: number) => new Intl.DateTimeFormat(getCurrentIntlLocales(), {
     timeZone: preview.timezone, hour: "2-digit", minute: "2-digit", hour12: false
   }).format(new Date(value));
@@ -104,7 +106,7 @@ export default function HeatPumpRuleTimeline({ preview, deviceId }: { preview: H
       <span>🟩 {t("on")}</span><span>⬛ {t("off")}</span><span>◻ {t("unknown")}</span><span>⋯ {t("assumed")}</span>
     </div>
     {prices.some((price) => price.price === null) ? <p className="text-sm text-on-surface-variant">{t("missingPrices")}</p> : null}
-    {selected ? <p className="rounded-lg border border-primary/30 bg-surface-container p-3 text-sm" aria-live="polite">{time(selected.start)} – {time(selected.end)} · {summary(selected)} · {reason(selected)}{selected.assumed ? ` · ${t("assumed")}` : ""}</p> : null}
+    {selected ? <p className="rounded-lg border border-primary/30 bg-surface-container p-3 text-sm" aria-live="polite">{time(Math.max(start, Date.parse(selected.start)))} – {time(Math.min(end, Date.parse(selected.end)))} · {summary(selected)} · {reason(selected)}{selected.assumed ? ` · ${t("assumed")}` : ""}</p> : null}
     <details><summary className="cursor-pointer text-sm font-bold">{t("changes")}</summary>
     <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">
       {periods.map((period, index) => <button key={period.start} type="button" onClick={() => setSelection(index)}

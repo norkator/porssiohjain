@@ -39,7 +39,7 @@ import {
   type WeatherControlHeatPumpLink,
   type WeatherMetricType
 } from "@/lib/automation-resources";
-import { fetchDevices, fetchHeatPumpState, type AcType, type ApiDevice } from "@/lib/devices";
+import { fetchDevices, fetchHeatPumpState, heatPumpStateQueryWarning, type AcType, type ApiDevice } from "@/lib/devices";
 import { useI18n } from "@/lib/i18n";
 import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
@@ -327,6 +327,7 @@ export default function ManageWeatherControlView() {
     setError(null);
     try {
       const response = await fetchHeatPumpState(deviceId);
+      setError(heatPumpStateQueryWarning(response));
       const bestState = response.currentState || response.lastPolledState || "";
       setHeatPumpDialogAcType(response.acType);
       setHeatPumpCurrentState(response.currentState);
@@ -685,6 +686,7 @@ export default function ManageWeatherControlView() {
       </AppDialog>
 
       <HeatPumpStateDialog
+        errorMessage={error}
         acType={heatPumpDialogAcType}
         currentState={heatPumpCurrentState}
         formatAcType={translatedLabel}

@@ -74,7 +74,11 @@
     "origin": "Alkuperä",
     "licenseText": "Tämä palvelu käyttää ohjelmistoa, joka on lisensoitu Pörssiohjain Personal Use License v1.0 -lisenssillä.",
     "docLink": "Dokumentaatio ja lähdekoodi",
-    "previewReadOnly": "Esikatselu: muutokset ja laitekomennot on estetty."
+    "previewReadOnly": "Esikatselu: muutokset ja laitekomennot on estetty.",
+    "heatPumpStateQueryFailedStatus": "Lämpöpumpun pilvipalvelu hylkäsi nykyisen tilan kyselyn (HTTP {status}).",
+    "heatPumpStateQueryFailed": "Lämpöpumpun nykyistä tilaa ei voitu kysyä.",
+    "heatPumpLastPolledAvailable": "Aiemmin kysytyt asetukset ovat käytettävissä alla. Ne ovat tallennettuja asetuksia, eivät uusi mittaus.",
+    "heatPumpNoSavedState": "Aiemmin kysyttyjä asetuksia ei ole saatavilla. Yritä kyselyä uudelleen asetusten tallentamiseksi."
   },
   "marketIndexVerification": {
     "eyebrow": "Markkina-alue",
@@ -1446,7 +1450,7 @@
     "captureHelp": "Kysy ja muokkaa jokaisen toiminnon asetukset erikseen, myös voimassaoloajan ulkopuoliselle toiminnolle. Pumppu vastaanottaa nämä asetukset; toiminnon nimi ei muuta niitä.",
     "captureHint": "Valitse pumppu ja tallenna jokaisen toiminnon asetukset, niin aikajana näkyy tässä.",
     "preview": "Toiminnan esikatselu",
-    "previewHelp": "Nykyisen luonnoksen esikatselu tästä hetkestä huomisen loppuun. Käyttää ohjauksen verollista hintaa siirtoineen. Muut ohjaukset tai käsin tehdyt muutokset voivat vaikuttaa toteutukseen.",
+    "previewHelp": "Nykyisten sääntöjen laskelma koko tälle päivälle ja huomiselle. Käyttää ohjauksen verollista hintaa siirtoineen. Menneet jaksot havainnollistavat sääntöjä, eivät toteutunutta toimintaa. Muut ohjaukset ja käsin tehdyt muutokset voivat vaikuttaa toteutukseen.",
     "previewError": "Esikatselua ei voitu ladata. Yritä uudelleen.",
     "invalid": "Täydennä jokainen sääntö ja tallenna sen asetukset. Aseta eri alkamis- ja päättymisaika sekä tallenna voimassaoloajan ulkopuoliset asetukset, jos käytät aikarajaa.",
     "save": "Tallenna kaikki säännöt",
@@ -1468,6 +1472,7 @@
     "retry": "Yritä esikatselua uudelleen",
     "discard": "Hylätäänkö tallentamattomat sääntömuutokset?",
     "saveError": "Sääntöjä ei voitu tallentaa. Yritä uudelleen.",
-    "changes": "Näytä muutokset ja perustelut"
+    "changes": "Näytä muutokset ja perustelut",
+    "outsideCaptureRequired": "Pakollinen: kysy ja tallenna voimassaoloajan ulkopuolisen toiminnon asetukset. Pelkkä Sammuta-valinta ei tallenna pumpun asetuksia."
   }
 }

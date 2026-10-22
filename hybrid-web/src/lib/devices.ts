@@ -45,6 +45,8 @@ export type HeatPumpStateResponse = {
   acType: AcType;
   currentState: string | null;
   lastPolledState: string | null;
+  queryFailed?: boolean;
+  queryStatus?: number | null;
 };
 
 export type DeviceType = "STANDARD" | "HEAT_PUMP";
@@ -115,6 +117,14 @@ export async function deleteDevice(deviceId: number) {
 
 export async function fetchHeatPumpState(deviceId: number) {
   return apiGetJson<HeatPumpStateResponse>(`/devices/${deviceId}/heat-pump/state`);
+}
+
+export function heatPumpStateQueryWarning(response: HeatPumpStateResponse) {
+  if (!response.queryFailed) return null;
+  const message = response.queryStatus
+    ? getCommonTranslation("heatPumpStateQueryFailedStatus", { status: response.queryStatus })
+    : getCommonTranslation("heatPumpStateQueryFailed");
+  return `${message} ${getCommonTranslation(response.lastPolledState ? "heatPumpLastPolledAvailable" : "heatPumpNoSavedState")}`;
 }
 
 export async function sendHeatPumpCommand(deviceId: number, state: string) {

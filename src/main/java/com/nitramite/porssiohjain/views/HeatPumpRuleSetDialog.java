@@ -117,6 +117,8 @@ public class HeatPumpRuleSetDialog extends Dialog {
         timed.addValueChangeListener(event -> {
             window.setVisible(timed.getValue());
             fallback.setVisible(timed.getValue());
+            from.setRequiredIndicatorVisible(timed.getValue());
+            until.setRequiredIndicatorVisible(timed.getValue());
             changed();
         });
         from.addValueChangeListener(event -> changed());
@@ -124,6 +126,11 @@ public class HeatPumpRuleSetDialog extends Dialog {
         Button save = new Button(t("save"), event -> {
             try {
                 if (pump.getValue() == null) throw new IllegalArgumentException();
+                if (outsideSettingsMissing()) {
+                    error.setText(t("outsideCaptureRequired"));
+                    outside.capture.focus();
+                    return;
+                }
                 controls.saveHeatPumpRules(accountId, controlId, pump.getValue().getId(), request());
                 DesktopFormState.saved(this);
                 saved.run();
@@ -216,12 +223,19 @@ public class HeatPumpRuleSetDialog extends Dialog {
         refreshPreview();
     }
 
+    private boolean outsideSettingsMissing() {
+        return timed.getValue() && outside != null && outside.state.getValue().isBlank();
+    }
+
     private void refreshPreview() {
         graph.removeAll();
         error.setText("");
-        if (pump.getValue() == null || rows.stream().anyMatch(row -> row.state.isEmpty())
-                || timed.getValue() && outside.state.isEmpty()) {
+        if (pump.getValue() == null || rows.stream().anyMatch(row -> row.state.getValue().isBlank())) {
             graph.add(new Paragraph(t("captureHint")));
+            return;
+        }
+        if (outsideSettingsMissing()) {
+            graph.add(new Paragraph(t("outsideCaptureRequired")));
             return;
         }
         try {
@@ -275,6 +289,7 @@ public class HeatPumpRuleSetDialog extends Dialog {
         final TextField state = new TextField(t("state"));
         final Paragraph captured = new Paragraph();
         final NumberField power = new NumberField(i18n.t("controlTable.field.estimatedPowerKw"));
+        final Button capture = new Button(t("capture"));
 
         Row(ControlHeatPumpResponse row, boolean inactive) {
             this.id = row == null ? null : row.getId();
@@ -292,27 +307,36 @@ public class HeatPumpRuleSetDialog extends Dialog {
             state.setReadOnly(true);
             power.setMin(0);
             power.setValue(row == null || row.getEstimatedPowerKw() == null ? null : row.getEstimatedPowerKw().doubleValue());
-            Button capture = new Button(t("capture"), event -> {
+            capture.addClickListener(event -> {
                 if (pump.getValue() != null) states.openStateDialog(pump.getValue(), state);
             });
             layout.setPadding(false);
             layout.setWidthFull();
             if (!inactive) layout.add(condition, price);
-            captured.setText(t(state.isEmpty() ? "notCaptured" : "captured"));
+            captured.getElement().setAttribute("role", "status");
             captured.getStyle().set("font-size", "var(--lumo-font-size-s)").set("margin", "0");
+            updateCaptureStatus();
             layout.add(action, capture, captured, new Details(t("state"), state, power));
             layout.getChildren().forEach(child -> child.getElement().getStyle().set("width", "100%"));
             condition.addValueChangeListener(event -> { price.setVisible(!event.getValue().equals("SCHEDULE")); changed(); });
             price.addValueChangeListener(event -> changed());
             action.addValueChangeListener(event -> changed());
             state.addValueChangeListener(event -> {
-                captured.setText(t(state.isEmpty() ? "notCaptured" : "captured"));
-                if (!state.isEmpty()) pump.setReadOnly(true);
+                updateCaptureStatus();
+                if (!state.getValue().isBlank()) pump.setReadOnly(true);
                 changed();
             });
             power.addValueChangeListener(event -> changed());
             DesktopFormState.watchChanges(price, HeatPumpRuleSetDialog.this);
             DesktopFormState.watchChanges(power, HeatPumpRuleSetDialog.this);
+        }
+
+        private void updateCaptureStatus() {
+            boolean missing = state.getValue().isBlank();
+            captured.setText(t(missing ? inactive ? "outsideCaptureRequired" : "notCaptured" : "captured"));
+            captured.getStyle().set("color", missing ? "var(--lumo-error-text-color)" : "var(--lumo-secondary-text-color)");
+            if (missing) capture.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            else capture.removeThemeVariants(ButtonVariant.LUMO_PRIMARY);
         }
 
         Rule value() {

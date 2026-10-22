@@ -408,16 +408,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         standardLayout.setPadding(false);
         standardLayout.setSpacing(true);
 
-        Button heatPumpPreview = new Button(t("controlTable.heatPumpPreview.button"), event -> {
-            try {
-                new HeatPumpControlPreviewDialog(heatPumpControlPreviewService.preview(getAccountId(), controlId),
-                        i18n, this::openHeatPumpStateHexDialog).open();
-            } catch (Exception e) {
-                Notification.show(t("controlTable.heatPumpPreview.error"), 5000, Notification.Position.MIDDLE)
-                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
-            }
-        });
-        VerticalLayout heatPumpLayout = new VerticalLayout(heatPumpPreview, heatPumpGrid, createAddHeatPumpLayout());
+        VerticalLayout heatPumpLayout = new VerticalLayout(heatPumpGrid, createAddHeatPumpLayout());
         heatPumpLayout.setPadding(false);
         heatPumpLayout.setSpacing(true);
         heatPumpLayout.setVisible(false);
@@ -1166,32 +1157,6 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         dialog.getFooter().add(new Button(t("common.cancel"), e -> dialog.close()));
         dialog.open();
     }
-
-    private void openHeatPumpStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
-        heatPumpStateDialogService.openStateDialog(deviceResponse, stateHexField);
-    }
-
-    private void openHeatPumpStateHexDialog(String stateHex) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle(t("controlTable.dialog.decodeState.title"));
-        dialog.setWidth("900px");
-        dialog.setMaxWidth("95vw");
-
-        VerticalLayout dialogLayout = new VerticalLayout();
-        dialogLayout.setWidthFull();
-        String instructionsKey = heatPumpStateDialogService.isJsonState(stateHex)
-                ? "controlTable.dialog.decodeState.jsonInstructions"
-                : "controlTable.dialog.decodeState.instructions";
-        dialogLayout.add(
-                new Paragraph(t(instructionsKey)),
-                heatPumpStateDialogService.createAcStateInfoContentFromHex(stateHex)
-        );
-
-        dialog.add(dialogLayout);
-        dialog.getFooter().add(new Button(t("common.cancel"), e -> dialog.close()));
-        dialog.open();
-    }
-
 
     private VerticalLayout getControlTableSection() {
         Div consecutiveWarnings = new Div();
