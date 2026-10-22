@@ -21,6 +21,14 @@ rewrite the captured device state. Polling, editing and previewing never dispatc
 commands. Saved rules use the existing heat-pump scheduler and command deduplication.
 Weather, Heating Planner and production controls retain their existing priority.
 
+Live heat-pump evaluation is scheduled five seconds after each market quarter-hour
+(`:00:05`, `:15:05`, `:30:05`, `:45:05`, Europe/Helsinki), including outside-window
+actions. After a backend restart, the first evaluation uses the next matching
+clock boundary. Window boundaries between these times take effect at the next
+evaluation. Other scheduled work or cloud requests may delay execution or command
+delivery. Configure this with `heatpump.control-cron` / `HEATPUMP_CONTROL_CRON`;
+the former `heatpump.control-interval` setting is no longer used.
+
 An optional daily window applies to the entire set in the control's configured
 ZoneId. Start is inclusive and end exclusive. End earlier than start means an
 overnight window. A timed set requires exactly one outside-window action, such as

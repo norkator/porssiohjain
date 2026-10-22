@@ -318,7 +318,7 @@ public class Scheduler {
     @Scheduled(cron = "0 * * * * *", zone = "Europe/Helsinki")
     public void windNotifications() { windNotificationService.sendDueNotifications(); }
 
-    @Scheduled(fixedDelayString = "${heatpump.control-interval}")
+    @Scheduled(cron = "${heatpump.control-cron:5 0/15 * * * *}", zone = "Europe/Helsinki")
     public void scheduledHeatPumpControls() {
         heatPumpControlService.runScheduledHeatPumpControls();
     }
