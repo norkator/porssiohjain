@@ -121,11 +121,15 @@ export default function LoginView() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const formData = new FormData(event.currentTarget);
     setError(null);
     setIsSubmitting(true);
 
     try {
-      await loginWithCredentials({ uuid: uuid.trim(), secret: secret.trim() });
+      await loginWithCredentials({
+        uuid: String(formData.get("username") ?? "").trim(),
+        secret: String(formData.get("password") ?? "").trim()
+      });
       navigate("/menu", { replace: true });
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : t("genericLoginFailed"));
@@ -197,14 +201,18 @@ export default function LoginView() {
           </div>
         </div>
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form autoComplete="on" className="space-y-5" id="login-form" method="post" name="login" onSubmit={handleSubmit}>
           <label className="block">
             <span className="mb-2 block font-label text-sm font-bold text-on-surface-variant">{t("uuidLabel")}</span>
             <input
+              autoCapitalize="none"
               autoComplete="username"
               className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest px-4 py-3 font-mono text-sm outline-none transition-colors focus:border-primary"
+              id="login-uuid"
+              name="username"
               onChange={(event) => setUuid(event.target.value)}
               required
+              spellCheck={false}
               type="text"
               value={uuid}
             />
@@ -219,6 +227,7 @@ export default function LoginView() {
                 autoComplete="current-password"
                 className="w-full rounded-xl border border-outline-variant bg-surface-container-lowest py-3 pl-4 pr-12 font-mono text-sm outline-none transition-colors focus:border-primary"
                 id="login-secret"
+                name="password"
                 onChange={(event) => setSecret(event.target.value)}
                 required
                 type={isSecretVisible ? "text" : "password"}
