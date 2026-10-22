@@ -1,139 +1,162 @@
 /* Pörssiohjain Personal Use License v1.0. See LICENSE. */
 window.renderHeatPumpControlPreview = function (container, data) {
+    container.disposeHeatPumpPreview?.();
     const labels = data.labels;
-    const time = new Intl.DateTimeFormat(document.documentElement.lang || 'en', {
+    const locale = document.documentElement.lang || 'en';
+    const time = new Intl.DateTimeFormat(locale, {
         timeZone: data.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'shortOffset'
     });
-    const formatTime = value => time.format(new Date(Number(value)));
-    const escape = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    })[ch]);
+    const axisTime = new Intl.DateTimeFormat(locale, {
+        timeZone: data.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+    });
+    const formatTime = value => time.format(new Date(value));
     const periods = data.periods.filter(p => p.end > data.start && p.start < data.end);
     const prices = data.prices.filter(p => p[1] > data.start && p[0] < data.end);
-    const points = (rows, value, start, end) => {
-        const result = [];
-        rows.forEach(row => {
-            result.push([Math.max(data.start, start(row)), value(row)]);
-            result.push([Math.min(data.end, end(row)), value(row)]);
-        });
-        return result.length ? result : [[data.start, null], [data.end, null]];
+    const color = period => period.power == null ? '#94a3b8' : period.power ? '#16a34a' : '#475569';
+    const state = period => period.power == null ? 'unknown' : period.power ? 'on' : 'off';
+    const clamp = value => Math.max(data.start, Math.min(data.end, value));
+    const mode = period => {
+        if (period.power !== true || !period.mode) return null;
+        const value = period.mode.toLowerCase();
+        const key = ['heat', 'cool', 'fan', 'dry', 'auto'].find(candidate => value.includes(candidate));
+        return key ? labels[key] : period.mode;
     };
-    const pricePoints = points(prices, p => p[2], p => p[0], p => p[1]);
-    const temperaturePoints = points(periods, p => p.power === true ? p.temperature : null, p => p.start, p => p.end);
-    const pricesWithValues = pricePoints.map(point => point[1]).filter(Number.isFinite);
-    const temperatures = temperaturePoints.map(point => point[1]).filter(Number.isFinite);
-    const pricePadding = pricesWithValues.length
-        ? Math.max(0.5, (Math.max(...pricesWithValues) - Math.min(...pricesWithValues)) * 0.08) : 0;
-    const stateKey = period => {
-        if (period.power == null) return null;
-        if (period.assumed) return 'assumed';
-        if (!period.power) return 'off';
-        const mode = String(period.mode || '').toLowerCase();
-        if (mode.includes('heat')) return 'heat';
-        if (mode.includes('cool')) return 'cool';
-        if (mode.includes('fan')) return 'fan';
-        if (mode.includes('dry')) return 'dry';
-        if (mode.includes('auto')) return 'auto';
-        return 'on';
-    };
-    const stateLine = key => {
-        const result = [];
-        periods.forEach((period, index) => {
-            const start = Math.max(data.start, period.start);
-            const end = Math.min(data.end, period.end);
-            if (stateKey(period) !== key) {
-                result.push([start, null], [end, null]);
-                return;
-            }
-            const previous = periods[index - 1];
-            // The incoming state's color also draws its vertical ON/OFF transition.
-            if (previous && previous.end === period.start && start === period.start
-                    && previous.power != null && previous.power !== period.power) {
-                result.push([start, previous.power ? 1 : 0]);
-            }
-            result.push([start, period.power ? 1 : 0], [end, period.power ? 1 : 0]);
-        });
-        return result.length ? result : [[data.start, null], [data.end, null]];
-    };
-    const modes = [
-        { key: 'heat', color: '#15803d' }, { key: 'cool', color: '#0891b2' },
-        { key: 'fan', color: '#7c3aed' }, { key: 'dry', color: '#b45309' },
-        { key: 'auto', color: '#0d9488' }, { key: 'on', color: '#16a34a' },
-        { key: 'off', color: '#64748b' }, { key: 'assumed', color: '#d97706' }
-    ].filter(mode => periods.some(period => stateKey(period) === mode.key));
-    const series = [
-        { name: labels.price, data: pricePoints },
-        { name: labels.temperature, data: temperaturePoints },
-        ...modes.map(mode => ({ name: labels[mode.key], data: stateLine(mode.key) }))
-    ];
-    const plot = document.createElement('div');
-    plot.style.width = '100%';
-    container.replaceChildren(plot);
-    const chart = new ApexCharts(plot, {
-        chart: {
-            id: data.id, type: 'line', height: container.clientHeight || 420,
-            width: container.clientWidth || '100%', animations: { enabled: false },
-            zoom: { enabled: false }, toolbar: { show: false }, fontFamily: 'inherit', parentHeightOffset: 0
-        },
-        series, colors: ['#2563eb', '#dc2626', ...modes.map(mode => mode.color)],
-        stroke: { curve: 'stepline', width: [2, 3, ...modes.map(() => 3)],
-            dashArray: [0, 0, ...modes.map(mode => mode.key === 'assumed' ? 6 : 0)] },
-        // Reserve room for the price axis explicitly: shared state axes otherwise
-        // let ApexCharts place the left labels outside its SVG viewport.
-        markers: { size: 0 }, grid: { padding: { top: 20, bottom: 8, left: 64, right: 8 } },
-        legend: { position: 'top', fontSize: '12px', showForNullSeries: false,
-            itemMargin: { horizontal: 8, vertical: 4 } },
-        xaxis: {
-            type: 'datetime', min: data.start, max: data.end, tickAmount: 6,
-            labels: { formatter: (value, timestamp) => formatTime(timestamp ?? value), hideOverlappingLabels: true },
-            tooltip: { enabled: false }, title: { text: labels.time + ' · ' + data.timezone }
-        },
-        yaxis: [
-            { seriesName: labels.price, title: { text: labels.priceUnit },
-                min: pricesWithValues.length ? Math.min(...pricesWithValues) - pricePadding : 0,
-                max: pricesWithValues.length ? Math.max(...pricesWithValues) + pricePadding : 1,
-                labels: { minWidth: 36, maxWidth: 44, offsetX: 58,
-                    formatter: value => pricesWithValues.length && Number.isFinite(value) ? value.toFixed(1) : '' } },
-            { seriesName: labels.temperature, opposite: true, title: { text: '°C' },
-                min: temperatures.length ? Math.floor(Math.min(...temperatures) - 1) : 0,
-                max: temperatures.length ? Math.ceil(Math.max(...temperatures) + 1) : 30,
-                labels: { minWidth: 28, maxWidth: 36,
-                    formatter: value => temperatures.length && Number.isFinite(value) ? value.toFixed(1) : '' } },
-            ...(modes.length ? [{
-                seriesName: modes.map(mode => labels[mode.key]), showAlways: true, opposite: true,
-                min: -0.5, max: 1.5, tickAmount: 4, forceNiceScale: false,
-                labels: { minWidth: 32, maxWidth: 48,
-                    formatter: value => Math.abs(value) < 0.001 ? labels.off : Math.abs(value - 1) < 0.001 ? labels.on : '' }
-            }] : [])
-        ],
-        tooltip: {
-            shared: false, intersect: false,
-            custom: ({ seriesIndex, dataPointIndex, w }) => {
-                const timestamp = w.config.series[seriesIndex]?.data[dataPointIndex]?.[0];
-                if (timestamp == null) return '';
-                const period = periods.find(p => timestamp >= p.start && timestamp < p.end);
-                const price = prices.find(p => timestamp >= p[0] && timestamp < p[1]);
-                const text = [formatTime(timestamp),
-                    price?.[2] == null ? null : labels.price + ': ' + Number(price[2]).toFixed(2) + ' ' + labels.priceUnit,
-                    period?.summary, period?.reason].filter(value => value != null);
-                return '<div style="padding:8px;max-width:300px;white-space:normal">' + text.map(escape).join('<br>') + '</div>';
-            }
-        },
-        responsive: [{ breakpoint: 620, options: {
-            xaxis: { tickAmount: 3, labels: { style: { fontSize: '10px' } } },
-            legend: { fontSize: '11px', itemMargin: { horizontal: 4, vertical: 3 } }
-        } }]
-    });
+    let selected = periods.findIndex(period => period.start <= data.now && data.now < period.end);
+    if (selected < 0) selected = periods.length ? 0 : -1;
     let disposed = false;
-    let lastWidth = container.clientWidth;
-    let lastHeight = container.clientHeight;
+    let lastWidth = 0;
+    let svg;
+    const legend = document.createElement('div');
+    legend.className = 'heat-pump-preview-legend';
+    Object.assign(legend.style, { display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: '12px' });
+    for (const [key, fill] of [['on', '#16a34a'], ['off', '#475569'], ['unknown', '#94a3b8'], ['assumed', '#94a3b8']]) {
+        const item = document.createElement('span');
+        Object.assign(item.style, { display: 'inline-flex', alignItems: 'center', gap: '5px' });
+        const swatch = document.createElement('span');
+        Object.assign(swatch.style, { display: 'inline-block', flexShrink: '0', width: '13px', height: '10px', background: fill });
+        if (key === 'assumed') {
+            swatch.style.opacity = '0.4';
+            swatch.style.outline = '1px dashed currentColor';
+        }
+        item.append(swatch, document.createTextNode(labels[key]));
+        legend.append(item);
+    }
+    const details = document.createElement('div');
+    details.className = 'heat-pump-preview-details';
+    details.setAttribute('role', 'status');
+    Object.assign(details.style, {
+        border: '1px solid var(--lumo-contrast-20pct, #cbd5e1)', borderRadius: '6px', padding: '8px 10px',
+        fontSize: '12px', lineHeight: '1.5', overflowWrap: 'anywhere', minHeight: '36px', boxSizing: 'border-box'
+    });
+    const intervalText = period => [
+        formatTime(clamp(period.start)) + ' – ' + formatTime(clamp(period.end)),
+        period.summary || labels[state(period)], mode(period), period.reason, period.assumed ? labels.assumed : null
+    ].filter(Boolean).join(' · ');
+    const updateSelection = index => {
+        selected = index;
+        details.textContent = periods[index] ? intervalText(periods[index]) : labels.unknown;
+        svg?.querySelectorAll('.heat-pump-operation-segment').forEach((node, i) => {
+            node.setAttribute('stroke', i === selected ? '#d97706' : 'none');
+            node.setAttribute('aria-pressed', String(i === selected));
+        });
+    };
+    const element = (tag, attributes = {}, text) => {
+        const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
+        if (text != null) node.textContent = text;
+        return node;
+    };
+    const draw = () => {
+        if (disposed) return;
+        const width = Math.max(280, container.clientWidth || 640);
+        lastWidth = container.clientWidth;
+        const left = 48;
+        const right = width - 16;
+        const x = value => left + (clamp(value) - data.start) / (data.end - data.start) * (right - left);
+        const priceValues = prices.map(price => price[2]).filter(Number.isFinite);
+        const minPrice = Math.min(0, ...priceValues);
+        const maxPrice = Math.max(minPrice + 1, ...priceValues);
+        const py = value => 135 - (value - minPrice) / (maxPrice - minPrice) * 95;
+        const temperatures = periods.filter(period => period.power === true).map(period => period.temperature).filter(Number.isFinite);
+        const minTemp = Math.min(16, ...temperatures);
+        const maxTemp = Math.max(26, minTemp + 1, ...temperatures);
+        const ty = value => 263 - (value - minTemp) / (maxTemp - minTemp) * 60;
+        svg = element('svg', {
+            viewBox: `0 0 ${width} 310`, role: 'group', 'aria-label': labels.power,
+            class: 'heat-pump-preview-plot'
+        });
+        Object.assign(svg.style, {
+            display: 'block', width: '100%', height: '310px', overflow: 'hidden',
+            background: 'var(--lumo-contrast-5pct, #f1f5f9)', borderRadius: '8px'
+        });
+        const text = (label, tx, y, size = 13, anchor = 'start') => svg.append(element('text', {
+            x: tx, y, 'font-size': size, 'text-anchor': anchor, fill: 'currentColor'
+        }, label));
+        text(labels.price, left, 22);
+        for (const value of [minPrice, (minPrice + maxPrice) / 2, maxPrice]) {
+            svg.append(element('line', { x1: left, x2: right, y1: py(value), y2: py(value), stroke: 'currentColor', opacity: '0.12' }));
+            if (priceValues.length) text(value.toFixed(1), left - 8, py(value) + 4, 12, 'end');
+        }
+        let previousPrice;
+        for (const price of prices) {
+            if (!Number.isFinite(price[2])) { previousPrice = null; continue; }
+            if (previousPrice && previousPrice[1] === price[0]) svg.append(element('line', {
+                x1: x(price[0]), x2: x(price[0]), y1: py(previousPrice[2]), y2: py(price[2]), stroke: '#64748b', 'stroke-width': 2
+            }));
+            const line = element('line', {
+                x1: x(price[0]), x2: x(price[1]), y1: py(price[2]), y2: py(price[2]),
+                stroke: '#64748b', 'stroke-width': 2.5, class: 'heat-pump-price-segment'
+            });
+            line.append(element('title', {}, formatTime(clamp(price[0])) + ' – ' + formatTime(clamp(price[1]))
+                + ' · ' + Number(price[2]).toFixed(2) + ' ' + labels.priceUnit));
+            svg.append(line);
+            previousPrice = price;
+        }
+        text(labels.power, left, 158);
+        text(labels.temperature, left, 197);
+        // Every state occupies the same horizontal lane. Its width represents time,
+        // with the same ON/OFF/unknown colors used by hybrid-web.
+        periods.forEach((period, index) => {
+            const bar = element('rect', {
+                x: x(period.start), y: 164, width: x(period.end) - x(period.start), height: 18,
+                fill: color(period), opacity: period.assumed ? 0.35 : 0.9,
+                stroke: index === selected ? '#d97706' : 'none', 'stroke-width': 2,
+                class: 'heat-pump-operation-segment', 'data-state': state(period), 'data-assumed': !!period.assumed,
+                role: 'button', tabindex: 0, 'aria-label': intervalText(period), 'aria-pressed': index === selected
+            });
+            bar.style.cursor = 'pointer';
+            bar.append(element('title', {}, intervalText(period)));
+            bar.addEventListener('mouseenter', () => updateSelection(index));
+            bar.addEventListener('focus', () => updateSelection(index));
+            bar.addEventListener('click', () => updateSelection(index));
+            bar.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); updateSelection(index); }
+            });
+            svg.append(bar);
+            if (period.power === true && Number.isFinite(period.temperature)) {
+                svg.append(element('line', {
+                    x1: x(period.start), x2: x(period.end), y1: ty(period.temperature), y2: ty(period.temperature),
+                    stroke: '#ea580c', 'stroke-width': 3, 'stroke-dasharray': period.assumed ? '5 4' : 'none',
+                    class: 'heat-pump-temperature-segment'
+                }));
+            }
+        });
+        for (const value of [minTemp, maxTemp]) text(value + '°', left - 8, ty(value) + 4, 12, 'end');
+        const ticks = width < 520 ? 3 : 5;
+        for (let i = 0; i < ticks; i++) {
+            const timestamp = data.start + (data.end - data.start) * i / (ticks - 1);
+            text(axisTime.format(new Date(timestamp)), x(timestamp), 292, 12, i === 0 ? 'start' : i === ticks - 1 ? 'end' : 'middle');
+        }
+        if (data.now >= data.start && data.now < data.end) svg.append(element('line', {
+            x1: x(data.now), x2: x(data.now), y1: 32, y2: 271, stroke: '#dc2626', 'stroke-dasharray': '4 4',
+            class: 'heat-pump-preview-now', 'aria-hidden': true, 'pointer-events': 'none'
+        }));
+        container.replaceChildren(svg, legend, details);
+        updateSelection(selected);
+    };
+    Object.assign(container.style, { display: 'grid', gap: '8px', color: 'var(--lumo-body-text-color, #1e293b)' });
     const resize = new ResizeObserver(() => {
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        if (disposed || width <= 0 || height <= 0 || (width === lastWidth && height === lastHeight)) return;
-        lastWidth = width;
-        lastHeight = height;
-        chart.updateOptions({ chart: { width, height } }, false, false, false);
+        if (container.clientWidth > 0 && container.clientWidth !== lastWidth) draw();
     });
     const removed = new MutationObserver(() => { if (!container.isConnected) dispose(); });
     const dispose = () => {
@@ -141,15 +164,14 @@ window.renderHeatPumpControlPreview = function (container, data) {
         disposed = true;
         resize.disconnect();
         removed.disconnect();
-        chart.destroy();
+        if (container.disposeHeatPumpPreview === dispose) delete container.disposeHeatPumpPreview;
     };
-    chart.render().then(() => {
-        if (!container.isConnected) { dispose(); return; }
-        resize.observe(container);
-        let root = container.getRootNode();
-        while (root) {
-            removed.observe(root, { childList: true, subtree: true });
-            root = root.host ? root.host.getRootNode() : null;
-        }
-    });
+    container.disposeHeatPumpPreview = dispose;
+    draw();
+    resize.observe(container);
+    let root = container.getRootNode();
+    while (root) {
+        removed.observe(root, { childList: true, subtree: true });
+        root = root.host ? root.host.getRootNode() : null;
+    }
 };

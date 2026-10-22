@@ -20,13 +20,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@JavaScript("context://js/apexcharts.min.js")
 @JavaScript("context://js/heat-pump-control-preview.js")
 public class HeatPumpControlPreviewChart extends Div {
     public HeatPumpControlPreviewChart(List<PricePeriod> prices, List<PlotPeriod> periods, LocalDate day,
                                        ZoneId zone, Instant generatedAt, I18nService i18n) {
         setWidthFull();
-        setHeight("clamp(320px, 52dvh, 460px)");
+        setHeight("auto");
         getStyle().set("min-width", "0").set("flex-shrink", "0").set("display", "block");
         getElement().setAttribute("aria-label", i18n.t("controlTable.heatPumpPreview.title"));
         Map<String, Object> data = new LinkedHashMap<>();
@@ -39,7 +38,10 @@ public class HeatPumpControlPreviewChart extends Div {
                 price.end().toEpochMilli(), price.price()}).toList());
         data.put("periods", periods);
         Map<String, String> labels = new LinkedHashMap<>();
-        for (String key : List.of("price", "priceUnit", "temperature", "power", "on", "off", "time", "assumed")) {
+        for (String key : List.of("price", "temperature", "power", "on", "off", "unknown", "assumed")) {
+            labels.put(key, i18n.t("controlTable.heatPumpRules." + key));
+        }
+        for (String key : List.of("priceUnit", "time")) {
             labels.put(key, i18n.t("controlTable.heatPumpPreview." + key));
         }
         for (String mode : List.of("heat", "cool", "fan", "dry", "auto")) {
