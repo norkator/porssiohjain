@@ -113,7 +113,9 @@ class HeatPumpRuleSetDialogTest {
     }
 
     private Button button(String text) {
-        return descendants(dialog).filter(Button.class::isInstance).map(Button.class::cast)
+        return Stream.concat(descendants(dialog), dialog.getFooter().getElement().getChildren()
+                        .flatMap(element -> element.getComponent().stream()))
+                .filter(Button.class::isInstance).map(Button.class::cast)
                 .filter(button -> button.getText().equals(text)).findFirst().orElseThrow();
     }
 
