@@ -10,7 +10,7 @@
  */
 
 import ControlPriceChartCard from "@/components/ControlPriceChartCard";
-import HeatPumpStateDialog from "@/components/HeatPumpStateDialog";
+import ControlHeatPumpRulesCard from "@/components/ControlHeatPumpRulesCard";
 import AppDialog from "@/components/AppDialog";
 import ControlNotificationsCard from "@/components/ControlNotificationsCard";
 import ControlThermostatsCard from "@/components/ControlThermostatsCard";
@@ -19,11 +19,9 @@ import { fetchElectricityContracts, type ElectricityContract } from "@/lib/elect
 import { getAvailableTimezones } from "@/lib/add-device-flow";
 import {
   addControlDeviceLink,
-  addControlHeatPumpLink,
   CONTROL_MODES,
   deleteControl,
   deleteControlDeviceLink,
-  deleteControlHeatPumpLink,
   fetchControl,
   fetchControlDeviceLinks,
   fetchControlHeatPumpLinks,
@@ -36,10 +34,9 @@ import {
   type ControlMode,
   type ControlPayload,
   updateControlDeviceLink,
-  updateControlHeatPumpLink,
   updateControl
 } from "@/lib/controls";
-import { fetchDevices, fetchHeatPumpState, type ApiDevice, type AcType } from "@/lib/devices";
+import { fetchDevices, type ApiDevice } from "@/lib/devices";
 import { useI18n } from "@/lib/i18n";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
@@ -64,9 +61,6 @@ export default function ManageControlView() {
   const { t, group } = useI18n("manageControl");
   const common = useI18n("common").t;
   const modeLabels: Record<string, string> = group("modes");
-  const actionLabels: Record<string, string> = group("actions");
-  const comparisonLabels: Record<string, string> = group("comparisons");
-  const acTypeLabels: Record<string, string> = group("acTypes");
   const navigate = useNavigate();
   const params = useParams();
   const controlId = Number(params.controlId);
@@ -108,23 +102,6 @@ export default function ManageControlView() {
   const [isDeviceLinkDialogOpen, setIsDeviceLinkDialogOpen] = useState(false);
   const [deleteLinkConfirmId, setDeleteLinkConfirmId] = useState<number | null>(null);
   const [isDeletingLinkId, setIsDeletingLinkId] = useState<number | null>(null);
-  const [selectedHeatPumpDeviceId, setSelectedHeatPumpDeviceId] = useState("");
-  const [heatPumpStateHex, setHeatPumpStateHex] = useState("");
-  const [heatPumpAction, setHeatPumpAction] = useState<ControlHeatPumpLink["controlAction"]>("TURN_ON");
-  const [heatPumpComparisonType, setHeatPumpComparisonType] = useState<ControlHeatPumpLink["comparisonType"]>(null);
-  const [heatPumpPriceLimit, setHeatPumpPriceLimit] = useState("");
-  const [heatPumpEstimatedPowerKw, setHeatPumpEstimatedPowerKw] = useState("");
-  const [isAddingHeatPumpLink, setIsAddingHeatPumpLink] = useState(false);
-  const [editingHeatPumpLinkId, setEditingHeatPumpLinkId] = useState<number | null>(null);
-  const [isHeatPumpLinkDialogOpen, setIsHeatPumpLinkDialogOpen] = useState(false);
-  const [deleteHeatPumpConfirmId, setDeleteHeatPumpConfirmId] = useState<number | null>(null);
-  const [isDeletingHeatPumpId, setIsDeletingHeatPumpId] = useState<number | null>(null);
-  const [isHeatPumpStateDialogOpen, setIsHeatPumpStateDialogOpen] = useState(false);
-  const [isLoadingHeatPumpState, setIsLoadingHeatPumpState] = useState(false);
-  const [heatPumpStateDialogValue, setHeatPumpStateDialogValue] = useState("");
-  const [heatPumpCurrentState, setHeatPumpCurrentState] = useState<string | null>(null);
-  const [heatPumpLastPolledState, setHeatPumpLastPolledState] = useState<string | null>(null);
-  const [heatPumpDialogAcType, setHeatPumpDialogAcType] = useState<AcType>("NONE");
   const timezoneIsValid = availableTimezones.includes(timezone);
   const canSave = name.trim().length > 0 && timezoneIsValid && !control?.shared && !isSaving && !isDeleting;
   const standardLinks = deviceLinks
@@ -134,11 +111,7 @@ export default function ManageControlView() {
       || left.deviceChannel - right.deviceChannel
       || left.id - right.id
     );
-  const sortedHeatPumpLinks = [...heatPumpLinks].sort((left, right) =>
-    compareByName(left.device.deviceName, right.device.deviceName)
-    || left.id - right.id
-  );
-  const linkedControlDeviceCount = standardLinks.length + sortedHeatPumpLinks.length + thermostatLinkCount;
+  const linkedControlDeviceCount = standardLinks.length + new Set(heatPumpLinks.map((link) => link.deviceId)).size + thermostatLinkCount;
   const showNoLinkedDevicesNotice = !isLoadingLinks && !linksError && linkedControlDeviceCount === 0;
   const linkedDeviceKeys = new Set(
     standardLinks
@@ -146,9 +119,7 @@ export default function ManageControlView() {
       .map((link) => `${link.deviceId}:${link.deviceChannel}`)
   );
   const selectableDevices = standardDevices.filter((device) => !device.shared);
-  const selectableHeatPumpDevices = heatPumpDevices.filter((device) => !device.shared);
   const selectedDevice = selectableDevices.find((device) => device.id === Number(selectedDeviceId));
-  const selectedHeatPumpDevice = selectableHeatPumpDevices.find((device) => device.id === Number(selectedHeatPumpDeviceId));
   const channelNumber = Number(deviceChannel);
   const canAddLink =
     Boolean(selectedDevice) &&
@@ -157,22 +128,6 @@ export default function ManageControlView() {
     !linkedDeviceKeys.has(`${selectedDevice?.id}:${channelNumber}`) &&
     !isAddingLink &&
     !control?.shared;
-  const canAddHeatPumpLink =
-    Boolean(selectedHeatPumpDevice) &&
-    heatPumpStateHex.trim().length > 0 &&
-    !isAddingHeatPumpLink &&
-    !control?.shared;
-
-  const resetHeatPumpForm = () => {
-    setEditingHeatPumpLinkId(null);
-    setSelectedHeatPumpDeviceId("");
-    setHeatPumpStateHex("");
-    setHeatPumpAction("TURN_ON");
-    setHeatPumpComparisonType(null);
-    setHeatPumpPriceLimit("");
-    setHeatPumpEstimatedPowerKw("");
-  };
-
   const resetDeviceLinkForm = () => {
     setEditingDeviceLinkId(null);
     setSelectedDeviceId("");
@@ -414,113 +369,6 @@ export default function ManageControlView() {
       setLinksError(error instanceof Error ? error.message : t("failedRemoveDevice"));
     } finally {
       setIsDeletingLinkId((current) => (current === linkId ? null : current));
-    }
-  };
-
-  const loadHeatPumpStateForDialog = async (deviceId: number) => {
-    setIsLoadingHeatPumpState(true);
-    setLinksError(null);
-
-    try {
-      const response = await fetchHeatPumpState(deviceId);
-      const bestState = response.currentState || response.lastPolledState || "";
-      setHeatPumpDialogAcType(response.acType);
-      setHeatPumpCurrentState(response.currentState);
-      setHeatPumpLastPolledState(response.lastPolledState);
-      setHeatPumpStateDialogValue(bestState || heatPumpStateHex);
-    } catch (error) {
-      setLinksError(error instanceof Error ? error.message : t("failedLoadHeatPumpState"));
-      setHeatPumpCurrentState(null);
-      setHeatPumpLastPolledState(null);
-      setHeatPumpDialogAcType("NONE");
-      setHeatPumpStateDialogValue(heatPumpStateHex);
-    } finally {
-      setIsLoadingHeatPumpState(false);
-    }
-  };
-
-  const handleOpenHeatPumpStateDialog = async () => {
-    const deviceId = Number(selectedHeatPumpDeviceId);
-    if (!Number.isFinite(deviceId)) {
-      return;
-    }
-
-    setIsHeatPumpStateDialogOpen(true);
-    setHeatPumpStateDialogValue(heatPumpStateHex);
-    await loadHeatPumpStateForDialog(deviceId);
-  };
-
-  const handleAddHeatPumpLink = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!selectedHeatPumpDevice || !canAddHeatPumpLink) {
-      return;
-    }
-
-    setIsAddingHeatPumpLink(true);
-    setLinksError(null);
-
-    try {
-      const payload = {
-        comparisonType: heatPumpComparisonType,
-        controlAction: heatPumpAction,
-        deviceId: selectedHeatPumpDevice.id,
-        estimatedPowerKw: heatPumpEstimatedPowerKw === "" ? null : Math.max(0, toNumber(heatPumpEstimatedPowerKw)),
-        priceLimit: heatPumpPriceLimit === "" ? null : toNumber(heatPumpPriceLimit),
-        stateHex: heatPumpStateHex.trim()
-      };
-      if (editingHeatPumpLinkId === null) {
-        await addControlHeatPumpLink(controlId, payload);
-      } else {
-        await updateControlHeatPumpLink(editingHeatPumpLinkId, payload);
-      }
-
-      setHeatPumpLinks(await fetchControlHeatPumpLinks(controlId));
-      resetHeatPumpForm();
-      setIsHeatPumpLinkDialogOpen(false);
-    } catch (error) {
-      setLinksError(error instanceof Error ? error.message : editingHeatPumpLinkId === null ? t("failedLinkHeatPump") : t("failedUpdateHeatPumpRule"));
-    } finally {
-      setIsAddingHeatPumpLink(false);
-    }
-  };
-
-  const handleEditHeatPumpLink = (link: ControlHeatPumpLink) => {
-    setActiveDeviceTab("HEAT_PUMP");
-    setEditingHeatPumpLinkId(link.id);
-    setDeleteHeatPumpConfirmId((current) => (current === link.id ? null : current));
-    setSelectedHeatPumpDeviceId(String(link.deviceId));
-    setHeatPumpStateHex(link.stateHex ?? "");
-    setHeatPumpAction(link.controlAction);
-    setHeatPumpComparisonType(link.comparisonType);
-    setHeatPumpPriceLimit(link.priceLimit === null ? "" : String(link.priceLimit));
-    setHeatPumpEstimatedPowerKw(link.estimatedPowerKw === null ? "" : String(link.estimatedPowerKw));
-    setIsHeatPumpLinkDialogOpen(true);
-  };
-
-  const handleOpenNewHeatPumpLinkDialog = () => {
-    resetHeatPumpForm();
-    setActiveDeviceTab("HEAT_PUMP");
-    setDeleteHeatPumpConfirmId(null);
-    setIsHeatPumpLinkDialogOpen(true);
-  };
-
-  const handleDeleteHeatPumpLink = async (linkId: number) => {
-    setLinksError(null);
-    setIsDeletingHeatPumpId(linkId);
-
-    try {
-      await deleteControlHeatPumpLink(linkId);
-      setHeatPumpLinks((current) => current.filter((link) => link.id !== linkId));
-      setDeleteHeatPumpConfirmId((current) => (current === linkId ? null : current));
-      if (editingHeatPumpLinkId === linkId) {
-        resetHeatPumpForm();
-        setIsHeatPumpLinkDialogOpen(false);
-      }
-    } catch (error) {
-      setLinksError(error instanceof Error ? error.message : t("failedRemoveHeatPump"));
-    } finally {
-      setIsDeletingHeatPumpId((current) => (current === linkId ? null : current));
     }
   };
 
@@ -900,95 +748,9 @@ export default function ManageControlView() {
               ) : null}
 
               {activeDeviceTab === "HEAT_PUMP" ? (
-                <>
-                  {isLoadingLinks ? (
-                    <p className="text-sm text-on-surface-variant">{t("loadingHeatPumpLinks")}</p>
-                  ) : null}
-
-                  {!isLoadingLinks && sortedHeatPumpLinks.length === 0 ? (
-                    <p className="text-sm text-on-surface-variant">{t("noHeatPumpLinks")}</p>
-                  ) : null}
-
-                  <div className="space-y-3">
-                    {sortedHeatPumpLinks.map((link) => (
-                      <div className="rounded-xl bg-surface-container p-4" key={link.id}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-headline font-bold text-on-surface">{link.device.deviceName}</p>
-                            <p className="text-sm text-on-surface-variant">
-                              {actionLabels[link.controlAction] ?? link.controlAction.replace(/_/g, " ")} {link.comparisonType ? `${comparisonLabels[link.comparisonType] ?? link.comparisonType.replace(/_/g, " ")} ${link.priceLimit ?? "-"}` : ""}
-                            </p>
-                          </div>
-                          {!control?.shared ? (
-                            deleteHeatPumpConfirmId === link.id ? (
-                              <div className="min-w-[10rem] space-y-3 rounded-xl bg-error-container/70 p-3">
-                                <div>
-                                  <p className="font-headline text-sm font-bold text-on-error-container">{common("confirmRemoval")}</p>
-                                  <p className="text-xs text-on-error-container">{t("unlinkHeatPumpDescription")}</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <button
-                                    className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container disabled:cursor-not-allowed disabled:opacity-60"
-                                    disabled={isDeletingHeatPumpId === link.id}
-                                    onClick={() => handleDeleteHeatPumpLink(link.id)}
-                                    type="button"
-                                  >
-                                    {isDeletingHeatPumpId === link.id ? common("removing") : common("confirm")}
-                                  </button>
-                                  <button
-                                    className="secondary-action justify-center px-3 py-2 text-xs"
-                                    disabled={isDeletingHeatPumpId === link.id}
-                                    onClick={() => setDeleteHeatPumpConfirmId(null)}
-                                    type="button"
-                                  >
-                                    {common("cancel")}
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <button
-                                  className="secondary-action justify-center px-3 py-2 text-xs"
-                                  onClick={() => handleEditHeatPumpLink(link)}
-                                  type="button"
-                                >
-                                  {common("edit")}
-                                </button>
-                                <button
-                                  className="rounded-lg bg-error-container px-3 py-2 text-xs font-bold text-on-error-container"
-                                  onClick={() => setDeleteHeatPumpConfirmId(link.id)}
-                                  type="button"
-                                >
-                                  {common("remove")}
-                                </button>
-                              </div>
-                            )
-                          ) : null}
-                        </div>
-                        <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
-                          <div>
-                            <span className="metric-label">{t("priceLimit")}</span>
-                            <p className="font-semibold text-on-surface">{link.priceLimit ?? "-"}</p>
-                          </div>
-                          <div>
-                            <span className="metric-label">{t("estimatedKw")}</span>
-                            <p className="font-semibold text-on-surface">{link.estimatedPowerKw ?? "-"}</p>
-                          </div>
-                          <div>
-                            <span className="metric-label">{t("state")}</span>
-                            <p className="line-clamp-3 whitespace-pre-wrap break-all rounded-lg bg-surface-container-highest p-3 font-mono text-xs text-on-surface">{link.stateHex}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {!control?.shared ? (
-                    <button className="secondary-action mt-6 w-full justify-center" onClick={handleOpenNewHeatPumpLinkDialog} type="button">
-                      {t("linkHeatPumpDevice")}
-                    </button>
-                  ) : null}
-                </>
+                isLoadingLinks ? <p className="text-sm text-on-surface-variant">{t("loadingHeatPumpLinks")}</p> :
+                  <ControlHeatPumpRulesCard controlId={controlId} timezone={control?.timezone ?? timezone}
+                    links={heatPumpLinks} devices={heatPumpDevices} isReadOnly={Boolean(control?.shared)} onLinksChange={setHeatPumpLinks} />
               ) : null}
 
               {activeDeviceTab === "NOTIFICATIONS" ? (
@@ -1130,167 +892,6 @@ export default function ManageControlView() {
         </form>
       </AppDialog>
 
-      <AppDialog
-        description={t("statePlaceholder")}
-        isOpen={isHeatPumpLinkDialogOpen}
-        onClose={() => {
-          resetHeatPumpForm();
-          setIsHeatPumpLinkDialogOpen(false);
-        }}
-        title={editingHeatPumpLinkId === null ? t("linkHeatPumpDevice") : t("saveHeatPumpRule")}
-      >
-        <form className="space-y-4" onSubmit={handleAddHeatPumpLink}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-device-dialog">
-                {t("device")}
-              </label>
-              <select
-                className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
-                id="heat-pump-device-dialog"
-                onChange={(event) => setSelectedHeatPumpDeviceId(event.target.value)}
-                value={selectedHeatPumpDeviceId}
-              >
-                <option value="">{t("selectHeatPumpDevice")}</option>
-                {selectableHeatPumpDevices.map((device) => (
-                  <option key={device.id} value={device.id}>{device.deviceName}</option>
-                ))}
-              </select>
-            </div>
-            <button className="secondary-action justify-center self-end disabled:cursor-not-allowed disabled:opacity-60" disabled={!selectedHeatPumpDeviceId} onClick={handleOpenHeatPumpStateDialog} type="button">
-              {t("queryEditState")}
-            </button>
-            <div>
-              <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-action-dialog">
-                {common("action")}
-              </label>
-              <select
-                className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
-                id="heat-pump-action-dialog"
-                onChange={(event) => setHeatPumpAction(event.target.value as ControlHeatPumpLink["controlAction"])}
-                value={heatPumpAction}
-              >
-                <option value="TURN_ON">{actionLabels.TURN_ON}</option>
-                <option value="TURN_OFF">{actionLabels.TURN_OFF}</option>
-                <option value="SET_TEMPERATURE">{actionLabels.SET_TEMPERATURE}</option>
-                <option value="SET_MODE">{actionLabels.SET_MODE}</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-comparison-dialog">
-                {t("comparison")}
-              </label>
-              <select
-                className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
-                id="heat-pump-comparison-dialog"
-                onChange={(event) => setHeatPumpComparisonType(event.target.value === "" ? null : event.target.value as ControlHeatPumpLink["comparisonType"])}
-                value={heatPumpComparisonType ?? ""}
-              >
-                <option value="">{t("noComparison")}</option>
-                <option value="GREATER_THAN">{comparisonLabels.GREATER_THAN}</option>
-                <option value="LESS_THAN">{comparisonLabels.LESS_THAN}</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-price-limit-dialog">
-                {t("priceLimit")}
-              </label>
-              <input
-                className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
-                id="heat-pump-price-limit-dialog"
-                onChange={(event) => setHeatPumpPriceLimit(event.target.value)}
-                placeholder={t("optional")}
-                step="0.1"
-                type="number"
-                value={heatPumpPriceLimit}
-              />
-            </div>
-            <div>
-              <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-estimated-power-dialog">
-                {t("estKw")}
-              </label>
-              <input
-                className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
-                id="heat-pump-estimated-power-dialog"
-                min="0"
-                onChange={(event) => setHeatPumpEstimatedPowerKw(event.target.value)}
-                placeholder={t("optional")}
-                step="0.1"
-                type="number"
-                value={heatPumpEstimatedPowerKw}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="heat-pump-state-dialog">
-              {t("state")}
-            </label>
-            <textarea
-              className="min-h-40 w-full rounded-xl bg-surface-container-highest px-4 py-3 font-mono text-xs text-on-surface outline-none"
-              id="heat-pump-state-dialog"
-              onChange={(event) => setHeatPumpStateHex(event.target.value)}
-              placeholder={t("statePlaceholder")}
-              value={heatPumpStateHex}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button className="secondary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canAddHeatPumpLink} type="submit">
-              {isAddingHeatPumpLink ? (editingHeatPumpLinkId === null ? t("linking") : t("savingHeatPumpRule")) : editingHeatPumpLinkId === null ? t("linkHeatPumpDevice") : t("saveHeatPumpRule")}
-            </button>
-            <button className="secondary-action justify-center" onClick={() => {
-              resetHeatPumpForm();
-              setIsHeatPumpLinkDialogOpen(false);
-            }} type="button">
-              {common("cancel")}
-            </button>
-          </div>
-        </form>
-      </AppDialog>
-
-      <HeatPumpStateDialog
-        acType={heatPumpDialogAcType}
-        currentState={heatPumpCurrentState}
-        formatAcType={(value) => acTypeLabels[value] ?? value.toLowerCase().replace(/_/g, " ").replace(/^\w/, (char) => char.toUpperCase())}
-        isLoading={isLoadingHeatPumpState}
-        isOpen={isHeatPumpStateDialogOpen}
-        labels={{
-          acType: t("acType"),
-          auto: t("auto"),
-          cancel: common("cancel"),
-          close: common("close"),
-          cool: t("cool"),
-          dry: t("dry"),
-          fanOnly: t("fanOnly"),
-          fanSpeed: t("fanSpeed"),
-          heat: t("heat"),
-          heatPumpState: t("heatPumpState"),
-          heatPumpStateHelp: t("heatPumpStateHelp"),
-          invalidState: t("invalidMitsubishiState"),
-          loading: common("loading"),
-          mode: t("workingMode"),
-          off: t("off"),
-          on: t("on"),
-          power: t("powerMode"),
-          rawState: t("rawState"),
-          refreshCurrentState: t("refreshCurrentState"),
-          saveState: t("saveState"),
-          selectCommandState: t("selectCommandState"),
-          targetTemperature: t("targetTemperature"),
-          useCurrent: t("useCurrent"),
-          useLastPolled: t("useLastPolled")
-        }}
-        lastPolledState={heatPumpLastPolledState}
-        onClose={() => setIsHeatPumpStateDialogOpen(false)}
-        onRefresh={() => loadHeatPumpStateForDialog(Number(selectedHeatPumpDeviceId))}
-        onSave={(value) => {
-          setHeatPumpStateHex(value);
-          setIsHeatPumpStateDialogOpen(false);
-        }}
-        onStateChange={setHeatPumpStateDialogValue}
-        stateValue={heatPumpStateDialogValue}
-      />
     </>
   );
 }

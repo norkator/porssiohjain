@@ -9,6 +9,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.Status;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.HeatPumpControlPreviewResponse;
+import com.nitramite.porssiohjain.services.models.ControlHeatPumpRulesRequest;
 import com.nitramite.porssiohjain.services.models.HeatPumpControlPreviewResponse.*;
 import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
 import jakarta.persistence.EntityNotFoundException;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,6 +45,20 @@ public class HeatPumpControlPreviewService {
     }
 
     HeatPumpControlPreviewResponse preview(Long accountId, Long controlId, Instant now) {
+        return preview(accountId, controlId, now, null, null);
+    }
+
+    public HeatPumpControlPreviewResponse previewDraft(Long accountId, Long controlId, Long deviceId,
+                                                       ControlHeatPumpRulesRequest request) {
+        var draft = controlService.prepareHeatPumpRules(accountId, controlId, deviceId, request);
+        // Stable synthetic IDs are used only by the graph; preview never writes or sends commands.
+        long id = -1;
+        for (var row : draft) if (row.getId() == null) row.setId(id--);
+        return preview(accountId, controlId, Instant.now(), deviceId, draft);
+    }
+
+    private HeatPumpControlPreviewResponse preview(Long accountId, Long controlId, Instant now,
+                                                   Long draftDevice, List<ControlHeatPumpEntity> draft) {
         // Use the same owned/shared-control authorization as the view before reading any rule or device.
         controlService.getControl(accountId, controlId);
         ControlEntity control = controlRepository.findById(controlId)
@@ -58,6 +74,13 @@ public class HeatPumpControlPreviewService {
         List<ControlTableEntity> schedule = controlTableRepository.findActivePeriodsOverlapping(
                 controlId, Status.FINAL, start, end);
 
+        List<ControlHeatPumpEntity> configured = new ArrayList<>(rules.findByControlIdOrderByIdAsc(controlId));
+        if (draftDevice != null) {
+            configured.removeIf(rule -> rule.getDevice().getId().equals(draftDevice));
+            configured.addAll(draft);
+        }
+        configured = ControlHeatPumpRuleEvaluator.ordered(configured);
+
         // Include authoritative delivery and schedule boundaries as well as quarter-hour points.
         // Walking instants between local midnights also covers 23/25-hour days without duplicate timestamps.
         SortedSet<Instant> boundaries = new TreeSet<>(List.of(start, now, end));
@@ -72,6 +95,12 @@ public class HeatPumpControlPreviewService {
             addBoundary(boundaries, row.getStartTime().plusSeconds(
                     ControlHeatPumpRuleEvaluator.CONTROL_LOOKBACK_SECONDS), start, end);
         });
+        for (var rule : configured) {
+            for (LocalDate date = today.minusDays(1); !date.isAfter(today.plusDays(2)); date = date.plusDays(1)) {
+                addLocalBoundary(boundaries, date, rule.getActiveFrom(), zone, start, end);
+                addLocalBoundary(boundaries, date, rule.getActiveUntil(), zone, start, end);
+            }
+        }
         List<Instant> times = List.copyOf(boundaries);
         List<PricePeriod> prices = new ArrayList<>();
         for (int i = 0; i < times.size() - 1; i++) {
@@ -82,7 +111,7 @@ public class HeatPumpControlPreviewService {
             prices.add(new PricePeriod(time, times.get(i + 1), combined));
         }
 
-        var byDevice = rules.findByControlIdOrderByIdAsc(controlId).stream()
+        var byDevice = configured.stream()
                 .collect(Collectors.groupingBy(rule -> rule.getDevice().getId(), LinkedHashMap::new, Collectors.toList()));
         List<Pump> pumps = new ArrayList<>();
         for (List<ControlHeatPumpEntity> deviceRules : byDevice.values()) {
@@ -114,11 +143,13 @@ public class HeatPumpControlPreviewService {
             else if (!hasAcData) reason = Reason.NO_AC_DATA;
             else {
                 // Live scheduling processes control rules in ascending ID order; the first match wins.
-                winner = deviceRules.stream().filter(rule -> ControlHeatPumpRuleEvaluator.evaluate(rule,
+                winner = deviceRules.stream().filter(rule -> ControlHeatPumpRuleEvaluator.evaluate(rule, price.start(),
                         () -> Optional.ofNullable(price.price()),
                         () -> ControlHeatPumpRuleEvaluator.controlActive(control, price.start(), schedule)).isPresent())
                         .findFirst().orElse(null);
-                reason = winner != null ? (ControlHeatPumpRuleEvaluator.usesPrice(winner) ? Reason.PRICE : Reason.SCHEDULE)
+                reason = winner != null ? (winner.isOutsideActiveTime() ? Reason.INACTIVE_TIME
+                        : ControlHeatPumpRuleEvaluator.usesPrice(winner) ? Reason.PRICE
+                        : Reason.SCHEDULE)
                         : price.price() == null && deviceRules.stream().anyMatch(ControlHeatPumpRuleEvaluator::usesPrice)
                         ? Reason.MISSING_PRICE : Reason.NO_MATCH;
             }
@@ -142,6 +173,18 @@ public class HeatPumpControlPreviewService {
     private boolean sameSetting(Period left, Period right) {
         return left.end().equals(right.start()) && Objects.equals(left.ruleId(), right.ruleId())
                 && left.reason() == right.reason() && Objects.equals(left.stateHex(), right.stateHex());
+    }
+
+    private void addLocalBoundary(Set<Instant> boundaries, LocalDate date, LocalTime time, ZoneId zone,
+                                  Instant start, Instant end) {
+        if (time == null) return;
+        var local = date.atTime(time);
+        var offsets = zone.getRules().getValidOffsets(local);
+        if (offsets.isEmpty()) addBoundary(boundaries, local.atZone(zone).toInstant(), start, end);
+        else offsets.forEach(offset -> addBoundary(boundaries, local.toInstant(offset), start, end));
+        // Clock changes can themselves cross a daily window boundary during repeated/skipped local times.
+        var transition = zone.getRules().nextTransition(date.atStartOfDay(zone).toInstant().minusNanos(1));
+        if (transition != null) addBoundary(boundaries, transition.getInstant(), start, end);
     }
 
     private void addBoundary(Set<Instant> boundaries, Instant time, Instant start, Instant end) {

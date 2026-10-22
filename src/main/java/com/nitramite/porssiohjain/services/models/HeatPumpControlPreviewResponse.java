@@ -17,7 +17,7 @@ public record HeatPumpControlPreviewResponse(String timezone, Instant generatedA
 
     public record Pump(Long id, String name, boolean competingRules, List<Period> periods) { }
 
-    public enum Reason { PRICE, SCHEDULE, NO_MATCH, MISSING_PRICE, DISABLED, NO_AC_DATA }
+    public enum Reason { PRICE, SCHEDULE, INACTIVE_TIME, NO_MATCH, MISSING_PRICE, DISABLED, NO_AC_DATA }
 
     public record Period(Instant start, Instant end, Long ruleId, Reason reason, ComparisonType comparison,
                          BigDecimal threshold, String stateHex, State state, boolean assumed) { }

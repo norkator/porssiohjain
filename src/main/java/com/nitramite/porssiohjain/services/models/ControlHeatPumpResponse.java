@@ -19,6 +19,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 
 @Data
 @Builder
@@ -33,5 +34,11 @@ public class ControlHeatPumpResponse {
     private ComparisonType comparisonType;
     private BigDecimal priceLimit;
     private BigDecimal estimatedPowerKw;
+
+    private LocalTime activeFrom;
+    private LocalTime activeUntil;
+    private boolean outsideActiveTime;
+    private Integer ruleOrder;
+
     private DeviceResponse device;
 }

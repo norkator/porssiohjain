@@ -90,6 +90,10 @@ export type ControlHeatPumpLink = {
   id: number;
   controlId: number;
   deviceId: number;
+  activeFrom: string | null;
+  activeUntil: string | null;
+  outsideActiveTime: boolean;
+  ruleOrder: number | null;
   stateHex: string;
   controlAction: "TURN_ON" | "TURN_OFF" | "SET_TEMPERATURE" | "SET_MODE";
   comparisonType: "GREATER_THAN" | "LESS_THAN" | null;
@@ -469,4 +473,39 @@ export function getLatestControlUpdate(controls: ApiControl[]) {
     .filter((control) => control.updatedAt)
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))[0]
     ?.updatedAt ?? null;
+}
+
+export type HeatPumpRule = Pick<ControlHeatPumpLink, "stateHex" | "controlAction" | "comparisonType" | "priceLimit" | "estimatedPowerKw"> & {
+  id: number | null;
+  outsideActiveTime: boolean;
+};
+export type HeatPumpRulesPayload = { activeFrom: string | null; activeUntil: string | null; rules: HeatPumpRule[] };
+export type HeatPumpPreviewState = { power: boolean | null; mode: string | null; temperature: number | null; fan: string | null; swing: string | null };
+export type HeatPumpPreviewPeriod = {
+  start: string; end: string; ruleId: number | null;
+  reason: "PRICE" | "SCHEDULE" | "INACTIVE_TIME" | "NO_MATCH" | "MISSING_PRICE" | "DISABLED" | "NO_AC_DATA";
+  comparison: ControlHeatPumpLink["comparisonType"]; threshold: number | null;
+  stateHex: string | null; state: HeatPumpPreviewState | null; assumed: boolean;
+};
+export type HeatPumpPreview = {
+  timezone: string; generatedAt: string; start: string; end: string;
+  prices: { start: string; end: string; price: number | null }[];
+  pumps: { id: number; name: string; competingRules: boolean; periods: HeatPumpPreviewPeriod[] }[];
+};
+
+export async function saveHeatPumpRules(controlId: number, deviceId: number, payload: HeatPumpRulesPayload) {
+  const response = await apiFetch(`/api/controls/${controlId}/heat-pumps/${deviceId}/rules`, {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+  });
+  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+  return response.json() as Promise<ControlHeatPumpLink[]>;
+}
+
+export async function previewHeatPumpRules(controlId: number, deviceId?: number, payload?: HeatPumpRulesPayload) {
+  const response = await apiFetch(deviceId === undefined ? `/api/controls/${controlId}/heat-pumps/preview`
+    : `/api/controls/${controlId}/heat-pumps/${deviceId}/preview`, payload ? {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+  } : undefined);
+  if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
+  return response.json() as Promise<HeatPumpPreview>;
 }

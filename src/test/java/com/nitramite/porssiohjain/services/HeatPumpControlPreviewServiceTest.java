@@ -13,6 +13,8 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalTime;
+import com.nitramite.porssiohjain.services.models.ControlHeatPumpRulesRequest;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -53,6 +55,65 @@ class HeatPumpControlPreviewServiceTest {
         when(controlRepository.findById(5L)).thenReturn(Optional.of(control));
         when(acData.findByDevice(pump)).thenReturn(Optional.of(DeviceAcDataEntity.builder()
                 .device(pump).acType(AcType.MITSUBISHI_MELCLOUD_HOME).build()));
+    }
+
+    @Test
+    void draftPreviewUsesUnsavedRulesWithoutSavingOrRemovingLinks() {
+        var draft = rule(null, null, null, true, 23);
+        var request = new ControlHeatPumpRulesRequest(null, null, List.of());
+        when(controls.prepareHeatPumpRules(7L, 5L, 9L, request)).thenReturn(List.of(draft));
+        control.setMode(com.nitramite.porssiohjain.entity.enums.ControlMode.MANUAL);
+        control.setManualOn(true);
+        var preview = service.previewDraft(7L, 5L, 9L, request);
+        assertThat(preview.pumps()).hasSize(1);
+        assertThat(preview.pumps().getFirst().periods().getFirst().state().power()).isTrue();
+        assertThat(preview.pumps().getFirst().periods().getFirst().ruleId()).isNegative();
+        verify(rules, never()).saveAll(any());
+        verify(rules, never()).deleteAll(any());
+    }
+
+    @Test
+    void repeatedDstHourAddsBothWindowBoundariesAndTheClockTransition() {
+        Instant dstNow = Instant.parse("2026-10-24T21:00:00Z");
+        var on = rule(10L, ComparisonType.LESS_THAN, "20", true, 22);
+        var off = rule(11L, null, null, false, 18);
+        for (var row : List.of(on, off)) {
+            row.setActiveFrom(LocalTime.of(3, 15));
+            row.setActiveUntil(LocalTime.of(3, 45));
+        }
+        off.setOutsideActiveTime(true);
+        when(rules.findByControlIdOrderByIdAsc(5L)).thenReturn(List.of(on, off));
+        prices(List.of(price(dstNow, dstNow.plusSeconds(90000), "50")));
+        var result = service.preview(7L, 5L, dstNow).pumps().getFirst().periods();
+        var active = result.stream().filter(period -> period.reason() == Reason.PRICE).toList();
+        assertThat(active).hasSize(2);
+        assertThat(active).extracting(HeatPumpControlPreviewResponse.Period::start).containsExactly(
+                Instant.parse("2026-10-25T00:15:00Z"), Instant.parse("2026-10-25T01:15:00Z"));
+        assertThat(active).extracting(HeatPumpControlPreviewResponse.Period::end).containsExactly(
+                Instant.parse("2026-10-25T00:45:00Z"), Instant.parse("2026-10-25T01:45:00Z"));
+    }
+
+    @Test
+    void previewSwitchesAtExactNonQuarterDailyWindowBoundariesWithoutNeedingPricesOutside() {
+        var on = rule(10L, ComparisonType.LESS_THAN, "20", true, 22);
+        var off = rule(11L, null, null, false, 18);
+        for (var row : List.of(on, off)) {
+            row.setActiveFrom(LocalTime.of(12, 10));
+            row.setActiveUntil(LocalTime.of(12, 20));
+        }
+        off.setOutsideActiveTime(true);
+        when(rules.findByControlIdOrderByIdAsc(5L)).thenReturn(List.of(on, off));
+        prices(List.of(price(now.minusSeconds(420), now.plusSeconds(3600), "50")));
+
+        var result = service.preview(7L, 5L, now).pumps().getFirst().periods();
+        assertThat(result.get(0).reason()).isEqualTo(Reason.INACTIVE_TIME);
+        assertThat(result.get(0).state().power()).isFalse();
+        assertThat(result.get(0).end()).isEqualTo(Instant.parse("2026-10-20T09:10:00Z"));
+        assertThat(result.get(1).state().power()).isTrue();
+        assertThat(result.get(1).end()).isEqualTo(Instant.parse("2026-10-20T09:20:00Z"));
+        assertThat(result.get(2).reason()).isEqualTo(Reason.INACTIVE_TIME);
+        assertThat(result.get(2).state().power()).isFalse();
+        verify(rules, never()).saveAll(any());
     }
 
     @Test

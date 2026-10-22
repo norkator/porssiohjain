@@ -85,6 +85,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     private final HeatPumpControlPreviewService heatPumpControlPreviewService;
 
     private final Grid<ControlDeviceResponse> deviceGrid = new Grid<>(ControlDeviceResponse.class, false);
+    private List<ControlHeatPumpResponse> heatPumpRules = List.of();
     private final Grid<ControlHeatPumpResponse> heatPumpGrid = new Grid<>(ControlHeatPumpResponse.class, false);
     private final Grid<ControlThermostatResponse> thermostatGrid = new Grid<>(ControlThermostatResponse.class, false);
     private final Grid<ControlNotificationResponse> notificationGrid = new Grid<>(ControlNotificationResponse.class, false);
@@ -96,15 +97,6 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private Div chartTodayDiv, chartTomorrowDiv;
-    private ComboBox<DeviceResponse> heatPumpDeviceSelect;
-    private TextField heatPumpStateHexField;
-    private ComboBox<ControlAction> heatPumpActionCombo;
-    private ComboBox<ComparisonType> heatPumpComparisonCombo;
-    private NumberField heatPumpPriceLimitField;
-    private NumberField heatPumpEstimatedPowerKwField;
-    private Button heatPumpSaveButton;
-    private Button heatPumpCancelButton;
-    private ControlHeatPumpResponse selectedHeatPumpLink;
     private ComboBox<DeviceResponse> thermostatDeviceSelect;
     private NumberField thermostatChannelField;
     private TextArea thermostatCurveField;
@@ -494,29 +486,16 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
 
     private void configureHeatPumpGrid() {
         heatPumpGrid.removeAllColumns();
-        heatPumpGrid.addColumn(cd -> cd.getDevice().getDeviceName()).setHeader(t("controlTable.grid.deviceName"));
-        heatPumpGrid.addColumn(cd -> t("controlAction." + cd.getControlAction().name())).setHeader(t("controlTable.grid.action"));
-        heatPumpGrid.addColumn(cd -> cd.getComparisonType() != null ? t("comparisonType." + cd.getComparisonType().name()) : "").setHeader(t("controlTable.grid.comparisonType"));
-        heatPumpGrid.addColumn(ControlHeatPumpResponse::getPriceLimit).setHeader(t("controlTable.grid.priceLimit"));
-        heatPumpGrid.addColumn(ControlHeatPumpResponse::getEstimatedPowerKw).setHeader(t("controlTable.grid.estimatedPowerKw"));
-        heatPumpGrid.addColumn(ControlHeatPumpResponse::getStateHex).setHeader(t("controlTable.grid.stateHex"));
-        heatPumpGrid.addComponentColumn(cd -> {
-            Button decode = new Button(t("controlTable.button.decodeState"), e -> openHeatPumpStateHexDialog(cd.getStateHex()));
-            Button delete = new Button(t("controlTable.button.delete"), e -> {
-                controlService.deleteControlHeatPump(getAccountId(), cd.getId());
-                if (selectedHeatPumpLink != null && selectedHeatPumpLink.getId().equals(cd.getId())) {
-                    clearHeatPumpForm();
-                }
-                loadControlHeatPumps();
-            });
-            delete.addThemeVariants(ButtonVariant.LUMO_ERROR);
-            HorizontalLayout actions = new HorizontalLayout(decode, delete);
-            actions.setPadding(false);
-            actions.setSpacing(true);
-            actions.setMargin(false);
-            return actions;
-        }).setHeader(t("controlTable.grid.actions"));
-        heatPumpGrid.setMaxHeight("200px");
+        heatPumpGrid.addColumn(row -> row.getDevice().getDeviceName()).setHeader(t("controlTable.grid.deviceName"));
+        heatPumpGrid.addColumn(row -> heatPumpRules.stream()
+                .filter(rule -> rule.getDeviceId().equals(row.getDeviceId()) && !rule.isOutsideActiveTime()).count())
+                .setHeader(t("controlTable.heatPumpRules.rules"));
+        heatPumpGrid.addColumn(row -> row.getActiveFrom() == null ? t("controlTable.heatPumpRules.allDay")
+                : row.getActiveFrom() + " – " + row.getActiveUntil() + " · " + control.getTimezone())
+                .setHeader(t("controlTable.heatPumpRules.window"));
+        heatPumpGrid.addComponentColumn(row -> new Button(t("controlTable.heatPumpRules.edit"),
+                event -> editHeatPumpLink(row))).setHeader(t("controlTable.grid.actions"));
+        heatPumpGrid.setAllRowsVisible(true);
     }
 
     private void configureThermostatGrid() {
@@ -584,11 +563,11 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private void loadControlHeatPumps() {
-        heatPumpGrid.setItems(
-                controlService.getControlHeatPumps(getAccountId(), controlId).stream()
-                        .filter(cd -> cd.getDevice().getDeviceType() == DeviceType.HEAT_PUMP)
-                        .toList()
-        );
+        var grouped = new java.util.LinkedHashMap<Long, ControlHeatPumpResponse>();
+        heatPumpRules = controlService.getControlHeatPumps(getAccountId(), controlId);
+        heatPumpRules.stream().filter(row -> row.getDevice().getDeviceType() == DeviceType.HEAT_PUMP)
+                .forEach(row -> grouped.putIfAbsent(row.getDeviceId(), row));
+        heatPumpGrid.setItems(grouped.values());
     }
 
     private void loadControlThermostats() {
@@ -648,108 +627,15 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private Component createAddHeatPumpLayout() {
-        heatPumpDeviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
-        heatPumpDeviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
-        heatPumpDeviceSelect.setItems(
+        return new Button(t("controlTable.heatPumpRules.addPump"), event -> openHeatPumpRules(null));
+    }
+
+    private void openHeatPumpRules(Long deviceId) {
+        new HeatPumpRuleSetDialog(getAccountId(), controlId, control.getTimezone(), deviceId,
                 deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
-                        .filter(d -> d.getDeviceType() == DeviceType.HEAT_PUMP)
-                        .toList()
-        );
-        heatPumpDeviceSelect.setWidthFull();
-
-        heatPumpStateHexField = new TextField(t("controlTable.field.stateHex"));
-        heatPumpStateHexField.setReadOnly(true);
-        heatPumpStateHexField.setWidthFull();
-
-        Button queryStateButton = new Button(t("controlTable.button.queryState"), e -> {
-            if (heatPumpDeviceSelect.getValue() != null) {
-                openHeatPumpStateDialog(heatPumpDeviceSelect.getValue(), heatPumpStateHexField);
-            } else {
-                Notification.show(t("controlTable.notification.selectDeviceFirst"), 3000, Notification.Position.MIDDLE);
-            }
-        });
-        queryStateButton.setWidthFull();
-
-        heatPumpActionCombo = new ComboBox<>(t("controlTable.field.action"));
-        heatPumpActionCombo.setItems(ControlAction.values());
-        heatPumpActionCombo.setItemLabelGenerator(action -> t("controlAction." + action.name()));
-        heatPumpActionCombo.setWidthFull();
-
-        heatPumpComparisonCombo = new ComboBox<>(t("controlTable.field.comparisonType"));
-        heatPumpComparisonCombo.setItems(ComparisonType.values());
-        heatPumpComparisonCombo.setItemLabelGenerator(type -> t("comparisonType." + type.name()));
-        heatPumpComparisonCombo.setWidthFull();
-
-        heatPumpPriceLimitField = new NumberField(t("controlTable.field.priceLimit"));
-        heatPumpPriceLimitField.setStep(0.1);
-        heatPumpPriceLimitField.setWidthFull();
-
-        heatPumpEstimatedPowerKwField = new NumberField(t("controlTable.field.estimatedPowerKw"));
-        heatPumpEstimatedPowerKwField.setStep(0.1);
-        heatPumpEstimatedPowerKwField.setMin(0);
-        heatPumpEstimatedPowerKwField.setWidthFull();
-
-        heatPumpSaveButton = new Button(t("controlTable.button.addDevice"), e -> {
-            if (heatPumpDeviceSelect.getValue() != null && !heatPumpStateHexField.getValue().isEmpty() && heatPumpActionCombo.getValue() != null) {
-                if (selectedHeatPumpLink != null) {
-                    controlService.updateControlHeatPump(
-                            getAccountId(),
-                            selectedHeatPumpLink.getId(),
-                            heatPumpDeviceSelect.getValue().getId(),
-                            heatPumpStateHexField.getValue(),
-                            heatPumpActionCombo.getValue(),
-                            heatPumpComparisonCombo.getValue(),
-                            heatPumpPriceLimitField.getValue() != null ? BigDecimal.valueOf(heatPumpPriceLimitField.getValue()) : null,
-                            heatPumpEstimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(heatPumpEstimatedPowerKwField.getValue()) : null
-                    );
-                } else {
-                    controlService.addHeatPumpToControl(
-                            getAccountId(),
-                            controlId,
-                            heatPumpDeviceSelect.getValue().getId(),
-                            heatPumpStateHexField.getValue(),
-                            heatPumpActionCombo.getValue(),
-                            heatPumpComparisonCombo.getValue(),
-                            heatPumpPriceLimitField.getValue() != null ? BigDecimal.valueOf(heatPumpPriceLimitField.getValue()) : null,
-                            heatPumpEstimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(heatPumpEstimatedPowerKwField.getValue()) : null
-                    );
-                }
-                loadControlHeatPumps();
-                clearHeatPumpForm();
-            }
-        });
-        heatPumpSaveButton.setWidthFull();
-        heatPumpSaveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-        heatPumpCancelButton = new Button(t("common.cancel"), e -> clearHeatPumpForm());
-        heatPumpCancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        heatPumpCancelButton.setWidthFull();
-        heatPumpCancelButton.setVisible(false);
-
-        FormLayout formLayout = new FormLayout(
-                heatPumpDeviceSelect,
-                queryStateButton,
-                heatPumpStateHexField,
-                heatPumpActionCombo,
-                heatPumpComparisonCombo,
-                heatPumpPriceLimitField,
-                heatPumpEstimatedPowerKwField,
-                heatPumpSaveButton,
-                heatPumpCancelButton
-        );
-        formLayout.setResponsiveSteps(
-                new FormLayout.ResponsiveStep("0", 1),
-                new FormLayout.ResponsiveStep("600px", 4)
-        );
-
-        formLayout.getStyle()
-                .set("padding", "16px")
-                .set("border-radius", "12px")
-                .set("box-shadow", "0 2px 6px rgba(0,0,0,0.1)")
-                .set("background-color", "var(--lumo-contrast-5pct)");
-
-        clearHeatPumpForm();
-        return formLayout;
+                        .filter(device -> device.getDeviceType() == DeviceType.HEAT_PUMP).toList(),
+                controlService.getControlHeatPumps(getAccountId(), controlId), controlService,
+                heatPumpControlPreviewService, heatPumpStateDialogService, i18n, this::loadControlHeatPumps).open();
     }
 
     private Component createAddThermostatLayout() {
@@ -872,42 +758,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
     }
 
     private void editHeatPumpLink(ControlHeatPumpResponse link) {
-        selectedHeatPumpLink = link;
-        if (heatPumpDeviceSelect == null) {
-            return;
-        }
-
-        DeviceResponse matchingDevice = deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
-                .filter(device -> device.getDeviceType() == DeviceType.HEAT_PUMP)
-                .filter(device -> device.getId().equals(link.getDeviceId()))
-                .findFirst()
-                .orElse(null);
-
-        heatPumpDeviceSelect.setValue(matchingDevice);
-        heatPumpStateHexField.setValue(link.getStateHex() != null ? link.getStateHex() : "");
-        heatPumpActionCombo.setValue(link.getControlAction());
-        heatPumpComparisonCombo.setValue(link.getComparisonType());
-        heatPumpPriceLimitField.setValue(link.getPriceLimit() != null ? link.getPriceLimit().doubleValue() : null);
-        heatPumpEstimatedPowerKwField.setValue(link.getEstimatedPowerKw() != null ? link.getEstimatedPowerKw().doubleValue() : null);
-        heatPumpSaveButton.setText(t("controlTable.button.save"));
-        heatPumpCancelButton.setVisible(true);
-    }
-
-    private void clearHeatPumpForm() {
-        selectedHeatPumpLink = null;
-        if (heatPumpDeviceSelect == null) {
-            return;
-        }
-
-        heatPumpGrid.deselectAll();
-        heatPumpDeviceSelect.clear();
-        heatPumpStateHexField.clear();
-        heatPumpActionCombo.clear();
-        heatPumpComparisonCombo.clear();
-        heatPumpPriceLimitField.clear();
-        heatPumpEstimatedPowerKwField.clear();
-        heatPumpSaveButton.setText(t("controlTable.button.addDevice"));
-        heatPumpCancelButton.setVisible(false);
+        openHeatPumpRules(link.getDeviceId());
     }
 
     private void editThermostatLink(ControlThermostatResponse link) {

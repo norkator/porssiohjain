@@ -16,8 +16,9 @@ import com.nitramite.porssiohjain.entity.enums.Status;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Collection;
-import java.util.Optional;
+import java.time.ZoneId;
+import java.time.LocalTime;
+import java.util.*;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
@@ -38,7 +39,21 @@ public final class ControlHeatPumpRuleEvaluator {
     public static Optional<Match> evaluate(ControlHeatPumpEntity rule,
                                            Supplier<Optional<BigDecimal>> price,
                                            BooleanSupplier controlActive) {
+        return evaluate(rule, Instant.now(), price, controlActive);
+    }
+
+    public static Optional<Match> evaluate(ControlHeatPumpEntity rule, Instant time,
+                                           Supplier<Optional<BigDecimal>> price,
+                                           BooleanSupplier controlActive) {
         if (!eligible(rule.getDevice())) return Optional.empty();
+        if (rule.getActiveFrom() != null && rule.getActiveUntil() != null) {
+            LocalTime local = time.atZone(ZoneId.of(rule.getControl().getTimezone())).toLocalTime();
+            boolean active = rule.getActiveFrom().isBefore(rule.getActiveUntil())
+                    ? !local.isBefore(rule.getActiveFrom()) && local.isBefore(rule.getActiveUntil())
+                    : !local.isBefore(rule.getActiveFrom()) || local.isBefore(rule.getActiveUntil());
+            if (rule.isOutsideActiveTime()) return active ? Optional.empty() : Optional.of(new Match(false, null));
+            if (!active) return Optional.empty();
+        } else if (rule.isOutsideActiveTime()) return Optional.empty();
         if (usesPrice(rule)) {
             return price.get().filter(value -> rule.getComparisonType() == ComparisonType.LESS_THAN
                             ? value.compareTo(rule.getPriceLimit()) < 0 : value.compareTo(rule.getPriceLimit()) > 0)
@@ -55,8 +70,32 @@ public final class ControlHeatPumpRuleEvaluator {
                 && !time.isBefore(row.getStartTime()) && time.isBefore(row.getEndTime()));
     }
 
+    /** Keep legacy cross-control precedence, then apply the explicit order within each pump's rule set. */
+    public static List<ControlHeatPumpEntity> ordered(Collection<ControlHeatPumpEntity> rules) {
+        List<ControlHeatPumpEntity> sorted = rules.stream().sorted(Comparator.comparing(ControlHeatPumpEntity::getId,
+                Comparator.nullsLast(Comparator.naturalOrder()))).toList();
+        Map<String, List<ControlHeatPumpEntity>> groups = new LinkedHashMap<>();
+        for (var rule : sorted) {
+            String key = rule.getControl().getId() + ":" + rule.getDevice().getId();
+            groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(rule);
+        }
+        Set<String> emitted = new HashSet<>();
+        List<ControlHeatPumpEntity> result = new ArrayList<>();
+        for (var rule : sorted) {
+            String key = rule.getControl().getId() + ":" + rule.getDevice().getId();
+            var group = groups.get(key);
+            if (group.stream().noneMatch(row -> row.getRuleOrder() != null)) result.add(rule);
+            else if (emitted.add(key)) {
+                group.sort(Comparator.comparing(row -> row.getRuleOrder() == null ? Long.MAX_VALUE : row.getRuleOrder().longValue()));
+                result.addAll(group);
+            }
+        }
+        return result;
+    }
+
     public record Match(boolean priceBased, BigDecimal price) {
         public String schedulerReason(ControlHeatPumpEntity rule) {
+            if (rule.isOutsideActiveTime()) return "outside configured daily window";
             return priceBased ? String.format("price %s %s (actual=%s)",
                     rule.getComparisonType(), rule.getPriceLimit(), price) : "control schedule currently active";
         }

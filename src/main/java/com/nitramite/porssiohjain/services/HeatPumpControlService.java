@@ -84,8 +84,7 @@ public class HeatPumpControlService {
                 .sorted(Comparator.comparing(ProductionSourceHeatPumpEntity::getId))
                 .forEach(rule -> addIfMatched(commandsByDeviceId, evaluateProductionRule(rule)));
 
-        controlHeatPumpRepository.findAll().stream()
-                .sorted(Comparator.comparing(ControlHeatPumpEntity::getId))
+        ControlHeatPumpRuleEvaluator.ordered(controlHeatPumpRepository.findAll()).stream()
                 .forEach(rule -> addIfMatched(commandsByDeviceId, evaluateControlRule(rule, now)));
 
         commandsByDeviceId.values().forEach(this::dispatchCandidate);
@@ -166,7 +165,7 @@ public class HeatPumpControlService {
             ControlHeatPumpEntity rule,
             Instant now
     ) {
-        return ControlHeatPumpRuleEvaluator.evaluate(rule,
+        return ControlHeatPumpRuleEvaluator.evaluate(rule, now,
                         () -> getCurrentControlPrice(rule.getControl(), now),
                         () -> isControlActive(rule.getControl(), now))
                 .map(match -> new HeatPumpCommandCandidate(rule.getDevice(), rule.getStateHex(), 3,

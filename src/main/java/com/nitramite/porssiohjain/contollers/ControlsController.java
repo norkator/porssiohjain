@@ -143,6 +143,12 @@ public class ControlsController {
         return controlService.getControlHeatPumps(authContext.getAccountId(), controlId);
     }
 
+    @PutMapping("/{controlId}/heat-pumps/{deviceId}/rules")
+    public List<ControlHeatPumpResponse> saveHeatPumpRules(@PathVariable Long controlId, @PathVariable Long deviceId,
+            @RequestBody ControlHeatPumpRulesRequest request) {
+        return controlService.saveHeatPumpRules(authContext.getAccountId(), controlId, deviceId, request);
+    }
+
     @PostMapping("/{controlId}/links/heat-pumps")
     public ControlHeatPumpResponse addHeatPumpLink(
             @PathVariable Long controlId,

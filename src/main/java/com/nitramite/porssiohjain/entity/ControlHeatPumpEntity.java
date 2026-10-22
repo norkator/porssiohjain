@@ -17,6 +17,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "control_heat_pump")
@@ -55,5 +56,19 @@ public class ControlHeatPumpEntity {
 
     @Column(name = "estimated_power_kw", precision = 10, scale = 3)
     private BigDecimal estimatedPowerKw;
+
+    // The grouped editor saves these shared daily-window values atomically for every device rule.
+    @Column(name = "active_from")
+    private LocalTime activeFrom;
+
+    @Column(name = "active_until")
+    private LocalTime activeUntil;
+
+    @Column(name = "outside_active_time", nullable = false)
+    private boolean outsideActiveTime;
+
+    @Column(name = "rule_order")
+    private Integer ruleOrder;
+
 
 }

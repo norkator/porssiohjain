@@ -518,6 +518,67 @@ public class ControlService {
                 .toList();
     }
 
+    /** Validates the entire replacement before mutating any persisted row; also used for draft previews. */
+    public List<ControlHeatPumpEntity> prepareHeatPumpRules(Long accountId, Long controlId, Long deviceId,
+                                                          ControlHeatPumpRulesRequest request) {
+        demoAccountGuard.assertWritable(accountId);
+        ControlEntity control = getOwnedControl(accountId, controlId);
+        DeviceEntity device = getOwnedDevice(accountId, deviceId);
+        if (device.getDeviceType() != DeviceType.HEAT_PUMP) throw new IllegalArgumentException("Select a heat pump");
+        if (request == null || request.rules() == null) throw new IllegalArgumentException("Rules are required");
+        boolean timed = request.activeFrom() != null && request.activeUntil() != null;
+        if ((request.activeFrom() == null) != (request.activeUntil() == null)
+                || timed && (request.activeFrom().equals(request.activeUntil())
+                || request.activeFrom().getSecond() != 0 || request.activeFrom().getNano() != 0
+                || request.activeUntil().getSecond() != 0 || request.activeUntil().getNano() != 0))
+            throw new IllegalArgumentException("Use distinct start and end times with minute precision");
+        var existing = controlHeatPumpRepository.findByControlIdOrderByIdAsc(controlId).stream()
+                .filter(row -> row.getDevice().getId().equals(deviceId)).toList();
+        Set<Long> allowedIds = new HashSet<>();
+        existing.forEach(row -> allowedIds.add(row.getId()));
+        Set<Long> seen = new HashSet<>();
+        int outside = 0;
+        List<ControlHeatPumpEntity> result = new ArrayList<>();
+        for (var rule : request.rules()) {
+            if (rule == null || rule.stateHex() == null || rule.stateHex().isBlank() || rule.controlAction() == null)
+                throw new IllegalArgumentException("Every action needs a captured heat-pump state");
+            if (rule.id() != null && (!allowedIds.contains(rule.id()) || !seen.add(rule.id())))
+                throw new IllegalArgumentException("Invalid or duplicate heat-pump rule ID");
+            if ((rule.comparisonType() == null) != (rule.priceLimit() == null)
+                    || rule.estimatedPowerKw() != null && rule.estimatedPowerKw().signum() < 0)
+                throw new IllegalArgumentException("Provide a price comparison and threshold together, and nonnegative power");
+            if (rule.outsideActiveTime()) {
+                outside++;
+                if (!timed || rule.comparisonType() != null)
+                    throw new IllegalArgumentException("The outside-window action needs a time window and no price condition");
+            }
+            result.add(ControlHeatPumpEntity.builder().id(rule.id()).control(control).device(device)
+                    .stateHex(rule.stateHex().trim()).controlAction(rule.controlAction())
+                    .comparisonType(rule.comparisonType()).priceLimit(rule.priceLimit())
+                    .estimatedPowerKw(rule.estimatedPowerKw()).activeFrom(request.activeFrom())
+                    .activeUntil(request.activeUntil()).outsideActiveTime(rule.outsideActiveTime())
+                    .ruleOrder(result.size()).build());
+        }
+        if (!result.isEmpty() && (outside != (timed ? 1 : 0) || outside == result.size()))
+            throw new IllegalArgumentException("Add at least one active rule and exactly one outside-window action when timed");
+        return result;
+    }
+
+    public List<ControlHeatPumpResponse> saveHeatPumpRules(Long accountId, Long controlId, Long deviceId,
+                                                         ControlHeatPumpRulesRequest request) {
+        demoAccountGuard.assertWritable(accountId);
+        // Serialize complete replacements, including simultaneous first-time links for the same pump.
+        controlRepository.lockHeatPumpRuleUpdate(controlId, accountId)
+                .orElseThrow(() -> new EntityNotFoundException("Control not found for account"));
+        var replacement = prepareHeatPumpRules(accountId, controlId, deviceId, request);
+        Set<Long> retained = new HashSet<>();
+        replacement.forEach(row -> { if (row.getId() != null) retained.add(row.getId()); });
+        var removed = controlHeatPumpRepository.findByControlIdOrderByIdAsc(controlId).stream()
+                .filter(row -> row.getDevice().getId().equals(deviceId) && !retained.contains(row.getId())).toList();
+        controlHeatPumpRepository.deleteAll(removed);
+        return controlHeatPumpRepository.saveAll(replacement).stream().map(this::toControlHeatPumpResponse).toList();
+    }
+
     private ControlHeatPumpResponse toControlHeatPumpResponse(ControlHeatPumpEntity entity) {
         return ControlHeatPumpResponse.builder()
                 .id(entity.getId())
@@ -528,6 +589,10 @@ public class ControlService {
                 .comparisonType(entity.getComparisonType())
                 .priceLimit(entity.getPriceLimit())
                 .estimatedPowerKw(entity.getEstimatedPowerKw())
+                .activeFrom(entity.getActiveFrom())
+                .activeUntil(entity.getActiveUntil())
+                .outsideActiveTime(entity.isOutsideActiveTime())
+                .ruleOrder(entity.getRuleOrder())
                 .device(
                         DeviceResponse.builder()
                                 .id(entity.getDevice().getId())

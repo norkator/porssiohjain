@@ -1347,3 +1347,8 @@ vaadin-grid::part(fresh-control-device-call) {
 .retro-request-notification:focus-visible { outline: 1px dotted #000080; outline-offset: -4px; }
 .retro-request-notification:active { border-color: #404040 #fff #fff #404040; }
 .retro-request-badge[hidden], .retro-request-notification[hidden] { display: none !important; }
+
+/* Keep the heat-pump operation preview visible before the rules on narrow screens. */
+@media (max-width: 760px) {
+    .heat-pump-rule-preview { order: -1; }
+}

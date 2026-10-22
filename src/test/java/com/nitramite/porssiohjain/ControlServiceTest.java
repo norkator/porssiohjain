@@ -12,6 +12,9 @@
 package com.nitramite.porssiohjain;
 
 import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
+import com.nitramite.porssiohjain.entity.ControlHeatPumpEntity;
+import com.nitramite.porssiohjain.services.models.ControlHeatPumpRulesRequest;
+import java.time.LocalTime;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import com.nitramite.porssiohjain.entity.ControlTableEntity;
 import com.nitramite.porssiohjain.entity.ControlThermostatEntity;
@@ -74,6 +77,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -81,6 +85,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -194,6 +199,93 @@ class ControlServiceTest {
         );
         lenient().when(loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
         lenient().when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
+    }
+
+    private ControlHeatPumpRulesRequest.Rule pumpRule(Long id, String state, ComparisonType comparison, BigDecimal price, boolean outside) {
+        return new ControlHeatPumpRulesRequest.Rule(id, state, outside ? ControlAction.TURN_OFF : ControlAction.TURN_ON,
+                comparison, price, null, outside);
+    }
+
+    private DeviceEntity ownPumpRules(List<ControlHeatPumpEntity> existing) {
+        var account = new AccountEntity();
+        account.setId(1L);
+        var control = ControlEntity.builder().id(10L).account(account).timezone("Europe/Helsinki").build();
+        var device = new DeviceEntity();
+        device.setId(20L);
+        device.setDeviceType(DeviceType.HEAT_PUMP);
+        lenient().when(controlRepository.lockHeatPumpRuleUpdate(10L, 1L)).thenReturn(Optional.of(control));
+        when(controlRepository.findByIdAndAccountId(10L, 1L)).thenReturn(Optional.of(control));
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(deviceRepository.findByIdAndAccount(20L, account)).thenReturn(Optional.of(device));
+        lenient().when(controlHeatPumpRepository.findByControlIdOrderByIdAsc(10L)).thenReturn(existing);
+        existing.forEach(row -> { row.setControl(control); row.setDevice(device); });
+        return device;
+    }
+
+    @Test
+    void groupedPumpSaveValidatesWholeSetBeforeRemovingAnyRows() {
+        ownPumpRules(List.of());
+        var on = pumpRule(null, "captured-on", ComparisonType.LESS_THAN, BigDecimal.TEN, false);
+        var off = pumpRule(null, "", null, null, true);
+        assertThrows(IllegalArgumentException.class, () -> controlService.saveHeatPumpRules(1L, 10L, 20L,
+                new ControlHeatPumpRulesRequest(LocalTime.of(7, 0), LocalTime.of(22, 0), List.of(on, off))));
+        verify(controlHeatPumpRepository, never()).deleteAll(any());
+        verify(controlHeatPumpRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void groupedPumpSaveRejectsForeignAndDuplicateRuleIds() {
+        var previous = ControlHeatPumpEntity.builder().id(100L).build();
+        ownPumpRules(List.of(previous));
+        var foreign = pumpRule(999L, "captured", ComparisonType.LESS_THAN, BigDecimal.TEN, false);
+        var own = pumpRule(100L, "captured", ComparisonType.LESS_THAN, BigDecimal.TEN, false);
+        assertThrows(IllegalArgumentException.class, () -> controlService.saveHeatPumpRules(1L, 10L, 20L,
+                new ControlHeatPumpRulesRequest(null, null, List.of(foreign))));
+        assertThrows(IllegalArgumentException.class, () -> controlService.saveHeatPumpRules(1L, 10L, 20L,
+                new ControlHeatPumpRulesRequest(null, null, List.of(own, own))));
+        verify(controlHeatPumpRepository, never()).deleteAll(any());
+        verify(controlHeatPumpRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void groupedPumpSaveRequiresCompleteWindowAndOutsideActionAndPriceCondition() {
+        ownPumpRules(List.of());
+        var valid = pumpRule(null, "captured", ComparisonType.LESS_THAN, BigDecimal.TEN, false);
+        var noPrice = pumpRule(null, "captured", ComparisonType.LESS_THAN, null, false);
+        assertThrows(IllegalArgumentException.class, () -> controlService.saveHeatPumpRules(1L, 10L, 20L,
+                new ControlHeatPumpRulesRequest(LocalTime.of(7, 0), null, List.of(valid))));
+        assertThrows(IllegalArgumentException.class, () -> controlService.saveHeatPumpRules(1L, 10L, 20L,
+                new ControlHeatPumpRulesRequest(LocalTime.of(7, 0), LocalTime.of(22, 0), List.of(valid))));
+        assertThrows(IllegalArgumentException.class, () -> controlService.saveHeatPumpRules(1L, 10L, 20L,
+                new ControlHeatPumpRulesRequest(null, null, List.of(noPrice))));
+        verify(controlHeatPumpRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void groupedPumpSaveRetainsRuleIdsAndExplicitOrderAndRemovesOnlyOmittedDeviceRows() {
+        var oldFirst = ControlHeatPumpEntity.builder().id(100L).build();
+        var oldSecond = ControlHeatPumpEntity.builder().id(200L).build();
+        var removed = ControlHeatPumpEntity.builder().id(300L).build();
+        ownPumpRules(List.of(oldFirst, oldSecond, removed));
+        when(controlHeatPumpRepository.saveAll(any())).thenAnswer(call -> call.getArgument(0));
+        var first = pumpRule(200L, "heat", ComparisonType.LESS_THAN, BigDecimal.TEN, false);
+        var second = pumpRule(100L, "off", ComparisonType.GREATER_THAN, BigDecimal.TEN, false);
+        var fallback = pumpRule(null, "outside-off", null, null, true);
+        var result = controlService.saveHeatPumpRules(1L, 10L, 20L, new ControlHeatPumpRulesRequest(
+                LocalTime.of(22, 0), LocalTime.of(7, 0), List.of(first, second, fallback)));
+        assertEquals(List.of(200L, 100L), result.subList(0, 2).stream().map(row -> row.getId()).toList());
+        assertEquals(List.of(0, 1, 2), result.stream().map(row -> row.getRuleOrder()).toList());
+        assertTrue(result.get(2).isOutsideActiveTime());
+        assertEquals(LocalTime.of(22, 0), result.getFirst().getActiveFrom());
+        verify(controlHeatPumpRepository).deleteAll(List.of(removed));
+    }
+
+    @Test
+    void groupedPumpSaveRejectsUnownedControlBeforeReadingPumpRules() {
+        when(controlRepository.lockHeatPumpRuleUpdate(10L, 1L)).thenReturn(Optional.empty());
+        assertThrows(EntityNotFoundException.class, () -> controlService.saveHeatPumpRules(1L, 10L, 20L,
+                new ControlHeatPumpRulesRequest(null, null, List.of())));
+        verifyNoInteractions(controlHeatPumpRepository);
     }
 
     @Test

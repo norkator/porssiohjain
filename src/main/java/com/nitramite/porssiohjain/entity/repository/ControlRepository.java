@@ -14,6 +14,10 @@ package com.nitramite.porssiohjain.entity.repository;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.ControlEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +27,10 @@ public interface ControlRepository extends JpaRepository<ControlEntity, Long> {
     List<ControlEntity> findAllByAccountOrderByIdAsc(AccountEntity account);
 
     Optional<ControlEntity> findByIdAndAccountId(Long id, Long accountId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ControlEntity c where c.id = :id and c.account.id = :accountId")
+    Optional<ControlEntity> lockHeatPumpRuleUpdate(@Param("id") Long id, @Param("accountId") Long accountId);
 
     Optional<ControlEntity> findFirstByAccountId(Long accountId);
 
