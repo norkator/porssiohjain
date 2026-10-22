@@ -3,12 +3,15 @@ package com.nitramite.porssiohjain.services.tuya;
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.*;
 import com.nitramite.porssiohjain.entity.repository.*;
+import jakarta.persistence.Entity;
 import org.hibernate.Session;
 import org.hibernate.cfg.Configuration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.context.annotation.ContextAnnotationAutowireCandidateResolver;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.repository.support.JpaRepositoryFactory;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
@@ -48,16 +51,19 @@ class DeviceMeasurementPersistenceTest {
         }
     }
 
-    @Test void repositoryIsolatesAccountsSelectsLatestAndRetainsRowsAtCleanupBoundary() {
+    @Test void repositoryIsolatesAccountsSelectsLatestAndRetainsRowsAtCleanupBoundary() throws Exception {
         var beans = new DefaultListableBeanFactory();
         beans.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
         beans.addEmbeddedValueResolver(value -> value.replace("${app.crypto.key}", "device-measurement-test-key"));
-        var configuration = new Configuration().addAnnotatedClass(AccountEntity.class).addAnnotatedClass(DeviceEntity.class)
-                .addAnnotatedClass(DeviceMeasurementEntity.class).addAnnotatedClass(TuyaConnectionEntity.class)
-                .addAnnotatedClass(TuyaDeviceEntity.class)
+        var configuration = new Configuration()
                 .setProperty("hibernate.connection.url", "jdbc:h2:mem:measurements-" + UUID.randomUUID() + ";MODE=PostgreSQL")
                 .setProperty("hibernate.connection.driver_class", "org.h2.Driver")
                 .setProperty("hibernate.hbm2ddl.auto", "create-drop");
+        var scanner = new ClassPathScanningCandidateComponentProvider(false);
+        scanner.addIncludeFilter(new AnnotationTypeFilter(Entity.class));
+        for (var entity : scanner.findCandidateComponents("com.nitramite.porssiohjain.entity")) {
+            configuration.addAnnotatedClass(Class.forName(entity.getBeanClassName()));
+        }
         configuration.getProperties().put("hibernate.resource.beans.container", new SpringBeanContainer(beans));
         try (var factory = configuration.buildSessionFactory(); var session = factory.openSession()) {
             var tx = session.beginTransaction();

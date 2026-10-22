@@ -111,7 +111,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         feature("home.heatingPlanner", VaadinIcon.FIRE, HeatingPlannerView.class);
         feature("home.loadShedding", VaadinIcon.WARNING, LoadSheddingView.class);
         feature("home.powerplant", VaadinIcon.DASHBOARD, PowerplantView.class);
-        feature("home.solarAnglePlanner", VaadinIcon.SUN_O, SolarAnglePlannerView.class);
+        feature("home.solarAnglePlanner", VaadinIcon.SUN, SolarAnglePlannerView.class);
         feature("home.myProduction", VaadinIcon.LIGHTBULB, ProductionSourcesView.class);
         feature("home.powerLimits", VaadinIcon.FLASH, PowerLimitsView.class);
         feature("home.dashboard", VaadinIcon.CHART, DashboardView.class);
@@ -313,7 +313,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             case DESKTOP -> "computer";
             case SLIDERS, COG -> "settings";
             case CLOUD -> "weather";
-            case FIRE, FLASH, SUN_O, LIGHTBULB -> "energy";
+            case FIRE, FLASH, SUN, LIGHTBULB -> "energy";
             case COMMENT -> "feedback";
             case LINE_CHART -> "measurements";
             case DROP -> "water-meters";
