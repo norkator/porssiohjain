@@ -19,6 +19,9 @@ import lombok.Data;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MitsubishiSetAcStateResponse {
 
+    // SetAta includes device status; MELCloud uses 8000 for no device error.
+    private static final int NO_DEVICE_ERROR = 8000;
+
     @JsonProperty("ErrorMessage")
     private String errorMessage;
 
@@ -29,7 +32,7 @@ public class MitsubishiSetAcStateResponse {
     private Boolean hasPendingCommand;
 
     public boolean isSuccess() {
-        return errorCode == null || errorCode == 0;
+        return errorCode == null || errorCode == 0 || errorCode == NO_DEVICE_ERROR;
     }
 
 }

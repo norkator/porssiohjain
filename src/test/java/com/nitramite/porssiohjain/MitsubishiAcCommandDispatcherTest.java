@@ -24,11 +24,16 @@ import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiSetAcStateServic
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.never;
@@ -62,11 +67,15 @@ class MitsubishiAcCommandDispatcherTest {
         );
     }
 
-    @Test
-    void derivesEffectiveFlagsFromChangedFieldsWhenCommandOmitsThem() {
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(ints = {0, 8000})
+    void derivesEffectiveFlagsAndRecordsAcceptedCommand(Integer errorCode) {
         DeviceAcDataEntity acData = createAcData();
         MitsubishiAcStateResponse currentState = currentState();
         MitsubishiSetAcStateResponse setResponse = new MitsubishiSetAcStateResponse();
+        setResponse.setErrorCode(errorCode);
+        setResponse.setHasPendingCommand(true);
         ArgumentCaptor<MitsubishiAcStateResponse> payloadCaptor = ArgumentCaptor.forClass(MitsubishiAcStateResponse.class);
 
         when(mitsubishiAcStateService.getAcState(acData)).thenReturn(currentState);
@@ -86,7 +95,32 @@ class MitsubishiAcCommandDispatcherTest {
         MitsubishiAcStateResponse payload = payloadCaptor.getValue();
         assertEquals(1L, payload.getEffectiveFlags());
         assertEquals(Boolean.FALSE, payload.getPower());
+        assertNotNull(acData.getLastSentStateHex());
+        assertEquals(acData.getLastSentStateHex(), acData.getLastPolledStateHex());
         verify(deviceAcDataRepository).save(acData);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {6607, 8001})
+    void rejectsDeviceErrorsWithoutRecordingCommandAsSent(int errorCode) {
+        DeviceAcDataEntity acData = createAcData();
+        acData.setLastSentStateHex("previous sent state");
+        acData.setLastPolledStateHex("previous polled state");
+        MitsubishiSetAcStateResponse setResponse = new MitsubishiSetAcStateResponse();
+        setResponse.setErrorCode(errorCode);
+
+        when(mitsubishiAcStateService.getAcState(acData)).thenReturn(currentState());
+        when(mitsubishiSetAcStateService.setAcState(any(), any())).thenReturn(setResponse);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> dispatcher.dispatchHexState(acData, """
+                        {"DeviceID": 77, "Power": false}
+                        """));
+
+        assertEquals("Mitsubishi SetAta failed with error code " + errorCode, exception.getMessage());
+        assertEquals("previous sent state", acData.getLastSentStateHex());
+        assertEquals("previous polled state", acData.getLastPolledStateHex());
+        verify(deviceAcDataRepository, never()).save(any());
     }
 
     @Test
