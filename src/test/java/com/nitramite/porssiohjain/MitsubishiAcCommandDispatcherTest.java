@@ -81,7 +81,7 @@ class MitsubishiAcCommandDispatcherTest {
         when(mitsubishiAcStateService.getAcState(acData)).thenReturn(currentState);
         when(mitsubishiSetAcStateService.setAcState(any(), payloadCaptor.capture())).thenReturn(setResponse);
 
-        dispatcher.dispatchHexState(acData, """
+        String command = """
                 {
                   "DeviceID": 77,
                   "Power": false,
@@ -90,13 +90,15 @@ class MitsubishiAcCommandDispatcherTest {
                   "SetFanSpeed": 2,
                   "EffectiveFlags": 0
                 }
-                """);
+                """;
+
+        dispatcher.dispatchHexState(acData, command);
 
         MitsubishiAcStateResponse payload = payloadCaptor.getValue();
         assertEquals(1L, payload.getEffectiveFlags());
         assertEquals(Boolean.FALSE, payload.getPower());
-        assertNotNull(acData.getLastSentStateHex());
-        assertEquals(acData.getLastSentStateHex(), acData.getLastPolledStateHex());
+        assertEquals(command, acData.getLastSentStateHex());
+        assertNotNull(acData.getLastPolledStateHex());
         verify(deviceAcDataRepository).save(acData);
     }
 
@@ -124,12 +126,12 @@ class MitsubishiAcCommandDispatcherTest {
     }
 
     @Test
-    void skipsSetAtaWhenNoWritableFieldChangesExist() {
+    void remembersAlreadyMatchingRequestWithoutSendingSetAta() {
         DeviceAcDataEntity acData = createAcData();
 
         when(mitsubishiAcStateService.getAcState(acData)).thenReturn(currentState());
 
-        dispatcher.dispatchHexState(acData, """
+        String command = """
                 {
                   "DeviceID": 77,
                   "Power": true,
@@ -138,10 +140,13 @@ class MitsubishiAcCommandDispatcherTest {
                   "SetFanSpeed": 2,
                   "EffectiveFlags": 0
                 }
-                """);
+                """;
+
+        dispatcher.dispatchHexState(acData, command);
 
         verify(mitsubishiSetAcStateService, never()).setAcState(any(), any());
-        verify(deviceAcDataRepository, never()).save(any());
+        assertEquals(command, acData.getLastSentStateHex());
+        verify(deviceAcDataRepository).save(acData);
         verify(systemLogService).log(contains("Mitsubishi SetAta skipped."));
     }
 

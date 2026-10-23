@@ -60,6 +60,9 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
 
         MitsubishiAcStateResponse setAtaState = buildSetAtaState(acData, state);
         if (setAtaState == null) {
+            // A fresh poll confirmed this request is already satisfied.
+            acData.setLastSentStateHex(jsonState);
+            deviceAcDataRepository.save(acData);
             systemLogService.log(String.format(
                     "Mitsubishi SetAta skipped. deviceId=%s, acDataId=%s, acDeviceId=%s, buildingId=%s, reason=no writable field changes detected",
                     acData.getDevice().getId(),
@@ -85,7 +88,8 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
         }
 
         acData.setLastPolledStateHex(formattedState);
-        acData.setLastSentStateHex(formattedState);
+        // Compare future rules with the original request, not the merged telemetry.
+        acData.setLastSentStateHex(jsonState);
         deviceAcDataRepository.save(acData);
     }
 

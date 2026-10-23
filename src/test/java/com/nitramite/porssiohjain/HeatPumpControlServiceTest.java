@@ -13,6 +13,8 @@ package com.nitramite.porssiohjain;
 
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.ControlEntity;
+import com.nitramite.porssiohjain.entity.ControlHeatPumpEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceEntity;
 import com.nitramite.porssiohjain.entity.ProductionSourceHeatPumpEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
@@ -22,6 +24,7 @@ import com.nitramite.porssiohjain.entity.WeatherControlHeatPumpEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
+import com.nitramite.porssiohjain.entity.enums.ControlMode;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import com.nitramite.porssiohjain.entity.repository.ControlHeatPumpRepository;
@@ -34,7 +37,13 @@ import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpReposi
 import com.nitramite.porssiohjain.services.AcCommandDispatchService;
 import com.nitramite.porssiohjain.services.ControlPriceService;
 import com.nitramite.porssiohjain.services.HeatPumpControlService;
+import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerHeatPumpCommandService;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcCommandDispatcher;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateService;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiSetAcStateResponse;
+import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiSetAcStateService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,7 +59,9 @@ import java.util.Optional;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -189,6 +200,69 @@ class HeatPumpControlServiceTest {
         heatPumpControlService.runScheduledHeatPumpControls();
 
         verify(acCommandDispatchService, never()).dispatchHexState(acData, "AAAA");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"true, 0, 1", "false, 0, 0", "true, 1, 1"})
+    void remembersMitsubishiControlRequestAcrossSchedulerRuns(boolean initiallyOn, long flags, int initialSends) {
+        DeviceEntity device = enabledHeatPumpDevice(1L);
+        DeviceAcDataEntity acData = acData(device, null);
+        acData.setAcType(AcType.MITSUBISHI_MELCLOUD);
+        acData.setAcDeviceId("77");
+        acData.setBuildingId("99");
+        MitsubishiAcStateService stateService = mock(MitsubishiAcStateService.class);
+        MitsubishiSetAcStateService setService = mock(MitsubishiSetAcStateService.class);
+        MitsubishiAcCommandDispatcher dispatcher = new MitsubishiAcCommandDispatcher(
+                stateService, setService, deviceAcDataRepository, mock(SystemLogService.class));
+        HeatPumpControlService scheduler = new HeatPumpControlService(
+                weatherControlHeatPumpRepository, productionSourceHeatPumpRepository,
+                controlHeatPumpRepository, deviceAcDataRepository, siteWeatherRepository,
+                controlTableRepository, new AcCommandDispatchService(List.of(dispatcher)),
+                controlPriceService, heatingPlannerHeatPumpCommandService, changeNotificationService);
+
+        ControlEntity control = new ControlEntity();
+        control.setId(2L);
+        control.setMode(ControlMode.MANUAL);
+        control.setManualOn(true);
+        ControlHeatPumpEntity rule = ControlHeatPumpEntity.builder()
+                .id(10L)
+                .control(control)
+                .device(device)
+                .stateHex("""
+                        {"DeviceID":77,"Power":false,"EffectiveFlags":%d,"RoomTemperature":18.0}
+                        """.formatted(flags))
+                .build();
+
+        MitsubishiAcStateResponse currentState = new MitsubishiAcStateResponse();
+        currentState.setDeviceId(77L);
+        currentState.setPower(initiallyOn);
+        currentState.setRoomTemperature(20.0);
+        currentState.setLastCommunication("2026-10-23T12:00:00");
+        MitsubishiSetAcStateResponse response = new MitsubishiSetAcStateResponse();
+        response.setErrorCode(8000);
+        response.setHasPendingCommand(true);
+
+        when(controlHeatPumpRepository.findAll()).thenReturn(List.of(rule));
+        when(deviceAcDataRepository.findByDevice(device)).thenReturn(Optional.of(acData));
+        when(stateService.getAcState(acData)).thenReturn(currentState);
+        when(setService.setAcState(any(), any())).thenReturn(response);
+
+        scheduler.runScheduledHeatPumpControls();
+        // Polling can update telemetry independently of the last requested command.
+        currentState.setRoomTemperature(22.0);
+        acData.setLastPolledStateHex("{\"Power\":false,\"RoomTemperature\":22.0}");
+        scheduler.runScheduledHeatPumpControls();
+
+        verify(stateService).getAcState(acData);
+        verify(setService, times(initialSends)).setAcState(any(), any());
+
+        // A different requested state must still be sent, then remembered.
+        rule.setStateHex("{\"DeviceID\":77,\"Power\":true,\"EffectiveFlags\":1}");
+        scheduler.runScheduledHeatPumpControls();
+        scheduler.runScheduledHeatPumpControls();
+
+        verify(stateService, times(2)).getAcState(acData);
+        verify(setService, times(initialSends + 1)).setAcState(any(), any());
     }
 
     @Test
