@@ -12,6 +12,7 @@ package com.nitramite.porssiohjain.services.mitsubishihome;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -28,7 +29,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -46,26 +46,34 @@ public class MitsubishiMelCloudHomeApiClient {
     private static final String REDIRECT_URI = "melcloudhome://";
     private static final String SCOPES = "openid profile email offline_access IdentityServerApi";
     private static final int MAX_REDIRECTS = 10;
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(20);
     private static final Pattern CSRF_PATTERN = Pattern.compile("name=[\"']_csrf[\"']\\s+value=[\"']([^\"']+)[\"']");
 
     private final ObjectMapper objectMapper;
     private final URI authBase;
     private final URI apiBase;
+    private final OutboundProxyTransport cloudTransport;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Autowired
-    public MitsubishiMelCloudHomeApiClient(ObjectMapper objectMapper) {
-        this(objectMapper, DEFAULT_AUTH_BASE, DEFAULT_API_BASE);
+    public MitsubishiMelCloudHomeApiClient(ObjectMapper objectMapper, OutboundProxyTransport cloudTransport) {
+        this(objectMapper, DEFAULT_AUTH_BASE, DEFAULT_API_BASE, cloudTransport);
     }
 
-    MitsubishiMelCloudHomeApiClient(ObjectMapper objectMapper, URI authBase, URI apiBase) {
+    MitsubishiMelCloudHomeApiClient(ObjectMapper objectMapper, URI authBase, URI apiBase,
+                                    OutboundProxyTransport cloudTransport) {
         this.objectMapper = objectMapper;
         this.authBase = authBase;
         this.apiBase = apiBase;
+        this.cloudTransport = cloudTransport;
     }
 
     public TokenResponse authenticate(String username, String password) {
+        try (var ignored = cloudTransport.beginOperation()) {
+            return authenticateInternal(username, password);
+        }
+    }
+
+    private TokenResponse authenticateInternal(String username, String password) {
         if (username == null || username.isBlank() || password == null || password.isBlank()) {
             throw new MitsubishiMelCloudHomeException("MELCloud Home username and password are required");
         }
@@ -144,12 +152,9 @@ public class MitsubishiMelCloudHomeApiClient {
         if (accessToken == null || accessToken.isBlank()) {
             throw new MitsubishiMelCloudHomeException("MELCloud Home access token is required");
         }
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(REQUEST_TIMEOUT)
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
+        HttpClient client = cloudTransport.newHttpClient(null);
         HttpRequest request = HttpRequest.newBuilder(apiUri("/context"))
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(cloudTransport.readTimeout())
                 .header("Authorization", "Bearer " + accessToken)
                 .header("Accept", "application/json")
                 .header("User-Agent", "Porssiohjain MELCloud Home")
@@ -182,12 +187,9 @@ public class MitsubishiMelCloudHomeApiClient {
         } catch (IOException e) {
             throw new MitsubishiMelCloudHomeException("Unable to serialize MELCloud Home control request", e);
         }
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(REQUEST_TIMEOUT)
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
+        HttpClient client = cloudTransport.newHttpClient(null);
         HttpRequest request = HttpRequest.newBuilder(apiUri(path))
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(cloudTransport.readTimeout())
                 .header("Authorization", "Bearer " + accessToken)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
@@ -245,7 +247,7 @@ public class MitsubishiMelCloudHomeApiClient {
 
     private HttpResponse<String> sendForm(HttpClient client, URI uri, Map<String, String> parameters) {
         HttpRequest request = HttpRequest.newBuilder(uri)
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(cloudTransport.readTimeout())
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .header("Accept", "application/json, text/html")
                 .header("User-Agent", "Porssiohjain MELCloud Home")
@@ -256,7 +258,7 @@ public class MitsubishiMelCloudHomeApiClient {
 
     private HttpResponse<String> sendGet(HttpClient client, URI uri) {
         HttpRequest request = HttpRequest.newBuilder(uri)
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(cloudTransport.readTimeout())
                 .header("Accept", "text/html, application/json")
                 .header("User-Agent", "Porssiohjain MELCloud Home")
                 .GET()
@@ -266,7 +268,7 @@ public class MitsubishiMelCloudHomeApiClient {
 
     private HttpResponse<String> send(HttpClient client, HttpRequest request) {
         try {
-            return client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            return cloudTransport.send(client, request);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new MitsubishiMelCloudHomeException("MELCloud Home request was interrupted", e);
@@ -293,11 +295,7 @@ public class MitsubishiMelCloudHomeApiClient {
 
     private HttpClient newAuthenticationClient() {
         CookieManager cookieManager = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
-        return HttpClient.newBuilder()
-                .cookieHandler(cookieManager)
-                .connectTimeout(REQUEST_TIMEOUT)
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
+        return cloudTransport.newHttpClient(cookieManager);
     }
 
     private URI redirectLocation(HttpResponse<String> response) {

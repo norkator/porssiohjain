@@ -11,13 +11,13 @@
 
 package com.nitramite.porssiohjain.services.toshiba;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -29,12 +29,12 @@ import java.time.Instant;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ToshibaAcStateService {
 
     private static final long RETRY_DELAY_MS = 1000L;
     private static final Duration ONLINE_THRESHOLD = Duration.ofHours(4);
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+    private final OutboundProxyTransport cloudTransport;
     private final ToshibaLoginService toshibaLoginService;
     private final ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService;
     private final DeviceAcDataRepository deviceAcDataRepository;
@@ -42,10 +42,29 @@ public class ToshibaAcStateService {
     private final DeviceOfflineNotificationService deviceOfflineNotificationService;
     private static final String STATE_URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=";
 
+    public ToshibaAcStateService(
+            ToshibaLoginService toshibaLoginService,
+            ToshibaAcStateHexDecoderService toshibaAcStateHexDecoderService,
+            DeviceAcDataRepository deviceAcDataRepository,
+            DeviceRepository deviceRepository,
+            DeviceOfflineNotificationService deviceOfflineNotificationService,
+            OutboundProxyTransport cloudTransport
+    ) {
+        this.toshibaLoginService = toshibaLoginService;
+        this.toshibaAcStateHexDecoderService = toshibaAcStateHexDecoderService;
+        this.deviceAcDataRepository = deviceAcDataRepository;
+        this.deviceRepository = deviceRepository;
+        this.deviceOfflineNotificationService = deviceOfflineNotificationService;
+        this.restTemplate = cloudTransport.newRestTemplate();
+        this.cloudTransport = cloudTransport;
+    }
+
     public ToshibaAcStateResponse getAcState(
             DeviceAcDataEntity acData
     ) {
-        return getAcStateInternal(acData, true);
+        try (var ignored = cloudTransport.beginOperation()) {
+            return getAcStateInternal(acData, true);
+        }
     }
 
     private ToshibaAcStateResponse getAcStateInternal(
@@ -102,7 +121,7 @@ public class ToshibaAcStateService {
             boolean retryOnAuthorizationFailure,
             int statusCode
     ) {
-        if (retryOnAuthorizationFailure) {
+        if (retryOnAuthorizationFailure && !cloudTransport.hasFailedProxyAttempt()) {
             log.info("Toshiba AC state query returned {}, attempting re-login", statusCode);
             AcLoginResponse acLoginResponse = toshibaLoginService.refreshLogin(acData);
             if (acLoginResponse.isSuccess()) {

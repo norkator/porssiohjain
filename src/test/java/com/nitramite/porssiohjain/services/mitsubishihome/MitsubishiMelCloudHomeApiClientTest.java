@@ -10,6 +10,8 @@
  */
 package com.nitramite.porssiohjain.services.mitsubishihome;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -25,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -41,7 +44,7 @@ class MitsubishiMelCloudHomeApiClientTest {
     void setUp() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         URI baseUri = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
-        client = new MitsubishiMelCloudHomeApiClient(new ObjectMapper(), baseUri, baseUri);
+        client = new MitsubishiMelCloudHomeApiClient(new ObjectMapper(), baseUri, baseUri, new OutboundProxyTransport(new OutboundProxyProperties()));
 
         server.createContext("/connect/par", this::handlePar);
         server.createContext("/connect/authorize", exchange -> redirect(exchange, "/login?request=test"));
@@ -101,6 +104,49 @@ class MitsubishiMelCloudHomeApiClientTest {
         assertEquals(21.5, mapper.readTree(ataControlBody.get()).path("setTemperature").asDouble());
         assertEquals("HeatRoomTemperature", mapper.readTree(atwControlBody.get()).path("operationModeZone1").asText());
         assertEquals(50.0, mapper.readTree(atwControlBody.get()).path("setTankWaterTemperature").asDouble());
+    }
+
+    @Test
+    void blockedLoginContinuesThroughProxyWithCookiesAndNextOperationIsDirect() throws Exception {
+        HttpServer proxy = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicInteger directPar = new AtomicInteger();
+        AtomicInteger proxiedRequests = new AtomicInteger();
+        server.removeContext("/connect/par");
+        server.createContext("/connect/par", exchange -> {
+            directPar.incrementAndGet();
+            json(exchange, 403, "blocked");
+        });
+        proxy.createContext("/", exchange -> {
+            proxiedRequests.incrementAndGet();
+            switch (exchange.getRequestURI().getPath()) {
+                case "/connect/par" -> handlePar(exchange);
+                case "/connect/authorize" -> redirect(exchange, "/login?request=test");
+                case "/login" -> handleLogin(exchange);
+                case "/callback" -> redirect(exchange,
+                        "melcloudhome://callback?code=authorization-code&state=" + oauthState.get());
+                case "/connect/token" -> handleToken(exchange);
+                default -> json(exchange, 500, "unexpected proxy request");
+            }
+        });
+        proxy.start();
+        try {
+            OutboundProxyProperties properties = new OutboundProxyProperties();
+            properties.setEnabled(true);
+            properties.setHost("127.0.0.1");
+            properties.setPort(proxy.getAddress().getPort());
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            client = new MitsubishiMelCloudHomeApiClient(new ObjectMapper(), base, base,
+                    new OutboundProxyTransport(properties));
+            var tokens = client.authenticate("user@example.com", "secret");
+            assertEquals("access-token", tokens.accessToken());
+            assertEquals(1, directPar.get());
+            assertEquals(6, proxiedRequests.get());
+            // /context exists only on the origin; this also verifies the route was reset.
+            assertEquals("user-1", client.getContext(tokens.accessToken()).id());
+            assertEquals(6, proxiedRequests.get());
+        } finally {
+            proxy.stop(0);
+        }
     }
 
     private void handlePar(HttpExchange exchange) throws IOException {
