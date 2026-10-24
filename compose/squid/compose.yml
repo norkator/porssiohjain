@@ -1,0 +1,8 @@
+services:
+  squid:
+    image: ghcr.io/norkator/porssiohjain-proxy:latest
+    restart: unless-stopped
+    ports:
+      - "${SQUID_BIND_IP:?Set SQUID_BIND_IP to the proxy server address}:3128:3128"
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro

@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.services.toshiba;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -29,11 +30,15 @@ import java.util.regex.Pattern;
 @Service
 public class ToshibaAcDevicesService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private static final String MAPPING_URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping";
     private static final Pattern CONSUMER_ID_PATTERN = Pattern.compile(
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
     );
+
+    public ToshibaAcDevicesService(OutboundProxyTransport cloudTransport) {
+        this.restTemplate = cloudTransport.newRestTemplate();
+    }
 
     public List<ToshibaAcMappingResponse.AcDevice> getAcDevices(
             DeviceAcDataEntity acData

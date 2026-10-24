@@ -1,5 +1,7 @@
 package com.nitramite.porssiohjain.services.toshiba;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyProperties;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
@@ -22,7 +24,7 @@ class ToshibaAcStateServiceTest {
     private static final String URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=pump-id";
     private final ToshibaLoginService login = mock(ToshibaLoginService.class);
     private final ToshibaAcStateService service = new ToshibaAcStateService(login, new ToshibaAcStateHexDecoderService(),
-            mock(DeviceAcDataRepository.class), mock(DeviceRepository.class), mock(DeviceOfflineNotificationService.class));
+            mock(DeviceAcDataRepository.class), mock(DeviceRepository.class), mock(DeviceOfflineNotificationService.class), new OutboundProxyTransport(new OutboundProxyProperties()));
     private final DeviceAcDataEntity data = DeviceAcDataEntity.builder().acDeviceId("pump-id")
             .acAccessToken("old-token").lastPolledStateHex("previous-settings").build();
 

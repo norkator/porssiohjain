@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.services.mitsubishi;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
@@ -18,7 +19,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -29,12 +29,15 @@ import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MitsubishiSetAcStateService {
 
     private static final String SET_ATA_URL = "https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/SetAta";
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+
+    public MitsubishiSetAcStateService(OutboundProxyTransport cloudTransport) {
+        this.restTemplate = cloudTransport.newRestTemplate();
+    }
 
     public MitsubishiSetAcStateResponse setAcState(DeviceAcDataEntity acData, MitsubishiAcStateResponse state) {
         try {

@@ -11,8 +11,8 @@
 
 package com.nitramite.porssiohjain.services.mitsubishi;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -26,11 +26,14 @@ import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MitsubishiAcDevicesService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private static final String LIST_DEVICES_URL = "https://app.melcloud.com/Mitsubishi.Wifi.Client/User/ListDevices";
+
+    public MitsubishiAcDevicesService(OutboundProxyTransport cloudTransport) {
+        this.restTemplate = cloudTransport.newRestTemplate();
+    }
 
     public List<MitsubishiAcDevicesResponse.Device> getAcDevices(
             DeviceAcDataEntity acData
