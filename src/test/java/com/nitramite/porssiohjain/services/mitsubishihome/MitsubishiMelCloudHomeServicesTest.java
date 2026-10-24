@@ -10,6 +10,8 @@
  */
 package com.nitramite.porssiohjain.services.mitsubishihome;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
@@ -39,7 +41,7 @@ class MitsubishiMelCloudHomeServicesTest {
     void loginStoresNewTokensOnTransientSelectionData() {
         MitsubishiMelCloudHomeApiClient apiClient = mock(MitsubishiMelCloudHomeApiClient.class);
         DeviceAcDataRepository repository = mock(DeviceAcDataRepository.class);
-        MitsubishiMelCloudHomeLoginService service = new MitsubishiMelCloudHomeLoginService(apiClient, repository);
+        MitsubishiMelCloudHomeLoginService service = new MitsubishiMelCloudHomeLoginService(apiClient, repository, new OutboundProxyTransport(new OutboundProxyProperties()));
         when(apiClient.authenticate("user@example.com", "secret"))
                 .thenReturn(new MitsubishiMelCloudHomeApiClient.TokenResponse("access", "refresh", 3600));
         DeviceAcDataEntity acData = DeviceAcDataEntity.builder()
@@ -58,7 +60,8 @@ class MitsubishiMelCloudHomeServicesTest {
         MitsubishiMelCloudHomeApiClient apiClient = mock(MitsubishiMelCloudHomeApiClient.class);
         MitsubishiMelCloudHomeLoginService service = new MitsubishiMelCloudHomeLoginService(
                 apiClient,
-                mock(DeviceAcDataRepository.class)
+                mock(DeviceAcDataRepository.class),
+                new OutboundProxyTransport(new OutboundProxyProperties())
         );
         DeviceAcDataEntity acData = DeviceAcDataEntity.builder()
                 .acAccessToken("existing")

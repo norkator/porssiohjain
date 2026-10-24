@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.services.mitsubishi;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
@@ -19,7 +20,6 @@ import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -39,12 +39,12 @@ import java.time.format.DateTimeParseException;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MitsubishiAcStateService {
 
     private static final long RETRY_DELAY_MS = 1000L;
     private static final Duration ONLINE_THRESHOLD = Duration.ofHours(4);
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+    private final OutboundProxyTransport cloudTransport;
     private static final String GET_DEVICE_URL = "https://app.melcloud.com/Mitsubishi.Wifi.Client/Device/Get";
     private final MitsubishiLoginService mitsubishiLoginService;
     private final DeviceAcDataRepository deviceAcDataRepository;
@@ -52,8 +52,25 @@ public class MitsubishiAcStateService {
     private final DeviceOfflineNotificationService deviceOfflineNotificationService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    public MitsubishiAcStateService(
+            MitsubishiLoginService mitsubishiLoginService,
+            DeviceAcDataRepository deviceAcDataRepository,
+            DeviceRepository deviceRepository,
+            DeviceOfflineNotificationService deviceOfflineNotificationService,
+            OutboundProxyTransport cloudTransport
+    ) {
+        this.mitsubishiLoginService = mitsubishiLoginService;
+        this.deviceAcDataRepository = deviceAcDataRepository;
+        this.deviceRepository = deviceRepository;
+        this.deviceOfflineNotificationService = deviceOfflineNotificationService;
+        this.restTemplate = cloudTransport.newRestTemplate();
+        this.cloudTransport = cloudTransport;
+    }
+
     public MitsubishiAcStateResponse getAcState(DeviceAcDataEntity acData) {
-        return getAcStateInternal(acData, true);
+        try (var ignored = cloudTransport.beginOperation()) {
+            return getAcStateInternal(acData, true);
+        }
     }
 
     private MitsubishiAcStateResponse getAcStateInternal(DeviceAcDataEntity acData, boolean retryOnAuthorizationFailure) {
@@ -135,7 +152,7 @@ public class MitsubishiAcStateService {
             boolean retryOnAuthorizationFailure,
             int statusCode
     ) {
-        if (retryOnAuthorizationFailure) {
+        if (retryOnAuthorizationFailure && !cloudTransport.hasFailedProxyAttempt()) {
             log.info("Mitsubishi AC state query returned {}, attempting re-login", statusCode);
             AcLoginResponse acLoginResponse = mitsubishiLoginService.login(acData);
             if (acLoginResponse.isSuccess()) {
