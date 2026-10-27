@@ -17,6 +17,13 @@ updates:
       interval: "weekly"
   - package-ecosystem: "npm"
     directory: "/hybrid-web"
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
     schedule:
       interval: "weekly"
       day: "friday"
