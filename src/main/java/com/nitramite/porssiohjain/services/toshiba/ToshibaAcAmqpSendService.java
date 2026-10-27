@@ -14,7 +14,8 @@ package com.nitramite.porssiohjain.services.toshiba;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.sdk.iot.device.DeviceClient;
-import com.microsoft.azure.sdk.iot.device.IotHubClientProtocol;
+import com.microsoft.azure.sdk.iot.device.IotHubStatusCode;
+import com.microsoft.azure.sdk.iot.device.exceptions.IotHubClientException;
 import com.microsoft.azure.sdk.iot.device.Message;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
@@ -23,6 +24,7 @@ import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
 import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -53,6 +55,8 @@ public class ToshibaAcAmqpSendService {
     private final DeviceRepository deviceRepository;
     private final DeviceAcCommandLogService deviceAcCommandLogService;
     private final DeviceOfflineNotificationService deviceOfflineNotificationService;
+    private final OutboundProxyTransport cloudTransport;
+    private final ToshibaAmqpClientFactory amqpClientFactory;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void sendMessage(DeviceAcDataEntity acData, String payload) {
@@ -60,7 +64,9 @@ public class ToshibaAcAmqpSendService {
             throw new IllegalArgumentException("Payload cannot be empty");
         }
 
-        sendMessageInternal(acData, payload, true);
+        try (var ignored = cloudTransport.beginOperation()) {
+            sendMessageInternal(acData, payload, true);
+        }
     }
 
     public void sendHexState(DeviceAcDataEntity acData, String hexState) {
@@ -116,9 +122,9 @@ public class ToshibaAcAmqpSendService {
         );
 
         DeviceClient deviceClient = null;
+        boolean messageSubmitted = false;
         try {
-            deviceClient = new DeviceClient(connectionString, IotHubClientProtocol.AMQPS);
-            deviceClient.open(true);
+            deviceClient = openClient(connectionString);
 
             Message message = new Message(payload);
             message.setProperty("type", "mob");
@@ -128,6 +134,7 @@ public class ToshibaAcAmqpSendService {
             CountDownLatch latch = new CountDownLatch(1);
             AtomicReference<Exception> sendFailure = new AtomicReference<>();
 
+            messageSubmitted = true;
             deviceClient.sendEventAsync(message, (sentMessage, clientException, callbackContext) -> {
                 if (clientException != null) {
                     sendFailure.set(clientException);
@@ -155,12 +162,18 @@ public class ToshibaAcAmqpSendService {
                 throw new IllegalStateException("Failed to send Toshiba AMQP message", sendFailure.get());
             }
         } catch (Exception e) {
-            if (retryWithNewSasToken) {
-                log.warn("Toshiba AMQP send failed, attempting SAS token refresh and retry", e);
+            if (!messageSubmitted && retryWithNewSasToken && !cloudTransport.isProxyRoute()
+                    && e instanceof IotHubClientException clientFailure
+                    && clientFailure.getStatusCode() == IotHubStatusCode.UNAUTHORIZED) {
+                log.warn("Toshiba AMQP authentication failed; refreshing the SAS token once");
                 refreshSasToken(acData);
                 sendMessageInternal(acData, payload, false);
                 return;
             }
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            cloudTransport.markProxyFailure();
             throw new IllegalStateException("Unable to send Toshiba AMQP message", e);
         } finally {
             if (deviceClient != null) {
@@ -170,6 +183,37 @@ public class ToshibaAcAmqpSendService {
                     log.warn("Failed to close Toshiba AMQP device client cleanly", e);
                 }
             }
+        }
+    }
+
+    private DeviceClient openClient(String connectionString) throws IotHubClientException {
+        DeviceClient client = amqpClientFactory.create(connectionString, cloudTransport.isProxyRoute());
+        try {
+            client.open(false);
+            return client;
+        } catch (IotHubClientException failure) {
+            closeAfterFailedOpen(client);
+            cloudTransport.markProxyFailure();
+            if (!cloudTransport.tryProxyAfterConnectionFailure(failure, ToshibaAmqpClientFactory::isNetworkOpenFailure)) {
+                throw failure;
+            }
+        }
+        DeviceClient proxyClient = amqpClientFactory.create(connectionString, true);
+        try {
+            proxyClient.open(false);
+            return proxyClient;
+        } catch (IotHubClientException failure) {
+            cloudTransport.markProxyFailure();
+            closeAfterFailedOpen(proxyClient);
+            throw failure;
+        }
+    }
+
+    private void closeAfterFailedOpen(DeviceClient client) {
+        try {
+            client.close();
+        } catch (Exception failure) {
+            log.warn("Failed to close Toshiba AMQP client after an unsuccessful open");
         }
     }
 

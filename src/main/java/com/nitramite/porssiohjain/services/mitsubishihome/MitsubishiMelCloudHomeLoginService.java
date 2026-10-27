@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.services.mitsubishihome;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +31,16 @@ public class MitsubishiMelCloudHomeLoginService {
 
     private final MitsubishiMelCloudHomeApiClient apiClient;
     private final DeviceAcDataRepository deviceAcDataRepository;
+    private final OutboundProxyTransport cloudTransport;
 
     @Transactional
     public AcLoginResponse login(DeviceAcDataEntity acData) {
+        try (var ignored = cloudTransport.beginOperation()) {
+            return loginInternal(acData);
+        }
+    }
+
+    private AcLoginResponse loginInternal(DeviceAcDataEntity acData) {
         if (hasUsableAccessToken(acData)) {
             return success(acData.getAcAccessToken());
         }
@@ -49,7 +57,7 @@ public class MitsubishiMelCloudHomeLoginService {
             }
             return success(tokens.accessToken());
         } catch (MitsubishiMelCloudHomeException refreshFailure) {
-            if (hasRefreshToken(acData)) {
+            if (hasRefreshToken(acData) && !cloudTransport.hasFailedProxyAttempt()) {
                 log.info("MELCloud Home token refresh failed; trying a full login");
                 acData.setAcRefreshToken(null);
                 try {

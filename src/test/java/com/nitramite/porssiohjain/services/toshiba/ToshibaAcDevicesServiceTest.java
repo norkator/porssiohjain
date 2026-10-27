@@ -11,6 +11,8 @@
 
 package com.nitramite.porssiohjain.services.toshiba;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyProperties;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -35,7 +37,7 @@ class ToshibaAcDevicesServiceTest {
 
     @Test
     void invalidConsumerIdReturnsEmptyListWithoutHttpRequest() {
-        ToshibaAcDevicesService service = new ToshibaAcDevicesService();
+        ToshibaAcDevicesService service = new ToshibaAcDevicesService(new OutboundProxyTransport(new OutboundProxyProperties()));
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         ReflectionTestUtils.setField(service, "restTemplate", restTemplate);
@@ -54,7 +56,7 @@ class ToshibaAcDevicesServiceTest {
 
     @Test
     void validConsumerIdFetchesAndFlattensAcDevices() {
-        ToshibaAcDevicesService service = new ToshibaAcDevicesService();
+        ToshibaAcDevicesService service = new ToshibaAcDevicesService(new OutboundProxyTransport(new OutboundProxyProperties()));
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         ReflectionTestUtils.setField(service, "restTemplate", restTemplate);

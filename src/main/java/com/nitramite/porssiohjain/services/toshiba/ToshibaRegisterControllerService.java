@@ -11,11 +11,11 @@
 
 package com.nitramite.porssiohjain.services.toshiba;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import lombok.Builder;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -26,12 +26,19 @@ import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ToshibaRegisterControllerService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private static final String REGISTER_CLIENT_URL = "https://mobileapi.toshibahomeaccontrols.com/api/Consumer/RegisterMobileDevice";
     private final DeviceAcDataRepository deviceAcDataRepository;
+
+    public ToshibaRegisterControllerService(
+            DeviceAcDataRepository deviceAcDataRepository,
+            OutboundProxyTransport cloudTransport
+    ) {
+        this.deviceAcDataRepository = deviceAcDataRepository;
+        this.restTemplate = cloudTransport.newRestTemplate();
+    }
 
     @Data
     @Builder

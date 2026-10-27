@@ -11,6 +11,8 @@
 
 package com.nitramite.porssiohjain.services.toshiba;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyProperties;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
@@ -53,7 +55,7 @@ class ToshibaLoginServiceTest {
     void tooManyRequestsSuppressesImmediateNextLoginAttempt() {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
-        ToshibaLoginService service = new ToshibaLoginService(mock(DeviceAcDataRepository.class));
+        ToshibaLoginService service = new ToshibaLoginService(mock(DeviceAcDataRepository.class), new OutboundProxyTransport(new OutboundProxyProperties()));
         ReflectionTestUtils.setField(service, "restTemplate", restTemplate);
         server.expect(once(), requestTo("https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login"))
                 .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
@@ -77,7 +79,7 @@ class ToshibaLoginServiceTest {
     private ToshibaLoginService newServiceWithMockServer() {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer.bindTo(restTemplate).build();
-        ToshibaLoginService service = new ToshibaLoginService(mock(DeviceAcDataRepository.class));
+        ToshibaLoginService service = new ToshibaLoginService(mock(DeviceAcDataRepository.class), new OutboundProxyTransport(new OutboundProxyProperties()));
         ReflectionTestUtils.setField(service, "restTemplate", restTemplate);
         return service;
     }

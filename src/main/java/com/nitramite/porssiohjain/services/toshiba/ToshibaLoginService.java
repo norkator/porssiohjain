@@ -11,13 +11,13 @@
 
 package com.nitramite.porssiohjain.services.toshiba;
 
+import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import jakarta.transaction.Transactional;
 import lombok.Builder;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -34,15 +34,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ToshibaLoginService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private static final String LOGIN_URL = "https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login";
     private static final Duration TOKEN_REUSE_SKEW = Duration.ofMinutes(5);
     private static final Duration DEFAULT_RATE_LIMIT_COOLDOWN = Duration.ofSeconds(65);
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final Map<String, LoginState> loginStates = new ConcurrentHashMap<>();
+
+    public ToshibaLoginService(
+            DeviceAcDataRepository deviceAcDataRepository,
+            OutboundProxyTransport cloudTransport
+    ) {
+        this.deviceAcDataRepository = deviceAcDataRepository;
+        this.restTemplate = cloudTransport.newRestTemplate();
+    }
 
     @Data
     @Builder
