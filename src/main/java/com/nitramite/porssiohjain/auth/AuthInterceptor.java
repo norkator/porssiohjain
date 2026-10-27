@@ -82,13 +82,15 @@ public class AuthInterceptor implements HandlerInterceptor {
             } catch (IllegalArgumentException e) {
                 return rejectPreview(response, "Invalid preview account");
             }
-            // Preview uses the admin token and cannot create user credentials or change data.
+            // Support actions use the target's ownership and limits, never the admin's privileges.
             String path = request.getRequestURI().substring(request.getContextPath().length());
-            if ((!HttpMethod.GET.matches(request.getMethod()) && !HttpMethod.HEAD.matches(request.getMethod()))
-                    || (path.startsWith("/account/") && !path.equals("/account/stats"))
+            if ((path.startsWith("/account/") && !path.equals("/account/stats"))
                     || path.startsWith("/api/admin/")
-                    || path.startsWith("/admin/") || path.equals("/me/export")) {
-                return rejectPreview(response, "View as user is read-only");
+                    || path.startsWith("/admin/")
+                    || path.equals("/me/export") || path.equals("/me/password")
+                    || (path.equals("/me") && HttpMethod.DELETE.matches(request.getMethod()))
+                    || (path.startsWith("/billing/") && isWriteRequest(request))) {
+                return rejectPreview(response, "This account action is unavailable while viewing as another user");
             }
             authContext.setImpersonating(true);
         }

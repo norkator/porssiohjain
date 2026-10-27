@@ -117,8 +117,8 @@ class WaterMetersViewTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void impersonationAndDemoAccountsCannotSaveOrPoll() {
-        accounts.when(ViewAuthUtils::isImpersonating).thenReturn(true);
+    void demoAccountsCannotSaveOrPoll() {
+        account.setDemo(true);
         var view = new WaterMetersView(auth, i18n, service);
         assertFalse(DesktopCreateDialog.creationButton(view).isEnabled());
         buttons(view).filter(button -> button.getText().equals("Save")).findFirst().orElseThrow().click();
@@ -126,9 +126,22 @@ class WaterMetersViewTest {
         assertTrue(buttons(renderer.createComponent(meter)).filter(button -> !button.getText().equals("Graph")).noneMatch(Button::isEnabled));
         verify(service, never()).save(any(), any(), any());
         verify(service, never()).pollNow(any(), any());
-        accounts.when(ViewAuthUtils::isImpersonating).thenReturn(false);
-        account.setDemo(true);
-        assertFalse(DesktopCreateDialog.creationButton(new WaterMetersView(auth, i18n, service)).isEnabled());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void adminSupportCanEditAndPollTheEffectiveAccountsMeters() {
+        accounts.when(ViewAuthUtils::isImpersonating).thenReturn(true);
+        when(service.pollNow(7L, 9L)).thenReturn(meter);
+        var view = new WaterMetersView(auth, i18n, service);
+        assertTrue(DesktopCreateDialog.creationButton(view).isEnabled());
+        var renderer = (ComponentRenderer<?, WaterMeterService.Meter>) grid(view).getColumns().getLast().getRenderer();
+        var actions = renderer.createComponent(meter);
+        buttons(actions).filter(button -> button.getText().equals("Read now")).findFirst().orElseThrow().click();
+        verify(service).pollNow(7L, 9L);
+        buttons(actions).filter(button -> button.getText().equals("Edit water meter")).findFirst().orElseThrow().click();
+        buttons(view).filter(button -> button.getText().equals("Save")).findFirst().orElseThrow().click();
+        verify(service).save(eq(7L), eq(9L), any());
     }
 
     @Test

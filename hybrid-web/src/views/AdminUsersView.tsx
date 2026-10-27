@@ -95,28 +95,57 @@ export default function AdminUsersView() {
           {result ? <>
             <p className="text-sm text-on-surface-variant">{t("count", { count: result.totalElements })}</p>
             {result.users.length === 0 ? <p>{t("empty")}</p> : null}
-            <ul className="divide-y divide-outline-variant rounded-xl border border-outline-variant bg-surface-container-low">
-              {result.users.map((user) => (
-                <li className="flex min-w-0 flex-col gap-4 px-4 py-4 sm:px-5 md:flex-row md:items-center md:justify-between" key={user.id}>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-                      <span className="break-all font-headline text-lg font-bold">{user.email || t("noEmail")}</span>
-                      <span className="text-sm text-on-surface-variant">{t("accountId", { id: user.id })}</span>
-                    </div>
-                    <p className="mt-1 text-sm text-on-surface-variant">{user.tier} · {user.admin ? t("admin") : t("user")} · {user.blocked ? t("blocked") : t("allowed")} · {t("deviceCount", { count: user.deviceCount })}</p>
-                    <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 xl:grid-cols-3">
-                      <div className="min-w-0"><dt className="font-bold">UUID</dt><dd className="break-all text-on-surface-variant">{user.uuid}</dd></div>
-                      <div><dt className="font-bold">{t("created")}</dt><dd className="text-on-surface-variant">{date(user.createdAt)}</dd></div>
-                      <div><dt className="font-bold">{t("updated")}</dt><dd className="text-on-surface-variant">{date(user.updatedAt)}{user.lastActivitySource ? ` · ${user.lastActivitySource}` : ""}</dd></div>
-                    </dl>
-                  </div>
-                  <button className="primary-action shrink-0 self-start px-4 py-3 disabled:cursor-not-allowed disabled:opacity-50 md:self-center"
-                    disabled={user.admin || user.id === adminId || previewing !== null} onClick={() => void viewUser(user)} type="button">
-                    {previewing === user.id ? t("opening") : t("viewAsUser")}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div aria-label={t("title")} className="overflow-x-auto rounded-lg border border-outline-variant" role="region" tabIndex={0}>
+              <table className="w-full table-fixed border-collapse text-left text-sm sm:table-auto">
+                <thead className="bg-surface-container-high text-xs text-on-surface-variant">
+                  <tr>
+                    <th className="px-3 py-2 font-semibold" scope="col">{t("account")}</th>
+                    <th className="hidden px-3 py-2 font-semibold sm:table-cell" scope="col">{t("tier")}</th>
+                    <th className="hidden px-3 py-2 text-right font-semibold sm:table-cell" scope="col">{t("devices")}</th>
+                    <th className="hidden px-3 py-2 font-semibold md:table-cell" scope="col">{t("status")}</th>
+                    <th className="w-20 px-3 py-2 text-right font-semibold sm:w-auto" scope="col">{t("actions")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant bg-surface-container-lowest">
+                  {result.users.map((user) => (
+                    <tr className="align-top" key={user.id}>
+                      <td className="px-3 py-2">
+                        <p className="max-w-xs truncate font-semibold" title={user.email || t("noEmail")}>{user.email || t("noEmail")}</p>
+                        <div className="flex flex-wrap items-baseline gap-x-3 text-xs text-on-surface-variant">
+                          <span>{t("accountId", { id: user.id })}</span>
+                          <details>
+                            <summary className="cursor-pointer rounded-sm hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">{t("details")}</summary>
+                            <dl className="space-y-1 py-2">
+                              <div className="sm:hidden"><dt className="font-semibold">{t("tier")}</dt><dd>{user.tier} · {user.admin ? t("admin") : t("user")}</dd></div>
+                              <div className="sm:hidden"><dt className="font-semibold">{t("devices")}</dt><dd>{user.deviceCount}</dd></div>
+                              <div className="md:hidden"><dt className="font-semibold">{t("status")}</dt><dd>{user.blocked ? t("blocked") : t("allowed")}</dd></div>
+                              <div><dt className="font-semibold">UUID</dt><dd className="break-all">{user.uuid}</dd></div>
+                              <div><dt className="font-semibold">{t("created")}</dt><dd>{date(user.createdAt)}</dd></div>
+                              <div><dt className="font-semibold">{t("updated")}</dt><dd>{date(user.updatedAt)}{user.lastActivitySource ? ` · ${user.lastActivitySource}` : ""}</dd></div>
+                            </dl>
+                          </details>
+                        </div>
+                      </td>
+                      <td className="hidden whitespace-nowrap px-3 py-2 sm:table-cell">
+                        {user.tier}
+                        <p className="text-xs text-on-surface-variant">{user.admin ? t("admin") : t("user")}</p>
+                      </td>
+                      <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{user.deviceCount}</td>
+                      <td className="hidden whitespace-nowrap px-3 py-2 text-xs md:table-cell">
+                        <span className={user.blocked ? "font-semibold text-on-error-container" : "text-on-surface-variant"}>{user.blocked ? t("blocked") : t("allowed")}</span>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button aria-label={`${t("viewAsUser")} · ${user.email || user.id}`} className="secondary-action whitespace-nowrap px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={user.admin || user.id === adminId || previewing !== null} onClick={() => void viewUser(user)} type="button">
+                          <span className="sm:hidden">{previewing === user.id ? t("openingShort") : t("viewAsUserShort")}</span>
+                          <span className="hidden sm:inline">{previewing === user.id ? t("opening") : t("viewAsUser")}</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <nav aria-label={t("pagination")} className="flex flex-wrap items-center justify-between gap-3">
               <button className="secondary-action px-4 py-2 disabled:opacity-50" disabled={page === 0} onClick={() => setPage((value) => value - 1)} type="button">{t("previous")}</button>
               <span>{t("page", { page: result.page + 1, total: Math.max(result.totalPages, 1) })}</span>

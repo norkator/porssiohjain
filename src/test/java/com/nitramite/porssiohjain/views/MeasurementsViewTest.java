@@ -182,6 +182,7 @@ class MeasurementsViewTest {
     @Test
     @SuppressWarnings("unchecked")
     void publicCheckboxPersistsOnlyItsPropertyAndExposesTheAccountShareLink() {
+        accounts.when(ViewAuthUtils::isImpersonating).thenReturn(true);
         when(generic.findLatestDistinctMeasurements(7L, Instant.EPOCH)).thenReturn(List.of(snapshot));
         var selected = new PublicMeasurementService.PublishedMeasurement(13L, "Living room",
                 DeviceMeasurementType.TEMPERATURE, "temperature");
@@ -193,6 +194,7 @@ class MeasurementsViewTest {
         var column = grids(view).getFirst().getColumnByKey("public");
         var renderer = (ComponentRenderer<?, DeviceMeasurementEntity>) column.getRenderer();
         var checkbox = (Checkbox) renderer.createComponent(snapshot);
+        assertThat(checkbox.isEnabled()).isTrue();
         assertThat(checkbox.getValue()).isFalse();
         checkbox.setValue(true);
         verify(publicMeasurements).setPublished(7L, 13L, DeviceMeasurementType.TEMPERATURE, "temperature", true);

@@ -72,7 +72,7 @@ class FeatureRequestsControllerTest {
     }
 
     @Test
-    void authenticationDemoAndPreviewRulesApply() throws Exception {
+    void authenticationAndDemoRulesApplyAndAdminSupportSubmitsForTheTarget() throws Exception {
         mvc.perform(post("/api/feature-requests").contentType("application/json").content(INPUT))
                 .andExpect(status().isUnauthorized());
         account.setDemo(true);
@@ -86,8 +86,9 @@ class FeatureRequestsControllerTest {
                 .secret(UUID.randomUUID().toString()).build());
         mvc.perform(post("/api/feature-requests").header("Authorization", token)
                 .header("X-View-As-Account", target.getId()).contentType("application/json").content(INPUT))
-                .andExpect(status().isForbidden());
-        assertEquals(0, requests.count());
+                .andExpect(status().isNoContent());
+        assertEquals(1, requests.count());
+        assertEquals(target.getId(), requests.findAll().getFirst().getAccountId());
     }
     @Test
     void listsOnlyOwnRequestsWithPaginationAndDeniesOtherOwnersConversation() throws Exception {
@@ -174,7 +175,7 @@ class FeatureRequestsControllerTest {
     }
 
     @Test
-    void rejectsInvalidCommentsAndReadMarkersAndReadOnlyWrites() throws Exception {
+    void rejectsInvalidCommentsAndReadMarkersDemoWritesAndOtherAccountsRequests() throws Exception {
         service.submit(account.getId(), new com.nitramite.porssiohjain.services.models.FeatureRequestInput("Use", "Idea", ""));
         var id = requests.findAll().getFirst().getId();
         for (String message : java.util.List.of(" ", "x".repeat(5001))) {
@@ -196,9 +197,17 @@ class FeatureRequestsControllerTest {
         for (String action : java.util.List.of("comments", "read")) {
             mvc.perform(post("/api/feature-requests/" + id + "/" + action).header("Authorization", token)
                     .header("X-View-As-Account", target.getId()).contentType("application/json")
-                    .content("{\"message\":\"Hi\",\"seenCommentId\":0}")).andExpect(status().isForbidden());
+                    .content("{\"message\":\"Hi\",\"seenCommentId\":0}")).andExpect(status().isBadRequest())
+                    .andExpect(content().string("Request not found"));
         }
         assertEquals(0, comments.count());
+        service.submit(target.getId(), new com.nitramite.porssiohjain.services.models.FeatureRequestInput("Target use", "Target idea", ""));
+        var targetRequest = requests.findAll().stream().filter(request -> request.getAccountId().equals(target.getId())).findFirst().orElseThrow();
+        mvc.perform(post("/api/feature-requests/" + targetRequest.getId() + "/comments").header("Authorization", token)
+                        .header("X-View-As-Account", target.getId()).contentType("application/json").content("{\"message\":\"Support reply\"}"))
+                .andExpect(status().isNoContent());
+        assertEquals(target.getId(), comments.findAll().getFirst().getAccountId());
+        assertFalse(comments.findAll().getFirst().isAdminAuthor());
     }
 
     @Test

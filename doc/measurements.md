@@ -15,7 +15,8 @@ cutoff or history truncation is used to accelerate the list.
 Select **Public** beside a measurement to add that device/type/key to the account's
 share page. Choices are saved immediately. The sharing panel provides the page link,
 a copy button, and removal controls that remain available when a sensor has no retained
-readings. Demo accounts and impersonation previews cannot change publishing choices.
+readings. Demo accounts cannot change publishing choices. Admins viewing as another
+user can manage that user's publishing choices for support.
 
 Flyway V114 adds nullable `account.public_measurements_uuid` and the
 `public_measurement` selection table. The first publication generates a random page

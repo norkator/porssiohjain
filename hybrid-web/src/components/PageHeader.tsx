@@ -12,6 +12,7 @@
 import { Link, useLocation } from "react-router-dom";
 import HeaderLogo from "@/components/HeaderLogo";
 import { useI18n } from "@/lib/i18n";
+import { getUserPreview } from "@/lib/impersonation";
 
 type HeaderItem = {
   label: string;
@@ -48,7 +49,7 @@ export default function PageHeader({
   );
 
   return (
-    <header className={`sticky top-0 z-40 w-full ${translucent ? "bg-background/85 backdrop-blur-md" : "bg-surface-container-low"}`}>
+    <header className={`sticky ${getUserPreview() ? "top-11" : "top-0"} z-40 w-full ${translucent ? "bg-background/85 backdrop-blur-md" : "bg-surface-container-low"}`}>
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
         {location.pathname === "/menu" ? (
           <div className="flex items-center gap-3 sm:gap-4">{brandContent}</div>

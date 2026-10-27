@@ -185,10 +185,12 @@ export default function AccountSettingsView() {
       setEmailNotificationsEnabled(response.emailNotificationsEnabled);
       setPushNotificationsEnabled(response.pushNotificationsEnabled);
       setCurrentLocale((response.locale || "en") as "en" | "fi");
-      setDevSessionOverride({
-        accountId: response.accountId,
-        locale: response.locale || "en"
-      });
+      if (!isUserPreview) {
+        setDevSessionOverride({
+          accountId: response.accountId,
+          locale: response.locale || "en"
+        });
+      }
       setMessage(t("saved"));
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : t("failedSave"));
@@ -437,7 +439,7 @@ export default function AccountSettingsView() {
                     <input
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all placeholder:text-on-surface-variant/40 focus:border-primary"
                       id="account-email"
-                      disabled={isUserPreview || isDemoAccount}
+                      disabled={isDemoAccount}
                       onChange={(event) => setEmail(event.target.value)}
                       placeholder={t("emailPlaceholder")}
                       type="email"
@@ -452,7 +454,7 @@ export default function AccountSettingsView() {
                     <select
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
                       id="account-language"
-                      disabled={isUserPreview || isDemoAccount}
+                      disabled={isDemoAccount}
                       onChange={(event) => setLocaleValue(event.target.value)}
                       value={locale}
                     >
@@ -469,7 +471,7 @@ export default function AccountSettingsView() {
                     <select
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
                       id="account-market"
-                      disabled={isUserPreview || isDemoAccount}
+                      disabled={isDemoAccount}
                       onChange={(event) => setMarketIndexName(event.target.value)}
                       value={marketIndexName}
                     >
@@ -516,7 +518,7 @@ export default function AccountSettingsView() {
                       <span>{t("notifyPowerLimitExceeded")}</span>
                       <input
                         checked={notifyPowerLimitExceeded}
-                        disabled={isUserPreview || isDemoAccount}
+                        disabled={isDemoAccount}
                         onChange={(event) => setNotifyPowerLimitExceeded(event.target.checked)}
                         type="checkbox"
                       />
@@ -526,7 +528,7 @@ export default function AccountSettingsView() {
                         <span>{t("notifyControlActivated")}</span>
                         <input
                           checked={notifyControlActivated}
-                          disabled={isUserPreview || isDemoAccount}
+                          disabled={isDemoAccount}
                           onChange={(event) => setNotifyControlActivated(event.target.checked)}
                           type="checkbox"
                         />
@@ -538,7 +540,7 @@ export default function AccountSettingsView() {
                         <span>{t("notifyDeviceOffline")}</span>
                         <input
                           checked={notifyDeviceOffline}
-                          disabled={isUserPreview || isDemoAccount}
+                          disabled={isDemoAccount}
                           onChange={(event) => setNotifyDeviceOffline(event.target.checked)}
                           type="checkbox"
                         />
@@ -550,7 +552,7 @@ export default function AccountSettingsView() {
                         <span>{t("notifyDeviceOnline")}</span>
                         <input
                           checked={notifyDeviceOnline}
-                          disabled={isUserPreview || isDemoAccount}
+                          disabled={isDemoAccount}
                           onChange={(event) => setNotifyDeviceOnline(event.target.checked)}
                           type="checkbox"
                         />
@@ -565,7 +567,7 @@ export default function AccountSettingsView() {
                       <span>{t("emailNotificationsEnabled")}</span>
                       <input
                         checked={emailNotificationsEnabled}
-                        disabled={isUserPreview || isDemoAccount}
+                        disabled={isDemoAccount}
                         onChange={(event) => setEmailNotificationsEnabled(event.target.checked)}
                         type="checkbox"
                       />
@@ -574,7 +576,7 @@ export default function AccountSettingsView() {
                       <span>{t("pushNotificationsEnabled")}</span>
                       <input
                         checked={pushNotificationsEnabled}
-                        disabled={isUserPreview || isDemoAccount}
+                        disabled={isDemoAccount}
                         onChange={(event) => setPushNotificationsEnabled(event.target.checked)}
                         type="checkbox"
                       />
@@ -583,7 +585,7 @@ export default function AccountSettingsView() {
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isUserPreview || isSaving || isDemoAccount} type="submit">
+                  <button className="primary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={isSaving || isDemoAccount} type="submit">
                     {isSaving ? t("saving") : t("save")}
                   </button>
                   <Link className="secondary-action justify-center" to="/menu">

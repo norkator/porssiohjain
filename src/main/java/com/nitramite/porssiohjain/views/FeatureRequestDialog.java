@@ -119,7 +119,7 @@ public class FeatureRequestDialog extends Dialog {
         });
         send = new Button(t("send"), event -> submit());
         send.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        if (ViewAuthUtils.isImpersonating() || account != null && account.isDemo()) {
+        if (account != null && account.isDemo()) {
             send.setEnabled(false);
             body.add(new Span(t("readOnly")));
         }
@@ -153,7 +153,7 @@ public class FeatureRequestDialog extends Dialog {
     private void submit() {
         var account = ViewAuthUtils.getAuthenticatedAccount(authService, i18n.t("home.sessionExpired"));
         if (account == null) { close(); return; }
-        if (ViewAuthUtils.isImpersonating() || account.isDemo()) { error.setText(t("readOnly")); return; }
+        if (account.isDemo()) { error.setText(t("readOnly")); return; }
         send.setEnabled(false);
         try {
             service.submit(account.getId(), new FeatureRequestInput(useCase.getValue(), changes.getValue(), email.getValue()));

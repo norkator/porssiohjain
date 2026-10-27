@@ -88,7 +88,7 @@ class FeatureRequestConversationDialog extends Dialog {
 
     private boolean writable() {
         var account = ViewAuthUtils.findAuthenticatedAccount(auth);
-        return account != null && !account.isDemo() && !ViewAuthUtils.isImpersonating() && (!adminView || account.isAdmin());
+        return account != null && !account.isDemo() && (!adminView || account.isAdmin());
     }
 
     private void refresh() {

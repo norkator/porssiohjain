@@ -130,7 +130,7 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
         }
         if (sharing.selections().isEmpty()) sharingPanel.add(new Paragraph(t("measurements.sharing.empty")));
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
-        boolean writable = account != null && !account.isDemo() && !ViewAuthUtils.isImpersonating();
+        boolean writable = account != null && !account.isDemo();
         for (var selected : sharing.selections()) {
             Button remove = new Button(t("measurements.sharing.remove"), event -> changePublication(
                     selected.deviceId(), selected.type(), selected.key(), false));
@@ -146,7 +146,7 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
 
     private void changePublication(Long deviceId, DeviceMeasurementType type, String key, boolean published) {
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
-        if (account == null || account.isDemo() || ViewAuthUtils.isImpersonating()) return;
+        if (account == null || account.isDemo()) return;
         try {
             publicMeasurements.setPublished(account.getId(), deviceId, type, key, published);
         } catch (IllegalArgumentException | DemoAccountMutationException exception) {
@@ -199,7 +199,7 @@ public class MeasurementsView extends VerticalLayout implements BeforeEnterObser
             checkbox.setValue(sharing.selections().stream().anyMatch(selected ->
                     selected.deviceId().equals(row.getDevice().getId()) && selected.type() == row.getMeasurementType()
                             && selected.key().equals(row.getMeasurementKey())));
-            checkbox.setEnabled(account != null && !account.isDemo() && !ViewAuthUtils.isImpersonating());
+            checkbox.setEnabled(account != null && !account.isDemo());
             checkbox.addValueChangeListener(event -> changePublication(row.getDevice().getId(), row.getMeasurementType(),
                     row.getMeasurementKey(), event.getValue()));
             return checkbox;

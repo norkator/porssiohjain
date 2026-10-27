@@ -11,7 +11,6 @@
 
 import { getSessionData, handleUnauthorizedSession, setBrowserSession } from "@/lib/session";
 import { getUserPreview } from "@/lib/impersonation";
-import { getCommonTranslation } from "@/lib/i18n";
 
 type RefreshResponse = {
   token: string;
@@ -42,9 +41,6 @@ export function getAuthHeaders(headers?: HeadersInit) {
 }
 
 export async function apiFetch(path: string, init?: RequestInit) {
-  if (getUserPreview() && !["GET", "HEAD"].includes((init?.method ?? "GET").toUpperCase())) {
-    throw new Error(getCommonTranslation("previewReadOnly"));
-  }
   let response = await fetch(getApiUrl(path), {
     ...init,
     headers: getAuthHeaders(init?.headers)

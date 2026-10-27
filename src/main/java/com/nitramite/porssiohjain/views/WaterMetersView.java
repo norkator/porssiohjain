@@ -355,7 +355,7 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
 
     private boolean writable() {
         AccountEntity account = account();
-        return account != null && !account.isDemo() && !ViewAuthUtils.isImpersonating();
+        return account != null && !account.isDemo();
     }
 
     private void showError(String key) {

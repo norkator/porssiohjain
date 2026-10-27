@@ -116,6 +116,6 @@ export function logoutNative() {
 
 function blockPreviewAction() {
   if (!getUserPreview()) return false;
-  showNativeToast(getCommonTranslation("previewReadOnly"));
+  showNativeToast(getCommonTranslation("supportNativeActionUnavailable"));
   return true;
 }

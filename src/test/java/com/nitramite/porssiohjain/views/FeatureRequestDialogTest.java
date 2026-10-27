@@ -22,6 +22,7 @@ class FeatureRequestDialogTest {
             var service = mock(FeatureRequestService.class);
             var i18n = mock(I18nService.class, invocation -> invocation.getMethod().getName().equals("t") ? invocation.getArgument(0) : null);
             var account = AccountEntity.builder().id(9L).email("user@example.com").build();
+            auth.when(ViewAuthUtils::isImpersonating).thenReturn(true);
             auth.when(() -> ViewAuthUtils.findAuthenticatedAccount(authService)).thenReturn(account);
             auth.when(() -> ViewAuthUtils.getAuthenticatedAccount(authService, "home.sessionExpired")).thenReturn(account);
             var dialog = new FeatureRequestDialog(authService, service, i18n);

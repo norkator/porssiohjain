@@ -31,7 +31,7 @@ export default function FeatureRequestDialog({ isOpen, onClose }: { isOpen: bool
     let active = true;
     fetchMe().then((account) => {
       if (!active) return;
-      setReadOnly(account.demo || account.impersonating);
+      setReadOnly(account.demo);
       if (!emailEdited.current) setEmail(account.email ?? "");
     }).catch(() => { /* The contact field remains optional when account lookup fails. */ });
     return () => { active = false; };

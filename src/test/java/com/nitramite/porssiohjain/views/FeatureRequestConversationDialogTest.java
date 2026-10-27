@@ -43,7 +43,7 @@ class FeatureRequestConversationDialogTest {
     }
 
     @Test
-    void adminCanHandleAndReopenAndPreviewCannotConsumeUnreadOrReply() {
+    void adminCanHandleAndReopenAndSupportCanReadAndReplyAsTheSelectedUser() {
         UI.setCurrent(new UI());
         try (var accounts = mockStatic(ViewAuthUtils.class)) {
             var auth = mock(AuthService.class);
@@ -63,8 +63,11 @@ class FeatureRequestConversationDialogTest {
             when(service.detail(7L, 42L, false)).thenReturn(new FeatureRequestDetail(42L, "Use", "Idea", null, Instant.now(), false, List.of()));
             var preview = new FeatureRequestConversationDialog(auth, service, translations(), 42L, false, () -> {});
             preview.open();
-            assertFalse(footer(preview, "featureRequest.sendComment").isEnabled());
-            verify(service, never()).markRead(any(), any(), anyLong());
+            assertTrue(footer(preview, "featureRequest.sendComment").isEnabled());
+            verify(service).markRead(7L, 42L, 0L);
+            children(preview).filter(TextArea.class::isInstance).map(TextArea.class::cast).findFirst().orElseThrow().setValue("Support reply");
+            footer(preview, "featureRequest.sendComment").click();
+            verify(service).comment(7L, 42L, "Support reply", false);
         } finally { UI.setCurrent(null); }
     }
 

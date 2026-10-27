@@ -3,12 +3,16 @@ package com.nitramite.porssiohjain;
 import com.nitramite.porssiohjain.auth.AuthContext;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
+import com.nitramite.porssiohjain.entity.SiteEntity;
 import com.nitramite.porssiohjain.entity.TokenEntity;
+import com.nitramite.porssiohjain.entity.enums.SiteType;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
+import com.nitramite.porssiohjain.entity.repository.SiteRepository;
 import com.nitramite.porssiohjain.entity.repository.TokenRepository;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,10 +21,14 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.test.context.transaction.TestTransaction;
 
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -32,6 +40,7 @@ class AdminUsersControllerTest {
     @Autowired MockMvc mvc;
     @Autowired AccountRepository accounts;
     @Autowired DeviceRepository devices;
+    @Autowired SiteRepository sites;
     @Autowired TokenRepository tokens;
     @Autowired AuthContext context;
     @MockitoBean MqttService mqttService;
@@ -119,9 +128,10 @@ class AdminUsersControllerTest {
     }
 
     @Test
-    void previewBlocksWritesCredentialsExportAndAdminAccess() throws Exception {
-        for (var request : java.util.List.of(put("/me"), delete("/me"), post("/me/password"),
-                post("/devices/123/heat-pump/commands"), get("/me/export"), get("/api/admin/users"))) {
+    void supportStillBlocksCredentialsExportAccountDeletionPurchasesAndAdminAccess() throws Exception {
+        for (var request : java.util.List.of(delete("/me"), post("/me/password"),
+                get("/me/export"), get("/api/admin/users"), post("/api/admin/users/{id}/preview", user.getId()),
+                post("/billing/google-play/purchases"), post("/account/qr-login/challenges/{id}/approve", UUID.randomUUID()))) {
             mvc.perform(request.header("Authorization", adminToken).header("X-View-As-Account", user.getId()))
                     .andExpect(status().isForbidden());
             assertNull(context.getAccountId());
@@ -129,11 +139,108 @@ class AdminUsersControllerTest {
     }
 
     @Test
-    void adminRevocationTakesEffectOnNextPreviewRequest() throws Exception {
+    void supportCanCreateAndEditSitesUsingTheSelectedAccountsQuota() throws Exception {
+        String siteRequest = """
+                {"name":"Home","type":"HOME","enabled":false,"timezone":"Europe/Helsinki"}
+                """;
+        mvc.perform(post("/api/sites").header("Authorization", adminToken).header("X-View-As-Account", user.getId())
+                        .contentType("application/json").content(siteRequest))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Home"));
+        var site = sites.findByAccountId(user.getId()).getFirst();
+        assertTrue(sites.findByAccountId(admin.getId()).isEmpty());
+        mvc.perform(put("/api/sites/{id}", site.getId()).header("Authorization", adminToken)
+                        .header("X-View-As-Account", user.getId()).contentType("application/json")
+                        .content(siteRequest.replace("Home", "Support edit")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Support edit"));
+        mvc.perform(post("/api/sites").header("Authorization", adminToken).header("X-View-As-Account", user.getId())
+                        .contentType("application/json").content(siteRequest))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value("Site limit reached for this account (1)."));
+        assertEquals(1, sites.countByAccountId(user.getId()));
+        var other = sites.saveAndFlush(SiteEntity.builder().account(admin).name("Admin home").type(SiteType.HOME).build());
+        mvc.perform(put("/api/sites/{id}", other.getId()).header("Authorization", adminToken)
+                        .header("X-View-As-Account", user.getId()).contentType("application/json").content(siteRequest))
+                .andExpect(status().isBadRequest());
+        assertEquals("Admin home", sites.findById(other.getId()).orElseThrow().getName());
+        assertNull(context.getAccountId());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void supportCanCommandAndDeleteOnlyTheSelectedUsersDevices() throws Exception {
+        var targetDevice = devices.saveAndFlush(DeviceEntity.builder().account(user).deviceName("Target relay")
+                .timezone("Europe/Helsinki").mqttOnline(true).build());
+        var otherDevice = devices.saveAndFlush(DeviceEntity.builder().account(admin).deviceName("Admin relay")
+                .timezone("Europe/Helsinki").mqttOnline(true).build());
+        mvc.perform(post("/devices/{id}/mqtt-relays/0", targetDevice.getId()).header("Authorization", adminToken)
+                        .header("X-View-As-Account", user.getId()).contentType("application/json").content("{\"on\":true}"))
+                .andExpect(status().isOk());
+        verify(mqttService).switchControl(targetDevice.getUuid().toString(), 0, true, targetDevice.getDevicePlatform());
+        mvc.perform(post("/devices/{id}/mqtt-relays/0", otherDevice.getId()).header("Authorization", adminToken)
+                        .header("X-View-As-Account", user.getId()).contentType("application/json").content("{\"on\":true}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(delete("/devices/{id}", otherDevice.getId()).header("Authorization", adminToken)
+                        .header("X-View-As-Account", user.getId())).andExpect(status().isBadRequest());
+        mvc.perform(delete("/devices/{id}", targetDevice.getId()).header("Authorization", adminToken)
+                        .header("X-View-As-Account", user.getId())).andExpect(status().isNoContent());
+        assertFalse(devices.existsById(targetDevice.getId()));
+        assertTrue(devices.existsById(otherDevice.getId()));
+        assertNull(context.getAccountId());
+    }
+
+    @AfterEach
+    void cleanCommittedCommandFixtures() {
+        if (TestTransaction.isActive()) return;
+        devices.deleteAll(devices.findByAccountId(admin.getId()));
+        devices.deleteAll(devices.findByAccountId(user.getId()));
+        tokens.findByToken(adminToken).ifPresent(tokens::delete);
+        tokens.findByToken(userToken).ifPresent(tokens::delete);
+        accounts.deleteAllById(java.util.List.of(admin.getId(), user.getId()));
+    }
+
+    @Test
+    void supportSettingsUpdateChangesOnlyTheSelectedUserAndRetainsTheAdminSession() throws Exception {
+        mvc.perform(put("/me").header("Authorization", adminToken).header("X-View-As-Account", user.getId())
+                        .contentType("application/json").content("{\"email\":\"support@example.test\",\"locale\":\"fi\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.accountId").value(user.getId()))
+                .andExpect(jsonPath("$.email").value("support@example.test"))
+                .andExpect(jsonPath("$.admin").value(false)).andExpect(jsonPath("$.impersonating").value(true));
+        mvc.perform(get("/me").header("Authorization", adminToken)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountId").value(admin.getId()))
+                .andExpect(jsonPath("$.email").value("admin@example.test"))
+                .andExpect(jsonPath("$.admin").value(true));
+        assertEquals(admin.getId(), tokens.findByTokenWithAccount(adminToken).orElseThrow().getAccount().getId());
+        assertNull(context.getAccountId());
+    }
+
+    @Test
+    void demoTargetAndForgedSupportHeaderStillCannotWrite() throws Exception {
+        var targetDevice = devices.saveAndFlush(DeviceEntity.builder().account(user).deviceName("Target relay")
+                .timezone("Europe/Helsinki").mqttOnline(true).build());
+        mvc.perform(delete("/devices/{id}", targetDevice.getId()).header("Authorization", userToken)
+                        .header("X-View-As-Account", admin.getId())).andExpect(status().isForbidden());
+        user.setDemo(true);
+        accounts.saveAndFlush(user);
+        mvc.perform(delete("/devices/{id}", targetDevice.getId()).header("Authorization", adminToken)
+                        .header("X-View-As-Account", user.getId())).andExpect(status().isForbidden());
+        mvc.perform(post("/devices/{id}/mqtt-relays/0", targetDevice.getId()).header("Authorization", adminToken)
+                        .header("X-View-As-Account", user.getId()).contentType("application/json").content("{\"on\":true}"))
+                .andExpect(status().isForbidden());
+        assertTrue(devices.existsById(targetDevice.getId()));
+        verifyNoInteractions(mqttService);
+        assertNull(context.getAccountId());
+    }
+
+    @Test
+    void adminRevocationTakesEffectOnNextSupportReadAndWrite() throws Exception {
         admin.setAdmin(false);
         accounts.saveAndFlush(admin);
         mvc.perform(get("/me").header("Authorization", adminToken).header("X-View-As-Account", user.getId()))
                 .andExpect(status().isForbidden());
+        mvc.perform(put("/me").header("Authorization", adminToken).header("X-View-As-Account", user.getId())
+                        .contentType("application/json").content("{\"email\":\"changed@example.test\"}"))
+                .andExpect(status().isForbidden());
+        assertEquals("target@example.test", accounts.findById(user.getId()).orElseThrow().getEmail());
+        assertNull(context.getAccountId());
     }
 
     private AccountEntity account(boolean isAdmin, String email) {
