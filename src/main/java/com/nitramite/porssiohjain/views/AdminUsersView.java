@@ -149,6 +149,10 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         grid.addColumn(account -> accountLimitService.getDeviceCount(account.getId()))
                 .setHeader(t("admin.users.devices"))
                 .setAutoWidth(true);
+        grid.addColumn(account -> adminAccountService.getOnlineDeviceCount(account.getId())
+                        + "/" + accountLimitService.getDeviceCount(account.getId()))
+                .setHeader(t("admin.users.devicesOnline"))
+                .setAutoWidth(true);
         grid.addColumn(account -> accountLimitService.getControlCount(account.getId()))
                 .setHeader(t("admin.users.controls"))
                 .setAutoWidth(true);

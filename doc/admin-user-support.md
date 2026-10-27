@@ -26,6 +26,9 @@ maximized and mobile windows; dragging/resizing cannot cover it. Returning to
 admin from the banner or Start menu uses the same unsaved-draft confirmation.
 The admin user grid grows with its rows, leaving vertical scrolling to the
 desktop window instead of using a second scroll area with a fixed height.
+Its Devices online column shows online/total owned devices (for example `1/10`,
+or `0/0` for an account with no devices). A device counts as online when API or
+MQTT connectivity is online, counted once even when both are online.
 
 The hybrid-web user list uses compact table rows with expandable UUID and date
 details. On narrow screens less-used columns move into the expandable details

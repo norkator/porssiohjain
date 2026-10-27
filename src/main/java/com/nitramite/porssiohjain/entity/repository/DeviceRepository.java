@@ -32,6 +32,9 @@ public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
 
     long countByAccountId(Long accountId);
 
+    @Query("SELECT COUNT(d) FROM DeviceEntity d WHERE d.account.id = :accountId AND (d.apiOnline = true OR d.mqttOnline = true)")
+    long countOnlineByAccountId(@Param("accountId") Long accountId);
+
     @Query("SELECT MAX(d.lastCommunication) FROM DeviceEntity d WHERE d.account.id = :accountId")
     Optional<Instant> findLatestLastCommunicationByAccountId(@Param("accountId") Long accountId);
 

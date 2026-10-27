@@ -41,6 +41,11 @@ public class AdminAccountService {
     private final ZigbeeGatewayStatusRepository zigbeeGatewayStatusRepository;
 
     @Transactional(readOnly = true)
+    public long getOnlineDeviceCount(Long accountId) {
+        return deviceRepository.countOnlineByAccountId(accountId);
+    }
+
+    @Transactional(readOnly = true)
     public Optional<Instant> getLastActivity(Long accountId) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found: " + accountId));
