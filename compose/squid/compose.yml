@@ -2,7 +2,7 @@ services:
   squid:
     image: ghcr.io/norkator/porssiohjain-proxy:latest
     restart: unless-stopped
+    environment:
+      SQUID_ALLOWED_CLIENTS: "${SQUID_ALLOWED_CLIENTS:-10.0.0.0/24}"
     ports:
-      - "${SQUID_BIND_IP:?Set SQUID_BIND_IP to the proxy server address}:3128:3128"
-    volumes:
-      - ./squid.conf:/etc/squid/squid.conf:ro
+      - "${SQUID_BIND_IP:-0.0.0.0}:3128:3128"

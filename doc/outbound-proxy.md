@@ -89,46 +89,71 @@ on `production`. It also supports a manual **Build and Push Proxy Image** run
 from GitHub's Actions tab. Publishing uses the existing `GITHUB_TOKEN` package
 permissions, matching the backend and hybrid-web image workflows.
 
-The image includes the sample configuration and validates it during the build.
-Mount your edited configuration for deployment. The example Compose and config
-files are in [`compose/squid`](../compose/squid); copy `compose.yml` and
-`squid.conf` to the second server. Adding the container to the backend's existing
-host would normally keep the same public outgoing IP.
-
-1. In `squid.conf`, replace `192.0.2.10/32` with the backend's actual source IP as
-   seen by Squid. Use its VPN IP when connecting over a VPN. Do not add a general
-   `allow all` rule. The documentation IP intentionally grants no real client.
-2. The `allowed_destinations` allowlist initially covers the currently integrated
-   manufacturer API/authentication hosts and Azure IoT hubs. Add the API and
-   authentication hosts required by any future integration. You can narrow
-   `.azure-devices.net` to the exact Toshiba
-   IoT hostname reported when the integration opens a connection. If a vendor
-   introduces another authentication redirect host, review and add that host.
-3. Set the host address Docker should listen on and start the container:
+The image includes the configuration and generates it at startup. **No host
+configuration file, volume mount, environment variable or repository checkout is
+required for the `10.0.0.x` server network.** Run this on the second server:
 
 ```sh
-cd compose/squid
-export SQUID_BIND_IP=10.77.0.2
+docker run -d --name porssiohjain-proxy --restart unless-stopped \
+  -p 3128:3128 \
+  ghcr.io/norkator/porssiohjain-proxy:latest
+```
+
+The default source allowlist is `10.0.0.0/24`, covering the `10.0.0.x` network.
+The backend must reach the proxy over that private network for this default to
+match its source IP. Optionally override it with
+`-e SQUID_ALLOWED_CLIENTS=203.0.113.10/32` using the backend's actual source IP as
+seen by Squid. This variable accepts one IP address/CIDR or a space-separated
+list, including IPv6. An explicitly empty or invalid allowlist prevents startup.
+The bundled destination allowlist already covers the current Toshiba, MELCloud
+and MELCloud Home integrations. The container runs as the unprivileged `proxy`
+user.
+
+Alternatively, copy only [`compose.yml`](../compose/squid/compose.yml) to the
+second server, then start it with the same defaults:
+
+```sh
 docker compose pull
-docker compose run --rm squid squid -k parse -f /etc/squid/squid.conf
+docker compose run --rm squid squid -k parse -f /tmp/squid.conf
 docker compose up -d
 docker compose logs --tail=100 squid
 ```
 
-The bind IP must already exist on that server. Allow TCP 3128 only from the
-backend at the host/cloud firewall as well. Docker publishes the port itself,
-so apply restrictions in the cloud firewall or Docker's forwarding firewall
-rules where appropriate. The sample permits only CONNECT to the allowed public
-destinations on port 443 and ends with `deny all`. It does not cache/decrypt
-outbound requests or require installing a proxy CA into Java.
+To override the source range with Compose, set `SQUID_ALLOWED_CLIENTS` in the
+shell or a `.env` file beside `compose.yml`.
+
+Compose publishes port 3128 on all IPv4 interfaces by default. Optionally set
+`SQUID_BIND_IP=10.77.0.2` to bind only to a particular server address, such as its
+VPN address; that address must already exist on the server. `SQUID_BIND_IP` is
+used by Compose, not by the container. With `docker run`, the equivalent is
+`-p 10.77.0.2:3128:3128`.
+
+Allow TCP 3128 only from the backend at the host/cloud firewall as well. Docker
+publishes the port itself, so apply restrictions in the cloud firewall or
+Docker's forwarding firewall rules where appropriate. The bundled configuration
+permits only CONNECT to the allowed public destinations on port 443 and ends
+with `deny all`. It does not cache/decrypt outbound requests or require
+installing a proxy CA into Java. Adding the container to the backend's existing
+host would normally keep the same public outgoing IP.
 
 To publish an updated image with Ubuntu/Squid security updates, run the workflow
 manually. Update the deployed container with `docker compose pull` followed by
-`docker compose up -d`. After changing the mounted config, run the parse command
-again and `docker compose restart squid`.
+`docker compose up -d`. Changes to environment variables also require
+`docker compose up -d`; a restart alone retains the old environment.
 
-For a local build instead of downloading the published image, copy the Dockerfile
-too and run this in `compose/squid`:
+Advanced deployments can still mount a complete custom configuration read-only
+at `/etc/squid/squid.conf`. This overrides the generated configuration and does
+not require `SQUID_ALLOWED_CLIENTS` when using `docker run`. When adapting the
+repository's `squid.conf` template, replace `@SQUID_ALLOWED_CLIENTS@` with the
+actual IP/CIDR allowlist. Add the mount to your Compose file if using a custom
+config. After editing a mounted config, run the parse command above again and
+restart Squid so the entrypoint copies the updated configuration. The
+`allowed_destinations` allowlist must include reviewed API/authentication hosts
+for future integrations; `.azure-devices.net` can be narrowed to the exact
+Toshiba IoT hostname.
+
+For a local build instead of downloading the published image, run this from a
+repository checkout in `compose/squid`:
 
 ```sh
 docker build --pull -t ghcr.io/norkator/porssiohjain-proxy:latest .
