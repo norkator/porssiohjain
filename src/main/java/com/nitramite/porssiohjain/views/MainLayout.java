@@ -58,6 +58,8 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
     private final Map<String, DesktopWindow> windows = new LinkedHashMap<>();
     private final Map<String, VaadinIcon> featureIcons = new LinkedHashMap<>();
     private final Button startButton = new Button();
+    private final Div impersonationBanner = new Div();
+    private final Span impersonationLabel = new Span();
     private HasElement pendingContent;
     private DesktopWindow activeWindow;
     private FeatureRequestDialog featureRequestDialog;
@@ -70,6 +72,14 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         VaadinSession session = VaadinSession.getCurrent();
         Locale storedLocale = session != null ? session.getAttribute(Locale.class) : null;
         if (storedLocale != null) UI.getCurrent().setLocale(storedLocale);
+        impersonationBanner.addClassName("retro-impersonation-banner");
+        impersonationBanner.getElement().setAttribute("role", "status");
+        impersonationLabel.addClassName("retro-impersonation-label");
+        Button returnToAdmin = new Button(t("desktop.returnToAdmin"), event -> stopImpersonating());
+        returnToAdmin.addClassName("retro-return-admin");
+        impersonationBanner.add(impersonationLabel, returnToAdmin);
+        add(impersonationBanner);
+        refreshImpersonationBanner();
         icons.addClassName("retro-icons");
         icons.addAttachListener(e -> icons.getElement().executeJs("window.initDesktopIcons(this)"));
         var notice = serviceNoticeService.getNotice(UI.getCurrent().getLocale());
@@ -147,14 +157,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             feature("home.admin", VaadinIcon.SHIELD, AdminView.class);
         }
         if (ViewAuthUtils.isImpersonating()) {
-            action("home.stopImpersonating", VaadinIcon.CLOSE_CIRCLE, () ->
-                    confirmDiscard(hasUnsavedChanges(), () -> {
-                        windows.values().forEach(w -> DesktopFormState.saved(w.body));
-                        if (featureRequestDialog != null) DesktopFormState.saved(featureRequestDialog);
-                        ViewAuthUtils.stopImpersonating();
-                        UI.getCurrent().navigate(DesktopView.class);
-                        UI.getCurrent().getPage().reload();
-                    }));
+            action("home.stopImpersonating", VaadinIcon.CLOSE_CIRCLE, this::stopImpersonating);
         }
         Div separator = new Div();
         separator.addClassName("retro-menu-separator");
@@ -185,6 +188,28 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
                         && !event.composedPath().some(node => node.classList?.contains('retro-start-menu')
                             || node.classList?.contains('retro-start-button'))
                         """);
+    }
+
+    private void refreshImpersonationBanner() {
+        var account = ViewAuthUtils.findAuthenticatedAccount(authService);
+        boolean impersonating = account != null && ViewAuthUtils.isImpersonating();
+        impersonationBanner.setVisible(impersonating);
+        getElement().getClassList().set("retro-impersonating", impersonating);
+        String name = impersonating ? account.getEmail() : null;
+        String identity = impersonating ? (name == null || name.isBlank()
+                ? "#" + account.getId() : name + " (#" + account.getId() + ")") : "";
+        impersonationLabel.setText(impersonating ? i18n.t("desktop.viewingAs", identity) : "");
+        impersonationLabel.getElement().setAttribute("title", impersonationLabel.getText());
+    }
+
+    private void stopImpersonating() {
+        confirmDiscard(hasUnsavedChanges(), () -> {
+            windows.values().forEach(w -> DesktopFormState.saved(w.body));
+            if (featureRequestDialog != null) DesktopFormState.saved(featureRequestDialog);
+            ViewAuthUtils.stopImpersonating();
+            UI.getCurrent().navigate(DesktopView.class);
+            UI.getCurrent().getPage().reload();
+        });
     }
 
     void refreshFeatureRequestNotifications() {
@@ -472,6 +497,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
 
     @Override
     public void afterNavigation(AfterNavigationEvent event) {
+        refreshImpersonationBanner();
         deviceStatus.refresh();
         refreshFeatureRequestNotifications();
         var effectiveAccount = ViewAuthUtils.findAuthenticatedAccount(authService);

@@ -87,10 +87,10 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         currentAdminAccountId = account.getId();
 
         setWidthFull();
+        addClassName("desktop-list-view");
         setPadding(true);
         setSpacing(true);
         setAlignItems(Alignment.STRETCH);
-        getStyle().set("overflow", "auto");
 
         VerticalLayout card = new VerticalLayout();
         card.setWidthFull();
@@ -107,8 +107,7 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
 
     private void configureGrid() {
         grid.setWidthFull();
-        grid.setHeight("70vh");
-        grid.setMinHeight("420px");
+        grid.setAllRowsVisible(true);
         grid.addColumn(AccountEntity::getId)
                 .setHeader(t("admin.users.id"))
                 .setAutoWidth(true)

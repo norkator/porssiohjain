@@ -101,6 +101,82 @@ class MainLayoutTest {
         assertTrue(windows().getFirst().getElement().getClassList().contains("retro-window-maximized"));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"en", "fi"})
+    void supportBannerIdentifiesEffectiveAccountAcrossWindowSwitchingAndClearsWhenReturning(String language) {
+        assertFalse(impersonationBanner().isVisible());
+        var auth = mock(AuthService.class);
+        var effective = new AtomicReference<>(AccountEntity.builder().id(9L).email("customer@example.test").build());
+        var notices = mock(ServiceNoticeService.class);
+        when(notices.getNotice(any())).thenReturn(new ServiceNoticeResponse(false, "", null));
+        var messages = new ResourceBundleMessageSource();
+        messages.setBasename("translations/messages");
+        messages.setDefaultEncoding("UTF-8");
+        ui.setLocale(Locale.of(language));
+        try (var accounts = mockStatic(ViewAuthUtils.class)) {
+            accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth)).thenAnswer(invocation -> effective.get());
+            accounts.when(ViewAuthUtils::isImpersonating).thenReturn(true);
+            layout = new MainLayout(auth, new I18nService(messages), notices, mock(DeviceService.class), mock(com.nitramite.porssiohjain.services.FeatureRequestService.class));
+            Component banner = impersonationBanner();
+            assertTrue(banner.isVisible());
+            String text = banner.getElement().getTextRecursively();
+            assertTrue(text.contains("customer@example.test (#9)"));
+            assertTrue(text.contains(language.equals("fi") ? "Käyttäjänä" : "Viewing as"));
+            assertTrue(text.contains(language.equals("fi") ? "Palaa ylläpitäjäksi" : "Return to admin"));
+            assertTrue(layout.hasClassName("retro-impersonating"));
+            navigate("controls", new Div());
+            navigate("device", new Div());
+            tasks().getFirst().click();
+            assertSame(banner, impersonationBanner());
+            assertTrue(banner.isVisible());
+            assertTrue(windows().stream().noneMatch(window -> children(window).anyMatch(banner::equals)));
+
+            effective.set(AccountEntity.builder().id(9L).build());
+            navigate("desktop", new Div());
+            assertTrue(banner.getElement().getTextRecursively().contains("#9"));
+            assertFalse(banner.getElement().getTextRecursively().contains("customer@example.test"));
+            accounts.when(ViewAuthUtils::isImpersonating).thenReturn(false);
+            effective.set(AccountEntity.builder().id(1L).admin(true).build());
+            navigate("desktop", new Div());
+            assertFalse(banner.isVisible());
+            assertFalse(layout.hasClassName("retro-impersonating"));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"retro-return-admin", "retro-menu-item"})
+    void returningFromBannerOrStartProtectsDraftsBeforeClearingImpersonation(String entrypoint) {
+        var auth = mock(AuthService.class);
+        var notices = mock(ServiceNoticeService.class);
+        when(notices.getNotice(any())).thenReturn(new ServiceNoticeResponse(false, "", null));
+        var translations = mock(I18nService.class, invocation -> invocation.getArgument(0));
+        doReturn(java.util.Optional.empty()).when(ui).navigate(DesktopView.class);
+        try (var accounts = mockStatic(ViewAuthUtils.class)) {
+            accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth)).thenReturn(AccountEntity.builder().id(9L).build());
+            accounts.when(ViewAuthUtils::isImpersonating).thenReturn(true);
+            layout = new MainLayout(auth, translations, notices, mock(DeviceService.class), mock(com.nitramite.porssiohjain.services.FeatureRequestService.class));
+            Div draft = new Div("Unsaved support changes");
+            navigate("controls/42", draft);
+            DesktopFormState.markDirty(draft);
+            Button action = children(layout).filter(Button.class::isInstance).map(Button.class::cast)
+                    .filter(button -> button.hasClassName(entrypoint) && (entrypoint.equals("retro-return-admin")
+                            || button.getText().equals("home.stopImpersonating"))).findFirst().orElseThrow();
+            action.click();
+            accounts.verify(ViewAuthUtils::stopImpersonating, never());
+            verify(ui, never()).navigate(DesktopView.class);
+            confirmButton("common.cancel").click();
+            assertTrue(DesktopFormState.isDirty(draft));
+            accounts.verify(ViewAuthUtils::stopImpersonating, never());
+
+            action.click();
+            confirmButton("desktop.discard").click();
+            accounts.verify(ViewAuthUtils::stopImpersonating);
+            verify(ui).navigate(DesktopView.class);
+            verify(ui.getPage()).reload();
+            assertFalse(DesktopFormState.isDirty(draft));
+        }
+    }
+
     @Test
     void switchingToUserPreviewDiscardsRetainedAdminWindow() {
         var effective = new AtomicReference<>(AccountEntity.builder().admin(true).build());
@@ -340,6 +416,19 @@ class MainLayoutTest {
 
     private java.util.stream.Stream<Component> children(Component root) {
         return java.util.stream.Stream.concat(java.util.stream.Stream.of(root), root.getChildren().flatMap(this::children));
+    }
+
+    private Component impersonationBanner() {
+        return layout.getChildren().filter(component -> component.getElement().getClassList()
+                .contains("retro-impersonation-banner")).findFirst().orElseThrow();
+    }
+
+    private Button confirmButton(String text) {
+        return layout.getChildren().filter(com.vaadin.flow.component.dialog.Dialog.class::isInstance)
+                .map(com.vaadin.flow.component.dialog.Dialog.class::cast).filter(com.vaadin.flow.component.dialog.Dialog::isOpened)
+                .flatMap(dialog -> dialog.getFooter().getElement().getChildren()).flatMap(element -> element.getComponent().stream())
+                .filter(component -> component instanceof Button button && button.getText().equals(text))
+                .map(Button.class::cast).findFirst().orElseThrow();
     }
 
     private void navigate(String path, Component content) {

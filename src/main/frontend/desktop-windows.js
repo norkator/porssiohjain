@@ -11,6 +11,7 @@ window.initDesktopWindow = frame => {
     const title = frame.querySelector('.retro-titlebar');
     const handle = frame.querySelector('.retro-resize-handle');
     const mobile = () => matchMedia('(max-width: 620px)').matches;
+    const topInset = () => parseFloat(getComputedStyle(desktop).getPropertyValue('--desktop-top-inset')) || 0;
     const storageKey = 'porssiohjain:window:v1:' + frame.dataset.windowKey;
     const saveGeometry = () => {
         if (mobile()) return;
@@ -36,9 +37,9 @@ window.initDesktopWindow = frame => {
             frame.style.top = frame.offsetTop + 'px';
         }
         if (frame.style.width) frame.style.width = Math.min(parseFloat(frame.style.width), desktop.clientWidth) + 'px';
-        if (frame.style.height) frame.style.height = Math.min(parseFloat(frame.style.height), desktop.clientHeight - 38) + 'px';
+        if (frame.style.height) frame.style.height = Math.min(parseFloat(frame.style.height), desktop.clientHeight - 38 - topInset()) + 'px';
         frame.style.left = Math.max(0, Math.min(parseFloat(frame.style.left), desktop.clientWidth - frame.offsetWidth)) + 'px';
-        frame.style.top = Math.max(0, Math.min(parseFloat(frame.style.top), desktop.clientHeight - 38 - frame.offsetHeight)) + 'px';
+        frame.style.top = Math.max(topInset(), Math.min(parseFloat(frame.style.top), desktop.clientHeight - 38 - frame.offsetHeight)) + 'px';
     };
     let drag;
     const end = () => { if (drag) saveGeometry(); drag = null; frame.classList.remove('retro-window-dragging'); };

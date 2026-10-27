@@ -20,7 +20,12 @@ so their actions remain unavailable in this mode.
 
 Vaadin uses `ViewAuthUtils` to revalidate the admin session and resolve the
 effective account before resource operations. Its password and account-deletion
-guards remain in place.
+guards remain in place. The desktop shell shows a persistent banner with the
+selected user's email/account ID and a return-to-admin action. It remains above
+maximized and mobile windows; dragging/resizing cannot cover it. Returning to
+admin from the banner or Start menu uses the same unsaved-draft confirmation.
+The admin user grid grows with its rows, leaving vertical scrolling to the
+desktop window instead of using a second scroll area with a fixed height.
 
 The hybrid-web user list uses compact table rows with expandable UUID and date
 details. On narrow screens less-used columns move into the expandable details
