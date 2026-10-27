@@ -1,312 +1,121 @@
 # Pörssiohjain ™
 
-![ukjx6lcc](./doc/odw6ej6ii.png)
+**Home energy automation, from electricity prices to device control.**
 
-<b>Pörssiohjain</b> is an energy automation service for controlling household loads with electricity spot prices,
-consumption limits, own production and weather data. It is built with Spring Boot and a simple server-rendered Vaadin
-UI.
+Pörssiohjain schedules compatible household devices around Nord Pool spot prices,
+power consumption, your own energy production and weather forecasts. Follow your
+home's energy use from a mobile dashboard or manage it through a retro desktop
+in your browser.
 
-## Service Domains
+[Open the web app](https://app.porssiohjain.fi) ·
+[Get the Android app](https://play.google.com/store/apps/details?id=com.nitramite.energycontroller) ·
+[Open mobile web](https://mobile.porssiohjain.fi) ·
+[Visit the website](https://www.porssiohjain.fi)
 
-Official Pörssiohjain services are available at:
+![Hybrid-web dashboard showing device status, household consumption, solar production and automation shortcuts](doc/hybrid_web_frontpage.png)
 
-* [https://app.porssiohjain.fi](https://app.porssiohjain.fi)
-* [https://app.energiaohjain.fi](https://app.energiaohjain.fi)
-* Marketing page: https://www.porssiohjain.fi
-* Hybrid web project for webview also available at https://mobile.porssiohjain.fi
+*The hybrid-web dashboard, available in the Android app and mobile browser.*
 
-Only domains listed here should be treated as official service domains.
+## What you can do
 
-⚠️ Pörssiohjain may be used free of charge with limitations by private individuals for their own household use
-by running a private self-hosted instance.
+- **Schedule around electricity prices.** Choose cheap hours, a continuous block or a schedule that considers tomorrow's
+  prices. Include tax and energy/transfer contracts in the control price.
+- **Respond to consumption.** Monitor current power and interval history, set power limits and shed connected loads when
+  needed.
+- **Use your own production.** Trigger device and heat-pump rules from SOFAR / SolarmanPV production data.
+- **Plan for the weather.** Use FMI forecasts for temperature and humidity rules. Heating Planner adds floor-heating
+  plans and optional wood-stove guidance in the desktop interface.
+- **Connect your devices.** Integrate Shelly and other HTTP/MQTT devices, supported Toshiba and Mitsubishi heat pumps,
+  and Zigbee/Tuya measurement sources.
+- **See what is happening.** View device connectivity, consumption, production, measurements and water-meter history.
+  Share selected measurement charts through public links.
+- **And much more.** Explore Heating Planner, the solar angle planner, the Powerplant control-room board, resource
+  sharing and other tools in the desktop interface.
 
-Commercial use, resale, managed hosting, customer installations, or offering the software or a hosted instance to third
-parties is not allowed without a separate written commercial license. I am developing this as a paid company product
-with broader functionality and different service tiers.
+## A retro desktop in your browser
 
-If Pörssiohjain has helped you financially, consider [donating coffee money](https://buymeacoffee.com/norkator).
+A desktop, Start menu and taskbar bring devices, charts and settings together.
+Open several feature windows, move between them and keep your current form state.
 
-## GNOME Shell extensions
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="doc/vaadin_desktop.png"><img src="doc/vaadin_desktop.png" alt="Pörssiohjain's retro desktop with feature shortcuts, device status and a taskbar"></a>
+      <p><strong>The desktop.</strong> Your devices and tools in one workspace.</p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="doc/vaadin_control_feature.png"><img src="doc/vaadin_control_feature.png" alt="A Vaadin control window displaying today's and tomorrow's electricity-price charts"></a>
+      <p><strong>Price controls.</strong> Inspect prices and the control table.</p>
+    </td>
+  </tr>
+</table>
 
-The [gnome workspace](gnome/README.md) contains desktop extensions for GNOME Shell 46
-(Ubuntu 24.04), with Rust helpers and interactive graphs in their top-bar dropdown menus:
+## Android app
 
-* [Electricity prices](gnome/extensions/electricity-prices/README.md): current spot price and a graph of today’s and tomorrow’s prices.
-* [Wind forecast](gnome/extensions/wind-forecast/README.md): Finnish wind-power production forecast in MW, with daily averages and a graph of the available forecast days.
+[**Energy Controller on Google Play**](https://play.google.com/store/apps/details?id=com.nitramite.energycontroller)
+is the Android app for Pörssiohjain. It runs the [hybrid-web UI](hybrid-web/README.md)
+inside the app, with mobile access to device status, power use, own production and
+automation settings. The same UI is available at
+[mobile.porssiohjain.fi](https://mobile.porssiohjain.fi).
 
-Both can run together, and no account or API token is required. Each extension’s README
-includes screenshots and installation instructions. Ready-to-install packages are available
-from the [GNOME extensions prerelease](https://github.com/norkator/porssiohjain/releases/tag/gnome-extensions-latest),
-updated after successful builds of the `extensions` branch.
+The hosted service is available at [app.porssiohjain.fi](https://app.porssiohjain.fi)
+and [app.energiaohjain.fi](https://app.energiaohjain.fi). These, the mobile-web
+address above and [www.porssiohjain.fi](https://www.porssiohjain.fi) are the official
+Pörssiohjain service domains.
 
-## UML Diagrams
+## GNOME desktop indicators
 
-Editable PlantUML sources live in [doc/README-diagrams.md](./doc/README-diagrams.md).
+Keep electricity prices and Finland's wind-power production forecast in your
+desktop's top bar, with interactive graphs in the dropdown menus. Both indicators
+can run together, and neither requires an account or API token.
 
-## Provisioning
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="doc/gnome_electricity_prices.png"><img src="doc/gnome_electricity_prices.png" alt="GNOME electricity-price indicator showing the current spot price and a graph for today and tomorrow"></a>
+      <p><strong><a href="gnome/extensions/electricity-prices/README.md">Electricity prices</a></strong><br>Current spot price and today's/tomorrow's price chart.</p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="doc/gnome_wind_forecast.png"><img src="doc/gnome_wind_forecast.png" alt="GNOME Finnish wind-power forecast indicator showing production estimates in MW, daily averages and a forecast graph"></a>
+      <p><strong><a href="gnome/extensions/wind-forecast/README.md">Wind-power forecast</a></strong><br>Finnish production forecasts in MW and daily averages.</p>
+    </td>
+  </tr>
+</table>
 
-Factory provisioning, claim-code onboarding, MQTT profiles, and OTA flow are documented
-in [PROVISIONING.md](./PROVISIONING.md).
+Tested on **GNOME Shell 46 / Ubuntu 24.04**.
+[Installation instructions](gnome/README.md) ·
+[Download ready-to-install packages](https://github.com/norkator/porssiohjain/releases/tag/gnome-extensions-latest)
 
-### Standard Device Output Flow
+## Documentation
 
-![Standard device output flow](./doc/control-output-high-level.svg)
+| Looking for…                             | Start here                                            |
+|------------------------------------------|-------------------------------------------------------|
+| Relay control or power-meter reporting   | [Shelly setup](doc/shelly.md)                         |
+| Application configuration                | [Environment variables](doc/environment-variables.md) |
+| How standard device control output works | [Control output flow](doc/control-output-flow.md)     |
+| Device claiming, MQTT profiles and OTA   | [Provisioning guide](PROVISIONING.md)                 |
+| Feature guides and integration details   | [Documentation index](doc/README.md)                  |
 
-Editable source: [doc/control-output-high-level.puml](./doc/control-output-high-level.puml)
+## Development
 
-## Features
+The backend uses **Java 21, Spring Boot, Vaadin and PostgreSQL**. The mobile UI uses **React and TypeScript**; the GNOME
+indicators use **GJS and Rust**.
 
-* Nord Pool spot price fetching and scheduled price-based control.
-    * Below-max-price, cheapest-hours and manual control modes.
-    * Daily runtime targets and always-on-below-min-price support.
-    * Energy and transfer contract support, including static and day/night transfer pricing.
-* Standard device control.
-    * Channel-based control output for devices such as Shelly relays.
-    * HTTP control API and MQTT authentication support.
-    * Per-device online status, credentials and UUID-based device integration.
-* Heat pump control.
-    * Toshiba and Mitsubishi AC account integrations.
-    * Device discovery and saved heat-pump state control.
-    * Toshiba state hex decoding/editing for power, mode and target temperature.
-* Power limits.
-    * Real-time consumption reporting endpoint for meters such as Shelly Pro 3EM.
-    * Automatic load shedding when the configured power limit is exceeded.
-    * Current kW, peak kW, interval history and consumption charting.
-    * Optional power-limit exceeded email alerts.
-* Own production automation.
-    * SOFAR / SolarmanPV production polling.
-    * Current production, peak production and production history charting.
-    * Production-based device and heat-pump rules.
-* Weather controls.
-    * FMI weather forecast fetching for configured sites.
-    * Temperature and humidity based device and heat-pump rules.
-    * Weather control priority support for overriding lower-priority automation.
-* Automation priority handling.
-    * Standard devices: power limit, own production, then price control.
-    * Heat pumps: weather control, own production, then price control.
-* Dashboard and reporting.
-    * Device status overview and system log.
-    * Fingrid wind forecast and price prediction widgets.
-    * Site energy usage, monthly cost charts and estimated control savings.
-* Sites, contracts and account settings.
-    * Site grouping with weather places and site types.
-    * Electricity contract management.
-    * Account tiers, resource limits, language selection and notification settings.
-* Resource sharing and onboarding.
-    * Share devices, controls, production sources and power limits with other account UUIDs.
-    * Onboarding status and checklist API.
-* Documentation and APIs.
-    * Built-in documentation pages.
-    * REST endpoints for account, device, control, power, dashboard, onboarding and Nord Pool data.
+Build and run the backend tests with the repository's Gradle wrapper:
 
-## Installation guides
-
-### Shelly Script for Controls
-
-Note that channel numbering starts from `0` in the configuration.
-
-```javascript
-const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
-const API_URL = 'https://porssiohjain.nitramite.com/control/' + DEVICE_UUID;
-const RELAY_DEFAULT_STATE = "OFF"; // ON or OFF
-const DEVICE_RELAY_COUNT = 1; // How many relay outputs your shelly has in total?
-
-function setRelay(id, state) {
-    Shelly.call('Switch.Set', {id: id, on: state}, function (res, err) {
-        if (err) {
-            print('Failed to set relay', id, ':', JSON.stringify(err));
-        } else {
-            print('Relay', id, 'set to', state ? 'ON' : 'OFF');
-        }
-    });
-}
-
-function defaultStateBool() {
-    return RELAY_DEFAULT_STATE === "ON";
-}
-
-function applyDefaultState() {
-    print("Applying default relay state:", RELAY_DEFAULT_STATE);
-    let fallback = defaultStateBool();
-    for (let i = 0; i < DEVICE_RELAY_COUNT; i++) {
-        setRelay(i, fallback);
-    }
-}
-
-function getUnixTime(callback) {
-    Shelly.call('Sys.GetStatus', {}, function (res, err) {
-        if (!err && res && res.unixtime) {
-            callback(Math.floor(res.unixtime));
-        } else {
-            print('Failed to get time:', JSON.stringify(err));
-            callback(0);
-        }
-    });
-}
-
-function fetchControlData() {
-    Shelly.call('HTTP.REQUEST', {
-        method: 'GET',
-        url: API_URL,
-        headers: {'Content-Type': 'application/json'},
-        timeout: 10
-    }, function (res, err) {
-        if (err || res.code !== 200) {
-            print('API call failed:', JSON.stringify(err || res));
-            applyDefaultState();
-            return;
-        }
-
-        let data = {};
-        try {
-            data = JSON.parse(res.body);
-        } catch (e) {
-            print('Invalid JSON response:', res.body);
-            applyDefaultState();
-            return;
-        }
-
-        if (!data || Object.keys(data).length === 0) {
-            print('Empty JSON response');
-            applyDefaultState();
-            return;
-        }
-
-        for (let key in data) {
-            let state = !!data[key]; // convert 0/1 to boolean
-            setRelay(parseInt(key), state);
-        }
-    });
-}
-
-function scheduleEveryFiveMinutes() {
-    getUnixTime(function (now) {
-        let nextFiveMinute = Math.floor(now / 300) * 300 + 300;
-        let delay = (nextFiveMinute + 10 - now) * 1000;
-        print('Next API call in', delay / 1000, 'seconds');
-
-        Timer.set(delay, false, function () {
-            fetchControlData();
-            scheduleEveryFiveMinutes();
-        });
-    });
-}
-
-fetchControlData();
-scheduleEveryFiveMinutes();
+```sh
+./gradlew compileJava test
 ```
 
-### Shelly Script for Power Limits
+See [hybrid-web development](hybrid-web/README.md) and
+[GNOME development](gnome/README.md#build-and-verify) for the other clients.
+Current backend configuration is defined in
+[application.properties](src/main/resources/application.properties).
 
-Create a power limit in the service and copy the power limit UUID. Set it in the script below, which should be installed
-on the sending device, such as a Shelly Pro 3EM.
+## Support the project
 
-```javascript
-const DEVICE_UUID = '28217a08-df0b-4d21-b2b8-66a321cc6658';
-const API_URL = 'https://porssiohjain.nitramite.com/power/' + DEVICE_UUID;
-const POLL_INTERVAL_MS = 1 * 60 * 1000; // every minute
-
-function sendCurrentKw() {
-    let emStatus = Shelly.getComponentStatus("em", 0);
-
-    if (!emStatus) {
-        print("EM component unavailable");
-        return;
-    }
-
-    let totalW = 0;
-    if (typeof emStatus.total_act_power === "number") {
-        totalW = emStatus.total_act_power;
-    } else {
-        totalW =
-            (typeof emStatus.a_act_power === "number" ? emStatus.a_act_power : 0) +
-            (typeof emStatus.b_act_power === "number" ? emStatus.b_act_power : 0) +
-            (typeof emStatus.c_act_power === "number" ? emStatus.c_act_power : 0);
-    }
-
-
-    let emData = Shelly.getComponentStatus("emdata", 0);
-
-    let totalWh = 0;
-    if (emData) {
-        if (typeof emData.total_act === "number") {
-            totalWh = emData.total_act;
-        } else {
-            totalWh =
-                (typeof emData.a_total_act_energy === "number" ? emData.a_total_act_energy : 0) +
-                (typeof emData.b_total_act_energy === "number" ? emData.b_total_act_energy : 0) +
-                (typeof emData.c_total_act_energy === "number" ? emData.c_total_act_energy : 0);
-        }
-    }
-
-    let currentKw = totalW / 1000;
-    let totalKwh = totalWh / 1000;
-    let measuredAt = Date.now();
-
-    let body = JSON.stringify({
-        currentKw: currentKw,
-        totalKwh: totalKwh,
-        measuredAt: measuredAt
-    });
-
-    Shelly.call("HTTP.REQUEST", {
-        method: "POST",
-        url: API_URL,
-        headers: {"Content-Type": "application/json"},
-        body: body,
-        timeout: 10
-    }, function (res, err) {
-        if (err || res.code !== 200) {
-            print("API POST failed:", JSON.stringify(err || res));
-            return;
-        }
-        print("Successfully sent currentKw:", currentKw, "kW");
-    });
-}
-
-sendCurrentKw();
-Timer.set(POLL_INTERVAL_MS, true, sendCurrentKw);
-```
-
-### Environment Variables
-
-```env
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_NAME=porssiohjain
-export DB_USER=porssiohjain
-export DB_PASSWORD=porssiohjain
-export FINGRID_API_ENABLED=true
-export FINGRID_API_KEY=xxxxxx
-export RESEND_API_KEY=re_xxxxxx
-export ALERTS_MAIL_ADDRESS=xxxxxx
-export ADMIN_MAIL_ADDRESS=xxxxxx@xxxxxx.xx
-export APP_CRYPTO_KEY=(run node app_crypto_key.js)
-export MQTT_BROKER_ADDRESS=localhost
-export MQTT_BROKER_PASSWORD=xxxxxx
-export MQTT_CLIENT_ID=xxxxxx
-export APP_PUSH_FCM_ENABLED=false
-export APP_PUSH_FCM_SERVICE_ACCOUNT_FILE=/path/to/file.xyz
-export APP_PUSH_ERROR_ALERTS_ENABLED=true
-export APP_PUSH_ERROR_ALERTS_DUPLICATE_COOLDOWN=5m
-export APP_PUSH_ERROR_ALERTS_MAX_PER_MINUTE=10
-``` 
-
-When FCM is enabled, a Logback appender sends runtime `ERROR` logs (including Spring and other
-libraries) to active admin push tokens using the existing `SYSTEM_ERROR` notification. Alerts
-include the logger, formatted message, exception summary when present, and event time. Full
-stack traces remain in the backend logs. Delivery runs on a separate worker with a bounded
-queue, so requests and scheduled jobs do not wait for push delivery.
-
-Repeated errors from the same logger, message template, and exception type are suppressed for
-five minutes by default. At most ten alerts per minute are queued per backend instance;
-duplicates and excess alerts remain in the normal logs. Push-delivery errors do not trigger
-further alerts. Limits reset on restart. Set `APP_PUSH_ERROR_ALERTS_ENABLED=false` to disable
-this listener. Existing Nord Pool combined-market fallback warnings still use their explicit
-admin push. Other `WARN`/`INFO` logs do not generate alerts.
-
-The listener starts once Spring reports the application ready and detaches during shutdown.
-It cannot report failed startup, process crashes, or an outage that prevents FCM delivery.
+If Pörssiohjain is useful to you, you can
+[buy the developer a coffee](https://buymeacoffee.com/norkator).
 
 ## License
 
