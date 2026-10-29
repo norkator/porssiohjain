@@ -26,8 +26,9 @@ selections. Existing accounts start with no public measurements.
 
 `PublicMeasurementsView` is an anonymous, standalone Vaadin route outside `MainLayout`:
 
-- `/public-measurements/{pageId}` shows each selected measurement vertically, with a
-  chart covering the last 24 elapsed hours.
+- `/public-measurements/{pageId}` shows selected measurements in a compact responsive
+  grid, with 200px overview charts covering the last 24 elapsed hours. Narrow screens
+  use a single column; wider screens fit multiple charts per row.
 - `/public-measurements/{pageId}/{selectionId}` opens only that published measurement,
   defaulting to seven elapsed days and offering 24-hour and three-day ranges.
 

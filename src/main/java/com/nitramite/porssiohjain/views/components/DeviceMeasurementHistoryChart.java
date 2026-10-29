@@ -32,25 +32,25 @@ public class DeviceMeasurementHistoryChart extends Div {
         this(history.stream().sorted(Comparator.comparing(DeviceMeasurementEntity::getObservedAt)
                         .thenComparing(DeviceMeasurementEntity::getId))
                         .map(row -> new HistoryPoint(row.getObservedAt(), row.getValue().doubleValue())).toList(),
-                zone, seriesName, unit, timeLabel, noDataLabel, locale, null, null);
+                zone, seriesName, unit, timeLabel, noDataLabel, locale, null, null, false);
     }
 
     public static DeviceMeasurementHistoryChart history(List<HistoryPoint> history, ZoneId zone,
             String seriesName, String unit, String timeLabel, String noDataLabel, String locale) {
-        return new DeviceMeasurementHistoryChart(history, zone, seriesName, unit, timeLabel, noDataLabel, locale, null, null);
+        return new DeviceMeasurementHistoryChart(history, zone, seriesName, unit, timeLabel, noDataLabel, locale, null, null, false);
     }
 
     public static DeviceMeasurementHistoryChart publicHistory(List<HistoryPoint> history, ZoneId zone,
             String seriesName, String unit, String timeLabel, String noDataLabel, String locale,
-            Instant from, Instant to) {
-        return new DeviceMeasurementHistoryChart(history, zone, seriesName, unit, timeLabel, noDataLabel, locale, from, to);
+            Instant from, Instant to, boolean compact) {
+        return new DeviceMeasurementHistoryChart(history, zone, seriesName, unit, timeLabel, noDataLabel, locale, from, to, compact);
     }
 
     private DeviceMeasurementHistoryChart(List<HistoryPoint> history, ZoneId zone,
             String seriesName, String unit, String timeLabel, String noDataLabel, String locale,
-            Instant from, Instant to) {
+            Instant from, Instant to, boolean compact) {
         setWidthFull();
-        setHeight("300px");
+        setHeight(compact ? "200px" : "300px");
         getStyle().set("position", "relative").set("flex-shrink", "0").set("min-width", "0");
 
         List<List<Number>> points = history.stream()
@@ -66,10 +66,11 @@ public class DeviceMeasurementHistoryChart extends Div {
 
         getElement().executeJs("""
                 const data = $0;
+                const compact = $11;
                 const hasData = data.length > 0;
                 const singleTime = hasData && data[0][0] === data[data.length - 1][0];
                 const timeFormat = new Intl.DateTimeFormat($8, {
-                  timeZone: $4, month: '2-digit', day: '2-digit',
+                  timeZone: $4, ...(compact ? {} : { month: '2-digit', day: '2-digit' }),
                   hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
                 });
                 const tooltipTimeFormat = new Intl.DateTimeFormat($8, {
@@ -77,24 +78,29 @@ public class DeviceMeasurementHistoryChart extends Div {
                   hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
                 });
                 const options = {
-                  chart: { width: '100%', height: 290, type: 'line', toolbar: { show: hasData }, animations: { enabled: false } },
+                  chart: { width: '100%', height: compact ? 190 : 290, type: 'line',
+                    toolbar: { show: hasData && !compact }, animations: { enabled: false } },
                   series: [{ name: $1, data: data, type: 'line' }],
                   xaxis: {
-                    type: 'datetime', title: { text: hasData ? $6 : undefined },
+                    type: 'datetime', title: { text: hasData && !compact ? $6 : undefined },
                     min: $9 ?? (singleTime ? data[0][0] - 15 * 60 * 1000 : undefined),
                     max: $10 ?? (singleTime ? data[0][0] + 15 * 60 * 1000 : undefined),
                     axisBorder: { show: hasData }, axisTicks: { show: hasData },
                     labels: {
                       show: hasData,
+                      rotate: compact ? 0 : -45,
+                      style: { fontSize: compact ? '10px' : '12px' },
                       formatter: (value, timestamp) => timeFormat.format(new Date(timestamp ?? Number(value)))
                     }
                   },
                   yaxis: {
-                    show: hasData, title: { text: $1 + ' ' + $5 }, min: $2, max: $3,
-                    labels: { formatter: value => Number(value.toFixed(2)).toString() }
+                    show: hasData, title: { text: compact ? $5 : $1 + ' ' + $5 }, min: $2, max: $3,
+                    tickAmount: compact ? 4 : undefined,
+                    labels: { style: { fontSize: compact ? '10px' : '12px' },
+                      formatter: value => Number(value.toFixed(2)).toString() }
                   },
                   grid: { show: hasData },
-                  stroke: { width: data.length === 1 ? 0 : 3, curve: 'smooth' },
+                  stroke: { width: data.length === 1 ? 0 : compact ? 2 : 3, curve: 'smooth' },
                   colors: ['#007c89'],
                   fill: { opacity: 1 },
                   markers: { size: data.length === 1 ? 4 : 0, hover: { size: 5 } },
@@ -103,7 +109,7 @@ public class DeviceMeasurementHistoryChart extends Div {
                     x: { formatter: value => tooltipTimeFormat.format(new Date(value)) },
                     y: { formatter: value => Number(value.toFixed(3)) + ' ' + $5 }
                   },
-                  legend: { show: hasData, position: 'top', showForSingleSeries: true },
+                  legend: { show: hasData && !compact, position: 'top', showForSingleSeries: true },
                   noData: { text: $7 }
                 };
                 this.chartInstance = new ApexCharts(this, options);
@@ -128,7 +134,7 @@ public class DeviceMeasurementHistoryChart extends Div {
                   detached.observe(document.body, { childList: true, subtree: true });
                 });
                 """, points, seriesName, min, max, zone.getId(), unit, timeLabel, noDataLabel, locale,
-                from == null ? null : from.toEpochMilli(), to == null ? null : to.toEpochMilli());
+                from == null ? null : from.toEpochMilli(), to == null ? null : to.toEpochMilli(), compact);
     }
 
     public record HistoryPoint(Instant observedAt, double value) {}

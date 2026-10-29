@@ -10,7 +10,9 @@ import com.nitramite.porssiohjain.services.PublicMeasurementService;
 import com.nitramite.porssiohjain.views.components.DeviceMeasurementHistoryChart;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Paragraph;
@@ -47,11 +49,13 @@ public class PublicMeasurementsView extends VerticalLayout implements BeforeEnte
         VaadinSession session = VaadinSession.getCurrent();
         Locale locale = session == null ? null : session.getAttribute(Locale.class);
         if (locale != null) UI.getCurrent().setLocale(locale);
-        setWidth("calc(100% - 2 * var(--lumo-space-m, 16px))");
-        setMaxWidth("1100px");
+        setWidth("calc(100% - 16px)");
+        setMaxWidth("1600px");
+        setPadding(false);
+        setSpacing(false);
         setAlignItems(Alignment.STRETCH);
-        getStyle().set("margin", "var(--lumo-space-m, 16px) auto");
-        addClassNames("public-measurements-view", "responsive-card");
+        getStyle().set("margin", "8px auto");
+        addClassName("public-measurements-view");
     }
 
     public static String path(UUID pageId) {
@@ -75,15 +79,21 @@ public class PublicMeasurementsView extends VerticalLayout implements BeforeEnte
 
     private void render() {
         removeAll();
-        add(new H1(t("publicMeasurements.title")));
         FlexLayout actions = new FlexLayout();
+        actions.addClassName("public-measurements-actions");
         actions.setFlexWrap(FlexLayout.FlexWrap.WRAP);
         actions.setAlignItems(Alignment.END);
-        actions.getStyle().set("gap", "var(--lumo-space-m)");
         actions.add(new Button(t("measurements.refresh"), event -> render()),
                 new Button("English", event -> changeLocale("en")),
                 new Button("Suomeksi", event -> changeLocale("fi")));
-        add(actions);
+        actions.getChildren().map(Button.class::cast)
+                .forEach(button -> button.addThemeVariants(ButtonVariant.LUMO_SMALL));
+        FlexLayout header = new FlexLayout(new H1(t("publicMeasurements.title")), actions);
+        header.addClassName("public-measurements-header");
+        header.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+        header.setAlignItems(Alignment.CENTER);
+        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        add(header);
         if (pageId == null) {
             add(new Paragraph(t("publicMeasurements.unavailable")));
             return;
@@ -112,9 +122,13 @@ public class PublicMeasurementsView extends VerticalLayout implements BeforeEnte
         if (page.series().isEmpty()) {
             add(new Paragraph(t("publicMeasurements.empty")));
         }
+        Div charts = new Div();
+        charts.addClassName(measurementId == null ? "public-measurements-grid" : "public-measurements-detail");
         for (var series : page.series()) {
             VerticalLayout card = new VerticalLayout();
             card.setWidthFull();
+            card.setPadding(false);
+            card.setSpacing(false);
             card.setAlignItems(Alignment.STRETCH);
             card.addClassName("public-measurement-card");
             String type = t("measurements.type." + series.type().name());
@@ -126,13 +140,15 @@ public class PublicMeasurementsView extends VerticalLayout implements BeforeEnte
             card.add(DeviceMeasurementHistoryChart.publicHistory(series.readings().stream()
                             .map(row -> new DeviceMeasurementHistoryChart.HistoryPoint(row.observedAt(), row.value().doubleValue()))
                             .toList(), zone, type, series.unit(), t("measurements.chartTime"),
-                    t("publicMeasurements.noReadings"), UI.getCurrent().getLocale().toLanguageTag(), page.from(), page.to()));
+                    t("publicMeasurements.noReadings"), UI.getCurrent().getLocale().toLanguageTag(), page.from(), page.to(),
+                    measurementId == null));
             if (series.includesCloudSnapshots()) card.add(new Paragraph(t("measurements.snapshotHint")));
             if (measurementId == null) {
                 card.add(new Anchor(path(pageId) + "/" + series.id(), t("publicMeasurements.openWeek")));
             }
-            add(card);
+            charts.add(card);
         }
+        add(charts);
     }
 
     private void changeLocale(String language) {
