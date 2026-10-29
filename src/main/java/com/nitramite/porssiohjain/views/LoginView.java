@@ -43,6 +43,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinRequest;
@@ -106,9 +107,16 @@ public class LoginView extends VerticalLayout {
         H1 title = new H1(t("login.title"));
 
         TextField uuidField = new TextField(t("login.field.uuid"));
+        uuidField.setRequired(true);
+        uuidField.setValueChangeMode(ValueChangeMode.EAGER);
         PasswordField secretField = new PasswordField(t("login.field.secret"));
+        secretField.setRequired(true);
+        secretField.setValueChangeMode(ValueChangeMode.EAGER);
 
         Button loginButton = new Button(t("login.button.login"), event -> {
+            if (uuidField.getValue().isBlank() || secretField.getValue().isBlank()) {
+                return;
+            }
             try {
                 UUID uuid = UUID.fromString(uuidField.getValue().trim());
                 String secret = secretField.getValue().trim();
@@ -130,6 +138,11 @@ public class LoginView extends VerticalLayout {
         });
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         loginButton.setWidthFull();
+        loginButton.setEnabled(false);
+        uuidField.addValueChangeListener(event -> loginButton.setEnabled(
+                !uuidField.getValue().isBlank() && !secretField.getValue().isBlank()));
+        secretField.addValueChangeListener(event -> loginButton.setEnabled(
+                !uuidField.getValue().isBlank() && !secretField.getValue().isBlank()));
 
         Button qrLoginButton = new Button(t("login.button.qr"), event -> openQrLoginDialog());
         qrLoginButton.setWidthFull();
