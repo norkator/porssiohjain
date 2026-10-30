@@ -50,6 +50,51 @@ class HeatingPlannerControllerTest {
         site = sites.saveAndFlush(SiteEntity.builder().account(owner).name("Home").type(SiteType.HOME).build());
     }
 
+    @Test void monitorUsesSavedDefaultWithoutCreatingSettings() throws Exception {
+        var preferred = sites.saveAndFlush(SiteEntity.builder().account(owner).name("Default cabin")
+                .type(SiteType.HOME).timezone("Europe/Helsinki").build());
+        owner.setDefaultHeatingPlannerSite(preferred);
+        accounts.saveAndFlush(owner);
+        long before = settingsRepository.count();
+        mvc.perform(get("/api/heating-planner/monitor")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/heating-planner/monitor").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.summary.site.id").value(preferred.getId()))
+                .andExpect(jsonPath("$.rooms").isEmpty());
+        assertThat(settingsRepository.count()).isEqualTo(before);
+    }
+
+    @Test void comfortUpdateIsNarrowAndRejectsInvalidTargetsAndOtherSites() throws Exception {
+        var settings = settingsRepository.saveAndFlush(HeatingPlannerSettingsEntity.builder()
+                .account(owner).site(site).build());
+        var room = rooms.saveAndFlush(HeatingPlannerRoomEntity.builder().account(owner).site(site)
+                .settings(settings).name("Kitchen").normalFloorTemperature(new BigDecimal("24"))
+                .roomSensorMeasurementKey("custom-temperature").build());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/heating-planner/rooms/" + room.getId() + "/comfort")
+                .header("Authorization", token).contentType("application/json")
+                .content("{\"target\":22,\"scheduleId\":null}"))
+                .andExpect(status().isOk());
+        assertThat(room.getTargetRoomTemperature()).isEqualByComparingTo("22");
+        assertThat(room.getNormalFloorTemperature()).isEqualByComparingTo("24");
+        assertThat(room.getRoomSensorMeasurementKey()).isEqualTo("custom-temperature");
+        assertThat(settings.isActiveControlEnabled()).isFalse();
+        for (String target : new String[] {"4", "17", "36"}) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                            "/api/heating-planner/rooms/" + room.getId() + "/comfort")
+                    .header("Authorization", token).contentType("application/json")
+                    .content("{\"target\":" + target + "}"))
+                    .andExpect(status().isBadRequest());
+        }
+        var other = sites.saveAndFlush(SiteEntity.builder().account(owner).name("Other").type(SiteType.HOME).build());
+        owner.setDefaultHeatingPlannerSite(other);
+        accounts.saveAndFlush(owner);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/heating-planner/rooms/" + room.getId() + "/comfort")
+                .header("Authorization", token).contentType("application/json").content("{\"target\":23}"))
+                .andExpect(status().isBadRequest());
+        assertThat(room.getTargetRoomTemperature()).isEqualByComparingTo("22");
+    }
+
     @Test void requiresRawTokenAndPositiveSiteId() throws Exception {
         mvc.perform(get("/api/heating-planner/widget-summary").param("siteId", site.getId().toString()))
                 .andExpect(status().isUnauthorized());
