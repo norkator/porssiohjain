@@ -4,7 +4,7 @@
  * See LICENSE for details.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import PageHeader from "@/components/PageHeader";
 import AppDialog from "@/components/AppDialog";
 import {
@@ -37,6 +37,7 @@ const series = [
 ] as const;
 function Chart({ data, points }: { data: Monitor; points: PlanPoint[] }) {
   const host = useRef<HTMLDivElement>(null);
+  const tooltipId = useId();
   const [width, setWidth] = useState(940);
   useEffect(() => {
     const observer = new ResizeObserver((entries) =>
@@ -48,8 +49,11 @@ function Chart({ data, points }: { data: Monitor; points: PlanPoint[] }) {
   const plotWidth = width - 100;
   const right = width - 45;
   const ticks = width < 600 ? 5 : 7;
-  const [selected, setSelected] = useState<PlanPoint | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [hidden, setHidden] = useState<string[]>([]);
+  const selected = points.find((p) => p.time === selectedTime);
+  const visibleSeries = series.filter(([key]) => !hidden.includes(key));
+  const tooltipWidth = Math.min(320, width - 16);
   const start = Date.parse(data.start),
     end = Date.parse(data.end);
   const x = (time: string | number) =>
@@ -83,15 +87,24 @@ function Chart({ data, points }: { data: Monitor; points: PlanPoint[] }) {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     });
+  const formatValue = (key: (typeof series)[number][0], value: number) =>
+    `${value.toLocaleString(undefined, { maximumFractionDigits: key === "wood" ? 3 : 2 })} ${key === "price" ? "c/kWh" : key === "wood" ? "°C/h" : "°C"}`;
   return (
     <>
-      <div ref={host}>
+      <div ref={host} className="relative">
         <svg
           className="w-full"
           viewBox={`0 0 ${width} 310`}
           role="img"
           aria-label="Today and tomorrow Heating Planner predictions"
+          onPointerLeave={(event) => {
+            if (event.pointerType !== "touch") setSelectedTime(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setSelectedTime(null);
+          }}
         >
           <rect
             x="55"
@@ -147,35 +160,33 @@ function Chart({ data, points }: { data: Monitor; points: PlanPoint[] }) {
               </text>
             </g>
           ))}
-          {series
-            .filter(([key]) => !hidden.includes(key))
-            .map(([key, , color]) => {
-              let previous: number | null = null;
-              const path = points
-                .map((p) => {
-                  const v = p[key];
-                  if (v === null) {
-                    previous = null;
-                    return "";
-                  }
-                  const time = Date.parse(p.time);
-                  const command =
-                    previous === null || time - previous > 900000 ? "M" : "L";
-                  previous = time;
-                  return `${command}${x(p.time)},${y(v, key === "price" || key === "wood")}`;
-                })
-                .join(" ");
-              return (
-                <path
-                  key={key}
-                  d={path}
-                  fill="none"
-                  stroke={color}
-                  strokeWidth="2"
-                  strokeDasharray={key === "target" ? "5 4" : undefined}
-                />
-              );
-            })}
+          {visibleSeries.map(([key, , color]) => {
+            let previous: number | null = null;
+            const path = points
+              .map((p) => {
+                const v = p[key];
+                if (v === null) {
+                  previous = null;
+                  return "";
+                }
+                const time = Date.parse(p.time);
+                const command =
+                  previous === null || time - previous > 900000 ? "M" : "L";
+                previous = time;
+                return `${command}${x(p.time)},${y(v, key === "price" || key === "wood")}`;
+              })
+              .join(" ");
+            return (
+              <path
+                key={key}
+                d={path}
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeDasharray={key === "target" ? "5 4" : undefined}
+              />
+            );
+          })}
           {Date.now() >= start && Date.now() < end && (
             <line
               x1={x(Date.now())}
@@ -185,6 +196,31 @@ function Chart({ data, points }: { data: Monitor; points: PlanPoint[] }) {
               stroke="currentColor"
               strokeDasharray="3 4"
             />
+          )}
+          {selected && (
+            <g pointerEvents="none" aria-hidden="true">
+              <line
+                x1={x(selected.time)}
+                x2={x(selected.time)}
+                y1="25"
+                y2="265"
+                stroke="currentColor"
+                strokeDasharray="4 3"
+              />
+              {visibleSeries.map(([key, , color]) =>
+                selected[key] === null ? null : (
+                  <circle
+                    key={key}
+                    cx={x(selected.time)}
+                    cy={y(selected[key], key === "price" || key === "wood")}
+                    r="4"
+                    fill={color}
+                    stroke="rgb(var(--color-surface-container-lowest))"
+                    strokeWidth="2"
+                  />
+                ),
+              )}
+            </g>
           )}
           {Array.from({ length: ticks }, (_, i) => {
             const time = start + ((end - start) * i) / (ticks - 1);
@@ -213,21 +249,61 @@ function Chart({ data, points }: { data: Monitor; points: PlanPoint[] }) {
               key={p.time}
               x={x(p.time)}
               y="25"
-              width={Math.max(2, (plotWidth * 900000) / (end - start))}
+              width={Math.min(
+                (plotWidth * 900000) / (end - start),
+                right - x(p.time),
+              )}
               height="240"
               fill="transparent"
               tabIndex={0}
               aria-label={format(p.time)}
-              onFocus={() => setSelected(p)}
-              onMouseEnter={() => setSelected(p)}
-              onClick={() => setSelected(p)}
-            >
-              <title>
-                {format(p.time)} — {p.reason}
-              </title>
-            </rect>
+              aria-describedby={selected?.time === p.time ? tooltipId : undefined}
+              onFocus={() => setSelectedTime(p.time)}
+              onBlur={() => setSelectedTime(null)}
+              onPointerEnter={() => setSelectedTime(p.time)}
+              onPointerDown={() => setSelectedTime(p.time)}
+              onClick={() => setSelectedTime(p.time)}
+            />
           ))}
         </svg>
+        {selected && (
+          <div
+            id={tooltipId}
+            role="tooltip"
+            className="pointer-events-none absolute top-2 z-10 rounded-lg border border-outline-variant bg-surface-container-lowest p-3 text-xs text-on-surface shadow-lg"
+            style={{
+              width: tooltipWidth,
+              left: Math.max(
+                8,
+                Math.min(x(selected.time) + 12, width - tooltipWidth - 8),
+              ),
+            }}
+          >
+            <p className="mb-2 font-bold">{format(selected.time)}</p>
+            <dl className="space-y-1">
+              {visibleSeries.map(([key, label, color]) => (
+                <div key={key} className="flex justify-between gap-3">
+                  <dt>
+                    <span style={{ color }} aria-hidden="true">
+                      ●{" "}
+                    </span>
+                    {label}
+                  </dt>
+                  <dd className="shrink-0 font-semibold tabular-nums">
+                    {selected[key] === null
+                      ? "Unavailable"
+                      : formatValue(key, selected[key])}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {selected.reason && (
+              <p className="mt-2 border-t border-outline-variant pt-2">
+                {selected.reason}
+              </p>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex flex-wrap gap-3">
         {series.map(([key, label, color]) => (
@@ -247,19 +323,9 @@ function Chart({ data, points }: { data: Monitor; points: PlanPoint[] }) {
           </button>
         ))}
       </div>
-      {selected && (
-        <p className="mt-3 text-sm">
-          {format(selected.time)} ·{" "}
-          {series
-            .map(([key, label]) =>
-              selected[key] === null ? null : `${label}: ${selected[key]}`,
-            )
-            .filter(Boolean)
-            .join(" · ")}
-          <br />
-          {selected.reason}
-        </p>
-      )}
+      <p className="text-xs text-on-surface-variant">
+        Hover, tap, or focus a time period to see values.
+      </p>
     </>
   );
 }
