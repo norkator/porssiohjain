@@ -199,6 +199,22 @@ public class HeatingPlannerConfigurationService {
         return comfortConfiguration(comfortScheduleRepository.save(entity));
     }
 
+    /** Narrow update for the monitoring client; all device and control settings stay server-owned. */
+    @Transactional
+    public void updateRoomComfort(Long accountId, Long siteId, Long roomId,
+                                  BigDecimal target, Long scheduleId) {
+        var room = roomRepository.findByIdAndAccountId(roomId, accountId)
+                .filter(value -> value.getSite().getId().equals(siteId))
+                .orElseThrow(() -> new IllegalArgumentException("Room not found"));
+        var schedule = scheduleId == null ? null : requireComfortSchedule(accountId, siteId, scheduleId);
+        var comfort = schedule == null ? new HeatingComfortSchedule(target, List.of()) : schedule.schedule();
+        validateComfortMinimum(comfort, room.getMinimumRoomTemperature());
+        room.setComfortSchedule(schedule);
+        room.setTargetRoomTemperature(comfort.defaultTarget());
+        room.setMaximumRoomTemperature(comfort.defaultTarget().add(new BigDecimal("2.50")));
+        roomRepository.save(room);
+    }
+
     @Transactional
     public void deleteComfortSchedule(Long accountId, Long siteId, Long id) {
         var entity = requireComfortSchedule(accountId, siteId, id);

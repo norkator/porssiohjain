@@ -1,6 +1,6 @@
 # Heating Planner
 
-Native Android widget API and implementation handoff: [heating-planner-widget.md](heating-planner-widget.md). The summary route is read-only; hybrid-web intentionally has no Heating Planner screen.
+Native Android widget API and implementation handoff: [heating-planner-widget.md](heating-planner-widget.md). The widget summary route remains read-only. The hybrid-web monitoring screen is described below.
 
 ## Status
 
@@ -294,3 +294,15 @@ At command time the same room and floor freshness checks are repeated. Plan poin
 - Simulation error and comfort violations are measurable.
 - The existing price-curve controller remains an available fallback.
 - A dry-run period can run for at least one week without issuing commands.
+
+## Hybrid-web monitoring
+
+The Site & Account menu links to `/heating-planner`. It always resolves the same saved default site and stable fallback as Vaadin; there is no site selector. Opening the page never creates settings, calculates or activates plans, or sends commands. It refreshes saved predictions once a minute.
+
+The room selector shows a continuous today/tomorrow chart with tomorrow shaded, in the site timezone. Elapsed predictions use the latest saved prediction available when each period began; missing intervals remain gaps. Predictions and planned setpoints are not measurements or thermostat read-back. Planned mode/setpoint changes and the next advisory wood recommendation appear below the chart.
+
+Hover, tap, or keyboard-focus a chart period to show a shared tooltip with its site-local time, visible series values and units, and planning reason. Missing values are labeled unavailable. The tooltip follows legend visibility and highlights the selected time and available values on the graph.
+
+The comfort dialog updates only the room target or schedule assignment, or edits an existing shared daily comfort schedule and its windows. Shared edits affect all assigned rooms. Existing ownership, overlapping-window, temperature and comfort-minimum validation applies. Other room settings, floor bounds, devices and active-control opt-ins remain configured in Vaadin. Changes take effect on the next manual or automatic calculation.
+
+Authenticated API routes: `GET /api/heating-planner/monitor`, `PUT /api/heating-planner/rooms/{roomId}/comfort` (`target`, nullable `scheduleId`), and `PUT /api/heating-planner/comfort-schedules` (existing comfort schedule configuration). All resolve the effective account's default site on the server and reject rooms/schedules outside it.

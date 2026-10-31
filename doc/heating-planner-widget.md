@@ -1,6 +1,6 @@
 # Heating Planner widget API and Android handoff
 
-Implemented backend contract, schema version 1. Android API helpers are prepared; the widget itself is the next session's work. Keep hybrid-web without a Heating Planner screen. Widget taps open the existing app menu.
+Implemented backend contract, schema version 1. Android API helpers are prepared; the widget itself is the next session's work. Hybrid-web now has a separate simplified Heating Planner monitoring screen (see [heating-planner.md](heating-planner.md#hybrid-web-monitoring)). Widget taps continue to open the existing app menu.
 
 ## Requests
 
@@ -14,7 +14,7 @@ Use the raw token, without `Bearer`. `siteId` is required and both IDs must be p
 
 `HeatingPlannerController` delegates to `HeatingPlannerWidgetQueryService` in the backend repository `/home/norkator/Documents/GitHub/porssiohjain`. The DTO is `services/models/HeatingPlannerWidgetSummaryResponse.java`. These sources define the exact contract.
 
-The GET is read-only: it never creates settings, recalculates/activates a plan, fetches weather, sends a push, or publishes a device command. No migration or hybrid-web changes are needed.
+The GET is read-only: it never creates settings, recalculates/activates a plan, fetches weather, sends a push, or publishes a device command. The widget contract requires no migration; the separate hybrid-web monitor uses its own endpoints.
 
 ## Response
 
@@ -97,7 +97,7 @@ Implement next:
 2. Register the provider in `EnergyWidgets.updateAll`, `refreshAllNow`, and `hasAnyWidgets`. Reuse quarter-hour refresh scheduling and existing `WidgetRefreshJobService`; add a manual refresh action.
 3. Cache response and successful fetch timestamp per account/session, environment, site, and room. Clear protected caches on logout/account/environment changes. Retain cached data with a visible stale/offline label on temporary network failure. Never render a previous account's data. Inspect AppSession's existing cache clearing when registering new keys.
 4. Display **Heating Planner** in both English and Finnish, site name, localized status, planned current activity, next change with local time/room, stove advisory when present, relevant warning, and fetch/plan timestamps. Larger layouts can add room temperatures. Use “Planned preheat”, not “Heating on”. No chart/timeline endpoint is implemented in version 1.
-5. Widget taps open the existing app menu through the common app pending intent. Do not add a Heating Planner screen or route to hybrid-web. Do not send stove acknowledgements or activation commands from the widget.
+5. Widget taps open the existing app menu through the common app pending intent. The separate hybrid-web Heating Planner route does not change this widget tap behavior. Do not send stove acknowledgements or activation commands from the widget.
 6. Handle null/missing JSON fields and unknown future codes. Android optDouble-style defaults must not turn missing temperature into 0 °C. Re-evaluate cache age/currentPoint.endsAt while rendering to prevent stale data appearing live.
 7. Verify token rotation, signed-out state, multiple sites, cache isolation, offline display, DST/site timezone, resize layouts, and actual tap behavior. Run `./gradlew compileDebugJavaWithJavac` and focused tests.
 

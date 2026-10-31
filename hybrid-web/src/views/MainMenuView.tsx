@@ -404,6 +404,7 @@ export default function MainMenuView() {
       hasError: false
     }
   ];
+  siteOwnTiles.push({ key: "heatingPlanner", title: "Heating Planner", detail: "Room plans and comfort settings", to: "/heating-planner", icon: "H", hasError: false });
   if (isAdminAccount) {
     siteOwnTiles.push({ key: "adminUsers", title: t("adminUsersTitle"), detail: t("adminUsersDescription"),
       to: "/admin/users", icon: "U", hasError: false });
