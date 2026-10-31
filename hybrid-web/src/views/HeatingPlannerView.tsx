@@ -41,7 +41,7 @@ function Chart({ data, points }: { data: Monitor; points: PlanPoint[] }) {
   const [width, setWidth] = useState(940);
   useEffect(() => {
     const observer = new ResizeObserver((entries) =>
-      setWidth(Math.max(280, entries[0].contentRect.width)),
+      setWidth(Math.max(200, entries[0].contentRect.width)),
     );
     if (host.current) observer.observe(host.current);
     return () => observer.disconnect();
