@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.auth.AdminSupportAccess;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.vaadin.flow.component.UI;
@@ -19,12 +20,13 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.server.VaadinSession;
 
+import static com.nitramite.porssiohjain.auth.AdminSupportAccess.IMPERSONATED_ACCOUNT_ID_ATTRIBUTE;
+import static com.nitramite.porssiohjain.auth.AdminSupportAccess.IMPERSONATING_ADMIN_ACCOUNT_ID_ATTRIBUTE;
+
 public final class ViewAuthUtils {
 
     private static final String TOKEN_ATTRIBUTE = "token";
     private static final String EXPIRES_AT_ATTRIBUTE = "expiresAt";
-    private static final String IMPERSONATED_ACCOUNT_ID_ATTRIBUTE = "impersonatedAccountId";
-    private static final String IMPERSONATING_ADMIN_ACCOUNT_ID_ATTRIBUTE = "impersonatingAdminAccountId";
 
     private ViewAuthUtils() {
     }
@@ -117,7 +119,7 @@ public final class ViewAuthUtils {
 
     public static void startImpersonating(AuthService authService, Long targetAccountId) {
         AccountEntity admin = findRealAuthenticatedAccount(authService);
-        if (admin == null || !admin.isAdmin()) {
+        if (admin == null || !admin.isAdmin() || admin.isDemo()) {
             throw new IllegalArgumentException("Admin access required");
         }
 
@@ -143,6 +145,11 @@ public final class ViewAuthUtils {
         return session != null && session.getAttribute(IMPERSONATED_ACCOUNT_ID_ATTRIBUTE) instanceof Long;
     }
 
+    public static boolean canEditAccount(AuthService authService, AccountEntity account) {
+        return account != null && (!account.isDemo()
+                || AdminSupportAccess.isViewingAccountInSession(authService, account.getId()));
+    }
+
     public static Long getImpersonatedAccountId() {
         VaadinSession session = VaadinSession.getCurrent();
         Object accountId = session != null ? session.getAttribute(IMPERSONATED_ACCOUNT_ID_ATTRIBUTE) : null;
@@ -163,7 +170,7 @@ public final class ViewAuthUtils {
         }
         if (!(impersonatingAdminAccountId instanceof Long adminAccountId)
                 || !adminAccountId.equals(realAccount.getId())
-                || !realAccount.isAdmin()) {
+                || !realAccount.isAdmin() || realAccount.isDemo()) {
             clearImpersonation(session);
             return realAccount;
         }

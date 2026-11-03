@@ -18,6 +18,8 @@ import com.vaadin.flow.server.VaadinSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.springframework.context.support.ResourceBundleMessageSource;
 
@@ -49,6 +51,7 @@ class WaterMetersViewTest {
         UI.getCurrent().setLocale(Locale.US);
         accounts = mockStatic(ViewAuthUtils.class);
         accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth)).thenReturn(account);
+        accounts.when(() -> ViewAuthUtils.canEditAccount(eq(auth), any())).thenCallRealMethod();
         when(service.list(7L)).thenReturn(List.of(meter));
         var messages = new ResourceBundleMessageSource();
         messages.setBasename("translations/messages");
@@ -128,9 +131,18 @@ class WaterMetersViewTest {
         verify(service, never()).pollNow(any(), any());
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
     @SuppressWarnings("unchecked")
-    void adminSupportCanEditAndPollTheEffectiveAccountsMeters() {
+    void adminSupportCanEditAndPollTheEffectiveAccountsMeters(boolean demo) {
+        account.setDemo(demo);
+        var session = mock(VaadinSession.class);
+        VaadinSession.setCurrent(session);
+        when(session.getAttribute("token")).thenReturn("admin-token");
+        when(session.getAttribute("impersonatedAccountId")).thenReturn(7L);
+        when(session.getAttribute("impersonatingAdminAccountId")).thenReturn(1L);
+        when(auth.authenticate("admin-token")).thenReturn(AccountEntity.builder().id(1L).admin(true).build());
+        when(auth.getAccount(7L)).thenReturn(account);
         accounts.when(ViewAuthUtils::isImpersonating).thenReturn(true);
         when(service.pollNow(7L, 9L)).thenReturn(meter);
         var view = new WaterMetersView(auth, i18n, service);

@@ -69,7 +69,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         String targetHeader = request.getHeader("X-View-As-Account");
         if (targetHeader != null) {
-            if (!account.isAdmin()) {
+            if (!account.isAdmin() || account.isDemo()) {
                 return rejectPreview(response, "Admin access required");
             }
             try {
@@ -97,7 +97,8 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         authContext.setAccount(account.getId(), account.isDemo());
         authContext.setAdminAccount(account.isAdmin());
-        if (account.isDemo() && isWriteRequest(request) && !isDemoWriteAllowed(request)) {
+        if (account.isDemo() && !authContext.isImpersonating()
+                && isWriteRequest(request) && !isDemoWriteAllowed(request)) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType(MediaType.TEXT_PLAIN_VALUE);
             response.getWriter().write(DEMO_WRITE_BLOCKED_MESSAGE);

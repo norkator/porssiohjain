@@ -14,6 +14,8 @@ import com.nitramite.porssiohjain.mqtt.MqttService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -127,8 +129,11 @@ class AdminUsersControllerTest {
                 .andExpect(status().isForbidden());
     }
 
-    @Test
-    void supportStillBlocksCredentialsExportAccountDeletionPurchasesAndAdminAccess() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void supportStillBlocksCredentialsExportAccountDeletionPurchasesAndAdminAccess(boolean demo) throws Exception {
+        user.setDemo(demo);
+        accounts.saveAndFlush(user);
         for (var request : java.util.List.of(delete("/me"), post("/me/password"),
                 get("/me/export"), get("/api/admin/users"), post("/api/admin/users/{id}/preview", user.getId()),
                 post("/billing/google-play/purchases"), post("/account/qr-login/challenges/{id}/approve", UUID.randomUUID()))) {
@@ -138,8 +143,11 @@ class AdminUsersControllerTest {
         }
     }
 
-    @Test
-    void supportCanCreateAndEditSitesUsingTheSelectedAccountsQuota() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void supportCanCreateAndEditSitesUsingTheSelectedAccountsQuota(boolean demo) throws Exception {
+        user.setDemo(demo);
+        accounts.saveAndFlush(user);
         String siteRequest = """
                 {"name":"Home","type":"HOME","enabled":false,"timezone":"Europe/Helsinki"}
                 """;
@@ -164,9 +172,12 @@ class AdminUsersControllerTest {
         assertNull(context.getAccountId());
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void supportCanCommandAndDeleteOnlyTheSelectedUsersDevices() throws Exception {
+    void supportCanCommandAndDeleteOnlyTheSelectedUsersDevices(boolean demo) throws Exception {
+        user.setDemo(demo);
+        accounts.saveAndFlush(user);
         var targetDevice = devices.saveAndFlush(DeviceEntity.builder().account(user).deviceName("Target relay")
                 .timezone("Europe/Helsinki").mqttOnline(true).build());
         var otherDevice = devices.saveAndFlush(DeviceEntity.builder().account(admin).deviceName("Admin relay")
@@ -197,13 +208,17 @@ class AdminUsersControllerTest {
         accounts.deleteAllById(java.util.List.of(admin.getId(), user.getId()));
     }
 
-    @Test
-    void supportSettingsUpdateChangesOnlyTheSelectedUserAndRetainsTheAdminSession() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void supportSettingsUpdateChangesOnlyTheSelectedUserAndRetainsTheAdminSession(boolean demo) throws Exception {
+        user.setDemo(demo);
+        accounts.saveAndFlush(user);
         mvc.perform(put("/me").header("Authorization", adminToken).header("X-View-As-Account", user.getId())
                         .contentType("application/json").content("{\"email\":\"support@example.test\",\"locale\":\"fi\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.accountId").value(user.getId()))
                 .andExpect(jsonPath("$.email").value("support@example.test"))
-                .andExpect(jsonPath("$.admin").value(false)).andExpect(jsonPath("$.impersonating").value(true));
+                .andExpect(jsonPath("$.admin").value(false)).andExpect(jsonPath("$.impersonating").value(true))
+                .andExpect(jsonPath("$.demo").value(demo));
         mvc.perform(get("/me").header("Authorization", adminToken)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountId").value(admin.getId()))
                 .andExpect(jsonPath("$.email").value("admin@example.test"))
@@ -213,25 +228,42 @@ class AdminUsersControllerTest {
     }
 
     @Test
-    void demoTargetAndForgedSupportHeaderStillCannotWrite() throws Exception {
+    void directDemoLoginAndForgedSupportHeadersStillCannotWrite() throws Exception {
         var targetDevice = devices.saveAndFlush(DeviceEntity.builder().account(user).deviceName("Target relay")
                 .timezone("Europe/Helsinki").mqttOnline(true).build());
         mvc.perform(delete("/devices/{id}", targetDevice.getId()).header("Authorization", userToken)
                         .header("X-View-As-Account", admin.getId())).andExpect(status().isForbidden());
         user.setDemo(true);
         accounts.saveAndFlush(user);
-        mvc.perform(delete("/devices/{id}", targetDevice.getId()).header("Authorization", adminToken)
+        for (var request : java.util.List.of(delete("/devices/{id}", targetDevice.getId()),
+                post("/devices/{id}/mqtt-relays/0", targetDevice.getId()).content("{\"on\":true}"),
+                post("/api/sites").content("{\"name\":\"Demo edit\"}"),
+                put("/me").content("{\"email\":\"changed@example.test\"}"))) {
+            mvc.perform(request.header("Authorization", userToken).contentType("application/json"))
+                    .andExpect(status().isForbidden());
+            assertNull(context.getAccountId());
+            assertFalse(context.isImpersonating());
+        }
+        mvc.perform(delete("/devices/{id}", targetDevice.getId()).header("Authorization", userToken)
                         .header("X-View-As-Account", user.getId())).andExpect(status().isForbidden());
-        mvc.perform(post("/devices/{id}/mqtt-relays/0", targetDevice.getId()).header("Authorization", adminToken)
-                        .header("X-View-As-Account", user.getId()).contentType("application/json").content("{\"on\":true}"))
+        // A legitimate admin maintenance request must not authorize a later direct demo request.
+        mvc.perform(put("/me").header("Authorization", adminToken).header("X-View-As-Account", user.getId())
+                        .contentType("application/json").content("{\"email\":\"maintained@example.test\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(delete("/devices/{id}", targetDevice.getId()).header("Authorization", userToken))
                 .andExpect(status().isForbidden());
+        assertTrue(accounts.findById(user.getId()).orElseThrow().isDemo());
+        assertEquals("maintained@example.test", accounts.findById(user.getId()).orElseThrow().getEmail());
         assertTrue(devices.existsById(targetDevice.getId()));
         verifyNoInteractions(mqttService);
         assertNull(context.getAccountId());
     }
 
-    @Test
-    void adminRevocationTakesEffectOnNextSupportReadAndWrite() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void adminRevocationTakesEffectOnNextSupportReadAndWrite(boolean demo) throws Exception {
+        user.setDemo(demo);
+        accounts.saveAndFlush(user);
         admin.setAdmin(false);
         accounts.saveAndFlush(admin);
         mvc.perform(get("/me").header("Authorization", adminToken).header("X-View-As-Account", user.getId()))

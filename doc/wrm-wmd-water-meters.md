@@ -3,8 +3,8 @@
 The authenticated Vaadin desktop and Start menu open `/water-meters`. Measurements
 and Water meters appear directly after Dashboard. Accounts can add, edit,
 disable and remove their own meters. Admins viewing as another user can manage
-and poll that user's meters for support. Demo accounts cannot change or poll
-meters. No new account-tier resource quota is introduced.
+and poll that user's meters for support, including demo accounts. Direct demo
+logins cannot change or poll meters. No new account-tier resource quota is introduced.
 
 ## Providers and daily polling
 

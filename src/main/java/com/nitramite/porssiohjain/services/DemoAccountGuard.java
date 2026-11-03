@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.services;
 
+import com.nitramite.porssiohjain.auth.AdminSupportAccess;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DemoAccountGuard {
 
     private final AccountRepository accountRepository;
+    private final AdminSupportAccess adminSupportAccess;
 
     @Transactional(readOnly = true)
     public void assertWritable(Long accountId) {
@@ -32,7 +34,7 @@ public class DemoAccountGuard {
                 .map(account -> account.isDemo())
                 .orElse(false);
 
-        if (demo) {
+        if (demo && !adminSupportAccess.isViewingAccount(accountId)) {
             throw new DemoAccountMutationException();
         }
     }

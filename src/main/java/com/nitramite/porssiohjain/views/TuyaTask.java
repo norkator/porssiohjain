@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain.views;
 
+import com.nitramite.porssiohjain.auth.AdminSupportAccess;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.tuya.TuyaException;
 import com.vaadin.flow.component.Component;
@@ -54,7 +55,8 @@ final class TuyaTask {
             pollState.changed = pollState.previousInterval <= 0 || pollState.previousInterval > 500;
             if (pollState.changed) ui.setPollInterval(500);
         }
-        CompletableFuture<T> future = CompletableFuture.supplyAsync(work, task -> Thread.ofVirtual().start(task));
+        CompletableFuture<T> future = CompletableFuture.supplyAsync(AdminSupportAccess.withCurrentSession(work),
+                task -> Thread.ofVirtual().start(task));
         running = future;
         poll = ui.addPollListener(event -> {
             if (!future.isDone()) return;

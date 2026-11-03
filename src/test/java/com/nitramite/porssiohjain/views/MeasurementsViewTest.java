@@ -30,6 +30,8 @@ import com.vaadin.flow.server.VaadinSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.springframework.context.support.ResourceBundleMessageSource;
 
@@ -65,6 +67,7 @@ class MeasurementsViewTest {
         UI.getCurrent().setLocale(Locale.ENGLISH);
         VaadinSession.setCurrent(mock(VaadinSession.class));
         accounts = mockStatic(ViewAuthUtils.class);
+        accounts.when(() -> ViewAuthUtils.canEditAccount(eq(auth), any())).thenCallRealMethod();
         accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth))
                 .thenReturn(AccountEntity.builder().id(7L).build());
         var messages = new ResourceBundleMessageSource();
@@ -179,9 +182,17 @@ class MeasurementsViewTest {
                 "Ei vielä tallennettuja mittauksia");
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
     @SuppressWarnings("unchecked")
-    void publicCheckboxPersistsOnlyItsPropertyAndExposesTheAccountShareLink() {
+    void publicCheckboxPersistsOnlyItsPropertyAndExposesTheAccountShareLink(boolean demo) {
+        var account = AccountEntity.builder().id(7L).demo(demo).build();
+        accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth)).thenReturn(account);
+        when(VaadinSession.getCurrent().getAttribute("token")).thenReturn("admin-token");
+        when(VaadinSession.getCurrent().getAttribute("impersonatedAccountId")).thenReturn(7L);
+        when(VaadinSession.getCurrent().getAttribute("impersonatingAdminAccountId")).thenReturn(1L);
+        when(auth.authenticate("admin-token")).thenReturn(AccountEntity.builder().id(1L).admin(true).build());
+        when(auth.getAccount(7L)).thenReturn(account);
         accounts.when(ViewAuthUtils::isImpersonating).thenReturn(true);
         when(generic.findLatestDistinctMeasurements(7L, Instant.EPOCH)).thenReturn(List.of(snapshot));
         var selected = new PublicMeasurementService.PublishedMeasurement(13L, "Living room",
@@ -215,6 +226,29 @@ class MeasurementsViewTest {
         descendants(view).filter(c -> c instanceof Button b && b.getText().equals("Remove from public page"))
                 .map(Button.class::cast).findFirst().orElseThrow().click();
         verify(publicMeasurements).setPublished(7L, 13L, DeviceMeasurementType.TEMPERATURE, "temperature", false);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void directDemoLoginCannotPublishOrRemoveMeasurements() {
+        accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth))
+                .thenReturn(AccountEntity.builder().id(7L).demo(true).build());
+        when(generic.findLatestDistinctMeasurements(7L, Instant.EPOCH)).thenReturn(List.of(snapshot));
+        var selected = new PublicMeasurementService.PublishedMeasurement(13L, "Living room",
+                DeviceMeasurementType.TEMPERATURE, "temperature");
+        when(publicMeasurements.ownerSettings(7L)).thenReturn(
+                new PublicMeasurementService.OwnerSettings(UUID.randomUUID(), List.of(selected)));
+        var view = new MeasurementsView(auth, i18n, service, publicMeasurements);
+        Button remove = descendants(view).filter(c -> c instanceof Button b && b.getText().equals("Remove from public page"))
+                .map(Button.class::cast).findFirst().orElseThrow();
+        assertThat(remove.isEnabled()).isFalse();
+        remove.click();
+        var renderer = (ComponentRenderer<?, DeviceMeasurementEntity>) grids(view).getFirst()
+                .getColumnByKey("public").getRenderer();
+        var checkbox = (Checkbox) renderer.createComponent(snapshot);
+        assertThat(checkbox.isEnabled()).isFalse();
+        checkbox.setValue(false);
+        verify(publicMeasurements, never()).setPublished(anyLong(), anyLong(), any(), anyString(), anyBoolean());
     }
 
     @SuppressWarnings("unchecked")

@@ -35,6 +35,7 @@ public class AccountService {
     private final RateLimitService rateLimitService;
     private final PasswordEncoder passwordEncoder;
     private final PushNotificationService pushNotificationService;
+    private final DemoAccountGuard demoAccountGuard;
 
     @Transactional
     public AccountEntity createAccount(String ip, boolean agreedTerms) {
@@ -213,7 +214,7 @@ public class AccountService {
             String marketIndexName,
             boolean marketIndexNameConfirmed
     ) {
-        assertWritable(accountId);
+        demoAccountGuard.assertWritable(accountId);
         accountRepository.findById(accountId).ifPresent(account -> {
             account.setEmail(email != null && !email.isBlank() ? email.trim() : null);
             account.setNotifyPowerLimitExceeded(notifyPowerLimitExceeded);
