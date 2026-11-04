@@ -70,7 +70,8 @@ class ViewAuthUtilsTest {
     private void assertUsersViewDoesNotQueryAccounts(AuthService auth) {
         var accounts = mock(AccountRepository.class);
         new AdminUsersView(auth, mock(I18nService.class), accounts,
-                mock(AccountLimitService.class), mock(AdminAccountService.class), mock(SystemLogService.class));
+                mock(AccountLimitService.class), mock(AdminAccountService.class), mock(SystemLogService.class),
+                mock(com.nitramite.porssiohjain.services.simulation.DeviceSimulationService.class));
         verifyNoInteractions(accounts);
     }
 }

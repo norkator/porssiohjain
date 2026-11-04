@@ -26,6 +26,9 @@ import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
 
 public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
 
+    @EntityGraph(attributePaths = "account")
+    List<DeviceEntity> findBySimulatedTrueAndEnabledTrueAndAccountDemoTrueOrderByIdAsc();
+
     List<DeviceEntity> findByAccountId(Long accountId);
 
     List<DeviceEntity> findByAccountIdOrderByIdAsc(Long accountId);

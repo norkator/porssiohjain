@@ -81,7 +81,7 @@ export default function ManageDeviceView() {
   const isHeatPump = deviceType === "HEAT_PUMP";
   const hasAcCredentials = acUsername.trim().length > 0 && acPassword.trim().length > 0;
   const heatPumpReady =
-    !isHeatPump ||
+    !isHeatPump || device?.simulated ||
     (
       hpName.trim().length > 0 &&
       acType !== "NONE" &&
@@ -381,7 +381,7 @@ export default function ManageDeviceView() {
                     </label>
                     <select
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
-                      disabled={device?.shared}
+                      disabled={device?.shared || device?.simulated}
                       id="device-type"
                       onChange={(event) => setDeviceType(event.target.value as DeviceType)}
                       value={deviceType}
@@ -431,7 +431,7 @@ export default function ManageDeviceView() {
                         </label>
                         <select
                           className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
-                          disabled={device?.shared}
+                          disabled={device?.shared || device?.simulated}
                           id="ac-type"
                           onChange={(event) => setAcType(event.target.value as AcType)}
                           value={acType}

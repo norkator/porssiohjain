@@ -1,0 +1,60 @@
+name: Build and Push Device Simulator Image
+
+on:
+  push:
+    branches: [production]
+    paths:
+      - "device-simulator/**"
+      - ".github/workflows/device-simulator-container.yml"
+  pull_request:
+    paths:
+      - "device-simulator/**"
+      - ".github/workflows/device-simulator-container.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: device-simulator/package-lock.json
+      - run: npm ci
+        working-directory: device-simulator
+      - run: npm test
+        working-directory: device-simulator
+      - run: docker build -t device-simulator-smoke ./device-simulator
+      - name: Verify running container
+        run: >-
+          docker run --rm --entrypoint node
+          -v "$PWD/device-simulator/test/container-smoke.mjs:/tmp/smoke.mjs:ro"
+          device-simulator-smoke /tmp/smoke.mjs
+
+  build-and-push:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: ./device-simulator
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/norkator/porssiohjain-device-simulator:latest

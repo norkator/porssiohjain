@@ -18,6 +18,7 @@ import com.nitramite.porssiohjain.services.AccountLimitService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.SystemLogService;
+import com.nitramite.porssiohjain.services.simulation.DeviceSimulationService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -59,6 +60,7 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
     private final AccountLimitService accountLimitService;
     private final AdminAccountService adminAccountService;
     private final SystemLogService systemLogService;
+    private final DeviceSimulationService simulations;
     private final Grid<AccountEntity> grid = new Grid<>(AccountEntity.class, false);
     private Long currentAdminAccountId;
     private static final ZoneId DISPLAY_ZONE = ZoneId.of("Europe/Helsinki");
@@ -71,7 +73,8 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
             AccountRepository accountRepository,
             AccountLimitService accountLimitService,
             AdminAccountService adminAccountService,
-            SystemLogService systemLogService
+            SystemLogService systemLogService,
+            DeviceSimulationService simulations
     ) {
         this.authService = authService;
         this.i18n = i18n;
@@ -79,6 +82,7 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         this.accountLimitService = accountLimitService;
         this.adminAccountService = adminAccountService;
         this.systemLogService = systemLogService;
+        this.simulations = simulations;
 
         var account = ViewAuthUtils.findAuthenticatedAccount(authService);
         if (account == null || !account.isAdmin()) {
@@ -281,8 +285,51 @@ public class AdminUsersView extends VerticalLayout implements BeforeEnterObserve
         content.setPadding(false);
         content.setSpacing(true);
         content.setAlignItems(Alignment.STRETCH);
+        if (account.isDemo() && !account.isAdmin()) content.add(simulationControls(account));
         dialog.add(content);
         dialog.open();
+    }
+
+    private VerticalLayout simulationControls(AccountEntity account) {
+        var section = new VerticalLayout();
+        section.setPadding(false);
+        var rows = new VerticalLayout();
+        rows.setPadding(false);
+        var create = new Button(t("simulator.addToshiba"), event -> {
+            try {
+                simulations.createHeatPump(currentAdminAccountId, account.getId());
+                refreshSimulationRows(rows, account);
+                refreshGrid();
+            } catch (Exception exception) {
+                Notification.show(t("simulator.failed", exception.getMessage()))
+                        .addThemeVariants(NotificationVariant.LUMO_ERROR);
+            }
+        });
+        section.add(new H2(t("simulator.title")), new Paragraph(t("simulator.description")), rows, create);
+        refreshSimulationRows(rows, account);
+        return section;
+    }
+
+    private void refreshSimulationRows(VerticalLayout rows, AccountEntity account) {
+        rows.removeAll();
+        try {
+            for (var device : simulations.list(currentAdminAccountId, account.getId())) {
+                if (!device.supported() && !device.simulated()) continue;
+                var toggle = new Button(t(device.simulated() ? "simulator.disable" : "simulator.enable"));
+                toggle.addClickListener(event -> {
+                    try {
+                        simulations.setSimulated(currentAdminAccountId, account.getId(), device.id(), !device.simulated());
+                        refreshSimulationRows(rows, account);
+                    } catch (Exception exception) {
+                        Notification.show(t("simulator.failed", exception.getMessage()))
+                                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    }
+                });
+                rows.add(new HorizontalLayout(new Span(device.name()), toggle));
+            }
+        } catch (Exception exception) {
+            rows.add(new Paragraph(t("simulator.failed", exception.getMessage())));
+        }
     }
 
     private void openDeleteAccountDialog(AccountEntity account) {

@@ -298,7 +298,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 .setFlexGrow(0)
                 .setFrozen(true);
         deviceGrid.addColumn(DeviceResponse::getId).setHeader(t("device.grid.id")).setAutoWidth(true);
-        deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader(t("device.grid.name")).setAutoWidth(true);
+        deviceGrid.addColumn(device -> device.getDeviceName()
+                + (device.isSimulated() ? " (" + t("simulator.simulated") + ")" : ""))
+                .setHeader(t("device.grid.name")).setAutoWidth(true);
         deviceGrid.addColumn(device -> {
             return switch (device.getDeviceType()) {
                 case STANDARD -> t("device.type.standard");
@@ -933,14 +935,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case TEMPERATURE_SENSOR -> t("device.type.temperatureSensor");
         });
         dialogDeviceTypeCombo.setValue(device.getDeviceType());
-        dialogDeviceTypeCombo.setReadOnly(shared || tuya);
+        dialogDeviceTypeCombo.setReadOnly(shared || tuya || device.isSimulated());
 
         ComboBox<DevicePlatform> dialogDevicePlatformCombo = new ComboBox<>(t("device.field.platform"));
         dialogDevicePlatformCombo.setItems(java.util.Arrays.stream(DevicePlatform.values())
                 .filter(platform -> tuya || platform != DevicePlatform.TUYA_SMART).toList());
         dialogDevicePlatformCombo.setItemLabelGenerator(this::formatDevicePlatform);
         dialogDevicePlatformCombo.setValue(device.getDevicePlatform() != null ? device.getDevicePlatform() : DevicePlatform.GENERIC_MQTT);
-        dialogDevicePlatformCombo.setReadOnly(shared || tuya);
+        dialogDevicePlatformCombo.setReadOnly(shared || tuya || device.isSimulated());
 
         Checkbox dialogEnabledField = new Checkbox(t("device.field.enabled"));
         dialogEnabledField.setValue(device.getEnabled() == null || device.getEnabled());
@@ -982,7 +984,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case MITSUBISHI_MELCLOUD_HOME -> t("acType.mitsubishiMelCloudHome");
         });
         dialogAcTypeCombo.setValue(device.getAcType() != null ? device.getAcType() : AcType.NONE);
-        dialogAcTypeCombo.setReadOnly(shared);
+        dialogAcTypeCombo.setReadOnly(shared || device.isSimulated());
 
         TextField dialogAcUsernameField = new TextField(t("device.hp.username"));
         dialogAcUsernameField.setValue(device.getAcUsername() != null ? device.getAcUsername() : "");

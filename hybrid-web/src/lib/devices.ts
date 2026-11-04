@@ -18,6 +18,7 @@ export type ApiDevice = {
   deviceType: string;
   devicePlatform: DevicePlatform;
   enabled: boolean;
+  simulated?: boolean;
   deviceName: string;
   timezone: string;
   lastCommunication: string | null;

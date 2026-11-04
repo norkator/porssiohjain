@@ -67,6 +67,9 @@ public class DeviceEntity {
     @Builder.Default
     private boolean enabled = true;
 
+    @Column(name = "simulated", nullable = false)
+    private boolean simulated;
+
     @Column(nullable = false)
     private String deviceName;
 

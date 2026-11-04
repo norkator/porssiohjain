@@ -234,6 +234,7 @@ public class DeviceService {
                 .deviceType(entity.getDeviceType())
                 .devicePlatform(entity.getDevicePlatform())
                 .enabled(entity.isEnabled())
+                .simulated(entity.isSimulated())
                 .deviceName(entity.getDeviceName())
                 .timezone(entity.getTimezone())
                 .lastCommunication(entity.getLastCommunication())
@@ -339,6 +340,11 @@ public class DeviceService {
         DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
         DeviceType previousType = device.getDeviceType();
+        if (device.isSimulated() && (deviceType != previousType
+                || devicePlatform != device.getDevicePlatform()
+                || (deviceType == DeviceType.HEAT_PUMP && acType != AcType.TOSHIBA))) {
+            throw new IllegalArgumentException("Disable simulation before changing device type or platform");
+        }
         DevicePlatform previousPlatform = device.getDevicePlatform();
         if ((previousPlatform == DevicePlatform.TUYA_SMART || resolvedDevicePlatform == DevicePlatform.TUYA_SMART)
                 && (previousPlatform != resolvedDevicePlatform || resolvedDeviceType != DeviceType.TEMPERATURE_SENSOR)) {
@@ -363,7 +369,10 @@ public class DeviceService {
         deviceRepository.save(device);
 
         if (resolvedDeviceType == DeviceType.HEAT_PUMP) {
-            validateHeatPumpConfiguration(hpName, acUsername, acPassword, acDeviceId);
+            if (!device.isSimulated()) validateHeatPumpConfiguration(hpName, acUsername, acPassword, acDeviceId);
+            else if (hpName == null || hpName.isBlank() || acDeviceId == null || acDeviceId.isBlank()) {
+                throw new IllegalArgumentException("Heat pump name and device ID are required");
+            }
             DeviceAcDataEntity acData = deviceAcDataRepository.findByDevice(device)
                     .orElseGet(() -> DeviceAcDataEntity.builder().device(device).build());
             if (!Objects.equals(acData.getAcDeviceId(), acDeviceId)) {
@@ -413,6 +422,7 @@ public class DeviceService {
             device.setFactoryDeviceStatus(FactoryDeviceStatus.PASSED);
             device.setClaimedAt(null);
             device.setEnabled(true);
+            device.setSimulated(false);
             device.setApiOnline(false);
             device.setMqttOnline(false);
             deviceRepository.save(device);
@@ -510,6 +520,9 @@ public class DeviceService {
         }
         if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) {
             return lastCommunication.isBefore(now.minus(TuyaService.POLL_FRESHNESS));
+        }
+        if (device.isSimulated()) {
+            return lastCommunication.isBefore(now.minusSeconds(STANDARD_API_OFFLINE_SECONDS));
         }
         long offlineSeconds = switch (device.getDeviceType()) {
             case HEAT_PUMP -> HEAT_PUMP_API_OFFLINE_SECONDS;

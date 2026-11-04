@@ -35,6 +35,7 @@ public class DeviceResponse {
     private DeviceType deviceType;
     private DevicePlatform devicePlatform;
     private Boolean enabled;
+    private boolean simulated;
     private String deviceName;
     private String timezone;
     private Instant lastCommunication;

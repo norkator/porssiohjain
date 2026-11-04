@@ -390,6 +390,7 @@
     }
   },
   "devices": {
+    "simulated": "Simulated",
     "title": "Your Infrastructure",
     "typeHeadings": {
       "STANDARD": "Standard devices",

@@ -60,6 +60,9 @@ public class ToshibaAcAmqpSendService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void sendMessage(DeviceAcDataEntity acData, String payload) {
+        if (acData.getDevice() != null && acData.getDevice().isSimulated()) {
+            throw new IllegalArgumentException("Simulated devices use the simulator transport");
+        }
         if (payload == null || payload.isBlank()) {
             throw new IllegalArgumentException("Payload cannot be empty");
         }

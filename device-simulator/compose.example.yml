@@ -1,0 +1,18 @@
+# Merge these service settings into your deployment Compose file.
+# Replace "backend" with the existing backend service's name when necessary.
+services:
+  backend:
+    environment:
+      DEVICE_SIMULATOR_BASE_URL: http://device-simulator:8080
+      DEVICE_SIMULATOR_TOKEN: ${DEVICE_SIMULATOR_TOKEN:?Set a private service token of at least 32 characters}
+  device-simulator:
+    image: ghcr.io/norkator/porssiohjain-device-simulator:latest
+    restart: unless-stopped
+    environment:
+      BACKEND_BASE_URL: http://backend:8080
+      DEVICE_SIMULATOR_TOKEN: ${DEVICE_SIMULATOR_TOKEN:?Set a private service token of at least 32 characters}
+    volumes:
+      - simulator-state:/data
+
+volumes:
+  simulator-state:
