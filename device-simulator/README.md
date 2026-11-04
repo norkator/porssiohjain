@@ -98,6 +98,29 @@ POST /api/admin/device-simulator/accounts/{accountId}/heat-pumps
 
 ## Local development
 
+The repository-root [docker-compose.yml](../docker-compose.yml) includes the simulator
+under the optional `simulator` profile, alongside PostgreSQL and RabbitMQ. It assumes
+Spring Boot runs on the host at port 8080. From the repository root:
+
+```sh
+export DEVICE_SIMULATOR_TOKEN="$(openssl rand -hex 32)"
+export DEVICE_SIMULATOR_BASE_URL=http://localhost:8081
+docker compose --profile simulator up -d --build
+```
+
+Start the host backend with those same two exported variables (or copy their values
+into its IDE run configuration). The container reaches the host through
+`host.docker.internal`; the backend reaches the simulator at `http://localhost:8081`.
+SQLite state persists in the `simulator_data` volume. To start just the simulator,
+use `docker compose up -d --build device-simulator`.
+
+Override `BACKEND_BASE_URL` if the backend uses a different address or port.
+`DEVICE_SIMULATOR_PORT` changes the localhost port published by Compose; update the
+backend's `DEVICE_SIMULATOR_BASE_URL` to match. Ordinary `docker compose up` keeps
+the simulator disabled unless its profile is enabled or its service is requested.
+
+To run the simulator directly with Node.js instead:
+
 ```sh
 cd device-simulator
 npm ci
