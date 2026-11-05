@@ -5,6 +5,7 @@ For a product overview and screenshots, see the [main README](../README.md).
 ## Setup and devices
 
 - [Shelly relay control and power-meter reporting](shelly.md)
+- [Demo device simulator: relay polling and Toshiba heat pump](../device-simulator/README.md)
 - [Environment variables](environment-variables.md) — existing reference awaiting an update; current settings are in [application.properties](../src/main/resources/application.properties).
 - [Factory provisioning, device claiming, MQTT profiles and OTA](../PROVISIONING.md)
 - [RabbitMQ and MQTT TLS configuration](../compose/README.md)

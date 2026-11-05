@@ -19,9 +19,12 @@ import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
 import com.nitramite.porssiohjain.services.DeviceOfflineNotificationService;
+import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.models.AcLoginResponse;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
@@ -30,9 +33,14 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class MitsubishiMelCloudHomeServicesTest {
@@ -159,14 +167,18 @@ class MitsubishiMelCloudHomeServicesTest {
         MitsubishiMelCloudHomeApiClient apiClient = mock(MitsubishiMelCloudHomeApiClient.class);
         MitsubishiMelCloudHomeLoginService loginService = mock(MitsubishiMelCloudHomeLoginService.class);
         DeviceAcDataRepository repository = mock(DeviceAcDataRepository.class);
+        DeviceAcCommandLogService commandLog = mock(DeviceAcCommandLogService.class);
         MitsubishiMelCloudHomeCommandDispatcher dispatcher = new MitsubishiMelCloudHomeCommandDispatcher(
                 loginService,
                 apiClient,
                 repository,
                 mock(SystemLogService.class),
+                commandLog,
                 new ObjectMapper()
         );
+        DeviceEntity device = DeviceEntity.builder().id(12L).build();
         DeviceAcDataEntity acData = DeviceAcDataEntity.builder()
+                .device(device)
                 .acType(AcType.MITSUBISHI_MELCLOUD_HOME)
                 .acDeviceId("ata-1")
                 .acAccessToken("access")
@@ -192,6 +204,55 @@ class MitsubishiMelCloudHomeServicesTest {
         assertEquals(22.0, requestCaptor.getValue().setTemperature());
         assertTrue(acData.getLastSentStateHex().contains("AIR_TO_AIR"));
         verify(repository).save(acData);
+        verify(commandLog).logSentCommand(12L, acData.getLastSentStateHex());
+    }
+
+    @ParameterizedTest
+    @EnumSource(MitsubishiMelCloudHomeState.UnitType.class)
+    void rejectedCommandIsNotLoggedOrRemembered(MitsubishiMelCloudHomeState.UnitType unitType) {
+        MitsubishiMelCloudHomeApiClient apiClient = mock(MitsubishiMelCloudHomeApiClient.class);
+        MitsubishiMelCloudHomeLoginService loginService = mock(MitsubishiMelCloudHomeLoginService.class);
+        DeviceAcDataRepository repository = mock(DeviceAcDataRepository.class);
+        DeviceAcCommandLogService commandLog = mock(DeviceAcCommandLogService.class);
+        MitsubishiMelCloudHomeCommandDispatcher dispatcher = new MitsubishiMelCloudHomeCommandDispatcher(
+                loginService, apiClient, repository, mock(SystemLogService.class), commandLog, new ObjectMapper());
+        DeviceAcDataEntity acData = DeviceAcDataEntity.builder()
+                .acDeviceId("unit-1").acAccessToken("access").lastSentStateHex("previous command").build();
+        when(loginService.login(acData)).thenReturn(AcLoginResponse.builder().success(true).build());
+        if (unitType == MitsubishiMelCloudHomeState.UnitType.AIR_TO_AIR) {
+            doThrow(new MitsubishiMelCloudHomeException("Rejected")).when(apiClient).controlAtaUnit(any(), any(), any());
+        } else {
+            doThrow(new MitsubishiMelCloudHomeException("Rejected")).when(apiClient).controlAtwUnit(any(), any(), any());
+        }
+
+        assertThrows(MitsubishiMelCloudHomeException.class, () -> dispatcher.dispatchHexState(acData,
+                "{\"unitType\":\"" + unitType + "\",\"power\":true}"));
+
+        verifyNoInteractions(commandLog, repository);
+        assertEquals("previous command", acData.getLastSentStateHex());
+    }
+
+    @Test
+    void atwCommandIsLoggedAndLogFailureDoesNotDiscardAcceptedState() {
+        MitsubishiMelCloudHomeApiClient apiClient = mock(MitsubishiMelCloudHomeApiClient.class);
+        MitsubishiMelCloudHomeLoginService loginService = mock(MitsubishiMelCloudHomeLoginService.class);
+        DeviceAcDataRepository repository = mock(DeviceAcDataRepository.class);
+        DeviceAcCommandLogService commandLog = mock(DeviceAcCommandLogService.class);
+        MitsubishiMelCloudHomeCommandDispatcher dispatcher = new MitsubishiMelCloudHomeCommandDispatcher(
+                loginService, apiClient, repository, mock(SystemLogService.class), commandLog, new ObjectMapper());
+        DeviceAcDataEntity acData = DeviceAcDataEntity.builder()
+                .device(DeviceEntity.builder().id(12L).build())
+                .acDeviceId("atw-1").acAccessToken("access").build();
+        when(loginService.login(acData)).thenReturn(AcLoginResponse.builder().success(true).build());
+        doThrow(new IllegalStateException("Log storage unavailable")).when(commandLog).logSentCommand(eq(12L), any());
+
+        dispatcher.dispatchHexState(acData,
+                "{\"unitType\":\"AIR_TO_WATER\",\"power\":true,\"operationModeZone1\":\"HeatCurve\",\"setTankWaterTemperature\":50}");
+
+        verify(apiClient).controlAtwUnit(eq("access"), eq("atw-1"), any());
+        verify(commandLog).logSentCommand(12L, acData.getLastSentStateHex());
+        verify(repository).save(acData);
+        assertTrue(acData.getLastSentStateHex().contains("HeatCurve"));
     }
 
     private static MitsubishiMelCloudHomeContextResponse.Unit unit(String id, String name) {

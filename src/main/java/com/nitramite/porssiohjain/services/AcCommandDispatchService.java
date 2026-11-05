@@ -28,6 +28,9 @@ public class AcCommandDispatchService {
 
     public void dispatchHexState(DeviceAcDataEntity acData, String hexState) {
         AcType acType = acData.getAcType();
+        if (acData.getDevice() != null && acData.getDevice().isSimulated() && acType != AcType.TOSHIBA) {
+            throw new IllegalArgumentException("Only Toshiba heat pump simulation is supported");
+        }
         dispatchers.stream()
                 .filter(dispatcher -> dispatcher.supports(acType))
                 .findFirst()

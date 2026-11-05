@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services.toshiba;
 
 import com.nitramite.porssiohjain.services.proxy.OutboundProxyTransport;
+import com.nitramite.porssiohjain.services.simulation.DeviceSimulatorClient;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
@@ -40,6 +41,7 @@ public class ToshibaAcStateService {
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final DeviceRepository deviceRepository;
     private final DeviceOfflineNotificationService deviceOfflineNotificationService;
+    private final DeviceSimulatorClient simulator;
     private static final String STATE_URL = "https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=";
 
     public ToshibaAcStateService(
@@ -48,7 +50,8 @@ public class ToshibaAcStateService {
             DeviceAcDataRepository deviceAcDataRepository,
             DeviceRepository deviceRepository,
             DeviceOfflineNotificationService deviceOfflineNotificationService,
-            OutboundProxyTransport cloudTransport
+            OutboundProxyTransport cloudTransport,
+            DeviceSimulatorClient simulator
     ) {
         this.toshibaLoginService = toshibaLoginService;
         this.toshibaAcStateHexDecoderService = toshibaAcStateHexDecoderService;
@@ -57,13 +60,42 @@ public class ToshibaAcStateService {
         this.deviceOfflineNotificationService = deviceOfflineNotificationService;
         this.restTemplate = cloudTransport.newRestTemplate();
         this.cloudTransport = cloudTransport;
+        this.simulator = simulator;
     }
 
     public ToshibaAcStateResponse getAcState(
             DeviceAcDataEntity acData
     ) {
+        if (acData.getDevice() != null && acData.getDevice().isSimulated()) {
+            return getSimulatedState(acData);
+        }
         try (var ignored = cloudTransport.beginOperation()) {
             return getAcStateInternal(acData, true);
+        }
+    }
+
+    private ToshibaAcStateResponse getSimulatedState(DeviceAcDataEntity acData) {
+        var response = new ToshibaAcStateResponse();
+        var state = new ToshibaAcStateResponse.ResObj();
+        response.setResObj(state);
+        try {
+            var observed = simulator.getState(acData);
+            state.setAcId(acData.getAcDeviceId());
+            state.setAcDeviceUniqueId(acData.getDevice().getUuid().toString());
+            state.setAcStateData(observed.stateHex());
+            state.setLastConnectionTime(observed.observedAt());
+            state.setUpdatedDate(observed.observedAt());
+            state.setFirmwareVersion("simulator");
+            state.setDecodedAcState(toshibaAcStateHexDecoderService.decode(observed.stateHex()));
+            acData.setLastPolledStateHex(observed.stateHex());
+            deviceAcDataRepository.save(acData);
+            response.setSuccess(true);
+            updateDeviceConnectivity(acData, response);
+            return response;
+        } catch (RuntimeException exception) {
+            // A failed simulation never falls through to the manufacturer's cloud.
+            updateDeviceConnectivity(acData, response);
+            throw exception;
         }
     }
 
@@ -162,7 +194,9 @@ public class ToshibaAcStateService {
         }
         boolean wasApiOnline = device.isApiOnline();
         boolean wasMqttOnline = device.isMqttOnline();
-        boolean apiOnline = isWithinOnlineThreshold(lastConnectionTime);
+        boolean apiOnline = device.isSimulated()
+                ? lastConnectionTime != null && !lastConnectionTime.isBefore(Instant.now().minus(Duration.ofMinutes(10)))
+                : isWithinOnlineThreshold(lastConnectionTime);
         device.setApiOnline(apiOnline);
         deviceRepository.save(device);
         if (apiOnline) {

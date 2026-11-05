@@ -28,5 +28,24 @@ services:
       RABBITMQ_DEFAULT_PASS: admin
     restart: "no"
 
+  device-simulator:
+    image: ghcr.io/norkator/porssiohjain-device-simulator:latest
+    build:
+      context: ./device-simulator
+    profiles:
+      - simulator
+    restart: unless-stopped
+    environment:
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-http://host.docker.internal:8080}
+      # Share this private token with the host backend. The simulator validates it at startup.
+      DEVICE_SIMULATOR_TOKEN: ${DEVICE_SIMULATOR_TOKEN:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:${DEVICE_SIMULATOR_PORT:-8081}:8080"
+    volumes:
+      - simulator_data:/data
+
 volumes:
   postgres_data:
+  simulator_data:

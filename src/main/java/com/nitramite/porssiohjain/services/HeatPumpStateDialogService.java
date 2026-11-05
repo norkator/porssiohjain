@@ -12,6 +12,7 @@
 package com.nitramite.porssiohjain.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
@@ -890,6 +891,33 @@ public class HeatPumpStateDialogService {
         dialog.open();
     }
 
+    public Component createSentCommandInfoContent(String sentData) {
+        String state = sentData != null ? sentData.trim() : "";
+        // Simulator logs predate the decoded command view and use a text prefix.
+        String simulatedPrefix = "SIMULATED Toshiba stateHex=";
+        if (state.startsWith(simulatedPrefix)) {
+            state = state.substring(simulatedPrefix.length());
+        }
+        try {
+            if (isJsonState(state)) {
+                JsonNode payload = objectMapper.readTree(state);
+                if (payload.path("payload").path("data").isTextual()) {
+                    return createAcStateInfoContent(buildDecodedResponse(payload.path("payload").path("data").asText()), false);
+                }
+                if (payload.hasNonNull("unitType")) {
+                    return createMitsubishiMelCloudHomeStateInfoContent(parseMitsubishiMelCloudHomeState(state));
+                }
+                if (payload.has("Power") || payload.has("OperationMode") || payload.has("SetTemperature")) {
+                    return createMitsubishiAcStateInfoContent(parseMitsubishiState(state), false);
+                }
+                return new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable"));
+            }
+            return createAcStateInfoContent(buildDecodedResponse(state), false);
+        } catch (Exception e) {
+            return new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable"));
+        }
+    }
+
     public Component createAcStateInfoContentFromHex(String stateHex) {
         if (isJsonState(stateHex)) {
             try {
@@ -908,6 +936,10 @@ public class HeatPumpStateDialogService {
     }
 
     public Component createAcStateInfoContent(ToshibaAcStateResponse response) {
+        return createAcStateInfoContent(response, true);
+    }
+
+    private Component createAcStateInfoContent(ToshibaAcStateResponse response, boolean includeRawState) {
         VerticalLayout content = new VerticalLayout();
         content.setSpacing(true);
         content.setPadding(false);
@@ -916,11 +948,13 @@ public class HeatPumpStateDialogService {
         ToshibaAcStateResponse.ResObj resObj = response.getResObj();
         ToshibaAcStateDecodedResponse decoded = resObj.getDecodedAcState();
 
-        TextArea hexArea = new TextArea(t("controlTable.dialog.queryState.field.stateHex"));
-        hexArea.setValue(Optional.ofNullable(resObj.getAcStateData()).orElse(""));
-        hexArea.setReadOnly(true);
-        hexArea.setWidthFull();
-        content.add(hexArea);
+        if (includeRawState) {
+            TextArea hexArea = new TextArea(t("controlTable.dialog.queryState.field.stateHex"));
+            hexArea.setValue(Optional.ofNullable(resObj.getAcStateData()).orElse(""));
+            hexArea.setReadOnly(true);
+            hexArea.setWidthFull();
+            content.add(hexArea);
+        }
 
         if (decoded == null) {
             content.add(new Paragraph(t("controlTable.dialog.queryState.decodedUnavailable")));
@@ -1055,17 +1089,23 @@ public class HeatPumpStateDialogService {
     }
 
     private Component createMitsubishiAcStateInfoContent(MitsubishiAcStateResponse state) {
+        return createMitsubishiAcStateInfoContent(state, true);
+    }
+
+    private Component createMitsubishiAcStateInfoContent(MitsubishiAcStateResponse state, boolean includeRawState) {
         VerticalLayout content = new VerticalLayout();
         content.setSpacing(true);
         content.setPadding(false);
         content.setWidthFull();
 
-        TextArea jsonArea = new TextArea("State JSON");
-        jsonArea.setValue(formatMitsubishiState(state));
-        jsonArea.setReadOnly(true);
-        jsonArea.setWidthFull();
-        jsonArea.setMinHeight("220px");
-        content.add(jsonArea);
+        if (includeRawState) {
+            TextArea jsonArea = new TextArea("State JSON");
+            jsonArea.setValue(formatMitsubishiState(state));
+            jsonArea.setReadOnly(true);
+            jsonArea.setWidthFull();
+            jsonArea.setMinHeight("220px");
+            content.add(jsonArea);
+        }
 
         FormLayout stateLayout = new FormLayout(
                 createReadOnlyField("Name", state.getName()),
@@ -1099,7 +1139,8 @@ public class HeatPumpStateDialogService {
                 createReadOnlyField("ID", state.getUnitId()),
                 createReadOnlyField(
                         t("controlTable.dialog.queryState.melCloudHome.unitType"),
-                        state.getUnitType() != null ? state.getUnitType().name() : null
+                        state.getUnitType() != null ? t(state.getUnitType() == MitsubishiMelCloudHomeState.UnitType.AIR_TO_AIR
+                                ? "device.hp.dialog.unitType.airToAir" : "device.hp.dialog.unitType.airToWater") : null
                 ),
                 createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.building"), state.getBuildingName()),
                 createReadOnlyField(
@@ -1110,7 +1151,8 @@ public class HeatPumpStateDialogService {
                         t("controlTable.dialog.queryState.melCloudHome.error"),
                         state.getInError() != null ? String.valueOf(state.getInError()) : null
                 ),
-                createReadOnlyField(t("controlTable.dialog.queryState.field.power"), String.valueOf(state.getPower())),
+                createReadOnlyField(t("controlTable.dialog.queryState.field.power"), formatBoolean(state.getPower())),
+                createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.standby"), formatBoolean(state.getInStandbyMode())),
                 createReadOnlyField(
                         t("controlTable.dialog.queryState.field.indoorTemperature"),
                         formatDouble(state.getUnitType() == MitsubishiMelCloudHomeState.UnitType.AIR_TO_AIR
@@ -1122,6 +1164,28 @@ public class HeatPumpStateDialogService {
                         formatDouble(state.getTankWaterTemperature())
                 )
         );
+        if (state.getUnitType() == MitsubishiMelCloudHomeState.UnitType.AIR_TO_AIR) {
+            stateLayout.add(
+                    createReadOnlyField(t("controlTable.dialog.queryState.field.mode"), state.getOperationMode()),
+                    createReadOnlyField(t("controlTable.dialog.queryState.field.targetTemperature"), formatDouble(state.getSetTemperature())),
+                    createReadOnlyField(t("controlTable.dialog.queryState.field.fanMode"), state.getSetFanSpeed()),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.verticalVane"), state.getVaneVerticalDirection()),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.horizontalVane"), state.getVaneHorizontalDirection())
+            );
+        } else if (state.getUnitType() == MitsubishiMelCloudHomeState.UnitType.AIR_TO_WATER) {
+            stateLayout.add(
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.zone1Mode"), state.getOperationModeZone1()),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.zone1Temperature"), formatDouble(state.getSetTemperatureZone1())),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.zone1HeatFlow"), formatDouble(state.getSetHeatFlowTemperatureZone1())),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.zone1CoolFlow"), formatDouble(state.getSetCoolFlowTemperatureZone1())),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.zone2Mode"), state.getOperationModeZone2()),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.zone2Temperature"), formatDouble(state.getSetTemperatureZone2())),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.zone2HeatFlow"), formatDouble(state.getSetHeatFlowTemperatureZone2())),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.zone2CoolFlow"), formatDouble(state.getSetCoolFlowTemperatureZone2())),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.tankTemperature"), formatDouble(state.getSetTankWaterTemperature())),
+                    createReadOnlyField(t("controlTable.dialog.queryState.melCloudHome.forcedHotWater"), formatBoolean(state.getForcedHotWaterMode()))
+            );
+        }
         stateLayout.setWidthFull();
         stateLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
@@ -1279,6 +1343,10 @@ public class HeatPumpStateDialogService {
     }
 
     private String formatDouble(Double value) {
+        return value != null ? String.valueOf(value) : "";
+    }
+
+    private String formatBoolean(Boolean value) {
         return value != null ? String.valueOf(value) : "";
     }
 

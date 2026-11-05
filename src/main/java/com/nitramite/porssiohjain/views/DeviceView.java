@@ -25,6 +25,7 @@ import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.FileService;
 import com.nitramite.porssiohjain.services.FactoryProvisioningService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.HeatPumpStateDialogService;
 import com.nitramite.porssiohjain.services.models.DeviceAcCommandLogResponse;
 import com.nitramite.porssiohjain.services.models.ClaimProvisionedDeviceRequest;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesResponse;
@@ -46,6 +47,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
@@ -90,6 +92,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final DeviceService deviceService;
     private final ControlService controlService;
     private final DeviceAcCommandLogService deviceAcCommandLogService;
+    private final HeatPumpStateDialogService heatPumpStateDialogService;
     private final AuthService authService;
     private final FileService fileService;
     private final FactoryProvisioningService factoryProvisioningService;
@@ -150,6 +153,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             DeviceService deviceService,
             ControlService controlService,
             DeviceAcCommandLogService deviceAcCommandLogService,
+            HeatPumpStateDialogService heatPumpStateDialogService,
             AuthService authService,
             FileService fileService,
             FactoryProvisioningService factoryProvisioningService,
@@ -166,6 +170,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         this.deviceService = deviceService;
         this.controlService = controlService;
         this.deviceAcCommandLogService = deviceAcCommandLogService;
+        this.heatPumpStateDialogService = heatPumpStateDialogService;
         this.authService = authService;
         this.fileService = fileService;
         this.factoryProvisioningService = factoryProvisioningService;
@@ -298,7 +303,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 .setFlexGrow(0)
                 .setFrozen(true);
         deviceGrid.addColumn(DeviceResponse::getId).setHeader(t("device.grid.id")).setAutoWidth(true);
-        deviceGrid.addColumn(DeviceResponse::getDeviceName).setHeader(t("device.grid.name")).setAutoWidth(true);
+        deviceGrid.addColumn(device -> device.getDeviceName()
+                + (device.isSimulated() ? " (" + t("simulator.simulated") + ")" : ""))
+                .setHeader(t("device.grid.name")).setAutoWidth(true);
         deviceGrid.addColumn(device -> {
             return switch (device.getDeviceType()) {
                 case STANDARD -> t("device.type.standard");
@@ -933,14 +940,14 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case TEMPERATURE_SENSOR -> t("device.type.temperatureSensor");
         });
         dialogDeviceTypeCombo.setValue(device.getDeviceType());
-        dialogDeviceTypeCombo.setReadOnly(shared || tuya);
+        dialogDeviceTypeCombo.setReadOnly(shared || tuya || device.isSimulated());
 
         ComboBox<DevicePlatform> dialogDevicePlatformCombo = new ComboBox<>(t("device.field.platform"));
         dialogDevicePlatformCombo.setItems(java.util.Arrays.stream(DevicePlatform.values())
                 .filter(platform -> tuya || platform != DevicePlatform.TUYA_SMART).toList());
         dialogDevicePlatformCombo.setItemLabelGenerator(this::formatDevicePlatform);
         dialogDevicePlatformCombo.setValue(device.getDevicePlatform() != null ? device.getDevicePlatform() : DevicePlatform.GENERIC_MQTT);
-        dialogDevicePlatformCombo.setReadOnly(shared || tuya);
+        dialogDevicePlatformCombo.setReadOnly(shared || tuya || device.isSimulated());
 
         Checkbox dialogEnabledField = new Checkbox(t("device.field.enabled"));
         dialogEnabledField.setValue(device.getEnabled() == null || device.getEnabled());
@@ -982,7 +989,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case MITSUBISHI_MELCLOUD_HOME -> t("acType.mitsubishiMelCloudHome");
         });
         dialogAcTypeCombo.setValue(device.getAcType() != null ? device.getAcType() : AcType.NONE);
-        dialogAcTypeCombo.setReadOnly(shared);
+        dialogAcTypeCombo.setReadOnly(shared || device.isSimulated());
 
         TextField dialogAcUsernameField = new TextField(t("device.hp.username"));
         dialogAcUsernameField.setValue(device.getAcUsername() != null ? device.getAcUsername() : "");
@@ -1463,15 +1470,28 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         payloadDialog.setWidth("min(1200px, 96vw)");
         payloadDialog.setHeight("min(900px, 92vh)");
 
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+        content.setWidthFull();
+
+        TextField sentAtField = new TextField(t("device.hp.commandLogGrid.sentAt"));
+        sentAtField.setValue(ZonedDateTime.ofInstant(logEntry.getSentAt(), ZoneId.of(selectedDevice.getTimezone())).format(formatter));
+        sentAtField.setReadOnly(true);
+        content.add(sentAtField, new H2(t("device.hp.commandLogDialog.decodedData")),
+                heatPumpStateDialogService.createSentCommandInfoContent(logEntry.getSentData()));
+
         TextArea payloadArea = new TextArea(t("device.hp.commandLogGrid.sentData"));
         payloadArea.setValue(logEntry.getSentData() != null ? logEntry.getSentData() : "");
         payloadArea.setReadOnly(true);
         payloadArea.setWidthFull();
-        payloadArea.setHeightFull();
+        payloadArea.setMinHeight("220px");
+        Details rawPayload = new Details(t("device.hp.commandLogDialog.rawData"), payloadArea);
+        rawPayload.setWidthFull();
+        content.add(rawPayload);
 
-        Button closeButton = new Button(t("common.cancel"), event -> payloadDialog.close());
+        Button closeButton = new Button(t("common.close"), event -> payloadDialog.close());
         payloadDialog.getFooter().add(closeButton);
-        payloadDialog.add(payloadArea);
+        payloadDialog.add(content);
         payloadDialog.open();
     }
 

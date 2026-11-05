@@ -50,6 +50,9 @@ public class ToshibaRegisterControllerService {
     }
 
     public String registerClient(DeviceAcDataEntity acData) {
+        if (acData.getDevice() != null && acData.getDevice().isSimulated()) {
+            throw new IllegalArgumentException("Simulated devices use the simulator transport");
+        }
         try {
             if (acData.getAcUsername() == null || acData.getAcUsername().isBlank()) {
                 throw new IllegalArgumentException("AC username missing for Toshiba client registration");

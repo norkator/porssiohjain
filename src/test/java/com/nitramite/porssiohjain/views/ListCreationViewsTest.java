@@ -73,6 +73,7 @@ class ListCreationViewsTest {
     void listsGrowWithRowsAndKeepCreationFieldsInsideTheirOwnedDialog() {
         List<VerticalLayout> views = List.of(
                 new DeviceView(mock(DeviceService.class), mock(ControlService.class), mock(DeviceAcCommandLogService.class),
+                        mock(HeatPumpStateDialogService.class),
                         auth, mock(FileService.class), mock(FactoryProvisioningService.class), i18n,
                         mock(ToshibaLoginService.class), mock(ToshibaAcDevicesService.class),
                         mock(MitsubishiLoginService.class), mock(MitsubishiAcDevicesService.class),
@@ -142,6 +143,7 @@ class ListCreationViewsTest {
     @Test
     void tuyaPlatformShowsPickerLocksSensorTypeAndRequiresSelection() {
         DeviceView view = new DeviceView(mock(DeviceService.class), mock(ControlService.class), mock(DeviceAcCommandLogService.class),
+                mock(HeatPumpStateDialogService.class),
                 auth, mock(FileService.class), mock(FactoryProvisioningService.class), i18n,
                 mock(ToshibaLoginService.class), mock(ToshibaAcDevicesService.class),
                 mock(MitsubishiLoginService.class), mock(MitsubishiAcDevicesService.class),

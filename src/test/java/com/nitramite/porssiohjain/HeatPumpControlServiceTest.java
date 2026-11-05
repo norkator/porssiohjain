@@ -36,6 +36,7 @@ import com.nitramite.porssiohjain.entity.repository.SiteWeatherRepository;
 import com.nitramite.porssiohjain.entity.repository.WeatherControlHeatPumpRepository;
 import com.nitramite.porssiohjain.services.AcCommandDispatchService;
 import com.nitramite.porssiohjain.services.ControlPriceService;
+import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.HeatPumpControlService;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import com.nitramite.porssiohjain.services.heating.HeatingPlannerHeatPumpCommandService;
@@ -213,7 +214,7 @@ class HeatPumpControlServiceTest {
         MitsubishiAcStateService stateService = mock(MitsubishiAcStateService.class);
         MitsubishiSetAcStateService setService = mock(MitsubishiSetAcStateService.class);
         MitsubishiAcCommandDispatcher dispatcher = new MitsubishiAcCommandDispatcher(
-                stateService, setService, deviceAcDataRepository, mock(SystemLogService.class));
+                stateService, setService, deviceAcDataRepository, mock(SystemLogService.class), mock(DeviceAcCommandLogService.class));
         HeatPumpControlService scheduler = new HeatPumpControlService(
                 weatherControlHeatPumpRepository, productionSourceHeatPumpRepository,
                 controlHeatPumpRepository, deviceAcDataRepository, siteWeatherRepository,

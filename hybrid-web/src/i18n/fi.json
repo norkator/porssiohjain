@@ -390,6 +390,7 @@
     }
   },
   "devices": {
+    "simulated": "Simuloitu",
     "title": "Infrastruktuuri",
     "typeHeadings": {
       "STANDARD": "Vakiolaitteet",

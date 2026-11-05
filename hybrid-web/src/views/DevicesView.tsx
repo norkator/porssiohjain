@@ -234,7 +234,7 @@ export default function DevicesView() {
                         status={connection.label}
                         statusTone={connection.tone}
                         subtitle={t("uuid", { uuid: device.uuid })}
-                        title={device.deviceName}
+                        title={device.deviceName + (device.simulated ? ` (${t("simulated")})` : "")}
                         type={formatDeviceTypeWithPlatform(device)}
                       />
                     );

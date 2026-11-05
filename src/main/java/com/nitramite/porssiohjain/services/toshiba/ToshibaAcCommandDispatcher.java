@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.services.toshiba;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.services.AcCommandDispatcher;
+import com.nitramite.porssiohjain.services.simulation.DeviceSimulatorClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class ToshibaAcCommandDispatcher implements AcCommandDispatcher {
 
     private final ToshibaRegisterControllerService toshibaRegisterControllerService;
     private final ToshibaAcAmqpSendService toshibaAcAmqpSendService;
+    private final DeviceSimulatorClient simulator;
 
     @Override
     public boolean supports(AcType acType) {
@@ -35,6 +37,10 @@ public class ToshibaAcCommandDispatcher implements AcCommandDispatcher {
     public void dispatchHexState(
             DeviceAcDataEntity acData, String hexState
     ) {
+        if (acData.getDevice() != null && acData.getDevice().isSimulated()) {
+            simulator.sendCommand(acData, hexState);
+            return;
+        }
         if (hexState == null || hexState.isBlank()) {
             throw new IllegalArgumentException("Hex state cannot be blank for Toshiba dispatch");
         }

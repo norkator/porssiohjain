@@ -76,6 +76,9 @@ public class ToshibaLoginService {
             DeviceAcDataEntity acData,
             boolean forceRefresh
     ) {
+        if (acData.getDevice() != null && acData.getDevice().isSimulated()) {
+            return success("simulator");
+        }
         String loginKey = loginKey(acData);
         LoginState loginState = loginStates.computeIfAbsent(loginKey, ignored -> new LoginState());
         synchronized (loginState) {

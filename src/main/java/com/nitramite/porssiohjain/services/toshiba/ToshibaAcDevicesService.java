@@ -43,6 +43,13 @@ public class ToshibaAcDevicesService {
     public List<ToshibaAcMappingResponse.AcDevice> getAcDevices(
             DeviceAcDataEntity acData
     ) {
+        if (acData.getDevice() != null && acData.getDevice().isSimulated()) {
+            var device = new ToshibaAcMappingResponse.AcDevice();
+            device.setId(acData.getAcDeviceId());
+            device.setDeviceUniqueId(acData.getDevice().getUuid().toString());
+            device.setName(acData.getName());
+            return List.of(device);
+        }
         try {
             String acConsumerId = acData.getAcConsumerId();
             if (!isValidConsumerId(acConsumerId)) {
