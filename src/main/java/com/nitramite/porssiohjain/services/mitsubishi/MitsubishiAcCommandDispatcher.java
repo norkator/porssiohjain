@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.services.AcCommandDispatcher;
+import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,7 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
     private final MitsubishiSetAcStateService mitsubishiSetAcStateService;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final SystemLogService systemLogService;
+    private final DeviceAcCommandLogService deviceAcCommandLogService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -87,6 +89,12 @@ public class MitsubishiAcCommandDispatcher implements AcCommandDispatcher {
             throw new IllegalStateException(getErrorMessage(response));
         }
 
+        Long deviceId = acData.getDevice() != null ? acData.getDevice().getId() : null;
+        try {
+            deviceAcCommandLogService.logSentCommand(deviceId, formattedState);
+        } catch (Exception e) {
+            log.error("Failed to persist Mitsubishi AC command log. deviceId={}, acDataId={}", deviceId, acData.getId(), e);
+        }
         acData.setLastPolledStateHex(formattedState);
         // Compare future rules with the original request, not the merged telemetry.
         acData.setLastSentStateHex(jsonState);

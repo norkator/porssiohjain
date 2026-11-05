@@ -11,10 +11,12 @@
 
 package com.nitramite.porssiohjain;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.services.SystemLogService;
+import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcCommandDispatcher;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
@@ -36,8 +38,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,6 +60,9 @@ class MitsubishiAcCommandDispatcherTest {
     @Mock
     private SystemLogService systemLogService;
 
+    @Mock
+    private DeviceAcCommandLogService commandLogService;
+
     private MitsubishiAcCommandDispatcher dispatcher;
 
     @BeforeEach
@@ -63,14 +71,15 @@ class MitsubishiAcCommandDispatcherTest {
                 mitsubishiAcStateService,
                 mitsubishiSetAcStateService,
                 deviceAcDataRepository,
-                systemLogService
+                systemLogService,
+                commandLogService
         );
     }
 
     @ParameterizedTest
     @NullSource
     @ValueSource(ints = {0, 8000})
-    void derivesEffectiveFlagsAndRecordsAcceptedCommand(Integer errorCode) {
+    void derivesEffectiveFlagsAndRecordsAcceptedCommand(Integer errorCode) throws Exception {
         DeviceAcDataEntity acData = createAcData();
         MitsubishiAcStateResponse currentState = currentState();
         MitsubishiSetAcStateResponse setResponse = new MitsubishiSetAcStateResponse();
@@ -100,6 +109,10 @@ class MitsubishiAcCommandDispatcherTest {
         assertEquals(command, acData.getLastSentStateHex());
         assertNotNull(acData.getLastPolledStateHex());
         verify(deviceAcDataRepository).save(acData);
+        ArgumentCaptor<String> sentData = ArgumentCaptor.forClass(String.class);
+        verify(commandLogService).logSentCommand(eq(12L), sentData.capture());
+        var loggedState = new ObjectMapper().readValue(sentData.getValue(), MitsubishiAcStateResponse.class);
+        assertEquals(payload, loggedState);
     }
 
     @ParameterizedTest
@@ -123,6 +136,7 @@ class MitsubishiAcCommandDispatcherTest {
         assertEquals("previous sent state", acData.getLastSentStateHex());
         assertEquals("previous polled state", acData.getLastPolledStateHex());
         verify(deviceAcDataRepository, never()).save(any());
+        verifyNoInteractions(commandLogService);
     }
 
     @Test
@@ -148,6 +162,23 @@ class MitsubishiAcCommandDispatcherTest {
         assertEquals(command, acData.getLastSentStateHex());
         verify(deviceAcDataRepository).save(acData);
         verify(systemLogService).log(contains("Mitsubishi SetAta skipped."));
+        verifyNoInteractions(commandLogService);
+    }
+
+    @Test
+    void logFailureDoesNotDiscardAnAcceptedCommand() {
+        DeviceAcDataEntity acData = createAcData();
+        MitsubishiSetAcStateResponse response = new MitsubishiSetAcStateResponse();
+        response.setErrorCode(0);
+        when(mitsubishiAcStateService.getAcState(acData)).thenReturn(currentState());
+        when(mitsubishiSetAcStateService.setAcState(any(), any())).thenReturn(response);
+        doThrow(new IllegalStateException("Log storage unavailable")).when(commandLogService).logSentCommand(eq(12L), any());
+
+        String command = "{\"Power\":false}";
+        dispatcher.dispatchHexState(acData, command);
+
+        assertEquals(command, acData.getLastSentStateHex());
+        verify(deviceAcDataRepository).save(acData);
     }
 
     private DeviceAcDataEntity createAcData() {

@@ -25,6 +25,7 @@ import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.FileService;
 import com.nitramite.porssiohjain.services.FactoryProvisioningService;
 import com.nitramite.porssiohjain.services.I18nService;
+import com.nitramite.porssiohjain.services.HeatPumpStateDialogService;
 import com.nitramite.porssiohjain.services.models.DeviceAcCommandLogResponse;
 import com.nitramite.porssiohjain.services.models.ClaimProvisionedDeviceRequest;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcDevicesResponse;
@@ -46,6 +47,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
@@ -90,6 +92,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     private final DeviceService deviceService;
     private final ControlService controlService;
     private final DeviceAcCommandLogService deviceAcCommandLogService;
+    private final HeatPumpStateDialogService heatPumpStateDialogService;
     private final AuthService authService;
     private final FileService fileService;
     private final FactoryProvisioningService factoryProvisioningService;
@@ -150,6 +153,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             DeviceService deviceService,
             ControlService controlService,
             DeviceAcCommandLogService deviceAcCommandLogService,
+            HeatPumpStateDialogService heatPumpStateDialogService,
             AuthService authService,
             FileService fileService,
             FactoryProvisioningService factoryProvisioningService,
@@ -166,6 +170,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         this.deviceService = deviceService;
         this.controlService = controlService;
         this.deviceAcCommandLogService = deviceAcCommandLogService;
+        this.heatPumpStateDialogService = heatPumpStateDialogService;
         this.authService = authService;
         this.fileService = fileService;
         this.factoryProvisioningService = factoryProvisioningService;
@@ -1465,15 +1470,28 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         payloadDialog.setWidth("min(1200px, 96vw)");
         payloadDialog.setHeight("min(900px, 92vh)");
 
+        VerticalLayout content = new VerticalLayout();
+        content.setPadding(false);
+        content.setWidthFull();
+
+        TextField sentAtField = new TextField(t("device.hp.commandLogGrid.sentAt"));
+        sentAtField.setValue(ZonedDateTime.ofInstant(logEntry.getSentAt(), ZoneId.of(selectedDevice.getTimezone())).format(formatter));
+        sentAtField.setReadOnly(true);
+        content.add(sentAtField, new H2(t("device.hp.commandLogDialog.decodedData")),
+                heatPumpStateDialogService.createSentCommandInfoContent(logEntry.getSentData()));
+
         TextArea payloadArea = new TextArea(t("device.hp.commandLogGrid.sentData"));
         payloadArea.setValue(logEntry.getSentData() != null ? logEntry.getSentData() : "");
         payloadArea.setReadOnly(true);
         payloadArea.setWidthFull();
-        payloadArea.setHeightFull();
+        payloadArea.setMinHeight("220px");
+        Details rawPayload = new Details(t("device.hp.commandLogDialog.rawData"), payloadArea);
+        rawPayload.setWidthFull();
+        content.add(rawPayload);
 
-        Button closeButton = new Button(t("common.cancel"), event -> payloadDialog.close());
+        Button closeButton = new Button(t("common.close"), event -> payloadDialog.close());
         payloadDialog.getFooter().add(closeButton);
-        payloadDialog.add(payloadArea);
+        payloadDialog.add(content);
         payloadDialog.open();
     }
 

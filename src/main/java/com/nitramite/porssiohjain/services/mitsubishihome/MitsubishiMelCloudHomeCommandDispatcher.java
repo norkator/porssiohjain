@@ -16,6 +16,7 @@ import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.enums.AcType;
 import com.nitramite.porssiohjain.entity.repository.DeviceAcDataRepository;
 import com.nitramite.porssiohjain.services.AcCommandDispatcher;
+import com.nitramite.porssiohjain.services.DeviceAcCommandLogService;
 import com.nitramite.porssiohjain.services.SystemLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class MitsubishiMelCloudHomeCommandDispatcher implements AcCommandDispatc
     private final MitsubishiMelCloudHomeApiClient apiClient;
     private final DeviceAcDataRepository deviceAcDataRepository;
     private final SystemLogService systemLogService;
+    private final DeviceAcCommandLogService deviceAcCommandLogService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -99,6 +101,12 @@ public class MitsubishiMelCloudHomeCommandDispatcher implements AcCommandDispatc
         }
 
         String formattedState = formatState(state);
+        Long deviceId = acData.getDevice() != null ? acData.getDevice().getId() : null;
+        try {
+            deviceAcCommandLogService.logSentCommand(deviceId, formattedState);
+        } catch (Exception e) {
+            log.error("Failed to persist MELCloud Home AC command log. deviceId={}, acDataId={}", deviceId, acData.getId(), e);
+        }
         acData.setLastSentStateHex(formattedState);
         deviceAcDataRepository.save(acData);
         log.info(
