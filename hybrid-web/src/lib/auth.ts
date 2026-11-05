@@ -9,7 +9,8 @@
  * See LICENSE for details.
  */
 
-import { getSessionData, setBrowserSession } from "@/lib/session";
+import { getAndroidBridge } from "@/lib/android-bridge";
+import { getSessionData, setLoginSession } from "@/lib/session";
 import { getCurrentLocale, syncDocumentLocale } from "@/lib/i18n";
 
 export type LoginResponse = {
@@ -63,7 +64,7 @@ export async function loginWithCredentials(input: { uuid: string; secret: string
   const response = await fetch(getPublicApiUrl("/account/login"), {
     body: JSON.stringify({
       ...input,
-      activitySource: "HYBRID_WEB"
+      activitySource: getSessionData().source === "android" ? "HYBRID_ANDROID" : "HYBRID_WEB"
     }),
     headers: {
       "Content-Type": "application/json"
@@ -76,21 +77,22 @@ export async function loginWithCredentials(input: { uuid: string; secret: string
   }
 
   const loginResponse = await response.json() as LoginResponse;
-  setBrowserSession({
+  const nextRoute = setLoginSession({
     token: loginResponse.token,
     refreshToken: loginResponse.refreshToken,
     accountId: loginResponse.accountId,
     locale: loginResponse.locale ?? getCurrentLocale()
   });
+  getAndroidBridge()?.rememberLoginCredentials?.(input.uuid, input.secret);
   syncDocumentLocale(loginResponse.locale);
 
-  return loginResponse;
+  return { ...loginResponse, nextRoute };
 }
 
 export async function createAccount(input?: { locale?: string }) {
   const response = await fetch(getPublicApiUrl("/account/create"), {
     body: JSON.stringify({
-      activitySource: "HYBRID_WEB",
+      activitySource: getSessionData().source === "android" ? "HYBRID_ANDROID" : "HYBRID_WEB",
       locale: input?.locale ?? getCurrentLocale()
     }),
     headers: {

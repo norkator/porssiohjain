@@ -11,24 +11,28 @@
 
 import ModalScrollLock from "@/components/ModalScrollLock";
 import QRCode from "qrcode";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import HeaderLogo from "@/components/HeaderLogo";
+import { getAndroidBridge, getRememberedLoginCredentials, openNativeScreen } from "@/lib/android-bridge";
 import { loginWithCredentials } from "@/lib/auth";
 import { getCurrentLocale, setCurrentLocale, supportedLocales, syncDocumentLocale, type SupportedLocale, useI18n } from "@/lib/i18n";
 import { cancelQrLoginChallenge, completeQrLoginChallenge, createQrLoginChallenge, isQrLoginComplete, type QrLoginChallenge } from "@/lib/qr-login";
-import { getSessionData, setBrowserSession } from "@/lib/session";
+import { getSessionData, setLoginSession } from "@/lib/session";
 
 const DEMO_UUID = "78b7823f-d5cc-4376-8910-cd62e7b32400";
 const DEMO_SECRET = "103058b63f9245099d0c30d81e1636bc";
 
 export default function LoginView() {
   const navigate = useNavigate();
+  const loginDestination = useRef("/menu");
   const session = getSessionData();
   const { t } = useI18n("login");
   const common = useI18n("common").t;
-  const [uuid, setUuid] = useState("");
-  const [secret, setSecret] = useState("");
+  const [environmentTaps, setEnvironmentTaps] = useState(0);
+  const [rememberedCredentials] = useState(getRememberedLoginCredentials);
+  const [uuid, setUuid] = useState(rememberedCredentials.uuid);
+  const [secret, setSecret] = useState(rememberedCredentials.secret);
   const [isSecretVisible, setIsSecretVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,14 +90,15 @@ export default function LoginView() {
         if (!active) return;
 
         if (isQrLoginComplete(result)) {
-          setBrowserSession({
+          const nextRoute = setLoginSession({
             token: result.token,
             refreshToken: result.refreshToken,
             accountId: result.accountId,
             locale: result.locale ?? getCurrentLocale()
           });
           syncDocumentLocale(result.locale);
-          navigate("/menu", { replace: true });
+          loginDestination.current = nextRoute;
+          navigate(nextRoute, { replace: true });
           return;
         }
 
@@ -115,8 +120,8 @@ export default function LoginView() {
     };
   }, [navigate, qrChallenge]);
 
-  if (session.source === "android" || session.hasToken) {
-    return <Navigate replace to="/menu" />;
+  if (session.hasToken) {
+    return <Navigate replace to={loginDestination.current} />;
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -126,16 +131,24 @@ export default function LoginView() {
     setIsSubmitting(true);
 
     try {
-      await loginWithCredentials({
+      const { nextRoute } = await loginWithCredentials({
         uuid: String(formData.get("username") ?? "").trim(),
         secret: String(formData.get("password") ?? "").trim()
       });
-      navigate("/menu", { replace: true });
+      loginDestination.current = nextRoute;
+      navigate(nextRoute, { replace: true });
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : t("genericLoginFailed"));
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleBrandTap = () => {
+    if (session.source !== "android" || isSubmitting || isQrStarting || qrChallenge) return;
+    const nextCount = environmentTaps + 1;
+    setEnvironmentTaps(nextCount >= 7 ? 0 : nextCount);
+    if (nextCount >= 7) getAndroidBridge()?.switchEnvironment?.();
   };
 
   const fillDemoAccount = () => {
@@ -193,13 +206,13 @@ export default function LoginView() {
       </label>
 
       <section className="app-card w-full max-w-md p-4 sm:p-6 lg:p-8">
-        <div className="mb-8 flex items-center gap-4">
+        <button className="mb-8 flex items-center gap-4 text-left" onClick={handleBrandTap} type="button">
           <HeaderLogo />
           <div>
             <p className="metric-label">{t("brand")}</p>
             <h1 className="font-headline text-3xl font-extrabold text-primary-container">{t("title")}</h1>
           </div>
-        </div>
+        </button>
 
         <form autoComplete="on" className="space-y-5" id="login-form" method="post" name="login" onSubmit={handleSubmit}>
           <label className="block">
@@ -294,6 +307,15 @@ export default function LoginView() {
             {t("createAccount")}
           </Link>
         </div>
+
+        {session.source === "android" ? (
+          <div className="mt-6 space-y-3 text-center text-sm text-on-surface-variant">
+            <p>{t("environment", { name: t(session.environment === "local" ? "local" : "production") })}</p>
+            <button className="font-label font-bold text-primary-container underline" onClick={() => openNativeScreen("zigbeeUsb")} type="button">
+              {t("zigbeeGatewayLab")}
+            </button>
+          </div>
+        ) : null}
 
         <hr className="mt-6 border-outline-variant" />
 

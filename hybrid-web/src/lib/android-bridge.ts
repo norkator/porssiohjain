@@ -34,6 +34,11 @@ type AndroidBridgeApi = {
   startGooglePlaySubscriptionPurchase?: (productId: string) => void;
   setTheme?: (theme: "light" | "dark") => void;
   logout?: () => void;
+  getRememberedLoginCredentials?: () => string;
+  rememberLoginCredentials?: (uuid: string, secret: string) => void;
+  completeLogin?: (token: string, refreshToken: string) => string;
+  switchEnvironment?: () => void;
+  refreshSession?: () => string;
   updateSessionTokens?: (token: string, refreshToken: string) => void;
 };
 
@@ -69,6 +74,20 @@ export function getBootstrapData(): BootstrapData {
     return {
       error: String(error)
     };
+  }
+}
+
+// Credentials remain in native preferences; browsers do not remember them here.
+export function getRememberedLoginCredentials(): { uuid: string; secret: string } {
+  try {
+    const raw = getAndroidBridge()?.getRememberedLoginCredentials?.();
+    const saved = raw ? JSON.parse(raw) as { uuid?: unknown; secret?: unknown } : {};
+    return {
+      uuid: typeof saved.uuid === "string" ? saved.uuid : "",
+      secret: typeof saved.secret === "string" ? saved.secret : ""
+    };
+  } catch {
+    return { uuid: "", secret: "" };
   }
 }
 

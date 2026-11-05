@@ -2,6 +2,10 @@
   "login": {
     "brand": "Energy Controller",
     "title": "Kirjaudu",
+    "environment": "Ympäristö: {name}",
+    "production": "Tuotanto",
+    "local": "Paikallinen",
+    "zigbeeGatewayLab": "USB Zigbee -yhdyskäytävälaboratorio",
     "uuidLabel": "UUID",
     "secretLabel": "Salainen avain",
     "showPassword": "Näytä salasana",

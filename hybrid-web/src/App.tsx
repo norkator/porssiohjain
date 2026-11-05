@@ -38,31 +38,10 @@ import SitesView from "@/views/SitesView";
 import WeatherControlsView from "@/views/WeatherControlsView";
 import { getSessionData } from "@/lib/session";
 
-function AndroidSessionUnavailable() {
-  const session = getSessionData();
-
-  return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
-      <section className="app-card max-w-md p-8">
-        <p className="metric-label mb-3">Android Session</p>
-        <h1 className="mb-4 font-headline text-3xl font-extrabold text-primary-container">Session unavailable</h1>
-        <p className="text-on-surface-variant">
-          The Android app did not provide a login token for this WebView session.
-          {session.error ? ` ${session.error}` : ""}
-        </p>
-      </section>
-    </main>
-  );
-}
-
 function ProtectedAppRoutes() {
   const session = getSessionData();
 
   if (!session.hasToken) {
-    if (session.source === "android") {
-      return <AndroidSessionUnavailable />;
-    }
-
     return <Navigate replace to="/login" />;
   }
 

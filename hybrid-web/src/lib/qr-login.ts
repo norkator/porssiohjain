@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import { getSessionData } from "@/lib/session";
 import { getPublicApiUrl, readError, type LoginResponse } from "@/lib/auth";
 
 export type QrLoginChallenge = {
@@ -46,7 +47,7 @@ export async function createQrLoginChallenge() {
 export async function completeQrLoginChallenge(challengeId: string, browserSecret: string) {
   const response = await fetch(getPublicApiUrl(`/account/qr-login/challenges/${challengeId}/complete`), {
     body: JSON.stringify({
-      activitySource: "HYBRID_WEB",
+      activitySource: getSessionData().source === "android" ? "HYBRID_ANDROID" : "HYBRID_WEB",
       browserSecret
     }),
     headers: {

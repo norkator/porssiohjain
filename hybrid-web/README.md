@@ -65,7 +65,7 @@ Current structure:
 - `src/layouts/`: shared app shell
 - `src/lib/android-bridge.ts`: typed Android bridge wrapper
 - `src/lib/session.ts`: unified session source for Android bootstrap or browser env fallback
-- `src/lib/api.ts`: shared helpers for base URL and bearer-authenticated fetches
+- `src/lib/api.ts`: shared helpers for base URL and raw-token authenticated fetches
 - authenticated requests automatically exchange the stored rotating refresh token and retry once after a `401`
 - `src/styles/`: theme tokens and local font loading
 - `views/`: original HTML mock files kept as references
@@ -83,3 +83,15 @@ Bridge contract:
 - `openNativeScreen(screen)`
 - `scanWifiAccessPoints(discoveryId)`
 - `logout()`
+- `completeLogin(token, refreshToken)`: saves a new native session and returns the pending notification route or `/menu`
+- `updateSessionTokens(token, refreshToken)`: rotates an existing session without resetting widget selections
+- `refreshSession()`: Android renewal shares the native lock with widget API calls
+- `switchEnvironment()`: signed-out development shortcut after seven login-brand taps
+
+Android launches this bundle directly, including `/login` and `/create-account`.
+Native bootstrap is authoritative for Android tokens; browser token overrides are ignored there.
+Credential and QR login hand both tokens to `completeLogin`; logout returns to web login.
+The signed-out Android login also retains access to the USB Zigbee gateway lab.
+Successful credential login remembers UUID/secret in native preferences per environment
+and prefills them after logout, including credentials saved by the former native login.
+Browser login does not persist or prefill credentials through this feature.

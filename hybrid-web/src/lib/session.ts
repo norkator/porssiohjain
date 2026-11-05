@@ -73,14 +73,14 @@ export function getSessionData(): SessionData {
     return {
       appName: bootstrap.appName ?? "Energy Controller",
       baseUrl: bootstrap.baseUrl ?? "",
-      accountId: bootstrap.accountId,
+      accountId: bootstrap.accountId ?? override.accountId,
       locale: override.locale ?? bootstrap.locale,
-      hasToken: Boolean(override.token ?? bootstrap.token),
+      hasToken: Boolean(bootstrap.token),
       environment: bootstrap.environment ?? "production",
       error: bootstrap.error,
       source: "android",
-      token: override.token ?? bootstrap.token ?? "",
-      refreshToken: override.refreshToken ?? bootstrap.refreshToken
+      token: bootstrap.token ?? "",
+      refreshToken: bootstrap.refreshToken
     };
   }
 
@@ -135,11 +135,41 @@ export function setBrowserSession(input: {
   if (preview && input.accountId !== undefined && preview.adminAccountId !== input.accountId) {
     clearApplicationSessionStorage();
   }
-  setDevSessionOverride(input);
-
-  if (input.refreshToken) {
-    getAndroidBridge()?.updateSessionTokens?.(input.token, input.refreshToken);
+  const bridge = getAndroidBridge();
+  if (bridge?.getBootstrapData) {
+    setDevSessionOverride({ accountId: input.accountId, locale: input.locale });
+    if (input.refreshToken) {
+      bridge.updateSessionTokens?.(input.token, input.refreshToken);
+    }
+  } else {
+    setDevSessionOverride(input);
   }
+}
+
+// A login creates a fresh native widget scope; refreshes use setBrowserSession instead.
+export function setLoginSession(input: {
+  token: string;
+  refreshToken: string;
+  accountId?: number;
+  locale?: string;
+}) {
+  if (!input.token?.trim() || !input.refreshToken?.trim()) {
+    throw new Error("Login did not provide both session tokens.");
+  }
+  const bridge = getAndroidBridge();
+  if (bridge?.getBootstrapData && !bridge.completeLogin) {
+    throw new Error("Update the Android app to log in with this screen.");
+  }
+  clearApplicationSessionStorage();
+  clearDevSessionOverride();
+  sessionExpiredHandled = false;
+  if (bridge?.completeLogin) {
+    const destination = bridge.completeLogin(input.token, input.refreshToken);
+    setDevSessionOverride({ accountId: input.accountId, locale: input.locale });
+    return destination?.startsWith("/") && !destination.startsWith("//") ? destination : "/menu";
+  }
+  setDevSessionOverride(input);
+  return "/menu";
 }
 
 export function clearDevSessionOverride() {

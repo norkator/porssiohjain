@@ -9,6 +9,7 @@
  * See LICENSE for details.
  */
 
+import { getAndroidBridge } from "@/lib/android-bridge";
 import { getSessionData, handleUnauthorizedSession, setBrowserSession } from "@/lib/session";
 import { getUserPreview } from "@/lib/impersonation";
 
@@ -82,6 +83,13 @@ async function performRefresh() {
   }
 
   try {
+    if (session.source === "android") {
+      const bridge = getAndroidBridge();
+      // Native serializes renewal with widgets and saves the rotating pair itself.
+      // It may already have refreshed since this request was sent.
+      if (getSessionData().token !== session.token) return true;
+      return Boolean(bridge?.refreshSession?.());
+    }
     const response = await fetch(getApiUrl("/account/token/refresh"), {
       body: JSON.stringify({ refreshToken: session.refreshToken }),
       headers: {

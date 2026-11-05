@@ -100,7 +100,7 @@ export default function CreateAccountView() {
   const [termsError, setTermsError] = useState<string | null>(null);
   const [terms, setTerms] = useState<TermsOfService | null>(null);
 
-  if (session.source === "android" || session.hasToken) {
+  if (session.hasToken) {
     return <Navigate replace to="/menu" />;
   }
 
