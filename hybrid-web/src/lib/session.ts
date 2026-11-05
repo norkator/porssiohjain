@@ -160,6 +160,7 @@ export function setLoginSession(input: {
   if (bridge?.getBootstrapData && !bridge.completeLogin) {
     throw new Error("Update the Android app to log in with this screen.");
   }
+  const currentOverride = getDevSessionOverride();
   clearApplicationSessionStorage();
   clearDevSessionOverride();
   sessionExpiredHandled = false;
@@ -168,7 +169,7 @@ export function setLoginSession(input: {
     setDevSessionOverride({ accountId: input.accountId, locale: input.locale });
     return destination?.startsWith("/") && !destination.startsWith("//") ? destination : "/menu";
   }
-  setDevSessionOverride(input);
+  setDevSessionOverride({ ...currentOverride, ...input });
   return "/menu";
 }
 
