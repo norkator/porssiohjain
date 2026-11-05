@@ -3,7 +3,9 @@ package com.nitramite.porssiohjain.auth;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.services.AuthService;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -44,6 +46,58 @@ class AuthInterceptorTest {
         assertFalse(interceptor.preHandle(request, new MockHttpServletResponse(), handler()));
         verify(auth, never()).getAccount(anyLong());
         assertNull(context.getAccountId());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "/porssiohjain"})
+    void demoCanCalculateHeatPumpDraftPreviewWithoutSupportAccess(String contextPath) throws Exception {
+        var demo = AccountEntity.builder().id(2L).demo(true).build();
+        when(auth.authenticate("demo-token")).thenReturn(demo);
+        var request = new MockHttpServletRequest("POST", contextPath + "/api/controls/10/heat-pumps/20/preview");
+        request.setContextPath(contextPath);
+        request.addHeader("Authorization", "demo-token");
+        var response = new MockHttpServletResponse();
+
+        assertTrue(interceptor.preHandle(request, response, handler()));
+        assertEquals(2L, context.getAccountId());
+        assertTrue(context.isDemoAccount());
+        assertFalse(context.isImpersonating());
+        assertFalse(context.isAdminAccount());
+        interceptor.afterCompletion(request, response, handler(), null);
+        assertNull(context.getAccountId());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "PUT, /api/controls/10/heat-pumps/20/rules",
+            "POST, /api/controls/10/links/heat-pumps",
+            "DELETE, /api/controls/links/heat-pumps/100",
+            "POST, /devices/20/heat-pump/commands",
+            "PUT, /api/controls/10/heat-pumps/20/preview",
+            "PATCH, /api/controls/10/heat-pumps/20/preview",
+            "DELETE, /api/controls/10/heat-pumps/20/preview",
+            "POST, /api/controls/10/heat-pumps/20/preview/command"
+    })
+    void demoPreviewExceptionDoesNotAllowMutations(String method, String path) throws Exception {
+        when(auth.authenticate("demo-token")).thenReturn(AccountEntity.builder().id(2L).demo(true).build());
+        var request = new MockHttpServletRequest(method, path);
+        request.addHeader("Authorization", "demo-token");
+        var response = new MockHttpServletResponse();
+
+        assertFalse(interceptor.preHandle(request, response, handler()));
+        assertEquals(403, response.getStatus());
+        assertNull(context.getAccountId());
+    }
+
+    @Test
+    void heatPumpDraftPreviewStillRequiresAuthentication() throws Exception {
+        var request = new MockHttpServletRequest("POST", "/api/controls/10/heat-pumps/20/preview");
+        var response = new MockHttpServletResponse();
+
+        assertFalse(interceptor.preHandle(request, response, handler()));
+        assertEquals(401, response.getStatus());
+        assertNull(context.getAccountId());
+        verifyNoInteractions(auth);
     }
 
     @ParameterizedTest

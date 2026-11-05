@@ -55,7 +55,11 @@ then their configured order internally.
   existing IDs must belong to that control and pump. An empty rule list removes
   the pump's link. Validation and ownership checks precede all mutations.
 - `POST /api/controls/{controlId}/heat-pumps/{deviceId}/preview` accepts the same
-  body and projects the draft without writes or commands.
+  body and projects the draft without writes or commands. Direct demo logins may
+  use this read-only calculation in both clients; the POST is explicitly allowed
+  by the demo request guard. Control/device ownership and rule validation still
+  apply. Saving or removing rules still requires write access, including the
+  verified admin **View as user** exception for demo accounts.
 - `GET /api/controls/{controlId}/heat-pumps/preview` projects saved rules and
   follows the existing control read authorization.
 

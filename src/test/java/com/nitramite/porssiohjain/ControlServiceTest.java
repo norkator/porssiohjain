@@ -11,6 +11,7 @@
 
 package com.nitramite.porssiohjain;
 
+import com.nitramite.porssiohjain.auth.AdminSupportAccess;
 import com.nitramite.porssiohjain.entity.ControlDeviceEntity;
 import com.nitramite.porssiohjain.entity.ControlHeatPumpEntity;
 import com.nitramite.porssiohjain.services.models.ControlHeatPumpRulesRequest;
@@ -60,6 +61,7 @@ import com.nitramite.porssiohjain.services.PushNotificationTokenService;
 import com.nitramite.porssiohjain.services.ControlPriceService;
 import com.nitramite.porssiohjain.services.ThermostatCurveService;
 import com.nitramite.porssiohjain.services.DemoAccountGuard;
+import com.nitramite.porssiohjain.services.DemoAccountMutationException;
 import com.nitramite.porssiohjain.services.models.DeviceThermostatDebugSnapshotResponse;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,6 +85,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -170,6 +173,12 @@ class ControlServiceTest {
 
     @BeforeEach
     void setUp() {
+        createControlService(demoAccountGuard);
+        lenient().when(loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
+        lenient().when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
+    }
+
+    private void createControlService(DemoAccountGuard guard) {
         controlService = new ControlService(
                 controlRepository,
                 controlDeviceRepository,
@@ -195,10 +204,8 @@ class ControlServiceTest {
                 deviceOfflineNotificationService,
                 thermostatCurveService,
                 controlPriceService,
-                demoAccountGuard
+                guard
         );
-        lenient().when(loadSheddingNodeRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
-        lenient().when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
     }
 
     private ControlHeatPumpRulesRequest.Rule pumpRule(Long id, String state, ComparisonType comparison, BigDecimal price, boolean outside) {
@@ -220,6 +227,50 @@ class ControlServiceTest {
         lenient().when(controlHeatPumpRepository.findByControlIdOrderByIdAsc(10L)).thenReturn(existing);
         existing.forEach(row -> { row.setControl(control); row.setDevice(device); });
         return device;
+    }
+
+    @Test
+    void demoCanPrepareHeatPumpPreviewWithoutChangingSavedRulesButCannotSave() {
+        var saved = ControlHeatPumpEntity.builder().id(100L).stateHex("saved-state").build();
+        ownPumpRules(List.of(saved));
+        accountRepository.findById(1L).orElseThrow().setDemo(true);
+        createControlService(new DemoAccountGuard(accountRepository, mock(AdminSupportAccess.class)));
+        var request = new ControlHeatPumpRulesRequest(null, null, List.of(
+                pumpRule(100L, "draft-state", ComparisonType.LESS_THAN, BigDecimal.TEN, false)));
+
+        var draft = controlService.prepareHeatPumpRules(1L, 10L, 20L, request);
+
+        assertEquals(1, draft.size());
+        assertEquals("draft-state", draft.getFirst().getStateHex());
+        assertEquals("saved-state", saved.getStateHex());
+        assertThrows(DemoAccountMutationException.class,
+                () -> controlService.saveHeatPumpRules(1L, 10L, 20L, request));
+        verify(controlRepository, never()).lockHeatPumpRuleUpdate(any(), any());
+        verify(controlHeatPumpRepository, never()).saveAll(any());
+        verify(controlHeatPumpRepository, never()).deleteAll(any());
+        verifyNoInteractions(mqttService);
+    }
+
+    @Test
+    void heatPumpDraftPreviewRejectsUnownedControlBeforeReadingDeviceOrRules() {
+        assertThrows(EntityNotFoundException.class, () -> controlService.prepareHeatPumpRules(1L, 10L, 20L,
+                new ControlHeatPumpRulesRequest(null, null, List.of())));
+
+        verifyNoInteractions(deviceRepository, controlHeatPumpRepository);
+    }
+
+    @Test
+    void heatPumpDraftPreviewRejectsUnownedDeviceBeforeReadingRules() {
+        var account = AccountEntity.builder().id(1L).build();
+        when(controlRepository.findByIdAndAccountId(10L, 1L)).thenReturn(Optional.of(
+                ControlEntity.builder().id(10L).account(account).build()));
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+
+        assertThrows(EntityNotFoundException.class, () -> controlService.prepareHeatPumpRules(1L, 10L, 20L,
+                new ControlHeatPumpRulesRequest(null, null, List.of())));
+
+        verify(deviceRepository).findByIdAndAccount(20L, account);
+        verifyNoInteractions(controlHeatPumpRepository);
     }
 
     @Test

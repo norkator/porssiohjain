@@ -125,8 +125,12 @@ public class AuthInterceptor implements HandlerInterceptor {
     }
 
     private boolean isDemoWriteAllowed(HttpServletRequest request) {
-        return request.getRequestURI().startsWith("/account/qr-login/")
-                || request.getRequestURI().equals("/api/feedback");
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        // Draft previews accept a body but only calculate a graph; they never save or dispatch commands.
+        boolean heatPumpPreview = HttpMethod.POST.matches(request.getMethod())
+                && path.matches("/api/controls/[0-9]+/heat-pumps/[0-9]+/preview");
+        return path.startsWith("/account/qr-login/")
+                || path.equals("/api/feedback") || heatPumpPreview;
     }
 
     @Override

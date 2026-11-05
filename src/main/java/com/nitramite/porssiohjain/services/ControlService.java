@@ -518,10 +518,9 @@ public class ControlService {
                 .toList();
     }
 
-    /** Validates the entire replacement before mutating any persisted row; also used for draft previews. */
+    /** Builds detached rules for validation and read-only previews; saving separately requires write access. */
     public List<ControlHeatPumpEntity> prepareHeatPumpRules(Long accountId, Long controlId, Long deviceId,
                                                           ControlHeatPumpRulesRequest request) {
-        demoAccountGuard.assertWritable(accountId);
         ControlEntity control = getOwnedControl(accountId, controlId);
         DeviceEntity device = getOwnedDevice(accountId, deviceId);
         if (device.getDeviceType() != DeviceType.HEAT_PUMP) throw new IllegalArgumentException("Select a heat pump");
