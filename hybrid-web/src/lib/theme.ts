@@ -1,16 +1,21 @@
-import { setNativeTheme } from "@/lib/android-bridge";
+import { getAndroidBridge, getBootstrapData, setNativeTheme } from "@/lib/android-bridge";
 
 const THEME_STORAGE_KEY = "porssiohjain-theme";
 
 export type ThemePreference = "light" | "dark";
 
-function isThemePreference(value: string | null): value is ThemePreference {
+function isThemePreference(value: unknown): value is ThemePreference {
   return value === "light" || value === "dark";
 }
 
 export function getThemePreference(): ThemePreference {
   if (typeof window === "undefined") {
     return "light";
+  }
+
+  const nativeTheme = getAndroidBridge()?.getBootstrapData ? getBootstrapData().theme : undefined;
+  if (isThemePreference(nativeTheme)) {
+    return nativeTheme;
   }
 
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);

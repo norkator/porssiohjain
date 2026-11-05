@@ -21,6 +21,7 @@ export type BootstrapData = {
   accountId?: number;
   locale?: string;
   hasToken?: boolean;
+  theme?: "light" | "dark";
   environment?: "local" | "production" | string;
   error?: string;
 };

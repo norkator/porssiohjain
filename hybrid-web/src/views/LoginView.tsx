@@ -19,6 +19,7 @@ import { loginWithCredentials } from "@/lib/auth";
 import { getCurrentLocale, setCurrentLocale, supportedLocales, syncDocumentLocale, type SupportedLocale, useI18n } from "@/lib/i18n";
 import { cancelQrLoginChallenge, completeQrLoginChallenge, createQrLoginChallenge, isQrLoginComplete, type QrLoginChallenge } from "@/lib/qr-login";
 import { getSessionData, setLoginSession } from "@/lib/session";
+import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 
 const DEMO_UUID = "78b7823f-d5cc-4376-8910-cd62e7b32400";
 const DEMO_SECRET = "103058b63f9245099d0c30d81e1636bc";
@@ -29,6 +30,9 @@ export default function LoginView() {
   const session = getSessionData();
   const { t } = useI18n("login");
   const common = useI18n("common").t;
+  const themeLabels = useI18n("accountSettings").t;
+  const menu = useI18n("mainMenu").t;
+  const [theme, setTheme] = useState<ThemePreference>(getThemePreference);
   const [environmentTaps, setEnvironmentTaps] = useState(0);
   const [rememberedCredentials] = useState(getRememberedLoginCredentials);
   const [uuid, setUuid] = useState(rememberedCredentials.uuid);
@@ -156,6 +160,12 @@ export default function LoginView() {
     setSecret(DEMO_SECRET);
   };
 
+  const handleThemeToggle = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    setThemePreference(nextTheme);
+  };
+
   const handleLocaleChange = (locale: SupportedLocale) => {
     setCurrentLocale(locale);
     setSelectedLocale(locale);
@@ -188,7 +198,20 @@ export default function LoginView() {
   };
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center px-4 py-10 sm:px-6">
+    <main className={`relative flex min-h-screen items-center justify-center px-4 pb-10 sm:px-6 ${session.source === "android" ? "pt-24" : "pt-10"}`}>
+      {session.source === "android" ? (
+        <button
+          aria-label={menu("themeToggle")}
+          aria-pressed={theme === "dark"}
+          className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm shadow-soft sm:left-6 sm:top-6"
+          onClick={handleThemeToggle}
+          title={menu(theme === "dark" ? "switchToLight" : "switchToDark")}
+          type="button"
+        >
+          <span aria-hidden="true" className="text-lg leading-5 text-primary-container">{theme === "dark" ? "☾" : "☀"}</span>
+          <span className="font-label font-bold text-primary-container">{themeLabels(theme === "dark" ? "themeDark" : "themeLight")}</span>
+        </button>
+      ) : null}
       <label className="absolute right-4 top-4 flex items-center gap-2 rounded-full border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm shadow-soft sm:right-6 sm:top-6">
         <span className="sr-only">{t("languageLabel")}</span>
         <span aria-hidden="true" className="font-label font-bold text-on-surface-variant">{t("languageShortLabel")}</span>
@@ -279,16 +302,18 @@ export default function LoginView() {
           </button>
         </form>
 
-        <div className="mt-4">
-          <button
-            className="secondary-action w-full justify-center disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isQrStarting}
-            onClick={handleQrLogin}
-            type="button"
-          >
-            {isQrStarting ? t("qrStarting") : t("loginWithQr")}
-          </button>
-        </div>
+        {session.source !== "android" ? (
+          <div className="mt-4">
+            <button
+              className="secondary-action w-full justify-center disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isQrStarting}
+              onClick={handleQrLogin}
+              type="button"
+            >
+              {isQrStarting ? t("qrStarting") : t("loginWithQr")}
+            </button>
+          </div>
+        ) : null}
 
         <div className="mt-3">
           <a
@@ -310,7 +335,6 @@ export default function LoginView() {
 
         {session.source === "android" ? (
           <div className="mt-6 space-y-3 text-center text-sm text-on-surface-variant">
-            <p>{t("environment", { name: t(session.environment === "local" ? "local" : "production") })}</p>
             <button className="font-label font-bold text-primary-container underline" onClick={() => openNativeScreen("zigbeeUsb")} type="button">
               {t("zigbeeGatewayLab")}
             </button>
