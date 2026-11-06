@@ -72,6 +72,9 @@ Wide windows use stacked instruments on the left, controls/reactor/operator in t
 middle, and trends/logs on the right. Dark remains default; light theme is local to
 this feature. Auto can regulate core temperature or electrical MW; power requests
 must respect the configured core-temperature ceiling and report limiting reasons.
+Clicking the vessel opens a movable floating core-map dialog while the process
+stays visible. Over 335 °C, the core card/outlet/annunciator stay red until cooling,
+independent of alarm acknowledgement. These are simulation limits, not hardware safety limits.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff

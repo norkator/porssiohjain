@@ -248,6 +248,21 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 @keyframes blink { 50% { opacity: .2; } }
 
 /* Alternate, individually addressable core map. */
+.core-dialog { position: fixed; inset: auto; margin: 0; width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; color: inherit; background: #15212d; border: 1px solid #637e8d; border-radius: 9px; box-shadow: 0 18px 65px #0009; }
+.core-dialog:popover-open { display: flex; flex-direction: column; }
+.core-dialog::backdrop { background: transparent; pointer-events: none; }
+.core-dialog-titlebar { display: flex; flex: 0 0 auto; align-items: center; gap: 9px; padding: 9px 13px; background: #223744; border-bottom: 1px solid #48606e; cursor: grab; touch-action: none; user-select: none; }
+.core-dialog-titlebar:active { cursor: grabbing; }
+.core-dialog-titlebar h2 { flex: 1; }
+.core-dialog-titlebar button { font-size: 17px; padding: 0 8px; }
+.core-dialog .core-map { overflow: auto; min-height: 0; scrollbar-color: #456071 #15212d; }
+.core-dialog .core-map-layout { grid-template-columns: minmax(0, 1fr) 190px; }
+:host([data-overheated="true"]) .core-temperature-metric { background: #38252b; border-color: #f27b71; }
+:host([data-overheated="true"]) .core-temperature-metric :is(.metric-reading, .metric-icon, .metric-foot) { color: #ff9a8b; }
+:host([data-overheated="true"]) .core-temperature-metric :is(.status-dot, .metric-track i) { background: #ff8175; }
+:host([data-overheated="true"]) .core-temperature-instrument rect { fill: #3b252b; stroke: #ff8175; stroke-width: 2px; }
+:host([data-overheated="true"]) .core-temperature-instrument .instrument-value { fill: #ff9a8b; }
+:host([data-overheated="true"]) .annunciator { color: #ffb3a8; background: #44282d; border-color: #cf6b65; }
 .core-map { padding: 20px 20px 12px; }
 .core-map-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 7px; }
 .core-map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 215px; gap: 14px; align-items: center; }
@@ -339,6 +354,8 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 }
 @container nuclear-console (max-width: 650px) { .analysis-column { grid-template-columns: minmax(0, 1fr); } }
 @container nuclear-console (max-width: 520px) {
+    .core-dialog-titlebar .local-tag { display: none; }
+    .core-dialog .core-map-layout { grid-template-columns: minmax(0, 1fr); }
     .appearance-tools { flex-direction: column-reverse; gap: 8px; align-items: end; }
     .theme-toggle { font-size: 9px; gap: 6px; }
     .automation-strip { gap: 14px; padding: 12px; }

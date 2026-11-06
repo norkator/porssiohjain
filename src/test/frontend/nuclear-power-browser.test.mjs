@@ -157,8 +157,18 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         const angleAfter = await consoleCode('return {a:c.motion.A.angle,b:c.motion.B.angle};');
         assert.ok((angleAfter.a - angleBefore.a + 360) % 360 < (angleAfter.b - angleBefore.b + 360) % 360);
         await action('reset');
-        await action('core-view');
-        assert.equal(await consoleCode(`return s.querySelector('.core-map').hidden;`), false);
+        await consoleCode(`s.querySelector('[data-equipment="reactor"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));`);
+        assert.equal(await consoleCode(`return s.querySelector('.core-dialog').matches(':popover-open');`), true);
+        assert.equal(await consoleCode(`return s.querySelector('.diagram-viewport').hidden;`), false);
+        const dialogBefore = await consoleCode(`const r=s.querySelector('.core-dialog').getBoundingClientRect();return {x:r.x,y:r.y};`);
+        await consoleCode(`s.querySelector('.core-dialog-titlebar').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));`);
+        assert.ok(await consoleCode(`return s.querySelector('.core-dialog').getBoundingClientRect().x;`) < dialogBefore.x);
+        const header = await consoleCode(`const r=s.querySelector('.core-dialog-titlebar').getBoundingClientRect();return {x:r.x+100,y:r.y+15};`);
+        const dragStart = await consoleCode(`return s.querySelector('.core-dialog').getBoundingClientRect().x;`);
+        await page('Input.dispatchMouseEvent', { type: 'mousePressed', ...header, button: 'left', clickCount: 1 });
+        await page('Input.dispatchMouseEvent', { type: 'mouseMoved', x: header.x - 70, y: header.y + 25, button: 'left', buttons: 1 });
+        await page('Input.dispatchMouseEvent', { type: 'mouseReleased', x: header.x - 70, y: header.y + 25, button: 'left', clickCount: 1 });
+        assert.ok(await consoleCode(`return s.querySelector('.core-dialog').getBoundingClientRect().x;`) < dragStart - 60);
         assert.equal(await consoleCode(`return s.querySelectorAll('[data-rod]').length;`), 12);
         await consoleCode(`s.querySelector('[data-rod="CR-05"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));`);
         await input('#individual-rod', 76);
@@ -222,7 +232,8 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.ok(csv.includes('"automation"'));
         assert.ok(csv.includes('"alarm"'));
 
-        await action('process-view');
+        await action('close-core');
+        assert.equal(await consoleCode(`return s.querySelector('.core-dialog').matches(':popover-open');`), false);
         assert.equal(await consoleCode(`return s.querySelector('.diagram-viewport').hidden;`), false);
         await screenshot('desktop-process');
         await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
@@ -235,6 +246,13 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await action('manual');
         await input('#individual-rod', 45);
         assert.equal(await consoleCode(`return c.simulation.controlRods.find(r=>r.id==='CR-05').target;`), 45);
+        await consoleCode(`c.simulation.temperature=350;c.simulation.updateAlarms();c.update();`);
+        assert.equal(await consoleCode('return c.dataset.overheated;'), 'true');
+        assert.ok(await value('temperatureState') === 'HIGH TEMPERATURE');
+        await action('acknowledge');
+        assert.equal(await consoleCode('return c.dataset.overheated;'), 'true');
+        await consoleCode(`c.simulation.temperature=286;c.simulation.updateAlarms();c.update();`);
+        assert.equal(await consoleCode('return c.dataset.overheated;'), 'false');
         await action('pause');
         assert.equal(await consoleCode('return c.timer;'), null);
         assert.equal(await consoleCode('return c.animationFrame;'), null);

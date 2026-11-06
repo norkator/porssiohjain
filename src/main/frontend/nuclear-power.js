@@ -40,7 +40,7 @@ const schematic = `
  <path d="m920 300 6 8 6-8" fill="none" stroke="#a9c5bf" stroke-width="2"/>
 
  <!-- Reactor vessel / rods and fuel channels. -->
- <g class="equipment" data-equipment="reactor" role="button" tabindex="0" aria-label="Inspect reactor vessel">
+ <g class="equipment" data-equipment="reactor" role="button" tabindex="0" aria-label="Open reactor core map" aria-haspopup="dialog" aria-controls="core-map-window" aria-expanded="false">
   <rect class="selection-ring" x="100" y="70" width="218" height="355" rx="30"/>
   <text x="208" y="63" text-anchor="middle" class="equipment-tag">R-01 / REACTOR VESSEL</text>
   <path d="M144 155Q144 105 208 105T272 155V345Q272 392 208 392T144 345Z" fill="url(#vessel)" stroke="#83929b" stroke-width="2"/>
@@ -64,7 +64,7 @@ const schematic = `
  </g>
 
  <!-- Core outlet and return instruments. -->
- <g class="instrument" transform="translate(330 240)"><path d="M35-20V0"/><rect width="110" height="51" rx="5"/><text x="12" y="18" class="instrument-label">CORE OUTLET</text><text x="12" y="39" class="instrument-value warm" data-value="core">286.0 °C</text></g>
+ <g class="instrument core-temperature-instrument" transform="translate(330 240)"><path d="M35-20V0"/><rect width="110" height="51" rx="5"/><text x="12" y="18" class="instrument-label">CORE OUTLET</text><text x="12" y="39" class="instrument-value warm" data-value="core">286.0 °C</text></g>
  <g class="instrument" transform="translate(325 349)"><path d="M40 51V89"/><rect width="110" height="51" rx="5"/><text x="12" y="18" class="instrument-label">RETURN</text><text x="12" y="39" class="instrument-value cool" data-value="return">258.0 °C</text></g>
  <text x="393" y="137" class="circuit-label warm">01 / PRIMARY</text>
  <path d="m464 155 8 5-8 5" class="arrow warm"/>
@@ -118,7 +118,7 @@ const schematic = `
  <text x="970" y="528" text-anchor="end" class="drawing-label">NP-001 · REV 01</text>
 </svg>`;
 
-const coreMap = `<section class="core-map" hidden aria-label="Top-down reactor core and individual control rods">
+const coreMap = `<section class="core-map" aria-label="Top-down reactor core and individual control rods">
   <div class="core-map-heading"><span class="local-tag">R-01 / TOP-DOWN CORE MAP</span><span class="local-tag">FICTIONAL TWO-LOOP REACTOR</span></div>
   <div class="core-map-layout"><div class="core-map-drawing"><svg viewBox="0 0 500 500" class="core-map-svg" role="group" aria-label="Core channel map; select a numbered control rod">
     <circle cx="250" cy="250" r="227" class="core-vessel-outer"/><circle cx="250" cy="250" r="214" class="core-vessel-inner"/>
@@ -153,18 +153,19 @@ export class NuclearPowerConsole extends HTMLElement {
         this.simulation = new NuclearPowerSimulation();
         this.selectedEquipment = 'reactor';
         this.selectedRod = 'CR-01';
-        this.viewMode = 'process';
         this.logFilter = 'all';
         this.motion = { A: { angle: 0, offset: 0 }, B: { angle: 0, offset: 0 } };
         this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
         this.intersecting = true;
         this.onVisibilityChange = () => this.updateActivity();
+        this.onViewportResize = () => this.positionCoreMap();
     }
 
     connectedCallback() {
         if (!this.initialized) this.initialize();
         document.addEventListener('visibilitychange', this.onVisibilityChange);
         this.reducedMotion.addEventListener('change', this.onVisibilityChange);
+        window.addEventListener('resize', this.onViewportResize);
         this.intersectionObserver = new IntersectionObserver(entries => {
             this.intersecting = entries[0].isIntersecting;
             this.updateActivity();
@@ -175,6 +176,7 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this.closeCoreMap(false);
         clearInterval(this.timer);
         this.timer = null;
         cancelAnimationFrame(this.animationFrame);
@@ -183,6 +185,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.intersectionObserver?.disconnect();
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
         this.reducedMotion.removeEventListener('change', this.onVisibilityChange);
+        window.removeEventListener('resize', this.onViewportResize);
     }
 
     initialize() {
@@ -199,7 +202,7 @@ export class NuclearPowerConsole extends HTMLElement {
           <div class="console-layout">
           <aside class="instrument-column" aria-label="Plant instruments and equipment detail">
           <section class="metrics" aria-label="Simulated plant instruments">
-            <article class="metric"><div class="metric-label"><span class="metric-icon warm">↗</span> Core temperature <span class="channel">TI-01</span></div><div class="metric-reading"><span data-value="coreNumber">286.0</span><span class="unit">°C</span></div><div class="metric-foot"><span><i class="status-dot"></i> <span data-value="temperatureState">WITHIN DEMO RANGE</span></span><span>SIMULATED</span></div><div class="metric-track warm-track"><i data-meter="temperature"></i></div></article>
+            <article class="metric core-temperature-metric"><div class="metric-label"><span class="metric-icon warm">↗</span> Core temperature <span class="channel">TI-01</span></div><div class="metric-reading"><span data-value="coreNumber">286.0</span><span class="unit">°C</span></div><div class="metric-foot"><span><i class="status-dot"></i> <span data-value="temperatureState">WITHIN DEMO RANGE</span></span><span>SIMULATED</span></div><div class="metric-track warm-track"><i data-meter="temperature"></i></div></article>
             <article class="metric"><div class="metric-label"><span class="metric-icon warm">ϟ</span> Thermal output <span class="channel">PI-01</span></div><div class="metric-reading"><span data-value="thermalNumber">768</span><span class="unit">MW<span class="subscript">th</span></span></div><div class="metric-foot"><span><span data-value="load">64.0%</span> OF DEMO CAPACITY</span><span>SIMULATED</span></div><div class="metric-track warm-track"><i data-meter="power"></i></div></article>
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">ϟ</span> Electrical output <span class="channel">EI-01</span></div><div class="metric-reading"><span data-value="electricNumber">262</span><span class="unit">MW<span class="subscript">e</span></span></div><div class="metric-foot"><span data-value="electricalTargetLabel">GENERATOR OUTPUT</span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="electric"></i></div></article>
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">≋</span> Primary flow <span class="channel">FI-01</span></div><div class="metric-reading"><span data-value="flowNumber">4,800</span><span class="unit">m³/h</span></div><div class="metric-foot"><span><i class="status-dot" data-indicator="primary"></i> <span data-value="primaryState">CIRCULATING</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="flow"></i></div></article>
@@ -220,11 +223,10 @@ export class NuclearPowerConsole extends HTMLElement {
 
           <div class="workspace">
             <section class="panel process-panel" aria-label="Plant process schematic">
-              <div class="panel-heading"><div><span class="section-index">01</span><h2>Reactor overview</h2></div><div class="diagram-tools"><div class="mode-switch" role="group" aria-label="Reactor view"><button data-action="process-view" aria-pressed="true">Process</button><button data-action="core-view" aria-pressed="false">Core map</button></div><button class="small-button" data-action="zoom" aria-label="Zoom process diagram" aria-pressed="false">Zoom +</button></div></div>
+              <div class="panel-heading"><div><span class="section-index">01</span><h2>Reactor overview</h2></div><div class="diagram-tools"><button class="small-button" data-action="core-view" aria-haspopup="dialog" aria-controls="core-map-window" aria-expanded="false">Core map ↗</button><button class="small-button" data-action="zoom" aria-label="Zoom process diagram" aria-pressed="false">Zoom +</button></div></div>
               <div class="annunciator" role="status"><span class="annunciator-icon">●</span><span data-value="annunciator">ALL SYSTEMS NORMAL</span><span class="plant-state" data-value="status">RUNNING</span></div>
               <p class="diagram-scroll-hint">Scroll sideways to explore · select equipment to inspect</p>
               <div class="diagram-viewport" tabindex="0" aria-label="Scrollable plant diagram">${schematic}</div>
-              ${coreMap}
               <div class="diagram-legend"><span><i class="legend-line warm-line"></i> Hot / steam</span><span><i class="legend-line cool-line"></i> Coolant return</span><span><i class="legend-dot"></i> Simulated signal</span><span class="diagram-note">Illustrative process · independent demo session</span></div>
             </section>
 
@@ -258,6 +260,10 @@ export class NuclearPowerConsole extends HTMLElement {
           </aside>
           </div>
           <footer class="console-footer"><span><i class="status-dot"></i> <span data-value="sessionState">SIMULATION ACTIVE</span><span class="footer-divider">/</span> ALL SIGNALS SIMULATED</span><div><button data-action="pause" class="footer-button">Ⅱ Pause</button><button data-action="reset" class="footer-button">↺ Reset demo</button></div><span class="footer-signature">PÖRSSIOHJAIN <span>NUCLEAR DIVISION</span></span></footer>
+          <div id="core-map-window" class="core-dialog" popover="manual" role="dialog" aria-modal="false" aria-labelledby="core-map-title">
+            <div class="core-dialog-titlebar" tabindex="0" aria-label="Move core map with arrow keys or drag this title bar"><span aria-hidden="true">⠿</span><h2 id="core-map-title">Reactor core map</h2><span class="local-tag">DRAG TO MOVE</span><button class="small-button" data-action="close-core" aria-label="Close core map">×</button></div>
+            ${coreMap}
+          </div>
         </main>`;
 
         let savedTheme = 'dark';
@@ -278,11 +284,18 @@ export class NuclearPowerConsole extends HTMLElement {
             const rod = event.target.closest('[data-rod]');
             if (rod) this.selectRod(rod.dataset.rod);
             const equipment = event.target.closest('[data-equipment]');
-            if (equipment) this.inspect(equipment.dataset.equipment);
+            if (equipment) {
+                this.inspect(equipment.dataset.equipment);
+                if (equipment.dataset.equipment === 'reactor') this.openCoreMap();
+            }
             const button = event.target.closest('button[data-action]');
             if (button && !button.disabled) this.act(button.dataset.action);
         });
         this.shadowRoot.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && this.shadowRoot.querySelector('.core-dialog').matches(':popover-open')) {
+                event.preventDefault();
+                this.closeCoreMap();
+            }
             const rod = event.target.closest('[data-rod]');
             if (rod && (event.key === 'Enter' || event.key === ' ')) {
                 event.preventDefault();
@@ -292,8 +305,10 @@ export class NuclearPowerConsole extends HTMLElement {
             if (equipment && (event.key === 'Enter' || event.key === ' ')) {
                 event.preventDefault();
                 this.inspect(equipment.dataset.equipment);
+                if (equipment.dataset.equipment === 'reactor') this.openCoreMap();
             }
         });
+        this.configureCoreMapDrag();
         this.shadowRoot.querySelector('#load').addEventListener('input', event => {
             // Update the requested setting immediately; journal once on commit.
             this.shadowRoot.querySelectorAll('[data-value="demand"]').forEach(element => { element.textContent = `${event.target.value}%`; });
@@ -352,16 +367,53 @@ export class NuclearPowerConsole extends HTMLElement {
         this.update();
     }
 
-    setView(mode) {
-        this.viewMode = mode;
-        const isCore = mode === 'core';
-        this.shadowRoot.querySelector('.core-map').hidden = !isCore;
-        this.shadowRoot.querySelector('.diagram-viewport').hidden = isCore;
-        this.shadowRoot.querySelector('.diagram-scroll-hint').hidden = isCore;
-        this.shadowRoot.querySelector('.diagram-legend').hidden = isCore;
-        this.shadowRoot.querySelector('[data-action="zoom"]').hidden = isCore;
-        this.shadowRoot.querySelector('[data-action="process-view"]').setAttribute('aria-pressed', String(!isCore));
-        this.shadowRoot.querySelector('[data-action="core-view"]').setAttribute('aria-pressed', String(isCore));
+    openCoreMap() {
+        const dialog = this.shadowRoot.querySelector('.core-dialog');
+        if (!dialog.matches(':popover-open')) dialog.showPopover();
+        this.positionCoreMap();
+        for (const trigger of this.shadowRoot.querySelectorAll('[aria-controls="core-map-window"]')) trigger.setAttribute('aria-expanded', 'true');
+        this.shadowRoot.querySelector('#rod-select').focus({ preventScroll: true });
+    }
+
+    closeCoreMap(restoreFocus = true) {
+        const dialog = this.shadowRoot?.querySelector('.core-dialog');
+        if (!dialog?.matches(':popover-open')) return;
+        dialog.hidePopover();
+        for (const trigger of this.shadowRoot.querySelectorAll('[aria-controls="core-map-window"]')) trigger.setAttribute('aria-expanded', 'false');
+        if (restoreFocus && this.isConnected) this.shadowRoot.querySelector('[data-equipment="reactor"]').focus({ preventScroll: true });
+    }
+
+    positionCoreMap(left, top) {
+        const dialog = this.shadowRoot?.querySelector('.core-dialog');
+        if (!dialog?.matches(':popover-open')) return;
+        const rect = dialog.getBoundingClientRect();
+        const x = left ?? (dialog.style.left ? rect.left : innerWidth - rect.width - 20);
+        const y = top ?? (dialog.style.top ? rect.top : 80);
+        dialog.style.left = `${Math.max(12, Math.min(x, innerWidth - rect.width - 12))}px`;
+        dialog.style.top = `${Math.max(12, Math.min(y, innerHeight - rect.height - 12))}px`;
+    }
+
+    configureCoreMapDrag() {
+        const header = this.shadowRoot.querySelector('.core-dialog-titlebar');
+        let drag;
+        header.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || event.target.closest('button')) return;
+            const rect = this.shadowRoot.querySelector('.core-dialog').getBoundingClientRect();
+            drag = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+            header.setPointerCapture(event.pointerId);
+            event.preventDefault();
+        });
+        header.addEventListener('pointermove', event => {
+            if (drag) this.positionCoreMap(drag.left + event.clientX - drag.x, drag.top + event.clientY - drag.y);
+        });
+        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) header.addEventListener(type, () => { drag = null; });
+        header.addEventListener('keydown', event => {
+            const deltas = { ArrowLeft: [-16, 0], ArrowRight: [16, 0], ArrowUp: [0, -16], ArrowDown: [0, 16] };
+            if (event.target !== header || !deltas[event.key]) return;
+            event.preventDefault();
+            const rect = this.shadowRoot.querySelector('.core-dialog').getBoundingClientRect();
+            this.positionCoreMap(rect.left + deltas[event.key][0], rect.top + deltas[event.key][1]);
+        });
     }
 
     inspect(key) {
@@ -388,7 +440,7 @@ export class NuclearPowerConsole extends HTMLElement {
             'reset-trip': () => sim.resetTrip(),
             'rod-insert': () => sim.setRod(this.selectedRod, sim.controlRods.find(rod => rod.id === this.selectedRod).target + 1),
             'rod-withdraw': () => sim.setRod(this.selectedRod, sim.controlRods.find(rod => rod.id === this.selectedRod).target - 1),
-            'process-view': () => this.setView('process'), 'core-view': () => this.setView('core'),
+            'core-view': () => this.openCoreMap(), 'close-core': () => this.closeCoreMap(),
             manual: () => sim.setAutoMode(false), auto: () => sim.setAutoMode(true),
             fluctuations: () => sim.setFluctuations(!sim.fluctuationsEnabled),
             'export-log': () => this.exportLog(),
@@ -410,6 +462,7 @@ export class NuclearPowerConsole extends HTMLElement {
     updateActivity() {
         const active = this.isConnected && this.intersecting && !document.hidden && !this.simulation.paused;
         this.dataset.animating = String(active);
+        if (!active) this.closeCoreMap(false);
         if (active && !this.timer) {
             this.lastTick = performance.now();
             this.timer = setInterval(() => {
@@ -488,6 +541,7 @@ export class NuclearPowerConsole extends HTMLElement {
             if (values[element.dataset.value] !== undefined && element.textContent !== values[element.dataset.value]) element.textContent = values[element.dataset.value];
         }
         this.dataset.state = sim.tripped ? 'tripped' : sim.running ? 'running' : 'stopped';
+        this.dataset.overheated = String(sim.temperature > 335);
         this.dataset.pumpA = String(sim.pumpA);
         this.dataset.pumpB = String(sim.pumpB);
         this.dataset.primaryFlow = String(sim.primaryFlow >= 0.5);

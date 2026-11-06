@@ -77,3 +77,11 @@
 :host([data-theme="light"]) .rod-depth-track { background: #d5e6e8; border-color: #81a9ac; }
 :host([data-theme="light"]) .chart-grid { stroke: #c2d2de; }
 :host([data-theme="light"]) :is(.event-list, .diagram-viewport) { scrollbar-color: #a3b8c5 #edf3f5; }
+:host([data-theme="light"]) .core-dialog { color: #263e50; background: #fff; border-color: #94adbc; box-shadow: 0 18px 65px #29415255; }
+:host([data-theme="light"]) .core-dialog-titlebar { background: #e3edf2; border-color: #b0c4d0; }
+:host([data-theme="light"][data-overheated="true"]) .core-temperature-metric { background: #fff0ed; border-color: #bf4037; }
+:host([data-theme="light"][data-overheated="true"]) .core-temperature-metric :is(.metric-reading, .metric-icon, .metric-foot) { color: #ac2e27; }
+:host([data-theme="light"][data-overheated="true"]) .core-temperature-metric :is(.status-dot, .metric-track i) { background: #bf4037; }
+:host([data-theme="light"][data-overheated="true"]) .core-temperature-instrument rect { fill: #fff0ed; stroke: #bf4037; }
+:host([data-theme="light"][data-overheated="true"]) .core-temperature-instrument .instrument-value { fill: #ac2e27; }
+:host([data-theme="light"][data-overheated="true"]) .annunciator { color: #9c2c24; background: #ffe8e3; border-color: #d4776c; }

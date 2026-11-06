@@ -26,11 +26,27 @@ exchanger, a turbine/generator, and a condenser. Click or keyboard-activate outl
 equipment to inspect it. The diagram can be zoomed and scrolled. Controls and
 instruments adapt to the feature window's width, including desktop window resizing.
 
-The **Process / Core map** switch preserves the same model and settings. The core
-map is a fictional circular array of fuel channels and twelve individually
+Click the reactor vessel (or **Core map ↗**) to open the core map in a movable,
+nonmodal floating dialog above the desktop windows. The process schematic stays
+visible and interactive underneath, using the same model and rod positions. Drag
+the dialog title bar to move it; when the title bar has keyboard focus, arrow keys
+move it in 16 px steps. The frame is clamped to the browser viewport on movement
+and resize. Close with × or Escape. The dialog closes when the feature is hidden
+or detached; rod selection, settings, and its position remain in the retained view.
+It uses the native manual-popover top layer with `role="dialog"`, so it can float
+above the desktop frames without making the process view inert.
+
+The core map is a fictional circular array of fuel channels and twelve individually
 selectable rods, `CR-01` through `CR-12`. Rings show actual insertion; nearby fuel
 activity is an illustrative derived visualization, not a measured local power or
 temperature. The side section projects the same twelve rod positions.
+
+Core temperature above the existing 335 °C demo high-temperature threshold turns
+the temperature card, status light, outlet instrument and annunciator red. Text
+also reads **HIGH TEMPERATURE**. Acknowledging the alarm does not remove this
+indication; it clears only when temperature falls back to 335 °C or below. Both
+themes have explicit high-temperature colors. The independent 360 °C simulated
+automatic trip remains unchanged; these are illustrative, not physical safety limits.
 
 ## Layout and appearance
 
@@ -207,5 +223,7 @@ logging, normal restart, and trip recovery without losing settings. Browser chec
 must also verify fixed pump hub centers over multiple frames, individual selection,
 both view modes, control disabling in Auto, CSV export, mobile/container resizing,
 wide-screen fitting and column ordering, theme default/persistence, electrical MW
-tracking and limiting, and pause/minimize/detach/reduced-motion cleanup. Use the disposable local profile
+tracking and limiting, floating core-map opening/movement/closing with the process
+still visible, persistent overheat indication after acknowledgement, and
+pause/minimize/detach/reduced-motion cleanup. Use the disposable local profile
 (`./run-local.sh 18080`, admin/admin) for authenticated application checks.
