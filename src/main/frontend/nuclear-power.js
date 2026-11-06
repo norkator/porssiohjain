@@ -20,6 +20,7 @@ const schematic = `
   <linearGradient id="coolant" x2="0" y2="1"><stop stop-color="#f7ab5b" stop-opacity=".16"/><stop offset="1" stop-color="#59cbbd" stop-opacity=".18"/></linearGradient>
   <linearGradient id="fuel" x2="0" y2="1"><stop stop-color="#ffd997"/><stop offset=".5" stop-color="#e79246"/><stop offset="1" stop-color="#ac5832"/></linearGradient>
   <radialGradient id="core-glow"><stop stop-color="#ffa35a" stop-opacity=".45"/><stop offset="1" stop-color="#ffa35a" stop-opacity="0"/></radialGradient>
+  <radialGradient id="failure-glow"><stop stop-color="#ff443b" stop-opacity=".75"/><stop offset="1" stop-color="#ff443b" stop-opacity="0"/></radialGradient>
   <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V8" stroke="#52616c" stroke-width="2"/></pattern>
  </defs>
  <rect width="1000" height="550" fill="url(#grid)"/>
@@ -47,9 +48,10 @@ const schematic = `
   <path d="M155 161Q155 117 208 117T261 161V339Q261 379 208 379T155 339Z" fill="#152430" stroke="#647580"/>
   <path d="M155 161Q155 117 208 117T261 161V339Q261 379 208 379T155 339Z" fill="url(#coolant)"/>
   <ellipse class="core-glow" cx="208" cy="278" rx="100" ry="108" fill="url(#core-glow)"/>
-  <g fill="url(#fuel)" stroke="#ffc785" stroke-width=".7">
+  <g class="fuel-bundle" fill="url(#fuel)" stroke="#ffc785" stroke-width=".7">
    ${[170, 186, 202, 218, 234].map(x => `<rect x="${x}" y="230" width="12" height="112" rx="3"/>`).join('')}
   </g>
+  <ellipse class="melt-pool" cx="208" cy="350" rx="48" ry="9" fill="#ff6043" opacity="0"/>
   <g stroke="#ffd29a" stroke-opacity=".35">${[250, 270, 290, 310, 330].map(y => `<path d="M168 ${y}h80"/>`).join('')}</g>
   <path d="M158 223h100M158 348h100" stroke="#98a7ac" stroke-width="5"/>
   <g class="rod-bank" fill="#bdccd2" stroke="#e4edf0" stroke-width=".6">
@@ -134,15 +136,15 @@ const coreMap = `<section class="core-map" aria-label="Top-down reactor core and
     <label for="individual-rod">Insertion target <strong data-value="selectedRodTarget">36%</strong></label><input id="individual-rod" type="range" min="0" max="100" step="1" value="36"/><div class="range-labels"><span>WITHDRAWN / 0%</span><span>INSERTED / 100%</span></div>
     <div class="button-pair"><button class="control-button compact" data-action="rod-withdraw">↑ Withdraw 1%</button><button class="control-button compact" data-action="rod-insert">↓ Insert 1%</button></div>
     <p>Changes this rod only. Bank buttons move all rods together; Load setpoint applies a uniform target. Auto adjusts the bank while retaining individual offsets where travel allows.</p>
-    <dl><div><dt>Bank mean actual</dt><dd data-value="rods"></dd></div><div><dt>Core temperature</dt><dd data-value="core"></dd></div><div><dt>Control mode</dt><dd data-value="mode"></dd></div></dl>
+    <dl><div><dt>Bank mean actual</dt><dd data-value="rods"></dd></div><div><dt>Core temperature</dt><dd data-value="core"></dd></div><div><dt>Local fuel temperature</dt><dd data-value="selectedZoneTemperature"></dd></div><div><dt>Channel damage</dt><dd data-value="selectedZoneDamage"></dd></div><div><dt>Control mode</dt><dd data-value="mode"></dd></div></dl>
   </section></div><p class="core-map-note">Top-down channel layout and activity are illustrative. Rod rings show actual simulated insertion, not the requested setting.</p>
 </section>`;
 
 const equipmentDetails = {
     reactor: { tag: 'R-01', name: 'Reactor vessel', description: 'Rod position sets simulated heat output. The primary loop carries heat to the exchanger.', fields: [['Core outlet', 'core'], ['Coolant return', 'return'], ['Rod insertion', 'rods']] },
     exchanger: { tag: 'HX-01', name: 'Heat exchanger', description: 'Transfers simulated heat between two separate circuits. Primary and secondary coolant remain separate.', fields: [['Primary inlet', 'core'], ['Primary return', 'return'], ['Secondary outlet', 'secondary']] },
-    pumpA: { tag: 'P-01', name: 'Primary circulation', description: 'Circulates coolant through the reactor and heat exchanger. Rotation and flow follow actual speed, including coast-down.', fields: [['Pump state', 'pumpA'], ['Speed target', 'pumpATarget'], ['Actual speed', 'pumpAActual'], ['Primary flow', 'flow']] },
-    pumpB: { tag: 'P-02', name: 'Secondary circulation', description: 'Returns cooled secondary coolant to the exchanger. Rotation and flow follow actual speed, including coast-down.', fields: [['Pump state', 'pumpB'], ['Speed target', 'pumpBTarget'], ['Actual speed', 'pumpBActual'], ['Secondary flow', 'secondaryFlow']] },
+    pumpA: { tag: 'P-01', name: 'Primary circulation', description: 'Circulates coolant through the reactor and heat exchanger. Rotation and flow follow actual speed, including coast-down.', fields: [['Pump state', 'pumpA'], ['Speed target', 'pumpATarget'], ['Actual speed', 'pumpAActual'], ['Primary flow', 'flow'], ['Stress', 'pumpAStress'], ['Damage', 'pumpADamage']] },
+    pumpB: { tag: 'P-02', name: 'Secondary circulation', description: 'Returns cooled secondary coolant to the exchanger. Rotation and flow follow actual speed, including coast-down.', fields: [['Pump state', 'pumpB'], ['Speed target', 'pumpBTarget'], ['Actual speed', 'pumpBActual'], ['Secondary flow', 'secondaryFlow'], ['Stress', 'pumpBStress'], ['Damage', 'pumpBDamage']] },
     turbine: { tag: 'TG-01', name: 'Turbine & generator', description: 'Converts a portion of simulated thermal output to electricity. Output responds to reactor load and secondary flow.', fields: [['Thermal output', 'thermal'], ['Electrical output', 'electric'], ['Actual load', 'load']] }
 };
 
@@ -209,6 +211,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">Ⅱ</span> Rod insertion <span class="channel">ZI-01</span></div><div class="metric-reading"><span data-value="rodsNumber">36.0</span><span class="unit">%</span></div><div class="metric-foot"><span>TARGET <span data-value="rodTarget">36%</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="rods"></i></div></article>
           </section>
           <section class="panel equipment-panel" aria-label="Selected equipment details"><div class="panel-heading"><div><span class="section-index">↳</span><h2>Equipment detail</h2></div><span class="local-tag">SIM</span></div><div class="equipment-content"></div></section>
+          <details class="fault-console"><summary>Faults &amp; incident</summary><div><label for="fault-scenario">Simulated fault scenario</label><select id="fault-scenario"><option value="none">No injected fault</option><option value="primary-restriction">Primary-loop obstruction</option><option value="secondary-loss">Secondary cooling loss</option><option value="pump-wear">Primary pump deterioration</option></select><button class="small-button" data-action="clear-fault">Clear injected fault</button><button class="small-button" data-action="repair" disabled>Repair components</button><p>Stop, clear the fault and cool down to enable repair. Meltdown requires Reset demo.</p><p data-value="incidentSummary">No incident recorded.</p><button class="small-button" data-action="export-incident" disabled>Export incident report</button></div></details>
           </aside>
 
           <section class="control-column" aria-label="Reactor and operator controls">
@@ -225,6 +228,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <section class="panel process-panel" aria-label="Plant process schematic">
               <div class="panel-heading"><div><span class="section-index">01</span><h2>Reactor overview</h2></div><div class="diagram-tools"><button class="small-button" data-action="core-view" aria-haspopup="dialog" aria-controls="core-map-window" aria-expanded="false">Core map ↗</button><button class="small-button" data-action="zoom" aria-label="Zoom process diagram" aria-pressed="false">Zoom +</button></div></div>
               <div class="annunciator" role="status"><span class="annunciator-icon">●</span><span data-value="annunciator">ALL SYSTEMS NORMAL</span><span class="plant-state" data-value="status">RUNNING</span></div>
+              <div class="condition-strip" aria-label="Reactor condition"><strong data-value="conditionStage">NORMAL</strong><span>Fuel <b data-value="peakFuel"></b></span><span>Cooling margin <b data-value="coolingMargin"></b></span><span>Retained heat <b data-value="retainedHeat"></b></span><span>Rate <b data-value="temperatureRate"></b></span><span>Core damage <b data-value="coreDamage"></b></span><span>Pump stress <b data-value="pumpStress"></b></span></div>
               <p class="diagram-scroll-hint">Scroll sideways to explore · select equipment to inspect</p>
               <div class="diagram-viewport" tabindex="0" aria-label="Scrollable plant diagram">${schematic}</div>
               <div class="diagram-legend"><span><i class="legend-line warm-line"></i> Hot / steam</span><span><i class="legend-line cool-line"></i> Coolant return</span><span><i class="legend-dot"></i> Simulated signal</span><span class="diagram-note">Illustrative process · independent demo session</span></div>
@@ -252,7 +256,7 @@ export class NuclearPowerConsole extends HTMLElement {
               <svg class="trend-chart" viewBox="0 0 760 300" role="img" aria-label="Simulated temperature and reactor output over the last two minutes">
                 <defs><linearGradient id="trend-fill" x2="0" y2="1"><stop stop-color="#efa35c" stop-opacity=".12"/><stop offset="1" stop-color="#efa35c" stop-opacity="0"/></linearGradient></defs>
                 <g class="chart-grid"><path d="M40 40H715M40 145H715M40 250H715M40 40V250M208 40V250M377 40V250M546 40V250M715 40V250"/></g>
-                <g class="chart-labels"><text x="0" y="22">°C</text><text x="725" y="22" data-value="chartOutputUnit">%</text><text x="0" y="44">400</text><text x="0" y="149">200</text><text x="12" y="254">0</text><text x="725" y="44" data-value="chartOutputMax">100</text><text x="731" y="149" data-value="chartOutputMid">50</text><text x="739" y="254">0</text><text x="40" y="282">−2 MIN</text><text x="355" y="282">−1 MIN</text><text x="675" y="282">NOW</text></g>
+                <g class="chart-labels"><text x="0" y="22">°C</text><text x="725" y="22" data-value="chartOutputUnit">%</text><text x="0" y="44" data-value="chartTempMax">400</text><text x="0" y="149" data-value="chartTempMid">200</text><text x="12" y="254">0</text><text x="725" y="44" data-value="chartOutputMax">100</text><text x="731" y="149" data-value="chartOutputMid">50</text><text x="739" y="254">0</text><text x="40" y="282">−2 MIN</text><text x="355" y="282">−1 MIN</text><text x="675" y="282">NOW</text></g>
                 <path class="trend-area"/><path class="temperature-trace"/><path class="power-trace"/><path class="target-trace"/><circle class="temperature-dot" r="3"/><circle class="power-dot" r="3"/>
               </svg><p class="trend-note">Trends build during this session. Both axes show simulated values.</p>
             </section>
@@ -277,6 +281,10 @@ export class NuclearPowerConsole extends HTMLElement {
         this.shadowRoot.querySelector('#auto-electrical').addEventListener('change', event => {
             if (!event.target.checkValidity() || event.target.value === '') { event.target.value = this.simulation.autoElectricalTarget; return; }
             this.simulation.setElectricalTarget(Number(event.target.value));
+            this.update();
+        });
+        this.shadowRoot.querySelector('#fault-scenario').addEventListener('change', event => {
+            this.simulation.injectFault(event.target.value);
             this.update();
         });
 
@@ -444,6 +452,8 @@ export class NuclearPowerConsole extends HTMLElement {
             manual: () => sim.setAutoMode(false), auto: () => sim.setAutoMode(true),
             fluctuations: () => sim.setFluctuations(!sim.fluctuationsEnabled),
             'export-log': () => this.exportLog(),
+            'clear-fault': () => sim.injectFault('none'), repair: () => sim.repairComponents(),
+            'export-incident': () => this.exportIncident(),
             pause: () => sim.togglePause(), reset: () => sim.reset(),
             zoom: () => {
                 const viewport = this.shadowRoot.querySelector('.diagram-viewport');
@@ -506,6 +516,8 @@ export class NuclearPowerConsole extends HTMLElement {
         const percent = value => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
         const selectedRod = sim.controlRods.find(rod => rod.id === this.selectedRod);
         const powerObjective = sim.autoObjective === 'power';
+        const condition = sim.condition;
+        const zone = condition.zones.find(zone => zone.id === this.selectedRod);
         const pumpState = (enabled, target, actual) => actual < 0.5 ? 'STOPPED' : !enabled || target === 0 ? 'COASTING' : 'RUNNING';
         const values = {
             core: `${n(signals.coreTemperature.value, 1)} °C`, coreNumber: n(signals.coreTemperature.value, 1),
@@ -528,6 +540,17 @@ export class NuclearPowerConsole extends HTMLElement {
             selectedRodActual: `${n(selectedRod.position, 1)}%`, selectedRodTarget: percent(selectedRod.target),
             selectedRodMotion: Math.abs(selectedRod.target - selectedRod.position) < 0.5 ? 'AT TARGET' : selectedRod.target > selectedRod.position ? 'INSERTING' : 'WITHDRAWING',
             mode: sim.autoMode ? 'AUTO' : 'MANUAL',
+            conditionStage: condition.stage,
+            peakFuel: `${n(condition.peakTemperature, 1)} °C`,
+            retainedHeat: `${n(condition.heatReserve * 1.5)} MW`,
+            pumpAStress: percent(condition.components.A.stress), pumpBStress: percent(condition.components.B.stress),
+            pumpADamage: percent(condition.components.A.damage), pumpBDamage: percent(condition.components.B.damage),
+            coolingMargin: `${condition.coolingMargin >= 0 ? '+' : ''}${n(condition.coolingMargin)} MW`,
+            temperatureRate: `${condition.temperatureRate >= 0 ? '+' : ''}${n(condition.temperatureRate, 1)} °C/min`,
+            coreDamage: `${n(condition.coreDamage, 1)}%`,
+            pumpStress: `A ${n(condition.components.A.stress)}% / B ${n(condition.components.B.stress)}%`,
+            selectedZoneTemperature: `${n(zone.temperature, 1)} °C`, selectedZoneDamage: `${n(zone.damage, 1)}%`,
+            incidentSummary: condition.incident ? `${this.time(condition.incident.startedAt)}: ${condition.incident.cause}. ${condition.incident.timeline.length} retained incident events${condition.incident.resolvedAt ? ' · recovered' : ''}.` : 'No incident recorded.',
             regulation: sim.tripped ? 'TRIP / AUTOMATION INHIBITED' : !sim.running ? 'STOPPED / WAITING FOR START' : sim.autoMode
                 ? sim.autoObjective === 'power' ? `AUTO / ${n(signals.electricalOutput.value, 1)} / ${n(sim.autoElectricalTarget)} MW ELECTRIC` : `AUTO / ERROR ${n(sim.autoTemperature - sim.temperature, 1)} °C` : 'MANUAL CONTROL',
             regulationDetail: sim.autoMode ? sim.regulationLimit || (sim.autoObjective === 'power' ? 'Tracking electrical output; core setting limits temperature.' : 'Rods and pump speeds adjust to hold your targets.') : 'Individual rods and pump speeds available.',
@@ -535,33 +558,45 @@ export class NuclearPowerConsole extends HTMLElement {
             sessionState: sim.paused ? 'SIMULATION PAUSED' : 'SIMULATION ACTIVE',
             temperatureState: sim.temperature > 335 ? 'HIGH TEMPERATURE' : sim.running ? 'WITHIN DEMO RANGE' : 'COOLING DOWN',
             primaryState: sim.primaryFlow > 20 ? 'CIRCULATING' : 'LOW FLOW',
-            annunciator: sim.alarms.length ? `${sim.alarms.length} ACTIVE ${sim.alarms.length === 1 ? 'CONDITION' : 'CONDITIONS'} · ${sim.alarms[0].message.toUpperCase()}` : 'ALL SYSTEMS NORMAL'
+            annunciator: condition.meltdown ? 'CORE MELTDOWN · INCIDENT RECORDED · RESET DEMO REQUIRED' : sim.alarms.length ? `${sim.alarms.length} ACTIVE ${sim.alarms.length === 1 ? 'CONDITION' : 'CONDITIONS'} · ${sim.alarms[0].message.toUpperCase()}` : 'ALL SYSTEMS NORMAL'
         };
         for (const element of this.shadowRoot.querySelectorAll('[data-value]')) {
             if (values[element.dataset.value] !== undefined && element.textContent !== values[element.dataset.value]) element.textContent = values[element.dataset.value];
         }
         this.dataset.state = sim.tripped ? 'tripped' : sim.running ? 'running' : 'stopped';
         this.dataset.overheated = String(sim.temperature > 335);
+        this.dataset.condition = condition.stage.toLowerCase().replaceAll(' ', '-');
         this.dataset.pumpA = String(sim.pumpA);
         this.dataset.pumpB = String(sim.pumpB);
         this.dataset.primaryFlow = String(sim.primaryFlow >= 0.5);
         this.dataset.secondaryFlow = String(sim.secondaryFlow >= 0.5);
         this.dataset.turbine = String(sim.power > 2 && sim.secondaryFlow > 10);
-        this.style.setProperty('--core-intensity', Math.max(0.1, sim.power / 100));
+        this.style.setProperty('--core-intensity', Math.min(1, Math.max(0.1, sim.power / 100, (condition.peakTemperature - 300) / 400)));
+        const meltScale = 1 - condition.meltProgress * 0.25;
+        this.shadowRoot.querySelector('.fuel-bundle').setAttribute('transform', `translate(0 ${350 * (1 - meltScale) + condition.meltProgress * 8}) scale(1 ${meltScale})`);
+        this.shadowRoot.querySelector('.melt-pool').setAttribute('opacity', condition.meltProgress);
+        this.shadowRoot.querySelector('.melt-pool').setAttribute('ry', 9 + condition.meltProgress * 15);
         this.updateCore();
         const meters = { temperature: Math.min(100, sim.temperature / 4), power: sim.power, electric: signals.electricalOutput.value / 4.1, flow: sim.primaryFlow, rods: sim.rods };
         for (const [key, value] of Object.entries(meters)) this.shadowRoot.querySelector(`[data-meter="${key}"]`).style.width = `${value}%`;
         for (const pump of ['A', 'B']) this.shadowRoot.querySelector(`[data-action="pump${pump}"]`).setAttribute('aria-pressed', String(sim[`pump${pump}`]));
+        for (const pump of ['A', 'B']) {
+            const component = condition.components[pump];
+            const button = this.shadowRoot.querySelector(`[data-action="pump${pump}"]`);
+            button.dataset.condition = component.damage >= 1 ? 'damaged' : component.stress >= 25 ? 'strained' : 'normal';
+            button.title = `Actual speed ${n(sim[pump === 'A' ? 'primaryFlow' : 'secondaryFlow'], 1)}%; stress ${n(component.stress)}%; damage ${n(component.damage, 1)}%`;
+        }
         this.shadowRoot.querySelector('[data-indicator="primary"]').classList.toggle('off', !sim.pumpA);
         this.shadowRoot.querySelector('[data-indicator="reactor"]').classList.toggle('off', !sim.running);
         const disabled = {
-            start: sim.running || sim.tripped || !sim.circulationReady() || sim.temperature >= 335, stop: !sim.running, trip: sim.tripped,
+            start: sim.running || sim.tripped || !sim.circulationReady() || sim.temperature >= 335 || condition.damaged || condition.meltdown, stop: !sim.running, trip: sim.tripped,
             insert: sim.autoMode || !sim.running || sim.tripped || sim.rodTarget >= 100,
             withdraw: sim.autoMode || !sim.running || sim.tripped || sim.rodTarget <= 0,
             'rod-insert': sim.autoMode || !sim.running || sim.tripped || selectedRod.target >= 100,
             'rod-withdraw': sim.autoMode || !sim.running || sim.tripped || selectedRod.target <= 0,
             'load-down': sim.autoMode || sim.tripped || sim.demand <= 0, 'load-up': sim.autoMode || sim.tripped || sim.demand >= 100,
             'reset-trip': !sim.tripped || !sim.tripRecovery().ready,
+            repair: !condition.canRepair(sim), 'export-incident': !condition.incident,
             acknowledge: !sim.alarms.some(alarm => !alarm.acknowledged)
         };
         for (const [action, value] of Object.entries(disabled)) this.shadowRoot.querySelector(`[data-action="${action}"]`).disabled = value;
@@ -582,6 +617,7 @@ export class NuclearPowerConsole extends HTMLElement {
             input.disabled = isDisabled;
         }
         this.shadowRoot.querySelector('#auto-objective').value = sim.autoObjective;
+        this.shadowRoot.querySelector('#fault-scenario').value = condition.fault;
         this.shadowRoot.querySelector('.electrical-target').hidden = sim.autoObjective !== 'power';
         for (const mode of ['manual', 'auto']) this.shadowRoot.querySelector(`[data-action="${mode}"]`).setAttribute('aria-pressed', String(sim.autoMode === (mode === 'auto')));
         const fluctuations = this.shadowRoot.querySelector('[data-action="fluctuations"]');
@@ -614,9 +650,11 @@ export class NuclearPowerConsole extends HTMLElement {
         for (const rod of sim.controlRods) {
             this.shadowRoot.querySelector(`[data-rod-side="${rod.id}"]`).setAttribute('transform', `translate(0 ${-15 + rod.position * 1.12})`);
             const channel = this.shadowRoot.querySelector(`[data-rod="${rod.id}"]`);
+            const zone = sim.condition.zones.find(zone => zone.id === rod.id);
+            channel.dataset.condition = zone.damage >= 1 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
             channel.classList.toggle('selected', rod.id === this.selectedRod);
             channel.setAttribute('aria-pressed', String(rod.id === this.selectedRod));
-            channel.setAttribute('aria-label', `${rod.id}: actual ${rod.position.toFixed(1)}%, target ${rod.target.toFixed(1)}% insertion`);
+            channel.setAttribute('aria-label', `${rod.id}: actual ${rod.position.toFixed(1)}%, target ${rod.target.toFixed(1)}% insertion; fuel ${zone.temperature.toFixed(1)} °C; damage ${zone.damage.toFixed(1)}%`);
             const ring = channel.querySelector('.rod-depth-ring');
             ring.style.strokeDasharray = `${2 * Math.PI * 14}`;
             ring.style.strokeDashoffset = `${2 * Math.PI * 14 * (1 - rod.position / 100)}`;
@@ -630,6 +668,11 @@ export class NuclearPowerConsole extends HTMLElement {
                 weight += w;
             }
             element.style.setProperty('--channel-activity', Math.max(0.06, total / weight / 100 * sim.power / 100));
+            const nearest = sim.controlRods.reduce((best, rod) =>
+                (rod.x - Number(element.dataset.fuelX)) ** 2 + (rod.y - Number(element.dataset.fuelY)) ** 2 <
+                (best.x - Number(element.dataset.fuelX)) ** 2 + (best.y - Number(element.dataset.fuelY)) ** 2 ? rod : best);
+            const zone = sim.condition.zones.find(zone => zone.id === nearest.id);
+            element.dataset.condition = zone.damage >= 1 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
         }
         this.shadowRoot.querySelector('.rod-depth-track i').style.height = `${sim.controlRods.find(rod => rod.id === this.selectedRod).position}%`;
     }
@@ -690,13 +733,28 @@ export class NuclearPowerConsole extends HTMLElement {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    exportIncident() {
+        if (!this.simulation.condition.incident) return;
+        const url = URL.createObjectURL(new Blob([JSON.stringify(this.simulation.condition.incident, null, 2)], { type: 'application/json' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'nuclear-power-incident.json';
+        this.shadowRoot.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
     updateTrend() {
         const sim = this.simulation;
         const points = sim.history;
+        const temperatureMax = Math.max(400, Math.ceil(Math.max(sim.temperature, ...points.map(point => point.temperature)) / 200) * 200);
+        this.shadowRoot.querySelector('[data-value="chartTempMax"]').textContent = temperatureMax;
+        this.shadowRoot.querySelector('[data-value="chartTempMid"]').textContent = temperatureMax / 2;
         const x = time => 40 + (time - sim.elapsed + 120) / 120 * 675;
         const y = (value, max) => 250 - Math.max(0, Math.min(1, value / max)) * 210;
         const path = (key, max) => points.map((point, index) => `${index ? 'L' : 'M'}${x(point.time).toFixed(1)} ${y(point[key], max).toFixed(1)}`).join(' ');
-        this.shadowRoot.querySelector('.temperature-trace').setAttribute('d', path('temperature', 400));
+        this.shadowRoot.querySelector('.temperature-trace').setAttribute('d', path('temperature', temperatureMax));
         const powerObjective = sim.autoObjective === 'power';
         const outputKey = powerObjective ? 'electricalOutput' : 'power';
         const outputMax = powerObjective ? 400 : 100;
@@ -713,8 +771,8 @@ export class NuclearPowerConsole extends HTMLElement {
         this.shadowRoot.querySelector('.trend-chart').setAttribute('aria-label', `Simulated core temperature in Celsius and ${powerObjective ? 'electrical output and target in megawatts' : 'reactor output in percent'} over the last two minutes`);
         const first = points[0];
         const last = points.at(-1);
-        this.shadowRoot.querySelector('.trend-area').setAttribute('d', `${path('temperature', 400)} L${x(last.time).toFixed(1)} 250 L${x(first.time).toFixed(1)} 250 Z`);
-        for (const [className, key, max] of [['temperature-dot', 'temperature', 400], ['power-dot', outputKey, outputMax]]) {
+        this.shadowRoot.querySelector('.trend-area').setAttribute('d', `${path('temperature', temperatureMax)} L${x(last.time).toFixed(1)} 250 L${x(first.time).toFixed(1)} 250 Z`);
+        for (const [className, key, max] of [['temperature-dot', 'temperature', temperatureMax], ['power-dot', outputKey, outputMax]]) {
             const dot = this.shadowRoot.querySelector(`.${className}`);
             dot.setAttribute('cx', x(last.time));
             dot.setAttribute('cy', y(last[key], max));

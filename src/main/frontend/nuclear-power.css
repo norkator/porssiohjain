@@ -93,6 +93,25 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .1px; white-space: nowra
 .plant-state { margin-left: auto; padding-left: 10px; white-space: nowrap; }
 .annunciator.has-alarm { background: #382c28; border-color: #744a35; color: #ffc28c; }
 .annunciator.unacknowledged .annunciator-icon { animation: blink 1.2s ease-in-out infinite; }
+.condition-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 14px; padding: 10px 18px; font: 9px Consolas, monospace; color: #a6bac5; border-bottom: 1px solid var(--border); }
+.condition-strip > strong { color: var(--cool); font-size: 10px; }
+.condition-strip b { color: #d4e4e6; font-weight: 400; }
+.fault-console { border: 1px solid var(--border); border-radius: 6px; background: #172630; padding: 8px 11px; color: #acc0ce; font-size: 10px; }
+.fault-console summary { cursor: pointer; }
+.fault-console > div { display: grid; gap: 9px; padding-top: 12px; }
+.fault-console select { width: 100%; font-size: 10px; }
+.fault-console p { font-size: 9px; line-height: 1.6; overflow-wrap: anywhere; }
+.pump-button[data-condition="strained"] { border-color: #ddac65; box-shadow: inset 3px 0 #ddac65; }
+.pump-button[data-condition="damaged"] { border-color: #f18374; box-shadow: inset 3px 0 #f18374; }
+:host([data-condition="strained"]) .condition-strip > strong { color: #f1ba78; }
+:host(:is([data-condition="overheating"], [data-condition="core-damage"], [data-condition="component-damage"], [data-condition="meltdown"])) .condition-strip > strong { color: #ff9684; }
+:host(:is([data-condition="overheating"], [data-condition="core-damage"], [data-condition="meltdown"])) .core-glow { fill: url(#failure-glow); }
+:host([data-condition="meltdown"]) .annunciator { color: #ffc8ba; background: #57272b; border-color: #f18374; }
+.core-channel[data-condition="hot"] > rect { fill: #663e2a; stroke: #ffad64; }
+.core-channel[data-condition="damaged"] > rect { fill: #622b30; stroke: #ff8278; }
+.core-channel[data-condition="damaged"] .fuel-center { fill: #ff624a; opacity: 1; }
+.core-channel[data-condition="damaged"] .rod-depth-ring { stroke: #ff8278; }
+.core-channel[data-condition="hot"] .fuel-center { fill: #ffae64; opacity: .95; }
 .diagram-viewport { overflow: auto; padding: 0 4px; scrollbar-color: #456071 #15212d; }
 .diagram-scroll-hint { display: none; color: #9aafbd; font-size: 9px; padding: 9px 13px 0; }
 .schematic { display: block; width: 100%; min-width: 620px; min-height: 330px; }

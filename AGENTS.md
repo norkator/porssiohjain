@@ -75,6 +75,11 @@ must respect the configured core-temperature ceiling and report limiting reasons
 Clicking the vessel opens a movable floating core-map dialog while the process
 stays visible. Over 335 °C, the core card/outlet/annunciator stay red until cooling,
 independent of alarm acknowledgement. These are simulation limits, not hardware safety limits.
+`nuclear-power-condition.js` models retained heat, progressive faults, local fuel
+hot spots, stress/wear and accumulated damage before a slow meltdown. Trip reset
+must never erase heat/damage or heal components. Only cooled, stopped, fault-free
+non-melted sessions allow explicit repair; meltdown requires Reset demo. Preserve
+the incident's initiating cause independently of the rolling event journal.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff

@@ -85,3 +85,11 @@
 :host([data-theme="light"][data-overheated="true"]) .core-temperature-instrument rect { fill: #fff0ed; stroke: #bf4037; }
 :host([data-theme="light"][data-overheated="true"]) .core-temperature-instrument .instrument-value { fill: #ac2e27; }
 :host([data-theme="light"][data-overheated="true"]) .annunciator { color: #9c2c24; background: #ffe8e3; border-color: #d4776c; }
+:host([data-theme="light"]) .fault-console { color: #425f70; background: #eef5f7; }
+:host([data-theme="light"]) .condition-strip { color: #536b7b; }
+:host([data-theme="light"]) .condition-strip b { color: #294a5a; }
+:host([data-theme="light"][data-condition="strained"]) .condition-strip > strong { color: #965115; }
+:host([data-theme="light"]:is([data-condition="overheating"], [data-condition="core-damage"], [data-condition="component-damage"], [data-condition="meltdown"])) .condition-strip > strong { color: #ae3026; }
+:host([data-theme="light"][data-condition="meltdown"]) .annunciator { color: #9c2c24; background: #ffe8e3; border-color: #d4776c; }
+:host([data-theme="light"]) .core-channel[data-condition="hot"] > rect { fill: #ffdfb4; stroke: #a55d22; }
+:host([data-theme="light"]) .core-channel[data-condition="damaged"] > rect { fill: #f3c2b8; stroke: #b1372e; }

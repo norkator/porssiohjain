@@ -4,6 +4,8 @@
  * Licensed under the Pörssiohjain Personal Use License v1.0.
  */
 
+import { ReactorCondition } from './nuclear-power-condition.js';
+
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const approach = (value, target, seconds, response) => target + (value - target) * Math.exp(-seconds / response);
 
@@ -63,6 +65,7 @@ export class NuclearPowerSimulation {
         this.history = [];
         this.events = [];
         this.alarms = [];
+        this.condition = new ReactorCondition(this.controlRods);
         this.record('Simulation initialized. Manual control; process fluctuations enabled.', 'info', 'system');
         this.sample();
     }
@@ -81,13 +84,15 @@ export class NuclearPowerSimulation {
     }
 
     record(message, severity = 'info', category = 'operator') {
-        this.events.unshift({ time: this.elapsed, message, severity, category });
+        const event = { time: this.elapsed, message, severity, category };
+        this.events.unshift(event);
         this.events.length = Math.min(this.events.length, 200);
+        this.condition?.note(this, event);
     }
 
     start() {
         if (this.tripped || this.running) return;
-        if (!this.circulationReady() || this.temperature >= 335) {
+        if (!this.circulationReady() || this.temperature >= 335 || this.condition.damaged || this.condition.meltdown) {
             this.record('Startup blocked: restore circulation and allow the core to cool below the demo reset limit.', 'warning');
             return;
         }
@@ -148,6 +153,7 @@ export class NuclearPowerSimulation {
         if (pump !== 'A' && pump !== 'B') return;
         const key = `pump${pump}`;
         this[key] = !this[key];
+        if (!this[key] && this.running && this.power > 10) this.condition.beginIncident(this, `Operator stopped pump ${pump}`);
         this.record(`Pump ${pump} ${this[key] ? 'started' : 'stopped'}.`, this[key] ? 'success' : 'warning');
         this.updateAlarms();
     }
@@ -166,7 +172,9 @@ export class NuclearPowerSimulation {
         const checks = [
             { id: 'rods', label: 'All rods fully inserted', ready: this.controlRods.every(rod => rod.position >= 99.5) },
             { id: 'flow', label: 'Both circuits circulating', ready: this.circulationReady() },
-            { id: 'temperature', label: 'Temperature below demo reset limit', ready: this.temperature < 335 }
+            { id: 'temperature', label: 'Temperature below demo reset limit', ready: this.temperature < 335 },
+            { id: 'fuel', label: 'Fuel hot spots cooled below warning level', ready: this.condition.peakTemperature < 410 },
+            { id: 'damage', label: 'Faults cleared and damaged components repaired', ready: this.condition.fault === 'none' && !this.condition.damaged && !this.condition.meltdown }
         ];
         return { ready: checks.every(check => check.ready), checks };
     }
@@ -181,6 +189,16 @@ export class NuclearPowerSimulation {
         this.tripped = false;
         this.record('Trip reset. Reactor remains stopped; press Start when ready.', 'success');
         this.updateAlarms();
+    }
+
+    injectFault(fault) {
+        if (!this.condition.inject(this, fault)) return;
+        this.record(fault === 'none' ? 'Injected fault cleared. Circulation will recover; existing damage remains.'
+            : `Fault scenario started: ${fault.replaceAll('-', ' ')}.`, 'warning', 'process');
+    }
+
+    repairComponents() {
+        if (this.condition.repair(this)) this.updateAlarms();
     }
 
     setAutoMode(enabled) {
@@ -257,6 +275,12 @@ export class NuclearPowerSimulation {
             // Do not wind up the power controller against a cooling/temperature limit.
             if (!this.regulationLimit || electricalError < 0) this.outputControlIntegral = clamp(this.outputControlIntegral + electricalError * dt, -300, 300);
         }
+        const coolingLimit = Math.max(0, (1200 * Math.min(this.primaryFlow, this.secondaryFlow) / 100 - this.condition.heatReserve * 1.5) / 12);
+        if (desiredPower > coolingLimit) { desiredPower = coolingLimit; this.regulationLimit = 'Cooling capacity'; }
+        if (this.condition.peakTemperature > 410) {
+            desiredPower = Math.min(desiredPower, Math.max(0, this.power - (this.condition.peakTemperature - 410) * 0.08));
+            this.regulationLimit = 'Local core hot spot';
+        }
         const insertion = 100 - desiredPower;
         const change = insertion - this.rodTarget;
         this.controlRods.forEach(rod => { rod.target = clamp(rod.target + change, 0, 100); });
@@ -289,7 +313,11 @@ export class NuclearPowerSimulation {
             ['trip', this.tripped, 'Emergency shutdown latched', 'alarm'],
             ['primary', this.running && (!this.pumpA || this.pumpASpeed < 20), 'Primary circulation low or unavailable', 'warning'],
             ['secondary', this.running && (!this.pumpB || this.pumpBSpeed < 20), 'Secondary circulation low or unavailable', 'warning'],
-            ['temperature', this.temperature > 335, 'Core temperature high', 'alarm']
+            ['temperature', this.temperature > 335, 'Core temperature high', 'alarm'],
+            ['cooling', this.condition.coolingMargin < 0, 'Cooling margin negative: retained heat needs circulation', 'warning'],
+            ['fuel', this.condition.peakTemperature > 410, 'Local fuel temperature high', 'alarm'],
+            ['damage', this.condition.damaged, 'Component damage retained: cooldown and repair required', 'alarm'],
+            ['meltdown', this.condition.meltdown, 'Core meltdown: reset demo required', 'alarm']
         ];
         const next = [];
         for (const [id, active, message, severity] of conditions) {
@@ -309,22 +337,31 @@ export class NuclearPowerSimulation {
         // Do not fast-forward a retained window after browser suspension.
         const dt = Math.min(seconds, 1);
         this.elapsed += dt;
+        this.condition.prepare(dt);
         this.regulate();
         const fluctuation = this.disturbances();
         for (const rod of this.controlRods) {
             rod.position = approach(rod.position, rod.target, dt, this.tripped ? 0.5 : 2.5);
         }
         this.power = approach(this.power, this.running ? clamp((100 - this.rods) * (1 + fluctuation.power / 100), 0, 100) : 0, dt, this.tripped ? 2 : 5);
-        this.primaryFlow = approach(this.primaryFlow, this.pumpA ? clamp(this.pumpASpeed * (1 + fluctuation.primary / 100), 0, 100) : 0, dt, 2);
-        this.secondaryFlow = approach(this.secondaryFlow, this.pumpB ? clamp(this.pumpBSpeed * (1 + fluctuation.secondary / 100), 0, 100) : 0, dt, 2);
+        this.primaryFlow = approach(this.primaryFlow, this.pumpA ? clamp(this.pumpASpeed * this.condition.flowFactor('A') * (1 + fluctuation.primary / 100), 0, 100) : 0, dt, 2);
+        this.secondaryFlow = approach(this.secondaryFlow, this.pumpB ? clamp(this.pumpBSpeed * this.condition.flowFactor('B') * (1 + fluctuation.secondary / 100), 0, 100) : 0, dt, 2);
         const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6;
-        const coreTarget = 30 + this.power * (4 + coolingLoss) + fluctuation.heat;
+        const retainedHeatTarget = Math.min(this.primaryFlow, this.secondaryFlow) < 20
+            ? this.condition.fuelTemperature - 35 : 30;
+        const coreTarget = Math.max(30 + this.power * (4 + coolingLoss) + fluctuation.heat, retainedHeatTarget);
+        const previousTemperature = this.temperature;
         this.temperature = approach(this.temperature, coreTarget, dt, 18);
         this.returnTemperature = approach(this.returnTemperature,
             this.temperature - 28 * this.primaryFlow / 100 * this.power / 64, dt, 7);
         this.secondaryTemperature = approach(this.secondaryTemperature,
             25 + (this.temperature - 25) * 0.61 * this.primaryFlow / 100, dt, 12);
-        if (this.running && this.power > 10 && this.primaryFlow < 15) {
+        this.condition.advance(this, dt, previousTemperature);
+        if (this.condition.meltdown) {
+            this.trip('Simulated core meltdown');
+        } else if (this.running && this.condition.peakTemperature > 470) {
+            this.trip('Simulated protection: local fuel hot spot');
+        } else if (this.running && this.power > 10 && this.primaryFlow < 15) {
             this.trip('Simulated protection: primary flow lost');
         } else if (this.running && this.temperature > 360) {
             this.trip('Simulated protection: high core temperature');
@@ -349,7 +386,7 @@ export class NuclearPowerSimulation {
         const signal = (value, unit) => ({ value, unit, source: 'SIMULATED', quality: 'GOOD', time: this.elapsed });
         return {
             elapsed: this.elapsed,
-            status: this.tripped ? 'TRIPPED' : !this.running ? 'COOLING DOWN' : this.power < 2 ? 'STANDBY' : 'RUNNING',
+            status: this.condition.meltdown ? 'MELTDOWN' : this.tripped ? 'TRIPPED' : !this.running ? 'COOLING DOWN' : this.power < 2 ? 'STANDBY' : 'RUNNING',
             // Requests remain distinct from reported signals for a future scale-model adapter.
             commands: {
                 running: this.running, loadPercent: this.demand, mode: this.autoMode ? 'AUTO' : 'MANUAL',
@@ -368,6 +405,11 @@ export class NuclearPowerSimulation {
                 secondaryTemperature: signal(this.secondaryTemperature, '°C'),
                 thermalOutput: signal(this.power * 12, 'MW'),
                 electricalOutput: signal(this.power * 4.1 * this.secondaryFlow / 100, 'MW'),
+                fuelTemperature: signal(this.condition.peakTemperature, '°C'),
+                coolingMargin: signal(this.condition.coolingMargin, 'MW'),
+                retainedHeat: signal(this.condition.heatReserve * 1.5, 'MW'),
+                temperatureRate: signal(this.condition.temperatureRate, '°C/min'),
+                coreDamage: signal(this.condition.coreDamage, '%'),
                 primaryFlow: signal(this.primaryFlow * 48, 'm³/h'),
                 secondaryFlow: signal(this.secondaryFlow * 48, 'm³/h'),
                 pumpASpeed: signal(this.primaryFlow, '%'),

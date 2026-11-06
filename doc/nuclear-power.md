@@ -46,7 +46,67 @@ the temperature card, status light, outlet instrument and annunciator red. Text
 also reads **HIGH TEMPERATURE**. Acknowledging the alarm does not remove this
 indication; it clears only when temperature falls back to 335 °C or below. Both
 themes have explicit high-temperature colors. The independent 360 °C simulated
-automatic trip remains unchanged; these are illustrative, not physical safety limits.
+coolant trip is retained, with an additional local-fuel hot-spot trip. These are
+illustrative, not physical safety limits.
+
+## Progressive stress, damage and meltdown
+
+Failure is driven by a separate fictional condition/heat model, never a random
+explosion or a single timer. Normal automatic generation, including constrained
+MW requests, remains protected. Sustained loss of cooling can still overwhelm a
+shutdown because stored fuel heat remains after rod insertion.
+
+The overview's condition strip shows stage, peak local fuel temperature, cooling
+margin, retained heat, temperature rate of rise, core damage and pump stress.
+Negative cooling margin warns before severe temperatures. Pump buttons acquire
+amber/red edges as stress and damage accumulate; their tooltips show actual speed,
+stress and damage. Selecting a pump also exposes stress and damage in its details.
+The floating core map shows hot/damaged channels and the selected channel's fuel
+temperature and retained damage. The coolant reading and local fuel temperature
+are separate signals; a hot spot can precede high average coolant temperature.
+
+Stages are **NORMAL**, **STRAINED**, **OVERHEATING**, **PROTECTIVE SHUTDOWN**,
+**COMPONENT DAMAGE**, **CORE DAMAGE**, and latched **MELTDOWN**. The order depends on
+the fault: protection may trip before temperatures rise. Stress recedes after
+correction, while damage does not heal automatically. At meltdown, fuel deforms
+gradually and a glowing pool grows over subsequent seconds; there is no explosion.
+Generation shuts down and the session remains inspectable/exportable.
+The temperature trend expands its scale above the old 400 °C range during a severe
+incident rather than clipping the continued rise.
+
+Open **Faults & incident** below the left-hand instruments to select a progressive
+primary obstruction, secondary cooling loss, or primary-pump deterioration. Faults
+ramp rather than instantly changing flow. Existing manual pump controls and uneven
+rod settings also affect stress and local heat. These controls are simulation-only.
+**Clear injected fault** restores the fault's restriction gradually, preserving wear.
+**Repair components** requires a stopped reactor, no injected fault, coolant below
+150 °C, fuel below 200 °C, and no meltdown. It repairs accumulated damage/stress while
+preserving heat and operating settings. Meltdown can only be cleared by **Reset demo**.
+
+Trip reset additionally requires cleared faults, repaired damage and local fuel
+below 410 °C. It does not clear retained heat, stress, damage or the incident history,
+and it never restarts automatically. Auto reduces generation against cooling capacity
+and local fuel hot spots; it does not bypass protective trips or restart failed pumps.
+
+### Illustrative model constants
+
+All constants are gameplay/demo parameters, not real reactor engineering:
+
+- Heat reserve starts at 96 internal units, follows generation with a 40-second
+  response and decays over a 240-second response after shutdown. Displayed retained
+  heat is reserve × 1.5 MW. Normal initial fuel temperature is approximately 323 °C.
+- Cooling margin compares a 1200 MW nominal cooling scale, reduced by actual flow
+  and core damage, with generation plus retained heat. Fuel temperature integrates
+  heat input minus cooling with bounded rates. Poor cooling keeps the coolant
+  reading coupled to retained fuel heat rather than dropping immediately to ambient.
+- Rod imbalance creates local temperatures. Above 410 °C, exposure accumulates;
+  above 450 °C and after 15 seconds of exposure, channel damage accumulates.
+  A local peak above 470 °C trips generation. Cooling failure can continue afterward.
+- Meltdown latches only after a channel reaches 100% damage with fuel at least
+  650 °C. Its visual progression then ramps with a 12-second response.
+- Pump stress comes from sustained requested/actual flow mismatch. Stress above
+  60% accumulates wear, progressively reducing available flow; speed alone does not
+  damage a healthy pump. All state freezes with simulation pause/hidden-view suspension.
 
 ## Layout and appearance
 
@@ -148,6 +208,14 @@ what is displayed. **Export CSV** exports all retained records in chronological
 order, explicitly marked `SIMULATED`. Logs are not persisted and are discarded by
 Reset demo or closing/replacing the view.
 
+The condition model keeps a separate incident report so the initiating fault is
+not lost when the ordinary journal rolls over. It records the cause, up to six
+preceding events, and a bounded 160-entry timeline with instrument snapshots;
+the first incident event is preserved. **Export incident report** downloads JSON
+explicitly marked `SIMULATED`. Early successful recovery marks an incident resolved;
+meltdown leaves it open for inspection. Reports are browser-session data and are
+cleared by Reset demo. Export before resetting if the report is needed later.
+
 Each custom-element instance owns its state. Switching desktop windows retains the
 instance. Minimizing, scrolling the entire console out of view, or hiding the browser
 tab suspends background simulation work without fast-forwarding on return. Detaching
@@ -167,6 +235,8 @@ animation while instruments and controls continue to work.
   targets, enable states) from
   reported `signals` and per-rod insertion. Signals contain value, unit, source,
   quality, and simulated elapsed time; that time is not a sensor timestamp.
+- `src/main/frontend/nuclear-power-condition.js` owns stored heat, local fuel zones,
+  progressive faults, component stress/wear, damage, meltdown and incident retention.
 - `src/main/frontend/nuclear-power-motion.js` integrates speed-dependent impeller
   angles and flow dash offsets without phase jumps. Animation frames are separate
   from the 250 ms plant/instrument update and obey visibility and reduced motion.
@@ -200,6 +270,7 @@ JAVA_HOME=/path/to/java21 ./gradlew compileJava test \
   --tests com.nitramite.porssiohjain.views.NuclearPowerViewTest \
   --tests com.nitramite.porssiohjain.views.DesktopWindowNavigationTest
 node --test src/test/frontend/nuclear-power-model.test.mjs
+node --test src/test/frontend/nuclear-power-failure.test.mjs
 node --test src/test/frontend/nuclear-power-browser.test.mjs
 # With the disposable local application already running:
 NUCLEAR_POWER_APP_URL=http://127.0.0.1:18080 node --test src/test/frontend/nuclear-power-browser.test.mjs
@@ -212,8 +283,10 @@ its temporary screenshot/CSV artifact directory. No extra browser test dependenc
 is required beyond Node and Chrome.
 
 Latest checkpoint (2026-11-06): the Java 21 build and 24 focused desktop/view tests
-pass. Sixteen model/motion tests cover the controls and regulation, including
+pass. Twenty-three model/motion/failure tests cover the controls and regulation, including
 a two-minute settled-error window and zero-flow behavior with disturbances enabled.
+Failure tests cover warning time, intervention, accumulated damage/repair, local hot
+spots, automatic protection, sustained cooling loss, slow meltdown and report retention.
 The browser regression also passes against the source-only console and the
 authenticated local Vaadin application. No real MQTT/model devices are connected.
 

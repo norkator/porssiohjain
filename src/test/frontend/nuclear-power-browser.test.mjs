@@ -37,7 +37,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
             response.end('export default ' + JSON.stringify(readFileSync(join(root, 'src/main/frontend', path.slice(1)), 'utf8')));
             return;
         }
-        const allowed = ['/nuclear-power.js', '/nuclear-power-model.js', '/nuclear-power-motion.js'];
+        const allowed = ['/nuclear-power.js', '/nuclear-power-model.js', '/nuclear-power-motion.js', '/nuclear-power-condition.js'];
         if (!allowed.includes(path)) { response.writeHead(404); response.end(); return; }
         response.setHeader('Content-Type', 'text/javascript');
         response.end(readFileSync(join(root, 'src/main/frontend', path.slice(1))));
@@ -253,6 +253,35 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.equal(await consoleCode('return c.dataset.overheated;'), 'true');
         await consoleCode(`c.simulation.temperature=286;c.simulation.updateAlarms();c.update();`);
         assert.equal(await consoleCode('return c.dataset.overheated;'), 'false');
+        await action('reset');
+        await input('#fault-scenario', 'primary-restriction');
+        await advance(10);
+        assert.ok(await consoleCode('return c.simulation.primaryFlow;') < 95);
+        assert.equal(await consoleCode('return c.simulation.condition.meltdown;'), false);
+        await action('clear-fault');
+        await advance(120);
+        assert.equal(await consoleCode('return c.simulation.condition.damaged;'), false);
+        await action('reset');
+        await action('pumpA'); await action('pumpB');
+        await advance(20);
+        assert.equal(await consoleCode('return c.simulation.condition.coreDamage;'), 0);
+        await screenshot('cooling-loss-warning');
+        await advance(300);
+        assert.equal(await value('status'), 'MELTDOWN');
+        assert.equal(await value('conditionStage'), 'MELTDOWN');
+        assert.ok(Number(await value('chartTempMax')) >= await consoleCode('return c.simulation.temperature;'));
+        assert.equal(await consoleCode(`return s.querySelector('[data-action="reset-trip"]').disabled;`), true);
+        assert.equal(await consoleCode(`return s.querySelector('[data-action="repair"]').disabled;`), true);
+        assert.ok(await consoleCode(`return s.querySelectorAll('[data-rod][data-condition="damaged"]').length;`) > 0);
+        await action('export-incident');
+        for (let attempt = 0; attempt < 40 && !readdirSync(artifacts).includes('nuclear-power-incident.json'); attempt++) await wait(100);
+        const incident = JSON.parse(readFileSync(join(artifacts, 'nuclear-power-incident.json'), 'utf8'));
+        assert.equal(incident.source, 'SIMULATED');
+        assert.match(incident.cause, /pump A/);
+        assert.ok(incident.timeline.some(event => event.stage === 'MELTDOWN'));
+        await screenshot('gradual-meltdown');
+        await action('reset');
+        assert.equal(await value('conditionStage'), 'NORMAL');
         await action('pause');
         assert.equal(await consoleCode('return c.timer;'), null);
         assert.equal(await consoleCode('return c.animationFrame;'), null);
