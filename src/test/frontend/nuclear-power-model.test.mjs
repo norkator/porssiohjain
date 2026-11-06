@@ -253,3 +253,54 @@ test('fluctuations remain bounded and event retention does not grow without limi
     sim.setPumpSpeed('invalid', 50);
     assert.equal(sim.events[0], lastEvent);
 });
+
+test('grid-style automatic control follows electrical MW targets and can reduce output to zero', () => {
+    const sim = new NuclearPowerSimulation();
+    sim.setAutoObjective('power');
+    sim.setElectricalTarget(150);
+    sim.setAutoMode(true);
+    advance(sim, 240);
+    assert.equal(sim.tripped, false);
+    assert.ok(Math.abs(sim.snapshot().signals.electricalOutput.value - 150) < 2);
+    assert.equal(sim.regulationLimit, '');
+    sim.setElectricalTarget(200);
+    advance(sim, 240);
+    assert.ok(Math.abs(sim.snapshot().signals.electricalOutput.value - 200) < 2);
+    assert.ok(sim.temperature < 290);
+    assert.equal(sim.snapshot().commands.electricalTargetMw, 200);
+    sim.setElectricalTarget(0);
+    advance(sim, 120);
+    assert.ok(sim.snapshot().signals.electricalOutput.value < 0.01);
+});
+
+test('unachievable electrical demand respects the core limit and reports the constraint', () => {
+    const sim = new NuclearPowerSimulation();
+    sim.setAutoObjective('power');
+    sim.setElectricalTarget(400);
+    sim.setAutoMode(true);
+    advance(sim, 240);
+    assert.equal(sim.tripped, false);
+    assert.equal(sim.regulationLimit, 'Core temperature limit');
+    assert.ok(sim.snapshot().signals.electricalOutput.value < 220);
+    assert.ok(sim.temperature < 290);
+    sim.setElectricalTarget(150);
+    advance(sim, 240);
+    assert.ok(Math.abs(sim.snapshot().signals.electricalOutput.value - 150) < 2);
+    assert.equal(sim.regulationLimit, '');
+    assert.ok(sim.events.some(event => event.message.includes('Core temperature limit')));
+});
+
+test('electrical targets are bounded and selecting temperature regulation remains independent', () => {
+    const sim = new NuclearPowerSimulation();
+    sim.setElectricalTarget(10000);
+    assert.equal(sim.autoElectricalTarget, 400);
+    sim.setElectricalTarget(-100);
+    assert.equal(sim.autoElectricalTarget, 0);
+    sim.setElectricalTarget(NaN);
+    sim.setAutoObjective('unknown');
+    assert.equal(sim.autoObjective, 'temperature');
+    sim.setAutoMode(true);
+    advance(sim, 180);
+    assert.ok(Math.abs(sim.temperature - 286) < 3);
+    assert.ok(sim.snapshot().signals.electricalOutput.value > 180);
+});
