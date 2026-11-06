@@ -121,6 +121,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         feature("home.heatingPlanner", VaadinIcon.FIRE, HeatingPlannerView.class);
         feature("home.loadShedding", VaadinIcon.WARNING, LoadSheddingView.class);
         feature("home.powerplant", VaadinIcon.DASHBOARD, PowerplantView.class);
+        feature("home.nuclearPower", VaadinIcon.ASTERISK, NuclearPowerView.class);
         feature("home.solarAnglePlanner", VaadinIcon.SUN, SolarAnglePlannerView.class);
         feature("home.myProduction", VaadinIcon.LIGHTBULB, ProductionSourcesView.class);
         feature("home.powerLimits", VaadinIcon.FLASH, PowerLimitsView.class);
@@ -343,6 +344,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             case COMMENT -> "feedback";
             case LINE_CHART -> "measurements";
             case TRENDING_UP -> "forecasts";
+            case ASTERISK -> "nuclear-power";
             case DROP -> "water-meters";
             case MENU -> "start";
             case SIGN_OUT -> "logout";
@@ -615,6 +617,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         if (path.startsWith("water-meters")) return t("home.waterMeters");
         if (path.startsWith("load-shedding")) return t("home.loadShedding");
         if (path.startsWith("powerplant")) return t("home.powerplant");
+        if (path.startsWith("nuclear-power")) return t("home.nuclearPower");
         if (path.startsWith("solar-angle-planner")) return t("home.solarAnglePlanner");
         if (path.startsWith("production-source")) return t("home.myProduction");
         if (path.startsWith("power-limit")) return t("home.powerLimits");

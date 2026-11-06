@@ -58,6 +58,66 @@ Focused verification:
 
 Read `doc/powerplant.md` before changing the Powerplant feature. It documents the current free-form control-room board, persisted element model, Vaadin icon selection, direct STANDARD relay command support, and the distinction between configured indicator values and live telemetry.
 
+## Nuclear Power handoff
+
+Read [doc/nuclear-power.md](doc/nuclear-power.md) before changing `/nuclear-power`.
+The English-only Vaadin feature is a fictional two-loop reactor / future physical
+scale-model control room, not a simulator of a specific real reactor. All current
+signals and commands are browser-local simulation; no MQTT devices are connected.
+The frontend separates requested rod/pump settings from actual simulated read-back.
+Equipment detail lives in the component dialogs (reactor readings in the core map),
+not a main-view card. Component valves, bypass, cooling, disturbances and turbine
+breaker/shaft affect the common electrical output and cooling model. Preserve
+manual pump overrides, explicit turbine restart/breaker readiness, component service
+interlocks, local trends, objectives and symptom-first scenarios. Plant audio has
+quiet Start/Stop cues, local CC0 Kenney UI Audio one-shot switch/adjustment samples
+(with bundled license/source records), and separate alarms; continuous operating hum is removed; preserve opt-in, bounded gain,
+and mute/pause/hide/detach cleanup of every voice.
+New/reset sessions select Auto with Electrical output regulation (200 MW), but
+the reactor starts stopped/cold with fully inserted rods and both pumps disabled
+(zero actual motor speed/flow, retained 100% speed targets). Explicitly start both
+pumps and establish circulation before reactor Start; healthy
+running core temperatures have green emphasis in both themes.
+Process animations use actual heat/flow/output: turbine/generator coast-down, steam,
+condenser drops, exchanger highlights, local fuel glow/molten drips and source-to-pump
+bus flow share the visibility-aware frame loop. Rates are illustrative, not RPM;
+preserve cold-start stillness, retained heat, reduced motion and pause cleanup.
+Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
+motion, manual/automatic modes, disturbances, categorized logs, and latched trip
+recovery. Automatic control must never reset a trip or restart the plant by itself.
+Manual mode requires operator Stop/Emergency shutdown: flow/temperature/hot-spot
+automatic trips apply only in Auto; alarms, damage and irreversible meltdown remain
+active in both modes. Switching modes must not clear an existing trip.
+Wide windows use stacked instruments on the left, controls/reactor/operator in the
+middle, and trends/logs on the right. Dark remains default; light theme is local to
+this feature. Auto can regulate core temperature or electrical MW; power requests
+must respect the configured core-temperature ceiling and report limiting reasons.
+Clicking the vessel opens a movable floating core-map dialog while the process
+stays visible. Over 335 °C, the core card/outlet/annunciator stay red until cooling,
+independent of alarm acknowledgement. These are simulation limits, not hardware safety limits.
+`nuclear-power-condition.js` models retained heat, progressive faults, local fuel
+hot spots, stress/wear and accumulated damage before a slow meltdown. Trip reset
+must never erase heat/damage or heal components. Only cooled, stopped, fault-free
+non-melted sessions allow explicit repair; meltdown requires Reset demo. The latched meltdown has a red console pulse, bouncing
+movable nonmodal dialog with reset/export, and escalating opt-in warning/siren audio; preserve mute, pause,
+visibility cleanup and reduced-motion behavior. Preserve
+the incident's initiating cause independently of the rolling event journal.
+`nuclear-power-fuel.js` tracks uneven exposure and reserve per fuel assembly, separately
+from control rods. Replacement is manual, for a selected assembly or all fuel together after the
+same cooled/stopped checks; the exchange animation is visual only and preserves
+heat, damage, the trip latch and stopped state; never
+let automation replace fuel or component repair replenish it. Auto compensates declining
+fuel capability and regulates only rods without an explicit manual override. Stop/trip
+release overrides and insert every rod. `nuclear-power-supply.js` models the auxiliary
+AC bus: turbine, external grid, then two armed standby diesels. Pumps must coast down
+without AC; restoring power must never reset trips or restart the reactor. The auxiliary
+power dialog manages grid/feed availability, diesel standby/start/stop/manual refuelling.
+It is movable and nonmodal like the core map; both can remain open over the process.
+Preserve shared dragging/keyboard movement, viewport clamping and per-window closing.
+Diesel SVG cutaways animate pistons/fans from reported engine state, show real simulated
+fuel reserve and bus-load indication, and obey pause/visibility/reduced-motion settings.
+The feature document records the control model, verification, and future MQTT work.
+
 ## Solar panels handoff
 
 The solar panel angle feature is currently an advisory/manual planning tool with a device polling API, not a persisted automation system.

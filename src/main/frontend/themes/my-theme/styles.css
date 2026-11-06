@@ -1154,6 +1154,8 @@ vaadin-grid::part(fresh-control-device-call) {
     border-color: #808080 #fff #fff #808080;
 }
 .retro-window-body > * { box-sizing: border-box; min-height: 100%; }
+.retro-window-body > .nuclear-power-view { padding: 0 !important; background: #101923; }
+.retro-window-body > .nuclear-power-view:has(nuclear-power-console[data-theme="light"]) { background: #edf2f5; }
 .retro-window-body .responsive-card { background-color: #e6e6e6; box-shadow: none; }
 
 /* List grids grow with their rows; the desktop window owns vertical scrolling. */

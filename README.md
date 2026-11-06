@@ -107,6 +107,32 @@ Build and run the backend tests with the repository's Gradle wrapper:
 ./gradlew compileJava test
 ```
 
+For quick Spring/Vaadin testing without Docker, PostgreSQL or environment variables:
+
+```sh
+./run-local.sh
+# Optional alternative port:
+./run-local.sh 8081
+```
+
+Open [the local login page](http://127.0.0.1:8080/login) and enter **admin** in the UUID
+field and **admin** in the secret field. The script finds Java 21 in `JAVA_HOME`, on
+`PATH`, or in common JDK installation directories (including IntelliJ's `~/.jdks`).
+A Java 21 JDK is required; Gradle and Vaadin may download dependencies on the first run.
+If Java is missing, the script stops with installation instructions. On Ubuntu/Debian:
+
+```sh
+sudo apt update && sudo apt install openjdk-21-jdk
+```
+
+This starts the `local` profile on loopback with a fresh in-memory H2 database and a
+normal, writable admin account. All database data disappears when the process stops.
+Flyway migrations, background jobs, MQTT, Fingrid/FMI fetching and push notifications
+are disabled; charts start empty until data is added. H2 is for UI/backend smoke
+testing and does not validate PostgreSQL migrations or all PostgreSQL behavior.
+Stop with **Ctrl+C**. The REST API keeps its UUID login contract; this account's UUID
+is `00000000-0000-0000-0000-000000000001` and its secret is `admin`.
+
 See [hybrid-web development](hybrid-web/README.md) and
 [GNOME development](gnome/README.md#build-and-verify) for the other clients.
 Current backend configuration is defined in

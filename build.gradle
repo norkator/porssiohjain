@@ -16,6 +16,7 @@ java {
 }
 
 configurations {
+    localDevelopment
     compileOnly {
         extendsFrom annotationProcessor
     }
@@ -52,6 +53,7 @@ dependencies {
     implementation 'org.jsoup:jsoup:1.23.2'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'
+    localDevelopment 'com.h2database:h2'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'com.h2database:h2'
@@ -66,6 +68,15 @@ dependencyManagement {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('bootRunLocal', org.springframework.boot.gradle.tasks.run.BootRun) {
+    group = 'application'
+    description = 'Runs the disposable local Spring/Vaadin instance (used by run-local.sh).'
+    mainClass = 'com.nitramite.porssiohjain.PorssiohjainApplication'
+    classpath = sourceSets.main.runtimeClasspath + configurations.localDevelopment
+    // Devtools needs this JVM property before Spring starts, including for correct startup exit codes.
+    systemProperty 'spring.devtools.restart.enabled', 'false'
 }
 
 tasks.named('processResources') {

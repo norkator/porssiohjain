@@ -17,6 +17,7 @@ import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
+import com.nitramite.porssiohjain.development.LocalDevelopmentConfiguration;
 import com.nitramite.porssiohjain.entity.enums.QrLoginStatus;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -51,6 +52,7 @@ import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.shared.Registration;
 import jakarta.annotation.security.PermitAll;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -83,7 +85,8 @@ public class LoginView extends VerticalLayout {
     public LoginView(
             AuthService authService,
             I18nService i18n,
-            QrLoginService qrLoginService
+            QrLoginService qrLoginService,
+            Environment environment
     ) {
         this.authService = authService;
         this.i18n = i18n;
@@ -107,6 +110,10 @@ public class LoginView extends VerticalLayout {
         H1 title = new H1(t("login.title"));
 
         TextField uuidField = new TextField(t("login.field.uuid"));
+        boolean localDevelopment = environment.matchesProfiles("local");
+        if (localDevelopment) {
+            uuidField.setHelperText(t("login.local.credentials"));
+        }
         uuidField.setRequired(true);
         uuidField.setValueChangeMode(ValueChangeMode.EAGER);
         PasswordField secretField = new PasswordField(t("login.field.secret"));
@@ -118,7 +125,9 @@ public class LoginView extends VerticalLayout {
                 return;
             }
             try {
-                UUID uuid = UUID.fromString(uuidField.getValue().trim());
+                String identifier = uuidField.getValue().trim();
+                UUID uuid = localDevelopment && "admin".equals(identifier)
+                        ? LocalDevelopmentConfiguration.ADMIN_UUID : UUID.fromString(identifier);
                 String secret = secretField.getValue().trim();
 
                 String ip = VaadinRequest.getCurrent().getRemoteAddr();
