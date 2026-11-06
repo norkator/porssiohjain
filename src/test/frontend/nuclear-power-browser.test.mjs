@@ -1,0 +1,225 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { readFileSync, writeFileSync, mkdtempSync, readdirSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+const root = fileURLToPath(new URL('../../../', import.meta.url));
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+test('core map, centered variable-speed pumps, automatic control, trip recovery and logs work in browser', { timeout: 90000 }, async () => {
+    const artifacts = mkdtempSync(join(tmpdir(), 'nuclear-power-check-'));
+    const appUrl = process.env.NUCLEAR_POWER_APP_URL;
+    if (appUrl) {
+        let ready = false;
+        for (let attempt = 0; attempt < 300; attempt++) {
+            try {
+                const response = await fetch(`${appUrl}/login`, { signal: AbortSignal.timeout(1000) });
+                if (response.ok) { ready = true; break; }
+            } catch { /* The disposable Spring instance may still be starting. */ }
+            await wait(100);
+        }
+        assert.ok(ready, 'Disposable local application did not become ready');
+    }
+    const server = createServer((request, response) => {
+        const path = request.url.split('?')[0];
+        if (path === '/') {
+            response.setHeader('Content-Type', 'text/html');
+            response.end(`<!doctype html><html lang="fi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nuclear Power check</title><style>body{margin:0;background:#101923}main{width:100%}</style><main><nuclear-power-console></nuclear-power-console></main><script type="module" src="/nuclear-power.js"></script></html>`);
+            return;
+        }
+        if (path === '/nuclear-power.css') {
+            response.setHeader('Content-Type', 'text/javascript');
+            response.end('export default ' + JSON.stringify(readFileSync(join(root, 'src/main/frontend/nuclear-power.css'), 'utf8')));
+            return;
+        }
+        const allowed = ['/nuclear-power.js', '/nuclear-power-model.js', '/nuclear-power-motion.js'];
+        if (!allowed.includes(path)) { response.writeHead(404); response.end(); return; }
+        response.setHeader('Content-Type', 'text/javascript');
+        response.end(readFileSync(join(root, 'src/main/frontend', path.slice(1))));
+    });
+    if (!appUrl) await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    const browser = spawn(process.env.CHROME_BIN || '/opt/google/chrome/chrome', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--remote-debugging-port=0', `--user-data-dir=${join(artifacts, 'profile')}`, 'about:blank']);
+    let socket;
+    try {
+        const endpoint = await new Promise((resolve, reject) => {
+            let output = '';
+            const timer = setTimeout(() => reject(new Error('Chrome startup timeout: ' + output.slice(-1000))), 10000);
+            browser.stderr.on('data', chunk => {
+                output += chunk;
+                const match = output.match(/DevTools listening on (ws:\/\/\S+)/);
+                if (match) { clearTimeout(timer); resolve(match[1]); }
+            });
+            browser.on('error', error => { clearTimeout(timer); reject(error); });
+        });
+        socket = new WebSocket(endpoint);
+        await new Promise(resolve => socket.addEventListener('open', resolve, { once: true }));
+        const pending = new Map();
+        const exceptions = [];
+        let nextId = 0;
+        socket.addEventListener('message', event => {
+            const message = JSON.parse(event.data);
+            if (message.method === 'Runtime.exceptionThrown') exceptions.push(message.params.exceptionDetails);
+            if (!pending.has(message.id)) return;
+            const callback = pending.get(message.id);
+            pending.delete(message.id);
+            message.error ? callback.reject(message.error) : callback.resolve(message.result);
+        });
+        const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+            const id = ++nextId;
+            pending.set(id, { resolve, reject });
+            socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+        });
+        const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+        const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+        const page = (method, params = {}) => send(method, params, sessionId);
+        const evaluate = async expression => {
+            const result = await page('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+            if (result.exceptionDetails) throw new Error(JSON.stringify(result.exceptionDetails));
+            return result.result.value;
+        };
+        const until = async (expression, message) => {
+            for (let attempt = 0; attempt < 200; attempt++) {
+                if (await evaluate(expression)) return;
+                await wait(100);
+            }
+            await screenshot('failure');
+            console.log('Failure context:', await evaluate(`({path:location.pathname,text:document.body.innerText.slice(0,1800),buttons:[...document.querySelectorAll('vaadin-button')].map(b=>({text:b.textContent,disabled:b.disabled}))})`));
+            throw new Error(message);
+        };
+        const consoleCode = code => evaluate(`(()=>{const c=document.querySelector('nuclear-power-console');const s=c.shadowRoot;${code}})()`);
+        const action = action => consoleCode(`s.querySelector('[data-action="${action}"]').click();`);
+        const value = name => consoleCode(`return s.querySelector('[data-value="${name}"]').textContent;`);
+        const input = (selector, value) => consoleCode(`const input=s.querySelector(${JSON.stringify(selector)});input.value=${JSON.stringify(String(value))};input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));`);
+        const advance = seconds => consoleCode(`for(let i=0;i<${seconds * 4};i++)c.simulation.tick(.25);c.update();`);
+        const screenshot = async name => {
+            const result = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
+            writeFileSync(join(artifacts, `${name}.png`), Buffer.from(result.data, 'base64'));
+        };
+        await page('Runtime.enable');
+        await page('Page.enable');
+        await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: artifacts });
+        await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
+        await page('Page.navigate', { url: appUrl ? `${appUrl}/login` : `http://127.0.0.1:${server.address().port}/` });
+        if (appUrl) {
+            await until(`!!document.querySelector('vaadin-password-field')`, 'Local login did not render');
+            await evaluate(`for(const field of [document.querySelector('vaadin-text-field'),document.querySelector('vaadin-password-field')]){field.value='admin';field.dispatchEvent(new Event('input',{bubbles:true,composed:true}));field.dispatchEvent(new Event('change',{bubbles:true,composed:true}));}`);
+            await until(`document.querySelector('vaadin-button[theme~="primary"]')?.disabled===false`, 'Login button did not enable');
+            await evaluate(`document.querySelector('vaadin-button[theme~="primary"]').click()`);
+            await until(`!!document.querySelector('.retro-start-button')`, 'Desktop did not open');
+            await evaluate(`document.querySelector('.retro-start-button').click()`);
+            await until(`[...document.querySelectorAll('.retro-menu-item')].some(b=>b.textContent.trim()==='Nuclear Power')`, 'Nuclear Power menu item did not open');
+            await evaluate(`[...document.querySelectorAll('.retro-menu-item')].find(b=>b.textContent.trim()==='Nuclear Power').click()`);
+        }
+        await until(`!!document.querySelector('nuclear-power-console')?.shadowRoot?.querySelector('.console')`, 'Control room did not render');
+        assert.equal(await value('status'), 'RUNNING');
+        assert.equal(await consoleCode('return c.lang;'), 'en');
+        await action('fluctuations');
+
+        // A rotated local origin must coincide exactly with the stationary hub center.
+        for (let frame = 0; frame < 5; frame++) {
+            const centers = await consoleCode(`return [...s.querySelectorAll('.pump')].map(pump=>{const hub=new DOMPoint(0,0).matrixTransform(pump.querySelector('.pump-hub').getScreenCTM());const rotor=new DOMPoint(0,0).matrixTransform(pump.querySelector('.rotor').getScreenCTM());return Math.hypot(hub.x-rotor.x,hub.y-rotor.y);});`);
+            assert.ok(centers.every(distance => distance < 0.01), `Off-center impellers: ${centers}`);
+            await wait(100);
+        }
+        await input('#pump-A-speed', 45);
+        await input('#pump-B-speed', 80);
+        await advance(12);
+        assert.ok(Number.parseFloat(await value('pumpAActual')) < 46);
+        assert.ok(Number.parseFloat(await value('pumpBActual')) > 79);
+        const angleBefore = await consoleCode('return {a:c.motion.A.angle,b:c.motion.B.angle};');
+        await wait(300);
+        const angleAfter = await consoleCode('return {a:c.motion.A.angle,b:c.motion.B.angle};');
+        assert.ok((angleAfter.a - angleBefore.a + 360) % 360 < (angleAfter.b - angleBefore.b + 360) % 360);
+        await action('reset');
+        await action('core-view');
+        assert.equal(await consoleCode(`return s.querySelector('.core-map').hidden;`), false);
+        assert.equal(await consoleCode(`return s.querySelectorAll('[data-rod]').length;`), 12);
+        await consoleCode(`s.querySelector('[data-rod="CR-05"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));`);
+        await input('#individual-rod', 76);
+        assert.equal(await consoleCode(`return c.simulation.controlRods.find(r=>r.id==='CR-05').target;`), 76);
+        assert.equal(await consoleCode(`return c.simulation.controlRods.find(r=>r.id==='CR-06').target;`), 36);
+        await action('insert');
+        assert.equal(await consoleCode(`return c.simulation.controlRods.find(r=>r.id==='CR-05').target;`), 81);
+        assert.equal(await consoleCode(`return c.simulation.controlRods.find(r=>r.id==='CR-06').target;`), 41);
+        await advance(20);
+        assert.ok(Number.parseFloat(await value('selectedRodActual')) > 80);
+        await screenshot('desktop-core-map');
+
+        await action('auto');
+        assert.equal(await consoleCode(`return s.querySelector('#individual-rod').disabled;`), true);
+        assert.equal(await consoleCode(`return s.querySelector('#pump-A-speed').disabled;`), true);
+        await input('#auto-temperature', 275);
+        await input('#auto-flow', 80);
+        await advance(180);
+        assert.ok(Math.abs(await consoleCode('return c.simulation.temperature;') - 275) < 3);
+        assert.equal(await value('mode'), 'AUTO');
+        await action('fluctuations');
+        await advance(60);
+        assert.equal(await consoleCode(`return c.simulation.fluctuationsEnabled;`), false);
+        await action('trip');
+        assert.equal(await value('status'), 'TRIPPED');
+        assert.equal(await consoleCode(`return s.querySelector('[data-action="reset-trip"]').disabled;`), true);
+        await advance(8);
+        assert.equal(await consoleCode(`return s.querySelector('[data-action="reset-trip"]').disabled;`), false);
+        const beforeRecovery = await consoleCode('return c.simulation.elapsed;');
+        await action('reset-trip');
+        assert.equal(await consoleCode('return c.simulation.running;'), false);
+        assert.ok(await consoleCode('return c.simulation.elapsed;') >= beforeRecovery);
+        await action('start');
+        assert.equal(await consoleCode('return c.simulation.running;'), true);
+        await input('#log-filter', 'automation');
+        assert.equal(await consoleCode(`return [...s.querySelectorAll('.event-category')].every(e=>e.textContent==='AUTOMATION');`), true);
+        await action('export-log');
+        for (let attempt = 0; attempt < 40 && !readdirSync(artifacts).some(name => name.endsWith('.csv')); attempt++) await wait(100);
+        const csv = readFileSync(join(artifacts, 'nuclear-power-simulation-log.csv'), 'utf8');
+        assert.ok(csv.includes('"SIMULATED"'));
+        assert.ok(csv.includes('"automation"'));
+        assert.ok(csv.includes('"alarm"'));
+
+        await action('process-view');
+        assert.equal(await consoleCode(`return s.querySelector('.diagram-viewport').hidden;`), false);
+        await screenshot('desktop-process');
+        await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
+        await wait(150);
+        await action('core-view');
+        assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+        assert.equal(await consoleCode('return c.scrollWidth <= c.clientWidth;'), true);
+        await consoleCode(`s.querySelector('.core-map').scrollIntoView();`);
+        await screenshot('mobile-core-map');
+        await action('manual');
+        await input('#individual-rod', 45);
+        assert.equal(await consoleCode(`return c.simulation.controlRods.find(r=>r.id==='CR-05').target;`), 45);
+        await action('pause');
+        assert.equal(await consoleCode('return c.timer;'), null);
+        assert.equal(await consoleCode('return c.animationFrame;'), null);
+        await action('pause');
+        await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+        await wait(100);
+        assert.equal(await consoleCode('return c.animationFrame;'), null);
+        assert.ok(await consoleCode('return Boolean(c.timer);'));
+        await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+        await wait(100);
+        assert.ok(await consoleCode('return Boolean(c.animationFrame);'));
+        await consoleCode(`c.style.display='none';`);
+        await wait(150);
+        assert.equal(await consoleCode('return c.timer;'), null);
+        assert.equal(await consoleCode('return c.animationFrame;'), null);
+        await consoleCode(`c.style.display='';`);
+        await wait(150);
+        assert.ok(await consoleCode('return Boolean(c.timer);'));
+        await evaluate(`window.savedConsole=document.querySelector('nuclear-power-console');savedConsole.remove();`);
+        assert.equal(await evaluate('savedConsole.timer'), null);
+        assert.equal(await evaluate('savedConsole.animationFrame'), null);
+        assert.deepEqual(exceptions, []);
+        console.log(`Browser verified ${appUrl ? 'authenticated Vaadin application' : 'isolated console'}; artifacts: ${artifacts}`);
+        await send('Browser.close');
+    } finally {
+        socket?.close();
+        browser.kill('SIGTERM');
+        if (server.listening) server.close();
+    }
+});

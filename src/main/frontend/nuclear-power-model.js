@@ -7,6 +7,18 @@
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const approach = (value, target, seconds, response) => target + (value - target) * Math.exp(-seconds / response);
 
+// Fictional channel layout shared by the model and both core visualizations.
+const rodPositions = [[-2, -2], [0, -3], [2, -2], [-3, 0], [-1, -1], [1, -1],
+    [3, 0], [-1, 1], [1, 1], [-2, 2], [0, 3], [2, 2]];
+export const CORE_CHANNELS = [];
+for (let y = -4; y <= 4; y++) {
+    for (let x = -4; x <= 4; x++) {
+        if (x * x + y * y > 18) continue;
+        const rodIndex = rodPositions.findIndex(([rx, ry]) => rx === x && ry === y);
+        CORE_CHANNELS.push({ x, y, rodId: rodIndex < 0 ? null : `CR-${String(rodIndex + 1).padStart(2, '0')}` });
+    }
+}
+
 /** Illustrative, deterministic animation model; not a physical reactor model.
  * Signals are deliberately separate from rendering so a later read-only measurement
  * adapter can supply explicitly sourced values without changing the schematic.
@@ -22,32 +34,61 @@ export class NuclearPowerSimulation {
         this.tripped = false;
         this.paused = false;
         this.demand = 64;
-        this.rodTarget = 36;
-        this.rods = 36;
+        this.controlRods = rodPositions.map(([x, y], index) => ({
+            id: `CR-${String(index + 1).padStart(2, '0')}`, x, y, target: 36, position: 36
+        }));
+        this.operatingRodTargets = this.controlRods.map(rod => rod.target);
         this.power = 64;
         this.temperature = 286;
         this.returnTemperature = 258;
         this.secondaryTemperature = 184;
         this.pumpA = true;
         this.pumpB = true;
+        this.pumpASpeed = 100;
+        this.pumpBSpeed = 100;
         this.primaryFlow = 100;
         this.secondaryFlow = 100;
+        this.autoMode = false;
+        this.autoTemperature = 286;
+        this.autoFlow = 85;
+        this.fluctuationsEnabled = true;
+        this.controlIntegral = 0;
+        this.lastControlTime = -1;
+        this.lastAutoLog = -10;
+        this.lastProcessLog = 0;
         this.history = [];
         this.events = [];
         this.alarms = [];
-        this.record('Simulation initialized. Unit 01 at steady load.', 'info');
+        this.record('Simulation initialized. Manual control; process fluctuations enabled.', 'info', 'system');
         this.sample();
     }
 
-    record(message, severity = 'info') {
-        this.events.unshift({ time: this.elapsed, message, severity });
-        this.events.length = Math.min(this.events.length, 40);
+    get rods() {
+        return this.controlRods.reduce((sum, rod) => sum + rod.position, 0) / this.controlRods.length;
+    }
+
+    get rodTarget() {
+        return this.controlRods.reduce((sum, rod) => sum + rod.target, 0) / this.controlRods.length;
+    }
+
+    rememberRodTargets() {
+        this.operatingRodTargets = this.controlRods.map(rod => rod.target);
+        this.demand = 100 - this.rodTarget;
+    }
+
+    record(message, severity = 'info', category = 'operator') {
+        this.events.unshift({ time: this.elapsed, message, severity, category });
+        this.events.length = Math.min(this.events.length, 200);
     }
 
     start() {
         if (this.tripped || this.running) return;
+        if (!this.circulationReady() || this.temperature >= 335) {
+            this.record('Startup blocked: restore circulation and allow the core to cool below the demo reset limit.', 'warning');
+            return;
+        }
         this.running = true;
-        this.rodTarget = 100 - this.demand;
+        this.controlRods.forEach((rod, index) => { rod.target = this.operatingRodTargets[index]; });
         this.record('Startup initiated. Rods moving to load setpoint.', 'success');
         this.updateAlarms();
     }
@@ -55,23 +96,48 @@ export class NuclearPowerSimulation {
     stop() {
         if (!this.running) return;
         this.running = false;
-        this.rodTarget = 100;
+        this.controlRods.forEach(rod => { rod.target = 100; });
         this.record('Normal shutdown. Coolant circulation maintained.');
         this.updateAlarms();
     }
 
     setLoad(value) {
-        if (this.tripped || !Number.isFinite(value)) return;
+        if (this.tripped || this.autoMode || !Number.isFinite(value)) return;
         this.demand = clamp(Math.round(value), 0, 100);
-        if (this.running) this.rodTarget = 100 - this.demand;
+        this.operatingRodTargets = this.controlRods.map(() => 100 - this.demand);
+        if (this.running) this.controlRods.forEach(rod => { rod.target = 100 - this.demand; });
         this.record(`Load setpoint changed to ${this.demand}%.`);
     }
 
     setRods(value) {
-        if (this.tripped || !this.running || !Number.isFinite(value)) return;
-        this.rodTarget = clamp(Math.round(value), 0, 100);
-        this.demand = 100 - this.rodTarget;
-        this.record(`Rod insertion commanded to ${this.rodTarget}%.`);
+        if (this.tripped || this.autoMode || !this.running || !Number.isFinite(value)) return;
+        const target = clamp(Math.round(value), 0, 100);
+        this.controlRods.forEach(rod => { rod.target = target; });
+        this.rememberRodTargets();
+        this.record(`All rod insertion targets set to ${target}%.`);
+    }
+
+    setRod(id, value) {
+        if (this.tripped || this.autoMode || !this.running || !Number.isFinite(value)) return;
+        const rod = this.controlRods.find(candidate => candidate.id === id);
+        if (!rod) return;
+        rod.target = clamp(Math.round(value), 0, 100);
+        this.rememberRodTargets();
+        this.record(`${id} insertion target set to ${rod.target}%.`);
+    }
+
+    moveRods(delta) {
+        if (this.tripped || this.autoMode || !this.running || !Number.isFinite(delta)) return;
+        this.controlRods.forEach(rod => { rod.target = clamp(rod.target + delta, 0, 100); });
+        this.rememberRodTargets();
+        this.record(`Rod bank ${delta >= 0 ? 'inserted' : 'withdrawn'} by ${Math.abs(delta)} percentage points.`);
+    }
+
+    setPumpSpeed(pump, value) {
+        if ((pump !== 'A' && pump !== 'B') || (this.autoMode && this.running) || !Number.isFinite(value)) return;
+        this[`pump${pump}Speed`] = clamp(Math.round(value), 0, 100);
+        this.record(`Pump ${pump} speed target set to ${this[`pump${pump}Speed`]}%.`);
+        this.updateAlarms();
     }
 
     togglePump(pump) {
@@ -86,9 +152,85 @@ export class NuclearPowerSimulation {
         if (this.tripped) return;
         this.tripped = true;
         this.running = false;
-        this.rodTarget = 100;
-        this.record(`${reason}. Rods inserting; reset demo to restart.`, 'alarm');
+        this.controlRods.forEach(rod => { rod.target = 100; });
+        this.controlIntegral = 0;
+        this.record(`${reason}. Rods inserting; restore conditions, then Reset trip.`, 'alarm', 'alarm');
         this.updateAlarms();
+    }
+
+    tripRecovery() {
+        const checks = [
+            { id: 'rods', label: 'All rods fully inserted', ready: this.controlRods.every(rod => rod.position >= 99.5) },
+            { id: 'flow', label: 'Both circuits circulating', ready: this.circulationReady() },
+            { id: 'temperature', label: 'Temperature below demo reset limit', ready: this.temperature < 335 }
+        ];
+        return { ready: checks.every(check => check.ready), checks };
+    }
+
+    circulationReady() {
+        return this.pumpA && this.pumpB && this.pumpASpeed >= 20 && this.pumpBSpeed >= 20
+            && this.primaryFlow >= 20 && this.secondaryFlow >= 20;
+    }
+
+    resetTrip() {
+        if (!this.tripped || !this.tripRecovery().ready) return;
+        this.tripped = false;
+        this.record('Trip reset. Reactor remains stopped; press Start when ready.', 'success');
+        this.updateAlarms();
+    }
+
+    setAutoMode(enabled) {
+        if (this.autoMode === enabled) return;
+        this.autoMode = enabled;
+        this.controlIntegral = 0;
+        this.lastControlTime = this.elapsed - 1;
+        this.record(enabled ? 'Automatic control enabled. Holding core temperature and circulation targets.'
+            : 'Manual control enabled. Rod and pump settings held at current targets.', 'info', 'automation');
+    }
+
+    setAutoTargets(temperature, flow) {
+        if (!Number.isFinite(temperature) || !Number.isFinite(flow)) return;
+        this.autoTemperature = clamp(temperature, 40, 330);
+        this.autoFlow = clamp(flow, 25, 100);
+        this.controlIntegral = 0;
+        this.record(`Automatic targets: ${this.autoTemperature} °C core; ${this.autoFlow}% circulation.`, 'info', 'automation');
+    }
+
+    setFluctuations(enabled) {
+        this.fluctuationsEnabled = enabled;
+        this.record(`Process fluctuations ${enabled ? 'enabled' : 'disabled'}.`, 'info', 'process');
+    }
+
+    disturbances() {
+        if (!this.fluctuationsEnabled) return { heat: 0, power: 0, primary: 0, secondary: 0 };
+        const t = this.elapsed;
+        return {
+            heat: Math.sin(t / 9) * 2.8 + Math.sin(t / 2.7) * 0.7,
+            power: Math.sin(t / 13) * 0.7 + Math.sin(t / 3.1) * 0.15,
+            primary: Math.sin(t / 7) * 1.8 + Math.sin(t / 2.1) * 0.4,
+            secondary: Math.sin(t / 8 + 1) * 1.6 + Math.sin(t / 2.4) * 0.5
+        };
+    }
+
+    regulate() {
+        if (!this.autoMode || !this.running || this.tripped || this.elapsed - this.lastControlTime < 1) return;
+        const dt = Math.min(1, this.elapsed - this.lastControlTime);
+        this.lastControlTime = this.elapsed;
+        const error = this.autoTemperature - this.temperature;
+        this.controlIntegral = clamp(this.controlIntegral + error * dt, -150, 150);
+        const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6;
+        const basePower = (this.autoTemperature - 30) / (4 + coolingLoss);
+        const desiredPower = clamp(basePower + error * 0.12 + this.controlIntegral * 0.003, 0, 95);
+        const insertion = 100 - desiredPower;
+        const change = insertion - this.rodTarget;
+        this.controlRods.forEach(rod => { rod.target = clamp(rod.target + change, 0, 100); });
+        this.rememberRodTargets();
+        this.pumpASpeed = clamp(this.pumpASpeed + (this.autoFlow - this.primaryFlow) * 0.6, 25, 100);
+        this.pumpBSpeed = clamp(this.pumpBSpeed + (this.autoFlow - this.secondaryFlow) * 0.6, 25, 100);
+        if (this.elapsed - this.lastAutoLog >= 10) {
+            this.lastAutoLog = this.elapsed;
+            this.record(`Holding ${this.autoTemperature} °C: rod bank ${this.rodTarget.toFixed(1)}%; pump A ${this.pumpASpeed.toFixed(1)}%, B ${this.pumpBSpeed.toFixed(1)}%.`, 'info', 'automation');
+        }
     }
 
     togglePause() {
@@ -106,8 +248,8 @@ export class NuclearPowerSimulation {
     updateAlarms() {
         const conditions = [
             ['trip', this.tripped, 'Emergency shutdown latched', 'alarm'],
-            ['primary', this.running && !this.pumpA, 'Primary circulation unavailable', 'warning'],
-            ['secondary', this.running && !this.pumpB, 'Secondary circulation unavailable', 'warning'],
+            ['primary', this.running && (!this.pumpA || this.pumpASpeed < 20), 'Primary circulation low or unavailable', 'warning'],
+            ['secondary', this.running && (!this.pumpB || this.pumpBSpeed < 20), 'Secondary circulation low or unavailable', 'warning'],
             ['temperature', this.temperature > 335, 'Core temperature high', 'alarm']
         ];
         const next = [];
@@ -115,9 +257,9 @@ export class NuclearPowerSimulation {
             const previous = this.alarms.find(alarm => alarm.id === id);
             if (active) {
                 next.push(previous || { id, message, severity, acknowledged: false });
-                if (!previous) this.record(message, severity);
+                if (!previous) this.record(message, severity, 'alarm');
             } else if (previous) {
-                this.record(`Condition cleared: ${previous.message}.`, 'success');
+                this.record(`Condition cleared: ${previous.message}.`, 'success', 'alarm');
             }
         }
         this.alarms = next;
@@ -128,12 +270,16 @@ export class NuclearPowerSimulation {
         // Do not fast-forward a retained window after browser suspension.
         const dt = Math.min(seconds, 1);
         this.elapsed += dt;
-        this.rods = approach(this.rods, this.rodTarget, dt, this.tripped ? 0.5 : 2.5);
-        this.power = approach(this.power, this.running ? 100 - this.rods : 0, dt, this.tripped ? 2 : 5);
-        this.primaryFlow = approach(this.primaryFlow, this.pumpA ? 100 : 0, dt, 2);
-        this.secondaryFlow = approach(this.secondaryFlow, this.pumpB ? 100 : 0, dt, 2);
+        this.regulate();
+        const fluctuation = this.disturbances();
+        for (const rod of this.controlRods) {
+            rod.position = approach(rod.position, rod.target, dt, this.tripped ? 0.5 : 2.5);
+        }
+        this.power = approach(this.power, this.running ? clamp((100 - this.rods) * (1 + fluctuation.power / 100), 0, 100) : 0, dt, this.tripped ? 2 : 5);
+        this.primaryFlow = approach(this.primaryFlow, this.pumpA ? clamp(this.pumpASpeed * (1 + fluctuation.primary / 100), 0, 100) : 0, dt, 2);
+        this.secondaryFlow = approach(this.secondaryFlow, this.pumpB ? clamp(this.pumpBSpeed * (1 + fluctuation.secondary / 100), 0, 100) : 0, dt, 2);
         const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6;
-        const coreTarget = 30 + this.power * (4 + coolingLoss) + Math.sin(this.elapsed / 11) * 0.4;
+        const coreTarget = 30 + this.power * (4 + coolingLoss) + fluctuation.heat;
         this.temperature = approach(this.temperature, coreTarget, dt, 18);
         this.returnTemperature = approach(this.returnTemperature,
             this.temperature - 28 * this.primaryFlow / 100 * this.power / 64, dt, 7);
@@ -146,10 +292,15 @@ export class NuclearPowerSimulation {
         }
         this.updateAlarms();
         if (this.elapsed - this.history.at(-1).time >= 1) this.sample();
+        if (this.elapsed - this.lastProcessLog >= 10) {
+            this.lastProcessLog = this.elapsed;
+            this.record(`Core ${this.temperature.toFixed(1)} °C; output ${(this.power * 12).toFixed(0)} MW; flow A ${this.primaryFlow.toFixed(1)}%, B ${this.secondaryFlow.toFixed(1)}%.`, 'info', 'process');
+        }
     }
 
     sample() {
-        this.history.push({ time: this.elapsed, temperature: this.temperature, power: this.power });
+        this.history.push({ time: this.elapsed, temperature: this.temperature, power: this.power,
+            primaryFlow: this.primaryFlow, secondaryFlow: this.secondaryFlow, rods: this.rods });
         this.history = this.history.filter(point => point.time >= this.elapsed - 120);
     }
 
@@ -158,6 +309,17 @@ export class NuclearPowerSimulation {
         return {
             elapsed: this.elapsed,
             status: this.tripped ? 'TRIPPED' : !this.running ? 'COOLING DOWN' : this.power < 2 ? 'STANDBY' : 'RUNNING',
+            // Requests remain distinct from reported signals for a future scale-model adapter.
+            commands: {
+                running: this.running, loadPercent: this.demand, mode: this.autoMode ? 'AUTO' : 'MANUAL',
+                temperatureTarget: this.autoTemperature, flowTarget: this.autoFlow,
+                pumps: {
+                    A: { enabled: this.pumpA, speedPercent: this.pumpASpeed },
+                    B: { enabled: this.pumpB, speedPercent: this.pumpBSpeed }
+                },
+                rods: this.controlRods.map(rod => ({ id: rod.id, insertionPercent: rod.target }))
+            },
+            rods: this.controlRods.map(rod => ({ id: rod.id, insertion: signal(rod.position, '%') })),
             signals: {
                 coreTemperature: signal(this.temperature, '°C'),
                 returnTemperature: signal(this.returnTemperature, '°C'),
@@ -165,6 +327,9 @@ export class NuclearPowerSimulation {
                 thermalOutput: signal(this.power * 12, 'MW'),
                 electricalOutput: signal(this.power * 4.1 * this.secondaryFlow / 100, 'MW'),
                 primaryFlow: signal(this.primaryFlow * 48, 'm³/h'),
+                secondaryFlow: signal(this.secondaryFlow * 48, 'm³/h'),
+                pumpASpeed: signal(this.primaryFlow, '%'),
+                pumpBSpeed: signal(this.secondaryFlow, '%'),
                 rodInsertion: signal(this.rods, '%'),
                 load: signal(this.power, '%')
             }

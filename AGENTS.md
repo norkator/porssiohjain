@@ -58,6 +58,18 @@ Focused verification:
 
 Read `doc/powerplant.md` before changing the Powerplant feature. It documents the current free-form control-room board, persisted element model, Vaadin icon selection, direct STANDARD relay command support, and the distinction between configured indicator values and live telemetry.
 
+## Nuclear Power handoff
+
+Read [doc/nuclear-power.md](doc/nuclear-power.md) before changing `/nuclear-power`.
+The English-only Vaadin feature is a fictional two-loop reactor / future physical
+scale-model control room, not a simulator of a specific real reactor. All current
+signals and commands are browser-local simulation; no MQTT devices are connected.
+The frontend separates requested rod/pump settings from actual simulated read-back.
+Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
+motion, manual/automatic modes, disturbances, categorized logs, and latched trip
+recovery. Automatic control must never reset a trip or restart the plant by itself.
+The feature document records the control model, verification, and future MQTT work.
+
 ## Solar panels handoff
 
 The solar panel angle feature is currently an advisory/manual planning tool with a device polling API, not a persisted automation system.

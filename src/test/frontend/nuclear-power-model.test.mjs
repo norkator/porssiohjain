@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NuclearPowerSimulation } from '../../main/frontend/nuclear-power-model.js';
+import { CORE_CHANNELS, NuclearPowerSimulation } from '../../main/frontend/nuclear-power-model.js';
+import { advancePumpMotion } from '../../main/frontend/nuclear-power-motion.js';
 
 const advance = (simulation, seconds) => {
     for (let i = 0; i < seconds * 4; i++) simulation.tick(0.25);
@@ -8,6 +9,7 @@ const advance = (simulation, seconds) => {
 
 test('load and rod controls move the same plant state and temperatures respond gradually', () => {
     const sim = new NuclearPowerSimulation();
+    sim.setFluctuations(false);
     sim.setLoad(85);
     assert.equal(sim.rodTarget, 15);
     assert.equal(sim.power, 64);
@@ -93,10 +95,161 @@ test('inputs are bounded and all signals remain explicitly simulated with bounde
     sim.togglePump('invalid');
     advance(sim, 180);
     assert.ok(sim.history.length <= 121);
-    assert.ok(sim.events.length <= 40);
+    assert.ok(sim.events.length <= 200);
     for (const signal of Object.values(sim.snapshot().signals)) {
         assert.equal(signal.source, 'SIMULATED');
         assert.equal(signal.quality, 'GOOD');
         assert.ok(Number.isFinite(signal.value));
     }
+});
+
+test('individual rods retain independent targets, positions and requested/reported snapshots', () => {
+    const sim = new NuclearPowerSimulation();
+    sim.fluctuationsEnabled = false;
+    sim.setRod('CR-01', 84);
+    assert.equal(sim.controlRods.find(rod => rod.id === 'CR-01').target, 84);
+    assert.ok(sim.controlRods.filter(rod => rod.id !== 'CR-01').every(rod => rod.target === 36));
+    assert.equal(sim.rods, 36);
+    assert.equal(sim.rodTarget, 40);
+    const requested = sim.snapshot();
+    assert.equal(requested.commands.rods[0].insertionPercent, 84);
+    assert.equal(requested.rods[0].insertion.value, 36);
+    advance(sim, 20);
+    assert.ok(sim.controlRods[0].position > 83);
+    assert.equal(sim.controlRods[1].position, 36);
+    assert.ok(sim.power < 61);
+    sim.stop();
+    advance(sim, 20);
+    sim.start();
+    assert.equal(sim.controlRods[0].target, 84);
+    assert.equal(sim.controlRods[1].target, 36);
+    sim.moveRods(5);
+    assert.equal(sim.controlRods[0].target, 89);
+    assert.equal(sim.controlRods[1].target, 41);
+    assert.equal(new Set(CORE_CHANNELS.filter(channel => channel.rodId).map(channel => channel.rodId)).size, 12);
+});
+
+test('pump speed changes coast gradually and independently, including zero and restart', () => {
+    const sim = new NuclearPowerSimulation();
+    sim.fluctuationsEnabled = false;
+    sim.setPumpSpeed('A', 55);
+    sim.setPumpSpeed('B', 75);
+    assert.equal(sim.snapshot().commands.pumps.A.speedPercent, 55);
+    assert.equal(sim.snapshot().signals.pumpASpeed.value, 100);
+    advance(sim, 10);
+    assert.ok(Math.abs(sim.primaryFlow - 55) < 0.5);
+    assert.ok(Math.abs(sim.secondaryFlow - 75) < 0.5);
+    sim.stop();
+    sim.setPumpSpeed('B', 0);
+    advance(sim, 15);
+    assert.ok(sim.secondaryFlow < 0.1);
+    assert.ok(sim.primaryFlow > 54.9);
+    sim.togglePump('A');
+    advance(sim, 15);
+    sim.togglePump('A');
+    assert.equal(sim.pumpASpeed, 55);
+    advance(sim, 15);
+    assert.ok(sim.primaryFlow > 54.9);
+});
+
+test('pump and flow motion is proportional to actual speed and preserves phase', () => {
+    const initial = { angle: 73, offset: -4 };
+    const full = advancePumpMotion(initial, 100, 0.1);
+    const half = advancePumpMotion(initial, 50, 0.1);
+    assert.equal(full.angle - initial.angle, (half.angle - initial.angle) * 2);
+    assert.ok(Math.abs((full.offset - initial.offset) - (half.offset - initial.offset) * 2) < 1e-9);
+    assert.deepEqual(advancePumpMotion(initial, 0, 0.1), initial);
+    assert.equal(advancePumpMotion(full, 25, 0.1).angle, full.angle + 4.5);
+});
+
+test('fluctuations do not create flow at zero speed or generation with every rod inserted', () => {
+    const sim = new NuclearPowerSimulation();
+    sim.setRods(100);
+    sim.setPumpSpeed('A', 0);
+    sim.setPumpSpeed('B', 0);
+    advance(sim, 120);
+    assert.ok(sim.primaryFlow < 0.001);
+    assert.ok(sim.secondaryFlow < 0.001);
+    assert.ok(sim.power < 0.001);
+});
+
+test('trip recovery preserves tuning and history and requires ready circulation, rods and cooling', () => {
+    const sim = new NuclearPowerSimulation();
+    sim.setRod('CR-01', 75);
+    sim.setPumpSpeed('B', 70);
+    sim.trip();
+    sim.resetTrip();
+    assert.equal(sim.tripped, true);
+    advance(sim, 5);
+    sim.togglePump('A');
+    sim.resetTrip();
+    assert.equal(sim.tripped, true);
+    sim.togglePump('A');
+    advance(sim, 5);
+    sim.temperature = 350;
+    sim.resetTrip();
+    assert.equal(sim.tripped, true);
+    advance(sim, 30);
+    assert.equal(sim.tripRecovery().ready, true);
+    const elapsed = sim.elapsed;
+    sim.resetTrip();
+    assert.equal(sim.tripped, false);
+    assert.equal(sim.running, false);
+    assert.equal(sim.elapsed, elapsed);
+    assert.equal(sim.pumpBSpeed, 70);
+    assert.ok(sim.events.some(event => event.category === 'alarm'));
+    sim.start();
+    assert.equal(sim.running, true);
+    assert.equal(sim.controlRods[0].target, 75);
+});
+
+test('automatic control holds changing temperature/flow targets against fluctuations and respects trips', () => {
+    const sim = new NuclearPowerSimulation();
+    sim.setRod('CR-01', 56);
+    const offset = sim.controlRods[0].target - sim.controlRods[1].target;
+    sim.setAutoMode(true);
+    advance(sim, 180);
+    assert.equal(sim.tripped, false);
+    assert.ok(Math.abs(sim.temperature - 286) < 3, `temperature ${sim.temperature}`);
+    assert.ok(Math.abs(sim.primaryFlow - 85) < 4);
+    assert.ok(Math.abs(sim.secondaryFlow - 85) < 4);
+    assert.ok(Math.abs(sim.controlRods[0].target - sim.controlRods[1].target - offset) < 1e-8);
+    sim.setAutoTargets(260, 75);
+    advance(sim, 180);
+    assert.ok(Math.abs(sim.temperature - 260) < 3, `new temperature ${sim.temperature}`);
+    assert.ok(Math.abs(sim.primaryFlow - 75) < 4);
+    let maxError = 0;
+    for (let i = 0; i < 120 * 4; i++) {
+        sim.tick(0.25);
+        maxError = Math.max(maxError, Math.abs(sim.temperature - 260));
+    }
+    assert.ok(maxError < 3, `maximum settled error ${maxError}`);
+    assert.ok(sim.events.some(event => event.category === 'automation'));
+    assert.ok(sim.events.some(event => event.category === 'process'));
+    sim.trip();
+    advance(sim, 15);
+    assert.ok(sim.rods > 99.9);
+    assert.equal(sim.running, false);
+    sim.setRod('CR-01', 0);
+    assert.equal(sim.controlRods[0].target, 100);
+    sim.resetTrip();
+    assert.equal(sim.running, false);
+});
+
+test('fluctuations remain bounded and event retention does not grow without limit', () => {
+    const sim = new NuclearPowerSimulation();
+    advance(sim, 30);
+    assert.notEqual(sim.power, 64);
+    assert.ok(Math.abs(sim.power - 64) < 2);
+    sim.setFluctuations(false);
+    advance(sim, 180);
+    assert.ok(Math.abs(sim.power - 64) < 0.01);
+    assert.ok(Math.abs(sim.temperature - 286) < 0.1);
+    for (let i = 0; i < 250; i++) sim.setLoad(i % 100);
+    assert.equal(sim.events.length, 200);
+    const lastEvent = sim.events[0];
+    sim.setLoad(NaN);
+    sim.setRod('unknown', 50);
+    sim.setPumpSpeed('invalid', 50);
+    assert.equal(sim.events[0], lastEvent);
 });
