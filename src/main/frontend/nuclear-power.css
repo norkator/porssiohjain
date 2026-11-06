@@ -255,7 +255,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .generator-letter { fill: #a4d5c4; font-size: 20px; }
 .rod-bank rect { transition: transform .25s linear; }
 .core-glow { opacity: var(--core-intensity, .64); transition: opacity .3s; }
-.turbine-blades { animation: turbine .28s ease-in-out infinite alternate; }
+.turbine-blades { /* Blade projection is driven by drawProcessMotion. */ }
 :host([data-primary-flow="false"]) .pump-a .rotor, :host([data-secondary-flow="false"]) .pump-b .rotor { fill: #c3946d; }
 :host([data-primary-flow="false"]) .primary, :host([data-secondary-flow="false"]) .secondary { opacity: .2; }
 :host([data-pump-a="false"]) .pump-a .pump-state, :host([data-pump-b="false"]) .pump-b .pump-state { fill: var(--warm); }
@@ -263,7 +263,6 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 :host([data-animating="false"]) *, :host([data-animating="false"]) *::after { animation-play-state: paused !important; }
 :host([data-state="tripped"]) .operation-state strong { color: #ffb7a7; }
 :host([data-state="stopped"]) .operation-state strong { color: var(--warm); }
-@keyframes turbine { from { opacity: .5; } to { opacity: 1; } }
 @keyframes blink { 50% { opacity: .2; } }
 
 /* Alternate, individually addressable core map. */
@@ -563,3 +562,21 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 @media (prefers-reduced-motion: reduce) {
     :host([data-overheated="true"]) :is(.core-temperature-metric, .core-temperature-instrument) { animation: none; }
 }
+
+/* Process activity follows actual heat/flow and the shared, pausable frame loop. */
+.process-particles, .heat-transfer, .condenser-drops, .generator-rotor, .electrical-bus { pointer-events: none; }
+.steam-particle { fill: #ffe6bd; }
+.exchanger-heat-flow { fill: none; stroke: #ffe0a0; stroke-width: 2; stroke-dasharray: 5 15; }
+.heat-transfer { fill: none; stroke: #ffd29b; stroke-width: 1.5; }
+.condenser-drops { fill: #a2f4e0; }
+.generator-rotor { fill: none; stroke: #85e2c2; stroke-width: 1; opacity: .55; }
+.electrical-bus rect { fill: #182c35; stroke: #4d6570; }
+.electrical-bus text { fill: #a1b3bd; font: 9px Consolas, monospace; }
+.bus-flow, .bus-pump-flow { fill: none; stroke: #6f8d91; stroke-width: 2; stroke-dasharray: 5 7; }
+.electrical-bus [data-bus-source]:not(.energized) .bus-flow { opacity: .12; }
+.electrical-bus .energized rect { fill: #204b3e; stroke: #83e4bb; }
+.electrical-bus .energized text { fill: #bdffe0; }
+.electrical-bus .energized .bus-flow, .bus-pump-flow { stroke: #83e4bb; }
+.fuel-bundle rect { transition: fill .25s linear, stroke .25s linear; }
+
+.fuel-drips { fill: #ffb85c; pointer-events: none; }

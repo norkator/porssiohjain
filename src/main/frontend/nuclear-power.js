@@ -4,7 +4,7 @@
  * Licensed under the Pörssiohjain Personal Use License v1.0.
  */
 import { CORE_CHANNELS, NuclearPowerSimulation } from './nuclear-power-model.js';
-import { advancePumpMotion } from './nuclear-power-motion.js';
+import { advancePumpMotion, advanceProcessMotion } from './nuclear-power-motion.js';
 import styles from './nuclear-power.css?inline';
 import lightStyles from './nuclear-power-light.css?inline';
 
@@ -37,7 +37,8 @@ const schematic = `
  <path class="pipe cold" d="M840 270V355M790 410V470H610V365"/>
  <path class="flow secondary steam-flow" d="M610 160H790V210"/>
  <path class="flow secondary cold-flow" d="M840 270V355M790 410V470H610V365"/>
- <path class="signal-line" d="M866 238H926V308"/><text x="926" y="329" text-anchor="middle" class="equipment-tag">GRID</text>
+ <g class="process-particles" aria-hidden="true">${Array.from({length: 6}, (_, i) => `<circle class="steam-particle" data-particle="${i}" r="2.5"/>`).join('')}</g>
+ <path class="signal-line generator-export" d="M866 238H926V308"/><text x="926" y="329" text-anchor="middle" class="equipment-tag">GRID</text>
  <path d="m920 300 6 8 6-8" fill="none" stroke="#a9c5bf" stroke-width="2"/>
 
  <!-- Reactor vessel / rods and fuel channels. -->
@@ -52,6 +53,7 @@ const schematic = `
    ${[170, 186, 202, 218, 234].map(x => `<rect x="${x}" y="230" width="12" height="112" rx="3"/>`).join('')}
   </g>
   <ellipse class="melt-pool" cx="208" cy="350" rx="48" ry="9" fill="#ff6043" opacity="0"/>
+  <g class="fuel-drips" aria-hidden="true">${Array.from({length: 5}, (_,i) => `<ellipse data-fuel-drip="${i}" rx="2.5" ry="5"/>`).join('')}</g>
   <g stroke="#ffd29a" stroke-opacity=".35">${[250, 270, 290, 310, 330].map(y => `<path d="M168 ${y}h80"/>`).join('')}</g>
   <path d="M158 223h100M158 348h100" stroke="#98a7ac" stroke-width="5"/>
   <g class="rod-bank" fill="#bdccd2" stroke="#e4edf0" stroke-width=".6">
@@ -79,6 +81,8 @@ const schematic = `
   <rect x="522" y="124" width="96" height="270" rx="38" fill="url(#vessel)" stroke="#83929b" stroke-width="2"/>
   <rect x="533" y="140" width="74" height="236" rx="28" fill="#14232f" stroke="#5d6f79"/>
   <path d="M530 160h15v25h50v23h-50v23h50v23h-50v23h50v23h-50v23h50v23h-50v19h-15" fill="none" stroke="#d69a60" stroke-width="5"/>
+  <path class="exchanger-heat-flow" d="M545 185h50v23h-50v23h50v23h-50v23h50v23h-50v23h50v23h-50"/>
+  <g class="heat-transfer" aria-hidden="true">${[203,249,295,341].map(y => `<path d="M552 ${y}h34m-5-4 5 4-5 4"/>`).join('')}</g>
   <path d="M610 365h-12V160h12" fill="none" stroke="#6ac9bc" stroke-width="4"/>
   <path d="M531 152v217" stroke="#e4edf0" stroke-opacity=".2" stroke-width="2"/>
   <text x="570" y="421" text-anchor="middle" class="component-subtitle">HEAT EXCHANGER</text>
@@ -89,7 +93,7 @@ const schematic = `
   <rect class="selection-ring" x="424" y="402" width="72" height="74" rx="36"/>
   <circle cx="460" cy="438" r="28" fill="#172a34" stroke="#8fa2ab" stroke-width="2"/>
   <g transform="translate(460 438)">${pumpRotor}</g>
-  <text x="460" y="495" text-anchor="middle" class="equipment-tag">P-01</text><text x="460" y="513" text-anchor="middle" class="pump-state" data-value="pumpA">RUNNING</text>
+  <text x="460" y="495" text-anchor="middle" class="equipment-tag">P-01</text><text x="460" y="505" text-anchor="middle" class="pump-state" data-value="pumpA">RUNNING</text>
  </g>
 
  <!-- Steam turbine and generator. -->
@@ -98,9 +102,10 @@ const schematic = `
  <g class="equipment turbine" data-equipment="turbine" role="button" tabindex="0" aria-label="Inspect turbine and generator">
   <rect class="selection-ring" x="739" y="187" width="146" height="106" rx="12"/>
   <path d="m752 216 102-15v75l-102-15Z" fill="url(#vessel)" stroke="#8c9ca6" stroke-width="2"/>
-  <path d="M767 220v36m17-39v42m17-45v48m17-50v53m17-55v58" class="turbine-blades" stroke="#d7c7aa" stroke-width="4"/>
+  <g class="turbine-blades" stroke="#d7c7aa" stroke-width="3">${[767,784,801,818,835].map((x,i) => `<path data-turbine-blade="${i}" d="M${x} 218V258"/>`).join('')}</g>
   <path d="M742 238h132" stroke="#d2dcd9" stroke-width="3"/>
   <circle cx="898" cy="238" r="25" fill="#203c3d" stroke="#89b9ac" stroke-width="2"/><text x="898" y="245" text-anchor="middle" class="generator-letter">G</text>
+  <g transform="translate(898 238)"><g class="generator-rotor" transform="rotate(0 0 0)" aria-hidden="true"><circle r="20"/><path d="M-20 0h40M0-20v40"/></g></g>
   <text x="805" y="315" text-anchor="middle" class="equipment-tag">TG-01 / TURBINE</text>
  </g>
  <g class="instrument" transform="translate(861 136)"><rect width="111" height="51" rx="5"/><text x="12" y="18" class="instrument-label">GENERATOR</text><text x="12" y="39" class="instrument-value cool" data-value="electric">262 MW</text></g>
@@ -108,6 +113,7 @@ const schematic = `
  <!-- Condenser and return pump. -->
  <rect x="747" y="355" width="139" height="55" rx="9" fill="#1c303b" stroke="#7d96a1" stroke-width="2"/>
  <path d="M758 369h116m-116 12h116m-116 12h116" stroke="#6db7b3" stroke-width="3"/>
+ <g class="condenser-drops" aria-hidden="true">${Array.from({length: 7}, (_,i) => `<path data-drop="${i}" d="M0-4Q-4 1 0 3Q4 1 0-4Z"/>`).join('')}</g>
  <text x="914" y="378" class="equipment-tag">C-01</text><text x="914" y="395" class="component-subtitle">CONDENSER</text>
  <g class="equipment pump pump-b" data-equipment="pumpB" role="button" tabindex="0" aria-label="Inspect secondary pump B">
   <rect class="selection-ring" x="652" y="434" width="72" height="74" rx="36"/>
@@ -116,8 +122,10 @@ const schematic = `
   <text x="746" y="468" class="equipment-tag">P-02</text><text x="746" y="486" class="pump-state" data-value="pumpB">RUNNING</text>
  </g>
  <path d="m725 465-8 5 8 5" class="arrow cool"/>
- <text x="30" y="528" class="drawing-label">SIMULATED SIGNALS / NO DEVICE CONNECTION</text>
- <text x="970" y="528" text-anchor="end" class="drawing-label">NP-001 · REV 01</text>
+ <g class="electrical-bus" role="img" aria-label="Simulated auxiliary power source and pump supply">
+  ${[['turbine',30,'TURBINE'],['grid',185,'GRID'],['diesel',340,'DIESELS']].map(([id,x,label]) => `<g data-bus-source="${id}"><rect x="${x}" y="518" width="105" height="22" rx="4"/><text x="${x+52}" y="533" text-anchor="middle">${label}</text><path class="bus-flow" d="M${x+52} 518v-4H490v15"/></g>`).join('')}
+  <path class="bus-pump-flow" d="M490 529h180"/><text x="680" y="533">AC BUS → COOLANT PUMPS</text>
+ </g>
 </svg>`;
 
 const coreMap = `<section class="core-map" aria-label="Top-down reactor core and individual control rods">
@@ -195,6 +203,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.logFilter = 'all';
         this.motion = { A: { angle: 0, offset: 0 }, B: { angle: 0, offset: 0 } };
         this.dieselMotion = { A: 0, B: 0 };
+        this.processMotion = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0 };
         this.floatingDialogs = [];
         this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
         this.intersecting = true;
@@ -665,6 +674,7 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     drawMotion(seconds) {
+        this.drawProcessMotion(seconds);
         for (const [pump, flow, circuit] of [['A', this.simulation.primaryFlow, 'primary'], ['B', this.simulation.secondaryFlow, 'secondary']]) {
             const motion = this.motion[pump] = advancePumpMotion(this.motion[pump], flow, seconds);
             this.shadowRoot.querySelector(`.pump-${pump.toLowerCase()} .rotor`).setAttribute('transform', `rotate(${motion.angle} 0 0)`);
@@ -682,6 +692,62 @@ export class NuclearPowerConsole extends HTMLElement {
                 card.querySelector('.diesel-output-flow').style.strokeDashoffset = -phase / 4;
             }
         }
+    }
+
+    drawProcessMotion(seconds = 0) {
+        const sim = this.simulation;
+        const motion = this.processMotion = advanceProcessMotion(this.processMotion, {
+            temperature: sim.temperature, secondaryTemperature: sim.secondaryTemperature,
+            primaryFlow: sim.primaryFlow, secondaryFlow: sim.secondaryFlow,
+            fuelTemperature: sim.condition.peakTemperature,
+            electricalOutput: sim.power * 4.1 * sim.secondaryFlow / 100, supplyFactor: sim.supply.factor
+        }, seconds);
+        const root = this.shadowRoot;
+        const steamPath = root.querySelector('.steam-flow');
+        for (const dot of root.querySelectorAll('.steam-particle')) {
+            const point = steamPath.getPointAtLength(((motion.steamPhase + Number(dot.dataset.particle) / 6) % 1) * steamPath.getTotalLength());
+            dot.setAttribute('cx', point.x); dot.setAttribute('cy', point.y);
+            dot.style.opacity = motion.steam;
+        }
+        root.querySelector('.steam-flow').style.opacity = motion.steam;
+        root.querySelector('.exchanger-heat-flow').style.strokeDashoffset = -motion.heatPhase * 40;
+        root.querySelector('.exchanger-heat-flow').style.opacity = motion.heat;
+        root.querySelector('.heat-transfer').style.opacity = motion.heat * (.55 + .45 * Math.sin(motion.heatPhase * Math.PI) ** 2);
+        for (const blade of root.querySelectorAll('[data-turbine-blade]')) {
+            const i = Number(blade.dataset.turbineBlade);
+            const half = (18 + i * 2) * Math.cos((motion.angle + i * 32) * Math.PI / 180);
+            const x = 767 + i * 17;
+            blade.setAttribute('d', `M${x - 3} ${238 - half}L${x + 3} ${238 + half}`);
+        }
+        root.querySelector('.generator-rotor').setAttribute('transform', `rotate(${motion.angle} 0 0)`);
+        root.querySelector('.generator-export').style.strokeDashoffset = -motion.angle / 10;
+        root.querySelector('.generator-export').style.opacity = sim.power * sim.secondaryFlow > 1 ? 1 : .2;
+        for (const drop of root.querySelectorAll('[data-drop]')) {
+            const i = Number(drop.dataset.drop);
+            const phase = (motion.steamPhase * 2 + i / 7) % 1;
+            drop.setAttribute('transform', `translate(${766 + i * 17} ${363 + phase * 40})`);
+            drop.style.opacity = motion.steam * Math.sin(phase * Math.PI);
+        }
+        const heatGlow = Math.min(1, Math.max(0, (sim.condition.peakTemperature - 100) / 550));
+        const thermalPhase = motion.thermalPhase;
+        root.querySelector('.core-glow').style.opacity = heatGlow * (.85 + .15 * Math.sin(thermalPhase * Math.PI * 2));
+        for (const drop of root.querySelectorAll('[data-fuel-drip]')) {
+            const i = Number(drop.dataset.fuelDrip);
+            const phase = (thermalPhase + i / 5) % 1;
+            drop.setAttribute('cx', 176 + i * 16);
+            drop.setAttribute('cy', 290 + phase * 62);
+            drop.style.opacity = sim.condition.meltProgress * Math.sin(phase * Math.PI);
+        }
+        root.querySelector('.melt-pool').style.fill = `hsl(${10 + 8 * Math.sin(thermalPhase * Math.PI * 2)} 100% 62%)`;
+        const source = sim.supply.source;
+        for (const item of root.querySelectorAll('[data-bus-source]')) {
+            const active = source.includes({turbine: 'TURBINE', grid: 'GRID', diesel: 'BACKUP'}[item.dataset.busSource]);
+            item.classList.toggle('energized', active);
+            item.querySelector('.bus-flow').style.strokeDashoffset = -motion.supplyPhase * 36;
+        }
+        root.querySelector('.bus-pump-flow').style.opacity = sim.supply.factor > 0 ? 1 : .15;
+        root.querySelector('.bus-pump-flow').style.strokeDashoffset = -motion.supplyPhase * 36;
+        root.querySelector('.electrical-bus').setAttribute('aria-label', `Simulated auxiliary power: ${source}; pump supply ${sim.supply.factor > 0 ? 'energized' : 'unavailable'}`);
     }
 
     stopAlarmSound() {
@@ -748,6 +814,11 @@ export class NuclearPowerConsole extends HTMLElement {
     update() {
         if (!this.initialized) return;
         const sim = this.simulation;
+        if (this.lastProcessElapsed > sim.elapsed) {
+            this.processMotion = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0 };
+        }
+        this.lastProcessElapsed = sim.elapsed;
+        this.drawProcessMotion();
         const { signals, status } = sim.snapshot();
         this.classList.toggle('meltdown-active', sim.condition.meltdown);
         const meltdownDialog = this.shadowRoot.querySelector('.meltdown-banner');
@@ -836,6 +907,18 @@ export class NuclearPowerConsole extends HTMLElement {
         this.shadowRoot.querySelector('.fuel-bundle').setAttribute('transform', `translate(0 ${350 * (1 - meltScale) + condition.meltProgress * 8}) scale(1 ${meltScale})`);
         this.shadowRoot.querySelector('.melt-pool').setAttribute('opacity', condition.meltProgress);
         this.shadowRoot.querySelector('.melt-pool').setAttribute('ry', 9 + condition.meltProgress * 15);
+        for (const [i, channel] of [...this.shadowRoot.querySelectorAll('.fuel-bundle rect')].entries()) {
+            const zones = condition.zones.slice(i * 2, i * 2 + 3);
+            const temperature = Math.max(...zones.map(zone => zone.temperature));
+            const heat = Math.min(1, Math.max(0, (temperature - 100) / 550));
+            channel.style.fill = `hsl(${40 - heat * 35} 90% ${30 + heat * 40}%)`;
+            channel.style.stroke = `hsl(${40 - heat * 35} 95% ${45 + heat * 40}%)`;
+            const slump = condition.meltProgress * (8 + i * 3);
+            channel.setAttribute('y', 230 + slump);
+            channel.setAttribute('height', 112 - slump);
+            channel.setAttribute('rx', 3 + condition.meltProgress * 3);
+        }
+        this.shadowRoot.querySelector('.melt-pool').setAttribute('rx', 38 + condition.meltProgress * 22);
         this.updateCore();
         const meters = { temperature: Math.min(100, sim.temperature / 4), power: sim.power, electric: signals.electricalOutput.value / 4.1, flow: sim.primaryFlow, rods: sim.rods };
         for (const [key, value] of Object.entries(meters)) this.shadowRoot.querySelector(`[data-meter="${key}"]`).style.width = `${value}%`;
@@ -949,6 +1032,9 @@ export class NuclearPowerConsole extends HTMLElement {
                 (best.x - Number(element.dataset.fuelX)) ** 2 + (best.y - Number(element.dataset.fuelY)) ** 2 ? rod : best);
             const zone = sim.condition.zones.find(zone => zone.id === nearest.id);
             element.dataset.condition = zone.damage >= 1 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
+            const glow = Math.min(1, Math.max(0, (zone.temperature - 100) / 550));
+            element.querySelector('.fuel-center').style.opacity = glow;
+            element.querySelector('.fuel-center').style.fill = `hsl(${40 - glow * 35} 95% 65%)`;
         }
         this.shadowRoot.querySelector('.rod-depth-track i').style.height = `${sim.controlRods.find(rod => rod.id === this.selectedRod).position}%`;
     }

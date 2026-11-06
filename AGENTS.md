@@ -68,6 +68,10 @@ The frontend separates requested rod/pump settings from actual simulated read-ba
 New/reset sessions select Auto with Electrical output regulation (200 MW), but
 the reactor starts stopped/cold with fully inserted rods and requires explicit Start; healthy
 running core temperatures have green emphasis in both themes.
+Process animations use actual heat/flow/output: turbine/generator coast-down, steam,
+condenser drops, exchanger highlights, local fuel glow/molten drips and source-to-pump
+bus flow share the visibility-aware frame loop. Rates are illustrative, not RPM;
+preserve cold-start stillness, retained heat, reduced motion and pause cleanup.
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
 recovery. Automatic control must never reset a trip or restart the plant by itself.

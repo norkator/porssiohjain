@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CORE_CHANNELS, NuclearPowerSimulation } from '../../main/frontend/nuclear-power-model.js';
-import { advancePumpMotion } from '../../main/frontend/nuclear-power-motion.js';
+import { advancePumpMotion, advanceProcessMotion } from '../../main/frontend/nuclear-power-motion.js';
 
 // These scenarios explicitly exercise manual operation or opt into temperature Auto.
 const manualSimulation = () => {
@@ -383,4 +383,31 @@ test('switching a degraded Manual session to Auto restores automatic protection'
     sim.setAutoMode(true); sim.tick();
     assert.equal(sim.tripped, true);
     assert.equal(sim.running, false);
+});
+
+
+test('process animation follows heat and generation with phase-preserving coast-down', () => {
+    const initial = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0 };
+    const cold = { temperature: 30, secondaryTemperature: 28, primaryFlow: 100, secondaryFlow: 100, electricalOutput: 0, supplyFactor: 1 };
+    const still = advanceProcessMotion(initial, cold, .1);
+    assert.equal(still.angle, 0);
+    assert.equal(still.steam, 0);
+    assert.equal(still.steamPhase, 0);
+    assert.ok(still.supplyPhase > 0); // External grid supplies pumps even while cold.
+    const hot = { ...cold, temperature: 286, secondaryTemperature: 184, electricalOutput: 260 };
+    let motion = initial;
+    for (let i=0; i<100; i++) motion = advanceProcessMotion(motion, hot, .1);
+    assert.ok(motion.speed > .6 && motion.speed < 1);
+    assert.ok(motion.steam > .8);
+    assert.ok(motion.heat > .7);
+    const coast = advanceProcessMotion(motion, { ...hot, electricalOutput: 0 }, .1);
+    assert.ok(coast.speed > 0 && coast.speed < motion.speed);
+    assert.ok(coast.angle !== motion.angle);
+    const blackout = advanceProcessMotion(motion, { ...hot, primaryFlow: 0, secondaryFlow: 0, electricalOutput: 0, supplyFactor: 0 }, .1);
+    assert.equal(blackout.steam, 0);
+    assert.equal(blackout.heat, 0);
+    assert.equal(blackout.supplyPhase, motion.supplyPhase);
+    assert.equal(blackout.steamPhase, motion.steamPhase);
+    assert.deepEqual(advanceProcessMotion(motion, hot, 0), { ...motion, steam: coast.steam, heat: coast.heat });
+    assert.deepEqual(advanceProcessMotion(motion, hot, 30), advanceProcessMotion(motion, hot, .1));
 });

@@ -135,3 +135,15 @@
 :host([data-theme="light"][data-temperature-ok="true"]) .core-temperature-metric :is(.status-dot, .metric-track i) { background: #278457; }
 :host([data-theme="light"]) .meltdown-banner { color: #fff; background: #770d19; border-color: #ff6975; }
 :host([data-theme="light"]) .meltdown-banner .core-dialog-titlebar { color: #fff; background: #570b13; }
+
+:host([data-theme="light"]) .steam-particle { fill: #945316; }
+:host([data-theme="light"]) .exchanger-heat-flow,
+:host([data-theme="light"]) .heat-transfer { stroke: #a45913; }
+:host([data-theme="light"]) .condenser-drops { fill: #146b79; }
+:host([data-theme="light"]) .generator-rotor { stroke: #126248; }
+:host([data-theme="light"]) .electrical-bus rect { fill: #e7eff2; stroke: #96aab4; }
+:host([data-theme="light"]) .electrical-bus text { fill: #496370; }
+:host([data-theme="light"]) .electrical-bus .energized rect { fill: #d0efdf; stroke: #26744f; }
+:host([data-theme="light"]) .electrical-bus .energized text { fill: #145c37; }
+:host([data-theme="light"]) .electrical-bus .energized .bus-flow,
+:host([data-theme="light"]) .bus-pump-flow { stroke: #26744f; }

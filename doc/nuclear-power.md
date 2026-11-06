@@ -158,6 +158,35 @@ changes do not reset simulation state or alter control settings.
 Light mode uses darker secondary labels and full-opacity disabled controls, so
 Auto-owned actuator settings remain readable while disabled.
 
+## Process animation
+
+The schematic uses the shared visibility-aware frame loop for illustrative motion:
+
+- Turbine blades show projected rotation and the generator has a centered rotating
+  rotor. Generation/secondary heat and flow drive a smoothed visual speed, with
+  startup acceleration and coast-down after shutdown. This is not a measured RPM.
+- Steam particles follow the steam pipe toward the turbine; their visibility and
+  travel rate use secondary temperature and actual circulation. Condenser droplets
+  follow the same heat/flow activity. Cold circulation still shows water flow but
+  no steam. With no flow, particles stop and disappear.
+- The exchanger has traveling heat highlights and cross-circuit heat arrows driven
+  by the temperature difference and actual flow in both loops. Fluids stay separate.
+- Side-view fuel colors and core-map fuel glow follow local simulated temperatures.
+  Retained fuel heat keeps the core glowing after shutdown; uneven channels remain
+  visible. Meltdown gradually slumps the fuel, adds molten drips and grows a gently
+  shifting molten pool. No explosion or random plant-state changes are introduced.
+- An auxiliary-power strip identifies turbine, grid or diesels and animates the
+  energized route into the pump bus. Loss of AC dims the bus; source restoration
+  does not restart the reactor. Existing diesel cutaways retain their own motion.
+
+Cold startup begins with inserted rods, no turbine rotation, steam or fuel glow,
+while grid-powered coolant circulation remains visible. Pressing Start lets the
+existing simulated rod, heat, flow and output signals bring each visual into activity.
+Stopping reverses generation activity while retained heat and cooling remain visible.
+New/reset sessions clear visual rotor inertia. Pause/hidden/detached views freeze
+motion, and reduced motion retains static state/color indicators while data updates.
+All colors support the feature's light and dark themes.
+
 ## Controls
 
 Controls:
