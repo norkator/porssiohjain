@@ -68,6 +68,10 @@ The frontend separates requested rod/pump settings from actual simulated read-ba
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
 recovery. Automatic control must never reset a trip or restart the plant by itself.
+Wide windows use stacked instruments on the left, controls/reactor/operator in the
+middle, and trends/logs on the right. Dark remains default; light theme is local to
+this feature. Auto can regulate core temperature or electrical MW; power requests
+must respect the configured core-temperature ceiling and report limiting reasons.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff

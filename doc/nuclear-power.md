@@ -32,6 +32,28 @@ selectable rods, `CR-01` through `CR-12`. Rings show actual insertion; nearby fu
 activity is an illustrative derived visualization, not a measured local power or
 temperature. The side section projects the same twelve rod positions.
 
+## Layout and appearance
+
+The console uses the full feature-window width with no fixed maximum width. At
+container widths of at least 1400 px, it has three columns:
+
+- left: stacked temperature, thermal output, electrical output, flow and rod cards,
+  followed by selected equipment details;
+- middle: regulation controls, then reactor overview beside the operator console;
+- right: live trends above the filterable event journal.
+
+The default overview fits 1920×1080 and 2560×1440 screens without page scrolling.
+Long event lists scroll inside the journal. Narrower/resized windows progressively
+use two columns and then stacked sections, with mobile-sized controls retained.
+
+Dark is the default. The header's **Light theme** switch changes this feature's
+panels, controls, diagrams, chart and logs independently of the Windows 98 shell.
+The browser preference uses `porssiohjain.nuclear-power.theme` in local storage;
+unavailable storage falls back to dark and never prevents switching themes. Theme
+changes do not reset simulation state or alter control settings.
+
+## Controls
+
 Controls:
 
 - Start/Stop: normal startup or cooldown, maintaining circulation settings and
@@ -62,8 +84,10 @@ Controls:
 
 ## Automatic regulation and fluctuations
 
-**Auto** holds configurable core temperature (40–330 °C; default 286 °C) and
-circulation (25–100%; default 85%) targets. A one-second illustrative regulator uses
+**Auto** has selectable **Core temperature** and **Electrical output** objectives.
+Temperature regulation is the default. It holds configurable core temperature
+(40–330 °C; default 286 °C) and circulation (25–100%; default 85%) targets.
+A one-second illustrative regulator uses
 feed-forward plus proportional/integral temperature correction to adjust the rod
 bank, retaining individual offsets where travel allows. Independent feedback adjusts
 both pump speed targets. It does not automatically re-enable an operator-disabled
@@ -77,6 +101,25 @@ controller regulates the drifting process rather than freezing displayed values.
 The model is deliberately simplified and does not solve reactor/neutron physics.
 Trips inhibit regulation. Resetting a trip never triggers automatic restart; an
 explicit Start is required even when Auto remains selected.
+
+For grid-style generation control, choose **Regulate → Electrical output**, enter
+**Output target** (0–400 MW electric; default 200), then select **Auto**. The target
+is generator electrical output (`MWₑ`), distinct from the thermal output (`MWₜₕ`).
+The left electrical card and regulation status show actual versus requested output.
+The right trend switches its output axis from reactor load (%) to electrical MW and
+includes the target's recorded history as a dashed line. Only active electrical
+regulation records target samples, so the line does not imply a target was active
+before it was selected.
+
+In electrical-output mode, **Core target** becomes **Core limit**: the same configured
+temperature now limits requested generation. Pump circulation still follows the
+configured flow target. The controller adjusts rods against actual generator output
+and secondary flow, limits thermal power by available cooling and the temperature
+ceiling, and prevents integral wind-up when constrained. Unachievable requests show
+the limiting reason (for example **Core temperature limit**); reported output is not
+replaced with the requested value. Returning to temperature regulation restores that
+objective, preserving the electrical setpoint for later. Trips, manual mode and
+explicit restart rules remain authoritative for both objectives.
 
 ## Logging
 
@@ -101,9 +144,11 @@ animation while instruments and controls continue to work.
 - `src/main/frontend/nuclear-power.js` renders the native custom element, SVG
   schematic, controls, recent two-minute trends, and bounded event journal.
 - `src/main/frontend/nuclear-power.css` is isolated in the element's shadow root.
+- `src/main/frontend/nuclear-power-light.css` supplies the optional light palette.
 - `src/main/frontend/nuclear-power-model.js` contains the deterministic, browser-local
   plant, individual rod/channel layout, controller, disturbances, alarms and log.
-  Its snapshot separates `commands` (requested mode, targets, enable states) from
+  Its snapshot separates `commands` (requested mode/objective, temperature/flow/MW
+  targets, enable states) from
   reported `signals` and per-rod insertion. Signals contain value, unit, source,
   quality, and simulated elapsed time; that time is not a sensor timestamp.
 - `src/main/frontend/nuclear-power-motion.js` integrates speed-dependent impeller
@@ -150,8 +195,8 @@ temporary loopback server tests the current frontend source directly. Each run p
 its temporary screenshot/CSV artifact directory. No extra browser test dependency
 is required beyond Node and Chrome.
 
-Latest checkpoint (2026-11-06): the clean Java 21 build and 24 focused desktop/view
-tests pass. Thirteen model/motion tests cover the controls and regulation, including
+Latest checkpoint (2026-11-06): the Java 21 build and 24 focused desktop/view tests
+pass. Sixteen model/motion tests cover the controls and regulation, including
 a two-minute settled-error window and zero-flow behavior with disturbances enabled.
 The browser regression also passes against the source-only console and the
 authenticated local Vaadin application. No real MQTT/model devices are connected.
@@ -161,5 +206,6 @@ phase-preserving motion, automatic regulation under disturbances, categorized bo
 logging, normal restart, and trip recovery without losing settings. Browser checks
 must also verify fixed pump hub centers over multiple frames, individual selection,
 both view modes, control disabling in Auto, CSV export, mobile/container resizing,
-and pause/minimize/detach/reduced-motion cleanup. Use the disposable local profile
+wide-screen fitting and column ordering, theme default/persistence, electrical MW
+tracking and limiting, and pause/minimize/detach/reduced-motion cleanup. Use the disposable local profile
 (`./run-local.sh 18080`, admin/admin) for authenticated application checks.

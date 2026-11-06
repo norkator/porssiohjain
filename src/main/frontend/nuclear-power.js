@@ -246,12 +246,12 @@ export class NuclearPowerConsole extends HTMLElement {
           </section>
           <aside class="analysis-column" aria-label="Trends and event journal">
             <section class="panel trend-panel" aria-label="Simulated temperature and output trends"><div class="panel-heading"><div><span class="section-index">03</span><h2>Live trends</h2></div><span class="local-tag">SIMULATED / 2 MIN</span></div>
-              <div class="trend-legend"><span><i class="legend-dot warm-dot"></i> Core temperature <strong data-value="core">286.0 °C</strong></span><span><i class="legend-dot"></i> Reactor output <strong data-value="load">64.0%</strong></span></div>
-              <svg class="trend-chart" viewBox="0 0 760 172" role="img" aria-label="Simulated core temperature in Celsius and reactor output in percent over the last two minutes">
+              <div class="trend-legend"><span><i class="legend-dot warm-dot"></i> Core temperature <strong data-value="core">286.0 °C</strong></span><span><i class="legend-dot"></i> <span data-value="trendOutputLabel">Reactor output</span> <strong data-value="trendOutput">64.0%</strong></span><span class="target-legend" hidden><i class="legend-target"></i> Electrical target <strong data-value="electricalTarget"></strong></span></div>
+              <svg class="trend-chart" viewBox="0 0 760 300" role="img" aria-label="Simulated temperature and reactor output over the last two minutes">
                 <defs><linearGradient id="trend-fill" x2="0" y2="1"><stop stop-color="#efa35c" stop-opacity=".12"/><stop offset="1" stop-color="#efa35c" stop-opacity="0"/></linearGradient></defs>
-                <g class="chart-grid"><path d="M40 25H715M40 76H715M40 127H715M40 25V127M208 25V127M377 25V127M546 25V127M715 25V127"/></g>
-                <g class="chart-labels"><text x="0" y="14">°C</text><text x="745" y="14">%</text><text x="0" y="29">400</text><text x="0" y="80">200</text><text x="12" y="131">0</text><text x="731" y="29">100</text><text x="738" y="80">50</text><text x="745" y="131">0</text><text x="40" y="155">−2 MIN</text><text x="355" y="155">−1 MIN</text><text x="691" y="155">NOW</text></g>
-                <path class="trend-area"/><path class="temperature-trace"/><path class="power-trace"/><circle class="temperature-dot" r="3"/><circle class="power-dot" r="3"/>
+                <g class="chart-grid"><path d="M40 40H715M40 145H715M40 250H715M40 40V250M208 40V250M377 40V250M546 40V250M715 40V250"/></g>
+                <g class="chart-labels"><text x="0" y="22">°C</text><text x="725" y="22" data-value="chartOutputUnit">%</text><text x="0" y="44">400</text><text x="0" y="149">200</text><text x="12" y="254">0</text><text x="725" y="44" data-value="chartOutputMax">100</text><text x="731" y="149" data-value="chartOutputMid">50</text><text x="739" y="254">0</text><text x="40" y="282">−2 MIN</text><text x="355" y="282">−1 MIN</text><text x="675" y="282">NOW</text></g>
+                <path class="trend-area"/><path class="temperature-trace"/><path class="power-trace"/><path class="target-trace"/><circle class="temperature-dot" r="3"/><circle class="power-dot" r="3"/>
               </svg><p class="trend-note">Trends build during this session. Both axes show simulated values.</p>
             </section>
             <section class="panel events-panel" aria-label="Simulation event log"><div class="panel-heading"><div><span class="section-index">04</span><h2>Event journal</h2></div><span class="event-count">0 EVENTS</span></div><div class="log-toolbar"><label for="log-filter">Show <select id="log-filter"><option value="all">All events</option><option value="operator">Operator</option><option value="automation">Automation</option><option value="process">Process readings</option><option value="alarm">Alarms</option><option value="system">System</option></select></label><span>Latest 200 events · this session</span><button class="small-button" data-action="export-log">↓ Export CSV</button></div><div class="alarm-list" aria-live="polite"></div><ol class="event-list" aria-label="Recent simulation events"></ol><button class="ack-button" data-action="acknowledge" disabled>✓ Acknowledge alarms</button></section>
@@ -452,6 +452,7 @@ export class NuclearPowerConsole extends HTMLElement {
         const n = (value, decimals = 0) => value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
         const percent = value => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
         const selectedRod = sim.controlRods.find(rod => rod.id === this.selectedRod);
+        const powerObjective = sim.autoObjective === 'power';
         const pumpState = (enabled, target, actual) => actual < 0.5 ? 'STOPPED' : !enabled || target === 0 ? 'COASTING' : 'RUNNING';
         const values = {
             core: `${n(signals.coreTemperature.value, 1)} °C`, coreNumber: n(signals.coreTemperature.value, 1),
@@ -460,6 +461,10 @@ export class NuclearPowerConsole extends HTMLElement {
             electric: `${n(signals.electricalOutput.value)} MW`, electricNumber: n(signals.electricalOutput.value),
             electricalTargetLabel: sim.autoObjective === 'power' ? `TARGET ${n(sim.autoElectricalTarget)} MW ELECTRIC` : 'GENERATOR OUTPUT',
             temperatureLabel: sim.autoObjective === 'power' ? 'Core limit' : 'Core target',
+            trendOutputLabel: powerObjective ? 'Electrical output' : 'Reactor output',
+            trendOutput: powerObjective ? `${n(signals.electricalOutput.value, 1)} MW` : `${n(sim.power, 1)}%`,
+            electricalTarget: `${n(sim.autoElectricalTarget)} MW`,
+            chartOutputUnit: powerObjective ? 'MW' : '%', chartOutputMax: powerObjective ? '400' : '100', chartOutputMid: powerObjective ? '200' : '50',
             flow: `${n(signals.primaryFlow.value)} m³/h`, flowNumber: n(signals.primaryFlow.value),
             rods: `${n(sim.rods, 1)}%`, rodsNumber: n(sim.rods, 1), rodTarget: percent(sim.rodTarget),
             load: `${n(sim.power, 1)}%`, demand: percent(sim.demand), status,
@@ -635,14 +640,27 @@ export class NuclearPowerConsole extends HTMLElement {
         const sim = this.simulation;
         const points = sim.history;
         const x = time => 40 + (time - sim.elapsed + 120) / 120 * 675;
-        const y = (value, max) => 127 - Math.max(0, Math.min(1, value / max)) * 102;
+        const y = (value, max) => 250 - Math.max(0, Math.min(1, value / max)) * 210;
         const path = (key, max) => points.map((point, index) => `${index ? 'L' : 'M'}${x(point.time).toFixed(1)} ${y(point[key], max).toFixed(1)}`).join(' ');
         this.shadowRoot.querySelector('.temperature-trace').setAttribute('d', path('temperature', 400));
-        this.shadowRoot.querySelector('.power-trace').setAttribute('d', path('power', 100));
+        const powerObjective = sim.autoObjective === 'power';
+        const outputKey = powerObjective ? 'electricalOutput' : 'power';
+        const outputMax = powerObjective ? 400 : 100;
+        this.shadowRoot.querySelector('.power-trace').setAttribute('d', path(outputKey, outputMax));
+        let targetPath = '';
+        let gap = true;
+        if (powerObjective) for (const point of points) {
+            if (point.electricalTarget === null) { gap = true; continue; }
+            targetPath += `${gap ? 'M' : 'L'}${x(point.time).toFixed(1)} ${y(point.electricalTarget, 400).toFixed(1)} `;
+            gap = false;
+        }
+        this.shadowRoot.querySelector('.target-trace').setAttribute('d', targetPath);
+        this.shadowRoot.querySelector('.target-legend').hidden = !powerObjective || !sim.autoMode;
+        this.shadowRoot.querySelector('.trend-chart').setAttribute('aria-label', `Simulated core temperature in Celsius and ${powerObjective ? 'electrical output and target in megawatts' : 'reactor output in percent'} over the last two minutes`);
         const first = points[0];
         const last = points.at(-1);
-        this.shadowRoot.querySelector('.trend-area').setAttribute('d', `${path('temperature', 400)} L${x(last.time).toFixed(1)} 127 L${x(first.time).toFixed(1)} 127 Z`);
-        for (const [className, key, max] of [['temperature-dot', 'temperature', 400], ['power-dot', 'power', 100]]) {
+        this.shadowRoot.querySelector('.trend-area').setAttribute('d', `${path('temperature', 400)} L${x(last.time).toFixed(1)} 250 L${x(first.time).toFixed(1)} 250 Z`);
+        for (const [className, key, max] of [['temperature-dot', 'temperature', 400], ['power-dot', outputKey, outputMax]]) {
             const dot = this.shadowRoot.querySelector(`.${className}`);
             dot.setAttribute('cx', x(last.time));
             dot.setAttribute('cy', y(last[key], max));

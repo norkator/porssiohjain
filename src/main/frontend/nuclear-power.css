@@ -166,9 +166,11 @@ dd { margin: 0; color: #e1e9ea; font: 11px Consolas, monospace; }
 .trend-legend strong { font-weight: 400; font: 10px Consolas, monospace; color: #d5e1e7; }
 .trend-chart { display: block; width: calc(100% - 38px); margin: 10px 19px 0; min-height: 135px; }
 .chart-grid { stroke: #30404c; stroke-width: .7; stroke-dasharray: 3 5; fill: none; }
-.chart-labels { fill: #98aabd; font: 9px Consolas, monospace; }
+.chart-labels { fill: #98aabd; font: 14px Consolas, monospace; }
 .temperature-trace { fill: none; stroke: var(--warm); stroke-width: 2; stroke-linejoin: round; }
 .power-trace { fill: none; stroke: var(--cool); stroke-width: 1.6; stroke-linejoin: round; }
+.target-trace { fill: none; stroke: var(--cool); stroke-width: 1.5; stroke-dasharray: 8 7; opacity: .6; }
+.legend-target { display: inline-block; width: 13px; border-top: 1px dashed var(--cool); }
 .trend-area { fill: url(#trend-fill); }
 .temperature-dot { fill: var(--warm); }
 .power-dot { fill: var(--cool); }
@@ -280,7 +282,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 @container nuclear-console (min-width: 1400px) {
     .console-layout { grid-template-columns: clamp(160px, 10.5cqw, 220px) minmax(0, 1fr) clamp(300px, 21cqw, 460px); }
     .analysis-column { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-    .analysis-column .event-list { max-height: clamp(180px, calc(100dvh - 660px), 600px); }
+    .analysis-column .event-list { max-height: clamp(180px, calc(100dvh - 740px), 600px); }
     .analysis-column .log-toolbar { flex-wrap: wrap; padding: 9px 12px; gap: 8px; }
     .analysis-column .log-toolbar > span { display: none; }
     .analysis-column .log-toolbar button { margin-left: auto; }

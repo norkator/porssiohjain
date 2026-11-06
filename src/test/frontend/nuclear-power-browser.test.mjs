@@ -15,7 +15,8 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
     const appUrl = process.env.NUCLEAR_POWER_APP_URL;
     if (appUrl) {
         let ready = false;
-        for (let attempt = 0; attempt < 300; attempt++) {
+        const startupDeadline = Date.now() + 60000;
+        while (Date.now() < startupDeadline) {
             try {
                 const response = await fetch(`${appUrl}/login`, { signal: AbortSignal.timeout(1000) });
                 if (response.ok) { ready = true; break; }
@@ -96,6 +97,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         const input = (selector, value) => consoleCode(`const input=s.querySelector(${JSON.stringify(selector)});input.value=${JSON.stringify(String(value))};input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));`);
         const advance = seconds => consoleCode(`for(let i=0;i<${seconds * 4};i++)c.simulation.tick(.25);c.update();`);
         const screenshot = async name => {
+            await wait(200); // Let palette/hover transitions settle before capturing.
             const result = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
             writeFileSync(join(artifacts, `${name}.png`), Buffer.from(result.data, 'base64'));
         };
@@ -182,6 +184,16 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await advance(240);
         assert.ok(Math.abs(await consoleCode('return c.simulation.snapshot().signals.electricalOutput.value;') - 150) < 2);
         assert.equal(await value('temperatureLabel'), 'Core limit');
+        assert.equal(await value('chartOutputUnit'), 'MW');
+        assert.ok(await consoleCode(`return s.querySelector('.target-trace').getAttribute('d').length>0;`));
+        await page('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+        await advance(1200); // Check the power view with a full event journal.
+        assert.ok(await consoleCode(`return s.querySelector('.console-footer').getBoundingClientRect().bottom;`) <= 1080 - (appUrl ? 35 : 0), 'Electrical control and a full journal should fit a wide screen');
+        await screenshot('electrical-control-dark');
+        await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
+        await screenshot('electrical-control-light');
+        if (appUrl) assert.equal(await evaluate(`getComputedStyle(document.querySelector('.nuclear-power-view')).backgroundColor`), 'rgb(237, 242, 245)');
+        await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
         await input('#auto-electrical', 400);
         await advance(180);
         assert.equal(await value('regulationDetail'), 'Core temperature limit');

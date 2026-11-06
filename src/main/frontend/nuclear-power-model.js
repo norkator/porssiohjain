@@ -339,6 +339,8 @@ export class NuclearPowerSimulation {
 
     sample() {
         this.history.push({ time: this.elapsed, temperature: this.temperature, power: this.power,
+            electricalOutput: this.power * 4.1 * this.secondaryFlow / 100,
+            electricalTarget: this.autoMode && this.autoObjective === 'power' ? this.autoElectricalTarget : null,
             primaryFlow: this.primaryFlow, secondaryFlow: this.secondaryFlow, rods: this.rods });
         this.history = this.history.filter(point => point.time >= this.elapsed - 120);
     }

@@ -70,6 +70,8 @@
 :host([data-theme="light"]) .control-channel > rect { fill: #d9eee7; stroke: #5f9b8d; }
 :host([data-theme="light"]) :is(.control-channel.selected, .control-channel:hover) > rect { fill: #b9e2d3; stroke: #0b715f; }
 :host([data-theme="light"]) .control-channel text { fill: #205e50; }
+:host([data-theme="light"]) .control-channel:focus-visible > rect { stroke: #003d4f; }
+:host([data-theme="light"]) .equipment:focus-visible .selection-ring { stroke: #003d4f; }
 :host([data-theme="light"]) .fuel-center { fill: #af5d1d; }
 :host([data-theme="light"]) .fuel-pin { fill: #844611; }
 :host([data-theme="light"]) .rod-depth-track { background: #d5e6e8; border-color: #81a9ac; }
