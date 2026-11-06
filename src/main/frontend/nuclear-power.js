@@ -197,6 +197,7 @@ export class NuclearPowerConsole extends HTMLElement {
     disconnectedCallback() {
         this.closeCoreMap(false);
         this.shadowRoot.querySelector('.auxiliary-dialog')?.close();
+        this.stopAlarmSound();
         clearInterval(this.timer);
         this.timer = null;
         cancelAnimationFrame(this.animationFrame);
@@ -213,10 +214,16 @@ export class NuclearPowerConsole extends HTMLElement {
         this.setAttribute('lang', 'en');
         this.shadowRoot.innerHTML = `<style>${styles}\n${lightStyles}</style>
         <main class="console">
+          <section class="meltdown-banner" hidden role="alert" aria-label="Simulated core meltdown">
+            <strong class="meltdown-title">CORE MELTDOWN</strong>
+            <p>SIMULATED · Incident recorded · Irreversible core damage</p>
+            <p>Reset demo to start a new session. Export the incident before resetting.</p>
+            <div><button class="control-button" data-action="export-incident">Export incident report</button> <button class="control-button" data-action="reset">↺ Reset demo</button></div>
+          </section>
           <header class="masthead">
             <div class="brand-mark">${radiation}</div>
             <div class="heading"><div class="eyebrow">PÖRSSIOHJAIN / UNIT 01</div><h1>Nuclear Power<span class="title-dot">.</span></h1><p>Energy, under control.</p></div>
-            <div class="appearance-tools"><button class="small-button power-supply-button" data-action="power-supply" aria-haspopup="dialog"><span>ϟ <span data-value="powerSource">TURBINE GENERATOR</span></span><small>Auxiliary power / manage ↗</small></button><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div></div>
+            <div class="appearance-tools"><button class="small-button" data-action="sound" aria-pressed="false">Enable alarm sounds</button><button class="small-button power-supply-button" data-action="power-supply" aria-haspopup="dialog"><span>ϟ <span data-value="powerSource">TURBINE GENERATOR</span></span><small>Auxiliary power / manage ↗</small></button><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div></div>
           </header>
 
           <div class="console-layout">
@@ -495,7 +502,19 @@ export class NuclearPowerConsole extends HTMLElement {
 
     act(action) {
         const sim = this.simulation;
+        if (this.alarmAudio && this.soundEnabled) this.alarmAudio.resume().catch(() => {});
         const actions = {
+            sound: () => {
+                this.soundEnabled = !this.soundEnabled;
+                if (this.soundEnabled) {
+                    const Audio = window.AudioContext || window.webkitAudioContext;
+                    if (Audio) {
+                        this.alarmAudio ||= new Audio();
+                        this.alarmAudio.resume().catch(() => {});
+                    } else this.soundEnabled = false;
+                }
+                if (!this.soundEnabled) this.stopAlarmSound();
+            },
             start: () => sim.start(), stop: () => sim.stop(),
             'load-down': () => sim.setLoad(sim.demand - 5), 'load-up': () => sim.setLoad(sim.demand + 5),
             insert: () => sim.moveRods(5), withdraw: () => sim.moveRods(-5),
@@ -532,6 +551,7 @@ export class NuclearPowerConsole extends HTMLElement {
     updateActivity() {
         const active = this.isConnected && this.intersecting && !document.hidden && !this.simulation.paused;
         this.dataset.animating = String(active);
+        if (!active) this.stopAlarmSound();
         if (!active) {
             this.closeCoreMap(false);
             // Pause keeps the management dialog open; hiding the feature closes it.
@@ -572,10 +592,61 @@ export class NuclearPowerConsole extends HTMLElement {
         }
     }
 
+    stopAlarmSound() {
+        for (const node of this.alarmNodes || []) {
+            try { node.stop(); } catch { /* Already stopped. */ }
+            node.disconnect();
+        }
+        this.alarmNodes = [];
+        this.alarmAudio?.suspend().catch(() => {});
+        this.nextAlarmAt = 0;
+    }
+
+    updateAlarmSound() {
+        const sim = this.simulation;
+        const meltdown = sim.condition.meltdown;
+        const pending = sim.alarms.some(alarm => !alarm.acknowledged);
+        const enabled = this.soundEnabled && this.isConnected && this.intersecting && !document.hidden && !sim.paused;
+        const button = this.shadowRoot.querySelector('[data-action="sound"]');
+        button.textContent = this.soundEnabled ? 'Mute alarm sounds' : 'Enable alarm sounds';
+        button.setAttribute('aria-pressed', String(!!this.soundEnabled));
+        if (!enabled || (!meltdown && !pending)) { this.stopAlarmSound(); return; }
+        const context = this.alarmAudio;
+        if (!context) return;
+        if (context.state === 'suspended') { context.resume().catch(() => {}); return; }
+        const now = context.currentTime;
+        const mode = meltdown ? 'meltdown' : 'attention';
+        if (this.alarmMode !== mode) { this.nextAlarmAt = 0; this.alarmMode = mode; }
+        if (now < (this.nextAlarmAt || 0)) return;
+        this.alarmNodes = (this.alarmNodes || []).filter(node => {
+            if (node.alarmEnd > now) return true;
+            node.disconnect(); return false;
+        });
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = meltdown ? 'triangle' : 'sine';
+        oscillator.frequency.setValueAtTime(meltdown ? 520 : 880, now);
+        oscillator.frequency.linearRampToValueAtTime(meltdown ? 1050 : 660, now + 0.35);
+        oscillator.frequency.linearRampToValueAtTime(meltdown ? 520 : 660, now + 0.7);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.09, now + 0.03);
+        gain.gain.setValueAtTime(0.09, now + 0.55);
+        gain.gain.linearRampToValueAtTime(0, now + 0.75);
+        oscillator.connect(gain); gain.connect(context.destination);
+        oscillator.alarmEnd = now + 0.8;
+        oscillator.onended = () => gain.disconnect();
+        oscillator.start(now); oscillator.stop(now + 0.8);
+        this.alarmNodes.push(oscillator);
+        this.nextAlarmAt = now + (meltdown ? 0.85 : 3);
+    }
+
     update() {
         if (!this.initialized) return;
         const sim = this.simulation;
         const { signals, status } = sim.snapshot();
+        this.classList.toggle('meltdown-active', sim.condition.meltdown);
+        this.shadowRoot.querySelector('.meltdown-banner').hidden = !sim.condition.meltdown;
+        this.updateAlarmSound();
         const n = (value, decimals = 0) => value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
         const percent = value => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
         const selectedRod = sim.controlRods.find(rod => rod.id === this.selectedRod);

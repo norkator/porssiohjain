@@ -477,3 +477,29 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Slow red pulses preserve instrument readability during the latched incident. */
+:host(.meltdown-active) .console { position: relative; isolation: isolate; }
+:host(.meltdown-active) .console::after {
+    content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none;
+    background: rgba(220, 0, 15, .12); box-shadow: inset 0 0 90px 12px #ff2638;
+    animation: meltdown-red-pulse 1.8s ease-in-out infinite alternate;
+}
+.meltdown-banner {
+    position: sticky; top: 0; z-index: 6; padding: 16px; margin-bottom: 14px;
+    text-align: center; color: #fff; background: #770d19; border: 3px solid #ff6975;
+    border-radius: 8px; box-shadow: 0 4px 24px #0008;
+}
+.meltdown-title {
+    display: inline-block; font-size: clamp(24px, 4cqi, 48px); letter-spacing: .08em;
+    animation: meltdown-bounce 1.8s ease-in-out infinite alternate;
+}
+.meltdown-banner p { margin: 4px 0 8px; }
+.meltdown-banner .control-button { background: #fff; color: #750b17; border-color: #fff; }
+@keyframes meltdown-red-pulse { from { opacity: .25; } to { opacity: .85; } }
+@keyframes meltdown-bounce { from { transform: translate(-10px, -3px); } to { transform: translate(10px, 4px); } }
+:host([data-animating="false"]) .console::after,
+:host([data-animating="false"]) .meltdown-title { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+    :host(.meltdown-active) .console::after, .meltdown-title { animation: none; }
+}

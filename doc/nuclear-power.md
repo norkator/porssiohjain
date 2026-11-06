@@ -71,6 +71,18 @@ the fault: protection may trip before temperatures rise. Stress recedes after
 correction, while damage does not heal automatically. At meltdown, fuel deforms
 gradually and a glowing pool grows over subsequent seconds; there is no explosion.
 Generation shuts down and the session remains inspectable/exportable.
+The latched meltdown adds a slow red pulse across the entire console and a sticky
+banner with bouncing **CORE MELTDOWN** text, incident export and **Reset demo**.
+Reduced-motion preferences replace the pulse/bounce with static red emphasis;
+pause and hidden-view suspension also pause these effects. Existing damage and
+meltdown thresholds remain unchanged.
+
+**Enable alarm sounds** in the header opts into browser-synthesized audio, with an
+explicit mute control. Unacknowledged alarms repeat a short attention tone every
+three seconds; meltdown uses a continuous alternating siren pattern that alarm
+acknowledgement cannot silence. Mute, pause, hidden views and detach stop audio;
+Reset demo clears the incident sound. Browsers require a user gesture to enable
+audio. Sound settings belong to this view instance and no audio files are fetched.
 The temperature trend expands its scale above the old 400 °C range during a severe
 incident rather than clipping the continued rise.
 

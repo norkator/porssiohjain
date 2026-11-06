@@ -78,7 +78,9 @@ independent of alarm acknowledgement. These are simulation limits, not hardware 
 `nuclear-power-condition.js` models retained heat, progressive faults, local fuel
 hot spots, stress/wear and accumulated damage before a slow meltdown. Trip reset
 must never erase heat/damage or heal components. Only cooled, stopped, fault-free
-non-melted sessions allow explicit repair; meltdown requires Reset demo. Preserve
+non-melted sessions allow explicit repair; meltdown requires Reset demo. The latched meltdown has a red console pulse, bouncing
+banner with reset/export, and opt-in warning/siren audio; preserve mute, pause,
+visibility cleanup and reduced-motion behavior. Preserve
 the incident's initiating cause independently of the rolling event journal.
 `nuclear-power-fuel.js` tracks uneven exposure and reserve per fuel assembly, separately
 from control rods. Replacement is manual, one cooled/stopped assembly at a time; never
