@@ -204,7 +204,23 @@ class MainLayoutTest {
         List<String> labels = icons.getChildren().map(c -> c.getElement().getTextRecursively()).toList();
         assertEquals(List.of("home.myDevices", "home.myControls", "home.weatherControls",
                 "home.heatingPlanner", "home.loadShedding", "home.powerplant", "home.solarAnglePlanner",
-                "home.myProduction", "home.powerLimits", "home.dashboard", "home.measurements", "home.waterMeters", "home.settings", "featureRequest.title", "desktop.googlePlay", "home.buyMeACoffee", "home.logout"), labels);
+                "home.myProduction", "home.powerLimits", "home.dashboard", "home.forecasts", "home.measurements", "home.waterMeters", "home.settings", "featureRequest.title", "desktop.googlePlay", "home.buyMeACoffee", "home.logout"), labels);
+    }
+
+    @Test
+    void forecastsUseTheSharedIconAndTitleAndRetainTheirWindow() {
+        Div forecasts = new Div("forecast selection");
+        navigate("forecasts", forecasts);
+        Component frame = windows().getFirst();
+        assertTrue(frame.getElement().getTextRecursively().contains("home.forecasts"));
+        assertTrue(children(frame).anyMatch(c -> "icons/desktop/forecasts.svg".equals(c.getElement().getAttribute("src"))));
+        assertTrue(children(tasks().getFirst()).anyMatch(c -> "icons/desktop/forecasts.svg".equals(c.getElement().getAttribute("src"))));
+        navigate("device", new Div());
+        tasks().getFirst().click();
+        assertSame(frame, windows().getFirst());
+        assertTrue(frame.isVisible());
+        assertTrue(forecasts.getParent().isPresent());
+        assertEquals("forecast selection", forecasts.getText());
     }
 
     @Test

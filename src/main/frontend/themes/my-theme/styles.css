@@ -111,6 +111,17 @@ body {
     padding: 32px;
 }
 
+.forecasts-view { gap: 16px; align-items: stretch; }
+.forecasts-view h1 { margin: 0; font-size: 1.5rem; }
+.forecasts-toolbar { gap: 8px 16px; }
+.forecast-card { min-width: 0; padding: 16px; background: #fff; border: 1px solid #808080; }
+.forecast-card h2 { margin: 0; font-size: 1.2rem; }
+.forecast-card p { margin: 8px 0 12px; color: #475569; }
+.forecast-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 8px; }
+.forecast-stat { display: flex; flex-direction: column; gap: 4px; padding: 10px; background: #f1f5f9; font-size: 0.8rem; }
+.forecast-stat-value { font-size: 1.5rem; font-weight: bold; color: #000080; }
+.forecast-chart { position: relative; min-width: 0; flex-shrink: 0; }
+
 .public-measurements-view {
     box-sizing: border-box;
     padding: 10px;

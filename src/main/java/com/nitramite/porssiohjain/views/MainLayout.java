@@ -125,6 +125,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         feature("home.myProduction", VaadinIcon.LIGHTBULB, ProductionSourcesView.class);
         feature("home.powerLimits", VaadinIcon.FLASH, PowerLimitsView.class);
         feature("home.dashboard", VaadinIcon.CHART, DashboardView.class);
+        feature("home.forecasts", VaadinIcon.TRENDING_UP, ForecastsView.class);
         feature("home.measurements", VaadinIcon.LINE_CHART, MeasurementsView.class);
         feature("home.waterMeters", VaadinIcon.DROP, WaterMetersView.class);
         feature("home.settings", VaadinIcon.COG, SettingsView.class);
@@ -341,6 +342,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
             case FIRE, FLASH, SUN, LIGHTBULB -> "energy";
             case COMMENT -> "feedback";
             case LINE_CHART -> "measurements";
+            case TRENDING_UP -> "forecasts";
             case DROP -> "water-meters";
             case MENU -> "start";
             case SIGN_OUT -> "logout";
@@ -617,6 +619,7 @@ public class MainLayout extends Div implements RouterLayout, AfterNavigationObse
         if (path.startsWith("production-source")) return t("home.myProduction");
         if (path.startsWith("power-limit")) return t("home.powerLimits");
         if (path.startsWith("dashboard")) return t("home.dashboard");
+        if (path.startsWith("forecasts")) return t("home.forecasts");
         if (path.startsWith("settings")) return t("home.settings");
         if (path.startsWith("device")) return t("home.myDevices");
         if (path.startsWith("controls")) return t("home.myControls");
