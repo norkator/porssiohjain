@@ -147,14 +147,34 @@ const coreMap = `<section class="core-map" aria-label="Top-down reactor core and
   </section></div><p class="core-map-note">Select a numbered control rod or an amber fuel assembly. Rings show actual insertion or remaining fuel reserve. Fictional layout and accelerated fuel model.</p>
 </section>`;
 
-const auxiliaryDialog = `<dialog class="auxiliary-dialog" aria-labelledby="auxiliary-title">
-  <div class="core-dialog-titlebar"><h2 id="auxiliary-title">Auxiliary power &amp; backup generators</h2><button class="small-button" data-action="close-power" aria-label="Close auxiliary power">×</button></div>
+const dieselSchematic = id => `<svg class="diesel-schematic" viewBox="0 0 420 250" role="img" aria-label="Diesel ${id} engine, alternator and fuel supply">
+  <defs><linearGradient id="diesel-${id}-steel"><stop stop-color="var(--diesel-steel-dark)"/><stop offset=".45" stop-color="var(--diesel-steel-light)"/><stop offset="1" stop-color="var(--diesel-steel-dark)"/></linearGradient><pattern id="diesel-${id}-grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" class="diesel-grid-line"/></pattern></defs>
+  <rect width="420" height="250" class="diesel-drawing-background"/><rect width="420" height="250" fill="url(#diesel-${id}-grid)"/>
+  <text x="16" y="24" class="diesel-drawing-label">DG-${id} / DIESEL GENERATOR</text><text x="404" y="24" text-anchor="end" class="diesel-drawing-label">8 MW / SIMULATED</text>
+  <path d="M45 192v9m28-9v9m233-9v9m28-9v9" class="diesel-mounts"/><rect x="25" y="180" width="350" height="12" rx="3" class="diesel-base"/>
+  <rect x="30" y="84" width="40" height="90" rx="6" fill="url(#diesel-${id}-steel)" class="diesel-housing"/><path d="M38 93v70m8-70v70m8-70v70m8-70v70" class="diesel-radiator"/>
+  <path d="M70 105h20m-20 48h20M50 84V70h58" class="diesel-coolant-line"/>
+  <path d="M105 85V70h103v15" class="diesel-manifold"/><rect x="132" y="53" width="48" height="17" rx="5" class="diesel-air-filter"/>
+  <path d="M218 84V51q0-8 8-8h14" class="diesel-exhaust"/><path d="M235 36v14" class="diesel-exhaust-cap"/>
+  <rect x="88" y="84" width="151" height="90" rx="8" fill="url(#diesel-${id}-steel)" class="diesel-housing"/>
+  ${[105, 147, 189].map((x, i) => `<g transform="translate(${x} 94)"><rect width="26" height="52" rx="3" class="diesel-cylinder"/><g class="diesel-piston" data-piston="${i}"><path d="M13 23v32" class="diesel-connecting-rod"/><rect x="3" y="10" width="20" height="15" rx="2" class="diesel-piston-head"/><path d="M4 14h18m-18 5h18" class="diesel-piston-rings"/></g></g>`).join('')}
+  <path d="M101 159h125" class="diesel-crankshaft"/><circle cx="112" cy="159" r="5" class="diesel-crank-pin"/><circle cx="154" cy="159" r="5" class="diesel-crank-pin"/><circle cx="196" cy="159" r="5" class="diesel-crank-pin"/>
+  <path d="M239 139h43" class="diesel-drive-shaft"/><rect x="247" y="131" width="19" height="16" rx="3" class="diesel-coupling"/>
+  <rect x="279" y="106" width="72" height="67" rx="14" fill="url(#diesel-${id}-steel)" class="diesel-housing"/><path d="M289 115v48m10-48v48m10-48v48" class="diesel-alternator-fins"/>
+  <circle cx="349" cy="139" r="32" class="diesel-fan-cover"/><g transform="translate(349 139)"><g class="diesel-fan" transform="rotate(0 0 0)">${[0, 90, 180, 270].map(angle => `<path transform="rotate(${angle})" d="M0-24C13-24 24-14 6 0 6-12-4-12 0-24Z"/>`).join('')}</g><circle r="6" class="diesel-fan-hub"/></g>
+  <rect x="305" y="73" width="29" height="29" rx="4" class="diesel-terminal-box"/><path d="M319 74V57h71v82" class="diesel-output-wire"/><path d="M319 74V57h71v82" class="diesel-output-flow"/><circle cx="390" cy="146" r="7" class="diesel-output-lamp"/>
+  <text x="163" y="42" text-anchor="middle" class="diesel-drawing-label">ENGINE / CUTAWAY</text><text x="325" y="218" text-anchor="middle" class="diesel-drawing-label">ALTERNATOR</text>
+  <rect x="36" y="212" width="100" height="22" rx="4" class="diesel-fuel-tank"/><rect x="42" y="218" width="88" height="10" rx="2" class="diesel-fuel-level"/><path d="M136 223h24v-49" class="diesel-fuel-line"/><text x="86" y="246" text-anchor="middle" class="diesel-drawing-label">FUEL RESERVE</text><text x="390" y="170" text-anchor="middle" class="diesel-drawing-label">AC</text>
+</svg>`;
+
+const auxiliaryDialog = `<div id="auxiliary-power-window" class="auxiliary-dialog floating-dialog" popover="manual" role="dialog" aria-modal="false" aria-labelledby="auxiliary-title">
+  <div class="core-dialog-titlebar auxiliary-dialog-titlebar" tabindex="0" aria-label="Move auxiliary power with arrow keys or drag this title bar"><span aria-hidden="true">⠿</span><h2 id="auxiliary-title">Auxiliary power &amp; backup generators</h2><span class="local-tag">DRAG TO MOVE</span><button class="small-button" data-action="close-power" aria-label="Close auxiliary power">×</button></div>
   <div class="auxiliary-content"><div class="supply-overview"><span class="control-label">PUMP POWER SOURCE</span><strong data-value="powerSource"></strong><span data-value="auxiliaryLoad"></span><div class="supply-path"><span data-supply="turbine">TURBINE</span><span data-supply="grid">GRID</span><span data-supply="diesel">DIESELS</span><b>→ AC BUS → PUMPS</b></div></div>
     <div class="supply-switches"><label><input id="grid-supply" type="checkbox" checked/> External grid available</label><label><input id="turbine-supply" type="checkbox" checked/> Turbine auxiliary feed connected</label></div>
     <p>The turbine supplies the pumps while generation is sufficient. Otherwise the grid takes over. Armed diesels start on loss of both normal sources. Instruments have an independent simulated DC supply; coolant pumps require AC.</p>
-    <div class="diesel-grid">${['A', 'B'].map(id => `<section class="diesel-card" data-diesel="${id}"><div class="diesel-title"><span class="diesel-symbol">ϟ</span><h3>Diesel ${id}</h3><strong data-diesel-value="${id}-state"></strong></div><div class="diesel-meter"><i data-diesel-meter="${id}"></i></div><dl><div><dt>Fuel reserve</dt><dd data-diesel-value="${id}-fuel"></dd></div><div><dt>Bus load / capacity</dt><dd data-diesel-value="${id}-load"></dd></div><div><dt>Startup</dt><dd data-diesel-value="${id}-startup"></dd></div></dl><label><input type="checkbox" data-diesel-auto="${id}" checked/> Automatic standby</label><div class="button-pair"><button class="control-button compact" data-generator="${id}" data-generator-action="start">Start</button><button class="control-button compact" data-generator="${id}" data-generator-action="stop">Stop</button></div><button class="small-button" data-generator="${id}" data-generator-action="refuel">Refuel diesel</button></section>`).join('')}</div>
+    <div class="diesel-grid">${['A', 'B'].map(id => `<section class="diesel-card" data-diesel="${id}"><div class="diesel-title"><span class="diesel-symbol">ϟ</span><h3>Diesel ${id}</h3><strong data-diesel-value="${id}-state"></strong></div>${dieselSchematic(id)}<div class="diesel-visual-status" data-diesel-visual-status="${id}"></div><div class="diesel-meter"><i data-diesel-meter="${id}"></i></div><dl><div><dt>Fuel reserve</dt><dd data-diesel-value="${id}-fuel"></dd></div><div><dt>Bus load / capacity</dt><dd data-diesel-value="${id}-load"></dd></div><div><dt>Startup</dt><dd data-diesel-value="${id}-startup"></dd></div></dl><label><input type="checkbox" data-diesel-auto="${id}" checked/> Automatic standby</label><div class="button-pair"><button class="control-button compact" data-generator="${id}" data-generator-action="start">Start</button><button class="control-button compact" data-generator="${id}" data-generator-action="stop">Stop</button></div><button class="small-button" data-generator="${id}" data-generator-action="refuel">Refuel diesel</button></section>`).join('')}</div>
     <p>Manual Stop disables that diesel's automatic standby. Running diesels stay running after normal power returns until you stop them. Refuelling requires a stopped diesel. Demo startup: 8 seconds; nominal full-load fuel endurance: 30 simulated minutes. No automatic refuelling.</p>
-  </div></dialog>`;
+  </div></div>`;
 
 const equipmentDetails = {
     reactor: { tag: 'R-01', name: 'Reactor vessel', description: 'Rod position sets simulated heat output. The primary loop carries heat to the exchanger.', fields: [['Core outlet', 'core'], ['Coolant return', 'return'], ['Rod insertion', 'rods']] },
@@ -174,10 +194,12 @@ export class NuclearPowerConsole extends HTMLElement {
         this.selectedFuel = null;
         this.logFilter = 'all';
         this.motion = { A: { angle: 0, offset: 0 }, B: { angle: 0, offset: 0 } };
+        this.dieselMotion = { A: 0, B: 0 };
+        this.floatingDialogs = [];
         this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
         this.intersecting = true;
         this.onVisibilityChange = () => this.updateActivity();
-        this.onViewportResize = () => this.positionCoreMap();
+        this.onViewportResize = () => this.shadowRoot.querySelectorAll('.floating-dialog').forEach(dialog => this.positionFloatingDialog(dialog));
     }
 
     connectedCallback() {
@@ -196,7 +218,7 @@ export class NuclearPowerConsole extends HTMLElement {
 
     disconnectedCallback() {
         this.closeCoreMap(false);
-        this.shadowRoot.querySelector('.auxiliary-dialog')?.close();
+        this.closeAuxiliaryPower(false);
         this.stopAlarmSound();
         clearInterval(this.timer);
         this.timer = null;
@@ -223,7 +245,7 @@ export class NuclearPowerConsole extends HTMLElement {
           <header class="masthead">
             <div class="brand-mark">${radiation}</div>
             <div class="heading"><div class="eyebrow">PÖRSSIOHJAIN / UNIT 01</div><h1>Nuclear Power<span class="title-dot">.</span></h1><p>Energy, under control.</p></div>
-            <div class="appearance-tools"><button class="small-button" data-action="sound" aria-pressed="false">Enable alarm sounds</button><button class="small-button power-supply-button" data-action="power-supply" aria-haspopup="dialog"><span>ϟ <span data-value="powerSource">TURBINE GENERATOR</span></span><small>Auxiliary power / manage ↗</small></button><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div></div>
+            <div class="appearance-tools"><button class="small-button" data-action="sound" aria-pressed="false">Enable alarm sounds</button><button class="small-button power-supply-button" data-action="power-supply" aria-haspopup="dialog" aria-controls="auxiliary-power-window" aria-expanded="false"><span>ϟ <span data-value="powerSource">TURBINE GENERATOR</span></span><small>Auxiliary power / manage ↗</small></button><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div></div>
           </header>
 
           <div class="console-layout">
@@ -289,7 +311,7 @@ export class NuclearPowerConsole extends HTMLElement {
           </aside>
           </div>
           <footer class="console-footer"><span><i class="status-dot"></i> <span data-value="sessionState">SIMULATION ACTIVE</span><span class="footer-divider">/</span> ALL SIGNALS SIMULATED</span><div><button data-action="pause" class="footer-button">Ⅱ Pause</button><button data-action="reset" class="footer-button">↺ Reset demo</button></div><span class="footer-signature">PÖRSSIOHJAIN <span>NUCLEAR DIVISION</span></span></footer>
-          <div id="core-map-window" class="core-dialog" popover="manual" role="dialog" aria-modal="false" aria-labelledby="core-map-title">
+          <div id="core-map-window" class="core-dialog floating-dialog" popover="manual" role="dialog" aria-modal="false" aria-labelledby="core-map-title">
             <div class="core-dialog-titlebar" tabindex="0" aria-label="Move core map with arrow keys or drag this title bar"><span aria-hidden="true">⠿</span><h2 id="core-map-title">Reactor core map</h2><span class="local-tag">DRAG TO MOVE</span><button class="small-button" data-action="close-core" aria-label="Close core map">×</button></div>
             ${coreMap}
           </div>
@@ -333,9 +355,13 @@ export class NuclearPowerConsole extends HTMLElement {
             if (button && !button.disabled) this.act(button.dataset.action);
         });
         this.shadowRoot.addEventListener('keydown', event => {
-            if (event.key === 'Escape' && this.shadowRoot.querySelector('.core-dialog').matches(':popover-open')) {
-                event.preventDefault();
-                this.closeCoreMap();
+            if (event.key === 'Escape') {
+                const dialog = event.target.closest('.floating-dialog:popover-open') || this.floatingDialogs.at(-1);
+                if (dialog) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.closeFloatingDialog(dialog);
+                }
             }
             const rod = event.target.closest('[data-rod]');
             const fuel = event.target.closest('[data-fuel-id]');
@@ -354,7 +380,7 @@ export class NuclearPowerConsole extends HTMLElement {
                 if (equipment.dataset.equipment === 'reactor') this.openCoreMap();
             }
         });
-        this.configureCoreMapDrag();
+        this.shadowRoot.querySelectorAll('.floating-dialog').forEach(dialog => this.configureFloatingDialogDrag(dialog));
         this.shadowRoot.querySelector('#rod-override').addEventListener('change', event => {
             this.simulation.setRodOverride(this.selectedRod, event.target.checked);
             this.update();
@@ -440,50 +466,72 @@ export class NuclearPowerConsole extends HTMLElement {
 
     openCoreMap() {
         const dialog = this.shadowRoot.querySelector('.core-dialog');
-        if (!dialog.matches(':popover-open')) dialog.showPopover();
-        this.positionCoreMap();
-        for (const trigger of this.shadowRoot.querySelectorAll('[aria-controls="core-map-window"]')) trigger.setAttribute('aria-expanded', 'true');
+        this.openFloatingDialog(dialog);
         this.shadowRoot.querySelector(this.selectedFuel ? '[data-action="replace-fuel"]' : '#rod-select').focus({ preventScroll: true });
     }
 
     closeCoreMap(restoreFocus = true) {
-        const dialog = this.shadowRoot?.querySelector('.core-dialog');
-        if (!dialog?.matches(':popover-open')) return;
-        dialog.hidePopover();
-        for (const trigger of this.shadowRoot.querySelectorAll('[aria-controls="core-map-window"]')) trigger.setAttribute('aria-expanded', 'false');
-        if (restoreFocus && this.isConnected) this.shadowRoot.querySelector('[data-equipment="reactor"]').focus({ preventScroll: true });
+        this.closeFloatingDialog(this.shadowRoot?.querySelector('.core-dialog'), restoreFocus);
     }
 
-    positionCoreMap(left, top) {
-        const dialog = this.shadowRoot?.querySelector('.core-dialog');
+    openAuxiliaryPower() {
+        this.openFloatingDialog(this.shadowRoot.querySelector('.auxiliary-dialog'));
+        this.shadowRoot.querySelector('.auxiliary-dialog-titlebar').focus({ preventScroll: true });
+    }
+
+    closeAuxiliaryPower(restoreFocus = true) {
+        this.closeFloatingDialog(this.shadowRoot?.querySelector('.auxiliary-dialog'), restoreFocus);
+    }
+
+    openFloatingDialog(dialog) {
+        // Reopening an existing window brings it to the front without rebuilding its controls.
+        if (dialog.matches(':popover-open')) dialog.hidePopover();
+        dialog.showPopover();
+        this.floatingDialogs = this.floatingDialogs.filter(item => item !== dialog);
+        this.floatingDialogs.push(dialog);
+        this.positionFloatingDialog(dialog);
+        for (const trigger of this.shadowRoot.querySelectorAll(`[aria-controls="${dialog.id}"]`)) trigger.setAttribute('aria-expanded', 'true');
+    }
+
+    closeFloatingDialog(dialog, restoreFocus = true) {
+        if (!dialog?.matches(':popover-open')) return;
+        dialog.hidePopover();
+        this.floatingDialogs = this.floatingDialogs.filter(item => item !== dialog);
+        for (const trigger of this.shadowRoot.querySelectorAll(`[aria-controls="${dialog.id}"]`)) trigger.setAttribute('aria-expanded', 'false');
+        if (restoreFocus && this.isConnected) this.shadowRoot.querySelector(dialog.classList.contains('core-dialog') ? '[data-equipment="reactor"]' : '[data-action="power-supply"]').focus({ preventScroll: true });
+    }
+
+    positionFloatingDialog(dialog, left, top) {
         if (!dialog?.matches(':popover-open')) return;
         const rect = dialog.getBoundingClientRect();
-        const x = left ?? (dialog.style.left ? rect.left : innerWidth - rect.width - 20);
-        const y = top ?? (dialog.style.top ? rect.top : 80);
+        const x = left ?? (dialog.style.left ? rect.left : dialog.classList.contains('core-dialog') ? innerWidth - rect.width - 20 : 20);
+        const y = top ?? (dialog.style.top ? rect.top : dialog.classList.contains('core-dialog') ? 80 : 110);
         dialog.style.left = `${Math.max(12, Math.min(x, innerWidth - rect.width - 12))}px`;
         dialog.style.top = `${Math.max(12, Math.min(y, innerHeight - rect.height - 12))}px`;
     }
 
-    configureCoreMapDrag() {
-        const header = this.shadowRoot.querySelector('.core-dialog-titlebar');
+    configureFloatingDialogDrag(dialog) {
+        const header = dialog.querySelector('.core-dialog-titlebar');
         let drag;
         header.addEventListener('pointerdown', event => {
             if (event.button !== 0 || event.target.closest('button')) return;
-            const rect = this.shadowRoot.querySelector('.core-dialog').getBoundingClientRect();
+            this.openFloatingDialog(dialog);
+            const rect = dialog.getBoundingClientRect();
             drag = { x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+            header.focus({ preventScroll: true });
             header.setPointerCapture(event.pointerId);
             event.preventDefault();
         });
         header.addEventListener('pointermove', event => {
-            if (drag) this.positionCoreMap(drag.left + event.clientX - drag.x, drag.top + event.clientY - drag.y);
+            if (drag) this.positionFloatingDialog(dialog, drag.left + event.clientX - drag.x, drag.top + event.clientY - drag.y);
         });
         for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) header.addEventListener(type, () => { drag = null; });
         header.addEventListener('keydown', event => {
             const deltas = { ArrowLeft: [-16, 0], ArrowRight: [16, 0], ArrowUp: [0, -16], ArrowDown: [0, 16] };
             if (event.target !== header || !deltas[event.key]) return;
             event.preventDefault();
-            const rect = this.shadowRoot.querySelector('.core-dialog').getBoundingClientRect();
-            this.positionCoreMap(rect.left + deltas[event.key][0], rect.top + deltas[event.key][1]);
+            const rect = dialog.getBoundingClientRect();
+            this.positionFloatingDialog(dialog, rect.left + deltas[event.key][0], rect.top + deltas[event.key][1]);
         });
     }
 
@@ -526,8 +574,8 @@ export class NuclearPowerConsole extends HTMLElement {
             'core-view': () => this.openCoreMap(), 'close-core': () => this.closeCoreMap(),
             'replace-fuel': () => sim.replaceFuel(this.selectedFuel),
             'select-control-rod': () => this.selectRod(this.selectedRod),
-            'power-supply': () => { this.closeCoreMap(false); this.shadowRoot.querySelector('.auxiliary-dialog').showModal(); },
-            'close-power': () => this.shadowRoot.querySelector('.auxiliary-dialog').close(),
+            'power-supply': () => this.openAuxiliaryPower(),
+            'close-power': () => this.closeAuxiliaryPower(),
             manual: () => sim.setAutoMode(false), auto: () => sim.setAutoMode(true),
             fluctuations: () => sim.setFluctuations(!sim.fluctuationsEnabled),
             'export-log': () => this.exportLog(),
@@ -555,7 +603,7 @@ export class NuclearPowerConsole extends HTMLElement {
         if (!active) {
             this.closeCoreMap(false);
             // Pause keeps the management dialog open; hiding the feature closes it.
-            if (!this.isConnected || !this.intersecting || document.hidden) this.shadowRoot.querySelector('.auxiliary-dialog')?.close();
+            if (!this.isConnected || !this.intersecting || document.hidden) this.closeAuxiliaryPower(false);
         }
         if (active && !this.timer) {
             this.lastTick = performance.now();
@@ -589,6 +637,18 @@ export class NuclearPowerConsole extends HTMLElement {
             const motion = this.motion[pump] = advancePumpMotion(this.motion[pump], flow, seconds);
             this.shadowRoot.querySelector(`.pump-${pump.toLowerCase()} .rotor`).setAttribute('transform', `rotate(${motion.angle} 0 0)`);
             for (const path of this.shadowRoot.querySelectorAll(`.flow.${circuit}`)) path.style.strokeDashoffset = motion.offset;
+        }
+        if (this.shadowRoot.querySelector('.auxiliary-dialog').matches(':popover-open')) {
+            for (const g of this.simulation.supply.generators) {
+                const speed = g.state === 'RUNNING' ? 360 : g.state === 'STARTING' ? 120 : 0;
+                const phase = this.dieselMotion[g.id] = (this.dieselMotion[g.id] + Math.min(.1, Math.max(0, seconds)) * speed) % 360;
+                const card = this.shadowRoot.querySelector(`[data-diesel="${g.id}"]`);
+                card.querySelector('.diesel-fan').setAttribute('transform', `rotate(${phase} 0 0)`);
+                for (const piston of card.querySelectorAll('[data-piston]')) {
+                    piston.setAttribute('transform', `translate(0 ${Math.sin((phase + Number(piston.dataset.piston) * 120) * Math.PI / 180) * 5})`);
+                }
+                card.querySelector('.diesel-output-flow').style.strokeDashoffset = -phase / 4;
+            }
         }
     }
 
@@ -848,6 +908,12 @@ export class NuclearPowerConsole extends HTMLElement {
         for (const g of supply.generators) {
             const card = this.shadowRoot.querySelector(`[data-diesel="${g.id}"]`);
             card.dataset.state = g.state.toLowerCase();
+            card.dataset.loaded = String(g.state === 'RUNNING' && g.load > 0);
+            const visualState = g.state === 'RUNNING' ? g.load > 0 ? 'SUPPLYING AUXILIARY BUS' : 'RUNNING / NO BUS LOAD'
+                : g.state === 'STARTING' ? 'CRANKING / OUTPUT NOT READY' : g.state === 'EMPTY' ? 'FUEL EMPTY / STOPPED' : g.automatic ? 'AUTOMATIC STANDBY / STOPPED' : 'MANUAL / STOPPED';
+            card.querySelector('[data-diesel-visual-status]').textContent = visualState;
+            card.querySelector('.diesel-schematic').setAttribute('aria-label', `Diesel ${g.id}: ${visualState.toLowerCase()}; fuel ${g.fuel.toFixed(1)}%; bus load ${g.load.toFixed(2)} MW`);
+            card.querySelector('.diesel-fuel-level').setAttribute('width', 88 * g.fuel / 100);
             for (const [key, value] of Object.entries({ state: g.state, fuel: `${g.fuel.toFixed(1)}%`, load: `${g.load.toFixed(2)} / ${g.capacity} MW`, startup: g.state === 'STARTING' ? `${g.startRemaining.toFixed(1)} s` : '—' })) {
                 card.querySelector(`[data-diesel-value="${g.id}-${key}"]`).textContent = value;
             }

@@ -264,6 +264,26 @@ These are illustrative UI interlocks, not a real refuelling procedure.
 
 The header always identifies the source that powers coolant pumps. Click it to open
 **Auxiliary power & backup generators**, with a live source path and diesel cards.
+It uses the same movable, nonmodal top-layer window behavior as the reactor core map:
+drag its title bar or focus the title bar and use arrow keys, with viewport clamping
+on movement/resize. Close with × or Escape; its position is retained when reopened.
+Both windows can stay open together, and the underlying process controls remain
+available. Reopening or dragging a window brings it forward. Escape closes the
+focused floating window (or the most recently opened one when focus is outside).
+Hiding/detaching the feature closes the windows. The generator window can remain
+open while paused, with its simulated state and visual motion frozen.
+
+Each diesel has an SVG engine cutaway, radiator, moving pistons, drive shaft,
+alternator fan, fuel tank and AC output line in the process diagram's visual style.
+Starting engines turn slowly; running engines animate faster; stopped/empty engines
+remain still. These are illustrative animation rates, not measured RPM. The tank
+fill follows actual simulated fuel reserve. A lit output terminal and moving power
+line appear only when that diesel is supplying bus load, so an unloaded running
+engine is visually distinct from one powering pumps. Text and accessible drawing
+labels identify standby, cranking, running/unloaded, supplying and empty states.
+Both themes have dedicated drawing colors. Motion uses the existing visibility-aware
+animation loop, stops with pause/hide/detach, and stays static with reduced motion.
+
 Pump power is independent of reactor generation: after shutdown it normally comes from
 the external grid. The broad source arrangement is informed by the [NRC emergency power
 system description](https://nrcoe.inl.gov/SysStudy/EPS); this demo does not reproduce a
@@ -409,5 +429,8 @@ both view modes, control disabling in Auto, CSV export, mobile/container resizin
 wide-screen fitting and column ordering, theme default/persistence, electrical MW
 tracking and limiting, floating core-map opening/movement/closing with the process
 still visible, persistent overheat indication after acknowledgement, and
-pause/minimize/detach/reduced-motion cleanup. Use the disposable local profile
+pause/minimize/detach/reduced-motion cleanup. Generator checks also cover concurrent
+floating windows, background-control focus, pointer/keyboard movement, retained position,
+Escape/close, narrow-viewport clamping, centered animated fans, stopped/reduced-motion
+visuals and hidden-view cleanup. Use the disposable local profile
 (`./run-local.sh 18080`, admin/admin) for authenticated application checks.

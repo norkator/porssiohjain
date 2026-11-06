@@ -77,7 +77,7 @@
 :host([data-theme="light"]) .rod-depth-track { background: #d5e6e8; border-color: #81a9ac; }
 :host([data-theme="light"]) .chart-grid { stroke: #c2d2de; }
 :host([data-theme="light"]) :is(.event-list, .diagram-viewport) { scrollbar-color: #a3b8c5 #edf3f5; }
-:host([data-theme="light"]) .core-dialog { color: #263e50; background: #fff; border-color: #94adbc; box-shadow: 0 18px 65px #29415255; }
+:host([data-theme="light"]) .floating-dialog { color: #263e50; background: #fff; border-color: #94adbc; box-shadow: 0 18px 65px #29415255; }
 :host([data-theme="light"]) .core-dialog-titlebar { background: #e3edf2; border-color: #b0c4d0; }
 :host([data-theme="light"][data-overheated="true"]) .core-temperature-metric { background: #fff0ed; border-color: #bf4037; }
 :host([data-theme="light"][data-overheated="true"]) .core-temperature-metric :is(.metric-reading, .metric-icon, .metric-foot) { color: #ac2e27; }
@@ -113,3 +113,19 @@
 :host([data-theme="light"]) .power-supply-button[data-supply="lost"] { color: #a22521; border-color: #c7473e; }
 :host([data-theme="light"]) .fuel-channel.selected > rect,
 :host([data-theme="light"]) .fuel-channel:hover > rect { stroke: #805317; }
+:host([data-theme="light"]) .diesel-schematic { border-color: #a5bbc6; --diesel-steel-dark: #8ba5b2; --diesel-steel-light: #d7e2e6; }
+:host([data-theme="light"]) .diesel-drawing-background { fill: #f1f6f8; }
+:host([data-theme="light"]) .diesel-grid-line { stroke: #b6cbd4; }
+:host([data-theme="light"]) .diesel-drawing-label,
+:host([data-theme="light"]) .diesel-visual-status { fill: #405b6d; color: #405b6d; }
+:host([data-theme="light"]) .diesel-housing { stroke: #526d7e; }
+:host([data-theme="light"]) .diesel-base { fill: #a6bcc8; stroke: #526d7e; }
+:host([data-theme="light"]) .diesel-cylinder { fill: #cfdee6; stroke: #637f90; }
+:host([data-theme="light"]) .diesel-fan-cover { fill: #c7dedf; stroke: #526d7e; }
+:host([data-theme="light"]) .diesel-fan { fill: #526e7a; }
+:host([data-theme="light"]) .diesel-card[data-state="running"] .diesel-fan { fill: #286d60; }
+:host([data-theme="light"]) .diesel-fuel-tank { fill: #ecdfc8; stroke: #9b6a2f; }
+:host([data-theme="light"]) .diesel-fuel-level { fill: #a97020; }
+:host([data-theme="light"]) .diesel-card[data-loaded="true"] .diesel-visual-status { color: #116348; }
+:host([data-theme="light"]) .diesel-card[data-state="starting"] .diesel-visual-status { color: #835616; }
+:host([data-theme="light"]) .diesel-card[data-state="empty"] .diesel-visual-status { color: #a32d24; }

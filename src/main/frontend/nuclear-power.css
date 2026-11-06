@@ -267,9 +267,9 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 @keyframes blink { 50% { opacity: .2; } }
 
 /* Alternate, individually addressable core map. */
-.core-dialog { position: fixed; inset: auto; margin: 0; width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; color: inherit; background: #15212d; border: 1px solid #637e8d; border-radius: 9px; box-shadow: 0 18px 65px #0009; }
-.core-dialog:popover-open { display: flex; flex-direction: column; }
-.core-dialog::backdrop { background: transparent; pointer-events: none; }
+.floating-dialog { position: fixed; inset: auto; margin: 0; width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; color: inherit; background: #15212d; border: 1px solid #637e8d; border-radius: 9px; box-shadow: 0 18px 65px #0009; }
+.floating-dialog:popover-open { display: flex; flex-direction: column; }
+.floating-dialog::backdrop { background: transparent; pointer-events: none; }
 .core-dialog-titlebar { display: flex; flex: 0 0 auto; align-items: center; gap: 9px; padding: 9px 13px; background: #223744; border-bottom: 1px solid #48606e; cursor: grab; touch-action: none; user-select: none; }
 .core-dialog-titlebar:active { cursor: grabbing; }
 .core-dialog-titlebar h2 { flex: 1; }
@@ -330,10 +330,8 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .power-supply-button small { font-size: 9px; color: #b7c9d1; }
 .power-supply-button[data-supply="backup"] { color: #ffd28e; border-color: #bc8a45; }
 .power-supply-button[data-supply="lost"] { color: #ffaca6; border-color: #ff6b62; }
-.auxiliary-dialog { width: min(700px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); padding: 0; color: #dbe7ed; background: #15212d; border: 1px solid #637e8d; border-radius: 9px; box-shadow: 0 18px 65px #0009; }
-.auxiliary-dialog::backdrop { background: #070e19a6; }
-.auxiliary-dialog .core-dialog-titlebar { cursor: default; }
-.auxiliary-content { padding: 20px; }
+.auxiliary-dialog { width: min(900px, calc(100vw - 24px)); }
+.auxiliary-content { padding: 16px; overflow: auto; min-height: 0; scrollbar-color: #456071 #15212d; }
 .auxiliary-content p { font-size: 11px; line-height: 1.7; color: #b3c6d0; }
 .supply-overview { display: grid; gap: 10px; padding: 15px; border: 1px solid #45606d; border-radius: 6px; background: #1b303b; }
 .supply-overview > strong { color: var(--cool); font: 22px Consolas, monospace; }
@@ -356,6 +354,43 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .diesel-meter { height: 6px; background: #31434e; border-radius: 4px; margin: 15px 0; overflow: hidden; }
 .diesel-meter i { display: block; height: 100%; background: var(--cool); transition: width .3s; }
 .diesel-card .button-pair { margin: 13px 0; }
+.diesel-schematic { display: block; width: 100%; margin-top: 12px; border: 1px solid #425967; border-radius: 5px; --diesel-steel-dark: #263e4b; --diesel-steel-light: #627b88; }
+.diesel-drawing-background { fill: #10212d; }
+.diesel-grid-line { fill: none; stroke: #314958; stroke-width: .5; }
+.diesel-drawing-label { fill: #a9c1cd; font: 9px Consolas, monospace; letter-spacing: .4px; }
+.diesel-housing { stroke: #a0b5c0; stroke-width: 1.5px; }
+.diesel-mounts { stroke: #69828f; stroke-width: 6px; }
+.diesel-base { fill: #314c5b; stroke: #8099a7; }
+.diesel-radiator, .diesel-alternator-fins { fill: none; stroke: #9eb5c1; stroke-width: 2px; }
+.diesel-coolant-line { fill: none; stroke: #73bcb4; stroke-width: 4px; }
+.diesel-manifold { fill: none; stroke: #99afba; stroke-width: 7px; }
+.diesel-air-filter, .diesel-terminal-box { fill: #3d5867; stroke: #a0b5c0; }
+.diesel-exhaust { fill: none; stroke: #afc0ca; stroke-width: 10px; }
+.diesel-exhaust-cap { stroke: #8fa5b3; stroke-width: 4px; }
+.diesel-cylinder { fill: #122833; stroke: #9bb2bf; }
+.diesel-connecting-rod { stroke: #b5c5cc; stroke-width: 4px; }
+.diesel-piston-head { fill: #d3dbd9; stroke: #f4dbab; }
+.diesel-piston-rings { stroke: #8c7e64; }
+.diesel-crankshaft { stroke: #dfbd86; stroke-width: 4px; }
+.diesel-crank-pin { fill: #768d95; stroke: #e3ca9d; }
+.diesel-drive-shaft { stroke: #d0d9dd; stroke-width: 7px; }
+.diesel-coupling { fill: #c6b28b; stroke: #f4ddb1; }
+.diesel-fan-cover { fill: #16343e; stroke: #a0b5c0; stroke-width: 2px; }
+.diesel-fan { fill: #8ba6af; }
+.diesel-fan-hub { fill: #dee8e6; }
+.diesel-output-wire { fill: none; stroke: #557a75; stroke-width: 5px; }
+.diesel-output-flow { fill: none; stroke: #9fffe0; stroke-width: 2px; stroke-dasharray: 8 9; opacity: 0; }
+.diesel-output-lamp { fill: #29453f; stroke: #7faba0; }
+.diesel-fuel-tank { fill: #182b36; stroke: #ae935d; }
+.diesel-fuel-level { fill: #dba65a; }
+.diesel-fuel-line { fill: none; stroke: #c19b5e; stroke-width: 3px; }
+.diesel-visual-status { min-height: 26px; padding-top: 8px; color: #b5c9d1; font: 10px Consolas, monospace; }
+.diesel-card[data-state="starting"] .diesel-visual-status { color: #ffcc81; }
+.diesel-card[data-state="empty"] .diesel-visual-status { color: #ffada4; }
+.diesel-card[data-state="running"] .diesel-fan { fill: #a6ddcf; }
+.diesel-card[data-loaded="true"] .diesel-output-flow { opacity: 1; }
+.diesel-card[data-loaded="true"] .diesel-output-lamp { fill: #8bf8c3; filter: drop-shadow(0 0 4px #8bf8c3); }
+.diesel-card[data-loaded="true"] .diesel-visual-status { color: #a8f3d4; }
 @media (max-width: 620px) {
     .diesel-grid { grid-template-columns: 1fr; }
     .auxiliary-content { padding: 12px; }

@@ -90,6 +90,10 @@ release overrides and insert every rod. `nuclear-power-supply.js` models the aux
 AC bus: turbine, external grid, then two armed standby diesels. Pumps must coast down
 without AC; restoring power must never reset trips or restart the reactor. The auxiliary
 power dialog manages grid/feed availability, diesel standby/start/stop/manual refuelling.
+It is movable and nonmodal like the core map; both can remain open over the process.
+Preserve shared dragging/keyboard movement, viewport clamping and per-window closing.
+Diesel SVG cutaways animate pistons/fans from reported engine state, show real simulated
+fuel reserve and bus-load indication, and obey pause/visibility/reduced-motion settings.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff
