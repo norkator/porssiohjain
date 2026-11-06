@@ -173,3 +173,30 @@ test('diesel exhaustion removes supply and one running diesel can carry both pum
     sim.supply.command(sim, 'A', 'refuel'); advance(sim, 9);
     assert.equal(sim.supply.source, 'BACKUP DIESEL A');
 });
+
+
+test('replace all fuel is atomic, manual and preserves stopped/tripped plant state', () => {
+    const sim = manualSimulation();
+    const initial = structuredClone(sim.fuel.assemblies);
+    assert.equal(sim.replaceAllFuel(), false);
+    assert.deepEqual(sim.fuel.assemblies, initial);
+    sim.trip(); advance(sim, 300);
+    sim.condition.zones[0].damage = 1;
+    assert.equal(sim.replaceAllFuel(), false);
+    assert.deepEqual(sim.fuel.assemblies, initial);
+    sim.repairComponents();
+    sim.condition.meltdown = true;
+    assert.equal(sim.replaceAllFuel(), false);
+    sim.condition.meltdown = false;
+    const heat = sim.condition.heatReserve;
+    const temperature = sim.temperature;
+    const rods = structuredClone(sim.controlRods);
+    assert.equal(sim.replaceAllFuel(), true);
+    assert.ok(sim.fuel.assemblies.every(a => a.remaining === 100 && a.exposure === 0 && a.replacements === 1));
+    assert.equal(sim.running, false);
+    assert.equal(sim.tripped, true);
+    assert.equal(sim.condition.heatReserve, heat);
+    assert.equal(sim.temperature, temperature);
+    assert.deepEqual(sim.controlRods, rods);
+    assert.ok(sim.events.some(e => /All .* fuel assemblies replaced manually/.test(e.message)));
+});

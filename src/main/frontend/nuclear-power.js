@@ -135,9 +135,9 @@ const coreMap = `<section class="core-map" aria-label="Top-down reactor core and
     <path d="M250 9v29m0 424v29M9 250h29m424 0h29" class="core-crosshair"/>
     ${CORE_CHANNELS.map(channel => `<g transform="translate(${250 + channel.x * 43} ${250 + channel.y * 43})" class="core-channel ${channel.rodId ? 'control-channel' : 'fuel-channel'}" ${channel.rodId ? `data-rod="${channel.rodId}" role="button" tabindex="0" aria-label="Select control rod ${channel.rodId}" aria-pressed="false"` : `data-fuel-x="${channel.x}" data-fuel-y="${channel.y}" data-fuel-id="${channel.fuelId}" role="button" tabindex="0" aria-label="Select fuel assembly ${channel.fuelId}" aria-pressed="false"`}>
       <rect x="-18" y="-18" width="36" height="36" rx="6"/>
-      ${channel.rodId ? `<circle class="rod-depth-ring" r="14" transform="rotate(-90)"/><text text-anchor="middle" y="3.5">${channel.rodId.slice(3)}</text>` : '<circle r="8" class="fuel-center"/><circle r="3" class="fuel-pin"/><circle r="14" class="fuel-reserve-ring" transform="rotate(-90)"/>'}
+      ${channel.rodId ? `<circle class="rod-depth-ring" r="14" transform="rotate(-90)"/><text text-anchor="middle" y="3.5">${channel.rodId.slice(3)}</text>` : '<title class="fuel-map-tooltip"></title><g class="fuel-exchange-glyph"><circle r="8" class="fuel-center"/><circle r="3" class="fuel-pin"/><circle r="14" class="fuel-reserve-ring" transform="rotate(-90)"/></g><g class="fuel-empty-marker" aria-hidden="true"><path d="M-6-13 6-1M6-13-6-1"/><text text-anchor="middle" y="12">EMPTY</text></g><text class="fuel-low-label" text-anchor="middle" y="4" aria-hidden="true"></text>'}
     </g>`).join('')}
-  </svg><div class="core-map-legend"><span><i class="legend-dot"></i> Control rod / insertion ring</span><span><i class="legend-dot warm-dot"></i> Fuel / indicative activity</span></div></div>
+  </svg><div class="core-map-legend"><span><i class="legend-dot"></i> Control rod / insertion ring</span><span><i class="legend-dot warm-dot"></i> Fuel / remaining reserve ring</span><span>× EMPTY = depleted · % = low reserve</span></div><p class="fuel-map-summary" data-value="fuelInventoryState" aria-live="polite"></p><div class="fuel-map-actions"><button class="control-button" data-action="replace-all-fuel" disabled>Replace all fuel</button><p data-value="fuelReplacementReadiness"></p><p class="fuel-service-status" role="status" data-value="fuelServiceStatus"></p></div></div>
   <section class="individual-rod" aria-label="Individual rod controls">
     <div class="eyebrow">INDIVIDUAL CONTROL ROD</div><label class="sr-only" for="rod-select">Selected control rod</label><select id="rod-select">${Array.from({ length: 12 }, (_, i) => `<option>CR-${String(i + 1).padStart(2, '0')}</option>`).join('')}</select>
     <div class="rod-depth-display"><div><span class="control-label">ACTUAL INSERTION</span><strong data-value="selectedRodActual">36.0%</strong><small data-value="selectedRodMotion">AT TARGET</small></div><div class="rod-depth-track"><i></i></div></div>
@@ -409,6 +409,9 @@ export class NuclearPowerConsole extends HTMLElement {
                 if (equipment.dataset.equipment === 'reactor') this.openCoreMap();
             }
         });
+        this.shadowRoot.addEventListener('animationend', event => {
+            if (event.animationName === 'fuel-exchange') event.target.closest('.fuel-channel')?.classList.remove('fuel-exchanging');
+        });
         this.shadowRoot.querySelectorAll('.floating-dialog').forEach(dialog => this.configureFloatingDialogDrag(dialog));
         this.shadowRoot.querySelector('#rod-override').addEventListener('change', event => {
             this.simulation.setRodOverride(this.selectedRod, event.target.checked);
@@ -487,6 +490,23 @@ export class NuclearPowerConsole extends HTMLElement {
         this.update();
     }
 
+    replaceFuelSelection(all) {
+        const ids = all ? this.simulation.fuel.assemblies.map(assembly => assembly.id) : [this.selectedFuel];
+        const replaced = all ? this.simulation.replaceAllFuel() : this.simulation.replaceFuel(this.selectedFuel);
+        if (!replaced) return;
+        this.fuelServiceStatus = all ? `All ${ids.length} fuel assemblies renewed. Reactor remains stopped.` : `${this.selectedFuel} renewed. Reactor remains stopped.`;
+        for (const [index, id] of ids.entries()) {
+            const channel = this.shadowRoot.querySelector(`[data-fuel-id="${id}"]`);
+            channel.classList.remove('fuel-exchanging');
+            if (!this.reducedMotion.matches) {
+                // Restart the illustrative removal/insertion if an operator repeats the action.
+                void channel.getBoundingClientRect();
+                channel.style.setProperty('--fuel-exchange-delay', `${Math.min(.6, index * .025)}s`);
+                channel.classList.add('fuel-exchanging');
+            }
+        }
+    }
+
     selectFuel(id) {
         if (!this.simulation.fuel.assemblies.some(a => a.id === id)) return;
         this.selectedFuel = id;
@@ -525,6 +545,7 @@ export class NuclearPowerConsole extends HTMLElement {
     closeFloatingDialog(dialog, restoreFocus = true) {
         if (!dialog?.matches(':popover-open')) return;
         dialog.hidePopover();
+        if (dialog.classList.contains('core-dialog')) dialog.querySelectorAll('.fuel-exchanging').forEach(channel => channel.classList.remove('fuel-exchanging'));
         this.floatingDialogs = this.floatingDialogs.filter(item => item !== dialog);
         for (const trigger of this.shadowRoot.querySelectorAll(`[aria-controls="${dialog.id}"]`)) trigger.setAttribute('aria-expanded', 'false');
         if (restoreFocus && this.isConnected) this.shadowRoot.querySelector(dialog.classList.contains('trends-dialog') ? '.trend-panel' : dialog.classList.contains('meltdown-banner') ? '[data-action="meltdown-view"]' : dialog.classList.contains('core-dialog') ? '[data-equipment="reactor"]' : '[data-action="power-supply"]').focus({ preventScroll: true });
@@ -601,7 +622,8 @@ export class NuclearPowerConsole extends HTMLElement {
             'rod-insert': () => sim.setRod(this.selectedRod, sim.controlRods.find(rod => rod.id === this.selectedRod).target + 1),
             'rod-withdraw': () => sim.setRod(this.selectedRod, sim.controlRods.find(rod => rod.id === this.selectedRod).target - 1),
             'core-view': () => this.openCoreMap(), 'close-core': () => this.closeCoreMap(),
-            'replace-fuel': () => sim.replaceFuel(this.selectedFuel),
+            'replace-fuel': () => this.replaceFuelSelection(false),
+            'replace-all-fuel': () => this.replaceFuelSelection(true),
             'select-control-rod': () => this.selectRod(this.selectedRod),
             'power-supply': () => this.openAuxiliaryPower(),
             'close-power': () => this.closeAuxiliaryPower(),
@@ -635,11 +657,12 @@ export class NuclearPowerConsole extends HTMLElement {
     updateActivity() {
         const active = this.isConnected && this.intersecting && !document.hidden && !this.simulation.paused;
         this.dataset.animating = String(active);
+        if (this.reducedMotion.matches) this.shadowRoot.querySelectorAll('.fuel-exchanging').forEach(channel => channel.classList.remove('fuel-exchanging'));
         if (!active) this.stopAlarmSound();
         if (!active) {
-            this.closeCoreMap(false);
-            // Pause keeps the management dialog open; hiding the feature closes it.
+            // Pause keeps inspection windows open; hiding the feature closes them.
             if (!this.isConnected || !this.intersecting || document.hidden) {
+                this.closeCoreMap(false);
                 this.closeAuxiliaryPower(false);
                 this.closeFloatingDialog(this.shadowRoot.querySelector('.trends-dialog'), false);
                 this.reopenMeltdown = this.simulation.condition.meltdown;
@@ -815,6 +838,8 @@ export class NuclearPowerConsole extends HTMLElement {
         if (!this.initialized) return;
         const sim = this.simulation;
         if (this.lastProcessElapsed > sim.elapsed) {
+            this.fuelServiceStatus = '';
+            this.shadowRoot.querySelectorAll('.fuel-exchanging').forEach(channel => channel.classList.remove('fuel-exchanging'));
             this.processMotion = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0 };
         }
         this.lastProcessElapsed = sim.elapsed;
@@ -866,6 +891,8 @@ export class NuclearPowerConsole extends HTMLElement {
             selectedFuelState: fuel.remaining <= 0 ? 'DEPLETED' : fuel.remaining <= 20 ? 'LOW RESERVE' : 'IN SERVICE',
             selectedFuelEffectiveness: percent(sim.fuel.effectiveness(fuel) * 100),
             selectedFuelExposure: `${n(fuel.exposure, 2)} demo FPH`, selectedFuelReplacements: String(fuel.replacements),
+            fuelServiceStatus: this.fuelServiceStatus || '',
+            fuelInventoryState: `${sim.fuel.assemblies.filter(a => a.remaining <= 0).length} depleted · ${sim.fuel.assemblies.filter(a => a.remaining > 0 && a.remaining <= 20).length} low reserve · select an assembly to inspect or replace`,
             fuelReserve: percent(sim.fuel.remaining), fuelCapability: percent(sim.fuel.capability * 100),
             fuelReplacementReadiness: fuelReadiness.ready ? 'Ready for manual replacement. Reactor will remain stopped.' : fuelReadiness.reasons.join('. ') + '.',
             powerSource: sim.supply.source, auxiliaryLoad: `${n(sim.supply.demand, 2)} MW requested / ${n(sim.supply.capacity, 1)} MW available`,
@@ -938,6 +965,7 @@ export class NuclearPowerConsole extends HTMLElement {
             'rod-insert': rodBlocked || selectedRod.target >= 100,
             'rod-withdraw': rodBlocked || selectedRod.target <= 0,
             'replace-fuel': !fuelReadiness.ready || !this.selectedFuel,
+            'replace-all-fuel': !fuelReadiness.ready,
             'load-down': sim.autoMode || sim.tripped || sim.demand <= 0, 'load-up': sim.autoMode || sim.tripped || sim.demand >= 100,
             'reset-trip': !sim.tripped || !sim.tripRecovery().ready,
             repair: !condition.canRepair(sim), 'export-incident': !condition.incident,
@@ -1015,7 +1043,11 @@ export class NuclearPowerConsole extends HTMLElement {
             element.classList.toggle('selected', fuel.id === this.selectedFuel);
             element.dataset.reserve = fuel.remaining <= 0 ? 'spent' : fuel.remaining <= 20 ? 'low' : 'normal';
             element.setAttribute('aria-pressed', String(fuel.id === this.selectedFuel));
-            element.setAttribute('aria-label', `${fuel.id}: remaining ${fuel.remaining.toFixed(1)}%; exposure ${fuel.exposure.toFixed(2)} demo full-power hours`);
+            const reserveState = fuel.remaining <= 0 ? 'DEPLETED — manual replacement required' : fuel.remaining <= 20 ? 'LOW RESERVE' : 'In service';
+            const fuelLabel = `${fuel.id}: ${reserveState}; remaining ${fuel.remaining.toFixed(1)}%; exposure ${fuel.exposure.toFixed(2)} demo full-power hours`;
+            element.setAttribute('aria-label', fuelLabel);
+            element.querySelector('.fuel-map-tooltip').textContent = fuelLabel;
+            element.querySelector('.fuel-low-label').textContent = `${Math.max(1, Math.ceil(fuel.remaining))}%`;
             const ring = element.querySelector('.fuel-reserve-ring');
             ring.style.strokeDasharray = `${Math.PI * 28}`;
             ring.style.strokeDashoffset = `${Math.PI * 28 * (1 - fuel.remaining / 100)}`;

@@ -93,7 +93,9 @@ movable nonmodal dialog with reset/export, and escalating opt-in warning/siren a
 visibility cleanup and reduced-motion behavior. Preserve
 the incident's initiating cause independently of the rolling event journal.
 `nuclear-power-fuel.js` tracks uneven exposure and reserve per fuel assembly, separately
-from control rods. Replacement is manual, one cooled/stopped assembly at a time; never
+from control rods. Replacement is manual, for a selected assembly or all fuel together after the
+same cooled/stopped checks; the exchange animation is visual only and preserves
+heat, damage, the trip latch and stopped state; never
 let automation replace fuel or component repair replenish it. Auto compensates declining
 fuel capability and regulates only rods without an explicit manual override. Stop/trip
 release overrides and insert every rod. `nuclear-power-supply.js` models the auxiliary

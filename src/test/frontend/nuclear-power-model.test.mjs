@@ -411,3 +411,14 @@ test('process animation follows heat and generation with phase-preserving coast-
     assert.deepEqual(advanceProcessMotion(motion, hot, 0), { ...motion, steam: coast.steam, heat: coast.heat });
     assert.deepEqual(advanceProcessMotion(motion, hot, 30), advanceProcessMotion(motion, hot, .1));
 });
+
+
+test('generator rotates whenever output is reported even below the steam visual threshold', () => {
+    let motion = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0 };
+    const signals = { temperature: 90, secondaryTemperature: 35.6, primaryFlow: 100, secondaryFlow: 100, electricalOutput: 203, supplyFactor: 1 };
+    for (let i=0; i<40; i++) motion = advanceProcessMotion(motion, signals, .1);
+    assert.ok(motion.speed > .4);
+    assert.ok(motion.angle > 0);
+    assert.equal(motion.steam, 0);
+    assert.equal(motion.steamPhase, 0);
+});

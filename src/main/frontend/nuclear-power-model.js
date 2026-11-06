@@ -163,7 +163,15 @@ export class NuclearPowerSimulation {
     }
 
     replaceFuel(id) {
-        if (this.fuel.replace(this, id)) this.updateAlarms();
+        const replaced = this.fuel.replace(this, id);
+        if (replaced) this.updateAlarms();
+        return replaced;
+    }
+
+    replaceAllFuel() {
+        const replaced = this.fuel.replaceAll(this);
+        if (replaced) this.updateAlarms();
+        return replaced;
     }
 
     moveRods(delta) {

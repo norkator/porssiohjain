@@ -65,13 +65,24 @@ export class FuelInventory {
         return { ready: reasons.length === 0, reasons };
     }
 
+    renew(assembly) {
+        assembly.remaining = 100;
+        assembly.exposure = 0;
+        assembly.replacements++;
+        assembly.announced = 'normal';
+    }
+
+    replaceAll(sim) {
+        if (!this.replacementReadiness(sim).ready) return false;
+        this.assemblies.forEach(assembly => this.renew(assembly));
+        sim.record(`All ${this.assemblies.length} fuel assemblies replaced manually. Reactor remains stopped; retained heat, damage and trip latch preserved.`, 'success', 'operator');
+        return true;
+    }
+
     replace(sim, id) {
         const a = this.assemblies.find(a => a.id === id);
         if (!a || !this.replacementReadiness(sim).ready) return false;
-        a.remaining = 100;
-        a.exposure = 0;
-        a.replacements++;
-        a.announced = 'normal';
+        this.renew(a);
         sim.record(`${id} replaced manually with fresh fuel (replacement ${a.replacements}). Other fuel, retained heat and damage preserved.`, 'success', 'operator');
         return true;
     }

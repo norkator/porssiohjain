@@ -147,3 +147,10 @@
 :host([data-theme="light"]) .electrical-bus .energized text { fill: #145c37; }
 :host([data-theme="light"]) .electrical-bus .energized .bus-flow,
 :host([data-theme="light"]) .bus-pump-flow { stroke: #26744f; }
+
+:host([data-theme="light"]) .fuel-channel[data-reserve="spent"] > rect { fill: #fff0cc; stroke: #8c5a12; }
+:host([data-theme="light"]) .fuel-empty-marker path { stroke: #754700; }
+:host([data-theme="light"]) .fuel-empty-marker text,
+:host([data-theme="light"]) .fuel-channel[data-reserve="low"] .fuel-low-label { fill: #754700; }
+:host([data-theme="light"]) .fuel-channel[data-reserve="spent"][data-condition="damaged"] > rect { stroke: #b1372e; }
+:host([data-theme="light"]) .fuel-channel[data-reserve="spent"]:is(.selected, :hover, :focus-visible) > rect { stroke: #08634f; stroke-width: 3px; }

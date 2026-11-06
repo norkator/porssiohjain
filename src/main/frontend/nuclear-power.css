@@ -273,6 +273,8 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .core-dialog-titlebar:active { cursor: grabbing; }
 .core-dialog-titlebar h2 { flex: 1; }
 .core-dialog-titlebar button { font-size: 17px; padding: 0 8px; }
+.core-dialog { width: min(900px, calc(100vw - 24px)); }
+.core-dialog .core-map-svg { max-width: 650px; }
 .core-dialog .core-map { overflow: auto; min-height: 0; scrollbar-color: #456071 #15212d; }
 .core-dialog .core-map-layout { grid-template-columns: minmax(0, 1fr) 190px; }
 :host([data-overheated="true"]) .core-temperature-metric { background: #38252b; border-color: #f27b71; }
@@ -580,3 +582,33 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .fuel-bundle rect { transition: fill .25s linear, stroke .25s linear; }
 
 .fuel-drips { fill: #ffb85c; pointer-events: none; }
+
+.fuel-empty-marker, .fuel-low-label { display: none; pointer-events: none; }
+.fuel-channel[data-reserve="spent"] .fuel-empty-marker { display: inline; }
+.fuel-empty-marker path { fill: none; stroke: #ffe1a0; stroke-width: 2.5px; }
+.fuel-empty-marker text { fill: #ffe1a0; font: bold 7px Consolas, monospace; }
+.fuel-channel[data-reserve="spent"] :is(.fuel-center, .fuel-pin, .fuel-reserve-ring) { visibility: hidden; }
+.fuel-channel[data-reserve="spent"] > rect { fill: #302d29; stroke: #e4bc70; stroke-width: 2px; }
+.fuel-channel[data-reserve="spent"][data-condition="damaged"] > rect { stroke: #ff8278; }
+.fuel-channel[data-reserve="low"] :is(.fuel-center, .fuel-pin) { visibility: hidden; }
+.fuel-channel[data-reserve="low"] .fuel-low-label { display: inline; fill: #ffe1a0; font: bold 10px Consolas, monospace; }
+.fuel-channel[data-reserve="spent"]:is(.selected, :hover, :focus-visible) > rect { stroke: #a4ffe8; stroke-width: 3px; }
+.fuel-map-summary { color: var(--muted); font-size: 10px; margin: 8px 0; }
+
+.fuel-map-actions { padding: 10px 0 0; border-top: 1px solid var(--border); }
+.fuel-map-actions p { color: var(--muted); font-size: 10px; margin-top: 6px; }
+.fuel-service-status { color: var(--cool) !important; }
+.fuel-exchanging .fuel-exchange-glyph {
+    animation: fuel-exchange 1.1s ease-in-out both;
+    animation-delay: var(--fuel-exchange-delay, 0s);
+}
+@keyframes fuel-exchange {
+    0% { translate: 0 0; opacity: 1; }
+    40% { translate: 0 -24px; opacity: 0; }
+    50% { translate: 0 24px; opacity: 0; }
+    100% { translate: 0 0; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .fuel-exchanging .fuel-exchange-glyph { animation: none; }
+}
+.fuel-channel.fuel-exchanging > rect { stroke: var(--cool); stroke-width: 3px; }

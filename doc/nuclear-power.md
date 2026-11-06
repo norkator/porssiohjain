@@ -30,7 +30,8 @@ equipment to inspect it. The diagram can be zoomed and scrolled. Controls and
 instruments adapt to the feature window's width, including desktop window resizing.
 
 Click the reactor vessel (or **Core map ↗**) to open the core map in a movable,
-nonmodal floating dialog above the desktop windows. The process schematic stays
+nonmodal floating dialog above the desktop windows (up to 900 px wide, with a
+650 px core drawing and viewport clamping). The process schematic stays
 visible and interactive underneath, using the same model and rod positions. Drag
 the dialog title bar to move it; when the title bar has keyboard focus, arrow keys
 move it in 16 px steps. The frame is clamped to the browser viewport on movement
@@ -41,7 +42,10 @@ above the desktop frames without making the process view inert.
 
 The core map is a fictional circular array of individually selectable fuel assemblies
 and twelve control rods, `CR-01` through `CR-12`. Control-rod rings show actual insertion;
-amber fuel rings show remaining reserve. Fuel activity is illustrative, not a measured
+amber fuel rings show remaining reserve. Depleted assemblies show a high-contrast
+cross and **EMPTY** label; low-reserve assemblies show their remaining percentage.
+A count below the map summarizes depleted and low-reserve assemblies. Tooltips and
+accessible labels state reserve status; damage retains its separate red border. Fuel activity is illustrative, not a measured
 local power or temperature. The side section projects the same twelve rod positions.
 
 Core temperature above the existing 335 °C demo high-temperature threshold turns
@@ -163,8 +167,10 @@ Auto-owned actuator settings remain readable while disabled.
 The schematic uses the shared visibility-aware frame loop for illustrative motion:
 
 - Turbine blades show projected rotation and the generator has a centered rotating
-  rotor. Generation/secondary heat and flow drive a smoothed visual speed, with
-  startup acceleration and coast-down after shutdown. This is not a measured RPM.
+  rotor. Reported electrical generation drives a smoothed visual speed, with
+  startup acceleration and coast-down after shutdown. Rotation is independent of the
+  steam-particle temperature threshold, since the simplified model can report output
+  during early warm-up. This is not a measured RPM.
 - Steam particles follow the steam pipe toward the turbine; their visibility and
   travel rate use secondary temperature and actual circulation. Condenser droplets
   follow the same heat/flow activity. Cold circulation still shows water flow but
@@ -303,7 +309,14 @@ at 115% after fresh replacements. The retained manual startup load is 64%; Auto 
 Manual output falls as fuel is used. Auto withdraws available rods to compensate, then
 reports **Fuel capability** if the remaining fuel cannot satisfy the target. Per-assembly
 20%/depleted transitions enter the journal; an active low-fuel alarm remains until the
-affected assemblies are replaced. **Automation never replaces fuel.**
+affected assemblies are replaced. **Automation never replaces fuel.** The map's **Replace all fuel** action manually
+renews every assembly together, using exactly the same readiness checks as selected
+replacement. The operation is atomic; it does not start the reactor or clear heat,
+damage or a trip. A staggered removal/insertion animation illustrates each changed
+assembly, and a status message confirms completion. Single replacement uses the
+same animation. Inventory is updated immediately; animation is cosmetic, pauses
+with the simulation and clears when the map closes/hides; reduced motion uses an
+immediate static update.
 
 **Replace selected fuel** changes only the selected assembly to 100% reserve, zero
 exposure and an incremented replacement count. It requires a stopped reactor, all rods

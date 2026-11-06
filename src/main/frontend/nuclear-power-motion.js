@@ -15,7 +15,9 @@ export function advanceProcessMotion(previous, signals, seconds) {
     const steam = bounded((signals.secondaryTemperature - 65) / 140) * bounded(signals.secondaryFlow / 100);
     const heat = bounded((signals.temperature - signals.secondaryTemperature) / 140)
         * bounded(Math.min(signals.primaryFlow, signals.secondaryFlow) / 100);
-    const target = bounded(signals.electricalOutput / 300) * steam;
+    // Output is authoritative for rotation; the toy model can generate during
+    // warm-up before the separate illustrative steam-temperature threshold.
+    const target = bounded(signals.electricalOutput / 300);
     const speed = target + (previous.speed - target) * Math.exp(-dt / (target > previous.speed ? 3 : 6));
     return {
         speed: speed < .0001 ? 0 : speed,
