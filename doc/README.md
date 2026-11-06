@@ -20,6 +20,7 @@ For a product overview and screenshots, see the [main README](../README.md).
 - [Tuya measurements for Heating Planner](tuya-heating-planner-work.md)
 - [Heat-pump control rules](heat-pump-control-rules.md)
 - [Powerplant control-room board](powerplant.md)
+- [Nuclear Power simulation](nuclear-power.md)
 - [Measurements and public sharing](measurements.md)
 - [Water meters](wrm-wmd-water-meters.md)
 - [Finnish wind-power forecast](wind-forecast.md)

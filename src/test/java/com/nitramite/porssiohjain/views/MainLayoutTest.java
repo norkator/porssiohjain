@@ -203,7 +203,7 @@ class MainLayoutTest {
                 .filter(c -> c.getElement().getClassList().contains("retro-icons")).findFirst().orElseThrow();
         List<String> labels = icons.getChildren().map(c -> c.getElement().getTextRecursively()).toList();
         assertEquals(List.of("home.myDevices", "home.myControls", "home.weatherControls",
-                "home.heatingPlanner", "home.loadShedding", "home.powerplant", "home.solarAnglePlanner",
+                "home.heatingPlanner", "home.loadShedding", "home.powerplant", "home.nuclearPower", "home.solarAnglePlanner",
                 "home.myProduction", "home.powerLimits", "home.dashboard", "home.forecasts", "home.measurements", "home.waterMeters", "home.settings", "featureRequest.title", "desktop.googlePlay", "home.buyMeACoffee", "home.logout"), labels);
     }
 
@@ -224,6 +224,20 @@ class MainLayoutTest {
     }
 
     @Test
+    void nuclearPowerUsesItsOwnIconAndRetainsItsSimulationWindow() {
+        Div simulation = new Div("simulation state");
+        navigate("nuclear-power", simulation);
+        Component frame = windows().getFirst();
+        assertTrue(frame.getElement().getTextRecursively().contains("home.nuclearPower"));
+        assertTrue(children(frame).anyMatch(c -> "icons/desktop/nuclear-power.svg".equals(c.getElement().getAttribute("src"))));
+        assertTrue(children(tasks().getFirst()).anyMatch(c -> "icons/desktop/nuclear-power.svg".equals(c.getElement().getAttribute("src"))));
+        navigate("device", new Div());
+        tasks().getFirst().click();
+        assertSame(frame, windows().getFirst());
+        assertTrue(simulation.getParent().isPresent());
+    }
+
+    @Test
     void desktopRestoresFinnishSessionLocaleBeforeBuildingLabels() {
         VaadinSession session = mock(VaadinSession.class);
         when(session.getAttribute(Locale.class)).thenReturn(Locale.of("fi", "FI"));
@@ -240,6 +254,7 @@ class MainLayoutTest {
             assertTrue(text.contains("Käynnistä"));
             assertTrue(text.contains("Omat laitteet"));
             assertTrue(text.contains("Vesimittarit"));
+            assertTrue(text.contains("Nuclear Power"));
             assertTrue(text.contains("Kirjaudu ulos"));
             assertEquals(Locale.of("fi", "FI"), ui.getLocale());
         } finally {
