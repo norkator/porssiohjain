@@ -31,9 +31,9 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
             response.end(`<!doctype html><html lang="fi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nuclear Power check</title><style>body{margin:0;background:#101923}main{width:100%}</style><main><nuclear-power-console></nuclear-power-console></main><script type="module" src="/nuclear-power.js"></script></html>`);
             return;
         }
-        if (path === '/nuclear-power.css') {
+        if (path === '/nuclear-power.css' || path === '/nuclear-power-light.css') {
             response.setHeader('Content-Type', 'text/javascript');
-            response.end('export default ' + JSON.stringify(readFileSync(join(root, 'src/main/frontend/nuclear-power.css'), 'utf8')));
+            response.end('export default ' + JSON.stringify(readFileSync(join(root, 'src/main/frontend', path.slice(1)), 'utf8')));
             return;
         }
         const allowed = ['/nuclear-power.js', '/nuclear-power-model.js', '/nuclear-power-motion.js'];
@@ -117,6 +117,26 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await until(`!!document.querySelector('nuclear-power-console')?.shadowRoot?.querySelector('.console')`, 'Control room did not render');
         assert.equal(await value('status'), 'RUNNING');
         assert.equal(await consoleCode('return c.lang;'), 'en');
+        assert.equal(await consoleCode('return c.dataset.theme;'), 'dark');
+        await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
+        assert.equal(await consoleCode('return c.dataset.theme;'), 'light');
+        assert.equal(await consoleCode('return getComputedStyle(c).colorScheme;'), 'light');
+        assert.equal(await consoleCode(`const other=document.createElement('nuclear-power-console');other.style.display='none';c.parentElement.append(other);const theme=other.dataset.theme;other.remove();return theme;`), 'light');
+        await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
+        for (const [width, height] of [[1920, 1080], [2560, 1440]]) {
+            await page('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+            await wait(100);
+            const layout = await consoleCode(`const rect=selector=>{const r=s.querySelector(selector).getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width};};return {metrics:rect('.metrics'),controls:rect('.control-column'),analysis:rect('.analysis-column'),trends:rect('.trend-panel'),logs:rect('.events-panel'),footer:rect('.console-footer'),console:rect('.console')};`);
+            assert.ok(layout.metrics.right <= layout.controls.x);
+            assert.ok(layout.controls.right <= layout.analysis.x);
+            assert.ok(layout.trends.bottom <= layout.logs.y);
+            assert.ok(layout.console.width > width - 50, 'Wide layout should use the full feature width');
+            assert.ok(layout.footer.bottom <= height - (appUrl ? 35 : 0), `Wide screen should fit the overview: ${JSON.stringify(layout)}`);
+            await screenshot(`wide-${width}-dark`);
+            await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
+            await screenshot(`wide-${width}-light`);
+            await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
+        }
         await action('fluctuations');
 
         // A rotated local origin must coincide exactly with the stationary hub center.
@@ -157,6 +177,16 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await advance(180);
         assert.ok(Math.abs(await consoleCode('return c.simulation.temperature;') - 275) < 3);
         assert.equal(await value('mode'), 'AUTO');
+        await input('#auto-objective', 'power');
+        await input('#auto-electrical', 150);
+        await advance(240);
+        assert.ok(Math.abs(await consoleCode('return c.simulation.snapshot().signals.electricalOutput.value;') - 150) < 2);
+        assert.equal(await value('temperatureLabel'), 'Core limit');
+        await input('#auto-electrical', 400);
+        await advance(180);
+        assert.equal(await value('regulationDetail'), 'Core temperature limit');
+        await input('#auto-objective', 'temperature');
+        await advance(180);
         await action('fluctuations');
         await advance(60);
         assert.equal(await consoleCode(`return c.simulation.fluctuationsEnabled;`), false);

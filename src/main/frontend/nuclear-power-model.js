@@ -49,6 +49,10 @@ export class NuclearPowerSimulation {
         this.primaryFlow = 100;
         this.secondaryFlow = 100;
         this.autoMode = false;
+        this.autoObjective = 'temperature';
+        this.autoElectricalTarget = 200;
+        this.regulationLimit = '';
+        this.outputControlIntegral = 0;
         this.autoTemperature = 286;
         this.autoFlow = 85;
         this.fluctuationsEnabled = true;
@@ -183,8 +187,10 @@ export class NuclearPowerSimulation {
         if (this.autoMode === enabled) return;
         this.autoMode = enabled;
         this.controlIntegral = 0;
+        this.outputControlIntegral = 0;
+        this.regulationLimit = '';
         this.lastControlTime = this.elapsed - 1;
-        this.record(enabled ? 'Automatic control enabled. Holding core temperature and circulation targets.'
+        this.record(enabled ? `Automatic control enabled. Regulating ${this.autoObjective === 'power' ? 'electrical output' : 'core temperature'} and circulation.`
             : 'Manual control enabled. Rod and pump settings held at current targets.', 'info', 'automation');
     }
 
@@ -193,7 +199,24 @@ export class NuclearPowerSimulation {
         this.autoTemperature = clamp(temperature, 40, 330);
         this.autoFlow = clamp(flow, 25, 100);
         this.controlIntegral = 0;
+        this.outputControlIntegral = 0;
         this.record(`Automatic targets: ${this.autoTemperature} °C core; ${this.autoFlow}% circulation.`, 'info', 'automation');
+    }
+
+    setAutoObjective(objective) {
+        if (!['temperature', 'power'].includes(objective) || objective === this.autoObjective) return;
+        this.autoObjective = objective;
+        this.controlIntegral = 0;
+        this.outputControlIntegral = 0;
+        this.regulationLimit = '';
+        this.record(`Automatic objective: ${objective === 'power' ? 'electrical output (MW electric); core temperature setting is now a ceiling' : 'core temperature'}.`, 'info', 'automation');
+    }
+
+    setElectricalTarget(value) {
+        if (!Number.isFinite(value)) return;
+        this.autoElectricalTarget = clamp(value, 0, 400);
+        this.outputControlIntegral = 0;
+        this.record(`Electrical output target set to ${this.autoElectricalTarget} MW electric.`, 'info', 'automation');
     }
 
     setFluctuations(enabled) {
@@ -220,7 +243,20 @@ export class NuclearPowerSimulation {
         this.controlIntegral = clamp(this.controlIntegral + error * dt, -150, 150);
         const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6;
         const basePower = (this.autoTemperature - 30) / (4 + coolingLoss);
-        const desiredPower = clamp(basePower + error * 0.12 + this.controlIntegral * 0.003, 0, 95);
+        let desiredPower = clamp(basePower + error * 0.12 + this.controlIntegral * 0.003, 0, 95);
+        this.regulationLimit = '';
+        if (this.autoObjective === 'power') {
+            const conversion = 4.1 * Math.max(0.05, this.secondaryFlow / 100);
+            const electricalError = this.autoElectricalTarget - this.power * 4.1 * this.secondaryFlow / 100;
+            const requestedPower = this.autoElectricalTarget / conversion + electricalError * 0.04 + this.outputControlIntegral * 0.001;
+            const temperatureCeiling = Math.max(0, basePower + Math.min(0, error) * 0.12);
+            desiredPower = clamp(Math.min(requestedPower, temperatureCeiling), 0, 95);
+            if (this.autoElectricalTarget > 0 && (!this.pumpB || this.secondaryFlow < 20)) this.regulationLimit = 'Secondary circulation unavailable';
+            else if (requestedPower > temperatureCeiling + 0.5) this.regulationLimit = 'Core temperature limit';
+            else if (requestedPower > 95.5) this.regulationLimit = 'Generator capacity';
+            // Do not wind up the power controller against a cooling/temperature limit.
+            if (!this.regulationLimit || electricalError < 0) this.outputControlIntegral = clamp(this.outputControlIntegral + electricalError * dt, -300, 300);
+        }
         const insertion = 100 - desiredPower;
         const change = insertion - this.rodTarget;
         this.controlRods.forEach(rod => { rod.target = clamp(rod.target + change, 0, 100); });
@@ -229,7 +265,10 @@ export class NuclearPowerSimulation {
         this.pumpBSpeed = clamp(this.pumpBSpeed + (this.autoFlow - this.secondaryFlow) * 0.6, 25, 100);
         if (this.elapsed - this.lastAutoLog >= 10) {
             this.lastAutoLog = this.elapsed;
-            this.record(`Holding ${this.autoTemperature} °C: rod bank ${this.rodTarget.toFixed(1)}%; pump A ${this.pumpASpeed.toFixed(1)}%, B ${this.pumpBSpeed.toFixed(1)}%.`, 'info', 'automation');
+            const target = this.autoObjective === 'power'
+                ? `Electrical target ${this.autoElectricalTarget} MW, actual ${(this.power * 4.1 * this.secondaryFlow / 100).toFixed(1)} MW${this.regulationLimit ? ` (${this.regulationLimit})` : ''}`
+                : `Core target ${this.autoTemperature} °C, actual ${this.temperature.toFixed(1)} °C`;
+            this.record(`${target}: rod bank ${this.rodTarget.toFixed(1)}%; pump A ${this.pumpASpeed.toFixed(1)}%, B ${this.pumpBSpeed.toFixed(1)}%.`, 'info', 'automation');
         }
     }
 
@@ -313,6 +352,7 @@ export class NuclearPowerSimulation {
             commands: {
                 running: this.running, loadPercent: this.demand, mode: this.autoMode ? 'AUTO' : 'MANUAL',
                 temperatureTarget: this.autoTemperature, flowTarget: this.autoFlow,
+                objective: this.autoObjective, electricalTargetMw: this.autoElectricalTarget,
                 pumps: {
                     A: { enabled: this.pumpA, speedPercent: this.pumpASpeed },
                     B: { enabled: this.pumpB, speedPercent: this.pumpBSpeed }

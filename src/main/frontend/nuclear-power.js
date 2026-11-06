@@ -6,6 +6,7 @@
 import { CORE_CHANNELS, NuclearPowerSimulation } from './nuclear-power-model.js';
 import { advancePumpMotion } from './nuclear-power-motion.js';
 import styles from './nuclear-power.css?inline';
+import lightStyles from './nuclear-power-light.css?inline';
 
 const radiation = `<svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true"><circle cx="20" cy="20" r="3.4"/><path d="M16 13.1 12 6.2a16 16 0 0 1 16 0l-4 6.9a8 8 0 0 0-8 0ZM12 20H4a16 16 0 0 0 8 13.9l4-6.9a8 8 0 0 1-4-7Zm12 7 4 6.9A16 16 0 0 0 36 20h-8a8 8 0 0 1-4 7Z"/></svg>`;
 // Explicit local (0,0) rotation avoids the asymmetric SVG bounding-box pivot.
@@ -187,24 +188,32 @@ export class NuclearPowerConsole extends HTMLElement {
     initialize() {
         this.initialized = true;
         this.setAttribute('lang', 'en');
-        this.shadowRoot.innerHTML = `<style>${styles}</style>
+        this.shadowRoot.innerHTML = `<style>${styles}\n${lightStyles}</style>
         <main class="console">
           <header class="masthead">
             <div class="brand-mark">${radiation}</div>
             <div class="heading"><div class="eyebrow">PÖRSSIOHJAIN / UNIT 01</div><h1>Nuclear Power<span class="title-dot">.</span></h1><p>Energy, under control.</p></div>
-            <div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div>
+            <div class="appearance-tools"><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div></div>
           </header>
 
+          <div class="console-layout">
+          <aside class="instrument-column" aria-label="Plant instruments and equipment detail">
           <section class="metrics" aria-label="Simulated plant instruments">
             <article class="metric"><div class="metric-label"><span class="metric-icon warm">↗</span> Core temperature <span class="channel">TI-01</span></div><div class="metric-reading"><span data-value="coreNumber">286.0</span><span class="unit">°C</span></div><div class="metric-foot"><span><i class="status-dot"></i> <span data-value="temperatureState">WITHIN DEMO RANGE</span></span><span>SIMULATED</span></div><div class="metric-track warm-track"><i data-meter="temperature"></i></div></article>
             <article class="metric"><div class="metric-label"><span class="metric-icon warm">ϟ</span> Thermal output <span class="channel">PI-01</span></div><div class="metric-reading"><span data-value="thermalNumber">768</span><span class="unit">MW<span class="subscript">th</span></span></div><div class="metric-foot"><span><span data-value="load">64.0%</span> OF DEMO CAPACITY</span><span>SIMULATED</span></div><div class="metric-track warm-track"><i data-meter="power"></i></div></article>
+            <article class="metric"><div class="metric-label"><span class="metric-icon cool">ϟ</span> Electrical output <span class="channel">EI-01</span></div><div class="metric-reading"><span data-value="electricNumber">262</span><span class="unit">MW<span class="subscript">e</span></span></div><div class="metric-foot"><span data-value="electricalTargetLabel">GENERATOR OUTPUT</span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="electric"></i></div></article>
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">≋</span> Primary flow <span class="channel">FI-01</span></div><div class="metric-reading"><span data-value="flowNumber">4,800</span><span class="unit">m³/h</span></div><div class="metric-foot"><span><i class="status-dot" data-indicator="primary"></i> <span data-value="primaryState">CIRCULATING</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="flow"></i></div></article>
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">Ⅱ</span> Rod insertion <span class="channel">ZI-01</span></div><div class="metric-reading"><span data-value="rodsNumber">36.0</span><span class="unit">%</span></div><div class="metric-foot"><span>TARGET <span data-value="rodTarget">36%</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="rods"></i></div></article>
           </section>
+          <section class="panel equipment-panel" aria-label="Selected equipment details"><div class="panel-heading"><div><span class="section-index">↳</span><h2>Equipment detail</h2></div><span class="local-tag">SIM</span></div><div class="equipment-content"></div></section>
+          </aside>
 
+          <section class="control-column" aria-label="Reactor and operator controls">
           <section class="automation-strip" aria-label="Process regulation">
             <div><span class="control-label">CONTROL MODE</span><div class="mode-switch" role="group" aria-label="Control mode"><button data-action="manual" aria-pressed="true">Manual</button><button data-action="auto" aria-pressed="false">Auto</button></div></div>
-            <label for="auto-temperature">Core target <span><input id="auto-temperature" type="number" min="40" max="330" step="1" value="286"/> °C</span></label>
+            <label for="auto-objective">Regulate <select id="auto-objective"><option value="temperature">Core temperature</option><option value="power">Electrical output</option></select></label>
+            <label for="auto-electrical" class="electrical-target" hidden>Output target <span><input id="auto-electrical" type="number" min="0" max="400" step="1" value="200"/> MW<span class="subscript">e</span></span></label>
+            <label for="auto-temperature"><span data-value="temperatureLabel">Core target</span><span><input id="auto-temperature" type="number" min="40" max="330" step="1" value="286"/> °C</span></label>
             <label for="auto-flow">Circulation target <span><input id="auto-flow" type="number" min="25" max="100" step="1" value="85"/> %</span></label>
             <div class="regulation-status"><strong data-value="regulation">MANUAL CONTROL</strong><span data-value="regulationDetail">Individual rods and pump speeds available.</span><button class="small-button" data-action="fluctuations" aria-pressed="true">Fluctuations: On</button></div>
           </section>
@@ -232,9 +241,10 @@ export class NuclearPowerConsole extends HTMLElement {
                   <p class="control-note">Every control operates this simulation only.</p>
                 </div>
               </section>
-              <section class="panel equipment-panel" aria-label="Selected equipment details"><div class="panel-heading"><div><span class="section-index">↳</span><h2>Equipment detail</h2></div><span class="local-tag">SIM</span></div><div class="equipment-content"></div></section>
             </aside>
-
+          </div>
+          </section>
+          <aside class="analysis-column" aria-label="Trends and event journal">
             <section class="panel trend-panel" aria-label="Simulated temperature and output trends"><div class="panel-heading"><div><span class="section-index">03</span><h2>Live trends</h2></div><span class="local-tag">SIMULATED / 2 MIN</span></div>
               <div class="trend-legend"><span><i class="legend-dot warm-dot"></i> Core temperature <strong data-value="core">286.0 °C</strong></span><span><i class="legend-dot"></i> Reactor output <strong data-value="load">64.0%</strong></span></div>
               <svg class="trend-chart" viewBox="0 0 760 172" role="img" aria-label="Simulated core temperature in Celsius and reactor output in percent over the last two minutes">
@@ -245,9 +255,24 @@ export class NuclearPowerConsole extends HTMLElement {
               </svg><p class="trend-note">Trends build during this session. Both axes show simulated values.</p>
             </section>
             <section class="panel events-panel" aria-label="Simulation event log"><div class="panel-heading"><div><span class="section-index">04</span><h2>Event journal</h2></div><span class="event-count">0 EVENTS</span></div><div class="log-toolbar"><label for="log-filter">Show <select id="log-filter"><option value="all">All events</option><option value="operator">Operator</option><option value="automation">Automation</option><option value="process">Process readings</option><option value="alarm">Alarms</option><option value="system">System</option></select></label><span>Latest 200 events · this session</span><button class="small-button" data-action="export-log">↓ Export CSV</button></div><div class="alarm-list" aria-live="polite"></div><ol class="event-list" aria-label="Recent simulation events"></ol><button class="ack-button" data-action="acknowledge" disabled>✓ Acknowledge alarms</button></section>
+          </aside>
           </div>
           <footer class="console-footer"><span><i class="status-dot"></i> <span data-value="sessionState">SIMULATION ACTIVE</span><span class="footer-divider">/</span> ALL SIGNALS SIMULATED</span><div><button data-action="pause" class="footer-button">Ⅱ Pause</button><button data-action="reset" class="footer-button">↺ Reset demo</button></div><span class="footer-signature">PÖRSSIOHJAIN <span>NUCLEAR DIVISION</span></span></footer>
         </main>`;
+
+        let savedTheme = 'dark';
+        try { if (localStorage.getItem('porssiohjain.nuclear-power.theme') === 'light') savedTheme = 'light'; } catch { /* Storage can be disabled. */ }
+        this.setTheme(savedTheme, false);
+        this.shadowRoot.querySelector('#light-theme').addEventListener('change', event => this.setTheme(event.target.checked ? 'light' : 'dark'));
+        this.shadowRoot.querySelector('#auto-objective').addEventListener('change', event => {
+            this.simulation.setAutoObjective(event.target.value);
+            this.update();
+        });
+        this.shadowRoot.querySelector('#auto-electrical').addEventListener('change', event => {
+            if (!event.target.checkValidity() || event.target.value === '') { event.target.value = this.simulation.autoElectricalTarget; return; }
+            this.simulation.setElectricalTarget(Number(event.target.value));
+            this.update();
+        });
 
         this.shadowRoot.addEventListener('click', event => {
             const rod = event.target.closest('[data-rod]');
@@ -310,6 +335,14 @@ export class NuclearPowerConsole extends HTMLElement {
             this.updateEvents();
         });
         this.inspect('reactor');
+    }
+
+    setTheme(theme, persist = true) {
+        this.dataset.theme = theme === 'light' ? 'light' : 'dark';
+        this.shadowRoot.querySelector('#light-theme').checked = this.dataset.theme === 'light';
+        if (persist) {
+            try { localStorage.setItem('porssiohjain.nuclear-power.theme', this.dataset.theme); } catch { /* Theme still works without storage. */ }
+        }
     }
 
     selectRod(id) {
@@ -424,7 +457,9 @@ export class NuclearPowerConsole extends HTMLElement {
             core: `${n(signals.coreTemperature.value, 1)} °C`, coreNumber: n(signals.coreTemperature.value, 1),
             return: `${n(signals.returnTemperature.value, 1)} °C`, secondary: `${n(signals.secondaryTemperature.value, 1)} °C`,
             thermal: `${n(signals.thermalOutput.value)} MW`, thermalNumber: n(signals.thermalOutput.value),
-            electric: `${n(signals.electricalOutput.value)} MW`,
+            electric: `${n(signals.electricalOutput.value)} MW`, electricNumber: n(signals.electricalOutput.value),
+            electricalTargetLabel: sim.autoObjective === 'power' ? `TARGET ${n(sim.autoElectricalTarget)} MW ELECTRIC` : 'GENERATOR OUTPUT',
+            temperatureLabel: sim.autoObjective === 'power' ? 'Core limit' : 'Core target',
             flow: `${n(signals.primaryFlow.value)} m³/h`, flowNumber: n(signals.primaryFlow.value),
             rods: `${n(sim.rods, 1)}%`, rodsNumber: n(sim.rods, 1), rodTarget: percent(sim.rodTarget),
             load: `${n(sim.power, 1)}%`, demand: percent(sim.demand), status,
@@ -435,8 +470,9 @@ export class NuclearPowerConsole extends HTMLElement {
             selectedRodActual: `${n(selectedRod.position, 1)}%`, selectedRodTarget: percent(selectedRod.target),
             selectedRodMotion: Math.abs(selectedRod.target - selectedRod.position) < 0.5 ? 'AT TARGET' : selectedRod.target > selectedRod.position ? 'INSERTING' : 'WITHDRAWING',
             mode: sim.autoMode ? 'AUTO' : 'MANUAL',
-            regulation: sim.tripped ? 'TRIP / AUTOMATION INHIBITED' : !sim.running ? 'STOPPED / WAITING FOR START' : sim.autoMode ? `AUTO / ERROR ${n(sim.autoTemperature - sim.temperature, 1)} °C` : 'MANUAL CONTROL',
-            regulationDetail: sim.autoMode ? 'Rods and pump speeds adjust to hold your targets.' : 'Individual rods and pump speeds available.',
+            regulation: sim.tripped ? 'TRIP / AUTOMATION INHIBITED' : !sim.running ? 'STOPPED / WAITING FOR START' : sim.autoMode
+                ? sim.autoObjective === 'power' ? `AUTO / ${n(signals.electricalOutput.value, 1)} / ${n(sim.autoElectricalTarget)} MW ELECTRIC` : `AUTO / ERROR ${n(sim.autoTemperature - sim.temperature, 1)} °C` : 'MANUAL CONTROL',
+            regulationDetail: sim.autoMode ? sim.regulationLimit || (sim.autoObjective === 'power' ? 'Tracking electrical output; core setting limits temperature.' : 'Rods and pump speeds adjust to hold your targets.') : 'Individual rods and pump speeds available.',
             clock: `T+${this.time(sim.elapsed)}`,
             sessionState: sim.paused ? 'SIMULATION PAUSED' : 'SIMULATION ACTIVE',
             temperatureState: sim.temperature > 335 ? 'HIGH TEMPERATURE' : sim.running ? 'WITHIN DEMO RANGE' : 'COOLING DOWN',
@@ -454,7 +490,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.dataset.turbine = String(sim.power > 2 && sim.secondaryFlow > 10);
         this.style.setProperty('--core-intensity', Math.max(0.1, sim.power / 100));
         this.updateCore();
-        const meters = { temperature: Math.min(100, sim.temperature / 4), power: sim.power, flow: sim.primaryFlow, rods: sim.rods };
+        const meters = { temperature: Math.min(100, sim.temperature / 4), power: sim.power, electric: signals.electricalOutput.value / 4.1, flow: sim.primaryFlow, rods: sim.rods };
         for (const [key, value] of Object.entries(meters)) this.shadowRoot.querySelector(`[data-meter="${key}"]`).style.width = `${value}%`;
         for (const pump of ['A', 'B']) this.shadowRoot.querySelector(`[data-action="pump${pump}"]`).setAttribute('aria-pressed', String(sim[`pump${pump}`]));
         this.shadowRoot.querySelector('[data-indicator="primary"]').classList.toggle('off', !sim.pumpA);
@@ -478,13 +514,16 @@ export class NuclearPowerConsole extends HTMLElement {
             '#individual-rod': [selectedRod.target, sim.tripped || sim.autoMode || !sim.running],
             '#pump-A-speed': [sim.pumpASpeed, sim.autoMode && sim.running],
             '#pump-B-speed': [sim.pumpBSpeed, sim.autoMode && sim.running],
-            '#auto-temperature': [sim.autoTemperature, false], '#auto-flow': [sim.autoFlow, false]
+            '#auto-temperature': [sim.autoTemperature, false], '#auto-flow': [sim.autoFlow, false],
+            '#auto-electrical': [sim.autoElectricalTarget, false]
         };
         for (const [selector, [value, isDisabled]] of Object.entries(inputs)) {
             const input = this.shadowRoot.querySelector(selector);
             if (this.shadowRoot.activeElement !== input) input.value = value;
             input.disabled = isDisabled;
         }
+        this.shadowRoot.querySelector('#auto-objective').value = sim.autoObjective;
+        this.shadowRoot.querySelector('.electrical-target').hidden = sim.autoObjective !== 'power';
         for (const mode of ['manual', 'auto']) this.shadowRoot.querySelector(`[data-action="${mode}"]`).setAttribute('aria-pressed', String(sim.autoMode === (mode === 'auto')));
         const fluctuations = this.shadowRoot.querySelector('[data-action="fluctuations"]');
         fluctuations.textContent = `Fluctuations: ${sim.fluctuationsEnabled ? 'On' : 'Off'}`;

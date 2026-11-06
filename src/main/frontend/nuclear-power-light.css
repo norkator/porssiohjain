@@ -1,0 +1,77 @@
+/* Component-local light palette. The desktop and the default dark palette are independent. */
+:host([data-theme="light"]) {
+    color-scheme: light;
+    color: #263e50;
+    background: #edf2f5;
+    --warm: #a55218;
+    --cool: #08776a;
+    --muted: #536c7e;
+    --border: #c4d1da;
+}
+:host([data-theme="light"]) :is(.panel, .metric) { background: #fff; }
+:host([data-theme="light"]) .metric { background: linear-gradient(120deg, #fff, #f3f7f9); }
+:host([data-theme="light"]) :is(.automation-strip, .individual-rod) { background: #e3edf1; border-color: #bfced7; }
+:host([data-theme="light"]) .brand-mark { color: #96621b; background: #fff2d8; border-color: #c8a15f; }
+:host([data-theme="light"]) .simulation-badge { color: #825215; background: #fff4df; border-color: #d9bc87; }
+:host([data-theme="light"]) .simulation-badge i { background: #986624; }
+:host([data-theme="light"]) :is(.metric-label, .metric-foot, .unit, .control-note, .range-labels, .operation-state > span, .control-label, .setpoint label, .individual-rod > label, .core-map-note, .core-map-legend, .diagram-legend, .diagram-note, .trend-note, .trend-legend, .event-count, .local-tag, .section-index, .event-time, .event-category, dt, .console-footer, .footer-signature, .footer-signature span) { color: #536b7b; }
+:host([data-theme="light"]) :is(.equipment-content p, .individual-rod p, .regulation-status > span, .pump-readback, .pump-control > label, .automation-strip > label) { color: #4f6878; }
+:host([data-theme="light"]) :is(dd, .trend-legend strong, .control-label > span, .pump-readback strong, .automation-strip > label > span) { color: #25465a; }
+:host([data-theme="light"]) .metric-track { background: #d7e2e8; }
+:host([data-theme="light"]) .regulation-status { border-color: #bdced6; }
+:host([data-theme="light"]) .regulation-status strong { color: #086c60; }
+:host([data-theme="light"]) :is(select, .automation-strip input[type="number"]) { color: #264557; background: #fff; border-color: #a6bbc8; }
+:host([data-theme="light"]) .mode-switch { background: #e7eef2; border-color: #a6bec7; }
+:host([data-theme="light"]) .mode-switch button { color: #486474; }
+:host([data-theme="light"]) .mode-switch button[aria-pressed="true"] { background: #c7e5db; color: #145d50; border-color: #7eafa1; }
+:host([data-theme="light"]) :is(.small-button, .control-button, .footer-button) { color: #324f60; background: #f1f6f8; border-color: #adc0cc; }
+:host([data-theme="light"]) :is(.small-button, .control-button, .footer-button):not(:disabled):hover { background: #dce9ed; border-color: #759e9b; }
+:host([data-theme="light"]) .start-button { color: #15624d; background: #daeee5; border-color: #86b5a1; }
+:host([data-theme="light"]) .theme-toggle input { background: #c8d7de; border-color: #7897a6; }
+:host([data-theme="light"]) .theme-toggle input:checked { background: #087a70; border-color: #087a70; }
+:host([data-theme="light"]) .theme-toggle input::before { background: #fff; }
+:host([data-theme="light"]) .annunciator { color: #0f6959; background: #e2f3ed; border-color: #aad2c6; }
+:host([data-theme="light"]) .annunciator.has-alarm { color: #964619; background: #fff0df; border-color: #d8a97d; }
+:host([data-theme="light"]) .diagram-viewport { background: #f7fafb; }
+:host([data-theme="light"]) #grid path { stroke: #d4e1e9; }
+:host([data-theme="light"]) :is(.panel-heading, .diagram-legend, .core-map-note, .setpoint, dl > div, .log-toolbar) { border-color: #ccd9e2; }
+:host([data-theme="light"]) :is(.pump-control, .pump-button) { color: #284c5d; background: #edf5f6; border-color: #b5cad3; }
+:host([data-theme="light"]) .pump-button:hover { background: #dcebee; }
+:host([data-theme="light"]) .pump-button small { color: #506b7b; }
+:host([data-theme="light"]) .pump-button[aria-pressed="false"] { background: #f9eee0; border-color: #ceb292; }
+:host([data-theme="light"]) .emergency-button { color: #a23d2e; background: #fff0ec; border-color: #cc8f81; }
+:host([data-theme="light"]) .emergency-button:not(:disabled):hover { background: #f9dcd6; border-color: #ac5c4c; }
+:host([data-theme="light"]) .emergency-button small { color: #974738; }
+:host([data-theme="light"]) .emergency-symbol { border-color: #bd7765; }
+:host([data-theme="light"]) .trip-recovery { background: #fff4e6; border-color: #ceaa7e; }
+:host([data-theme="light"]) :is(.trip-recovery > strong, .trip-recovery li, .trip-recovery p) { color: #875a2c; }
+:host([data-theme="light"]) .trip-recovery .ready { color: #08776a; }
+:host([data-theme="light"]) .equipment-title > span { color: #85501c; border-color: #cdb48e; }
+:host([data-theme="light"]) .event-list li { color: #3d586b; border-color: #d2dee6; }
+:host([data-theme="light"]) .event-list .alarm { color: #ae382c; }
+:host([data-theme="light"]) .event-list .warning { color: #95521b; }
+:host([data-theme="light"]) .event-list .success { color: #0e6c58; }
+:host([data-theme="light"]) .alarm-item { color: #934319; background: #fff0df; border-color: #d4a783; }
+:host([data-theme="light"]) .ack-button { color: #805623; background: #f7ecd9; border-color: #c7aa7d; }
+:host([data-theme="light"]) .ack-button:not(:disabled):hover { background: #eedcbc; }
+:host([data-theme="light"]) :is(.drawing-label, .equipment-tag, .component-subtitle, .chart-labels) { fill: #526c7e; }
+:host([data-theme="light"]) .diagram-value { fill: #254b5d; }
+:host([data-theme="light"]) .pipe-shell { stroke: #cfdae2; }
+:host([data-theme="light"]) .instrument rect { fill: #fff; stroke: #a4bac8; }
+:host([data-theme="light"]) .instrument-label { fill: #526c7e; }
+:host([data-theme="light"]) .instrument path { stroke: #7c9aa9; }
+:host([data-theme="light"]) .signal-line { stroke: #557f73; }
+:host([data-theme="light"]) .equipment.selected .selection-ring { stroke: #1b8276; }
+:host([data-theme="light"]) .equipment:hover .selection-ring { stroke: #3c8e84; }
+:host([data-theme="light"]) .core-vessel-outer { fill: #dae6ec; stroke: #7894a2; }
+:host([data-theme="light"]) .core-vessel-inner { fill: #f9fcfd; stroke: #a4b9c4; }
+:host([data-theme="light"]) .core-crosshair { stroke: #597a8b; }
+:host([data-theme="light"]) .core-channel > rect { fill: #e8eef2; stroke: #a5bac6; }
+:host([data-theme="light"]) .control-channel > rect { fill: #d9eee7; stroke: #5f9b8d; }
+:host([data-theme="light"]) :is(.control-channel.selected, .control-channel:hover) > rect { fill: #b9e2d3; stroke: #0b715f; }
+:host([data-theme="light"]) .control-channel text { fill: #205e50; }
+:host([data-theme="light"]) .fuel-center { fill: #af5d1d; }
+:host([data-theme="light"]) .fuel-pin { fill: #844611; }
+:host([data-theme="light"]) .rod-depth-track { background: #d5e6e8; border-color: #81a9ac; }
+:host([data-theme="light"]) .chart-grid { stroke: #c2d2de; }
+:host([data-theme="light"]) :is(.event-list, .diagram-viewport) { scrollbar-color: #a3b8c5 #edf3f5; }
