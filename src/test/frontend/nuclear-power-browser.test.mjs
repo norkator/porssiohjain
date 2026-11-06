@@ -123,6 +123,10 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
         assert.equal(await consoleCode('return c.dataset.theme;'), 'light');
         assert.equal(await consoleCode('return getComputedStyle(c).colorScheme;'), 'light');
+        await wait(200);
+        const disabledContrast = await consoleCode(`const style=getComputedStyle(s.querySelector('[data-action="start"]'));const luminance=color=>{const rgb=color.match(/[\\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;};const a=luminance(style.color),b=luminance(style.backgroundColor);return {opacity:Number(style.opacity),ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};`);
+        assert.equal(disabledContrast.opacity, 1);
+        assert.ok(disabledContrast.ratio >= 4.5, 'Light-theme disabled controls should remain readable');
         assert.equal(await consoleCode(`const other=document.createElement('nuclear-power-console');other.style.display='none';c.parentElement.append(other);const theme=other.dataset.theme;other.remove();return theme;`), 'light');
         await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
         for (const [width, height] of [[1920, 1080], [2560, 1440]]) {

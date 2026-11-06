@@ -127,6 +127,8 @@ panels, controls, diagrams, chart and logs independently of the Windows 98 shell
 The browser preference uses `porssiohjain.nuclear-power.theme` in local storage;
 unavailable storage falls back to dark and never prevents switching themes. Theme
 changes do not reset simulation state or alter control settings.
+Light mode uses darker secondary labels and full-opacity disabled controls, so
+Auto-owned actuator settings remain readable while disabled.
 
 ## Controls
 
@@ -261,6 +263,25 @@ simulation/hardware mode. Physical interlocks and emergency stop need device-sid
 enforcement; browser animation or a sent MQTT command cannot establish confirmed
 hardware state. The current numeric ranges and trip criteria must not be reused as
 physical safety limits without a separate scale-model capability design.
+
+## Deferred work — wait for the user's explicit go signal
+
+The following requests are recorded for the next development pass. They are not
+implemented and must not be started until the user says to begin:
+
+- **Fuel depletion and manual replacement:** model individual fuel rods/assemblies
+  separately from control rods. Track gradual, uneven use and remaining capability,
+  driven by each element's operating history rather than simultaneous expiry. The
+  core map should allow the operator to replace used elements individually when the
+  planned replacement conditions permit. Automation must never replace fuel. Define
+  the simplified burnup/reactivity model and UI clearly before implementation; the
+  current fictional simulation is not a validated reactor-physics model.
+- **Manual control-rod override during Auto:** allow an operator to withdraw a
+  selected control rod while automatic regulation remains active, deliberately
+  disturbing the process so the controller responds. Define override ownership,
+  duration/release, and controller compensation without silently fighting the same
+  actuator. Preserve protective trips and future device-side interlocks. Current
+  Auto-owned rod controls remain disabled until this change is authorized.
 
 ## Verification
 

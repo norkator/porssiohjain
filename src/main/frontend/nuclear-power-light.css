@@ -93,3 +93,9 @@
 :host([data-theme="light"][data-condition="meltdown"]) .annunciator { color: #9c2c24; background: #ffe8e3; border-color: #d4776c; }
 :host([data-theme="light"]) .core-channel[data-condition="hot"] > rect { fill: #ffdfb4; stroke: #a55d22; }
 :host([data-theme="light"]) .core-channel[data-condition="damaged"] > rect { fill: #f3c2b8; stroke: #b1372e; }
+
+/* Disabled controls remain readable while Auto owns the actuators. */
+:host([data-theme="light"]) button:disabled { opacity: 1; color: #526775; background: #e5edf1; border-color: #b2c1cb; }
+:host([data-theme="light"]) input:disabled { opacity: 1; accent-color: #718b96; }
+:host([data-theme="light"]) :is(.metric-label, .metric-foot, .control-label, .local-tag, .section-index, .range-labels, .event-time, .event-category, .log-toolbar, .diagram-scroll-hint, .control-note, .trend-note, .core-map-note, .console-footer, .footer-signature, .footer-signature span) { color: #40596a; }
+:host([data-theme="light"]) :is(.drawing-label, .equipment-tag, .component-subtitle, .instrument-label, .chart-labels) { fill: #3e596a; }
