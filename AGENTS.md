@@ -65,11 +65,15 @@ The English-only Vaadin feature is a fictional two-loop reactor / future physica
 scale-model control room, not a simulator of a specific real reactor. All current
 signals and commands are browser-local simulation; no MQTT devices are connected.
 The frontend separates requested rod/pump settings from actual simulated read-back.
-New/reset sessions start in Auto with Electrical output regulation (200 MW); healthy
+New/reset sessions select Auto with Electrical output regulation (200 MW), but
+the reactor starts stopped/cold with fully inserted rods and requires explicit Start; healthy
 running core temperatures have green emphasis in both themes.
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
 recovery. Automatic control must never reset a trip or restart the plant by itself.
+Manual mode requires operator Stop/Emergency shutdown: flow/temperature/hot-spot
+automatic trips apply only in Auto; alarms, damage and irreversible meltdown remain
+active in both modes. Switching modes must not clear an existing trip.
 Wide windows use stacked instruments on the left, controls/reactor/operator in the
 middle, and trends/logs on the right. Dark remains default; light theme is local to
 this feature. Auto can regulate core temperature or electrical MW; power requests

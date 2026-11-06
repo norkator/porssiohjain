@@ -8,6 +8,13 @@ const manualSimulation = () => {
     const sim = new NuclearPowerSimulation();
     sim.setAutoMode(false);
     sim.setAutoObjective('temperature');
+    // Established operating-point fixture for the existing dynamics scenarios.
+    sim.start();
+    Object.assign(sim, { power: 64, temperature: 286, returnTemperature: 258, secondaryTemperature: 184 });
+    sim.controlRods.forEach(rod => { rod.position = 36; });
+    Object.assign(sim.condition, { fuelTemperature: 323.3, heatReserve: 96, coolingMargin: 288 });
+    sim.condition.zones.forEach(zone => { zone.temperature = 323.3; });
+    sim.history = []; sim.sample();
     return sim;
 };
 
@@ -45,8 +52,9 @@ test('stopping preserves circulation, cools the plant, and allows a normal resta
     assert.equal(sim.snapshot().status, 'RUNNING');
 });
 
-test('pump failure can be acknowledged without hiding the active fault and primary loss trips', () => {
+test('pump failure can be acknowledged without hiding the active fault and primary loss trips in Auto', () => {
     const sim = manualSimulation();
+    sim.setAutoMode(true);
     sim.togglePump('A');
     assert.equal(sim.alarms[0].id, 'primary');
     sim.acknowledge();
@@ -60,7 +68,7 @@ test('pump failure can be acknowledged without hiding the active fault and prima
     assert.equal(sim.running, false);
     sim.reset();
     assert.equal(sim.tripped, false);
-    assert.equal(sim.running, true);
+    assert.equal(sim.running, false);
     assert.deepEqual(sim.alarms, []);
 });
 
@@ -320,7 +328,20 @@ test('new and reset sessions start in Auto electrical output without bypassing t
     assert.equal(sim.autoMode, true);
     assert.equal(sim.autoObjective, 'power');
     assert.equal(sim.history[0].electricalTarget, 200);
+    assert.equal(sim.running, false);
+    assert.equal(sim.snapshot().status, 'STOPPED');
+    assert.equal(sim.power, 0);
+    assert.equal(sim.rods, 100);
+    assert.equal(sim.condition.heatReserve, 0);
+    const reserves = sim.fuel.assemblies.map(a => a.remaining);
     advance(sim, 180);
+    assert.equal(sim.running, false);
+    assert.equal(sim.power, 0);
+    assert.equal(sim.rods, 100);
+    assert.deepEqual(sim.fuel.assemblies.map(a => a.remaining), reserves);
+    sim.start(); advance(sim, 180);
+    assert.equal(sim.running, true);
+    assert.ok(sim.power > 0);
     assert.equal(sim.tripped, false);
     assert.equal(sim.condition.damaged, false);
     sim.trip(); advance(sim, 120); sim.resetTrip();
@@ -328,4 +349,38 @@ test('new and reset sessions start in Auto electrical output without bypassing t
     sim.setAutoMode(false); sim.setAutoObjective('temperature'); sim.reset();
     assert.equal(sim.autoMode, true);
     assert.equal(sim.autoObjective, 'power');
+    assert.equal(sim.running, false);
+    assert.equal(sim.power, 0);
+    assert.equal(sim.rods, 100);
+});
+
+
+test('Manual keeps shutdown under operator control across low flow and high coolant/fuel temperatures', () => {
+    const sim = manualSimulation();
+    sim.togglePump('A'); sim.togglePump('B');
+    advance(sim, 40);
+    assert.ok(sim.primaryFlow < 15);
+    assert.ok(sim.temperature > 360);
+    assert.ok(sim.condition.peakTemperature > 470);
+    assert.equal(sim.condition.meltdown, false);
+    assert.equal(sim.tripped, false);
+    assert.equal(sim.running, true);
+    assert.equal(sim.rodTarget, 36);
+    assert.ok(sim.alarms.some(alarm => alarm.id === 'temperature'));
+    sim.trip();
+    assert.equal(sim.tripped, true);
+    assert.equal(sim.running, false);
+    assert.equal(sim.rodTarget, 100);
+    sim.setAutoMode(true); sim.setAutoMode(false);
+    assert.equal(sim.tripped, true);
+});
+
+test('switching a degraded Manual session to Auto restores automatic protection', () => {
+    const sim = manualSimulation();
+    sim.togglePump('A'); sim.togglePump('B');
+    advance(sim, 20);
+    assert.equal(sim.tripped, false);
+    sim.setAutoMode(true); sim.tick();
+    assert.equal(sim.tripped, true);
+    assert.equal(sim.running, false);
 });

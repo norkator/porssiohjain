@@ -7,6 +7,13 @@ const manualSimulation = () => {
     const sim = new NuclearPowerSimulation();
     sim.setAutoMode(false);
     sim.setAutoObjective('temperature');
+    // Established operating-point fixture for the existing dynamics scenarios.
+    sim.start();
+    Object.assign(sim, { power: 64, temperature: 286, returnTemperature: 258, secondaryTemperature: 184 });
+    sim.controlRods.forEach(rod => { rod.position = 36; });
+    Object.assign(sim.condition, { fuelTemperature: 323.3, heatReserve: 96, coolingMargin: 288 });
+    sim.condition.zones.forEach(zone => { zone.temperature = 323.3; });
+    sim.history = []; sim.sample();
     return sim;
 };
 
@@ -128,6 +135,7 @@ test('zero generation transfers pump power to grid, backup starts on loss of nor
 
 test('manual diesel stop persists, refuelling requires stopped engine and blackout feeds the retained-heat incident', () => {
     const sim = manualSimulation();
+    sim.setAutoMode(true);
     sim.setFluctuations(false);
     sim.supply.command(sim, 'A', 'start'); advance(sim, 9);
     const fuel = sim.supply.generators[0].fuel;

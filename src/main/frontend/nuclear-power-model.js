@@ -35,18 +35,18 @@ export class NuclearPowerSimulation {
 
     reset() {
         this.elapsed = 0;
-        this.running = true;
+        this.running = false;
         this.tripped = false;
         this.paused = false;
         this.demand = 64;
         this.controlRods = rodPositions.map(([x, y], index) => ({
-            id: `CR-${String(index + 1).padStart(2, '0')}`, x, y, target: 36, position: 36, manualOverride: false
+            id: `CR-${String(index + 1).padStart(2, '0')}`, x, y, target: 100, position: 100, manualOverride: false
         }));
-        this.operatingRodTargets = this.controlRods.map(rod => rod.target);
-        this.power = 64;
-        this.temperature = 286;
-        this.returnTemperature = 258;
-        this.secondaryTemperature = 184;
+        this.operatingRodTargets = this.controlRods.map(() => 36);
+        this.power = 0;
+        this.temperature = 30;
+        this.returnTemperature = 30;
+        this.secondaryTemperature = 28;
         this.pumpA = true;
         this.pumpB = true;
         this.pumpASpeed = 100;
@@ -69,9 +69,13 @@ export class NuclearPowerSimulation {
         this.events = [];
         this.alarms = [];
         this.condition = new ReactorCondition(this.controlRods);
+        this.condition.fuelTemperature = 30;
+        this.condition.heatReserve = 0;
+        this.condition.coolingMargin = 1200;
+        this.condition.zones.forEach(zone => { zone.temperature = 30; });
         this.fuel = new FuelInventory(CORE_CHANNELS);
         this.supply = new AuxiliaryPower();
-        this.record('Simulation initialized. Auto electrical output control; process fluctuations enabled.', 'info', 'system');
+        this.record('Simulation initialized. Reactor stopped; press Start. Auto electrical output control; process fluctuations enabled.', 'info', 'system');
         this.sample();
     }
 
@@ -238,7 +242,7 @@ export class NuclearPowerSimulation {
         this.regulationLimit = '';
         this.lastControlTime = this.elapsed - 1;
         this.record(enabled ? `Automatic control enabled. Regulating ${this.autoObjective === 'power' ? 'electrical output' : 'core temperature'} and circulation.`
-            : 'Manual control enabled. Rod and pump settings held at current targets.', 'info', 'automation');
+            : 'Manual control enabled. Automatic protective shutdown disabled; use Emergency shutdown. Rod and pump settings held at current targets.', 'info', 'automation');
     }
 
     setAutoTargets(temperature, flow) {
@@ -412,11 +416,11 @@ export class NuclearPowerSimulation {
         this.condition.advance(this, dt, previousTemperature);
         if (this.condition.meltdown) {
             this.trip('Simulated core meltdown');
-        } else if (this.running && this.condition.peakTemperature > 470) {
+        } else if (this.autoMode && this.running && this.condition.peakTemperature > 470) {
             this.trip('Simulated protection: local fuel hot spot');
-        } else if (this.running && this.power > 10 && this.primaryFlow < 15) {
+        } else if (this.autoMode && this.running && this.power > 10 && this.primaryFlow < 15) {
             this.trip('Simulated protection: primary flow lost');
-        } else if (this.running && this.temperature > 360) {
+        } else if (this.autoMode && this.running && this.temperature > 360) {
             this.trip('Simulated protection: high core temperature');
         }
         this.updateAlarms();
@@ -439,7 +443,7 @@ export class NuclearPowerSimulation {
         const signal = (value, unit) => ({ value, unit, source: 'SIMULATED', quality: 'GOOD', time: this.elapsed });
         return {
             elapsed: this.elapsed,
-            status: this.condition.meltdown ? 'MELTDOWN' : this.tripped ? 'TRIPPED' : !this.running ? 'COOLING DOWN' : this.power < 2 ? 'STANDBY' : 'RUNNING',
+            status: this.condition.meltdown ? 'MELTDOWN' : this.tripped ? 'TRIPPED' : !this.running ? this.temperature > 40 || this.power > 0.1 ? 'COOLING DOWN' : 'STOPPED' : this.power < 2 ? 'STANDBY' : 'RUNNING',
             // Requests remain distinct from reported signals for a future scale-model adapter.
             commands: {
                 running: this.running, loadPercent: this.demand, mode: this.autoMode ? 'AUTO' : 'MANUAL',

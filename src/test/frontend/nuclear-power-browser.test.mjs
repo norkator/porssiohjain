@@ -96,6 +96,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         const value = name => consoleCode(`return s.querySelector('[data-value="${name}"]').textContent;`);
         const input = (selector, value) => consoleCode(`const input=s.querySelector(${JSON.stringify(selector)});input.value=${JSON.stringify(String(value))};input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));`);
         const advance = seconds => consoleCode(`for(let i=0;i<${seconds * 4};i++)c.simulation.tick(.25);c.update();`);
+        const warmOperatingPoint = () => consoleCode(`c.simulation.start(); Object.assign(c.simulation,{power:64,temperature:286,returnTemperature:258,secondaryTemperature:184}); c.simulation.controlRods.forEach(r=>{r.position=36;}); Object.assign(c.simulation.condition,{fuelTemperature:323.3,heatReserve:96,coolingMargin:288}); c.simulation.condition.zones.forEach(z=>{z.temperature=323.3;}); c.simulation.history=[];c.simulation.sample();c.update();`);
         const screenshot = async name => {
             await wait(200); // Let palette/hover transitions settle before capturing.
             const result = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
@@ -117,11 +118,18 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
             await evaluate(`[...document.querySelectorAll('.retro-menu-item')].find(b=>b.textContent.trim()==='Nuclear Power').click()`);
         }
         await until(`!!document.querySelector('nuclear-power-console')?.shadowRoot?.querySelector('.console')`, 'Control room did not render');
-        assert.equal(await value('status'), 'RUNNING');
+        assert.equal(await value('status'), 'STOPPED');
         assert.equal(await consoleCode('return c.lang;'), 'en');
         assert.equal(await consoleCode('return c.simulation.autoMode;'), true);
         assert.equal(await consoleCode('return s.querySelector("#auto-objective").value;'), 'power');
-        assert.equal(await consoleCode('return c.dataset.temperatureOk;'), 'true');
+        assert.equal(await value('status'), 'STOPPED');
+        assert.equal(await consoleCode('return c.simulation.power;'), 0);
+        assert.equal(await consoleCode('return c.simulation.rods;'), 100);
+        assert.equal(await consoleCode(`return s.querySelector('[data-action="start"]').disabled;`), false);
+        await advance(10);
+        assert.equal(await consoleCode('return c.simulation.running;'), false);
+        await action('start');
+        assert.equal(await consoleCode('return c.simulation.running;'), true);
         assert.equal(await consoleCode('return c.alarmSeverity();'), 0);
         assert.equal(await consoleCode('return c.dataset.theme;'), 'dark');
         await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
@@ -149,6 +157,21 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         }
         await action('manual');
         await input('#auto-objective', 'temperature');
+        await warmOperatingPoint();
+        await action('trends-view');
+        assert.equal(await consoleCode("return s.querySelector('.trends-dialog').matches(':popover-open');"), true);
+        assert.ok(await consoleCode("return s.querySelector('.trends-dialog .trend-chart').getBoundingClientRect().width > s.querySelector('.trend-panel .trend-chart').getBoundingClientRect().width;"));
+        await advance(5);
+        assert.deepEqual(await consoleCode("return [...s.querySelectorAll('.temperature-trace')].map(path=>path.getAttribute('d'));"), await consoleCode("return Array(2).fill(s.querySelector('.temperature-trace').getAttribute('d'));"));
+        const trendPosition = await consoleCode(`const d=s.querySelector('.trends-dialog');const before=d.getBoundingClientRect().x;d.querySelector('.core-dialog-titlebar').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));return {before,after:d.getBoundingClientRect().x};`);
+        assert.equal(trendPosition.after, trendPosition.before + 16);
+        await screenshot('enlarged-live-trends');
+        await action('close-trends');
+        assert.equal(await consoleCode("return s.querySelector('.trends-dialog').matches(':popover-open');"), false);
+        await consoleCode("s.querySelector('.trend-panel').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));");
+        assert.equal(await consoleCode("return s.querySelector('.trends-dialog').matches(':popover-open');"), true);
+        await consoleCode("s.querySelector('.trends-dialog .core-dialog-titlebar').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));");
+        assert.equal(await consoleCode("return s.querySelector('.trends-dialog').matches(':popover-open');"), false);
         await action('fluctuations');
 
         // A rotated local origin must coincide exactly with the stationary hub center.
@@ -169,6 +192,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await action('reset');
         await action('manual');
         await input('#auto-objective', 'temperature');
+        await warmOperatingPoint();
         await consoleCode(`s.querySelector('[data-equipment="reactor"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));`);
         assert.equal(await consoleCode(`return s.querySelector('.core-dialog').matches(':popover-open');`), true);
         assert.equal(await consoleCode(`return s.querySelector('.diagram-viewport').hidden;`), false);
@@ -271,13 +295,19 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await consoleCode(`c.simulation.temperature=350;c.simulation.updateAlarms();c.update();`);
         assert.equal(await consoleCode('return c.dataset.overheated;'), 'true');
         assert.ok(await value('temperatureState') === 'HIGH TEMPERATURE');
+        assert.deepEqual(await consoleCode("return ['.core-temperature-metric','.core-temperature-instrument'].map(selector=>getComputedStyle(s.querySelector(selector)).animationName);"), ['temperature-alert-bounce','temperature-alert-bounce']);
+        await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+        assert.deepEqual(await consoleCode("return ['.core-temperature-metric','.core-temperature-instrument'].map(selector=>getComputedStyle(s.querySelector(selector)).animationName);"), ['none','none']);
+        await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
         await action('acknowledge');
         assert.equal(await consoleCode('return c.dataset.overheated;'), 'true');
         await consoleCode(`c.simulation.temperature=286;c.simulation.updateAlarms();c.update();`);
         assert.equal(await consoleCode('return c.dataset.overheated;'), 'false');
+        assert.deepEqual(await consoleCode("return ['.core-temperature-metric','.core-temperature-instrument'].map(selector=>getComputedStyle(s.querySelector(selector)).animationName);"), ['none','none']);
         await action('reset');
         await action('manual');
         await input('#auto-objective', 'temperature');
+        await warmOperatingPoint();
         await action('core-view');
         await consoleCode(`s.querySelector('[data-fuel-id="FA-01"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));`);
         assert.equal(await value('selectedFuelId'), 'FA-01');
@@ -367,6 +397,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await action('reset');
         await action('manual');
         await input('#auto-objective', 'temperature');
+        await warmOperatingPoint();
         await input('#fault-scenario', 'primary-restriction');
         await advance(10);
         assert.ok(await consoleCode('return c.simulation.primaryFlow;') < 95);
@@ -377,6 +408,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await action('reset');
         await action('manual');
         await input('#auto-objective', 'temperature');
+        await warmOperatingPoint();
         assert.deepEqual(await consoleCode(`const original=c.simulation; const levels=[]; try {for(const [temperature,peakTemperature,coreDamage,meltdown] of [[286,323,0,false],[340,420,0,false],[380,460,5,false],[530,610,80,false],[600,700,100,true]]) {c.simulation={temperature,condition:{peakTemperature,coreDamage,meltdown},alarms:[]};levels.push(c.alarmSeverity());}} finally {c.simulation=original;} return levels;`), [0,2,3,4,5]);
         await action('pumpA'); await action('pumpB');
         await advance(20);
@@ -420,6 +452,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await action('reset');
         await action('manual');
         await input('#auto-objective', 'temperature');
+        await warmOperatingPoint();
         assert.equal(await value('conditionStage'), 'NORMAL');
         assert.equal(await consoleCode("return !s.querySelector('.meltdown-banner').matches(':popover-open');"), true);
         assert.equal(await consoleCode("return c.classList.contains('meltdown-active');"), false);

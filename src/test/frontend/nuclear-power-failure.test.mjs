@@ -7,14 +7,22 @@ const manualSimulation = () => {
     const sim = new NuclearPowerSimulation();
     sim.setAutoMode(false);
     sim.setAutoObjective('temperature');
+    // Established operating-point fixture for the existing dynamics scenarios.
+    sim.start();
+    Object.assign(sim, { power: 64, temperature: 286, returnTemperature: 258, secondaryTemperature: 184 });
+    sim.controlRods.forEach(rod => { rod.position = 36; });
+    Object.assign(sim.condition, { fuelTemperature: 323.3, heatReserve: 96, coolingMargin: 288 });
+    sim.condition.zones.forEach(zone => { zone.temperature = 323.3; });
+    sim.history = []; sim.sample();
     return sim;
 };
 
 const advance = (sim, seconds) => { for (let i = 0; i < seconds * 4; i++) sim.tick(0.25); };
 const loseCooling = sim => { sim.togglePump('A'); sim.togglePump('B'); };
 
-test('retained heat rises after a cooling-loss trip, with warning time before damage', () => {
+test('retained heat rises after an Auto cooling-loss trip, with warning time before damage', () => {
     const sim = manualSimulation();
+    sim.setAutoMode(true);
     const fuel = sim.condition.fuelTemperature;
     loseCooling(sim);
     advance(sim, 20);

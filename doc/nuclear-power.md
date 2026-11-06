@@ -12,8 +12,11 @@ equipment states, alarms, events, and trends are simulated. It does not persist
 telemetry, access measurement history, send device commands, or implement a physical
 reactor model. Its separate primary/secondary circuits are a fictional two-loop
 layout, not a Chernobyl/RBMK simulation or a validated model of any named reactor
-type. It starts in Auto regulating Electrical output at a nominal operating point, with both pumps enabled at
-100% and small deterministic process fluctuations enabled.
+type. It starts stopped with Auto → Electrical output selected (200 MW target). Press
+Start explicitly to begin generation. Initial rods are fully inserted, output and
+retained heat are zero, and coolant/fuel start near ambient (30 °C). Both pumps
+remain enabled at 100% and small deterministic process fluctuations are enabled.
+Reset demo returns to this same stopped state.
 
 The user intends to evolve this into a physical, MQTT-connected scale model and
 expects further iteration after trying it. Keep the controls rich and interactive,
@@ -43,12 +46,14 @@ local power or temperature. The side section projects the same twelve rod positi
 
 Core temperature above the existing 335 °C demo high-temperature threshold turns
 the temperature card, status light, outlet instrument and annunciator red. Text
-also reads **HIGH TEMPERATURE**. Acknowledging the alarm does not remove this
+also reads **HIGH TEMPERATURE**. The core card and outlet instrument bounce gently
+while their borders are red (above 335 °C), stopping on cooldown; reduced motion
+keeps them static and pause/hidden-view suspension freezes the bounce. Acknowledging the alarm does not remove this
 indication; it clears only when temperature falls back to 335 °C or below. Both
 themes have explicit high-temperature colors. Normal running temperatures use a
 green card, reading and status indicator; stopped/tripped or damaged states do not
 show this green operating indication. The independent 360 °C simulated
-coolant trip is retained, with an additional local-fuel hot-spot trip. These are
+coolant trip is active in Auto, with an additional Auto local-fuel hot-spot trip. These are
 illustrative, not physical safety limits.
 
 ## Progressive stress, damage and meltdown
@@ -115,16 +120,16 @@ and local fuel hot spots; it does not bypass protective trips or restart failed 
 
 All constants are gameplay/demo parameters, not real reactor engineering:
 
-- Heat reserve starts at 96 internal units, follows generation with a 40-second
+- Heat reserve starts at zero internal units, follows generation with a 40-second
   response and decays over a 240-second response after shutdown. Displayed retained
-  heat is reserve × 1.5 MW. Normal initial fuel temperature is approximately 323 °C.
+  heat is reserve × 1.5 MW. Initial fuel temperature is 30 °C.
 - Cooling margin compares a 1200 MW nominal cooling scale, reduced by actual flow
   and core damage, with generation plus retained heat. Fuel temperature integrates
   heat input minus cooling with bounded rates. Poor cooling keeps the coolant
   reading coupled to retained fuel heat rather than dropping immediately to ambient.
 - Rod imbalance creates local temperatures. Above 410 °C, exposure accumulates;
   above 450 °C and after 15 seconds of exposure, channel damage accumulates.
-  A local peak above 470 °C trips generation. Cooling failure can continue afterward.
+  A local peak above 470 °C trips generation in Auto. Cooling failure can continue afterward.
 - Meltdown latches only after a channel reaches 100% damage with fuel at least
   650 °C. Its visual progression then ramps with a 12-second response.
 - Pump stress comes from sustained requested/actual flow mismatch. Stress above
@@ -171,7 +176,7 @@ Controls:
   rotation and each circuit's coolant animation follow actual speed, including
   coast-down, with continuous phase and an explicit local SVG rotation pivot.
 - Emergency shutdown: latches a simulated trip and inserts rods. Restart requires
-  **Reset trip**, then **Start**. Low primary flow or high core temperature can also
+  **Reset trip**, then **Start**. In Auto, low primary flow or high core temperature can also
   trigger the illustrative protection sequence. Reset trip requires all rods at
   least 99.5% inserted, both enabled circuits with target/actual speed at least 20%,
   and core temperature below the demo limit of 335 °C. These are arbitrary simulation
@@ -181,7 +186,14 @@ Controls:
 - Acknowledge alarms: acknowledges existing alerts without hiding active conditions.
   New faults require their own acknowledgement.
 - Pause/Resume: freezes/resumes simulated time and animations.
-- Reset demo: restores the initial operating point, event log, and trend history.
+- Reset demo: restores the initial stopped state, event log, and trend history.
+
+Manual mode leaves protective shutdown to the operator: low primary flow, high
+coolant temperature and fuel hot spots still raise alarms and accumulate damage,
+but do not insert rods or stop generation automatically. Use **Emergency shutdown**
+or **Stop** explicitly. Switching to Auto restores the protective trips on the next
+simulation tick; switching modes never clears an existing trip. Irreversible
+meltdown still ends generation and requires **Reset demo** in either mode.
 
 ## Automatic regulation and fluctuations
 
@@ -257,7 +269,7 @@ demo full-power hours and replacement count. **Fuel exposure speed** offers 1×,
 At 1×, a fresh assembly has six demo full-power hours of nominal reserve, adjusted by
 its channel's history. Effectiveness declines with reserve; zero reserve contributes
 zero capability. Aggregate capability is normalized to the initial mixed core and capped
-at 115% after fresh replacements. The initial 64% operating point is preserved.
+at 115% after fresh replacements. The retained manual startup load is 64%; Auto uses its selected target after Start.
 
 Manual output falls as fuel is used. Auto withdraws available rods to compensate, then
 reports **Fuel capability** if the remaining fuel cannot satisfy the target. Per-assembly
@@ -331,6 +343,16 @@ Source transitions, starts/stops and refuelling enter the journal. Total AC loss
 an incident, raises an alarm and interacts with existing low-flow protection, retained
 heat and progressive core damage. Backup availability does not heal damaged pumps.
 Supply, diesel fuel and startup time freeze with the rest of the paused/hidden simulation.
+
+## Expanded live trends
+
+Click the Live trends panel (or focus it and press Enter/Space) to open a larger
+movable, nonmodal chart window, up to 1200 px wide. Both charts share the current
+two-minute history, temperature scale, output mode and electrical target; they
+update together. Drag the title bar or use its arrow keys, close with × or Escape,
+and reopen at the retained position. The window clamps to narrow viewports and
+closes when the feature is hidden or detached. Pause freezes its data while keeping
+the chart available for inspection. Both themes use the existing chart palette.
 
 ## Logging
 

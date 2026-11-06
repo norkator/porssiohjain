@@ -544,3 +544,22 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 :host([data-temperature-ok="true"]) .core-temperature-metric { background: #15372d; border-color: #53c69c; }
 :host([data-temperature-ok="true"]) .core-temperature-metric :is(.metric-reading, .metric-icon, .metric-foot) { color: #a0f0ca; }
 :host([data-temperature-ok="true"]) .core-temperature-metric :is(.status-dot, .metric-track i) { background: #65dfaa; }
+
+.trend-panel[role="button"] { cursor: zoom-in; }
+.trend-panel[role="button"]:hover { border-color: var(--cool); }
+.trends-dialog { width: min(1200px, calc(100vw - 24px)); }
+.trends-dialog-content { min-height: 0; overflow: auto; }
+.trends-dialog .trend-chart { min-height: 0; aspect-ratio: 760 / 300; }
+
+/* Independent translate preserves the outlet group's SVG placement. */
+:host([data-overheated="true"]) :is(.core-temperature-metric, .core-temperature-instrument) {
+    animation: temperature-alert-bounce .9s ease-in-out infinite;
+}
+@keyframes temperature-alert-bounce {
+    0%, 100% { translate: 0 0; }
+    40% { translate: 0 -4px; }
+    65% { translate: 0 1px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    :host([data-overheated="true"]) :is(.core-temperature-metric, .core-temperature-instrument) { animation: none; }
+}

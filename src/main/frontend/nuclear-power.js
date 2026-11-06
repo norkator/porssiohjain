@@ -219,6 +219,7 @@ export class NuclearPowerConsole extends HTMLElement {
     disconnectedCallback() {
         this.closeCoreMap(false);
         this.closeAuxiliaryPower(false);
+        this.closeFloatingDialog(this.shadowRoot.querySelector('.trends-dialog'), false);
         this.closeFloatingDialog(this.shadowRoot.querySelector('.meltdown-banner'), false);
         this.stopAlarmSound();
         clearInterval(this.timer);
@@ -293,7 +294,7 @@ export class NuclearPowerConsole extends HTMLElement {
           </div>
           </section>
           <aside class="analysis-column" aria-label="Trends and event journal">
-            <section class="panel trend-panel" aria-label="Simulated temperature and output trends"><div class="panel-heading"><div><span class="section-index">03</span><h2>Live trends</h2></div><span class="local-tag">SIMULATED / 2 MIN</span></div>
+            <section class="panel trend-panel trend-display" role="button" tabindex="0" data-action="trends-view" aria-haspopup="dialog" aria-controls="trends-window" aria-expanded="false" aria-label="Open larger live trends chart"><div class="panel-heading"><div><span class="section-index">03</span><h2>Live trends ↗</h2></div><span class="local-tag">SIMULATED / 2 MIN</span></div>
               <div class="trend-legend"><span><i class="legend-dot warm-dot"></i> Core temperature <strong data-value="core">286.0 °C</strong></span><span><i class="legend-dot"></i> <span data-value="trendOutputLabel">Reactor output</span> <strong data-value="trendOutput">64.0%</strong></span><span class="target-legend" hidden><i class="legend-target"></i> Electrical target <strong data-value="electricalTarget"></strong></span></div>
               <svg class="trend-chart" viewBox="0 0 760 300" role="img" aria-label="Simulated temperature and reactor output over the last two minutes">
                 <defs><linearGradient id="trend-fill" x2="0" y2="1"><stop stop-color="#efa35c" stop-opacity=".12"/><stop offset="1" stop-color="#efa35c" stop-opacity="0"/></linearGradient></defs>
@@ -311,6 +312,10 @@ export class NuclearPowerConsole extends HTMLElement {
             ${coreMap}
           </div>
           ${auxiliaryDialog}
+          <div id="trends-window" class="trends-dialog floating-dialog" popover="manual" role="dialog" aria-modal="false" aria-labelledby="trends-window-title">
+            <div class="core-dialog-titlebar" tabindex="0" aria-label="Move live trends with arrow keys or drag"><h2 id="trends-window-title">Live trends · enlarged</h2><button class="small-button" data-action="close-trends" aria-label="Close live trends">×</button></div>
+            <div class="trend-display trends-dialog-content"></div>
+          </div>
           <section id="meltdown-window" class="meltdown-banner floating-dialog" popover="manual" role="dialog" aria-modal="false" aria-labelledby="meltdown-window-title">
             <div class="core-dialog-titlebar" tabindex="0" aria-label="Move meltdown window with arrow keys or drag"><h2 id="meltdown-window-title">Meltdown incident</h2><button class="small-button" data-action="close-meltdown" aria-label="Close meltdown window">×</button></div>
             <div class="meltdown-content" role="alert">
@@ -320,6 +325,14 @@ export class NuclearPowerConsole extends HTMLElement {
             <div><button class="control-button" data-action="export-incident">Export incident report</button> <button class="control-button" data-action="reset">↺ Reset demo</button></div>
           </div></section>
         </main>`;
+
+        const expandedTrend = this.shadowRoot.querySelector('.trends-dialog-content');
+        for (const selector of ['.trend-legend', '.trend-chart', '.trend-note']) {
+            expandedTrend.append(this.shadowRoot.querySelector(`.trend-panel ${selector}`).cloneNode(true));
+        }
+        // Keep SVG paint-server identifiers unique inside the shared shadow root.
+        expandedTrend.querySelector('#trend-fill').id = 'expanded-trend-fill';
+        expandedTrend.querySelector('.trend-area').style.fill = 'url(#expanded-trend-fill)';
 
         let savedTheme = 'dark';
         try { if (localStorage.getItem('porssiohjain.nuclear-power.theme') === 'light') savedTheme = 'light'; } catch { /* Storage can be disabled. */ }
@@ -354,10 +367,14 @@ export class NuclearPowerConsole extends HTMLElement {
                 this.inspect(equipment.dataset.equipment);
                 if (equipment.dataset.equipment === 'reactor') this.openCoreMap();
             }
-            const button = event.target.closest('button[data-action]');
+            const button = event.target.closest('[data-action]');
             if (button && !button.disabled) this.act(button.dataset.action);
         });
         this.shadowRoot.addEventListener('keydown', event => {
+            if (event.target.matches('.trend-panel') && ['Enter', ' '].includes(event.key)) {
+                event.preventDefault();
+                this.act('trends-view');
+            }
             if (event.key === 'Escape') {
                 const dialog = event.target.closest('.floating-dialog:popover-open') || this.floatingDialogs.at(-1);
                 if (dialog) {
@@ -501,7 +518,7 @@ export class NuclearPowerConsole extends HTMLElement {
         dialog.hidePopover();
         this.floatingDialogs = this.floatingDialogs.filter(item => item !== dialog);
         for (const trigger of this.shadowRoot.querySelectorAll(`[aria-controls="${dialog.id}"]`)) trigger.setAttribute('aria-expanded', 'false');
-        if (restoreFocus && this.isConnected) this.shadowRoot.querySelector(dialog.classList.contains('meltdown-banner') ? '[data-action="meltdown-view"]' : dialog.classList.contains('core-dialog') ? '[data-equipment="reactor"]' : '[data-action="power-supply"]').focus({ preventScroll: true });
+        if (restoreFocus && this.isConnected) this.shadowRoot.querySelector(dialog.classList.contains('trends-dialog') ? '.trend-panel' : dialog.classList.contains('meltdown-banner') ? '[data-action="meltdown-view"]' : dialog.classList.contains('core-dialog') ? '[data-equipment="reactor"]' : '[data-action="power-supply"]').focus({ preventScroll: true });
     }
 
     positionFloatingDialog(dialog, left, top) {
@@ -579,6 +596,11 @@ export class NuclearPowerConsole extends HTMLElement {
             'select-control-rod': () => this.selectRod(this.selectedRod),
             'power-supply': () => this.openAuxiliaryPower(),
             'close-power': () => this.closeAuxiliaryPower(),
+            'trends-view': () => {
+                this.openFloatingDialog(this.shadowRoot.querySelector('.trends-dialog'));
+                this.shadowRoot.querySelector('.trends-dialog .core-dialog-titlebar').focus({ preventScroll: true });
+            },
+            'close-trends': () => this.closeFloatingDialog(this.shadowRoot.querySelector('.trends-dialog')),
             'close-meltdown': () => this.closeFloatingDialog(this.shadowRoot.querySelector('.meltdown-banner')),
             'meltdown-view': () => this.openFloatingDialog(this.shadowRoot.querySelector('.meltdown-banner')),
             manual: () => sim.setAutoMode(false), auto: () => sim.setAutoMode(true),
@@ -610,6 +632,7 @@ export class NuclearPowerConsole extends HTMLElement {
             // Pause keeps the management dialog open; hiding the feature closes it.
             if (!this.isConnected || !this.intersecting || document.hidden) {
                 this.closeAuxiliaryPower(false);
+                this.closeFloatingDialog(this.shadowRoot.querySelector('.trends-dialog'), false);
                 this.reopenMeltdown = this.simulation.condition.meltdown;
                 this.closeFloatingDialog(this.shadowRoot.querySelector('.meltdown-banner'), false);
             }
@@ -789,10 +812,10 @@ export class NuclearPowerConsole extends HTMLElement {
             incidentSummary: condition.incident ? `${this.time(condition.incident.startedAt)}: ${condition.incident.cause}. ${condition.incident.timeline.length} retained incident events${condition.incident.resolvedAt ? ' · recovered' : ''}.` : 'No incident recorded.',
             regulation: sim.tripped ? 'TRIP / AUTOMATION INHIBITED' : !sim.running ? 'STOPPED / WAITING FOR START' : sim.autoMode
                 ? sim.autoObjective === 'power' ? `AUTO / ${n(signals.electricalOutput.value, 1)} / ${n(sim.autoElectricalTarget)} MW ELECTRIC` : `AUTO / ERROR ${n(sim.autoTemperature - sim.temperature, 1)} °C` : 'MANUAL CONTROL',
-            regulationDetail: sim.autoMode ? sim.regulationLimit || (sim.autoObjective === 'power' ? 'Tracking electrical output; core setting limits temperature.' : 'Rods and pump speeds adjust to hold your targets.') : 'Individual rods and pump speeds available.',
+            regulationDetail: sim.autoMode ? sim.regulationLimit || (sim.autoObjective === 'power' ? 'Tracking electrical output; core setting limits temperature.' : 'Rods and pump speeds adjust to hold your targets.') : 'Manual protection: use Emergency shutdown. Temperature and flow alarms remain active.',
             clock: `T+${this.time(sim.elapsed)}`,
             sessionState: sim.paused ? 'SIMULATION PAUSED' : 'SIMULATION ACTIVE',
-            temperatureState: sim.temperature > 335 ? 'HIGH TEMPERATURE' : sim.running ? 'WITHIN DEMO RANGE' : 'COOLING DOWN',
+            temperatureState: sim.temperature > 335 ? 'HIGH TEMPERATURE' : sim.running ? 'WITHIN DEMO RANGE' : status === 'STOPPED' ? 'STOPPED' : 'COOLING DOWN',
             primaryState: sim.primaryFlow > 20 ? 'CIRCULATING' : 'LOW FLOW',
             annunciator: condition.meltdown ? 'CORE MELTDOWN · INCIDENT RECORDED · RESET DEMO REQUIRED' : sim.alarms.length ? `${sim.alarms.length} ACTIVE ${sim.alarms.length === 1 ? 'CONDITION' : 'CONDITIONS'} · ${sim.alarms[0].message.toUpperCase()}` : 'ALL SYSTEMS NORMAL'
         };
@@ -1028,34 +1051,36 @@ export class NuclearPowerConsole extends HTMLElement {
     updateTrend() {
         const sim = this.simulation;
         const points = sim.history;
-        const temperatureMax = Math.max(400, Math.ceil(Math.max(sim.temperature, ...points.map(point => point.temperature)) / 200) * 200);
-        this.shadowRoot.querySelector('[data-value="chartTempMax"]').textContent = temperatureMax;
-        this.shadowRoot.querySelector('[data-value="chartTempMid"]').textContent = temperatureMax / 2;
-        const x = time => 40 + (time - sim.elapsed + 120) / 120 * 675;
-        const y = (value, max) => 250 - Math.max(0, Math.min(1, value / max)) * 210;
-        const path = (key, max) => points.map((point, index) => `${index ? 'L' : 'M'}${x(point.time).toFixed(1)} ${y(point[key], max).toFixed(1)}`).join(' ');
-        this.shadowRoot.querySelector('.temperature-trace').setAttribute('d', path('temperature', temperatureMax));
-        const powerObjective = sim.autoObjective === 'power';
-        const outputKey = powerObjective ? 'electricalOutput' : 'power';
-        const outputMax = powerObjective ? 400 : 100;
-        this.shadowRoot.querySelector('.power-trace').setAttribute('d', path(outputKey, outputMax));
-        let targetPath = '';
-        let gap = true;
-        if (powerObjective) for (const point of points) {
-            if (point.electricalTarget === null) { gap = true; continue; }
-            targetPath += `${gap ? 'M' : 'L'}${x(point.time).toFixed(1)} ${y(point.electricalTarget, 400).toFixed(1)} `;
-            gap = false;
-        }
-        this.shadowRoot.querySelector('.target-trace').setAttribute('d', targetPath);
-        this.shadowRoot.querySelector('.target-legend').hidden = !powerObjective || !sim.autoMode;
-        this.shadowRoot.querySelector('.trend-chart').setAttribute('aria-label', `Simulated core temperature in Celsius and ${powerObjective ? 'electrical output and target in megawatts' : 'reactor output in percent'} over the last two minutes`);
-        const first = points[0];
-        const last = points.at(-1);
-        this.shadowRoot.querySelector('.trend-area').setAttribute('d', `${path('temperature', temperatureMax)} L${x(last.time).toFixed(1)} 250 L${x(first.time).toFixed(1)} 250 Z`);
-        for (const [className, key, max] of [['temperature-dot', 'temperature', temperatureMax], ['power-dot', outputKey, outputMax]]) {
-            const dot = this.shadowRoot.querySelector(`.${className}`);
-            dot.setAttribute('cx', x(last.time));
-            dot.setAttribute('cy', y(last[key], max));
+        for (const root of this.shadowRoot.querySelectorAll('.trend-display')) {
+            const temperatureMax = Math.max(400, Math.ceil(Math.max(sim.temperature, ...points.map(point => point.temperature)) / 200) * 200);
+            root.querySelector('[data-value="chartTempMax"]').textContent = temperatureMax;
+            root.querySelector('[data-value="chartTempMid"]').textContent = temperatureMax / 2;
+            const x = time => 40 + (time - sim.elapsed + 120) / 120 * 675;
+            const y = (value, max) => 250 - Math.max(0, Math.min(1, value / max)) * 210;
+            const path = (key, max) => points.map((point, index) => `${index ? 'L' : 'M'}${x(point.time).toFixed(1)} ${y(point[key], max).toFixed(1)}`).join(' ');
+            root.querySelector('.temperature-trace').setAttribute('d', path('temperature', temperatureMax));
+            const powerObjective = sim.autoObjective === 'power';
+            const outputKey = powerObjective ? 'electricalOutput' : 'power';
+            const outputMax = powerObjective ? 400 : 100;
+            root.querySelector('.power-trace').setAttribute('d', path(outputKey, outputMax));
+            let targetPath = '';
+            let gap = true;
+            if (powerObjective) for (const point of points) {
+                if (point.electricalTarget === null) { gap = true; continue; }
+                targetPath += `${gap ? 'M' : 'L'}${x(point.time).toFixed(1)} ${y(point.electricalTarget, 400).toFixed(1)} `;
+                gap = false;
+            }
+            root.querySelector('.target-trace').setAttribute('d', targetPath);
+            root.querySelector('.target-legend').hidden = !powerObjective || !sim.autoMode;
+            root.querySelector('.trend-chart').setAttribute('aria-label', `Simulated core temperature in Celsius and ${powerObjective ? 'electrical output and target in megawatts' : 'reactor output in percent'} over the last two minutes`);
+            const first = points[0];
+            const last = points.at(-1);
+            root.querySelector('.trend-area').setAttribute('d', `${path('temperature', temperatureMax)} L${x(last.time).toFixed(1)} 250 L${x(first.time).toFixed(1)} 250 Z`);
+            for (const [className, key, max] of [['temperature-dot', 'temperature', temperatureMax], ['power-dot', outputKey, outputMax]]) {
+                const dot = root.querySelector(`.${className}`);
+                dot.setAttribute('cx', x(last.time));
+                dot.setAttribute('cy', y(last[key], max));
+            }
         }
     }
 
