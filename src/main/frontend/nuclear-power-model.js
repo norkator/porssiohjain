@@ -53,8 +53,8 @@ export class NuclearPowerSimulation {
         this.pumpBSpeed = 100;
         this.primaryFlow = 100;
         this.secondaryFlow = 100;
-        this.autoMode = false;
-        this.autoObjective = 'temperature';
+        this.autoMode = true;
+        this.autoObjective = 'power';
         this.autoElectricalTarget = 200;
         this.regulationLimit = '';
         this.outputControlIntegral = 0;
@@ -71,7 +71,7 @@ export class NuclearPowerSimulation {
         this.condition = new ReactorCondition(this.controlRods);
         this.fuel = new FuelInventory(CORE_CHANNELS);
         this.supply = new AuxiliaryPower();
-        this.record('Simulation initialized. Manual control; process fluctuations enabled.', 'info', 'system');
+        this.record('Simulation initialized. Auto electrical output control; process fluctuations enabled.', 'info', 'system');
         this.sample();
     }
 

@@ -219,6 +219,7 @@ export class NuclearPowerConsole extends HTMLElement {
     disconnectedCallback() {
         this.closeCoreMap(false);
         this.closeAuxiliaryPower(false);
+        this.closeFloatingDialog(this.shadowRoot.querySelector('.meltdown-banner'), false);
         this.stopAlarmSound();
         clearInterval(this.timer);
         this.timer = null;
@@ -236,12 +237,6 @@ export class NuclearPowerConsole extends HTMLElement {
         this.setAttribute('lang', 'en');
         this.shadowRoot.innerHTML = `<style>${styles}\n${lightStyles}</style>
         <main class="console">
-          <section class="meltdown-banner" hidden role="alert" aria-label="Simulated core meltdown">
-            <strong class="meltdown-title">CORE MELTDOWN</strong>
-            <p>SIMULATED · Incident recorded · Irreversible core damage</p>
-            <p>Reset demo to start a new session. Export the incident before resetting.</p>
-            <div><button class="control-button" data-action="export-incident">Export incident report</button> <button class="control-button" data-action="reset">↺ Reset demo</button></div>
-          </section>
           <header class="masthead">
             <div class="brand-mark">${radiation}</div>
             <div class="heading"><div class="eyebrow">PÖRSSIOHJAIN / UNIT 01</div><h1>Nuclear Power<span class="title-dot">.</span></h1><p>Energy, under control.</p></div>
@@ -263,8 +258,8 @@ export class NuclearPowerConsole extends HTMLElement {
 
           <section class="control-column" aria-label="Reactor and operator controls">
           <section class="automation-strip" aria-label="Process regulation">
-            <div><span class="control-label">CONTROL MODE</span><div class="mode-switch" role="group" aria-label="Control mode"><button data-action="manual" aria-pressed="true">Manual</button><button data-action="auto" aria-pressed="false">Auto</button></div></div>
-            <label for="auto-objective">Regulate <select id="auto-objective"><option value="temperature">Core temperature</option><option value="power">Electrical output</option></select></label>
+            <div><span class="control-label">CONTROL MODE</span><div class="mode-switch" role="group" aria-label="Control mode"><button data-action="manual" aria-pressed="false">Manual</button><button data-action="auto" aria-pressed="true">Auto</button></div></div>
+            <label for="auto-objective">Regulate <select id="auto-objective"><option value="power">Electrical output</option><option value="temperature">Core temperature</option></select></label>
             <label for="auto-electrical" class="electrical-target" hidden>Output target <span><input id="auto-electrical" type="number" min="0" max="400" step="1" value="200"/> MW<span class="subscript">e</span></span></label>
             <label for="auto-temperature"><span data-value="temperatureLabel">Core target</span><span><input id="auto-temperature" type="number" min="40" max="330" step="1" value="286"/> °C</span></label>
             <label for="auto-flow">Circulation target <span><input id="auto-flow" type="number" min="25" max="100" step="1" value="85"/> %</span></label>
@@ -310,12 +305,20 @@ export class NuclearPowerConsole extends HTMLElement {
             <section class="panel events-panel" aria-label="Simulation event log"><div class="panel-heading"><div><span class="section-index">04</span><h2>Event journal</h2></div><span class="event-count">0 EVENTS</span></div><div class="log-toolbar"><label for="log-filter">Show <select id="log-filter"><option value="all">All events</option><option value="operator">Operator</option><option value="automation">Automation</option><option value="process">Process readings</option><option value="alarm">Alarms</option><option value="system">System</option></select></label><span>Latest 200 events · this session</span><button class="small-button" data-action="export-log">↓ Export CSV</button></div><div class="alarm-list" aria-live="polite"></div><ol class="event-list" aria-label="Recent simulation events"></ol><button class="ack-button" data-action="acknowledge" disabled>✓ Acknowledge alarms</button></section>
           </aside>
           </div>
-          <footer class="console-footer"><span><i class="status-dot"></i> <span data-value="sessionState">SIMULATION ACTIVE</span><span class="footer-divider">/</span> ALL SIGNALS SIMULATED</span><div><button data-action="pause" class="footer-button">Ⅱ Pause</button><button data-action="reset" class="footer-button">↺ Reset demo</button></div><span class="footer-signature">PÖRSSIOHJAIN <span>NUCLEAR DIVISION</span></span></footer>
+          <footer class="console-footer"><span><i class="status-dot"></i> <span data-value="sessionState">SIMULATION ACTIVE</span><span class="footer-divider">/</span> ALL SIGNALS SIMULATED</span><div><button data-action="meltdown-view" hidden class="footer-button" aria-controls="meltdown-window" aria-expanded="false">Meltdown incident ↗</button><button data-action="pause" class="footer-button">Ⅱ Pause</button><button data-action="reset" class="footer-button">↺ Reset demo</button></div><span class="footer-signature">PÖRSSIOHJAIN <span>NUCLEAR DIVISION</span></span></footer>
           <div id="core-map-window" class="core-dialog floating-dialog" popover="manual" role="dialog" aria-modal="false" aria-labelledby="core-map-title">
             <div class="core-dialog-titlebar" tabindex="0" aria-label="Move core map with arrow keys or drag this title bar"><span aria-hidden="true">⠿</span><h2 id="core-map-title">Reactor core map</h2><span class="local-tag">DRAG TO MOVE</span><button class="small-button" data-action="close-core" aria-label="Close core map">×</button></div>
             ${coreMap}
           </div>
           ${auxiliaryDialog}
+          <section id="meltdown-window" class="meltdown-banner floating-dialog" popover="manual" role="dialog" aria-modal="false" aria-labelledby="meltdown-window-title">
+            <div class="core-dialog-titlebar" tabindex="0" aria-label="Move meltdown window with arrow keys or drag"><h2 id="meltdown-window-title">Meltdown incident</h2><button class="small-button" data-action="close-meltdown" aria-label="Close meltdown window">×</button></div>
+            <div class="meltdown-content" role="alert">
+            <strong class="meltdown-title">CORE MELTDOWN</strong>
+            <p>SIMULATED · Incident recorded · Irreversible core damage</p>
+            <p>Reset demo to start a new session. Export the incident before resetting.</p>
+            <div><button class="control-button" data-action="export-incident">Export incident report</button> <button class="control-button" data-action="reset">↺ Reset demo</button></div>
+          </div></section>
         </main>`;
 
         let savedTheme = 'dark';
@@ -498,7 +501,7 @@ export class NuclearPowerConsole extends HTMLElement {
         dialog.hidePopover();
         this.floatingDialogs = this.floatingDialogs.filter(item => item !== dialog);
         for (const trigger of this.shadowRoot.querySelectorAll(`[aria-controls="${dialog.id}"]`)) trigger.setAttribute('aria-expanded', 'false');
-        if (restoreFocus && this.isConnected) this.shadowRoot.querySelector(dialog.classList.contains('core-dialog') ? '[data-equipment="reactor"]' : '[data-action="power-supply"]').focus({ preventScroll: true });
+        if (restoreFocus && this.isConnected) this.shadowRoot.querySelector(dialog.classList.contains('meltdown-banner') ? '[data-action="meltdown-view"]' : dialog.classList.contains('core-dialog') ? '[data-equipment="reactor"]' : '[data-action="power-supply"]').focus({ preventScroll: true });
     }
 
     positionFloatingDialog(dialog, left, top) {
@@ -576,6 +579,8 @@ export class NuclearPowerConsole extends HTMLElement {
             'select-control-rod': () => this.selectRod(this.selectedRod),
             'power-supply': () => this.openAuxiliaryPower(),
             'close-power': () => this.closeAuxiliaryPower(),
+            'close-meltdown': () => this.closeFloatingDialog(this.shadowRoot.querySelector('.meltdown-banner')),
+            'meltdown-view': () => this.openFloatingDialog(this.shadowRoot.querySelector('.meltdown-banner')),
             manual: () => sim.setAutoMode(false), auto: () => sim.setAutoMode(true),
             fluctuations: () => sim.setFluctuations(!sim.fluctuationsEnabled),
             'export-log': () => this.exportLog(),
@@ -603,7 +608,11 @@ export class NuclearPowerConsole extends HTMLElement {
         if (!active) {
             this.closeCoreMap(false);
             // Pause keeps the management dialog open; hiding the feature closes it.
-            if (!this.isConnected || !this.intersecting || document.hidden) this.closeAuxiliaryPower(false);
+            if (!this.isConnected || !this.intersecting || document.hidden) {
+                this.closeAuxiliaryPower(false);
+                this.reopenMeltdown = this.simulation.condition.meltdown;
+                this.closeFloatingDialog(this.shadowRoot.querySelector('.meltdown-banner'), false);
+            }
         }
         if (active && !this.timer) {
             this.lastTick = performance.now();
@@ -662,20 +671,30 @@ export class NuclearPowerConsole extends HTMLElement {
         this.nextAlarmAt = 0;
     }
 
+    alarmSeverity() {
+        const { condition, temperature, alarms } = this.simulation;
+        if (condition.meltdown) return 5;
+        if (condition.coreDamage >= 70 || condition.peakTemperature >= 600) return 4;
+        if (condition.coreDamage >= 1 || condition.peakTemperature >= 450) return 3;
+        if (temperature > 335 || condition.peakTemperature > 410) return 2;
+        return alarms.some(alarm => !alarm.acknowledged) ? 1 : 0;
+    }
+
     updateAlarmSound() {
         const sim = this.simulation;
         const meltdown = sim.condition.meltdown;
+        const severity = this.alarmSeverity();
         const pending = sim.alarms.some(alarm => !alarm.acknowledged);
         const enabled = this.soundEnabled && this.isConnected && this.intersecting && !document.hidden && !sim.paused;
         const button = this.shadowRoot.querySelector('[data-action="sound"]');
         button.textContent = this.soundEnabled ? 'Mute alarm sounds' : 'Enable alarm sounds';
         button.setAttribute('aria-pressed', String(!!this.soundEnabled));
-        if (!enabled || (!meltdown && !pending)) { this.stopAlarmSound(); return; }
+        if (!enabled || (!pending && severity < 2)) { this.stopAlarmSound(); return; }
         const context = this.alarmAudio;
         if (!context) return;
         if (context.state === 'suspended') { context.resume().catch(() => {}); return; }
         const now = context.currentTime;
-        const mode = meltdown ? 'meltdown' : 'attention';
+        const mode = meltdown ? 'meltdown' : ['quiet', 'attention', 'overheating', 'core-damage', 'critical'][severity];
         if (this.alarmMode !== mode) { this.nextAlarmAt = 0; this.alarmMode = mode; }
         if (now < (this.nextAlarmAt || 0)) return;
         this.alarmNodes = (this.alarmNodes || []).filter(node => {
@@ -684,20 +703,23 @@ export class NuclearPowerConsole extends HTMLElement {
         });
         const oscillator = context.createOscillator();
         const gain = context.createGain();
-        oscillator.type = meltdown ? 'triangle' : 'sine';
-        oscillator.frequency.setValueAtTime(meltdown ? 520 : 880, now);
-        oscillator.frequency.linearRampToValueAtTime(meltdown ? 1050 : 660, now + 0.35);
-        oscillator.frequency.linearRampToValueAtTime(meltdown ? 520 : 660, now + 0.7);
+        oscillator.type = severity >= 3 ? 'triangle' : 'sine';
+        const low = 660 - severity * 28;
+        const high = 880 + severity * 70;
+        const volume = 0.045 + severity * 0.012;
+        oscillator.frequency.setValueAtTime(low, now);
+        oscillator.frequency.linearRampToValueAtTime(high, now + 0.35);
+        oscillator.frequency.linearRampToValueAtTime(low, now + 0.7);
         gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.09, now + 0.03);
-        gain.gain.setValueAtTime(0.09, now + 0.55);
+        gain.gain.linearRampToValueAtTime(volume, now + 0.03);
+        gain.gain.setValueAtTime(volume, now + 0.55);
         gain.gain.linearRampToValueAtTime(0, now + 0.75);
         oscillator.connect(gain); gain.connect(context.destination);
         oscillator.alarmEnd = now + 0.8;
         oscillator.onended = () => gain.disconnect();
         oscillator.start(now); oscillator.stop(now + 0.8);
         this.alarmNodes.push(oscillator);
-        this.nextAlarmAt = now + (meltdown ? 0.85 : 3);
+        this.nextAlarmAt = now + [4, 3, 2, 1.3, 1, 0.85][severity];
     }
 
     update() {
@@ -705,7 +727,15 @@ export class NuclearPowerConsole extends HTMLElement {
         const sim = this.simulation;
         const { signals, status } = sim.snapshot();
         this.classList.toggle('meltdown-active', sim.condition.meltdown);
-        this.shadowRoot.querySelector('.meltdown-banner').hidden = !sim.condition.meltdown;
+        const meltdownDialog = this.shadowRoot.querySelector('.meltdown-banner');
+        this.shadowRoot.querySelector('[data-action="meltdown-view"]').hidden = !sim.condition.meltdown;
+        if (!sim.condition.meltdown) this.closeFloatingDialog(meltdownDialog, false);
+        else if ((!this.meltdownShown || this.reopenMeltdown) && this.isConnected && this.intersecting && !document.hidden) {
+            this.openFloatingDialog(meltdownDialog);
+            this.meltdownShown = true;
+            this.reopenMeltdown = false;
+        }
+        if (!sim.condition.meltdown) this.meltdownShown = false;
         this.updateAlarmSound();
         const n = (value, decimals = 0) => value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
         const percent = value => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
@@ -771,6 +801,7 @@ export class NuclearPowerConsole extends HTMLElement {
         }
         this.dataset.state = sim.tripped ? 'tripped' : sim.running ? 'running' : 'stopped';
         this.dataset.overheated = String(sim.temperature > 335);
+        this.dataset.temperatureOk = String(sim.running && !sim.tripped && !condition.damaged && sim.temperature <= 335 && condition.peakTemperature <= 410);
         this.dataset.condition = condition.stage.toLowerCase().replaceAll(' ', '-');
         this.dataset.pumpA = String(sim.pumpA);
         this.dataset.pumpB = String(sim.pumpB);

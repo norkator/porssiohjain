@@ -2,11 +2,19 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NuclearPowerSimulation } from '../../main/frontend/nuclear-power-model.js';
 
+// These scenarios explicitly exercise manual operation or opt into temperature Auto.
+const manualSimulation = () => {
+    const sim = new NuclearPowerSimulation();
+    sim.setAutoMode(false);
+    sim.setAutoObjective('temperature');
+    return sim;
+};
+
 const advance = (sim, seconds) => { for (let i = 0; i < seconds * 4; i++) sim.tick(.25); };
 
 test('fuel consumes unequal exposure under load, acceleration affects fuel only, pause and shutdown freeze burn', () => {
-    const normal = new NuclearPowerSimulation();
-    const fast = new NuclearPowerSimulation();
+    const normal = manualSimulation();
+    const fast = manualSimulation();
     fast.fuel.setRate(fast, 60);
     const initial = normal.fuel.assemblies.map(a => a.remaining);
     assert.ok(new Set(initial).size > 20);
@@ -24,7 +32,7 @@ test('fuel consumes unequal exposure under load, acceleration affects fuel only,
 });
 
 test('depletion lowers capability and Auto compensates until constrained without replacing any fuel', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.setFluctuations(false);
     sim.setAutoMode(true);
     advance(sim, 120);
@@ -42,7 +50,7 @@ test('depletion lowers capability and Auto compensates until constrained without
 });
 
 test('manual replacement changes one cooled assembly and never erases heat, damage or trips', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     const id = sim.fuel.assemblies[0].id;
     sim.replaceFuel(id);
     assert.equal(sim.fuel.assemblies[0].replacements, 0);
@@ -68,7 +76,7 @@ test('manual replacement changes one cooled assembly and never erases heat, dama
 });
 
 test('individual Auto override is held while remaining rods compensate; release, Stop and trip restore ownership', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.setFluctuations(false); sim.setAutoMode(true);
     advance(sim, 120);
     const before = sim.controlRods[1].target;
@@ -98,7 +106,7 @@ test('individual Auto override is held while remaining rods compensate; release,
 });
 
 test('zero generation transfers pump power to grid, backup starts on loss of normal supply and does not restart reactor', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.setFluctuations(false);
     sim.stop(); advance(sim, 60);
     assert.ok(sim.power < .01 && sim.primaryFlow > 99);
@@ -119,7 +127,7 @@ test('zero generation transfers pump power to grid, backup starts on loss of nor
 });
 
 test('manual diesel stop persists, refuelling requires stopped engine and blackout feeds the retained-heat incident', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.setFluctuations(false);
     sim.supply.command(sim, 'A', 'start'); advance(sim, 9);
     const fuel = sim.supply.generators[0].fuel;
@@ -144,7 +152,7 @@ test('manual diesel stop persists, refuelling requires stopped engine and blacko
 });
 
 test('diesel exhaustion removes supply and one running diesel can carry both pumps', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.stop(); sim.supply.command(sim, 'B', 'auto');
     sim.supply.setGrid(sim, false); advance(sim, 10);
     assert.equal(sim.supply.source, 'BACKUP DIESEL A');

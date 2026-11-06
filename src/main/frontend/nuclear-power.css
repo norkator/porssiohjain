@@ -521,7 +521,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     animation: meltdown-red-pulse 1.8s ease-in-out infinite alternate;
 }
 .meltdown-banner {
-    position: sticky; top: 0; z-index: 6; padding: 16px; margin-bottom: 14px;
+    width: min(560px, calc(100vw - 24px)); padding: 0; overflow: auto;
     text-align: center; color: #fff; background: #770d19; border: 3px solid #ff6975;
     border-radius: 8px; box-shadow: 0 4px 24px #0008;
 }
@@ -529,6 +529,8 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     display: inline-block; font-size: clamp(24px, 4cqi, 48px); letter-spacing: .08em;
     animation: meltdown-bounce 1.8s ease-in-out infinite alternate;
 }
+.meltdown-content { padding: 20px; }
+.meltdown-banner .core-dialog-titlebar { color: #fff; background: #570b13; border-color: #ff6975; }
 .meltdown-banner p { margin: 4px 0 8px; }
 .meltdown-banner .control-button { background: #fff; color: #750b17; border-color: #fff; }
 @keyframes meltdown-red-pulse { from { opacity: .25; } to { opacity: .85; } }
@@ -538,3 +540,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 @media (prefers-reduced-motion: reduce) {
     :host(.meltdown-active) .console::after, .meltdown-title { animation: none; }
 }
+
+:host([data-temperature-ok="true"]) .core-temperature-metric { background: #15372d; border-color: #53c69c; }
+:host([data-temperature-ok="true"]) .core-temperature-metric :is(.metric-reading, .metric-icon, .metric-foot) { color: #a0f0ca; }
+:host([data-temperature-ok="true"]) .core-temperature-metric :is(.status-dot, .metric-track i) { background: #65dfaa; }

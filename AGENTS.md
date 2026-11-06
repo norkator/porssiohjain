@@ -65,6 +65,8 @@ The English-only Vaadin feature is a fictional two-loop reactor / future physica
 scale-model control room, not a simulator of a specific real reactor. All current
 signals and commands are browser-local simulation; no MQTT devices are connected.
 The frontend separates requested rod/pump settings from actual simulated read-back.
+New/reset sessions start in Auto with Electrical output regulation (200 MW); healthy
+running core temperatures have green emphasis in both themes.
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
 recovery. Automatic control must never reset a trip or restart the plant by itself.
@@ -79,7 +81,7 @@ independent of alarm acknowledgement. These are simulation limits, not hardware 
 hot spots, stress/wear and accumulated damage before a slow meltdown. Trip reset
 must never erase heat/damage or heal components. Only cooled, stopped, fault-free
 non-melted sessions allow explicit repair; meltdown requires Reset demo. The latched meltdown has a red console pulse, bouncing
-banner with reset/export, and opt-in warning/siren audio; preserve mute, pause,
+movable nonmodal dialog with reset/export, and escalating opt-in warning/siren audio; preserve mute, pause,
 visibility cleanup and reduced-motion behavior. Preserve
 the incident's initiating cause independently of the rolling event journal.
 `nuclear-power-fuel.js` tracks uneven exposure and reserve per fuel assembly, separately

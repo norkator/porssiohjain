@@ -2,11 +2,19 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NuclearPowerSimulation } from '../../main/frontend/nuclear-power-model.js';
 
+// These scenarios explicitly exercise manual operation or opt into temperature Auto.
+const manualSimulation = () => {
+    const sim = new NuclearPowerSimulation();
+    sim.setAutoMode(false);
+    sim.setAutoObjective('temperature');
+    return sim;
+};
+
 const advance = (sim, seconds) => { for (let i = 0; i < seconds * 4; i++) sim.tick(0.25); };
 const loseCooling = sim => { sim.togglePump('A'); sim.togglePump('B'); };
 
 test('retained heat rises after a cooling-loss trip, with warning time before damage', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     const fuel = sim.condition.fuelTemperature;
     loseCooling(sim);
     advance(sim, 20);
@@ -25,7 +33,7 @@ test('retained heat rises after a cooling-loss trip, with warning time before da
 });
 
 test('continued cooling loss progresses through overheating and damage before a slow meltdown', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     loseCooling(sim);
     let firstDamage;
     while (!sim.condition.meltdown && sim.elapsed < 360) {
@@ -59,7 +67,7 @@ test('continued cooling loss progresses through overheating and damage before a 
 });
 
 test('fault restriction develops gradually and early intervention prevents damage', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.setAutoMode(true);
     sim.injectFault('primary-restriction');
     assert.equal(sim.primaryFlow, 100);
@@ -74,7 +82,7 @@ test('fault restriction develops gradually and early intervention prevents damag
 });
 
 test('component wear survives fault clearing and trip reset; explicit cool repair restores it', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.injectFault('pump-wear');
     while (sim.condition.components.A.damage < 2 && sim.elapsed < 150) sim.tick(0.25);
     assert.ok(sim.condition.components.A.stress > 60);
@@ -99,7 +107,7 @@ test('component wear survives fault clearing and trip reset; explicit cool repai
 });
 
 test('individual rod imbalance reveals a local hot spot before average coolant overheats', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.setRod('CR-01', 0);
     advance(sim, 40);
     assert.ok(sim.condition.zones[0].temperature > 410);
@@ -113,7 +121,7 @@ test('individual rod imbalance reveals a local hot spot before average coolant o
 });
 
 test('normal automatic generation remains protected and pause freezes failure evolution', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.setAutoObjective('power'); sim.setElectricalTarget(400); sim.setAutoMode(true);
     advance(sim, 900);
     assert.equal(sim.condition.damaged, false);
@@ -127,7 +135,7 @@ test('normal automatic generation remains protected and pause freezes failure ev
 });
 
 test('automatic control reduces output but cannot remove retained heat without either cooling loop', () => {
-    const sim = new NuclearPowerSimulation();
+    const sim = manualSimulation();
     sim.setAutoMode(true);
     loseCooling(sim);
     advance(sim, 3);

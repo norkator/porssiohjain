@@ -129,3 +129,9 @@
 :host([data-theme="light"]) .diesel-card[data-loaded="true"] .diesel-visual-status { color: #116348; }
 :host([data-theme="light"]) .diesel-card[data-state="starting"] .diesel-visual-status { color: #835616; }
 :host([data-theme="light"]) .diesel-card[data-state="empty"] .diesel-visual-status { color: #a32d24; }
+
+:host([data-theme="light"][data-temperature-ok="true"]) .core-temperature-metric { background: #e0f6e9; border-color: #278457; }
+:host([data-theme="light"][data-temperature-ok="true"]) .core-temperature-metric :is(.metric-reading, .metric-icon, .metric-foot) { color: #145b37; }
+:host([data-theme="light"][data-temperature-ok="true"]) .core-temperature-metric :is(.status-dot, .metric-track i) { background: #278457; }
+:host([data-theme="light"]) .meltdown-banner { color: #fff; background: #770d19; border-color: #ff6975; }
+:host([data-theme="light"]) .meltdown-banner .core-dialog-titlebar { color: #fff; background: #570b13; }

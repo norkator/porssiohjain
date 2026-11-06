@@ -12,7 +12,7 @@ equipment states, alarms, events, and trends are simulated. It does not persist
 telemetry, access measurement history, send device commands, or implement a physical
 reactor model. Its separate primary/secondary circuits are a fictional two-loop
 layout, not a Chernobyl/RBMK simulation or a validated model of any named reactor
-type. It starts in Manual at a nominal operating point, with both pumps enabled at
+type. It starts in Auto regulating Electrical output at a nominal operating point, with both pumps enabled at
 100% and small deterministic process fluctuations enabled.
 
 The user intends to evolve this into a physical, MQTT-connected scale model and
@@ -45,7 +45,9 @@ Core temperature above the existing 335 °C demo high-temperature threshold turn
 the temperature card, status light, outlet instrument and annunciator red. Text
 also reads **HIGH TEMPERATURE**. Acknowledging the alarm does not remove this
 indication; it clears only when temperature falls back to 335 °C or below. Both
-themes have explicit high-temperature colors. The independent 360 °C simulated
+themes have explicit high-temperature colors. Normal running temperatures use a
+green card, reading and status indicator; stopped/tripped or damaged states do not
+show this green operating indication. The independent 360 °C simulated
 coolant trip is retained, with an additional local-fuel hot-spot trip. These are
 illustrative, not physical safety limits.
 
@@ -71,16 +73,25 @@ the fault: protection may trip before temperatures rise. Stress recedes after
 correction, while damage does not heal automatically. At meltdown, fuel deforms
 gradually and a glowing pool grows over subsequent seconds; there is no explosion.
 Generation shuts down and the session remains inspectable/exportable.
-The latched meltdown adds a slow red pulse across the entire console and a sticky
-banner with bouncing **CORE MELTDOWN** text, incident export and **Reset demo**.
+The latched meltdown adds a slow red pulse across the entire console and a
+movable, nonmodal top-layer dialog with bouncing **CORE MELTDOWN** text, incident
+export and **Reset demo**. It uses the shared core-map/generator title-bar dragging,
+keyboard movement and viewport clamping. Close with × or Escape; reopen from
+**Meltdown incident ↗** in the footer. Closing it does not clear the incident,
+red console pulse or siren. Hiding the view closes it; returning reopens it.
 Reduced-motion preferences replace the pulse/bounce with static red emphasis;
 pause and hidden-view suspension also pause these effects. Existing damage and
 meltdown thresholds remain unchanged.
 
 **Enable alarm sounds** in the header opts into browser-synthesized audio, with an
-explicit mute control. Unacknowledged alarms repeat a short attention tone every
-three seconds; meltdown uses a continuous alternating siren pattern that alarm
-acknowledgement cannot silence. Mute, pause, hidden views and detach stop audio;
+explicit mute control. Unacknowledged alarms start with an attention tone every
+three seconds. Fuel temperature and retained core damage escalate the sound through
+overheating (2 s), core damage (1.3 s), critical (1 s) and meltdown (0.85 s) cadences,
+with wider pitch sweeps, stronger waveform and modestly increasing gain. Critical
+starts at 600 °C peak fuel or 70% damage; earlier levels use the existing 410/450 °C
+warning/damage boundaries. These are illustrative demo levels. Acknowledgement
+silences ordinary attention tones; ongoing overheating/damage and meltdown remain
+audible until conditions resolve or the user mutes. Mute, pause, hidden views and detach stop audio;
 Reset demo clears the incident sound. Browsers require a user gesture to enable
 audio. Sound settings belong to this view instance and no audio files are fetched.
 The temperature trend expands its scale above the old 400 °C range during a severe
@@ -175,7 +186,8 @@ Controls:
 ## Automatic regulation and fluctuations
 
 **Auto** has selectable **Core temperature** and **Electrical output** objectives.
-Temperature regulation is the default. It holds configurable core temperature
+Electrical output regulation is the initial and Reset demo default (200 MW electric).
+Core temperature regulation remains selectable. It holds configurable core temperature
 (40–330 °C; default 286 °C) and circulation (25–100%; default 85%) targets.
 A one-second illustrative regulator uses
 feed-forward plus proportional/integral temperature correction to adjust the rod
@@ -193,8 +205,8 @@ The model is deliberately simplified and does not solve reactor/neutron physics.
 Trips inhibit regulation. Resetting a trip never triggers automatic restart; an
 explicit Start is required even when Auto remains selected.
 
-For grid-style generation control, choose **Regulate → Electrical output**, enter
-**Output target** (0–400 MW electric; default 200), then select **Auto**. The target
+For grid-style generation control, the initial **Auto → Electrical output** mode uses
+**Output target** (0–400 MW electric; default 200). The target
 is generator electrical output (`MWₑ`), distinct from the thermal output (`MWₜₕ`).
 The left electrical card and regulation status show actual versus requested output.
 The right trend switches its output axis from reactor load (%) to electrical MW and
