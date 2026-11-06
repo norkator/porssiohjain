@@ -8,7 +8,12 @@ const manualSimulation = () => {
     const sim = new NuclearPowerSimulation();
     sim.setAutoMode(false);
     sim.setAutoObjective('temperature');
-    // Established operating-point fixture for the existing dynamics scenarios.
+    // Explicitly prime circulation for this established operating-point fixture.
+    sim.togglePump('A'); sim.togglePump('B');
+    sim.primaryFlow = 100; sim.secondaryFlow = 100;
+    for (const id of ['pumpA', 'pumpB']) {
+        Object.assign(sim.components.items[id].actual, { speed: 100, flow: 100, available: true });
+    }
     sim.start();
     Object.assign(sim, { power: 64, temperature: 286, returnTemperature: 258, secondaryTemperature: 184 });
     sim.controlRods.forEach(rod => { rod.position = 36; });
@@ -333,12 +338,40 @@ test('new and reset sessions start in Auto electrical output without bypassing t
     assert.equal(sim.power, 0);
     assert.equal(sim.rods, 100);
     assert.equal(sim.condition.heatReserve, 0);
+    const assertStoppedPumps = () => {
+        assert.equal(sim.startupReadiness().ready, false);
+        assert.equal(sim.circulationReady(), false);
+        assert.equal(sim.primaryFlow, 0);
+        assert.equal(sim.secondaryFlow, 0);
+        for (const id of ['pumpA', 'pumpB']) {
+            assert.equal(sim[id], false);
+            assert.equal(sim[`${id}Speed`], 100);
+            assert.equal(sim.components.items[id].settings.speed, 100);
+            assert.equal(sim.components.items[id].actual.speed, 0);
+            assert.equal(sim.components.items[id].actual.flow, 0);
+            assert.equal(sim.components.items[id].actual.available, false);
+        }
+    };
+    assertStoppedPumps();
+    sim.start();
+    assert.equal(sim.running, false);
     const reserves = sim.fuel.assemblies.map(a => a.remaining);
     advance(sim, 180);
     assert.equal(sim.running, false);
     assert.equal(sim.power, 0);
     assert.equal(sim.rods, 100);
     assert.deepEqual(sim.fuel.assemblies.map(a => a.remaining), reserves);
+    assertStoppedPumps();
+    sim.togglePump('A');
+    advance(sim, 6);
+    sim.start();
+    assert.equal(sim.running, false); // One circulating circuit is insufficient.
+    sim.togglePump('B');
+    sim.start();
+    assert.equal(sim.running, false); // Enabled pumps must actually accelerate.
+    advance(sim, 6);
+    assert.equal(sim.startupReadiness().ready, true);
+    assert.equal(sim.running, false);
     sim.start(); advance(sim, 180);
     assert.equal(sim.running, true);
     assert.ok(sim.power > 0);
@@ -352,8 +385,28 @@ test('new and reset sessions start in Auto electrical output without bypassing t
     assert.equal(sim.running, false);
     assert.equal(sim.power, 0);
     assert.equal(sim.rods, 100);
+    assertStoppedPumps();
 });
 
+
+test('startup requires actual motor speed, flow and AC independently of retained targets', () => {
+    const sim = new NuclearPowerSimulation();
+    sim.togglePump('A'); sim.togglePump('B'); advance(sim, 6);
+    assert.equal(sim.startupReadiness().ready, true);
+    const speed = sim.components.items.pumpA.actual.speed;
+    sim.components.items.pumpA.actual.speed = 0;
+    sim.start(); assert.equal(sim.running, false);
+    sim.components.items.pumpA.actual.speed = speed;
+    const flow = sim.secondaryFlow;
+    sim.secondaryFlow = 0;
+    sim.start(); assert.equal(sim.running, false);
+    sim.secondaryFlow = flow;
+    sim.supply.setGrid(sim, false);
+    sim.start(); assert.equal(sim.running, false);
+    sim.supply.setGrid(sim, true);
+    assert.equal(sim.startupReadiness().ready, true);
+    assert.equal(sim.running, false);
+});
 
 test('Manual keeps shutdown under operator control across low flow and high coolant/fuel temperatures', () => {
     const sim = manualSimulation();

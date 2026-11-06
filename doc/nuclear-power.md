@@ -12,10 +12,12 @@ equipment states, alarms, events, and trends are simulated. It does not persist
 telemetry, access measurement history, send device commands, or implement a physical
 reactor model. Its separate primary/secondary circuits are a fictional two-loop
 layout, not a Chernobyl/RBMK simulation or a validated model of any named reactor
-type. It starts stopped with Auto → Electrical output selected (200 MW target). Press
-Start explicitly to begin generation. Initial rods are fully inserted, output and
+type. It starts stopped with Auto → Electrical output selected (200 MW target).
+Start both pumps explicitly, allow circulation to build, then press reactor Start
+to begin generation. Initial rods are fully inserted, output and
 retained heat are zero, and coolant/fuel start near ambient (30 °C). Both pumps
-remain enabled at 100% and small deterministic process fluctuations are enabled.
+start disabled with zero actual motor speed and flow, retaining 100% speed targets;
+small deterministic process fluctuations are enabled.
 Reset demo returns to this same stopped state.
 
 The user intends to evolve this into a physical, MQTT-connected scale model and
@@ -26,7 +28,9 @@ handoff current when behavior changes.
 The schematic includes a reactor cutaway with moving rods and fuel channels,
 separate primary and secondary circuits, animated pumps and coolant flow, a heat
 exchanger, a turbine/generator, and a condenser. Click or keyboard-activate outlined
-equipment to inspect it. The diagram can be zoomed and scrolled. Controls and
+equipment to open its movable component console. The reactor opens the core map;
+its former Equipment detail readings are inside that window. The main view has no
+Equipment detail card. The diagram can be zoomed and scrolled. Controls and
 instruments adapt to the feature window's width, including desktop window resizing.
 
 Click the reactor vessel (or **Core map ↗**) to open the core map in a movable,
@@ -92,7 +96,7 @@ Reduced-motion preferences replace the pulse/bounce with static red emphasis;
 pause and hidden-view suspension also pause these effects. Existing damage and
 meltdown thresholds remain unchanged.
 
-**Enable alarm sounds** in the header opts into browser-synthesized audio, with an
+**Enable plant sounds** in the header opts into browser-synthesized audio, with an
 explicit mute control. Unacknowledged alarms start with an attention tone every
 three seconds. Fuel temperature and retained core damage escalate the sound through
 overheating (2 s), core damage (1.3 s), critical (1 s) and meltdown (0.85 s) cadences,
@@ -103,6 +107,25 @@ silences ordinary attention tones; ongoing overheating/damage and meltdown remai
 audible until conditions resolve or the user mutes. Mute, pause, hidden views and detach stop audio;
 Reset demo clears the incident sound. Browsers require a user gesture to enable
 audio. Sound settings belong to this view instance and no audio files are fetched.
+The same switch enables distinct quiet ascending Start and descending Stop cues,
+only when that command changes the reactor's running state. Blocked/repeated commands
+produce no cue. Kenney UI Audio samples provide quiet on/off switch clicks and a short click when
+an adjustment is committed (not on every slider movement). They share Enable plant
+sounds and mute/pause/visibility cleanup, preload only when sound is enabled and
+never loop. One sampled UI voice plays at a time, with 80 ms input throttling and
+0.13 default gain; the Clicks volume slider adjusts UI samples independently (0–0.26 gain), and Test
+click previews the adjustment sound. Missing samples show an unavailable message.
+The context stays running while sounds are enabled and the view is active, even
+between sounds, to avoid suspend/resume races. Mute/pause/hide still suspend it.
+Unloaded/late clicks are skipped rather than replayed. Sample files and
+the included CC0 license/source record are under
+`META-INF/resources/audio/nuclear-power/kenney-ui`. Original pack:
+https://kenney.nl/assets/ui-audio; downloaded from the Calinou/kenney-ui-audio mirror
+because the original download returned 403. No external audio request occurs at runtime.
+Continuous operating hum has been removed. Routine operation is silent after the
+brief Start/Stop cue; cues peak at 0.0004. Warning and critical alarm sounds retain
+their separate escalation. Mute, pause, hidden views and detach stop all cue and
+alarm nodes immediately.
 The temperature trend expands its scale above the old 400 °C range during a severe
 incident rather than clipping the continued rise.
 
@@ -146,7 +169,7 @@ The console uses the full feature-window width with no fixed maximum width. At
 container widths of at least 1400 px, it has three columns:
 
 - left: stacked temperature, thermal output, electrical output, flow and rod cards,
-  followed by selected equipment details;
+  followed by the collapsed fault/incident tools; equipment details live in dialogs;
 - middle: regulation controls, then reactor overview beside the operator console;
 - right: live trends above the filterable event journal.
 
@@ -167,10 +190,10 @@ Auto-owned actuator settings remain readable while disabled.
 The schematic uses the shared visibility-aware frame loop for illustrative motion:
 
 - Turbine blades show projected rotation and the generator has a centered rotating
-  rotor. Reported electrical generation drives a smoothed visual speed, with
-  startup acceleration and coast-down after shutdown. Rotation is independent of the
-  steam-particle temperature threshold, since the simplified model can report output
-  during early warm-up. This is not a measured RPM.
+  rotor. The separate simulated shaft-speed read-back drives visual rotation, with
+  startup acceleration and coast-down after shutdown. An open breaker can leave
+  the shaft turning while electrical output is zero. Rotation is independent of the
+  steam-particle temperature threshold. This is not a measured RPM.
 - Steam particles follow the steam pipe toward the turbine; their visibility and
   travel rate use secondary temperature and actual circulation. Condenser droplets
   follow the same heat/flow activity. Cold circulation still shows water flow but
@@ -186,7 +209,9 @@ The schematic uses the shared visibility-aware frame loop for illustrative motio
   does not restart the reactor. Existing diesel cutaways retain their own motion.
 
 Cold startup begins with inserted rods, no turbine rotation, steam or fuel glow,
-while grid-powered coolant circulation remains visible. Pressing Start lets the
+with both pumps stopped and no coolant circulation. Explicitly start both pumps
+and wait for actual motor speed and flow in both circuits to reach at least 20%;
+then pressing reactor Start lets the
 existing simulated rod, heat, flow and output signals bring each visual into activity.
 Stopping reverses generation activity while retained heat and cooling remain visible.
 New/reset sessions clear visual rotor inertia. Pause/hidden/detached views freeze
@@ -198,7 +223,7 @@ All colors support the feature's light and dark themes.
 Controls:
 
 - Start/Stop: normal startup or cooldown, maintaining circulation settings and
-  individual operating rod targets. Start requires available circulation and a
+  individual operating rod targets. Start requires both pumps explicitly enabled, actual motor speed and flow of at least 20% in both circuits, AC supply, and a
   temperature below the demo reset limit.
 - Load setpoint: sets requested output and corresponding rod insertion.
 - Bank Insert/Withdraw: moves every rod's own target by five percentage points,
@@ -208,7 +233,7 @@ Controls:
   its insertion slider or one-percentage-point buttons. Only that rod changes.
 - Pump A/B: enable/disable and independently adjust speed targets from 0 to 100%.
   Actual speed/flow ramps gradually; disabling preserves the speed setting. Pump
-  rotation and each circuit's coolant animation follow actual speed, including
+  rotation follows motor speed and each circuit's coolant animation follows flow, including
   coast-down, with continuous phase and an explicit local SVG rotation pivot.
 - Emergency shutdown: latches a simulated trip and inserts rods. Restart requires
   **Reset trip**, then **Start**. In Auto, low primary flow or high core temperature can also
@@ -229,6 +254,66 @@ but do not insert rods or stop generation automatically. Use **Emergency shutdow
 or **Stop** explicitly. Switching to Auto restores the protective trips on the next
 simulation tick; switching modes never clears an existing trip. Irreversible
 meltdown still ends generation and requires **Reset demo** in either mode.
+
+## Component consoles and operating exercises
+
+Heat exchanger, both pumps, turbine/generator and condenser open independent,
+movable nonmodal windows via pointer or Enter/Space on their outlined equipment.
+Requested inputs and actual read-backs remain separate. The underlying process stays
+usable; windows retain positions, clamp to the viewport, close with ×/Escape and
+close on hide/detach. Pause keeps them available for inspection. Each console has
+live readings, an animated valve/flow illustration, causal explanation, local
+120-sample trends with per-series ranges and operator-change markers, disturbances,
+operating hours, retained wear and a bounded maintenance history. The reactor's
+former detail card is now a collapsible reading section inside the core-map window.
+
+- Pumps: start/stop, speed, ±25 percentage-point speed trim and discharge valve.
+  Actual motor speed is distinct from flow: restricting a valve can reduce flow
+  without reducing shaft speed. AC supply remains authoritative. Speed is Auto-owned
+  while running unless the operator explicitly enables the pump's manual override.
+  Release resumes regulation through the existing actual-speed inertia; enable state
+  is never silently changed by Auto. Other tuning remains operator-owned while Auto
+  compensates through available reactor/pump controls.
+- Heat exchanger: primary bypass, secondary valve, effectiveness and fouling.
+  Transfer is the product of remaining non-bypassed flow, valve opening,
+  effectiveness, unfouled fraction, disturbance and wear factors. Restrictions reduce
+  heat removal, affect secondary temperature and electrical output, and can heat the
+  core. Fault-free cooled/stopped service removes fouling; running adjustments cannot
+  decrease accumulated fouling to bypass that requirement.
+- Condenser: cooling-water valve and 0–60 °C inlet temperature. Warmer water and
+  restriction reduce heat rejection, cooling margin and available generation.
+- Turbine: steam admission, governor response (0.1–30 s), load ramp (1–400 MW/s),
+  manual generator breaker and separate turbine trip/reset/Start. Shaft speed has its
+  own simulated inertia and can remain nonzero with zero electrical output. The
+  breaker closes only with shaft speed ≥90%, cooling available, no turbine trip,
+  active fault, severe wear or meltdown. Auto may establish low unloaded shaft speed
+  with an open breaker but never closes it. A turbine trip closes admission and opens
+  the breaker. Reset requires cooled/stopped/fault-free conditions and shaft ≤5%;
+  it leaves admission closed and breaker open until explicit turbine Start/tuning.
+  It never resets the reactor trip or restarts the reactor.
+
+Component disturbances have adjustable strength and period, a one-shot nudge,
+continuous periodic fluctuation, progressive deterioration and explicit clearing.
+Clearing restores the restriction while preserving wear/damage. Component service
+requires the same cooled/stopped/fault-free conditions as core repairs; it preserves
+hours, retained heat, fuel and trip state. Global Repair components also services
+these components after all faults are cleared. Fuel replacement is blocked by
+component faults/wear as well as the existing core checks. Maintenance and fuel
+replacement events remain inspectable for this session; Reset demo clears them.
+
+**Objectives & scenarios** opens a separate control-room window with a startup
+checklist, maintenance journal and three objectives: reach the selected electrical
+MW target, recover cooling, or maintain powered circulation through grid loss.
+Success must hold for 20 simulated seconds. Starting an objective never starts or
+repairs the plant. Diagnostic scenarios present falling flow, warming return,
+uneven output or interrupted external supply as symptoms; inspect equipment or use
+Reveal cause to identify the initiating cause. Their faults require explicit recovery.
+
+The authoritative `electricalOutput` read-back includes transfer restrictions,
+condenser cooling, turbine admission, breaker/trip and any load ramp. The controller,
+auxiliary supply, charts, incident report and instrument use that same value.
+Valve handles and bypass flow follow actual positions, not just requested settings.
+All component constants/rates and shaft percentages are illustrative demo values.
 
 ## Automatic regulation and fluctuations
 
@@ -438,6 +523,12 @@ animation while instruments and controls continue to work.
   progressive faults, component stress/wear, damage, meltdown and incident retention.
 - `src/main/frontend/nuclear-power-fuel.js` owns separate per-assembly inventory,
   uneven exposure, capability, acceleration and explicit replacement interlocks.
+- `src/main/frontend/nuclear-power-components.js` owns component settings/read-backs,
+  transfer/cooling factors, turbine shaft/breaker, disturbances, wear and exercises.
+- `src/main/frontend/nuclear-power-equipment.js` renders the movable consoles and
+  exercises, settings ownership, local trends and maintenance journal.
+- `src/main/frontend/nuclear-power-audio.js` owns quiet Start/Stop cues;
+  the main element retains alarm scheduling and shared-context lifecycle.
 - `src/main/frontend/nuclear-power-supply.js` owns auxiliary-source selection,
   standby/manual diesel startup, fuel, capacity and pump power availability.
 - `src/main/frontend/nuclear-power-motion.js` integrates speed-dependent impeller
@@ -475,6 +566,8 @@ JAVA_HOME=/path/to/java21 ./gradlew compileJava test \
 node --test src/test/frontend/nuclear-power-model.test.mjs
 node --test src/test/frontend/nuclear-power-failure.test.mjs
 node --test src/test/frontend/nuclear-power-resources.test.mjs
+node --test src/test/frontend/nuclear-power-components.test.mjs
+node --test src/test/frontend/nuclear-power-audio.test.mjs
 node --test src/test/frontend/nuclear-power-browser.test.mjs
 # With the disposable local application already running:
 NUCLEAR_POWER_APP_URL=http://127.0.0.1:18080 node --test src/test/frontend/nuclear-power-browser.test.mjs

@@ -61,7 +61,7 @@ export class FuelInventory {
         if (sim.running) reasons.push('Stop the reactor');
         if (sim.controlRods.some(rod => rod.position < 99.5 || rod.target < 99.5)) reasons.push('Wait for all control rods to insert');
         if (sim.temperature >= 150 || sim.condition.peakTemperature >= 200) reasons.push('Coolant must be below 150 °C and fuel below 200 °C');
-        if (sim.condition.fault !== 'none' || sim.condition.damaged || sim.condition.meltdown) reasons.push('Clear faults and repair damage first');
+        if (sim.condition.fault !== 'none' || sim.condition.damaged || sim.condition.meltdown || sim.components?.hasFaults || sim.components?.damaged) reasons.push('Clear faults and repair damage first');
         return { ready: reasons.length === 0, reasons };
     }
 

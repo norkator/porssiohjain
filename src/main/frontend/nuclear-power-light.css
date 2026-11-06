@@ -154,3 +154,18 @@
 :host([data-theme="light"]) .fuel-channel[data-reserve="low"] .fuel-low-label { fill: #754700; }
 :host([data-theme="light"]) .fuel-channel[data-reserve="spent"][data-condition="damaged"] > rect { stroke: #b1372e; }
 :host([data-theme="light"]) .fuel-channel[data-reserve="spent"]:is(.selected, :hover, :focus-visible) > rect { stroke: #08634f; stroke-width: 3px; }
+
+:host([data-theme="light"]) .equipment-dialog input[type="number"] { background: #fff; color: #244c5b; border-color: #93aebc; }
+:host([data-theme="light"]) .component-flow-shell { stroke: #92b1ba; }
+:host([data-theme="light"]) .component-flow { stroke: #186b58; }
+:host([data-theme="light"]) .component-flow-diagram circle { fill: #e3f1ee; stroke: #38776d; }
+:host([data-theme="light"]) .component-valve-handle path { stroke: #945316; }
+:host([data-theme="light"]) .trace-0 { stroke: #995617; }
+:host([data-theme="light"]) .trace-1 { stroke: #126f5a; }
+:host([data-theme="light"]) .trace-2 { stroke: #535eb0; }
+
+:host([data-theme="light"]) .equipment-valve circle { fill: #edf7f4; stroke: #39756c; }
+:host([data-theme="light"]) .equipment-valve > path { fill: #c8e3db; stroke: #39756c; }
+:host([data-theme="light"]) .valve-handle path { stroke: #8e5215; }
+:host([data-theme="light"]) .exchanger-bypass { stroke: #ad651f; }
+:host([data-theme="light"]) .exercises-dialog select { color: #244c5b; background: #fff; }

@@ -7,7 +7,12 @@ const manualSimulation = () => {
     const sim = new NuclearPowerSimulation();
     sim.setAutoMode(false);
     sim.setAutoObjective('temperature');
-    // Established operating-point fixture for the existing dynamics scenarios.
+    // Explicitly prime circulation for this established operating-point fixture.
+    sim.togglePump('A'); sim.togglePump('B');
+    sim.primaryFlow = 100; sim.secondaryFlow = 100;
+    for (const id of ['pumpA', 'pumpB']) {
+        Object.assign(sim.components.items[id].actual, { speed: 100, flow: 100, available: true });
+    }
     sim.start();
     Object.assign(sim, { power: 64, temperature: 286, returnTemperature: 258, secondaryTemperature: 184 });
     sim.controlRods.forEach(rod => { rod.position = 36; });

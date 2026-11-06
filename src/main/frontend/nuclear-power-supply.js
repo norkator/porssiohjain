@@ -55,9 +55,9 @@ export class AuxiliaryPower {
     }
 
     advance(sim, dt) {
-        this.demand = 0.2 + (sim.pumpA ? 3.5 * (sim.pumpASpeed / 100) ** 3 : 0)
-            + (sim.pumpB ? 2.5 * (sim.pumpBSpeed / 100) ** 3 : 0);
-        const turbinePower = sim.running && this.turbineConnected ? sim.power * 4.1 * sim.secondaryFlow / 100 : 0;
+        this.demand = 0.2 + (sim.pumpA ? 3.5 * (sim.components.pumpSpeed('pumpA') / 100) ** 3 : 0)
+            + (sim.pumpB ? 2.5 * (sim.components.pumpSpeed('pumpB') / 100) ** 3 : 0);
+        const turbinePower = sim.running && this.turbineConnected ? sim.electricalOutput : 0;
         const turbineReady = turbinePower >= this.demand + 1;
         const normalAvailable = turbineReady || this.gridAvailable;
         for (const g of this.generators) {

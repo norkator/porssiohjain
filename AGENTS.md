@@ -65,8 +65,18 @@ The English-only Vaadin feature is a fictional two-loop reactor / future physica
 scale-model control room, not a simulator of a specific real reactor. All current
 signals and commands are browser-local simulation; no MQTT devices are connected.
 The frontend separates requested rod/pump settings from actual simulated read-back.
+Equipment detail lives in the component dialogs (reactor readings in the core map),
+not a main-view card. Component valves, bypass, cooling, disturbances and turbine
+breaker/shaft affect the common electrical output and cooling model. Preserve
+manual pump overrides, explicit turbine restart/breaker readiness, component service
+interlocks, local trends, objectives and symptom-first scenarios. Plant audio has
+quiet Start/Stop cues, local CC0 Kenney UI Audio one-shot switch/adjustment samples
+(with bundled license/source records), and separate alarms; continuous operating hum is removed; preserve opt-in, bounded gain,
+and mute/pause/hide/detach cleanup of every voice.
 New/reset sessions select Auto with Electrical output regulation (200 MW), but
-the reactor starts stopped/cold with fully inserted rods and requires explicit Start; healthy
+the reactor starts stopped/cold with fully inserted rods and both pumps disabled
+(zero actual motor speed/flow, retained 100% speed targets). Explicitly start both
+pumps and establish circulation before reactor Start; healthy
 running core temperatures have green emphasis in both themes.
 Process animations use actual heat/flow/output: turbine/generator coast-down, steam,
 condenser drops, exchanger highlights, local fuel glow/molten drips and source-to-pump

@@ -32,7 +32,7 @@ export class ReactorCondition {
     note(sim, event) {
         if (!this.incident || this.incident.resolvedAt) return;
         this.incident.timeline.push({ ...event, coreTemperature: sim.temperature,
-            fuelTemperature: this.fuelTemperature, electricalMw: sim.power * 4.1 * sim.secondaryFlow / 100,
+            fuelTemperature: this.fuelTemperature, electricalMw: sim.electricalOutput,
             primaryFlow: sim.primaryFlow, secondaryFlow: sim.secondaryFlow, stage: this.stage });
         // Retain the initiating event even after a long incident.
         if (this.incident.timeline.length > 160) this.incident.timeline.splice(1, 1);
@@ -67,7 +67,7 @@ export class ReactorCondition {
     advance(sim, dt, previousTemperature) {
         this.heatReserve = approach(this.heatReserve, sim.power * 1.5, dt, sim.running ? 40 : 240);
         const averageDamage = this.zones.reduce((sum, zone) => sum + zone.damage, 0) / this.zones.length;
-        const cooling = Math.min(sim.primaryFlow, sim.secondaryFlow) / 100 * (1 - averageDamage * 0.005);
+        const cooling = Math.min(sim.primaryFlow, sim.secondaryFlow) / 100 * sim.components.coolingFactor * (1 - averageDamage * 0.005);
         this.coolingMargin = 1200 * cooling - sim.power * 12 - this.heatReserve * 1.5;
         const fuelRate = (sim.power * 0.2 + this.heatReserve * 0.1
             - Math.max(0, this.fuelTemperature - sim.temperature) * 0.6 * cooling) / 3;
@@ -108,7 +108,7 @@ export class ReactorCondition {
     }
 
     canRepair(sim) {
-        return !sim.running && !this.meltdown && this.fault === 'none'
+        return !sim.running && !this.meltdown && this.fault === 'none' && !sim.components?.hasFaults
             && sim.temperature < 150 && this.peakTemperature < 200;
     }
 

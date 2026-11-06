@@ -37,7 +37,12 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
             response.end('export default ' + JSON.stringify(readFileSync(join(root, 'src/main/frontend', path.slice(1)), 'utf8')));
             return;
         }
-        const allowed = ['/nuclear-power.js', '/nuclear-power-model.js', '/nuclear-power-motion.js', '/nuclear-power-condition.js', '/nuclear-power-fuel.js', '/nuclear-power-supply.js'];
+        if (path.startsWith('/audio/nuclear-power/kenney-ui/') && ['switch1.wav','switch2.wav','click1.wav'].includes(path.split('/').at(-1))) {
+            response.setHeader('Content-Type', 'audio/wav');
+            response.end(readFileSync(join(root,'src/main/resources/META-INF/resources',path)));
+            return;
+        }
+        const allowed = ['/nuclear-power.js', '/nuclear-power-model.js', '/nuclear-power-motion.js', '/nuclear-power-condition.js', '/nuclear-power-fuel.js', '/nuclear-power-supply.js', '/nuclear-power-components.js', '/nuclear-power-equipment.js', '/nuclear-power-audio.js'];
         if (!allowed.includes(path)) { response.writeHead(404); response.end(); return; }
         response.setHeader('Content-Type', 'text/javascript');
         response.end(readFileSync(join(root, 'src/main/frontend', path.slice(1))));
@@ -96,7 +101,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         const value = name => consoleCode(`return s.querySelector('[data-value="${name}"]').textContent;`);
         const input = (selector, value) => consoleCode(`const input=s.querySelector(${JSON.stringify(selector)});input.value=${JSON.stringify(String(value))};input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));`);
         const advance = seconds => consoleCode(`for(let i=0;i<${seconds * 4};i++)c.simulation.tick(.25);c.update();`);
-        const warmOperatingPoint = () => consoleCode(`c.simulation.start(); Object.assign(c.simulation,{power:64,temperature:286,returnTemperature:258,secondaryTemperature:184}); c.simulation.controlRods.forEach(r=>{r.position=36;}); Object.assign(c.simulation.condition,{fuelTemperature:323.3,heatReserve:96,coolingMargin:288}); c.simulation.condition.zones.forEach(z=>{z.temperature=323.3;}); c.simulation.history=[];c.simulation.sample();c.update();`);
+        const warmOperatingPoint = () => consoleCode(`if(!c.simulation.pumpA)c.simulation.togglePump('A');if(!c.simulation.pumpB)c.simulation.togglePump('B');c.simulation.primaryFlow=100;c.simulation.secondaryFlow=100;for(const id of ['pumpA','pumpB'])Object.assign(c.simulation.components.items[id].actual,{speed:100,flow:100,available:true});c.simulation.start(); Object.assign(c.simulation,{power:64,temperature:286,returnTemperature:258,secondaryTemperature:184}); c.simulation.controlRods.forEach(r=>{r.position=36;}); Object.assign(c.simulation.condition,{fuelTemperature:323.3,heatReserve:96,coolingMargin:288}); c.simulation.condition.zones.forEach(z=>{z.temperature=323.3;}); c.simulation.history=[];c.simulation.sample();c.update();`);
         const screenshot = async name => {
             await wait(200); // Let palette/hover transitions settle before capturing.
             const result = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
@@ -125,12 +130,15 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.equal(await value('status'), 'STOPPED');
         assert.equal(await consoleCode('return c.simulation.power;'), 0);
         assert.equal(await consoleCode('return c.simulation.rods;'), 100);
-        assert.equal(await consoleCode(`return s.querySelector('[data-action="start"]').disabled;`), false);
+        assert.equal(await consoleCode(`return s.querySelector('[data-action="start"]').disabled;`), true);
+        assert.equal(await consoleCode('return c.simulation.primaryFlow;'), 0);
+        assert.equal(await consoleCode('return c.simulation.secondaryFlow;'), 0);
         assert.equal(await consoleCode('return c.processMotion.speed;'), 0);
         assert.equal(await consoleCode('return c.processMotion.steam;'), 0);
         assert.equal(await consoleCode("return Number(s.querySelector('.steam-particle').style.opacity);"), 0);
         await advance(10);
         assert.equal(await consoleCode('return c.simulation.running;'), false);
+        await action('pumpA'); await action('pumpB'); await advance(6);
         await action('start');
         assert.equal(await consoleCode('return c.simulation.running;'), true);
         await advance(8);
@@ -163,6 +171,63 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
             await screenshot(`wide-${width}-light`);
             await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
         }
+        assert.equal(await consoleCode("return s.querySelector('.equipment-panel');"), null);
+        await consoleCode(`s.querySelector('[data-equipment="pumpA"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));`);
+        assert.equal(await consoleCode(`return s.querySelector('[data-component-dialog="pumpA"]').matches(':popover-open');`), true);
+        await consoleCode(`const box=s.querySelector('[data-component-override="pumpA"]');box.checked=true;box.dispatchEvent(new Event('change',{bubbles:true}));`);
+        await input('[data-component="pumpA"][data-component-setting="speed"]', 55);
+        await input('[data-component="pumpA"][data-component-setting="dischargeValve"]', 70);
+        await advance(8);
+        assert.equal(await consoleCode('return c.simulation.components.items.pumpA.override;'), true);
+        assert.equal(await consoleCode('return c.simulation.pumpASpeed;'), 55);
+        assert.ok(await consoleCode('return c.simulation.primaryFlow;') < 65);
+        await consoleCode(`s.querySelector('[data-equipment="exchanger"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));`);
+        assert.equal(await consoleCode(`return s.querySelector('[data-component-dialog="exchanger"]').matches(':popover-open');`), true);
+        assert.equal(await consoleCode(`return s.querySelector('[data-component-dialog="pumpA"]').matches(':popover-open');`), true);
+        await input('[data-component="exchanger"][data-component-setting="bypass"]', 30);
+        await advance(8);
+        assert.ok(await consoleCode('return c.simulation.components.items.exchanger.actual.transferFactor;') < .8);
+        assert.ok(await consoleCode(`return s.querySelector('[data-component-dialog="exchanger"] .component-trend-traces').childElementCount;`) > 0);
+        await screenshot('equipment-exchanger');
+        await consoleCode(`s.querySelector('[data-component-close="pumpA"]').click();s.querySelector('[data-component-close="exchanger"]').click();s.querySelector('[data-equipment="turbine"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));`);
+        await consoleCode(`const box=s.querySelector('[data-component="turbine"][data-component-setting="breaker"]');box.checked=false;box.dispatchEvent(new Event('change',{bubbles:true}));`);
+        assert.equal(await consoleCode('return c.simulation.electricalOutput;'), 0);
+        await screenshot('equipment-turbine');
+        await consoleCode(`s.querySelector('[data-component-close="turbine"]').click();`);
+        await action('exercises');
+        assert.ok(await consoleCode("return s.querySelector('#operating-objective').options.length;") >= 3);
+        await consoleCode(`s.querySelector('[data-exercise="objective"]').click();`);
+        assert.equal(await consoleCode('return c.simulation.components.objective.status;'), 'active');
+        assert.ok(await consoleCode("return s.querySelector('.exercise-startup-checks').childElementCount;") > 0);
+        await consoleCode(`s.querySelector('[data-exercise="close"]').click();`);
+        await action('reset');
+        await action('pumpA'); await action('pumpB'); await advance(6);
+        const soundButton = await consoleCode(`const r=s.querySelector('[data-action="sound"]').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};`);
+        await page('Input.dispatchMouseEvent', {type:'mousePressed',...soundButton,button:'left',clickCount:1});
+        await page('Input.dispatchMouseEvent', {type:'mouseReleased',...soundButton,button:'left',clickCount:1});
+        await consoleCode('return c.plantAudio.preloadUi();');
+        assert.equal(await consoleCode('return c.plantAudio.uiBuffers.size;'), 3);
+        assert.equal(await consoleCode('return c.plantAudio.uiState;'), 'ready');
+        assert.equal(await consoleCode('return c.plantAudio.uiGain;'), .13);
+        await wait(400);
+        assert.equal(await consoleCode('return c.alarmAudio.state;'), 'running');
+        await action('test-ui-sound');
+        assert.ok(await consoleCode('return [...c.plantAudio.nodes].some(voice=>voice.ui);'));
+        await wait(400);
+        await action('start');
+        await wait(850);
+        assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
+        await action('pause');
+        assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
+        await action('pause');
+        await action('stop');
+        await action('pumpA');
+        assert.ok(await consoleCode("return [...c.plantAudio.nodes].some(voice=>voice.ui && voice.oscillator.loop===false && voice.oscillator.buffer===c.plantAudio.uiBuffers.get('off'));"));
+        await action('sound');
+        assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
+        await action('reset');
+        await action('pumpA'); await action('pumpB'); await advance(6);
+        await action('start');
         await action('manual');
         await input('#auto-objective', 'temperature');
         await warmOperatingPoint();
@@ -181,7 +246,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.equal(await consoleCode("return s.querySelector('.trends-dialog').matches(':popover-open');"), true);
         assert.ok(await consoleCode("return s.querySelector('.trends-dialog .trend-chart').getBoundingClientRect().width > s.querySelector('.trend-panel .trend-chart').getBoundingClientRect().width;"));
         await advance(5);
-        assert.deepEqual(await consoleCode("return [...s.querySelectorAll('.temperature-trace')].map(path=>path.getAttribute('d'));"), await consoleCode("return Array(2).fill(s.querySelector('.temperature-trace').getAttribute('d'));"));
+        assert.equal(await consoleCode("const paths=[...s.querySelectorAll('.temperature-trace')].map(path=>path.getAttribute('d'));return paths.length===2 && paths[0]===paths[1];"), true);
         const trendPosition = await consoleCode(`const d=s.querySelector('.trends-dialog');const before=d.getBoundingClientRect().x;d.querySelector('.core-dialog-titlebar').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));return {before,after:d.getBoundingClientRect().x};`);
         assert.equal(trendPosition.after, trendPosition.before + 16);
         await screenshot('enlarged-live-trends');

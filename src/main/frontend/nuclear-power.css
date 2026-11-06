@@ -437,10 +437,9 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     .footer-signature span { display: none; }
 }
 @container nuclear-console (max-width: 1000px) {
-    .console-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "metrics" "controls" "equipment" "analysis"; }
+    .console-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "metrics" "controls" "analysis"; }
     .instrument-column { display: contents; }
     .metrics { grid-area: metrics; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .equipment-panel { grid-area: equipment; }
     .control-column { grid-area: controls; }
     .analysis-column { grid-area: analysis; }
     .workspace { grid-template-columns: minmax(0, 1fr); }
@@ -612,3 +611,49 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     .fuel-exchanging .fuel-exchange-glyph { animation: none; }
 }
 .fuel-channel.fuel-exchanging > rect { stroke: var(--cool); stroke-width: 3px; }
+
+.equipment-dialog { width: min(850px, calc(100vw - 24px)); }
+.equipment-dialog-body { min-height: 0; overflow: auto; padding: 18px; }
+.component-description, .component-owner, .component-reason, .component-response, .component-trend-note, .component-disturbance-state { color: var(--muted); font-size: 11px; margin: 8px 0 12px; }
+.equipment-console-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.equipment-dialog h3 { color: var(--cool); margin: 10px 0; font-size: 13px; }
+.component-settings { display: grid; gap: 10px; }
+.component-settings label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 10px; font-size: 12px; }
+.component-settings small { grid-column: 1 / -1; color: var(--muted); font-size: 10px; }
+.equipment-dialog input[type="number"] { width: 78px; background: #12232e; color: #e1eee8; border: 1px solid #5c7481; padding: 5px; border-radius: 3px; }
+.component-override { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.component-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+.equipment-dialog .equipment-content { padding: 0; }
+.component-flow-diagram { width: 100%; margin-top: 16px; }
+.component-flow-shell { fill: none; stroke: #345560; stroke-width: 8; }
+.component-flow { fill: none; stroke: #8be9c9; stroke-width: 2; stroke-dasharray: 6 14; }
+.component-flow-diagram circle { fill: #192f3a; stroke: #8ac9bd; }
+.component-valve-handle path { stroke: #ffc17c; stroke-width: 4; }
+.component-flow-diagram text, .component-trends text { fill: var(--muted); font: 9px Consolas, monospace; }
+.component-trends svg { width: 100%; display: block; }
+.component-trend-grid { fill: none; stroke: var(--border); }
+.component-trace { fill: none; stroke-width: 2; }
+.trace-0 { stroke: #e9ad6e; }.trace-1 { stroke: #69d8c2; }.trace-2 { stroke: #a6b6ff; }
+.component-change-marker { fill: none; stroke: #9eabb4; stroke-dasharray: 3 4; }
+.component-trend-legend { color: var(--muted); font-size: 10px; }
+.equipment-dialog details { border-top: 1px solid var(--border); padding: 12px 0; }
+.equipment-dialog summary { cursor: pointer; color: var(--cool); }
+.component-maintenance-log { max-height: 160px; overflow: auto; font-size: 11px; padding-left: 20px; color: var(--muted); }
+.reactor-equipment-detail { flex: 0 0 auto; }
+@container nuclear-console (max-width: 700px) {
+    .equipment-console-grid { grid-template-columns: 1fr; gap: 12px; }
+}
+
+.equipment-valve circle { fill: #19343d; stroke: #74b5ad; stroke-width: 1; }
+.equipment-valve > path { fill: #294953; stroke: #94c8bb; stroke-width: 1; }
+.valve-handle path { stroke: #ffca87; stroke-width: 2.5; }
+.equipment-valve.restricted circle { stroke: #f9a46a; fill: #623b29; }
+.exchanger-bypass { fill: none; stroke: #eaa562; stroke-width: 4; stroke-dasharray: 5 14; }
+.exercises-dialog select { background: #182d38; color: #dceee8; border: 1px solid #64828d; padding: 6px; max-width: 100%; }
+.exercises-dialog button { margin: 8px 0; }
+.exercises-dialog p, .exercises-dialog li, .turbine-readiness li { color: var(--muted); font-size: 11px; }
+.exercises-dialog ol { max-height: 200px; overflow: auto; }
+
+.ui-volume-label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
+.ui-volume-label input[type="range"] { width: 65px; margin: 0; }
+.ui-sound-status { color: var(--muted); font-size: 10px; }

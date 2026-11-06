@@ -17,7 +17,7 @@ export function advanceProcessMotion(previous, signals, seconds) {
         * bounded(Math.min(signals.primaryFlow, signals.secondaryFlow) / 100);
     // Output is authoritative for rotation; the toy model can generate during
     // warm-up before the separate illustrative steam-temperature threshold.
-    const target = bounded(signals.electricalOutput / 300);
+    const target = Number.isFinite(signals.shaftSpeed) ? bounded(signals.shaftSpeed / 100) : bounded(signals.electricalOutput / 300);
     const speed = target + (previous.speed - target) * Math.exp(-dt / (target > previous.speed ? 3 : 6));
     return {
         speed: speed < .0001 ? 0 : speed,

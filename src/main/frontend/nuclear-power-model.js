@@ -7,6 +7,7 @@
 import { ReactorCondition } from './nuclear-power-condition.js';
 import { FuelInventory } from './nuclear-power-fuel.js';
 import { AuxiliaryPower } from './nuclear-power-supply.js';
+import { ComponentProcesses } from './nuclear-power-components.js';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const approach = (value, target, seconds, response) => target + (value - target) * Math.exp(-seconds / response);
@@ -47,12 +48,12 @@ export class NuclearPowerSimulation {
         this.temperature = 30;
         this.returnTemperature = 30;
         this.secondaryTemperature = 28;
-        this.pumpA = true;
-        this.pumpB = true;
+        this.pumpA = false;
+        this.pumpB = false;
         this.pumpASpeed = 100;
         this.pumpBSpeed = 100;
-        this.primaryFlow = 100;
-        this.secondaryFlow = 100;
+        this.primaryFlow = 0;
+        this.secondaryFlow = 0;
         this.autoMode = true;
         this.autoObjective = 'power';
         this.autoElectricalTarget = 200;
@@ -75,8 +76,33 @@ export class NuclearPowerSimulation {
         this.condition.zones.forEach(zone => { zone.temperature = 30; });
         this.fuel = new FuelInventory(CORE_CHANNELS);
         this.supply = new AuxiliaryPower();
-        this.record('Simulation initialized. Reactor stopped; press Start. Auto electrical output control; process fluctuations enabled.', 'info', 'system');
+        this.components = new ComponentProcesses(this);
+        this.record('Simulation initialized. Reactor stopped; start both pumps before reactor Start. Auto electrical output control; process fluctuations enabled.', 'info', 'system');
         this.sample();
+    }
+
+    get electricalOutput() { return this.components.electricalOutput; }
+
+    setComponentSetting(id, key, value) { return this.components.setSetting(id, key, value); }
+    setComponentOverride(id, enabled) { return this.components.setOverride(id, enabled); }
+    componentAction(id, action) { return this.components.action(id, action); }
+    startObjective(id) { return this.components.startObjective(id); }
+    startScenario(id) { return this.components.startScenario(id); }
+
+    turbineReadiness() { return this.components.turbineReadiness(); }
+
+    startupReadiness() {
+        const checks = [
+            { id: 'trip', label: 'Reactor trip reset', ready: !this.tripped },
+            { id: 'stopped', label: 'Reactor stopped', ready: !this.running },
+            { id: 'circulation', label: 'Both coolant circuits circulating with AC', ready: this.circulationReady() },
+            { id: 'temperature', label: 'Core below startup temperature limit', ready: this.temperature < 335 },
+            { id: 'fuel', label: 'Usable fuel available', ready: this.fuel.capability > 0 },
+            { id: 'condition', label: 'No meltdown, retained damage or active faults', ready: !this.condition.meltdown && !this.condition.damaged && this.condition.fault === 'none' && !this.components.hasFaults && !this.components.damaged },
+            { id: 'heatRemoval', label: 'Exchanger and condenser available', ready: this.components.coolingFactor > 0.2 },
+            { id: 'turbine', label: 'Turbine trip reset', ready: !this.components.items.turbine.actual.tripped }
+        ];
+        return { ready: checks.every(c => c.ready), checks };
     }
 
     get rods() {
@@ -101,6 +127,7 @@ export class NuclearPowerSimulation {
 
     start() {
         if (this.tripped || this.running) return;
+        if (!this.startupReadiness().ready) { this.record('Startup blocked: complete the startup readiness checklist.', 'warning'); return; }
         if (this.fuel.capability <= 0) {
             this.record('Startup blocked: no usable fuel remains. Replace fuel manually after cooldown.', 'warning');
             return;
@@ -164,13 +191,13 @@ export class NuclearPowerSimulation {
 
     replaceFuel(id) {
         const replaced = this.fuel.replace(this, id);
-        if (replaced) this.updateAlarms();
+        if (replaced) { this.components.maintenanceNote('reactor', `${id} fuel replaced manually`); this.updateAlarms(); }
         return replaced;
     }
 
     replaceAllFuel() {
         const replaced = this.fuel.replaceAll(this);
-        if (replaced) this.updateAlarms();
+        if (replaced) { this.components.maintenanceNote('reactor', 'All fuel assemblies replaced manually'); this.updateAlarms(); }
         return replaced;
     }
 
@@ -182,8 +209,9 @@ export class NuclearPowerSimulation {
     }
 
     setPumpSpeed(pump, value) {
-        if ((pump !== 'A' && pump !== 'B') || (this.autoMode && this.running) || !Number.isFinite(value)) return;
+        if ((pump !== 'A' && pump !== 'B') || (this.autoMode && this.running && !this.components.items[`pump${pump}`].override) || !Number.isFinite(value)) return;
         this[`pump${pump}Speed`] = clamp(Math.round(value), 0, 100);
+        if (this.components.items[`pump${pump}`].override) this.components.items[`pump${pump}`].settings.speed = this[`pump${pump}Speed`];
         this.record(`Pump ${pump} speed target set to ${this[`pump${pump}Speed`]}%.`);
         this.updateAlarms();
     }
@@ -214,13 +242,14 @@ export class NuclearPowerSimulation {
             { id: 'flow', label: 'Both circuits circulating', ready: this.circulationReady() },
             { id: 'temperature', label: 'Temperature below demo reset limit', ready: this.temperature < 335 },
             { id: 'fuel', label: 'Fuel hot spots cooled below warning level', ready: this.condition.peakTemperature < 410 },
-            { id: 'damage', label: 'Faults cleared and damaged components repaired', ready: this.condition.fault === 'none' && !this.condition.damaged && !this.condition.meltdown }
+            { id: 'damage', label: 'Faults cleared and damaged components repaired', ready: this.condition.fault === 'none' && !this.condition.damaged && !this.condition.meltdown && !this.components.hasFaults && !this.components.damaged }
         ];
         return { ready: checks.every(check => check.ready), checks };
     }
 
     circulationReady() {
         return this.supply.factor > 0 && this.pumpA && this.pumpB && this.pumpASpeed >= 20 && this.pumpBSpeed >= 20
+            && this.components.items.pumpA.actual.speed >= 20 && this.components.items.pumpB.actual.speed >= 20
             && this.primaryFlow >= 20 && this.secondaryFlow >= 20;
     }
 
@@ -238,7 +267,12 @@ export class NuclearPowerSimulation {
     }
 
     repairComponents() {
-        if (this.condition.repair(this)) this.updateAlarms();
+        if (!this.components.serviceReady) return;
+        if (this.condition.repair(this)) {
+            for (const id of Object.keys(this.components.items)) this.components.action(id, 'repair');
+            this.components.maintenanceNote('reactor', 'Core/components repaired after cooldown; fuel and heat preserved');
+            this.updateAlarms();
+        }
     }
 
     setAutoMode(enabled) {
@@ -300,23 +334,26 @@ export class NuclearPowerSimulation {
         this.lastControlTime = this.elapsed;
         const error = this.autoTemperature - this.temperature;
         this.controlIntegral = clamp(this.controlIntegral + error * dt, -150, 150);
-        const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6;
+        const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6 + (1 - this.components.coolingFactor) * 4;
         const basePower = (this.autoTemperature - 30) / (4 + coolingLoss);
         let desiredPower = clamp(basePower + error * 0.12 + this.controlIntegral * 0.003, 0, 95);
         this.regulationLimit = '';
         if (this.autoObjective === 'power') {
-            const conversion = 4.1 * Math.max(0.05, this.secondaryFlow / 100);
-            const electricalError = this.autoElectricalTarget - this.power * 4.1 * this.secondaryFlow / 100;
+            const conversion = 4.1 * Math.max(0.05, this.secondaryFlow / 100 * this.components.transferFactor);
+            const electricalError = this.autoElectricalTarget - this.electricalOutput;
             const requestedPower = this.autoElectricalTarget / conversion + electricalError * 0.04 + this.outputControlIntegral * 0.001;
             const temperatureCeiling = Math.max(0, basePower + Math.min(0, error) * 0.12);
             desiredPower = clamp(Math.min(requestedPower, temperatureCeiling), 0, 95);
-            if (this.autoElectricalTarget > 0 && (!this.pumpB || this.secondaryFlow < 20)) this.regulationLimit = 'Secondary circulation unavailable';
+            if (this.components.items.turbine.actual.tripped || this.components.items.turbine.settings.admission === 0) { desiredPower = 0; this.regulationLimit = 'Turbine stopped or tripped: explicit turbine Start required'; }
+            else if (!this.components.items.turbine.settings.breaker) { desiredPower = Math.min(8, temperatureCeiling); this.regulationLimit = 'Generator breaker open: establishing shaft speed; close manually when ready'; }
+            else if (this.components.transferFactor < 0.05) { desiredPower = 0; this.regulationLimit = 'Component transfer unavailable'; }
+            else if (this.autoElectricalTarget > 0 && (!this.pumpB || this.secondaryFlow < 20)) this.regulationLimit = 'Secondary circulation unavailable';
             else if (requestedPower > temperatureCeiling + 0.5) this.regulationLimit = 'Core temperature limit';
             else if (requestedPower > 95.5) this.regulationLimit = 'Generator capacity';
             // Do not wind up the power controller against a cooling/temperature limit.
             if (!this.regulationLimit || electricalError < 0) this.outputControlIntegral = clamp(this.outputControlIntegral + electricalError * dt, -300, 300);
         }
-        const coolingLimit = Math.max(0, (1200 * Math.min(this.primaryFlow, this.secondaryFlow) / 100 - this.condition.heatReserve * 1.5) / 12);
+        const coolingLimit = Math.max(0, (1200 * Math.min(this.primaryFlow, this.secondaryFlow) / 100 * this.components.coolingFactor - this.condition.heatReserve * 1.5) / 12);
         if (desiredPower > coolingLimit) { desiredPower = coolingLimit; this.regulationLimit = 'Cooling capacity'; }
         if (this.condition.peakTemperature > 410) {
             desiredPower = Math.min(desiredPower, Math.max(0, this.power - (this.condition.peakTemperature - 410) * 0.08));
@@ -343,12 +380,12 @@ export class NuclearPowerSimulation {
         } else this.regulationLimit = 'All rods under manual override';
         if (this.regulationLimit) { this.controlIntegral = 0; this.outputControlIntegral = 0; }
         this.rememberRodTargets();
-        this.pumpASpeed = clamp(this.pumpASpeed + (this.autoFlow - this.primaryFlow) * 0.6, 25, 100);
-        this.pumpBSpeed = clamp(this.pumpBSpeed + (this.autoFlow - this.secondaryFlow) * 0.6, 25, 100);
+        if (!this.components.items.pumpA.override) this.pumpASpeed = clamp(this.pumpASpeed + (this.autoFlow - this.primaryFlow) * 0.6, 25, 100);
+        if (!this.components.items.pumpB.override) this.pumpBSpeed = clamp(this.pumpBSpeed + (this.autoFlow - this.secondaryFlow) * 0.6, 25, 100);
         if (this.elapsed - this.lastAutoLog >= 10) {
             this.lastAutoLog = this.elapsed;
             const target = this.autoObjective === 'power'
-                ? `Electrical target ${this.autoElectricalTarget} MW, actual ${(this.power * 4.1 * this.secondaryFlow / 100).toFixed(1)} MW${this.regulationLimit ? ` (${this.regulationLimit})` : ''}`
+                ? `Electrical target ${this.autoElectricalTarget} MW, actual ${(this.electricalOutput).toFixed(1)} MW${this.regulationLimit ? ` (${this.regulationLimit})` : ''}`
                 : `Core target ${this.autoTemperature} °C, actual ${this.temperature.toFixed(1)} °C`;
             this.record(`${target}: rod bank ${this.rodTarget.toFixed(1)}%; pump A ${this.pumpASpeed.toFixed(1)}%, B ${this.pumpBSpeed.toFixed(1)}%.`, 'info', 'automation');
         }
@@ -374,6 +411,11 @@ export class NuclearPowerSimulation {
             ['temperature', this.temperature > 335, 'Core temperature high', 'alarm'],
             ['cooling', this.condition.coolingMargin < 0, 'Cooling margin negative: retained heat needs circulation', 'warning'],
             ['fuel', this.condition.peakTemperature > 410, 'Local fuel temperature high', 'alarm'],
+            ['component-fault', this.components.hasFaults, 'Component deterioration active: inspect component readings', 'warning'],
+            ['component-wear', this.components.damaged, 'Retained component wear: cooldown and service required', 'warning'],
+            ['turbine-trip', this.components.items.turbine.actual.tripped, 'Turbine trip latched: cooldown, reset and explicit turbine Start required', 'alarm'],
+            ['component-process', this.components.hasFaults, 'Component response abnormal: inspect equipment', 'warning'],
+            ['component-wear', this.components.damaged, 'Component wear retained: service after cooldown', 'alarm'],
             ['damage', this.condition.damaged, 'Component damage retained: cooldown and repair required', 'alarm'],
             ['meltdown', this.condition.meltdown, 'Core meltdown: reset demo required', 'alarm'],
             ['fuel-reserve', this.fuel.assemblies.some(a => a.remaining <= 20), 'Low or depleted fuel: manual replacement after cooldown', 'warning'],
@@ -400,6 +442,7 @@ export class NuclearPowerSimulation {
         const dt = Math.min(seconds, 1);
         this.elapsed += dt;
         this.condition.prepare(dt);
+        this.components.prepare(dt);
         this.supply.advance(this, dt);
         this.regulate();
         const fluctuation = this.disturbances();
@@ -408,11 +451,11 @@ export class NuclearPowerSimulation {
         }
         this.power = approach(this.power, this.running ? clamp((100 - this.rods) * this.fuel.capability * (1 + fluctuation.power / 100), 0, 100) : 0, dt, this.tripped ? 2 : 5);
         const supplySpeed = Math.cbrt(this.supply.factor);
-        this.primaryFlow = approach(this.primaryFlow, this.pumpA ? clamp(this.pumpASpeed * supplySpeed * this.condition.flowFactor('A') * (1 + fluctuation.primary / 100), 0, 100) : 0, dt, 2);
-        this.secondaryFlow = approach(this.secondaryFlow, this.pumpB ? clamp(this.pumpBSpeed * supplySpeed * this.condition.flowFactor('B') * (1 + fluctuation.secondary / 100), 0, 100) : 0, dt, 2);
+        this.primaryFlow = approach(this.primaryFlow, this.pumpA ? clamp(this.components.pumpSpeed('pumpA') * supplySpeed * this.condition.flowFactor('A') * this.components.pumpFactor('pumpA') * (1 + fluctuation.primary / 100), 0, 100) : 0, dt, 2);
+        this.secondaryFlow = approach(this.secondaryFlow, this.pumpB ? clamp(this.components.pumpSpeed('pumpB') * supplySpeed * this.condition.flowFactor('B') * this.components.pumpFactor('pumpB') * (1 + fluctuation.secondary / 100), 0, 100) : 0, dt, 2);
         this.fuel.advance(this, dt);
-        const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6;
-        const retainedHeatTarget = Math.min(this.primaryFlow, this.secondaryFlow) < 20
+        const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6 + (1 - this.components.coolingFactor) * 4;
+        const retainedHeatTarget = Math.min(this.primaryFlow, this.secondaryFlow) * this.components.coolingFactor < 20
             ? this.condition.fuelTemperature - 35 : 30;
         const coreTarget = Math.max(30 + this.power * (4 + coolingLoss) + fluctuation.heat, retainedHeatTarget);
         const previousTemperature = this.temperature;
@@ -420,8 +463,9 @@ export class NuclearPowerSimulation {
         this.returnTemperature = approach(this.returnTemperature,
             this.temperature - 28 * this.primaryFlow / 100 * this.power / 64, dt, 7);
         this.secondaryTemperature = approach(this.secondaryTemperature,
-            25 + (this.temperature - 25) * 0.61 * this.primaryFlow / 100, dt, 12);
+            25 + (this.temperature - 25) * 0.61 * this.primaryFlow / 100 * this.components.items.exchanger.actual.transferFactor, dt, 12);
         this.condition.advance(this, dt, previousTemperature);
+        this.components.advance(dt);
         if (this.condition.meltdown) {
             this.trip('Simulated core meltdown');
         } else if (this.autoMode && this.running && this.condition.peakTemperature > 470) {
@@ -441,7 +485,7 @@ export class NuclearPowerSimulation {
 
     sample() {
         this.history.push({ time: this.elapsed, temperature: this.temperature, power: this.power,
-            electricalOutput: this.power * 4.1 * this.secondaryFlow / 100,
+            electricalOutput: this.electricalOutput,
             electricalTarget: this.autoMode && this.autoObjective === 'power' ? this.autoElectricalTarget : null,
             primaryFlow: this.primaryFlow, secondaryFlow: this.secondaryFlow, rods: this.rods });
         this.history = this.history.filter(point => point.time >= this.elapsed - 120);
@@ -450,6 +494,7 @@ export class NuclearPowerSimulation {
     snapshot() {
         const signal = (value, unit) => ({ value, unit, source: 'SIMULATED', quality: 'GOOD', time: this.elapsed });
         return {
+            components: structuredClone({ items: this.components.items, maintenance: this.components.maintenance, objective: this.components.objective, scenario: this.components.scenario }),
             elapsed: this.elapsed,
             status: this.condition.meltdown ? 'MELTDOWN' : this.tripped ? 'TRIPPED' : !this.running ? this.temperature > 40 || this.power > 0.1 ? 'COOLING DOWN' : 'STOPPED' : this.power < 2 ? 'STANDBY' : 'RUNNING',
             // Requests remain distinct from reported signals for a future scale-model adapter.
@@ -473,7 +518,7 @@ export class NuclearPowerSimulation {
                 returnTemperature: signal(this.returnTemperature, '°C'),
                 secondaryTemperature: signal(this.secondaryTemperature, '°C'),
                 thermalOutput: signal(this.power * 12, 'MW'),
-                electricalOutput: signal(this.power * 4.1 * this.secondaryFlow / 100, 'MW'),
+                electricalOutput: signal(this.electricalOutput, 'MW'),
                 fuelTemperature: signal(this.condition.peakTemperature, '°C'),
                 coolingMargin: signal(this.condition.coolingMargin, 'MW'),
                 retainedHeat: signal(this.condition.heatReserve * 1.5, 'MW'),
@@ -485,8 +530,8 @@ export class NuclearPowerSimulation {
                 auxiliaryCapacity: signal(this.supply.capacity, 'MW'),
                 primaryFlow: signal(this.primaryFlow * 48, 'm³/h'),
                 secondaryFlow: signal(this.secondaryFlow * 48, 'm³/h'),
-                pumpASpeed: signal(this.primaryFlow, '%'),
-                pumpBSpeed: signal(this.secondaryFlow, '%'),
+                pumpASpeed: signal(this.components.items.pumpA.actual.speed, '%'),
+                pumpBSpeed: signal(this.components.items.pumpB.actual.speed, '%'),
                 rodInsertion: signal(this.rods, '%'),
                 load: signal(this.power, '%')
             }
