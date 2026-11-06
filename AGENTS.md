@@ -80,9 +80,14 @@ hot spots, stress/wear and accumulated damage before a slow meltdown. Trip reset
 must never erase heat/damage or heal components. Only cooled, stopped, fault-free
 non-melted sessions allow explicit repair; meltdown requires Reset demo. Preserve
 the incident's initiating cause independently of the rolling event journal.
-Fuel depletion/manual fuel replacement and individual control-rod overrides during
-Auto are deferred until the user's explicit go signal. See the deferred-work section
-in the feature document; never let automation replace fuel rods.
+`nuclear-power-fuel.js` tracks uneven exposure and reserve per fuel assembly, separately
+from control rods. Replacement is manual, one cooled/stopped assembly at a time; never
+let automation replace fuel or component repair replenish it. Auto compensates declining
+fuel capability and regulates only rods without an explicit manual override. Stop/trip
+release overrides and insert every rod. `nuclear-power-supply.js` models the auxiliary
+AC bus: turbine, external grid, then two armed standby diesels. Pumps must coast down
+without AC; restoring power must never reset trips or restart the reactor. The auxiliary
+power dialog manages grid/feed availability, diesel standby/start/stop/manual refuelling.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff

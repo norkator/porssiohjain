@@ -238,6 +238,7 @@ test('automatic control holds changing temperature/flow targets against fluctuat
 
 test('fluctuations remain bounded and event retention does not grow without limit', () => {
     const sim = new NuclearPowerSimulation();
+    sim.fuel.rate = 0; // Isolate disturbance settling from the separately tested fuel drift.
     advance(sim, 30);
     assert.notEqual(sim.power, 64);
     assert.ok(Math.abs(sim.power - 64) < 2);

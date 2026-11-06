@@ -27,7 +27,7 @@ h1, h2, h3, p { margin: 0; }
 .console { width: 100%; margin: 0; padding: 16px 20px 0; }
 .console-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; align-items: start; }
 .instrument-column, .control-column, .analysis-column { min-width: 0; }
-.instrument-column { display: grid; gap: 14px; }
+.instrument-column { display: grid; gap: 10px; }
 .analysis-column { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .masthead { display: flex; align-items: center; gap: 14px; padding-bottom: 16px; }
 .brand-mark { display: grid; place-items: center; height: 57px; width: 57px; flex: 0 0 57px; border: 1px solid #a37e42; border-radius: 12px; background: #2c2c25; color: #f7c76e; }
@@ -46,7 +46,7 @@ h1 { font-size: clamp(25px, 2.5vw, 34px); font-weight: 600; letter-spacing: -1.2
 .simulation-badge { display: inline-flex; gap: 8px; align-items: center; background: #302a20; border: 1px solid #6f5633; border-radius: 5px; color: #f0c27e; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; padding: 6px 10px; }
 .simulation-badge i { width: 5px; height: 5px; background: #f0c27e; border-radius: 50%; }
 .session-clock { font: 11px Consolas, "Courier New", monospace; color: var(--muted); margin-top: 8px; letter-spacing: 1px; }
-.metrics { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.metrics { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .metric { background: linear-gradient(120deg, #1b2936, #17222e); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; overflow: hidden; }
 .metric-label { color: #b2bfca; display: flex; gap: 6px; align-items: center; font-size: 10px; white-space: nowrap; }
 .metric-icon { font-size: 18px; line-height: 18px; }
@@ -211,7 +211,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .alarm-item strong { font: 8px Consolas, monospace; }
 .ack-button { display: block; margin: 10px 18px 14px auto; color: #ddc4a7; background: #39332b; border: 1px solid #69583f; border-radius: 4px; padding: 6px 11px; font-size: 10px; }
 .ack-button:not(:disabled):hover { background: #4c4031; }
-.console-footer { display: flex; align-items: center; gap: 18px; padding: 17px 0 20px; color: #92a4b4; font: 8px Consolas, monospace; letter-spacing: .6px; }
+.console-footer { display: flex; align-items: center; gap: 18px; padding: 12px 0; color: #92a4b4; font: 8px Consolas, monospace; letter-spacing: .6px; }
 .console-footer > span:first-child { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .footer-divider { color: #455b6a; padding: 0 3px; }
 .console-footer > div { display: flex; gap: 8px; }
@@ -313,6 +313,55 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .individual-rod input { accent-color: var(--cool); }
 .individual-rod p { margin: 13px 0; font-size: 9px; color: #a3b7c2; line-height: 1.7; }
 .core-map-note { font-size: 9px; color: #a0b4bf; padding-top: 8px; border-top: 1px solid #304650; }
+.individual-rod[hidden] { display: none; }
+.individual-rod .rod-override { justify-content: start; align-items: center; gap: 7px; margin-top: 14px; line-height: 1.5; }
+.rod-override input { width: auto; }
+.control-channel.manual-override > rect { stroke: #ffb54a; stroke-dasharray: 3 2; }
+.fuel-channel { cursor: pointer; outline: none; }
+.fuel-channel.selected > rect, .fuel-channel:hover > rect { stroke: #ffda9b; stroke-width: 2px; }
+.fuel-channel:focus-visible > rect { stroke: #fff; stroke-width: 3px; }
+.fuel-reserve-ring { fill: none; stroke: #d8a15a; stroke-width: 2px; pointer-events: none; }
+.fuel-channel[data-reserve="low"] .fuel-reserve-ring { stroke: #ffad52; stroke-width: 3px; }
+.fuel-channel[data-reserve="spent"] > rect { fill: #45434b; stroke: #b5abb8; stroke-dasharray: 3 2; }
+.fuel-channel[data-reserve="spent"] .fuel-center { opacity: .1; }
+.fuel-inspector h3 { margin-top: 8px; color: var(--warm); }
+.fuel-inspector .control-button { width: 100%; }
+.power-supply-button { display: grid; gap: 4px; text-align: left; padding: 7px 10px; }
+.power-supply-button small { font-size: 9px; color: #b7c9d1; }
+.power-supply-button[data-supply="backup"] { color: #ffd28e; border-color: #bc8a45; }
+.power-supply-button[data-supply="lost"] { color: #ffaca6; border-color: #ff6b62; }
+.auxiliary-dialog { width: min(700px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); padding: 0; color: #dbe7ed; background: #15212d; border: 1px solid #637e8d; border-radius: 9px; box-shadow: 0 18px 65px #0009; }
+.auxiliary-dialog::backdrop { background: #070e19a6; }
+.auxiliary-dialog .core-dialog-titlebar { cursor: default; }
+.auxiliary-content { padding: 20px; }
+.auxiliary-content p { font-size: 11px; line-height: 1.7; color: #b3c6d0; }
+.supply-overview { display: grid; gap: 10px; padding: 15px; border: 1px solid #45606d; border-radius: 6px; background: #1b303b; }
+.supply-overview > strong { color: var(--cool); font: 22px Consolas, monospace; }
+.supply-overview > span { font-size: 12px; }
+.supply-path { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font: 10px Consolas, monospace; }
+.supply-path span { padding: 6px; border: 1px solid #4c626d; border-radius: 3px; color: #afbec9; }
+.supply-path .energized { color: #c1ffe0; border-color: #74c9ac; background: #244c46; box-shadow: 0 0 10px #78d9ac33; }
+.supply-switches { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 18px; }
+.supply-switches label, .diesel-card label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.auxiliary-dialog input[type="checkbox"] { width: auto; accent-color: var(--cool); }
+.diesel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+.diesel-card { padding: 15px; border: 1px solid #49616f; border-radius: 7px; background: #1a2c38; }
+.diesel-title { display: flex; gap: 8px; align-items: center; }
+.diesel-title h3 { flex: 1; font-size: 15px; }
+.diesel-title strong { font: 10px Consolas, monospace; color: #b8c9d0; }
+.diesel-symbol { font-size: 26px; color: #a6b5bf; }
+.diesel-card[data-state="running"] { border-color: #72bea5; }
+.diesel-card[data-state="running"] .diesel-symbol { color: #b2f5d2; text-shadow: 0 0 12px #81ffb9; }
+.diesel-card[data-state="starting"] { border-color: #d5a259; }
+.diesel-meter { height: 6px; background: #31434e; border-radius: 4px; margin: 15px 0; overflow: hidden; }
+.diesel-meter i { display: block; height: 100%; background: var(--cool); transition: width .3s; }
+.diesel-card .button-pair { margin: 13px 0; }
+@media (max-width: 620px) {
+    .diesel-grid { grid-template-columns: 1fr; }
+    .auxiliary-content { padding: 12px; }
+    .auxiliary-dialog .core-dialog-titlebar h2 { font-size: 13px; }
+    .power-supply-button { max-width: 175px; font-size: 9px; }
+}
 @container nuclear-console (min-width: 1400px) {
     .console-layout { grid-template-columns: clamp(160px, 10.5cqw, 220px) minmax(0, 1fr) clamp(300px, 21cqw, 460px); }
     .analysis-column { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: 14px; }

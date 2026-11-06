@@ -99,3 +99,17 @@
 :host([data-theme="light"]) input:disabled { opacity: 1; accent-color: #718b96; }
 :host([data-theme="light"]) :is(.metric-label, .metric-foot, .control-label, .local-tag, .section-index, .range-labels, .event-time, .event-category, .log-toolbar, .diagram-scroll-hint, .control-note, .trend-note, .core-map-note, .console-footer, .footer-signature, .footer-signature span) { color: #40596a; }
 :host([data-theme="light"]) :is(.drawing-label, .equipment-tag, .component-subtitle, .instrument-label, .chart-labels) { fill: #3e596a; }
+:host([data-theme="light"]) .auxiliary-dialog { background: #f5f8fa; color: #203e50; }
+:host([data-theme="light"]) .auxiliary-content p,
+:host([data-theme="light"]) .power-supply-button small,
+:host([data-theme="light"]) .diesel-title strong { color: #40596a; }
+:host([data-theme="light"]) .supply-overview,
+:host([data-theme="light"]) .diesel-card { background: #e9f1f4; border-color: #97adb9; }
+:host([data-theme="light"]) .supply-overview > strong { color: #126750; }
+:host([data-theme="light"]) .supply-path span { color: #40596a; border-color: #97adb9; }
+:host([data-theme="light"]) .supply-path .energized { color: #145d43; background: #cee9dd; border-color: #508b73; }
+:host([data-theme="light"]) .diesel-card[data-state="running"] .diesel-symbol { color: #126750; }
+:host([data-theme="light"]) .power-supply-button[data-supply="backup"] { color: #775018; border-color: #ad782b; }
+:host([data-theme="light"]) .power-supply-button[data-supply="lost"] { color: #a22521; border-color: #c7473e; }
+:host([data-theme="light"]) .fuel-channel.selected > rect,
+:host([data-theme="light"]) .fuel-channel:hover > rect { stroke: #805317; }

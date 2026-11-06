@@ -5,6 +5,8 @@
  */
 
 import { ReactorCondition } from './nuclear-power-condition.js';
+import { FuelInventory } from './nuclear-power-fuel.js';
+import { AuxiliaryPower } from './nuclear-power-supply.js';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const approach = (value, target, seconds, response) => target + (value - target) * Math.exp(-seconds / response);
@@ -17,7 +19,8 @@ for (let y = -4; y <= 4; y++) {
     for (let x = -4; x <= 4; x++) {
         if (x * x + y * y > 18) continue;
         const rodIndex = rodPositions.findIndex(([rx, ry]) => rx === x && ry === y);
-        CORE_CHANNELS.push({ x, y, rodId: rodIndex < 0 ? null : `CR-${String(rodIndex + 1).padStart(2, '0')}` });
+        CORE_CHANNELS.push({ x, y, rodId: rodIndex < 0 ? null : `CR-${String(rodIndex + 1).padStart(2, '0')}`,
+            fuelId: rodIndex < 0 ? `FA-${String(CORE_CHANNELS.filter(c => c.fuelId).length + 1).padStart(2, '0')}` : null });
     }
 }
 
@@ -37,7 +40,7 @@ export class NuclearPowerSimulation {
         this.paused = false;
         this.demand = 64;
         this.controlRods = rodPositions.map(([x, y], index) => ({
-            id: `CR-${String(index + 1).padStart(2, '0')}`, x, y, target: 36, position: 36
+            id: `CR-${String(index + 1).padStart(2, '0')}`, x, y, target: 36, position: 36, manualOverride: false
         }));
         this.operatingRodTargets = this.controlRods.map(rod => rod.target);
         this.power = 64;
@@ -66,6 +69,8 @@ export class NuclearPowerSimulation {
         this.events = [];
         this.alarms = [];
         this.condition = new ReactorCondition(this.controlRods);
+        this.fuel = new FuelInventory(CORE_CHANNELS);
+        this.supply = new AuxiliaryPower();
         this.record('Simulation initialized. Manual control; process fluctuations enabled.', 'info', 'system');
         this.sample();
     }
@@ -92,6 +97,10 @@ export class NuclearPowerSimulation {
 
     start() {
         if (this.tripped || this.running) return;
+        if (this.fuel.capability <= 0) {
+            this.record('Startup blocked: no usable fuel remains. Replace fuel manually after cooldown.', 'warning');
+            return;
+        }
         if (!this.circulationReady() || this.temperature >= 335 || this.condition.damaged || this.condition.meltdown) {
             this.record('Startup blocked: restore circulation and allow the core to cool below the demo reset limit.', 'warning');
             return;
@@ -105,6 +114,7 @@ export class NuclearPowerSimulation {
     stop() {
         if (!this.running) return;
         this.running = false;
+        this.clearRodOverrides();
         this.controlRods.forEach(rod => { rod.target = 100; });
         this.record('Normal shutdown. Coolant circulation maintained.');
         this.updateAlarms();
@@ -127,12 +137,29 @@ export class NuclearPowerSimulation {
     }
 
     setRod(id, value) {
-        if (this.tripped || this.autoMode || !this.running || !Number.isFinite(value)) return;
         const rod = this.controlRods.find(candidate => candidate.id === id);
-        if (!rod) return;
+        if (!rod || this.tripped || (this.autoMode && !rod.manualOverride) || !this.running || !Number.isFinite(value)) return;
         rod.target = clamp(Math.round(value), 0, 100);
         this.rememberRodTargets();
         this.record(`${id} insertion target set to ${rod.target}%.`);
+    }
+
+    setRodOverride(id, enabled) {
+        const rod = this.controlRods.find(r => r.id === id);
+        if (!rod || !this.autoMode || !this.running || this.tripped || rod.manualOverride === enabled) return;
+        rod.manualOverride = enabled;
+        this.controlIntegral = 0;
+        this.outputControlIntegral = 0;
+        this.record(`${id} ${enabled ? 'under manual override; Auto regulates the remaining rods' : 'released to automatic control'}.`, 'info', 'automation');
+    }
+
+    clearRodOverrides() {
+        if (this.controlRods.some(r => r.manualOverride)) this.record('Individual rod overrides released.', 'info', 'automation');
+        this.controlRods.forEach(r => { r.manualOverride = false; });
+    }
+
+    replaceFuel(id) {
+        if (this.fuel.replace(this, id)) this.updateAlarms();
     }
 
     moveRods(delta) {
@@ -162,6 +189,7 @@ export class NuclearPowerSimulation {
         if (this.tripped) return;
         this.tripped = true;
         this.running = false;
+        this.clearRodOverrides();
         this.controlRods.forEach(rod => { rod.target = 100; });
         this.controlIntegral = 0;
         this.record(`${reason}. Rods inserting; restore conditions, then Reset trip.`, 'alarm', 'alarm');
@@ -180,7 +208,7 @@ export class NuclearPowerSimulation {
     }
 
     circulationReady() {
-        return this.pumpA && this.pumpB && this.pumpASpeed >= 20 && this.pumpBSpeed >= 20
+        return this.supply.factor > 0 && this.pumpA && this.pumpB && this.pumpASpeed >= 20 && this.pumpBSpeed >= 20
             && this.primaryFlow >= 20 && this.secondaryFlow >= 20;
     }
 
@@ -204,6 +232,7 @@ export class NuclearPowerSimulation {
     setAutoMode(enabled) {
         if (this.autoMode === enabled) return;
         this.autoMode = enabled;
+        this.clearRodOverrides();
         this.controlIntegral = 0;
         this.outputControlIntegral = 0;
         this.regulationLimit = '';
@@ -281,9 +310,26 @@ export class NuclearPowerSimulation {
             desiredPower = Math.min(desiredPower, Math.max(0, this.power - (this.condition.peakTemperature - 410) * 0.08));
             this.regulationLimit = 'Local core hot spot';
         }
-        const insertion = 100 - desiredPower;
-        const change = insertion - this.rodTarget;
-        this.controlRods.forEach(rod => { rod.target = clamp(rod.target + change, 0, 100); });
+        if (desiredPower > 100 * this.fuel.capability) {
+            desiredPower = 100 * this.fuel.capability;
+            this.regulationLimit = 'Fuel capability';
+        }
+        const insertion = 100 - desiredPower / Math.max(0.001, this.fuel.capability);
+        const free = this.controlRods.filter(rod => !rod.manualOverride);
+        const fixed = this.controlRods.filter(rod => rod.manualOverride).reduce((sum, r) => sum + r.target, 0);
+        if (free.length) {
+            const desired = (insertion * this.controlRods.length - fixed) / free.length;
+            // Solve a bounded common shift, preserving free-rod offsets until travel limits.
+            let low = -100, high = 100;
+            for (let i = 0; i < 30; i++) {
+                const shift = (low + high) / 2;
+                const mean = free.reduce((sum, r) => sum + clamp(r.target + shift, 0, 100), 0) / free.length;
+                if (mean < clamp(desired, 0, 100)) low = shift; else high = shift;
+            }
+            free.forEach(rod => { rod.target = clamp(rod.target + (low + high) / 2, 0, 100); });
+            if (free.length < this.controlRods.length && (desired < 0 || desired > 100)) this.regulationLimit = 'Manual overrides limit regulation';
+        } else this.regulationLimit = 'All rods under manual override';
+        if (this.regulationLimit) { this.controlIntegral = 0; this.outputControlIntegral = 0; }
         this.rememberRodTargets();
         this.pumpASpeed = clamp(this.pumpASpeed + (this.autoFlow - this.primaryFlow) * 0.6, 25, 100);
         this.pumpBSpeed = clamp(this.pumpBSpeed + (this.autoFlow - this.secondaryFlow) * 0.6, 25, 100);
@@ -317,7 +363,11 @@ export class NuclearPowerSimulation {
             ['cooling', this.condition.coolingMargin < 0, 'Cooling margin negative: retained heat needs circulation', 'warning'],
             ['fuel', this.condition.peakTemperature > 410, 'Local fuel temperature high', 'alarm'],
             ['damage', this.condition.damaged, 'Component damage retained: cooldown and repair required', 'alarm'],
-            ['meltdown', this.condition.meltdown, 'Core meltdown: reset demo required', 'alarm']
+            ['meltdown', this.condition.meltdown, 'Core meltdown: reset demo required', 'alarm'],
+            ['fuel-reserve', this.fuel.assemblies.some(a => a.remaining <= 20), 'Low or depleted fuel: manual replacement after cooldown', 'warning'],
+            ['ac-supply', this.supply.factor === 0, 'Auxiliary AC lost: pumps coasting down', 'alarm'],
+            ['diesel', this.supply.source.startsWith('BACKUP'), 'Backup diesel supplying coolant pumps', 'warning'],
+            ['diesel-fuel', this.supply.generators.some(g => g.fuel < 15), 'Backup diesel fuel reserve low', 'warning']
         ];
         const next = [];
         for (const [id, active, message, severity] of conditions) {
@@ -338,14 +388,17 @@ export class NuclearPowerSimulation {
         const dt = Math.min(seconds, 1);
         this.elapsed += dt;
         this.condition.prepare(dt);
+        this.supply.advance(this, dt);
         this.regulate();
         const fluctuation = this.disturbances();
         for (const rod of this.controlRods) {
             rod.position = approach(rod.position, rod.target, dt, this.tripped ? 0.5 : 2.5);
         }
-        this.power = approach(this.power, this.running ? clamp((100 - this.rods) * (1 + fluctuation.power / 100), 0, 100) : 0, dt, this.tripped ? 2 : 5);
-        this.primaryFlow = approach(this.primaryFlow, this.pumpA ? clamp(this.pumpASpeed * this.condition.flowFactor('A') * (1 + fluctuation.primary / 100), 0, 100) : 0, dt, 2);
-        this.secondaryFlow = approach(this.secondaryFlow, this.pumpB ? clamp(this.pumpBSpeed * this.condition.flowFactor('B') * (1 + fluctuation.secondary / 100), 0, 100) : 0, dt, 2);
+        this.power = approach(this.power, this.running ? clamp((100 - this.rods) * this.fuel.capability * (1 + fluctuation.power / 100), 0, 100) : 0, dt, this.tripped ? 2 : 5);
+        const supplySpeed = Math.cbrt(this.supply.factor);
+        this.primaryFlow = approach(this.primaryFlow, this.pumpA ? clamp(this.pumpASpeed * supplySpeed * this.condition.flowFactor('A') * (1 + fluctuation.primary / 100), 0, 100) : 0, dt, 2);
+        this.secondaryFlow = approach(this.secondaryFlow, this.pumpB ? clamp(this.pumpBSpeed * supplySpeed * this.condition.flowFactor('B') * (1 + fluctuation.secondary / 100), 0, 100) : 0, dt, 2);
+        this.fuel.advance(this, dt);
         const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6;
         const retainedHeatTarget = Math.min(this.primaryFlow, this.secondaryFlow) < 20
             ? this.condition.fuelTemperature - 35 : 30;
@@ -396,8 +449,12 @@ export class NuclearPowerSimulation {
                     A: { enabled: this.pumpA, speedPercent: this.pumpASpeed },
                     B: { enabled: this.pumpB, speedPercent: this.pumpBSpeed }
                 },
-                rods: this.controlRods.map(rod => ({ id: rod.id, insertionPercent: rod.target }))
+                rods: this.controlRods.map(rod => ({ id: rod.id, insertionPercent: rod.target, owner: this.autoMode && !rod.manualOverride ? 'AUTO' : 'MANUAL' })),
+                auxiliary: { gridAvailable: this.supply.gridAvailable, turbineConnected: this.supply.turbineConnected,
+                    generators: this.supply.generators.map(g => ({ id: g.id, automaticStandby: g.automatic })) }
             },
+            fuel: this.fuel.assemblies.map(a => ({ id: a.id, reserve: signal(a.remaining, '%'), exposure: signal(a.exposure, 'demo full-power h'), replacements: a.replacements })),
+            auxiliary: { source: this.supply.source, generators: this.supply.generators.map(g => ({ id: g.id, state: g.state, fuel: signal(g.fuel, '%'), load: signal(g.load, 'MW') })) },
             rods: this.controlRods.map(rod => ({ id: rod.id, insertion: signal(rod.position, '%') })),
             signals: {
                 coreTemperature: signal(this.temperature, '°C'),
@@ -410,6 +467,10 @@ export class NuclearPowerSimulation {
                 retainedHeat: signal(this.condition.heatReserve * 1.5, 'MW'),
                 temperatureRate: signal(this.condition.temperatureRate, '°C/min'),
                 coreDamage: signal(this.condition.coreDamage, '%'),
+                fuelReserve: signal(this.fuel.remaining, '%'),
+                fuelCapability: signal(this.fuel.capability * 100, '%'),
+                auxiliaryDemand: signal(this.supply.demand, 'MW'),
+                auxiliaryCapacity: signal(this.supply.capacity, 'MW'),
                 primaryFlow: signal(this.primaryFlow * 48, 'm³/h'),
                 secondaryFlow: signal(this.secondaryFlow * 48, 'm³/h'),
                 pumpASpeed: signal(this.primaryFlow, '%'),

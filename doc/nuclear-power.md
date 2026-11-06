@@ -36,10 +36,10 @@ or detached; rod selection, settings, and its position remain in the retained vi
 It uses the native manual-popover top layer with `role="dialog"`, so it can float
 above the desktop frames without making the process view inert.
 
-The core map is a fictional circular array of fuel channels and twelve individually
-selectable rods, `CR-01` through `CR-12`. Rings show actual insertion; nearby fuel
-activity is an illustrative derived visualization, not a measured local power or
-temperature. The side section projects the same twelve rod positions.
+The core map is a fictional circular array of individually selectable fuel assemblies
+and twelve control rods, `CR-01` through `CR-12`. Control-rod rings show actual insertion;
+amber fuel rings show remaining reserve. Fuel activity is illustrative, not a measured
+local power or temperature. The side section projects the same twelve rod positions.
 
 Core temperature above the existing 335 °C demo high-temperature threshold turns
 the temperature card, status light, outlet instrument and annunciator red. Text
@@ -169,8 +169,9 @@ A one-second illustrative regulator uses
 feed-forward plus proportional/integral temperature correction to adjust the rod
 bank, retaining individual offsets where travel allows. Independent feedback adjusts
 both pump speed targets. It does not automatically re-enable an operator-disabled
-pump. Manual actuator sliders are disabled during automatic running; pump enable
-buttons, Stop and Emergency shutdown remain available. During a trip, pump speeds
+pump. Bank/load and pump-speed sliders are disabled during automatic running; individual
+rod sliders require an explicit override. Pump enable buttons, Stop and Emergency
+shutdown remain available. During a trip, pump speeds
 can be changed to restore circulation. Returning to Manual holds current settings.
 
 Small, bounded deterministic waveforms disturb heat, output and each loop's flow.
@@ -198,6 +199,94 @@ the limiting reason (for example **Core temperature limit**); reported output is
 replaced with the requested value. Returning to temperature regulation restores that
 objective, preserving the electrical setpoint for later. Trips, manual mode and
 explicit restart rules remain authoritative for both objectives.
+
+### Individual rod overrides during Auto
+
+Select a control rod in the floating core map and enable **Manual override in Auto**.
+Its slider and one-percent buttons then hold that rod's requested position while Auto
+continues to regulate the remaining rods. A dashed amber channel border identifies
+the override. Actual insertion still moves gradually, so the process can fluctuate.
+Large imbalances can create local hot spots and invoke the existing protective response.
+
+The controller accounts for fixed override targets when calculating the remaining
+bank's insertion, preserving offsets until travel limits. It reports **Manual overrides
+limit regulation** when the available rods cannot reach the requested bank mean and
+**All rods under manual override** when none are free. Integrals do not wind up against
+these limits. Unchecking the override returns that rod to Auto without jumping its
+actual position. There is no timeout or silent takeover. Stop, trip and mode changes
+release overrides; Stop/trip always insert every rod. Bank/load controls remain blocked
+in Auto. Snapshot rod commands include `owner: AUTO|MANUAL` independently of read-back.
+
+## Fuel exposure and manual replacement
+
+Fuel assemblies (`FA-01` onward) are separate inventory objects from control rods.
+They start with deterministic, staggered reserves of 36–99%, so they do not expire
+together. Energy/exposure-based use follows generated thermal load, nearby control-rod
+positions and a bounded spatial factor. Shutdown and pause consume no further fuel.
+The broad principle is that [burnup tracks energy produced from fuel](https://www.nrc.gov/reading-rm/doc-collections/fact-sheets/bg-high-burnup-spent-fuel).
+This feature's reserve/effectiveness equations and time scales are an accelerated toy
+model, not isotope tracking, a validated neutronics calculation or real fuel lifetime.
+
+Select an amber assembly in the map to see remaining reserve, effectiveness, accumulated
+demo full-power hours and replacement count. **Fuel exposure speed** offers 1×, 10× and
+60×; it changes fuel use only, leaving thermal dynamics and simulated time unchanged.
+At 1×, a fresh assembly has six demo full-power hours of nominal reserve, adjusted by
+its channel's history. Effectiveness declines with reserve; zero reserve contributes
+zero capability. Aggregate capability is normalized to the initial mixed core and capped
+at 115% after fresh replacements. The initial 64% operating point is preserved.
+
+Manual output falls as fuel is used. Auto withdraws available rods to compensate, then
+reports **Fuel capability** if the remaining fuel cannot satisfy the target. Per-assembly
+20%/depleted transitions enter the journal; an active low-fuel alarm remains until the
+affected assemblies are replaced. **Automation never replaces fuel.**
+
+**Replace selected fuel** changes only the selected assembly to 100% reserve, zero
+exposure and an incremented replacement count. It requires a stopped reactor, all rods
+at least 99.5% inserted (requested and actual), coolant below 150 °C, peak local fuel
+below 200 °C, no injected fault, no retained damage and no meltdown. Readiness reasons
+are shown beside the button. The trip latch, retained heat, other assemblies and control
+settings remain intact. Component repair never renews fuel. Reset demo resets inventory.
+These are illustrative UI interlocks, not a real refuelling procedure.
+
+## Auxiliary power and backup generators
+
+The header always identifies the source that powers coolant pumps. Click it to open
+**Auxiliary power & backup generators**, with a live source path and diesel cards.
+Pump power is independent of reactor generation: after shutdown it normally comes from
+the external grid. The broad source arrangement is informed by the [NRC emergency power
+system description](https://nrcoe.inl.gov/SysStudy/EPS); this demo does not reproduce a
+particular plant's electrical distribution or emergency cooling design.
+
+Source priority is turbine auxiliary feed, external grid, then available backup diesels.
+The turbine must be running, connected and producing at least pump demand plus 1 MW.
+Normal sources have a fictional 20 MW auxiliary capacity. Pump demand is 0.2 MW of
+base load plus 3.5 MW (primary) and 2.5 MW (secondary) multiplied by requested speed
+cubed. Each diesel has 8 MW capacity, enough for the two simplified loops. Generator
+output and the grid-controller target remain **gross electrical generation**, separate
+from this auxiliary-load indication; no net-export model is implied.
+
+The dialog permits grid disconnection/restoration and turbine-feed isolation/reconnection.
+Each diesel has automatic standby, manual Start/Stop, remaining fuel, startup countdown,
+actual bus load/capacity and manual refuelling. Armed diesels start when both normal
+sources are unavailable, taking eight simulated seconds. Initial fuel differs (A 82%,
+B 95%). Nominal full-load endurance is 30 simulated minutes; an unloaded running engine
+still consumes 20% of its full-load rate. Exhaustion stops the engine. Fuel below 15%
+raises an alarm. No controller refuels a diesel.
+
+Manual Stop disables that engine's automatic standby so the command persists. Re-arm
+standby explicitly when wanted. Refuelling requires a stopped/non-starting engine.
+Diesels remain running, unloaded, after normal power returns until manually stopped.
+One available diesel carries both pumps; two share the load. Pump enabled states and
+speed requests remain separate from energized/actual speed. Without AC the pumps coast
+down and coolant animations slow, even if their requested enable state is still on.
+Restoring power ramps the requested pumps back up but never resets a trip or restarts
+the reactor. Instruments have an independent, idealized simulated DC supply; battery
+capacity and charging are not modeled.
+
+Source transitions, starts/stops and refuelling enter the journal. Total AC loss begins
+an incident, raises an alarm and interacts with existing low-flow protection, retained
+heat and progressive core damage. Backup availability does not heal damaged pumps.
+Supply, diesel fuel and startup time freeze with the rest of the paused/hidden simulation.
 
 ## Logging
 
@@ -239,6 +328,10 @@ animation while instruments and controls continue to work.
   quality, and simulated elapsed time; that time is not a sensor timestamp.
 - `src/main/frontend/nuclear-power-condition.js` owns stored heat, local fuel zones,
   progressive faults, component stress/wear, damage, meltdown and incident retention.
+- `src/main/frontend/nuclear-power-fuel.js` owns separate per-assembly inventory,
+  uneven exposure, capability, acceleration and explicit replacement interlocks.
+- `src/main/frontend/nuclear-power-supply.js` owns auxiliary-source selection,
+  standby/manual diesel startup, fuel, capacity and pump power availability.
 - `src/main/frontend/nuclear-power-motion.js` integrates speed-dependent impeller
   angles and flow dash offsets without phase jumps. Animation frames are separate
   from the 250 ms plant/instrument update and obey visibility and reduced motion.
@@ -264,25 +357,6 @@ enforcement; browser animation or a sent MQTT command cannot establish confirmed
 hardware state. The current numeric ranges and trip criteria must not be reused as
 physical safety limits without a separate scale-model capability design.
 
-## Deferred work — wait for the user's explicit go signal
-
-The following requests are recorded for the next development pass. They are not
-implemented and must not be started until the user says to begin:
-
-- **Fuel depletion and manual replacement:** model individual fuel rods/assemblies
-  separately from control rods. Track gradual, uneven use and remaining capability,
-  driven by each element's operating history rather than simultaneous expiry. The
-  core map should allow the operator to replace used elements individually when the
-  planned replacement conditions permit. Automation must never replace fuel. Define
-  the simplified burnup/reactivity model and UI clearly before implementation; the
-  current fictional simulation is not a validated reactor-physics model.
-- **Manual control-rod override during Auto:** allow an operator to withdraw a
-  selected control rod while automatic regulation remains active, deliberately
-  disturbing the process so the controller responds. Define override ownership,
-  duration/release, and controller compensation without silently fighting the same
-  actuator. Preserve protective trips and future device-side interlocks. Current
-  Auto-owned rod controls remain disabled until this change is authorized.
-
 ## Verification
 
 ```sh
@@ -292,6 +366,7 @@ JAVA_HOME=/path/to/java21 ./gradlew compileJava test \
   --tests com.nitramite.porssiohjain.views.DesktopWindowNavigationTest
 node --test src/test/frontend/nuclear-power-model.test.mjs
 node --test src/test/frontend/nuclear-power-failure.test.mjs
+node --test src/test/frontend/nuclear-power-resources.test.mjs
 node --test src/test/frontend/nuclear-power-browser.test.mjs
 # With the disposable local application already running:
 NUCLEAR_POWER_APP_URL=http://127.0.0.1:18080 node --test src/test/frontend/nuclear-power-browser.test.mjs
@@ -304,10 +379,13 @@ its temporary screenshot/CSV artifact directory. No extra browser test dependenc
 is required beyond Node and Chrome.
 
 Latest checkpoint (2026-11-06): the Java 21 build and 24 focused desktop/view tests
-pass. Twenty-three model/motion/failure tests cover the controls and regulation, including
+pass. Thirty model/motion/failure/resource tests cover the controls and regulation, including
 a two-minute settled-error window and zero-flow behavior with disturbances enabled.
 Failure tests cover warning time, intervention, accumulated damage/repair, local hot
 spots, automatic protection, sustained cooling loss, slow meltdown and report retention.
+Resource tests cover unequal fuel use, acceleration, manual-only replacement, Auto
+compensation/limits, override ownership, grid transfer, standby startup, persistent manual
+stop, fuel exhaustion/refuelling and blackout recovery without automatic reactor restart.
 The browser regression also passes against the source-only console and the
 authenticated local Vaadin application. No real MQTT/model devices are connected.
 

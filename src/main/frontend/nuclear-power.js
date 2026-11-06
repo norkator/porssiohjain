@@ -125,9 +125,9 @@ const coreMap = `<section class="core-map" aria-label="Top-down reactor core and
   <div class="core-map-layout"><div class="core-map-drawing"><svg viewBox="0 0 500 500" class="core-map-svg" role="group" aria-label="Core channel map; select a numbered control rod">
     <circle cx="250" cy="250" r="227" class="core-vessel-outer"/><circle cx="250" cy="250" r="214" class="core-vessel-inner"/>
     <path d="M250 9v29m0 424v29M9 250h29m424 0h29" class="core-crosshair"/>
-    ${CORE_CHANNELS.map(channel => `<g transform="translate(${250 + channel.x * 43} ${250 + channel.y * 43})" class="core-channel ${channel.rodId ? 'control-channel' : 'fuel-channel'}" ${channel.rodId ? `data-rod="${channel.rodId}" role="button" tabindex="0" aria-label="Select control rod ${channel.rodId}" aria-pressed="false"` : `data-fuel-x="${channel.x}" data-fuel-y="${channel.y}" aria-hidden="true"`}>
+    ${CORE_CHANNELS.map(channel => `<g transform="translate(${250 + channel.x * 43} ${250 + channel.y * 43})" class="core-channel ${channel.rodId ? 'control-channel' : 'fuel-channel'}" ${channel.rodId ? `data-rod="${channel.rodId}" role="button" tabindex="0" aria-label="Select control rod ${channel.rodId}" aria-pressed="false"` : `data-fuel-x="${channel.x}" data-fuel-y="${channel.y}" data-fuel-id="${channel.fuelId}" role="button" tabindex="0" aria-label="Select fuel assembly ${channel.fuelId}" aria-pressed="false"`}>
       <rect x="-18" y="-18" width="36" height="36" rx="6"/>
-      ${channel.rodId ? `<circle class="rod-depth-ring" r="14" transform="rotate(-90)"/><text text-anchor="middle" y="3.5">${channel.rodId.slice(3)}</text>` : '<circle r="8" class="fuel-center"/><circle r="3" class="fuel-pin"/>'}
+      ${channel.rodId ? `<circle class="rod-depth-ring" r="14" transform="rotate(-90)"/><text text-anchor="middle" y="3.5">${channel.rodId.slice(3)}</text>` : '<circle r="8" class="fuel-center"/><circle r="3" class="fuel-pin"/><circle r="14" class="fuel-reserve-ring" transform="rotate(-90)"/>'}
     </g>`).join('')}
   </svg><div class="core-map-legend"><span><i class="legend-dot"></i> Control rod / insertion ring</span><span><i class="legend-dot warm-dot"></i> Fuel / indicative activity</span></div></div>
   <section class="individual-rod" aria-label="Individual rod controls">
@@ -135,10 +135,26 @@ const coreMap = `<section class="core-map" aria-label="Top-down reactor core and
     <div class="rod-depth-display"><div><span class="control-label">ACTUAL INSERTION</span><strong data-value="selectedRodActual">36.0%</strong><small data-value="selectedRodMotion">AT TARGET</small></div><div class="rod-depth-track"><i></i></div></div>
     <label for="individual-rod">Insertion target <strong data-value="selectedRodTarget">36%</strong></label><input id="individual-rod" type="range" min="0" max="100" step="1" value="36"/><div class="range-labels"><span>WITHDRAWN / 0%</span><span>INSERTED / 100%</span></div>
     <div class="button-pair"><button class="control-button compact" data-action="rod-withdraw">↑ Withdraw 1%</button><button class="control-button compact" data-action="rod-insert">↓ Insert 1%</button></div>
-    <p>Changes this rod only. Bank buttons move all rods together; Load setpoint applies a uniform target. Auto adjusts the bank while retaining individual offsets where travel allows.</p>
+    <label class="rod-override"><input id="rod-override" type="checkbox"/> Manual override in Auto</label><p data-value="rodOwner"></p>
+    <p>Override holds this rod under your control while Auto compensates with the others. Release it to return control to Auto. Stop and trip always insert every rod.</p>
     <dl><div><dt>Bank mean actual</dt><dd data-value="rods"></dd></div><div><dt>Core temperature</dt><dd data-value="core"></dd></div><div><dt>Local fuel temperature</dt><dd data-value="selectedZoneTemperature"></dd></div><div><dt>Channel damage</dt><dd data-value="selectedZoneDamage"></dd></div><div><dt>Control mode</dt><dd data-value="mode"></dd></div></dl>
-  </section></div><p class="core-map-note">Top-down channel layout and activity are illustrative. Rod rings show actual simulated insertion, not the requested setting.</p>
+  </section>
+  <section class="individual-rod fuel-inspector" hidden aria-label="Selected fuel assembly">
+    <div class="eyebrow">FUEL ASSEMBLY</div><h3 data-value="selectedFuelId"></h3><div class="rod-depth-display"><div><span class="control-label">REMAINING RESERVE</span><strong data-value="selectedFuelReserve"></strong><small data-value="selectedFuelState"></small></div></div>
+    <dl><div><dt>Effectiveness</dt><dd data-value="selectedFuelEffectiveness"></dd></div><div><dt>Exposure</dt><dd data-value="selectedFuelExposure"></dd></div><div><dt>Replacements</dt><dd data-value="selectedFuelReplacements"></dd></div><div><dt>Core mean reserve</dt><dd data-value="fuelReserve"></dd></div><div><dt>Core capability</dt><dd data-value="fuelCapability"></dd></div></dl>
+    <label for="fuel-rate">Fuel exposure speed</label><select id="fuel-rate"><option value="1">1× demo exposure</option><option value="10">10× demo exposure</option><option value="60">60× demo exposure</option></select><p>Six demo full-power hours consumes a fresh assembly at 1×. Exposure varies by channel and load. This is an accelerated illustration.</p>
+    <button class="control-button" data-action="replace-fuel" disabled>Replace selected fuel</button><p data-value="fuelReplacementReadiness"></p><button class="small-button" data-action="select-control-rod">Back to control rods</button><p>Fuel replacement is always manual. Auto never replaces fuel.</p>
+  </section></div><p class="core-map-note">Select a numbered control rod or an amber fuel assembly. Rings show actual insertion or remaining fuel reserve. Fictional layout and accelerated fuel model.</p>
 </section>`;
+
+const auxiliaryDialog = `<dialog class="auxiliary-dialog" aria-labelledby="auxiliary-title">
+  <div class="core-dialog-titlebar"><h2 id="auxiliary-title">Auxiliary power &amp; backup generators</h2><button class="small-button" data-action="close-power" aria-label="Close auxiliary power">×</button></div>
+  <div class="auxiliary-content"><div class="supply-overview"><span class="control-label">PUMP POWER SOURCE</span><strong data-value="powerSource"></strong><span data-value="auxiliaryLoad"></span><div class="supply-path"><span data-supply="turbine">TURBINE</span><span data-supply="grid">GRID</span><span data-supply="diesel">DIESELS</span><b>→ AC BUS → PUMPS</b></div></div>
+    <div class="supply-switches"><label><input id="grid-supply" type="checkbox" checked/> External grid available</label><label><input id="turbine-supply" type="checkbox" checked/> Turbine auxiliary feed connected</label></div>
+    <p>The turbine supplies the pumps while generation is sufficient. Otherwise the grid takes over. Armed diesels start on loss of both normal sources. Instruments have an independent simulated DC supply; coolant pumps require AC.</p>
+    <div class="diesel-grid">${['A', 'B'].map(id => `<section class="diesel-card" data-diesel="${id}"><div class="diesel-title"><span class="diesel-symbol">ϟ</span><h3>Diesel ${id}</h3><strong data-diesel-value="${id}-state"></strong></div><div class="diesel-meter"><i data-diesel-meter="${id}"></i></div><dl><div><dt>Fuel reserve</dt><dd data-diesel-value="${id}-fuel"></dd></div><div><dt>Bus load / capacity</dt><dd data-diesel-value="${id}-load"></dd></div><div><dt>Startup</dt><dd data-diesel-value="${id}-startup"></dd></div></dl><label><input type="checkbox" data-diesel-auto="${id}" checked/> Automatic standby</label><div class="button-pair"><button class="control-button compact" data-generator="${id}" data-generator-action="start">Start</button><button class="control-button compact" data-generator="${id}" data-generator-action="stop">Stop</button></div><button class="small-button" data-generator="${id}" data-generator-action="refuel">Refuel diesel</button></section>`).join('')}</div>
+    <p>Manual Stop disables that diesel's automatic standby. Running diesels stay running after normal power returns until you stop them. Refuelling requires a stopped diesel. Demo startup: 8 seconds; nominal full-load fuel endurance: 30 simulated minutes. No automatic refuelling.</p>
+  </div></dialog>`;
 
 const equipmentDetails = {
     reactor: { tag: 'R-01', name: 'Reactor vessel', description: 'Rod position sets simulated heat output. The primary loop carries heat to the exchanger.', fields: [['Core outlet', 'core'], ['Coolant return', 'return'], ['Rod insertion', 'rods']] },
@@ -155,6 +171,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.simulation = new NuclearPowerSimulation();
         this.selectedEquipment = 'reactor';
         this.selectedRod = 'CR-01';
+        this.selectedFuel = null;
         this.logFilter = 'all';
         this.motion = { A: { angle: 0, offset: 0 }, B: { angle: 0, offset: 0 } };
         this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -179,6 +196,7 @@ export class NuclearPowerConsole extends HTMLElement {
 
     disconnectedCallback() {
         this.closeCoreMap(false);
+        this.shadowRoot.querySelector('.auxiliary-dialog')?.close();
         clearInterval(this.timer);
         this.timer = null;
         cancelAnimationFrame(this.animationFrame);
@@ -198,7 +216,7 @@ export class NuclearPowerConsole extends HTMLElement {
           <header class="masthead">
             <div class="brand-mark">${radiation}</div>
             <div class="heading"><div class="eyebrow">PÖRSSIOHJAIN / UNIT 01</div><h1>Nuclear Power<span class="title-dot">.</span></h1><p>Energy, under control.</p></div>
-            <div class="appearance-tools"><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div></div>
+            <div class="appearance-tools"><button class="small-button power-supply-button" data-action="power-supply" aria-haspopup="dialog"><span>ϟ <span data-value="powerSource">TURBINE GENERATOR</span></span><small>Auxiliary power / manage ↗</small></button><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div></div>
           </header>
 
           <div class="console-layout">
@@ -268,6 +286,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <div class="core-dialog-titlebar" tabindex="0" aria-label="Move core map with arrow keys or drag this title bar"><span aria-hidden="true">⠿</span><h2 id="core-map-title">Reactor core map</h2><span class="local-tag">DRAG TO MOVE</span><button class="small-button" data-action="close-core" aria-label="Close core map">×</button></div>
             ${coreMap}
           </div>
+          ${auxiliaryDialog}
         </main>`;
 
         let savedTheme = 'dark';
@@ -289,6 +308,13 @@ export class NuclearPowerConsole extends HTMLElement {
         });
 
         this.shadowRoot.addEventListener('click', event => {
+            const fuel = event.target.closest('[data-fuel-id]');
+            if (fuel) this.selectFuel(fuel.dataset.fuelId);
+            const generator = event.target.closest('[data-generator-action]');
+            if (generator && !generator.disabled) {
+                this.simulation.supply.command(this.simulation, generator.dataset.generator, generator.dataset.generatorAction);
+                this.update();
+            }
             const rod = event.target.closest('[data-rod]');
             if (rod) this.selectRod(rod.dataset.rod);
             const equipment = event.target.closest('[data-equipment]');
@@ -305,6 +331,11 @@ export class NuclearPowerConsole extends HTMLElement {
                 this.closeCoreMap();
             }
             const rod = event.target.closest('[data-rod]');
+            const fuel = event.target.closest('[data-fuel-id]');
+            if (fuel && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                this.selectFuel(fuel.dataset.fuelId);
+            }
             if (rod && (event.key === 'Enter' || event.key === ' ')) {
                 event.preventDefault();
                 this.selectRod(rod.dataset.rod);
@@ -317,6 +348,24 @@ export class NuclearPowerConsole extends HTMLElement {
             }
         });
         this.configureCoreMapDrag();
+        this.shadowRoot.querySelector('#rod-override').addEventListener('change', event => {
+            this.simulation.setRodOverride(this.selectedRod, event.target.checked);
+            this.update();
+        });
+        this.shadowRoot.querySelector('#fuel-rate').addEventListener('change', event => {
+            this.simulation.fuel.setRate(this.simulation, Number(event.target.value));
+            this.update();
+        });
+        for (const [id, method] of [['grid-supply', 'setGrid'], ['turbine-supply', 'setTurbine']]) {
+            this.shadowRoot.querySelector(`#${id}`).addEventListener('change', event => {
+                this.simulation.supply[method](this.simulation, event.target.checked);
+                this.update();
+            });
+        }
+        for (const input of this.shadowRoot.querySelectorAll('[data-diesel-auto]')) input.addEventListener('change', () => {
+            this.simulation.supply.command(this.simulation, input.dataset.dieselAuto, 'auto');
+            this.update();
+        });
         this.shadowRoot.querySelector('#load').addEventListener('input', event => {
             // Update the requested setting immediately; journal once on commit.
             this.shadowRoot.querySelectorAll('[data-value="demand"]').forEach(element => { element.textContent = `${event.target.value}%`; });
@@ -371,7 +420,14 @@ export class NuclearPowerConsole extends HTMLElement {
     selectRod(id) {
         if (!this.simulation.controlRods.some(rod => rod.id === id)) return;
         this.selectedRod = id;
+        this.selectedFuel = null;
         this.shadowRoot.querySelector('#rod-select').value = id;
+        this.update();
+    }
+
+    selectFuel(id) {
+        if (!this.simulation.fuel.assemblies.some(a => a.id === id)) return;
+        this.selectedFuel = id;
         this.update();
     }
 
@@ -380,7 +436,7 @@ export class NuclearPowerConsole extends HTMLElement {
         if (!dialog.matches(':popover-open')) dialog.showPopover();
         this.positionCoreMap();
         for (const trigger of this.shadowRoot.querySelectorAll('[aria-controls="core-map-window"]')) trigger.setAttribute('aria-expanded', 'true');
-        this.shadowRoot.querySelector('#rod-select').focus({ preventScroll: true });
+        this.shadowRoot.querySelector(this.selectedFuel ? '[data-action="replace-fuel"]' : '#rod-select').focus({ preventScroll: true });
     }
 
     closeCoreMap(restoreFocus = true) {
@@ -449,6 +505,10 @@ export class NuclearPowerConsole extends HTMLElement {
             'rod-insert': () => sim.setRod(this.selectedRod, sim.controlRods.find(rod => rod.id === this.selectedRod).target + 1),
             'rod-withdraw': () => sim.setRod(this.selectedRod, sim.controlRods.find(rod => rod.id === this.selectedRod).target - 1),
             'core-view': () => this.openCoreMap(), 'close-core': () => this.closeCoreMap(),
+            'replace-fuel': () => sim.replaceFuel(this.selectedFuel),
+            'select-control-rod': () => this.selectRod(this.selectedRod),
+            'power-supply': () => { this.closeCoreMap(false); this.shadowRoot.querySelector('.auxiliary-dialog').showModal(); },
+            'close-power': () => this.shadowRoot.querySelector('.auxiliary-dialog').close(),
             manual: () => sim.setAutoMode(false), auto: () => sim.setAutoMode(true),
             fluctuations: () => sim.setFluctuations(!sim.fluctuationsEnabled),
             'export-log': () => this.exportLog(),
@@ -472,7 +532,11 @@ export class NuclearPowerConsole extends HTMLElement {
     updateActivity() {
         const active = this.isConnected && this.intersecting && !document.hidden && !this.simulation.paused;
         this.dataset.animating = String(active);
-        if (!active) this.closeCoreMap(false);
+        if (!active) {
+            this.closeCoreMap(false);
+            // Pause keeps the management dialog open; hiding the feature closes it.
+            if (!this.isConnected || !this.intersecting || document.hidden) this.shadowRoot.querySelector('.auxiliary-dialog')?.close();
+        }
         if (active && !this.timer) {
             this.lastTick = performance.now();
             this.timer = setInterval(() => {
@@ -518,7 +582,10 @@ export class NuclearPowerConsole extends HTMLElement {
         const powerObjective = sim.autoObjective === 'power';
         const condition = sim.condition;
         const zone = condition.zones.find(zone => zone.id === this.selectedRod);
-        const pumpState = (enabled, target, actual) => actual < 0.5 ? 'STOPPED' : !enabled || target === 0 ? 'COASTING' : 'RUNNING';
+        const fuel = sim.fuel.assemblies.find(a => a.id === this.selectedFuel) || sim.fuel.assemblies[0];
+        const fuelReadiness = sim.fuel.replacementReadiness(sim);
+        const rodBlocked = sim.tripped || !sim.running || (sim.autoMode && !selectedRod.manualOverride);
+        const pumpState = (enabled, target, actual) => actual < 0.5 ? 'STOPPED' : !enabled || target === 0 || sim.supply.factor === 0 ? 'COASTING' : 'RUNNING';
         const values = {
             core: `${n(signals.coreTemperature.value, 1)} °C`, coreNumber: n(signals.coreTemperature.value, 1),
             return: `${n(signals.returnTemperature.value, 1)} °C`, secondary: `${n(signals.secondaryTemperature.value, 1)} °C`,
@@ -539,6 +606,14 @@ export class NuclearPowerConsole extends HTMLElement {
             pumpAActual: `${n(sim.primaryFlow, 1)}%`, pumpBActual: `${n(sim.secondaryFlow, 1)}%`,
             selectedRodActual: `${n(selectedRod.position, 1)}%`, selectedRodTarget: percent(selectedRod.target),
             selectedRodMotion: Math.abs(selectedRod.target - selectedRod.position) < 0.5 ? 'AT TARGET' : selectedRod.target > selectedRod.position ? 'INSERTING' : 'WITHDRAWING',
+            rodOwner: sim.autoMode ? selectedRod.manualOverride ? 'MANUAL OVERRIDE · Auto controls other rods' : 'AUTO OWNED · enable override to disturb regulation' : 'MANUAL CONTROL',
+            selectedFuelId: fuel.id, selectedFuelReserve: `${n(fuel.remaining, 1)}%`,
+            selectedFuelState: fuel.remaining <= 0 ? 'DEPLETED' : fuel.remaining <= 20 ? 'LOW RESERVE' : 'IN SERVICE',
+            selectedFuelEffectiveness: percent(sim.fuel.effectiveness(fuel) * 100),
+            selectedFuelExposure: `${n(fuel.exposure, 2)} demo FPH`, selectedFuelReplacements: String(fuel.replacements),
+            fuelReserve: percent(sim.fuel.remaining), fuelCapability: percent(sim.fuel.capability * 100),
+            fuelReplacementReadiness: fuelReadiness.ready ? 'Ready for manual replacement. Reactor will remain stopped.' : fuelReadiness.reasons.join('. ') + '.',
+            powerSource: sim.supply.source, auxiliaryLoad: `${n(sim.supply.demand, 2)} MW requested / ${n(sim.supply.capacity, 1)} MW available`,
             mode: sim.autoMode ? 'AUTO' : 'MANUAL',
             conditionStage: condition.stage,
             peakFuel: `${n(condition.peakTemperature, 1)} °C`,
@@ -589,11 +664,12 @@ export class NuclearPowerConsole extends HTMLElement {
         this.shadowRoot.querySelector('[data-indicator="primary"]').classList.toggle('off', !sim.pumpA);
         this.shadowRoot.querySelector('[data-indicator="reactor"]').classList.toggle('off', !sim.running);
         const disabled = {
-            start: sim.running || sim.tripped || !sim.circulationReady() || sim.temperature >= 335 || condition.damaged || condition.meltdown, stop: !sim.running, trip: sim.tripped,
+            start: sim.running || sim.tripped || !sim.circulationReady() || sim.temperature >= 335 || condition.damaged || condition.meltdown || sim.fuel.capability <= 0, stop: !sim.running, trip: sim.tripped,
             insert: sim.autoMode || !sim.running || sim.tripped || sim.rodTarget >= 100,
             withdraw: sim.autoMode || !sim.running || sim.tripped || sim.rodTarget <= 0,
-            'rod-insert': sim.autoMode || !sim.running || sim.tripped || selectedRod.target >= 100,
-            'rod-withdraw': sim.autoMode || !sim.running || sim.tripped || selectedRod.target <= 0,
+            'rod-insert': rodBlocked || selectedRod.target >= 100,
+            'rod-withdraw': rodBlocked || selectedRod.target <= 0,
+            'replace-fuel': !fuelReadiness.ready || !this.selectedFuel,
             'load-down': sim.autoMode || sim.tripped || sim.demand <= 0, 'load-up': sim.autoMode || sim.tripped || sim.demand >= 100,
             'reset-trip': !sim.tripped || !sim.tripRecovery().ready,
             repair: !condition.canRepair(sim), 'export-incident': !condition.incident,
@@ -605,7 +681,7 @@ export class NuclearPowerConsole extends HTMLElement {
         if (this.shadowRoot.activeElement !== load) load.value = sim.demand;
         load.disabled = sim.tripped || sim.autoMode;
         const inputs = {
-            '#individual-rod': [selectedRod.target, sim.tripped || sim.autoMode || !sim.running],
+            '#individual-rod': [selectedRod.target, rodBlocked],
             '#pump-A-speed': [sim.pumpASpeed, sim.autoMode && sim.running],
             '#pump-B-speed': [sim.pumpBSpeed, sim.autoMode && sim.running],
             '#auto-temperature': [sim.autoTemperature, false], '#auto-flow': [sim.autoFlow, false],
@@ -617,6 +693,12 @@ export class NuclearPowerConsole extends HTMLElement {
             input.disabled = isDisabled;
         }
         this.shadowRoot.querySelector('#auto-objective').value = sim.autoObjective;
+        this.shadowRoot.querySelector('#rod-override').checked = selectedRod.manualOverride;
+        this.shadowRoot.querySelector('#rod-override').disabled = !sim.autoMode || !sim.running || sim.tripped;
+        this.shadowRoot.querySelector('#fuel-rate').value = String(sim.fuel.rate);
+        this.shadowRoot.querySelector('.individual-rod:not(.fuel-inspector)').hidden = !!this.selectedFuel;
+        this.shadowRoot.querySelector('.fuel-inspector').hidden = !this.selectedFuel;
+        this.updateSupply();
         this.shadowRoot.querySelector('#fault-scenario').value = condition.fault;
         this.shadowRoot.querySelector('.electrical-target').hidden = sim.autoObjective !== 'power';
         for (const mode of ['manual', 'auto']) this.shadowRoot.querySelector(`[data-action="${mode}"]`).setAttribute('aria-pressed', String(sim.autoMode === (mode === 'auto')));
@@ -652,14 +734,23 @@ export class NuclearPowerConsole extends HTMLElement {
             const channel = this.shadowRoot.querySelector(`[data-rod="${rod.id}"]`);
             const zone = sim.condition.zones.find(zone => zone.id === rod.id);
             channel.dataset.condition = zone.damage >= 1 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
-            channel.classList.toggle('selected', rod.id === this.selectedRod);
-            channel.setAttribute('aria-pressed', String(rod.id === this.selectedRod));
+            channel.classList.toggle('selected', !this.selectedFuel && rod.id === this.selectedRod);
+            channel.classList.toggle('manual-override', rod.manualOverride);
+            channel.setAttribute('aria-pressed', String(!this.selectedFuel && rod.id === this.selectedRod));
             channel.setAttribute('aria-label', `${rod.id}: actual ${rod.position.toFixed(1)}%, target ${rod.target.toFixed(1)}% insertion; fuel ${zone.temperature.toFixed(1)} °C; damage ${zone.damage.toFixed(1)}%`);
             const ring = channel.querySelector('.rod-depth-ring');
             ring.style.strokeDasharray = `${2 * Math.PI * 14}`;
             ring.style.strokeDashoffset = `${2 * Math.PI * 14 * (1 - rod.position / 100)}`;
         }
         for (const element of this.shadowRoot.querySelectorAll('[data-fuel-x]')) {
+            const fuel = sim.fuel.assemblies.find(a => a.id === element.dataset.fuelId);
+            element.classList.toggle('selected', fuel.id === this.selectedFuel);
+            element.dataset.reserve = fuel.remaining <= 0 ? 'spent' : fuel.remaining <= 20 ? 'low' : 'normal';
+            element.setAttribute('aria-pressed', String(fuel.id === this.selectedFuel));
+            element.setAttribute('aria-label', `${fuel.id}: remaining ${fuel.remaining.toFixed(1)}%; exposure ${fuel.exposure.toFixed(2)} demo full-power hours`);
+            const ring = element.querySelector('.fuel-reserve-ring');
+            ring.style.strokeDasharray = `${Math.PI * 28}`;
+            ring.style.strokeDashoffset = `${Math.PI * 28 * (1 - fuel.remaining / 100)}`;
             let total = 0;
             let weight = 0;
             for (const rod of sim.controlRods) {
@@ -675,6 +766,27 @@ export class NuclearPowerConsole extends HTMLElement {
             element.dataset.condition = zone.damage >= 1 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
         }
         this.shadowRoot.querySelector('.rod-depth-track i').style.height = `${sim.controlRods.find(rod => rod.id === this.selectedRod).position}%`;
+    }
+
+    updateSupply() {
+        const supply = this.simulation.supply;
+        this.shadowRoot.querySelector('#grid-supply').checked = supply.gridAvailable;
+        this.shadowRoot.querySelector('#turbine-supply').checked = supply.turbineConnected;
+        this.shadowRoot.querySelector('.power-supply-button').dataset.supply = supply.factor === 0 ? 'lost' : supply.source.startsWith('BACKUP') ? 'backup' : 'normal';
+        for (const item of this.shadowRoot.querySelectorAll('[data-supply]')) item.classList.toggle('energized', supply.source.includes(item.dataset.supply === 'turbine' ? 'TURBINE' : item.dataset.supply === 'grid' ? 'GRID' : 'DIESEL'));
+        for (const g of supply.generators) {
+            const card = this.shadowRoot.querySelector(`[data-diesel="${g.id}"]`);
+            card.dataset.state = g.state.toLowerCase();
+            for (const [key, value] of Object.entries({ state: g.state, fuel: `${g.fuel.toFixed(1)}%`, load: `${g.load.toFixed(2)} / ${g.capacity} MW`, startup: g.state === 'STARTING' ? `${g.startRemaining.toFixed(1)} s` : '—' })) {
+                card.querySelector(`[data-diesel-value="${g.id}-${key}"]`).textContent = value;
+            }
+            card.querySelector('[data-diesel-meter]').style.width = `${g.fuel}%`;
+            card.querySelector('[data-diesel-auto]').checked = g.automatic;
+            const active = ['RUNNING', 'STARTING'].includes(g.state);
+            card.querySelector('[data-generator-action="start"]').disabled = active || g.fuel <= 0;
+            card.querySelector('[data-generator-action="stop"]').disabled = !active;
+            card.querySelector('[data-generator-action="refuel"]').disabled = active || g.fuel >= 100;
+        }
     }
 
     updateEvents() {

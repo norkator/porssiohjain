@@ -86,7 +86,7 @@ export class ReactorCondition {
         }
         for (const [pump, flow] of [['A', sim.primaryFlow], ['B', sim.secondaryFlow]]) {
             const component = this.components[pump];
-            const requested = sim[`pump${pump}`] ? sim[`pump${pump}Speed`] : 0;
+            const requested = sim[`pump${pump}`] ? sim[`pump${pump}Speed`] * Math.cbrt(sim.supply.factor) : 0;
             const deficit = requested > 10 ? Math.max(0, 1 - flow / requested) : 0;
             component.stress = clamp(component.stress + (deficit > 0.15 ? deficit * 3 : -2) * dt, 0, 100);
             if (component.stress > 60) component.damage = clamp(component.damage + (component.stress - 60) * 0.012 * dt, 0, 100);
