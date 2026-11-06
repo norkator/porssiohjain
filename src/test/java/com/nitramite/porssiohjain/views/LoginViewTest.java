@@ -3,6 +3,8 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.nitramite.porssiohjain.services.QrLoginService;
+import com.nitramite.porssiohjain.development.LocalDevelopmentConfiguration;
+import com.nitramite.porssiohjain.entity.enums.AccountActivitySource;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.mock.env.MockEnvironment;
 
 import java.util.stream.Stream;
 
@@ -23,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class LoginViewTest {
@@ -34,6 +38,8 @@ class LoginViewTest {
     private TextField uuid;
     private PasswordField secret;
     private Button login;
+    private I18nService i18n;
+    private QrLoginService qrLogin;
 
     @BeforeEach
     void setUp() {
@@ -41,12 +47,16 @@ class LoginViewTest {
         var request = mock(VaadinRequest.class);
         when(request.getRemoteAddr()).thenReturn("127.0.0.1");
         auth = mock(AuthService.class);
-        var i18n = mock(I18nService.class, invocation -> invocation.getArgument(0));
-        var qrLogin = mock(QrLoginService.class);
+        i18n = mock(I18nService.class, invocation -> invocation.getArgument(0));
+        qrLogin = mock(QrLoginService.class);
         VaadinSession.setCurrent(session);
         CurrentInstance.set(VaadinRequest.class, request);
         UI.setCurrent(new UI());
-        view = new LoginView(auth, i18n, qrLogin);
+        createView(new MockEnvironment());
+    }
+
+    private void createView(MockEnvironment environment) {
+        view = new LoginView(auth, i18n, qrLogin, environment);
         uuid = children(view).filter(TextField.class::isInstance).map(TextField.class::cast).findFirst().orElseThrow();
         secret = children(view).filter(PasswordField.class::isInstance).map(PasswordField.class::cast).findFirst().orElseThrow();
         login = button("login.button.login");
@@ -98,6 +108,26 @@ class LoginViewTest {
         assertFalse(uuid.getValue().isBlank());
         assertFalse(secret.getValue().isBlank());
         assertTrue(login.isEnabled());
+        verifyNoInteractions(auth);
+    }
+
+    @Test
+    void adminAliasUsesNormalPasswordAuthenticationInLocalProfile() {
+        createView(new MockEnvironment().withProperty("spring.profiles.active", "local"));
+        uuid.setValue("admin");
+        secret.setValue("wrong-password");
+        login.click();
+
+        verify(auth).login("127.0.0.1", LocalDevelopmentConfiguration.ADMIN_UUID,
+                "wrong-password", AccountActivitySource.VAADIN);
+    }
+
+    @Test
+    void adminAliasIsRejectedOutsideLocalProfile() {
+        uuid.setValue("admin");
+        secret.setValue("admin");
+        login.click();
+
         verifyNoInteractions(auth);
     }
 

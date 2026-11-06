@@ -20,12 +20,19 @@ import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableScheduling
 @Theme("my-theme")
 public class PorssiohjainApplication implements AppShellConfigurator {
+
+    @Configuration(proxyBeanMethods = false)
+    @Profile("!local")
+    @EnableScheduling
+    static class SchedulingConfiguration {
+    }
 
     @Autowired
     SystemLogService systemLogService;

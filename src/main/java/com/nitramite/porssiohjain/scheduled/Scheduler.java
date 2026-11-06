@@ -31,7 +31,7 @@ import java.time.ZonedDateTime;
 import java.util.Locale;
 
 @Slf4j
-@Profile("!test")
+@Profile("!test & !local")
 @Component
 public class Scheduler {
 
