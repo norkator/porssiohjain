@@ -16,7 +16,7 @@ contains no alarm siren, speech or music.
 
 The app loads these files after **Enable plant sounds** and loops decoded
 AudioBuffers without gaps. Actual running reactor power and turbine shaft speed
-control intensity (maximum gain 0.32); Stop allows the shaft to coast down audibly.
+control intensity (maximum gain 0.10); Stop allows the shaft to coast down audibly.
 A cold stopped plant is silent. Stress, damage, overheating, trips and actual
 component disturbances crossfade to the fault texture over approximately one
 second, independently of alarm acknowledgement. Requested MW and fault-selection

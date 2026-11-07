@@ -47,7 +47,7 @@ export class PlantAudio {
             return;
         }
         const now = this.context.currentTime;
-        const level = .32 * Math.sqrt(Math.min(1, Math.max(0, activity)));
+        const level = .10 * Math.sqrt(Math.min(1, Math.max(0, activity)));
         for (const kind of ['normal', 'fault']) {
             let voice = [...this.nodes].find(node => node.plant === kind);
             if (!voice) {

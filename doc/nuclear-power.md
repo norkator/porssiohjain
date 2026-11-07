@@ -137,7 +137,7 @@ because the original download returned 403. No external audio request occurs at 
 Opt-in operating audio now uses two original seamless 16-second stereo WAV loops
 under `nuclear/public/audio/nuclear-power/plant-state`: steady steam/turbine/generator
 operation and a rough fault texture. Actual running reactor power and turbine
-shaft speed drive intensity, bounded to 0.32 gain. Cold sessions are silent; Stop
+shaft speed drive intensity, bounded to 0.10 gain. Cold sessions are silent; Stop
 allows audible shaft coast-down. Stress, damage, overheating, trips and actual
 component disturbance values select the fault texture independently of alarm
 acknowledgement, with approximately one-second crossfades. Requested MW or fault
