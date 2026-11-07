@@ -37,7 +37,7 @@ jobs:
 
   build-and-push:
     needs: test
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/production' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: read
