@@ -158,6 +158,8 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.plantTab;'), 'reactor');
         assert.equal(await consoleCode('return s.activeElement.id;'), 'reactor-tab');
 
+        // Allow the tab's ResizeObserver to finish its one-off redraw before checking pause.
+        await consoleCode('return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));');
         const frame = await consoleCode('return c.overviewScene.renderer.info.render.frame;');
         await wait(150);
         assert.equal(await consoleCode('return c.overviewScene.renderer.info.render.frame;'), frame, 'Paused 3D should not keep rendering');
@@ -228,7 +230,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
             await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
         }
         await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-        await wait(100);
+        await until(`document.querySelector('nuclear-power-console').overviewScene.width === document.querySelector('nuclear-power-console').shadowRoot.querySelector('.diagram-viewport .plant-scene').clientWidth`, '3D overview did not resize for mobile');
         assert.ok(await consoleCode(`const r=s.querySelector('.plant-scene').getBoundingClientRect();return r.width>200 && r.width<=390;`));
         assert.ok(await consoleCode(`return [...s.querySelectorAll('.diagram-viewport .plant-scene-label')].every(label=>{const r=label.getBoundingClientRect(),v=s.querySelector('.plant-scene').getBoundingClientRect();return r.left>=v.left && r.right<=v.right;});`));
         await screenshot('3d-mobile');

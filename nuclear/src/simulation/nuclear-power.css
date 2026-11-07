@@ -24,14 +24,14 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2
 button { transition: background .15s, border-color .15s, transform .15s; }
 button:not(:disabled):active { transform: translateY(1px); }
 h1, h2, h3, p { margin: 0; }
-.console { width: 100%; margin: 0; padding: 16px 20px 0; }
+.console { width: 100%; margin: 0; padding: 8px 16px 0; }
 .console-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; align-items: start; }
 .instrument-column, .control-column, .analysis-column { min-width: 0; }
 .instrument-column { display: grid; gap: 10px; }
 .analysis-column { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
-.masthead { display: flex; align-items: center; gap: 14px; padding-bottom: 16px; }
-.brand-mark { display: grid; place-items: center; height: 57px; width: 57px; flex: 0 0 57px; border: 1px solid #a37e42; border-radius: 12px; background: #2c2c25; color: #f7c76e; }
-.brand-mark svg { width: 33px; height: 33px; }
+.masthead { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; }
+.brand-mark { display: grid; place-items: center; height: 44px; width: 44px; flex: 0 0 44px; border: 1px solid #a37e42; border-radius: 9px; background: #2c2c25; color: #f7c76e; }
+.brand-mark svg { width: 27px; height: 27px; }
 .eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 2.3px; color: var(--muted); margin-bottom: 2px; }
 h1 { font-size: clamp(25px, 2.5vw, 34px); font-weight: 600; letter-spacing: -1.2px; line-height: 1.2; }
 .title-dot { color: var(--warm); }
@@ -458,7 +458,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     .core-map { padding: 15px 12px 12px; }
     .core-map-layout { grid-template-columns: minmax(0, 1fr) 180px; gap: 7px; }
     .individual-rod { padding: 12px; }
-    .console { padding: 22px 20px 0; }
+    .console { padding: 8px 12px 0; }
     .metrics { gap: 10px; }
     .metric { padding: 12px; }
     .metric-label { font-size: 10px; gap: 5px; }
@@ -512,8 +512,8 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     .event-category { flex-basis: 52px; font-size: 7px; }
     .event-list li { gap: 6px; }
     .event-time { flex-basis: 50px; font-size: 8px; }
-    .console { padding: 18px 12px 0; }
-    .masthead { gap: 10px; padding-bottom: 20px; }
+    .console { padding: 8px 12px 0; }
+    .masthead { gap: 8px; padding-bottom: 8px; }
     .brand-mark { width: 41px; height: 45px; flex-basis: 41px; border-radius: 8px; }
     .brand-mark svg { width: 27px; height: 27px; }
     .eyebrow { font-size: 7px; letter-spacing: 1.2px; }
@@ -705,21 +705,30 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .ui-sound-status { color: var(--muted); font-size: 10px; }
 
 .heading { flex-shrink: 0; }
-.header-control-card { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; border: 1px solid var(--border); border-radius: 8px; background: #192833; padding: 12px 14px; }
-.header-control-card .automation-strip { border: 0; padding: 0; margin: 0; background: transparent; align-content: center; gap: 8px 14px; }
+.heading .eyebrow { font-size: 8px; letter-spacing: 1.4px; margin-bottom: 1px; }
+.heading h1 { font-size: clamp(24px, 2.1vw, 28px); line-height: 1.1; }
+.heading p { font-size: 10px; line-height: 1.25; margin-top: 2px; }
+.header-control-card { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; border: 1px solid var(--border); border-radius: 7px; background: #192833; padding: 6px 10px; }
+.header-control-card .automation-strip { border: 0; padding: 0; margin: 0; background: transparent; align-content: center; gap: 4px 12px; }
+.header-control-card .automation-strip > label { gap: 2px; }
+.header-control-card .control-label { margin-bottom: 2px; }
+.header-control-card .automation-strip input[type="number"] { height: 26px; padding: 3px 6px; font-size: 13px; }
+.header-control-card .automation-strip select { min-height: 26px; padding: 3px 6px; }
+.header-control-card .mode-switch { padding: 1px; }
+.header-control-card .mode-switch button { min-height: 24px; padding: 3px 8px; }
 .header-control-card .regulation-status { flex-basis: 100%; flex-direction: row; align-items: center; flex-wrap: wrap; border: 0; padding: 0; gap: 5px 10px; }
 .header-control-card .regulation-status > span { flex: 1; min-width: 130px; }
 .header-control-card .regulation-status button { margin: 0; }
-.header-settings { display: grid; grid-template-columns: auto auto; align-content: center; align-items: center; gap: 6px 16px; padding-left: 14px; border-left: 1px solid var(--border); }
+.header-settings { display: grid; grid-template-columns: auto auto; align-content: center; align-items: center; gap: 4px 10px; padding-left: 10px; border-left: 1px solid var(--border); }
 .header-sound { grid-column: 1; grid-row: 1; display: grid; gap: 3px; }
-.header-settings .power-supply-button { grid-column: 1; grid-row: 2; padding: 5px 8px; max-width: 180px; }
+.header-settings .power-supply-button { grid-column: 1; grid-row: 2; padding: 3px 7px; max-width: 180px; gap: 1px; }
 .header-settings .power-supply-button > span { font-size: 8px; overflow-wrap: anywhere; }
 .header-settings .power-supply-button small { font-size: 8px; }
 .header-settings .theme-toggle { grid-column: 2; grid-row: 1; justify-self: end; }
-.header-settings .session { grid-column: 2; grid-row: 2; }
-.header-settings .simulation-badge { padding: 3px 7px; font-size: 8px; }
-.header-settings .session-clock { margin-top: 4px; font-size: 10px; }
-.header-settings .session small { display: block; font-size: 8px; color: var(--muted); margin-top: 2px; }
+.header-settings .session { grid-column: 2; grid-row: 2; display: grid; grid-template-columns: auto auto; align-items: center; gap: 2px 7px; }
+.header-settings .simulation-badge { padding: 3px 6px; font-size: 8px; letter-spacing: 1px; }
+.header-settings .session-clock { margin-top: 0; font-size: 10px; letter-spacing: .3px; }
+.header-settings .session small { grid-column: 1 / -1; display: block; font-size: 8px; color: var(--muted); margin-top: 0; }
 .plant-tabs { display: flex; gap: 4px; padding: 7px 12px 0; border-bottom: 1px solid var(--border); background: #111e29; }
 .plant-tabs button { padding: 9px 13px; border: 1px solid transparent; border-bottom: 2px solid transparent; border-radius: 5px 5px 0 0; background: transparent; color: var(--muted); font-size: 11px; }
 .plant-tabs [aria-selected="true"] { color: #b9f2de; background: #1d343c; border-color: #3a5a62; border-bottom-color: #8bd7bf; }
@@ -728,7 +737,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .auxiliary-heading .eyebrow { font-size: 8px; letter-spacing: 1px; }
 .auxiliary-heading h2 { font-size: 13px; white-space: normal; }
 .auxiliary-camera-tools { display: flex; gap: 4px; }
-.auxiliary-scene.plant-scene { height: clamp(260px, calc(100dvh - 730px), 390px); border: 1px solid var(--border); border-radius: 5px; }
+.auxiliary-scene.plant-scene { height: clamp(320px, calc(100dvh - 670px), 450px); border: 1px solid var(--border); border-radius: 5px; }
 .auxiliary-scene-status:empty { display: none; }
 .auxiliary-scene-status, .auxiliary-note { margin: 10px 0 0; color: var(--muted); font-size: 9px; line-height: 1.6; }
 .auxiliary-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 12px; }
@@ -763,7 +772,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 @container nuclear-console (min-width: 1400px) {
     .diagram-viewport > .plant-scene { height: clamp(400px, calc(100dvh - 470px), 680px); }
 }
-@container nuclear-console (max-width: 1300px) {
+@container nuclear-console (max-width: 1200px) {
     .masthead { flex-wrap: wrap; }
     .header-control-card { flex-basis: 100%; }
 }
@@ -773,11 +782,13 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     .auxiliary-controls .supply-overview .auxiliary-power-diagram { grid-column: 2; grid-row: 1 / 5; max-height: 180px; }
     .auxiliary-controls .supply-overview p { grid-column: 1 / -1; }
     .header-control-card { grid-template-columns: minmax(0, 1fr); }
-    .header-settings { border-left: 0; border-top: 1px solid var(--border); padding: 10px 0 0; }
-    .auxiliary-scene.plant-scene { height: 350px; }
+    .header-settings { border-left: 0; border-top: 1px solid var(--border); padding: 7px 0 0; }
+    .header-control-card .automation-strip input[type="number"], .header-control-card .automation-strip select { min-height: 30px; height: 30px; }
+    .header-control-card .mode-switch button { min-height: 28px; }
+    .auxiliary-scene.plant-scene { height: 400px; }
 }
 @container nuclear-console (max-width: 520px) {
-    .header-control-card { padding: 10px; }
+    .header-control-card { padding: 7px 8px; }
     .auxiliary-panel { padding: 8px; }
     .auxiliary-controls { grid-template-columns: minmax(0, 1fr); }
     .auxiliary-controls .supply-overview { grid-template-columns: minmax(0, 1fr); }
