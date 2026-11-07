@@ -24,6 +24,14 @@ The header card beside the title contains regulation targets, the opt-in plant
 sound switch, theme, simulation status and clock. UI clicks use 100% of the bounded
 sample-volume range (0.26 gain); the volume slider and test button are removed.
 
+**Enable plant sounds** also enables seamless steam/turbine/generator loops.
+Actual reactor output and turbine shaft speed drive the sound level; stress,
+damage, overheating, trips and actual component disturbances crossfade to a rough
+fault texture independently of alarm acknowledgement. The cold plant is silent,
+and a stopped turbine fades with its actual coast-down. Mute, pause, hidden views
+and detach stop all voices. The original synthesized WAVs and generation notes
+are in `public/audio/nuclear-power/plant-state/`; they load only after sound opt-in.
+
 The main panel has **Reactor overview** and **Auxiliary power** tabs. The auxiliary
 tab contains two low-poly 3D diesel cutaways, grid/feed switches and the existing
 standby, start/stop and manual refuelling controls. Pistons, shaft and fans follow

@@ -6,7 +6,7 @@
 import { CORE_CHANNELS, NuclearPowerSimulation } from './nuclear-power-model.js';
 import { advancePumpMotion, advanceProcessMotion, advanceInstrumentMotion, flowMarkerDistance, valveHandleAngle, SVG_FLOW_SCALE } from './nuclear-power-motion.js';
 import styles from './nuclear-power.css?inline';
-import { PlantAudio } from './nuclear-power-audio.js';
+import { PlantAudio, plantSoundState } from './nuclear-power-audio.js';
 import { equipmentDialogs, initializeEquipment, updateEquipment, drawEquipmentMotion, exerciseDialog, initializeExercises, updateExercises } from './nuclear-power-equipment.js';
 import lightStyles from './nuclear-power-light.css?inline';
 import { PlantOverviewScene } from './nuclear-power-scene.js';
@@ -765,6 +765,7 @@ export class NuclearPowerConsole extends HTMLElement {
                         this.alarmAudio ||= new Audio();
                         this.plantAudio ||= new PlantAudio(this.alarmAudio);
                         this.plantAudio.preloadUi().then(() => this.update());
+                        this.plantAudio.preloadPlant().then(() => this.update());
                         this.alarmAudio.resume().catch(() => {});
                     } else this.soundEnabled = false;
                 }
@@ -1031,11 +1032,15 @@ export class NuclearPowerConsole extends HTMLElement {
         const button = this.shadowRoot.querySelector('[data-action="sound"]');
         button.textContent = this.soundEnabled ? 'Mute plant sounds' : 'Enable plant sounds';
         button.setAttribute('aria-pressed', String(!!this.soundEnabled));
-        this.shadowRoot.querySelector('.ui-sound-status').textContent = !this.soundEnabled ? '' : this.plantAudio?.uiState === 'ready' ? '' : this.plantAudio?.uiState === 'unavailable' ? 'Click files unavailable' : 'Loading clicks…';
+        const audioStates = [this.plantAudio?.uiState, this.plantAudio?.plantState];
+        this.shadowRoot.querySelector('.ui-sound-status').textContent = !this.soundEnabled ? ''
+            : audioStates.includes('unavailable') ? 'Some sound files unavailable'
+                : audioStates.every(state => state === 'ready') ? '' : 'Loading sounds…';
         if (!enabled) { this.stopAlarmSound(); return; }
         const context = this.alarmAudio;
         if (!context) return;
         if (context.state === 'suspended') { context.resume().catch(() => {}); return; }
+        this.plantAudio?.updatePlant(plantSoundState(sim));
         if (!pending && severity < 2) { this.stopAlarmSound(false); return; }
         const now = context.currentTime;
         const mode = meltdown ? 'meltdown' : ['quiet', 'attention', 'overheating', 'core-damage', 'critical'][severity];

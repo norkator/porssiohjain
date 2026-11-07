@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-test('3D overview, core map, centered pumps, automatic control, trip recovery and logs work in browser', { timeout: 120000 }, async () => {
+test('3D overview, core map, centered pumps, automatic control, trip recovery and logs work in browser', { timeout: 180000 }, async () => {
     const artifacts = mkdtempSync(join(tmpdir(), 'nuclear-power-check-'));
     const appUrl = process.env.NUCLEAR_POWER_APP_URL;
     if (appUrl) {
@@ -280,6 +280,9 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await page('Input.dispatchMouseEvent', {type:'mousePressed',...soundButton,button:'left',clickCount:1});
         await page('Input.dispatchMouseEvent', {type:'mouseReleased',...soundButton,button:'left',clickCount:1});
         await consoleCode('return c.plantAudio.preloadUi();');
+        await consoleCode('return c.plantAudio.preloadPlant();');
+        assert.equal(await consoleCode('return c.plantAudio.plantState;'), 'ready');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.plant).length;'), 0);
         assert.equal(await consoleCode('return c.plantAudio.uiBuffers.size;'), 3);
         assert.equal(await consoleCode('return c.plantAudio.uiState;'), 'ready');
         assert.equal(await consoleCode('return c.plantAudio.uiGain;'), .26);
@@ -289,8 +292,23 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.ok(await consoleCode('return [...c.plantAudio.nodes].some(voice=>voice.ui);'));
         await wait(400);
         await action('start');
-        await wait(850);
+        await advance(10);
+        await until(`document.querySelector('nuclear-power-console').plantAudio.nodes.size >= 2`, 'Operating loops did not start');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.plant && v.oscillator.loop).length;'), 2);
+        await consoleCode("c.simulation.condition.stage='STRAINED';c.update();");
+        assert.ok(await consoleCode("return [...c.plantAudio.nodes].find(v=>v.plant==='fault').target > 0;"));
+        await consoleCode("c.simulation.condition.stage='NORMAL';c.update();");
+        assert.equal(await consoleCode("return [...c.plantAudio.nodes].find(v=>v.plant==='fault').target;"), 0);
+        await consoleCode('c.intersecting=false;c.updateActivity();c.update();');
         assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
+        await consoleCode('c.intersecting=true;c.updateActivity();c.update();');
+        await until(`[...document.querySelector('nuclear-power-console').plantAudio.nodes].filter(v=>v.plant).length===2`, 'Operating loops did not resume');
+        await consoleCode("Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));");
+        assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
+        await consoleCode("delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));c.update();");
+        await until(`[...document.querySelector('nuclear-power-console').plantAudio.nodes].filter(v=>v.plant).length===2`, 'Visible plant did not resume audio');
+        assert.equal(await consoleCode('const parent=c.parentElement;c.remove();const count=c.plantAudio.nodes.size;parent.append(c);return count;'), 0);
+        await until(`[...document.querySelector('nuclear-power-console').plantAudio.nodes].filter(v=>v.plant).length===2`, 'Reattached plant did not resume audio');
         await action('pause');
         assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
         await action('pause');
