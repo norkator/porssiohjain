@@ -78,7 +78,9 @@ breaker/shaft affect the common electrical output and cooling model. Preserve
 manual pump overrides, explicit turbine restart/breaker readiness, component service
 interlocks, local trends, objectives and symptom-first scenarios. Plant audio has
 quiet Start/Stop cues, local CC0 Kenney UI Audio one-shot switch/adjustment samples
-(with bundled license/source records), and separate alarms; continuous operating hum is removed; preserve opt-in, bounded gain,
+(with bundled license/source records), and separate alarms; opt-in steam/turbine/generator loops follow actual running power
+and shaft coast-down, crossfading to a fault texture for actual stress/damage/disturbances.
+Cold sessions are silent; preserve opt-in, bounded gain,
 and mute/pause/hide/detach cleanup of every voice.
 New/reset sessions select Auto with Electrical output regulation (200 MW), but
 the reactor starts stopped/cold with fully inserted rods and both pumps disabled

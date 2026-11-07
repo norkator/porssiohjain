@@ -118,7 +118,7 @@ warning/damage boundaries. These are illustrative demo levels. Acknowledgement
 silences ordinary attention tones; ongoing overheating/damage and meltdown remain
 audible until conditions resolve or the user mutes. Mute, pause, hidden views and detach stop audio;
 Reset demo clears the incident sound. Browsers require a user gesture to enable
-audio. Sound settings belong to this view instance and no audio files are fetched.
+audio. Sound settings belong to this view instance; bundled audio files load only after opt-in.
 The same switch enables distinct quiet ascending Start and descending Stop cues,
 only when that command changes the reactor's running state. Blocked/repeated commands
 produce no cue. Kenney UI Audio samples provide quiet on/off switch clicks and a short click when
@@ -134,10 +134,19 @@ the included CC0 license/source record are under
 `nuclear/public/audio/nuclear-power/kenney-ui`. Original pack:
 https://kenney.nl/assets/ui-audio; downloaded from the Calinou/kenney-ui-audio mirror
 because the original download returned 403. No external audio request occurs at runtime.
-Continuous operating hum has been removed. Routine operation is silent after the
-brief Start/Stop cue; cues peak at 0.0004. Warning and critical alarm sounds retain
-their separate escalation. Mute, pause, hidden views and detach stop all cue and
-alarm nodes immediately.
+Opt-in operating audio now uses two original seamless 16-second stereo WAV loops
+under `nuclear/public/audio/nuclear-power/plant-state`: steady steam/turbine/generator
+operation and a rough fault texture. Actual running reactor power and turbine
+shaft speed drive intensity, bounded to 0.32 gain. Cold sessions are silent; Stop
+allows audible shaft coast-down. Stress, damage, overheating, trips and actual
+component disturbance values select the fault texture independently of alarm
+acknowledgement, with approximately one-second crossfades. Requested MW or fault
+selection alone never controls playback. Both decoded loops share phase and are
+reused across state changes; missing files show an unavailable status. Late loading
+only stores buffers and never starts audio independently. Start/Stop cues retain
+their 0.0004 peak and do not interrupt operating loops. Warning and critical alarm
+sounds retain separate escalation. Mute, pause, hidden views and detach stop all
+loop, cue and alarm nodes immediately; Reset demo returns to cold silence.
 The temperature trend expands its scale above the old 400 °C range during a severe
 incident rather than clipping the continued rise.
 
@@ -674,7 +683,7 @@ animation while instruments and controls continue to work.
   transfer/cooling factors, turbine shaft/breaker, disturbances, wear and exercises.
 - `nuclear/src/simulation/nuclear-power-equipment.js` renders the movable consoles and
   exercises, settings ownership, local trends and maintenance journal.
-- `nuclear/src/simulation/nuclear-power-audio.js` owns quiet Start/Stop cues;
+- `nuclear/src/simulation/nuclear-power-audio.js` owns operating-state loops, UI samples and quiet Start/Stop cues;
   the main element retains alarm scheduling and shared-context lifecycle.
 - `nuclear/src/simulation/nuclear-power-supply.js` owns auxiliary-source selection,
   standby/manual diesel startup, fuel, capacity and pump power availability.
