@@ -1,0 +1,8 @@
+[versions]
+vaadin = "25.3.5"
+
+[libraries]
+vaadin-bom = { module = "com.vaadin:vaadin-bom", version.ref = "vaadin" }
+
+[plugins]
+vaadin = { id = "com.vaadin", version.ref = "vaadin" }
