@@ -52,6 +52,7 @@ http-client.private.env.json
 target/dev-bundle/*
 .vaadin-node-tasks.lock
 src/main/bundles/dev.bundle
+/src/main/bundles/prod.bundle
 vite.generated.ts
 
 ### AI Metadata ###
