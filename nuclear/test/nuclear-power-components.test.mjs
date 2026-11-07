@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NuclearPowerSimulation } from '../../main/frontend/nuclear-power-model.js';
-import { ComponentProcesses, COMPONENT_SETTINGS, COMPONENT_ACTIONS, COMPONENT_OBJECTIVES, COMPONENT_SCENARIOS } from '../../main/frontend/nuclear-power-components.js';
+import { NuclearPowerSimulation } from '../src/simulation/nuclear-power-model.js';
+import { ComponentProcesses, COMPONENT_SETTINGS, COMPONENT_ACTIONS, COMPONENT_OBJECTIVES, COMPONENT_SCENARIOS } from '../src/simulation/nuclear-power-components.js';
 
 const advance = (s, seconds) => { for (let n = 0; n < seconds * 4; n++) s.tick(0.25); };
 const startPumps = s => { s.togglePump('A'); s.togglePump('B'); advance(s, 6); };

@@ -1,4 +1,4 @@
-/* Isolated inside nuclear-power-console; the shared desktop keeps its own theme. */
+/* Isolated inside nuclear-power-console; the React host follows the selected theme. */
 :host {
     display: block;
     container: nuclear-console / inline-size;

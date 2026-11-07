@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PlantAudio } from '../../main/frontend/nuclear-power-audio.js';
+import { PlantAudio } from '../src/simulation/nuclear-power-audio.js';
 
 class Param {
     value = 0;

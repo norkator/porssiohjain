@@ -224,17 +224,22 @@ class MainLayoutTest {
     }
 
     @Test
-    void nuclearPowerUsesItsOwnIconAndRetainsItsSimulationWindow() {
-        Div simulation = new Div("simulation state");
-        navigate("nuclear-power", simulation);
-        Component frame = windows().getFirst();
-        assertTrue(frame.getElement().getTextRecursively().contains("home.nuclearPower"));
-        assertTrue(children(frame).anyMatch(c -> "icons/desktop/nuclear-power.svg".equals(c.getElement().getAttribute("src"))));
-        assertTrue(children(tasks().getFirst()).anyMatch(c -> "icons/desktop/nuclear-power.svg".equals(c.getElement().getAttribute("src"))));
-        navigate("device", new Div());
-        tasks().getFirst().click();
-        assertSame(frame, windows().getFirst());
-        assertTrue(simulation.getParent().isPresent());
+    void nuclearPowerDesktopAndStartLinksOpenStandaloneAppWithTheirOwnIcon() {
+        var links = children(layout)
+                .filter(com.vaadin.flow.component.html.Anchor.class::isInstance)
+                .filter(c -> c.getElement().getTextRecursively().equals("home.nuclearPower"))
+                .toList();
+        assertEquals(2, links.size());
+        assertTrue(links.stream().anyMatch(c -> c.getElement().getClassList().contains("retro-shortcut")));
+        assertTrue(links.stream().anyMatch(c -> c.getElement().getClassList().contains("retro-menu-item")));
+        for (Component link : links) {
+            assertEquals("https://nuclear.porssiohjain.fi", link.getElement().getAttribute("href"));
+            assertEquals("_blank", link.getElement().getAttribute("target"));
+            assertEquals("noopener noreferrer", link.getElement().getAttribute("rel"));
+            assertTrue(children(link).anyMatch(c -> "icons/desktop/nuclear-power.svg".equals(c.getElement().getAttribute("src"))));
+        }
+        assertTrue(windows().isEmpty());
+        assertTrue(tasks().isEmpty());
     }
 
     @Test

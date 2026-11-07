@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, readdirSync, existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
+import { join, extname, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const root = fileURLToPath(new URL('../../../', import.meta.url));
+const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 test('core map, centered variable-speed pumps, automatic control, trip recovery and logs work in browser', { timeout: 90000 }, async () => {
@@ -18,34 +18,26 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         const startupDeadline = Date.now() + 60000;
         while (Date.now() < startupDeadline) {
             try {
-                const response = await fetch(`${appUrl}/login`, { signal: AbortSignal.timeout(1000) });
+                const response = await fetch(appUrl, { signal: AbortSignal.timeout(1000) });
                 if (response.ok) { ready = true; break; }
-            } catch { /* The disposable Spring instance may still be starting. */ }
+            } catch { /* The preview server may still be starting. */ }
             await wait(100);
         }
-        assert.ok(ready, 'Disposable local application did not become ready');
+        assert.ok(ready, 'Standalone application did not become ready');
     }
+    if (!appUrl) assert.ok(existsSync(join(dist, 'index.html')), 'Run npm run build before the browser test');
+    const contentTypes = {
+        '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
+        '.svg': 'image/svg+xml', '.wav': 'audio/wav', '.txt': 'text/plain', '.md': 'text/plain',
+    };
     const server = createServer((request, response) => {
-        const path = request.url.split('?')[0];
-        if (path === '/') {
-            response.setHeader('Content-Type', 'text/html');
-            response.end(`<!doctype html><html lang="fi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nuclear Power check</title><style>body{margin:0;background:#101923}main{width:100%}</style><main><nuclear-power-console></nuclear-power-console></main><script type="module" src="/nuclear-power.js"></script></html>`);
-            return;
+        const path = new URL(request.url, 'http://localhost').pathname;
+        const file = resolve(dist, path === '/' ? 'index.html' : `.${path}`);
+        if (!file.startsWith(dist.endsWith(sep) ? dist : dist + sep) || !existsSync(file)) {
+            response.writeHead(404); response.end(); return;
         }
-        if (path === '/nuclear-power.css' || path === '/nuclear-power-light.css') {
-            response.setHeader('Content-Type', 'text/javascript');
-            response.end('export default ' + JSON.stringify(readFileSync(join(root, 'src/main/frontend', path.slice(1)), 'utf8')));
-            return;
-        }
-        if (path.startsWith('/audio/nuclear-power/kenney-ui/') && ['switch1.wav','switch2.wav','click1.wav'].includes(path.split('/').at(-1))) {
-            response.setHeader('Content-Type', 'audio/wav');
-            response.end(readFileSync(join(root,'src/main/resources/META-INF/resources',path)));
-            return;
-        }
-        const allowed = ['/nuclear-power.js', '/nuclear-power-model.js', '/nuclear-power-motion.js', '/nuclear-power-condition.js', '/nuclear-power-fuel.js', '/nuclear-power-supply.js', '/nuclear-power-components.js', '/nuclear-power-equipment.js', '/nuclear-power-audio.js'];
-        if (!allowed.includes(path)) { response.writeHead(404); response.end(); return; }
-        response.setHeader('Content-Type', 'text/javascript');
-        response.end(readFileSync(join(root, 'src/main/frontend', path.slice(1))));
+        response.setHeader('Content-Type', contentTypes[extname(file)] || 'application/octet-stream');
+        response.end(readFileSync(file));
     });
     if (!appUrl) await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const browser = spawn(process.env.CHROME_BIN || '/opt/google/chrome/chrome', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--remote-debugging-port=0', `--user-data-dir=${join(artifacts, 'profile')}`, 'about:blank']);
@@ -93,7 +85,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
                 await wait(100);
             }
             await screenshot('failure');
-            console.log('Failure context:', await evaluate(`({path:location.pathname,text:document.body.innerText.slice(0,1800),buttons:[...document.querySelectorAll('vaadin-button')].map(b=>({text:b.textContent,disabled:b.disabled}))})`));
+            console.log('Failure context:', await evaluate(`({path:location.pathname,root:document.getElementById('root')?.innerHTML,text:document.querySelector('nuclear-power-console')?.shadowRoot?.textContent.slice(-1800)})`));
             throw new Error(message);
         };
         const consoleCode = code => evaluate(`(()=>{const c=document.querySelector('nuclear-power-console');const s=c.shadowRoot;${code}})()`);
@@ -111,18 +103,10 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await page('Page.enable');
         await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: artifacts });
         await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
-        await page('Page.navigate', { url: appUrl ? `${appUrl}/login` : `http://127.0.0.1:${server.address().port}/` });
-        if (appUrl) {
-            await until(`!!document.querySelector('vaadin-password-field')`, 'Local login did not render');
-            await evaluate(`for(const field of [document.querySelector('vaadin-text-field'),document.querySelector('vaadin-password-field')]){field.value='admin';field.dispatchEvent(new Event('input',{bubbles:true,composed:true}));field.dispatchEvent(new Event('change',{bubbles:true,composed:true}));}`);
-            await until(`document.querySelector('vaadin-button[theme~="primary"]')?.disabled===false`, 'Login button did not enable');
-            await evaluate(`document.querySelector('vaadin-button[theme~="primary"]').click()`);
-            await until(`!!document.querySelector('.retro-start-button')`, 'Desktop did not open');
-            await evaluate(`document.querySelector('.retro-start-button').click()`);
-            await until(`[...document.querySelectorAll('.retro-menu-item')].some(b=>b.textContent.trim()==='Nuclear Power')`, 'Nuclear Power menu item did not open');
-            await evaluate(`[...document.querySelectorAll('.retro-menu-item')].find(b=>b.textContent.trim()==='Nuclear Power').click()`);
-        }
+        await page('Page.navigate', { url: appUrl || `http://127.0.0.1:${server.address().port}/` });
         await until(`!!document.querySelector('nuclear-power-console')?.shadowRoot?.querySelector('.console')`, 'Control room did not render');
+        assert.equal(await evaluate(`document.documentElement.lang`), 'en');
+        assert.equal(await evaluate(`document.querySelectorAll('#root .nuclear-power-view nuclear-power-console').length`), 1);
         assert.equal(await value('status'), 'STOPPED');
         assert.equal(await consoleCode('return c.lang;'), 'en');
         assert.equal(await consoleCode('return c.simulation.autoMode;'), true);
@@ -165,7 +149,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
             assert.ok(layout.controls.right <= layout.analysis.x);
             assert.ok(layout.trends.bottom <= layout.logs.y);
             assert.ok(layout.console.width > width - 50, 'Wide layout should use the full feature width');
-            assert.ok(layout.footer.bottom <= height - (appUrl ? 35 : 0), `Wide screen should fit the overview: ${JSON.stringify(layout)}`);
+            assert.ok(layout.footer.bottom <= height, `Wide screen should fit the overview: ${JSON.stringify(layout)}`);
             await screenshot(`wide-${width}-dark`);
             await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
             await screenshot(`wide-${width}-light`);
@@ -328,11 +312,11 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.ok(await consoleCode(`return s.querySelector('.target-trace').getAttribute('d').length>0;`));
         await page('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
         await advance(1200); // Check the power view with a full event journal.
-        assert.ok(await consoleCode(`return s.querySelector('.console-footer').getBoundingClientRect().bottom;`) <= 1080 - (appUrl ? 35 : 0), 'Electrical control and a full journal should fit a wide screen');
+        assert.ok(await consoleCode(`return s.querySelector('.console-footer').getBoundingClientRect().bottom;`) <= 1080, 'Electrical control and a full journal should fit a wide screen');
         await screenshot('electrical-control-dark');
         await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
         await screenshot('electrical-control-light');
-        if (appUrl) assert.equal(await evaluate(`getComputedStyle(document.querySelector('.nuclear-power-view')).backgroundColor`), 'rgb(237, 242, 245)');
+        assert.equal(await evaluate(`getComputedStyle(document.querySelector('.nuclear-power-view')).backgroundColor`), 'rgb(237, 242, 245)');
         await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
         await input('#auto-electrical', 400);
         await advance(180);
@@ -595,7 +579,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.equal(await evaluate('savedConsole.timer'), null);
         assert.equal(await evaluate('savedConsole.animationFrame'), null);
         assert.deepEqual(exceptions, []);
-        console.log(`Browser verified ${appUrl ? 'authenticated Vaadin application' : 'isolated console'}; artifacts: ${artifacts}`);
+        console.log(`Browser verified standalone React application; artifacts: ${artifacts}`);
         await send('Browser.close');
     } finally {
         socket?.close();

@@ -60,10 +60,17 @@ Read `doc/powerplant.md` before changing the Powerplant feature. It documents th
 
 ## Nuclear Power handoff
 
-Read [doc/nuclear-power.md](doc/nuclear-power.md) before changing `/nuclear-power`.
-The English-only Vaadin feature is a fictional two-loop reactor / future physical
+Read [doc/nuclear-power.md](doc/nuclear-power.md) before changing `nuclear/`.
+The English-only standalone React/Vite app is a fictional two-loop reactor / future physical
 scale-model control room, not a simulator of a specific real reactor. All current
 signals and commands are browser-local simulation; no MQTT devices are connected.
+The app, simulation modules, styles, bundled audio and tests live in `nuclear/`.
+React hosts the retained `nuclear-power-console` custom element; preserve its lifecycle.
+Run `npm ci`, `npm test`, `npm run build` and `npm run test:browser` in that folder.
+No Spring app or account login is needed. `.github/workflows/nuclear-container.yml`
+publishes `ghcr.io/norkator/porssiohjain-nuclear:latest` for amd64/arm64 on production
+pushes/manual runs. The Vaadin desktop/Start link opens `https://nuclear.porssiohjain.fi`
+in a separate tab; do not reintroduce the old Vaadin simulation view.
 The frontend separates requested rod/pump settings from actual simulated read-back.
 Equipment detail lives in the component dialogs (reactor readings in the core map),
 not a main-view card. Component valves, bypass, cooling, disturbances and turbine

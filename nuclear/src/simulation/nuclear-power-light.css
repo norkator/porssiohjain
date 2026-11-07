@@ -1,4 +1,4 @@
-/* Component-local light palette. The desktop and the default dark palette are independent. */
+/* Component-local light palette, independent of the default dark palette. */
 :host([data-theme="light"]) {
     color-scheme: light;
     color: #263e50;

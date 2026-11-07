@@ -1,9 +1,20 @@
 # Nuclear Power
 
-`/nuclear-power` is an authenticated, English-only Vaadin feature inside `MainLayout`.
-It has its own desktop/Start shortcut, title-bar icon, and taskbar entry. Both locale
-bundles deliberately call it **Nuclear Power**. The desktop shell keeps the account's
-normal language; the view and all its controls remain English.
+**Nuclear Power** is the standalone English-only React/Vite app in `nuclear/`,
+served at `https://nuclear.porssiohjain.fi` after DNS and hosting are configured.
+The Vaadin desktop and Start menu retain its pixel-icon shortcut and open that URL
+in a separate tab. The old `/nuclear-power` Vaadin view and its frontend assets have
+been removed from the Java application. Both locale bundles deliberately retain
+the name **Nuclear Power**. No account login or backend connection is required by
+the standalone simulation.
+
+React mounts the retained `nuclear-power-console` custom element, preserving its
+renderer, isolated styles and browser lifecycle. The independent npm project,
+tests, public audio and Nginx container live together in `nuclear/`.
+`.github/workflows/nuclear-container.yml` verifies it on pull requests and publishes
+`ghcr.io/norkator/porssiohjain-nuclear:latest` for amd64/arm64 on relevant production
+pushes and manual runs. The workflow does not configure DNS/TLS or deploy the image.
+See [local development and deployment](../nuclear/README.md).
 
 ## Current scope
 
@@ -31,10 +42,10 @@ exchanger, a turbine/generator, and a condenser. Click or keyboard-activate outl
 equipment to open its movable component console. The reactor opens the core map;
 its former Equipment detail readings are inside that window. The main view has no
 Equipment detail card. The diagram can be zoomed and scrolled. Controls and
-instruments adapt to the feature window's width, including desktop window resizing.
+instruments adapt to the browser viewport's width.
 
 Click the reactor vessel (or **Core map ↗**) to open the core map in a movable,
-nonmodal floating dialog above the desktop windows (up to 900 px wide, with a
+nonmodal floating dialog above the process (up to 900 px wide, with a
 650 px core drawing and viewport clamping). The process schematic stays
 visible and interactive underneath, using the same model and rod positions. Drag
 the dialog title bar to move it; when the title bar has keyboard focus, arrow keys
@@ -42,7 +53,7 @@ move it in 16 px steps. The frame is clamped to the browser viewport on movement
 and resize. Close with × or Escape. The dialog closes when the feature is hidden
 or detached; rod selection, settings, and its position remain in the retained view.
 It uses the native manual-popover top layer with `role="dialog"`, so it can float
-above the desktop frames without making the process view inert.
+above the process without making the process view inert.
 
 The core map is a fictional circular array of individually selectable fuel assemblies
 and twelve control rods, `CR-01` through `CR-12`. Control-rod rings show actual insertion;
@@ -119,7 +130,7 @@ The context stays running while sounds are enabled and the view is active, even
 between sounds, to avoid suspend/resume races. Mute/pause/hide still suspend it.
 Unloaded/late clicks are skipped rather than replayed. Sample files and
 the included CC0 license/source record are under
-`META-INF/resources/audio/nuclear-power/kenney-ui`. Original pack:
+`nuclear/public/audio/nuclear-power/kenney-ui`. Original pack:
 https://kenney.nl/assets/ui-audio; downloaded from the Calinou/kenney-ui-audio mirror
 because the original download returned 403. No external audio request occurs at runtime.
 Continuous operating hum has been removed. Routine operation is silent after the
@@ -165,7 +176,7 @@ All constants are gameplay/demo parameters, not real reactor engineering:
 
 ## Layout and appearance
 
-The console uses the full feature-window width with no fixed maximum width. At
+The console uses the full browser width with no fixed maximum width. At
 container widths of at least 1400 px, it has three columns:
 
 - left: stacked temperature, thermal output, electrical output, flow and rod cards,
@@ -178,7 +189,7 @@ Long event lists scroll inside the journal. Narrower/resized windows progressive
 use two columns and then stacked sections, with mobile-sized controls retained.
 
 Dark is the default. The header's **Light theme** switch changes this feature's
-panels, controls, diagrams, chart and logs independently of the Windows 98 shell.
+panels, controls, diagrams, chart and logs, including the React page background.
 The browser preference uses `porssiohjain.nuclear-power.theme` in local storage;
 unavailable storage falls back to dark and never prevents switching themes. Theme
 changes do not reset simulation state or alter control settings.
@@ -500,38 +511,38 @@ explicitly marked `SIMULATED`. Early successful recovery marks an incident resol
 meltdown leaves it open for inspection. Reports are browser-session data and are
 cleared by Reset demo. Export before resetting if the report is needed later.
 
-Each custom-element instance owns its state. Switching desktop windows retains the
-instance. Minimizing, scrolling the entire console out of view, or hiding the browser
+Each page's custom-element instance owns its state. Reloading or closing the page
+discards that simulation. Scrolling the entire console out of view or hiding the browser
 tab suspends background simulation work without fast-forwarding on return. Detaching
 the element clears its timer and observers. Reduced-motion preferences disable visual
 animation while instruments and controls continue to work.
 
 ## Implementation and future measurements
 
-- `views/NuclearPowerView.java` checks authentication before adding the console.
-- `src/main/frontend/nuclear-power.js` renders the native custom element, SVG
+- `nuclear/src/App.tsx` mounts the console through React, independently of Vaadin.
+- `nuclear/src/simulation/nuclear-power.js` renders the native custom element, SVG
   schematic, controls, recent two-minute trends, and bounded event journal.
-- `src/main/frontend/nuclear-power.css` is isolated in the element's shadow root.
-- `src/main/frontend/nuclear-power-light.css` supplies the optional light palette.
-- `src/main/frontend/nuclear-power-model.js` contains the deterministic, browser-local
+- `nuclear/src/simulation/nuclear-power.css` is isolated in the element's shadow root.
+- `nuclear/src/simulation/nuclear-power-light.css` supplies the optional light palette.
+- `nuclear/src/simulation/nuclear-power-model.js` contains the deterministic, browser-local
   plant, individual rod/channel layout, controller, disturbances, alarms and log.
   Its snapshot separates `commands` (requested mode/objective, temperature/flow/MW
   targets, enable states) from
   reported `signals` and per-rod insertion. Signals contain value, unit, source,
   quality, and simulated elapsed time; that time is not a sensor timestamp.
-- `src/main/frontend/nuclear-power-condition.js` owns stored heat, local fuel zones,
+- `nuclear/src/simulation/nuclear-power-condition.js` owns stored heat, local fuel zones,
   progressive faults, component stress/wear, damage, meltdown and incident retention.
-- `src/main/frontend/nuclear-power-fuel.js` owns separate per-assembly inventory,
+- `nuclear/src/simulation/nuclear-power-fuel.js` owns separate per-assembly inventory,
   uneven exposure, capability, acceleration and explicit replacement interlocks.
-- `src/main/frontend/nuclear-power-components.js` owns component settings/read-backs,
+- `nuclear/src/simulation/nuclear-power-components.js` owns component settings/read-backs,
   transfer/cooling factors, turbine shaft/breaker, disturbances, wear and exercises.
-- `src/main/frontend/nuclear-power-equipment.js` renders the movable consoles and
+- `nuclear/src/simulation/nuclear-power-equipment.js` renders the movable consoles and
   exercises, settings ownership, local trends and maintenance journal.
-- `src/main/frontend/nuclear-power-audio.js` owns quiet Start/Stop cues;
+- `nuclear/src/simulation/nuclear-power-audio.js` owns quiet Start/Stop cues;
   the main element retains alarm scheduling and shared-context lifecycle.
-- `src/main/frontend/nuclear-power-supply.js` owns auxiliary-source selection,
+- `nuclear/src/simulation/nuclear-power-supply.js` owns auxiliary-source selection,
   standby/manual diesel startup, fuel, capacity and pump power availability.
-- `src/main/frontend/nuclear-power-motion.js` integrates speed-dependent impeller
+- `nuclear/src/simulation/nuclear-power-motion.js` integrates speed-dependent impeller
   angles and flow dash offsets without phase jumps. Animation frames are separate
   from the 250 ms plant/instrument update and obey visibility and reduced motion.
 
@@ -559,36 +570,35 @@ physical safety limits without a separate scale-model capability design.
 ## Verification
 
 ```sh
+# Desktop external-link and window-navigation regressions:
 JAVA_HOME=/path/to/java21 ./gradlew compileJava test \
   --tests com.nitramite.porssiohjain.views.MainLayoutTest \
-  --tests com.nitramite.porssiohjain.views.NuclearPowerViewTest \
   --tests com.nitramite.porssiohjain.views.DesktopWindowNavigationTest
-node --test src/test/frontend/nuclear-power-model.test.mjs
-node --test src/test/frontend/nuclear-power-failure.test.mjs
-node --test src/test/frontend/nuclear-power-resources.test.mjs
-node --test src/test/frontend/nuclear-power-components.test.mjs
-node --test src/test/frontend/nuclear-power-audio.test.mjs
-node --test src/test/frontend/nuclear-power-browser.test.mjs
-# With the disposable local application already running:
-NUCLEAR_POWER_APP_URL=http://127.0.0.1:18080 node --test src/test/frontend/nuclear-power-browser.test.mjs
+
+# Independent React app, from nuclear/:
+npm ci
+npm test
+npm run build
+npm run test:browser
+# Optionally test an already running preview/container:
+NUCLEAR_POWER_APP_URL=http://127.0.0.1:8080 npm run test:browser
 ```
 
 Browser tests use Chrome at `/opt/google/chrome/chrome` by default; `CHROME_BIN` can
 select another installed Chromium executable. Without `NUCLEAR_POWER_APP_URL`, a
-temporary loopback server tests the current frontend source directly. Each run prints
-its temporary screenshot/CSV artifact directory. No extra browser test dependency
-is required beyond Node and Chrome.
+temporary loopback server tests the actual production build in `nuclear/dist/`,
+including the React entry point and bundled assets. Each run prints its temporary
+screenshot/CSV artifact directory. No extra browser test dependency is required
+beyond Node and Chrome. The simulation tests require no Spring application.
 
-Latest checkpoint (2026-11-06): the Java 21 build and 24 focused desktop/view tests
-pass. Thirty model/motion/failure/resource tests cover the controls and regulation, including
-a two-minute settled-error window and zero-flow behavior with disturbances enabled.
-Failure tests cover warning time, intervention, accumulated damage/repair, local hot
-spots, automatic protection, sustained cooling loss, slow meltdown and report retention.
-Resource tests cover unequal fuel use, acceleration, manual-only replacement, Auto
-compensation/limits, override ownership, grid transfer, standby startup, persistent manual
-stop, fuel exhaustion/refuelling and blackout recovery without automatic reactor restart.
-The browser regression also passes against the source-only console and the
-authenticated local Vaadin application. No real MQTT/model devices are connected.
+Migration checkpoint (2026-11-07): all 59 model/motion/failure/resource/component/audio
+checks and 23 focused Java desktop tests pass, as do the React production build,
+Chrome regression and Nginx container build/HTTP smoke checks. The clean Vaadin
+production bundle contains no references to the removed console.
+Browser coverage includes React startup, cold
+start and controls, wide/mobile layouts, themes, floating dialogs, exports, animation
+and pause/visibility/detach/reduced-motion cleanup. No real MQTT/model devices are
+connected.
 
 The model tests cover independent rod positions, bank behavior, speed/flow inertia,
 phase-preserving motion, automatic regulation under disturbances, categorized bounded
@@ -598,8 +608,8 @@ both view modes, control disabling in Auto, CSV export, mobile/container resizin
 wide-screen fitting and column ordering, theme default/persistence, electrical MW
 tracking and limiting, floating core-map opening/movement/closing with the process
 still visible, persistent overheat indication after acknowledgement, and
-pause/minimize/detach/reduced-motion cleanup. Generator checks also cover concurrent
+pause/visibility/detach/reduced-motion cleanup. Generator checks also cover concurrent
 floating windows, background-control focus, pointer/keyboard movement, retained position,
 Escape/close, narrow-viewport clamping, centered animated fans, stopped/reduced-motion
-visuals and hidden-view cleanup. Use the disposable local profile
-(`./run-local.sh 18080`, admin/admin) for authenticated application checks.
+visuals and hidden-view cleanup. Build the standalone app before running its browser
+regression; a running Nginx container can be checked with `NUCLEAR_POWER_APP_URL`.

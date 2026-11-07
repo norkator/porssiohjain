@@ -1,0 +1,23 @@
+:root {
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #101923;
+  color: #e3e9ee;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}
+
+#root, .nuclear-power-view {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+:root:has(nuclear-power-console[data-theme="light"]),
+.nuclear-power-view:has(nuclear-power-console[data-theme="light"]) {
+  color-scheme: light;
+  background: #edf2f5;
+  color: #233944;
+}

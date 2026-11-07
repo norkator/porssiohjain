@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NuclearPowerSimulation } from '../../main/frontend/nuclear-power-model.js';
+import { NuclearPowerSimulation } from '../src/simulation/nuclear-power-model.js';
 
 // These scenarios explicitly exercise manual operation or opt into temperature Auto.
 const manualSimulation = () => {

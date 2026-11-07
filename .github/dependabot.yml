@@ -11,6 +11,24 @@ updates:
       prefix: "deps"
       include: "scope"
     open-pull-requests-limit: 10
+  - package-ecosystem: "npm"
+    directory: "/nuclear"
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+    schedule:
+      interval: "weekly"
+      day: "friday"
+      time: "18:00"
+      timezone: "Europe/Helsinki"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    open-pull-requests-limit: 10
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
