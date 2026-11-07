@@ -178,6 +178,8 @@
 :host([data-theme="light"]) .equipment-valve > path { fill: #c8e3db; stroke: #39756c; }
 :host([data-theme="light"]) .header-control-card { background: #e3edf1; }
 :host([data-theme="light"]) .plant-tabs { background: #e9f0f3; }
+:host([data-theme="light"]) .loop-temperature-value { fill: #254b5d; }
+:host([data-theme="light"]) .exchanger-steam-puff { fill: #568d93; }
 :host([data-theme="light"]) .plant-tabs [aria-selected="true"] { color: #175e50; background: #d6eee5; border-color: #a5c9bc; border-bottom-color: #2a8b70; }
 :host([data-theme="light"]) .valve-handle path { stroke: #8e5215; }
 :host([data-theme="light"]) .exchanger-bypass { stroke: #ad651f; }

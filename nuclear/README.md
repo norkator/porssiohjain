@@ -34,6 +34,24 @@ this tab. Both 3D views support orbit, zoom, themes and cleanup; unavailable Web
 leaves auxiliary readings/controls usable. Switching tabs preserves plant state and
 only renders the selected scene. Core and component dialogs remain floating.
 
+Steam rises through the exchanger's secondary-side cutaway and turns into its
+outlet in both 3D and schematic views. Its density and speed follow secondary
+temperature and circulation, with no steam during cold circulation or zero flow.
+The vessel has moving reaction particles and individual fuel pulses driven by
+actual running power and rod insertion. Stop/trip removes reaction activity while
+retained fuel heat keeps its separate glow. These visuals share pause, visibility,
+reduced-motion and renderer cleanup with the rest of the scene.
+
+The **Grid controller** card below the instruments can **Follow requests** in
+Auto → Electrical output. The optional simulated feed is off initially, sends its
+first raise/lower MW request after 45 active seconds, then every 60 active seconds.
+**Request now** delivers one immediately. Messages update the existing electrical
+target; actual output changes through the regulator and retains its temperature,
+cooling, fuel, trip and manual-override limits. The card shows the last message,
+actual versus target output, countdown and limiting reason. Dispatch waits during
+Stop, trips, pause, Manual mode or temperature regulation; it never starts the plant.
+Disabling the feed retains the current target. Reset demo clears the feed/messages.
+
 Thermal output, electrical output and primary flow instruments have small animated
 heat, generator and coolant illustrations, plus traveling meter highlights. Their
 speed/intensity follows actual output/flow. They stay still at zero and share the

@@ -253,6 +253,18 @@ visibility-aware frame loop for illustrative motion:
   no steam. With no flow, particles stop and disappear.
 - The exchanger has traveling heat highlights and cross-circuit heat arrows driven
   by the temperature difference and actual flow in both loops. Fluids stay separate.
+  Secondary-side steam puffs rise inside its cutaway and turn toward the steam
+  outlet in both 3D and SVG views. Density/opacity and travel phase reuse the same
+  secondary temperature/actual-flow steam signal as the outlet pipe. Cold
+  circulation and zero secondary flow show no steam; retained hot circulation can
+  keep producing visible steam after shutdown. Puffs never represent an external leak.
+- The 3D vessel has moving reaction particles among the fuel channels and staggered
+  per-bundle emissive pulses. They use actual running thermal power and local rod
+  insertion, independently of shaft/output or retained-heat motion. Stop, trip and
+  meltdown remove reaction particles; retained fuel heat keeps its existing glow.
+  These are process illustrations, not added neutronics. The shared frame loop
+  freezes particle travel and pulses on pause/reduced motion and suspends hidden
+  views; particles are excluded from static batching and disposed with the scene.
 - Side-view fuel colors and core-map fuel glow follow local simulated temperatures.
   Retained fuel heat keeps the core glowing after shutdown; uneven channels remain
   visible. Meltdown gradually slumps the fuel, adds molten drips and grows a gently
@@ -409,6 +421,36 @@ the limiting reason (for example **Core temperature limit**); reported output is
 replaced with the requested value. Returning to temperature regulation restores that
 objective, preserving the electrical setpoint for later. Trips, manual mode and
 explicit restart rules remain authoritative for both objectives.
+
+### Simulated grid-controller requests
+
+The **Grid controller** card beneath the left instruments offers an explicit
+**Follow requests** opt-in and **Request now**. New/reset sessions leave it off and
+retain the normal stopped Auto/Electrical output 200 MW default. This is a local,
+deterministic dispatch exercise; there is no grid server or device connection.
+
+With the feed enabled and the reactor running in Auto → Electrical output, the
+first message arrives after 45 active simulated seconds, followed by one every
+60 active seconds. Request now immediately delivers the next message and restarts
+the interval. Requests alternate illustrative raise/lower changes, bounded to the
+existing 0–400 MW range. Each message has an ID, simulated elapsed time, direction,
+previous/requested target and explicit simulated source. It updates the existing
+electrical setpoint and records the request in the Automation journal; actual
+output continues through the existing regulator, rods and turbine response.
+
+The card distinguishes actual output, current target, last request, countdown and
+limiting/waiting status. Temperature/cooling/fuel limits and manual rod overrides
+remain authoritative; messages cannot change those limits or close a breaker.
+Countdown and request delivery suspend during Stop, trip/meltdown, pause, Manual
+mode or temperature regulation. Hiding the console freezes simulated time as usual.
+No request can reset a trip, start a reactor/turbine, refuel or repair equipment.
+Resume after a stop/trip still requires the existing explicit operator actions.
+
+Disabling the feed retains the current electrical target. Operator MW edits apply
+immediately and are identified in the card; a later grid message may replace that
+target while following is enabled. Reset demo clears the feed and last message.
+Snapshots expose `commands.followGridRequests` separately from `gridDispatch`
+message/countdown/status data and measured/simulated electrical-output signals.
 
 ### Individual rod overrides during Auto
 
@@ -590,6 +632,8 @@ animation while instruments and controls continue to work.
   the main element retains alarm scheduling and shared-context lifecycle.
 - `nuclear/src/simulation/nuclear-power-supply.js` owns auxiliary-source selection,
   standby/manual diesel startup, fuel, capacity and pump power availability.
+- `nuclear/src/simulation/nuclear-power-grid.js` owns opt-in simulated grid messages,
+  active-time cadence, readiness, requested MW changes and dispatch status.
 - `nuclear/src/simulation/nuclear-power-motion.js` integrates speed-dependent impeller
   angles and flow dash offsets without phase jumps. Animation frames are separate
   from the 250 ms plant/instrument update and obey visibility and reduced motion.
@@ -666,3 +710,9 @@ rendering/picking, fuel fill, start/stop/manual refuelling, loaded versus unload
 read-back, camera controls, mobile layout, stopped/reduced-motion visuals and
 hidden-view/GPU cleanup. Build the standalone app before running its browser
 regression; a running Nginx container can be checked with `NUCLEAR_POWER_APP_URL`.
+
+Grid/visual checkpoint (2026-11-07): 64 unit checks cover grid tracking, cadence,
+pause/mode/stop/trip guards, temperature/rod/breaker ownership and independent
+reaction/retained-heat phases. The browser regression also covers 3D/SVG exchanger
+steam, vessel reactions, cold/no-flow/Stop behavior, pause/reduced motion, grid
+message delivery and requested-versus-actual output.

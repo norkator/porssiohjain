@@ -4,19 +4,20 @@
  * Licensed under the Pörssiohjain Personal Use License v1.0.
  */
 import { CORE_CHANNELS, NuclearPowerSimulation } from './nuclear-power-model.js';
-import { advancePumpMotion, advanceProcessMotion, advanceInstrumentMotion } from './nuclear-power-motion.js';
+import { advancePumpMotion, advanceProcessMotion, advanceInstrumentMotion, flowMarkerDistance, valveHandleAngle, SVG_FLOW_SCALE } from './nuclear-power-motion.js';
 import styles from './nuclear-power.css?inline';
 import { PlantAudio } from './nuclear-power-audio.js';
 import { equipmentDialogs, initializeEquipment, updateEquipment, drawEquipmentMotion, exerciseDialog, initializeExercises, updateExercises } from './nuclear-power-equipment.js';
 import lightStyles from './nuclear-power-light.css?inline';
 import { PlantOverviewScene } from './nuclear-power-scene.js';
 import { AuxiliaryPowerScene } from './nuclear-power-auxiliary-scene.js';
+import { loopTemperatures, temperatureColor } from './nuclear-power-temperature.js';
 
 const radiation = `<svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true"><circle cx="20" cy="20" r="3.4"/><path d="M16 13.1 12 6.2a16 16 0 0 1 16 0l-4 6.9a8 8 0 0 0-8 0ZM12 20H4a16 16 0 0 0 8 13.9l4-6.9a8 8 0 0 1-4-7Zm12 7 4 6.9A16 16 0 0 0 36 20h-8a8 8 0 0 1-4 7Z"/></svg>`;
 // Explicit local (0,0) rotation avoids the asymmetric SVG bounding-box pivot.
 const pumpRotor = `<g class="rotor" transform="rotate(0 0 0)">${[0, 120, 240].map(angle => `<path transform="rotate(${angle})" d="M0-18C13-18 19-9 6 0 6-10-3-9 0-18Z"/>`).join('')}</g><circle class="pump-hub" r="5"/>`;
 
-const valveGlyph = (id, key, x, y) => `<g class="equipment-valve" data-valve-component="${id}" data-valve-key="${key}" transform="translate(${x} ${y})"><circle r="10"/><path d="M-12-6 0 0-12 6ZM12-6 0 0 12 6Z"/><g class="valve-handle"><path d="M-8 0h16"/></g></g>`;
+const valveGlyph = (id, key, x, y, pipeAngle = 0) => `<g class="equipment-valve" data-valve-component="${id}" data-valve-key="${key}" data-pipe-angle="${pipeAngle}" transform="translate(${x} ${y})"><circle r="10"/><path transform="rotate(${pipeAngle})" d="M-12-6 0 0-12 6ZM12-6 0 0 12 6Z"/><g class="valve-handle"><path d="M-8 0h16"/></g></g>`;
 
 const schematic = `
 <svg class="schematic" viewBox="0 0 1000 550" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Interactive simulated reactor, primary coolant circuit, heat exchanger and turbine circuit">
@@ -34,15 +35,15 @@ const schematic = `
 
  <!-- Independent primary and secondary loops. Static pipework remains visible without flow. -->
  <path class="pipe-shell" d="M298 220H365V160H530M530 365H460V438H298V350"/>
- <path class="pipe hot" d="M298 220H365V160H530"/>
- <path class="pipe cold" d="M530 365H460V438H298V350"/>
- <path class="flow primary hot-flow" d="M298 220H365V160H530"/>
- <path class="flow primary cold-flow" d="M530 365H460V438H298V350"/>
+ <path class="pipe hot" data-loop-segment="primaryHot" d="M298 220H365V160H530"/>
+ <path class="pipe cold" data-loop-segment="primaryReturn" d="M530 365H460V438H298V350"/>
+ <path class="flow primary hot-flow" data-loop-segment="primaryHot" d="M298 220H365V160H530"/>
+ <path class="flow primary cold-flow" data-loop-segment="primaryReturn" d="M530 365H460V438H298V350"/>
  <path class="pipe-shell" d="M610 160H790V210M840 270V355M790 410V470H610V365"/>
- <path class="pipe steam" d="M610 160H790V210"/>
- <path class="pipe cold" d="M840 270V355M790 410V470H610V365"/>
- <path class="flow secondary steam-flow" d="M610 160H790V210"/>
- <path class="flow secondary cold-flow" d="M840 270V355M790 410V470H610V365"/>
+ <path class="pipe steam" data-loop-segment="secondaryHot" d="M610 160H790V210"/>
+ <path class="pipe cold" data-loop-segment="secondaryExhaust" d="M840 270V355"/><path class="pipe cold" data-loop-segment="secondaryReturn" d="M790 410V470H610V365"/>
+ <path class="flow secondary steam-flow" data-loop-segment="secondaryHot" d="M610 160H790V210"/>
+ <path class="flow secondary cold-flow" data-loop-segment="secondaryExhaust" d="M840 270V355"/><path class="flow secondary cold-flow" data-loop-segment="secondaryReturn" d="M790 410V470H610V365"/>
  <g class="process-particles" aria-hidden="true">${Array.from({length: 6}, (_, i) => `<circle class="steam-particle" data-particle="${i}" r="2.5"/>`).join('')}</g>
  <path class="signal-line generator-export" d="M866 238H926V308"/><text x="926" y="329" text-anchor="middle" class="equipment-tag">GRID</text>
  <path d="m920 300 6 8 6-8" fill="none" stroke="#a9c5bf" stroke-width="2"/>
@@ -74,11 +75,11 @@ const schematic = `
  </g>
 
  <!-- Core outlet and return instruments. -->
- <g class="instrument core-temperature-instrument" transform="translate(330 240)"><path d="M35-20V0"/><rect width="110" height="51" rx="5"/><text x="12" y="18" class="instrument-label">CORE OUTLET</text><text x="12" y="39" class="instrument-value warm" data-value="core">286.0 °C</text></g>
- <g class="instrument" transform="translate(325 349)"><path d="M40 51V89"/><rect width="110" height="51" rx="5"/><text x="12" y="18" class="instrument-label">RETURN</text><text x="12" y="39" class="instrument-value cool" data-value="return">258.0 °C</text></g>
+ <g class="instrument core-temperature-instrument" transform="translate(330 240)"><path d="M35-20V0"/><rect width="110" height="51" rx="5"/><text x="12" y="18" class="instrument-label">CORE OUTLET</text><text x="12" y="39" class="instrument-value loop-temperature-value" data-value="core">286.0 °C</text></g>
+ <g class="instrument" transform="translate(325 349)"><path d="M40 51V89"/><rect width="110" height="51" rx="5"/><text x="12" y="18" class="instrument-label">CORE INLET</text><text x="12" y="39" class="instrument-value loop-temperature-value" data-value="return">258.0 °C</text></g>
  <text x="393" y="137" class="circuit-label warm">01 / PRIMARY</text>
- <path d="m464 155 8 5-8 5" class="arrow warm"/>
- <path d="m369 433-8 5 8 5" class="arrow cool"/>
+ <path data-loop-segment="primaryHot" d="m464 155 8 5-8 5" class="arrow warm"/>
+ <path data-loop-segment="primaryReturn" d="m369 433-8 5 8 5" class="arrow cool"/>
 
  <!-- Heat exchanger: separated hot and cold tube paths. -->
  <g class="equipment" data-equipment="exchanger" role="button" tabindex="0" aria-label="Inspect heat exchanger">
@@ -86,14 +87,15 @@ const schematic = `
   <text x="570" y="88" text-anchor="middle" class="equipment-tag">HX-01</text>
   <rect x="522" y="124" width="96" height="270" rx="38" fill="url(#vessel)" stroke="#83929b" stroke-width="2"/>
   <rect x="533" y="140" width="74" height="236" rx="28" fill="#14232f" stroke="#5d6f79"/>
-  <path d="M530 160h15v25h50v23h-50v23h50v23h-50v23h50v23h-50v23h50v23h-50v19h-15" fill="none" stroke="#d69a60" stroke-width="5"/>
+  <path data-loop-segment="primaryHot" d="M530 160h15v25h50v23h-50v23h50v23h-50v23h50v23h-50v23h50v23h-50v19h-15" fill="none" stroke="#d69a60" stroke-width="5"/>
   <path class="exchanger-heat-flow" d="M545 185h50v23h-50v23h50v23h-50v23h50v23h-50v23h50v23h-50"/>
   <g class="heat-transfer" aria-hidden="true">${[203,249,295,341].map(y => `<path d="M552 ${y}h34m-5-4 5 4-5 4"/>`).join('')}</g>
-  <path d="M610 365h-12V160h12" fill="none" stroke="#6ac9bc" stroke-width="4"/>
+  <g class="exchanger-steam" aria-hidden="true">${Array.from({ length: 12 }, (_, index) => `<ellipse class="exchanger-steam-puff" data-steam-puff="${index}" rx="4" ry="6" opacity="0"/>`).join('')}</g>
+  <path data-loop-segment="secondaryReturn" d="M610 365h-12V160h12" fill="none" stroke="#6ac9bc" stroke-width="4"/>
   <path d="M531 152v217" stroke="#e4edf0" stroke-opacity=".2" stroke-width="2"/>
-  <path class="exchanger-bypass" d="M530 160H490V365H530"/>
-  ${valveGlyph('exchanger','bypass',490,270)}
-  ${valveGlyph('exchanger','secondaryValve',610,190)}
+  <path class="exchanger-bypass" data-loop-segment="primaryBypass" d="M530 160H490V365H530"/>
+  ${valveGlyph('exchanger','bypass',490,270,90)}
+  ${valveGlyph('exchanger','secondaryValve',610,190,90)}
   <text x="570" y="421" text-anchor="middle" class="component-subtitle">HEAT EXCHANGER</text>
  </g>
 
@@ -108,7 +110,7 @@ const schematic = `
 
  <!-- Steam turbine and generator. -->
  <text x="669" y="137" class="circuit-label warm">02 / SECONDARY</text>
- <g class="instrument" transform="translate(649 63)"><path d="M45 51v46"/><rect width="120" height="51" rx="5"/><text x="12" y="18" class="instrument-label">STEAM OUTLET</text><text x="12" y="39" class="instrument-value warm" data-value="secondary">184.0 °C</text></g>
+ <g class="instrument" transform="translate(649 63)"><path d="M45 51v46"/><rect width="120" height="51" rx="5"/><text x="12" y="18" class="instrument-label">STEAM OUTLET</text><text x="12" y="39" class="instrument-value loop-temperature-value" data-value="secondary">184.0 °C</text></g>
  <g class="equipment turbine" data-equipment="turbine" role="button" tabindex="0" aria-label="Inspect turbine and generator">
   <rect class="selection-ring" x="739" y="187" width="146" height="106" rx="12"/>
   ${valveGlyph('turbine','admission',732,160)}
@@ -136,7 +138,8 @@ const schematic = `
   ${valveGlyph('pumpB','dischargeValve',735,470)}
   <text x="746" y="468" class="equipment-tag">P-02</text><text x="746" y="486" class="pump-state" data-value="pumpB">RUNNING</text>
  </g>
- <path d="m725 465-8 5 8 5" class="arrow cool"/>
+ <path data-loop-segment="secondaryReturn" d="m725 465-8 5 8 5" class="arrow cool"/>
+ <g class="instrument" transform="translate(505 480)"><path d="M105 0V-10"/><rect width="135" height="51" rx="5"/><text x="10" y="18" class="instrument-label">SECONDARY RETURN</text><text x="10" y="39" class="instrument-value loop-temperature-value" data-value="secondaryReturn"></text></g>
 </svg>`;
 
 
@@ -181,11 +184,11 @@ const auxiliaryPanel = `<section id="auxiliary-panel" class="auxiliary-panel" ro
 </section>`;
 
 const equipmentDetails = {
-    reactor: { tag: 'R-01', name: 'Reactor vessel', description: 'Rod position sets simulated heat output. The primary loop carries heat to the exchanger.', fields: [['Core outlet', 'core'], ['Coolant return', 'return'], ['Rod insertion', 'rods']] },
+    reactor: { tag: 'R-01', name: 'Reactor vessel', description: 'Rod position sets simulated heat output. The primary loop carries heat to the exchanger.', fields: [['Core outlet', 'core'], ['Core inlet', 'return'], ['Rod insertion', 'rods']] },
     exchanger: { tag: 'HX-01', name: 'Heat exchanger', description: 'Transfers simulated heat between two separate circuits. Primary and secondary coolant remain separate.', fields: [['Primary inlet', 'core'], ['Primary return', 'return'], ['Secondary outlet', 'secondary']] },
     pumpA: { tag: 'P-01', name: 'Primary circulation', description: 'Circulates coolant through the reactor and heat exchanger. Rotation and flow follow actual speed, including coast-down.', fields: [['Pump state', 'pumpA'], ['Speed target', 'pumpATarget'], ['Actual speed', 'pumpAActual'], ['Primary flow', 'flow'], ['Stress', 'pumpAStress'], ['Damage', 'pumpADamage']] },
     pumpB: { tag: 'P-02', name: 'Secondary circulation', description: 'Returns cooled secondary coolant to the exchanger. Rotation and flow follow actual speed, including coast-down.', fields: [['Pump state', 'pumpB'], ['Speed target', 'pumpBTarget'], ['Actual speed', 'pumpBActual'], ['Secondary flow', 'secondaryFlow'], ['Stress', 'pumpBStress'], ['Damage', 'pumpBDamage']] },
-    condenser: { tag: 'C-01', name: 'Condenser', description: 'Cooling water removes heat from the secondary loop. Valve position and inlet temperature affect cooling capacity.', fields: [['Secondary temperature', 'secondary'], ['Secondary flow', 'secondaryFlow']] },
+    condenser: { tag: 'C-01', name: 'Condenser', description: 'Cooling water removes heat from the secondary loop. Valve position and inlet temperature affect cooling capacity.', fields: [['Secondary inlet', 'secondary'], ['Return to exchanger', 'secondaryReturn'], ['Secondary flow', 'secondaryFlow']] },
     turbine: { tag: 'TG-01', name: 'Turbine & generator', description: 'Converts a portion of simulated thermal output to electricity. Output responds to reactor load and secondary flow.', fields: [['Thermal output', 'thermal'], ['Electrical output', 'electric'], ['Actual load', 'load']] }
 };
 
@@ -261,7 +264,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <div><span class="control-label">CONTROL MODE</span><div class="mode-switch" role="group" aria-label="Control mode"><button data-action="manual" aria-pressed="false">Manual</button><button data-action="auto" aria-pressed="true">Auto</button></div></div>
             <label for="auto-objective">Regulate <select id="auto-objective"><option value="power">Electrical output</option><option value="temperature">Core temperature</option></select></label>
             <label for="auto-electrical" class="electrical-target" hidden>Output target <span><input id="auto-electrical" type="number" min="0" max="400" step="1" value="200"/> MW<span class="subscript">e</span></span></label>
-            <label for="auto-temperature"><span data-value="temperatureLabel">Core target</span><span><input id="auto-temperature" type="number" min="40" max="330" step="1" value="286"/> °C</span></label>
+            <label for="auto-temperature"><span data-value="temperatureLabel">Core target</span><span><input id="auto-temperature" type="number" min="40" step="1" value="286"/> °C</span></label>
             <label for="auto-flow">Circulation target <span><input id="auto-flow" type="number" min="25" max="100" step="1" value="85"/> %</span></label>
             <div class="regulation-status"><strong data-value="regulation">MANUAL CONTROL</strong><span data-value="regulationDetail">Individual rods and pump speeds available.</span><button class="small-button" data-action="fluctuations" aria-pressed="true">Fluctuations: On</button></div>
           </section>
@@ -279,6 +282,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">Ⅱ</span> Rod insertion <span class="channel">ZI-01</span></div><div class="metric-reading"><span data-value="rodsNumber">36.0</span><span class="unit">%</span></div><div class="metric-foot"><span>TARGET <span data-value="rodTarget">36%</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="rods"></i></div></article>
           </section>
           <details class="fault-console"><summary>Faults &amp; incident</summary><div><label for="fault-scenario">Simulated fault scenario</label><select id="fault-scenario"><option value="none">No injected fault</option><option value="primary-restriction">Primary-loop obstruction</option><option value="secondary-loss">Secondary cooling loss</option><option value="pump-wear">Primary pump deterioration</option></select><button class="small-button" data-action="clear-fault">Clear injected fault</button><button class="small-button" data-action="repair" disabled>Repair components</button><p>Stop, clear the fault and cool down to enable repair. Meltdown requires Reset demo.</p><p data-value="incidentSummary">No incident recorded.</p><button class="small-button" data-action="export-incident" disabled>Export incident report</button></div></details>
+          <section class="panel grid-dispatch-panel" aria-label="Simulated grid controller"><div class="panel-heading"><h2>Grid controller</h2><span class="local-tag">SIMULATED</span></div><div class="grid-dispatch-content"><div class="grid-dispatch-controls"><label><input id="follow-grid" type="checkbox"/> Follow requests</label><button class="small-button" data-action="grid-request" disabled>Request now</button></div><strong data-value="gridStatus"></strong><p class="grid-dispatch-message" data-value="gridMessage" role="status" aria-live="polite"></p><span data-value="gridReadback"></span><small data-value="gridNext"></small></div></section>
           </aside>
 
           <section class="control-column" aria-label="Reactor and operator controls">
@@ -294,7 +298,7 @@ export class NuclearPowerConsole extends HTMLElement {
               <p class="diagram-scroll-hint">Scroll sideways to explore · select equipment to inspect</p>
               <div class="overview-toolbar"><div class="mode-switch" role="group" aria-label="Reactor overview presentation"><button data-action="overview-3d" aria-pressed="true">3D cutaway</button><button data-action="overview-schematic" aria-pressed="false">Schematic</button></div><span class="overview-status" role="status"></span><div class="scene-camera-tools" role="group" aria-label="3D camera"><button class="small-button" data-action="scene-zoom-out" aria-label="Zoom 3D view out">−</button><button class="small-button" data-action="scene-zoom-in" aria-label="Zoom 3D view in">+</button><button class="small-button" data-action="scene-home" aria-label="Reset 3D camera">Reset view</button></div></div>
               <div class="diagram-viewport" data-overview="3d" tabindex="0" aria-label="Interactive plant overview"><div class="plant-scene" aria-label="Low-poly reactor cutaway"></div>${schematic}</div>
-              <div class="diagram-legend"><span><i class="legend-line warm-line"></i> Hot / steam</span><span><i class="legend-line cool-line"></i> Coolant return</span><span><i class="legend-dot"></i> Simulated signal</span><span class="diagram-note">Illustrative process · independent demo session</span></div>
+              <div class="diagram-legend"><span><i class="temperature-scale" aria-hidden="true"></i> Loop temperature · 20 °C → 335+ °C</span><span><i class="legend-dot"></i> Simulated read-back</span><span class="diagram-note">Illustrative process · independent demo session</span></div>
               </div>
               ${auxiliaryPanel}
             </section>
@@ -376,6 +380,10 @@ export class NuclearPowerConsole extends HTMLElement {
         this.shadowRoot.querySelector('#auto-electrical').addEventListener('change', event => {
             if (!event.target.checkValidity() || event.target.value === '') { event.target.value = this.simulation.autoElectricalTarget; return; }
             this.simulation.setElectricalTarget(Number(event.target.value));
+            this.update();
+        });
+        this.shadowRoot.querySelector('#follow-grid').addEventListener('change', event => {
+            this.simulation.setGridDispatchEnabled(event.target.checked);
             this.update();
         });
         this.shadowRoot.querySelector('#fault-scenario').addEventListener('change', event => {
@@ -797,6 +805,7 @@ export class NuclearPowerConsole extends HTMLElement {
             'auxiliary-zoom-in': () => this.auxiliaryScene?.setZoom(this.auxiliaryScene.zoom + .15),
             'auxiliary-zoom-out': () => this.auxiliaryScene?.setZoom(this.auxiliaryScene.zoom - .15),
             'auxiliary-home': () => this.auxiliaryScene?.resetCamera(),
+            'grid-request': () => sim.requestGridDispatch(),
             zoom: () => {
                 if (this.overviewMode === '3d') {
                     this.overviewScene?.setZoom(this.overviewScene.zoom > 1 ? 1 : 1.4);
@@ -870,7 +879,7 @@ export class NuclearPowerConsole extends HTMLElement {
             const shaftMotion = advancePumpMotion(previous, this.simulation.components.items[`pump${pump}`].actual.speed, seconds);
             const motion = this.motion[pump] = { angle: shaftMotion.angle, offset: flowMotion.offset };
             this.shadowRoot.querySelector(`.pump-${pump.toLowerCase()} .rotor`).setAttribute('transform', `rotate(${motion.angle} 0 0)`);
-            for (const path of this.shadowRoot.querySelectorAll(`.flow.${circuit}`)) path.style.strokeDashoffset = motion.offset;
+            for (const path of this.shadowRoot.querySelectorAll(`.flow.${circuit}`)) path.style.strokeDashoffset = -(pump === 'A' ? this.processMotion.primaryTravel : this.processMotion.secondaryTravel) * SVG_FLOW_SCALE;
         }
         for (const generator of this.simulation.supply.generators) {
             const speed = generator.state === 'RUNNING' ? 360 : generator.state === 'STARTING' ? 120 : 0;
@@ -911,13 +920,17 @@ export class NuclearPowerConsole extends HTMLElement {
             temperature: sim.temperature, secondaryTemperature: sim.secondaryTemperature,
             primaryFlow: sim.primaryFlow, secondaryFlow: sim.secondaryFlow,
             fuelTemperature: sim.condition.peakTemperature,
+            reactorPower: sim.running && !sim.tripped && !sim.condition.meltdown ? sim.power : 0,
             shaftSpeed: sim.components?.items.turbine.actual.shaftSpeed,
+            exchangerTransferFactor: sim.components.items.exchanger.actual.transferFactor,
             electricalOutput: sim.electricalOutput, supplyFactor: sim.supply.factor
         }, seconds);
         const root = this.shadowRoot;
+        const temperatures = loopTemperatures(sim);
+        for (const segment of root.querySelectorAll('[data-loop-segment]')) segment.style.stroke = temperatureColor(temperatures[segment.dataset.loopSegment]);
         const steamPath = root.querySelector('.steam-flow');
         for (const dot of root.querySelectorAll('.steam-particle')) {
-            const point = steamPath.getPointAtLength(((motion.steamPhase + Number(dot.dataset.particle) / 6) % 1) * steamPath.getTotalLength());
+            const point = steamPath.getPointAtLength(flowMarkerDistance(motion.secondaryTravel * SVG_FLOW_SCALE, Number(dot.dataset.particle), 6, steamPath.getTotalLength()));
             dot.setAttribute('cx', point.x); dot.setAttribute('cy', point.y);
             dot.style.opacity = motion.steam;
         }
@@ -925,6 +938,16 @@ export class NuclearPowerConsole extends HTMLElement {
         root.querySelector('.exchanger-heat-flow').style.strokeDashoffset = -motion.heatPhase * 40;
         root.querySelector('.exchanger-heat-flow').style.opacity = motion.heat;
         root.querySelector('.heat-transfer').style.opacity = motion.heat * (.55 + .45 * Math.sin(motion.heatPhase * Math.PI) ** 2);
+        for (const puff of root.querySelectorAll('.exchanger-steam-puff')) {
+            const index = Number(puff.dataset.steamPuff);
+            const phase = (motion.steamPhase + index / 12) % 1;
+            const turn = Math.min(1, Math.max(0, (phase - .72) / .28));
+            puff.setAttribute('cx', (548 + index % 3 * 20 + Math.sin(phase * Math.PI * 2 + index) * 3) * (1 - turn) + 610 * turn);
+            puff.setAttribute('cy', 345 - Math.min(1, phase / .8) * 185);
+            puff.setAttribute('rx', 3 + Math.sin(phase * Math.PI) * 3);
+            puff.setAttribute('ry', 4 + Math.sin(phase * Math.PI) * 5);
+            puff.setAttribute('opacity', motion.steam * .55 * Math.sin(phase * Math.PI));
+        }
         for (const blade of root.querySelectorAll('[data-turbine-blade]')) {
             const i = Number(blade.dataset.turbineBlade);
             const half = (18 + i * 2) * Math.cos((motion.angle + i * 32) * Math.PI / 180);
@@ -953,7 +976,7 @@ export class NuclearPowerConsole extends HTMLElement {
         root.querySelector('.melt-pool').style.fill = `hsl(${10 + 8 * Math.sin(thermalPhase * Math.PI * 2)} 100% 62%)`;
         for (const valve of root.querySelectorAll('[data-valve-component]')) {
             const actual = sim.components?.items[valve.dataset.valveComponent]?.actual[valve.dataset.valveKey] ?? 100;
-            valve.querySelector('.valve-handle').setAttribute('transform', `rotate(${-90+actual*.9} 0 0)`);
+            valve.querySelector('.valve-handle').setAttribute('transform', `rotate(${valveHandleAngle(actual, Number(valve.dataset.pipeAngle))} 0 0)`);
             valve.classList.toggle('restricted', actual < 25 && valve.dataset.valveKey !== 'bypass');
         }
         const bypass = sim.components?.items.exchanger.actual.bypass || 0;
@@ -1084,6 +1107,7 @@ export class NuclearPowerConsole extends HTMLElement {
         const values = {
             core: `${n(signals.coreTemperature.value, 1)} °C`, coreNumber: n(signals.coreTemperature.value, 1),
             return: `${n(signals.returnTemperature.value, 1)} °C`, secondary: `${n(signals.secondaryTemperature.value, 1)} °C`,
+            secondaryReturn: `${n(signals.secondaryReturnTemperature.value, 1)} °C`,
             thermal: `${n(signals.thermalOutput.value)} MW`, thermalNumber: n(signals.thermalOutput.value),
             electric: `${n(signals.electricalOutput.value)} MW`, electricNumber: n(signals.electricalOutput.value),
             electricalTargetLabel: sim.autoObjective === 'power' ? `TARGET ${n(sim.autoElectricalTarget)} MW ELECTRIC` : 'GENERATOR OUTPUT',
@@ -1111,6 +1135,10 @@ export class NuclearPowerConsole extends HTMLElement {
             fuelReserve: percent(sim.fuel.remaining), fuelCapability: percent(sim.fuel.capability * 100),
             fuelReplacementReadiness: fuelReadiness.ready ? 'Ready for manual replacement. Reactor will remain stopped.' : fuelReadiness.reasons.join('. ') + '.',
             powerSource: sim.supply.source, auxiliaryLoad: `${n(sim.supply.demand, 2)} MW requested / ${n(sim.supply.capacity, 1)} MW available`,
+            gridStatus: sim.gridDispatch.status(sim),
+            gridMessage: sim.gridDispatch.lastRequest ? `${this.time(sim.gridDispatch.lastRequest.time)} · ${sim.gridDispatch.lastRequest.message}` : 'Incoming raise/lower requests adjust the MW target in Auto.',
+            gridReadback: `Actual ${n(sim.electricalOutput, 1)} MW / target ${n(sim.autoElectricalTarget)} MW`,
+            gridNext: sim.gridDispatch.enabled ? `${sim.gridDispatch.readiness(sim).ready ? 'Next request in' : 'Countdown held at'} ${Math.ceil(sim.gridDispatch.remaining)} s` : 'Enable to follow simulated grid messages.',
             mode: sim.autoMode ? 'AUTO' : 'MANUAL',
             conditionStage: condition.stage,
             peakFuel: `${n(condition.peakTemperature, 1)} °C`,
@@ -1135,6 +1163,9 @@ export class NuclearPowerConsole extends HTMLElement {
         for (const element of this.shadowRoot.querySelectorAll('[data-value]')) {
             if (values[element.dataset.value] !== undefined && element.textContent !== values[element.dataset.value]) element.textContent = values[element.dataset.value];
         }
+        this.shadowRoot.querySelector('#follow-grid').checked = sim.gridDispatch.enabled;
+        this.shadowRoot.querySelector('[data-action="grid-request"]').disabled = !sim.gridDispatch.readiness(sim).ready;
+        this.shadowRoot.querySelector('.grid-dispatch-panel').dataset.following = String(sim.gridDispatch.enabled);
         this.dataset.state = sim.tripped ? 'tripped' : sim.running ? 'running' : 'stopped';
         this.dataset.overheated = String(sim.temperature > 335);
         this.dataset.temperatureOk = String(sim.running && !sim.tripped && !condition.damaged && sim.temperature <= 335 && condition.peakTemperature <= 410);

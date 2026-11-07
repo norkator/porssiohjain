@@ -130,6 +130,9 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.overviewScene.rods.length;'), 12);
         assert.equal(await consoleCode('return c.overviewScene.paths.some(p=>p.dots.some(dot=>dot.visible));'), false);
         assert.equal(await consoleCode('return c.overviewScene.turbineRotor.rotation.x;'), 0);
+        assert.equal(await consoleCode('return c.overviewScene.exchangerSteam.some(puff=>puff.visible);'), false);
+        assert.equal(await consoleCode('return c.overviewScene.reactorReactions.some(particle=>particle.visible);'), false);
+        assert.equal(await consoleCode('return s.querySelector("#follow-grid").checked;'), false);
         assert.equal(await consoleCode('return s.querySelector(".header-control-card").contains(s.querySelector("#auto-objective"));'), true);
         assert.equal(await consoleCode('return s.querySelector(".header-control-card").contains(s.querySelector("[data-action=sound]"));'), true);
         assert.equal(await consoleCode('return s.querySelector(".header-control-card").contains(s.querySelector("#light-theme"));'), true);
@@ -311,6 +314,26 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.notEqual(processBefore.drop, processAfter.drop);
         assert.equal(await consoleCode("const rotor=s.querySelector('.generator-rotor'); const p=new DOMPoint(0,0).matrixTransform(rotor.getScreenCTM());const hub=new DOMPoint(898,238).matrixTransform(s.querySelector('.schematic').getScreenCTM());return Math.hypot(p.x-hub.x,p.y-hub.y)<.01;"), true);
         await screenshot('process-animation-running');
+        await action('overview-3d');
+        assert.ok(await consoleCode('return c.overviewScene.exchangerSteam.some(puff=>puff.visible && puff.material.opacity>0);'));
+        assert.ok(await consoleCode('return c.overviewScene.reactorReactions.some(particle=>particle.visible);'));
+        const activityBefore = await consoleCode('return {steam:c.overviewScene.exchangerSteam[0].position.toArray(),reaction:c.overviewScene.reactorReactions[0].position.toArray()};');
+        await until(`JSON.stringify(document.querySelector('nuclear-power-console').overviewScene.exchangerSteam[0].position.toArray()) !== ${JSON.stringify(JSON.stringify(activityBefore.steam))}`, 'Heat-exchanger steam did not rise');
+        assert.notDeepEqual(await consoleCode('return c.overviewScene.reactorReactions[0].position.toArray();'), activityBefore.reaction);
+        await screenshot('steam-and-core-reactions');
+        await action('pause');
+        const frozenActivity = await consoleCode('return {steam:c.overviewScene.exchangerSteam.map(p=>p.position.toArray()),reaction:c.overviewScene.reactorReactions.map(p=>p.position.toArray())};');
+        await wait(180);
+        assert.deepEqual(await consoleCode('return {steam:c.overviewScene.exchangerSteam.map(p=>p.position.toArray()),reaction:c.overviewScene.reactorReactions.map(p=>p.position.toArray())};'), frozenActivity);
+        // Changing read-back while paused tests visibility without advancing physics.
+        await consoleCode('const temp=c.simulation.secondaryTemperature,flow=c.simulation.secondaryFlow;c.simulation.secondaryTemperature=30;c.update();window.coldSteamHidden=c.overviewScene.exchangerSteam.every(p=>!p.visible);c.simulation.secondaryTemperature=temp;c.simulation.secondaryFlow=0;c.update();window.noFlowSteamHidden=c.overviewScene.exchangerSteam.every(p=>!p.visible);c.simulation.secondaryFlow=flow;c.update();');
+        assert.equal(await evaluate('window.coldSteamHidden && window.noFlowSteamHidden'), true);
+        await action('pause');
+        await action('stop');
+        assert.equal(await consoleCode('return c.overviewScene.reactorReactions.some(p=>p.visible);'), false);
+        assert.ok(await consoleCode('return c.overviewScene.fuel.some(f=>f.material.emissiveIntensity>0);'), 'Retained fuel heat must remain visible after reaction stops');
+        await warmOperatingPoint();
+        await action('overview-schematic');
         await action('trends-view');
         assert.equal(await consoleCode("return s.querySelector('.trends-dialog').matches(':popover-open');"), true);
         assert.ok(await consoleCode("return s.querySelector('.trends-dialog .trend-chart').getBoundingClientRect().width > s.querySelector('.trend-panel .trend-chart').getBoundingClientRect().width;"));
@@ -395,6 +418,18 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await value('temperatureLabel'), 'Core limit');
         assert.equal(await value('chartOutputUnit'), 'MW');
         assert.ok(await consoleCode(`return s.querySelector('.target-trace').getAttribute('d').length>0;`));
+        await consoleCode('const box=s.querySelector("#follow-grid");box.checked=true;box.dispatchEvent(new Event("change",{bubbles:true}));');
+        await action('grid-request');
+        assert.match(await value('gridMessage'), /Raise electrical output from 150 to 190 MW/);
+        assert.equal(await consoleCode('return Number(s.querySelector("#auto-electrical").value);'), 190);
+        assert.ok(Math.abs(await consoleCode('return c.simulation.electricalOutput;') - 150) < 3, 'Grid targets must remain separate from actual output');
+        await screenshot('grid-controller-following');
+        await action('grid-request');
+        assert.match(await value('gridMessage'), /Lower electrical output from 190 to 130 MW/);
+        await consoleCode('const box=s.querySelector("#follow-grid");box.checked=false;box.dispatchEvent(new Event("change",{bubbles:true}));');
+        assert.equal(await consoleCode('return c.simulation.autoElectricalTarget;'), 130);
+        assert.equal(await consoleCode('return s.querySelector("[data-action=grid-request]").disabled;'), true);
+        await input('#auto-electrical', 150);
         await page('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
         await advance(1200); // Check the power view with a full event journal.
         assert.ok(await consoleCode(`return s.querySelector('.console-footer').getBoundingClientRect().bottom;`) <= 1080, 'Electrical control and a full journal should fit a wide screen');
@@ -656,10 +691,12 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.animationFrame;'), null);
         await action('overview-3d');
         const reduced3dRotor = await consoleCode('return c.overviewScene.turbineRotor.rotation.x;');
+        const reducedActivity = await consoleCode('return {steam:c.overviewScene.exchangerSteam.map(p=>p.position.toArray()),reaction:c.overviewScene.reactorReactions.map(p=>p.position.toArray())};');
         const reducedAngle = await consoleCode('return c.processMotion.angle;');
         await wait(300);
         assert.equal(await consoleCode('return c.processMotion.angle;'), reducedAngle);
         assert.equal(await consoleCode('return c.overviewScene.turbineRotor.rotation.x;'), reduced3dRotor);
+        assert.deepEqual(await consoleCode('return {steam:c.overviewScene.exchangerSteam.map(p=>p.position.toArray()),reaction:c.overviewScene.reactorReactions.map(p=>p.position.toArray())};'), reducedActivity);
         assert.ok(await consoleCode('return Boolean(c.timer);'));
         await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
         await until(`!!document.querySelector('nuclear-power-console').animationFrame`, 'Animation did not resume after reduced motion');

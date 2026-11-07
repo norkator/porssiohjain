@@ -475,3 +475,17 @@ test('generator rotates whenever output is reported even below the steam visual 
     assert.equal(motion.steam, 0);
     assert.equal(motion.steamPhase, 0);
 });
+
+test('reaction illustration follows actual core power independently of steam, shaft and retained heat', () => {
+    const initial = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0, reactionPhase: 0 };
+    const cold = { temperature: 30, secondaryTemperature: 28, primaryFlow: 0, secondaryFlow: 0, fuelTemperature: 30, electricalOutput: 0, reactorPower: 0, supplyFactor: 1 };
+    assert.equal(advanceProcessMotion(initial, cold, .1).reactionPhase, 0);
+    const active = advanceProcessMotion(initial, { ...cold, reactorPower: 50 }, .1);
+    assert.ok(active.reactionPhase > 0);
+    assert.equal(active.steam, 0);
+    assert.equal(active.speed, 0);
+    const stopped = advanceProcessMotion(active, { ...cold, fuelTemperature: 500 }, .1);
+    assert.equal(stopped.reactionPhase, active.reactionPhase);
+    assert.ok(stopped.thermalPhase > 0, 'Retained-heat illustration stays independent');
+    assert.equal(advanceProcessMotion(active, { ...cold, reactorPower: 50 }, 0).reactionPhase, active.reactionPhase);
+});

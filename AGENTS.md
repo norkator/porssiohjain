@@ -103,6 +103,15 @@ volume slider or test-click button. Thermal/electrical/flow instrument motion fo
 actual read-back and obeys cold/zero, pause, visibility and reduced-motion behavior.
 Dark remains default; light theme is local to this feature. Auto can regulate core temperature or electrical MW; power requests
 must respect the configured core-temperature ceiling and report limiting reasons.
+The opt-in simulated Grid controller sends bounded raise/lower MW messages through
+the existing Auto/electrical regulator (45 active seconds initially, then every 60).
+Keep requested targets separate from actual output and suspend dispatch while
+stopped, tripped, paused, Manual or temperature-regulated. It must never start/reset,
+close breakers, change limits, repair or refuel. Disabling retains the current MW
+target; Reset demo disables the feed and clears messages. Exchanger steam stays on
+the secondary side and follows actual heat/flow; vessel reaction particles/pulses
+follow actual running power/rod insertion, with retained heat shown independently.
+Preserve cold/no-flow/Stop, pause, reduced-motion and renderer cleanup behavior.
 Clicking the vessel opens a movable floating core-map dialog while the process
 stays visible. Over 335 °C, the core card/outlet/annunciator stay red until cooling,
 independent of alarm acknowledgement. These are simulation limits, not hardware safety limits.

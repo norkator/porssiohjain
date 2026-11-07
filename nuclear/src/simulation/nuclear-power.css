@@ -155,6 +155,8 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .1px; white-space: nowra
 .legend-line { width: 16px; height: 3px; border-radius: 1px; }
 .warm-line { background: #b88255; }
 .cool-line { background: #5a9c9b; }
+.temperature-scale { display: inline-block; width: 84px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #4faed3, #5fcbbb 19%, #e9c164 44%, #ef884c 73%, #f05a52); }
+.instrument-value.loop-temperature-value { fill: #d9e8ec; }
 .legend-dot { height: 5px; width: 5px; display: inline-block; background: var(--cool); border-radius: 50%; }
 .warm-dot { background: var(--warm); }
 .diagram-note { margin-left: auto; color: #8496a7; font-size: 8px; }
@@ -601,6 +603,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 /* Process activity follows actual heat/flow and the shared, pausable frame loop. */
 .process-particles, .heat-transfer, .condenser-drops, .generator-rotor, .electrical-bus { pointer-events: none; }
 .steam-particle { fill: #ffe6bd; }
+.exchanger-steam-puff { fill: #d9f6ef; pointer-events: none; }
 .exchanger-heat-flow { fill: none; stroke: #ffe0a0; stroke-width: 2; stroke-dasharray: 5 15; }
 .heat-transfer { fill: none; stroke: #ffd29b; stroke-width: 1.5; }
 .condenser-drops { fill: #a2f4e0; }
@@ -729,6 +732,18 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .header-settings .simulation-badge { padding: 3px 6px; font-size: 8px; letter-spacing: 1px; }
 .header-settings .session-clock { margin-top: 0; font-size: 10px; letter-spacing: .3px; }
 .header-settings .session small { grid-column: 1 / -1; display: block; font-size: 8px; color: var(--muted); margin-top: 0; }
+.grid-dispatch-panel > .panel-heading { height: 34px; padding: 0 9px; gap: 5px; }
+.grid-dispatch-panel h2 { font-size: 11px; }
+.grid-dispatch-panel .local-tag { font-size: 6px; letter-spacing: .6px; }
+.grid-dispatch-content { display: grid; gap: 7px; padding: 9px; }
+.grid-dispatch-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+.grid-dispatch-controls label { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; color: var(--muted); }
+.grid-dispatch-controls input { margin: 0; accent-color: var(--cool); }
+.grid-dispatch-controls button { padding: 3px 5px; font-size: 8px; }
+.grid-dispatch-content > strong { color: var(--muted); font: 9px Consolas, monospace; line-height: 1.5; }
+.grid-dispatch-panel[data-following="true"] .grid-dispatch-content > strong { color: var(--cool); }
+.grid-dispatch-message { color: var(--cool); font-size: 10px; line-height: 1.5; }
+.grid-dispatch-content > span, .grid-dispatch-content > small { color: var(--muted); font: 8px Consolas, monospace; line-height: 1.5; }
 .plant-tabs { display: flex; gap: 4px; padding: 7px 12px 0; border-bottom: 1px solid var(--border); background: #111e29; }
 .plant-tabs button { padding: 9px 13px; border: 1px solid transparent; border-bottom: 2px solid transparent; border-radius: 5px 5px 0 0; background: transparent; color: var(--muted); font-size: 11px; }
 .plant-tabs [aria-selected="true"] { color: #b9f2de; background: #1d343c; border-color: #3a5a62; border-bottom-color: #8bd7bf; }
@@ -737,7 +752,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .auxiliary-heading .eyebrow { font-size: 8px; letter-spacing: 1px; }
 .auxiliary-heading h2 { font-size: 13px; white-space: normal; }
 .auxiliary-camera-tools { display: flex; gap: 4px; }
-.auxiliary-scene.plant-scene { height: clamp(320px, calc(100dvh - 670px), 450px); border: 1px solid var(--border); border-radius: 5px; }
+.auxiliary-scene.plant-scene { height: clamp(400px, calc(100dvh - 590px), 540px); border: 1px solid var(--border); border-radius: 5px; }
 .auxiliary-scene-status:empty { display: none; }
 .auxiliary-scene-status, .auxiliary-note { margin: 10px 0 0; color: var(--muted); font-size: 9px; line-height: 1.6; }
 .auxiliary-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 12px; }
@@ -776,6 +791,10 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     .masthead { flex-wrap: wrap; }
     .header-control-card { flex-basis: 100%; }
 }
+@container nuclear-console (max-width: 1000px) {
+    .console-layout { grid-template-areas: "metrics" "dispatch" "controls" "analysis"; }
+    .grid-dispatch-panel { grid-area: dispatch; }
+}
 @container nuclear-console (max-width: 800px) {
     .auxiliary-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .auxiliary-controls .supply-overview { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -785,7 +804,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     .header-settings { border-left: 0; border-top: 1px solid var(--border); padding: 7px 0 0; }
     .header-control-card .automation-strip input[type="number"], .header-control-card .automation-strip select { min-height: 30px; height: 30px; }
     .header-control-card .mode-switch button { min-height: 28px; }
-    .auxiliary-scene.plant-scene { height: 400px; }
+    .auxiliary-scene.plant-scene { height: 460px; }
 }
 @container nuclear-console (max-width: 520px) {
     .header-control-card { padding: 7px 8px; }
