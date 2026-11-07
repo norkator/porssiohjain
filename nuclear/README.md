@@ -45,12 +45,24 @@ reduced-motion and renderer cleanup with the rest of the scene.
 The **Grid controller** card below the instruments can **Follow requests** in
 Auto → Electrical output. The optional simulated feed is off initially, sends its
 first raise/lower MW request after 45 active seconds, then every 60 active seconds.
-**Request now** delivers one immediately. Messages update the existing electrical
-target; actual output changes through the regulator and retains its temperature,
-cooling, fuel, trip and manual-override limits. The card shows the last message,
-actual versus target output, countdown and limiting reason. Dispatch waits during
-Stop, trips, pause, Manual mode or temperature regulation; it never starts the plant.
-Disabling the feed retains the current target. Reset demo clears the feed/messages.
+**Request now** delivers one immediately. Each message coordinates the electrical
+target, circulation target and operating core limit. Requests stay within normal
+available capacity (up to about 300 MW healthy), derated for equipment restrictions,
+fuel and manual pump/rod overrides. The card shows available capacity, planned
+operating targets, actual output, countdown and limiting reason. Actual output
+continues through the existing regulator and protections. Dispatch waits during
+Stop, trips, pause, Manual or temperature regulation and unavailable circulation/
+generation; it never starts the plant or closes a breaker. Disabling retains all
+current targets. Reset demo clears the feed/messages. Manual temperature entry has
+no 330 °C cap; existing alarms and automatic trip thresholds still apply.
+
+Both coolant loops use the same absolute temperature colors, including return
+pipes and bypass. Core inlet/outlet and secondary return temperatures are displayed.
+Full exchanger bypass removes the primary cooling drop instead of retaining a
+nominal cold return; condenser cooling controls the secondary return temperature.
+Valve handles follow actual opening and the pipe axis: parallel when fully open,
+perpendicular when closed. All pipe sections in a circuit share distance-based
+marker travel, so longer return pipes no longer appear to flow faster than steam.
 
 Thermal output, electrical output and primary flow instruments have small animated
 heat, generator and coolant illustrations, plus traveling meter highlights. Their

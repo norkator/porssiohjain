@@ -237,6 +237,37 @@ selected 3D scene renders; switching tabs never resets the reactor, trips, fuel 
 settings. The header's source button selects the auxiliary tab. Core-map and other
 component windows remain movable and can stay open above either tab.
 
+## Loop temperatures, valves and flow
+
+SVG and 3D pipework, bypass and moving markers share one absolute illustrative
+temperature palette (blue/teal at low temperatures, yellow/orange as warmer, red
+above 335 °C). Equal temperatures have equal colors regardless of hot/return role.
+The legend shows the scale. Structural equipment paint remains distinct from fluid
+temperature. The reactor label shows core inlet and outlet; pump/exchanger/condenser
+labels expose the local return temperatures. Numeric SVG readings remain high
+contrast and the existing persistent over-temperature indication remains red.
+
+The primary return calculation now includes actual exchanger/condenser heat removal,
+both flows, generated power and retained heat. A 100% actual bypass or unavailable
+heat rejection removes the nominal primary temperature drop; read-back responds
+gradually. The new `secondaryReturnTemperature` follows secondary outlet temperature,
+actual condenser inlet/cooling factor and circulation, also gradually. Both are
+explicit simulated signals. Closing condenser cooling removes its return cooling
+drop. The bypass route shows flow only while its actual valve is open; exchanger
+heat-transfer highlights also obey actual transfer factor.
+
+Valve geometry is aligned to its local pipe axis, including vertical exchanger
+valves. At 100% actual opening the lever is parallel to the pipe; at 0% it is
+perpendicular, with intermediate angles following read-back. Main SVG and component
+consoles use the same opening-angle rule. Requested settings still ramp gradually.
+
+All 3D paths in a loop advect markers using one actual-flow-driven travel distance,
+then map that distance into each path's length. Marker spacing is comparable across
+short/long routes. SVG steam particles and dash motion use the corresponding shared
+distance. Steam density/visibility remains temperature-driven, but steam-line and
+return-line marker speed are no longer unrelated fractions of pipe length. These
+are illustrative animation distances, not measured water/steam velocities.
+
 ## Process animation
 
 The selected 3D scene, retained SVG schematic and instrument cards use the shared
@@ -386,7 +417,9 @@ All component constants/rates and shaft percentages are illustrative demo values
 **Auto** has selectable **Core temperature** and **Electrical output** objectives.
 Electrical output regulation is the initial and Reset demo default (200 MW electric).
 Core temperature regulation remains selectable. It holds configurable core temperature
-(40–330 °C; default 286 °C) and circulation (25–100%; default 85%) targets.
+(minimum 40 °C, default 286 °C, no upper entry cap) and circulation
+(25–100%; default 85%) targets. Removing the old 330 °C input/model clamp does
+not change the independent over-temperature alarms or Auto trip conditions.
 A one-second illustrative regulator uses
 feed-forward plus proportional/integral temperature correction to adjust the rod
 bank, retaining individual offsets where travel allows. Independent feedback adjusts
@@ -432,23 +465,36 @@ deterministic dispatch exercise; there is no grid server or device connection.
 With the feed enabled and the reactor running in Auto → Electrical output, the
 first message arrives after 45 active simulated seconds, followed by one every
 60 active seconds. Request now immediately delivers the next message and restarts
-the interval. Requests alternate illustrative raise/lower changes, bounded to the
-existing 0–400 MW range. Each message has an ID, simulated elapsed time, direction,
-previous/requested target and explicit simulated source. It updates the existing
-electrical setpoint and records the request in the Automation journal; actual
-output continues through the existing regulator, rods and turbine response.
+the interval. Requests alternate illustrative raise/lower changes and stay within
+normal available capacity, capped at 300 MW with healthy equipment. Capacity uses
+a 330 °C normal operating envelope and available pump circulation, with headroom
+and five-MW rounding; it derates for exchanger/condenser/turbine restrictions,
+pump trim/overrides, faults/wear, retained heat, fuel capability and fixed rod
+overrides. It is independent of the operator's uncapped manual temperature field.
+No request is delivered without usable circulation and generation capacity.
+
+Each message coordinates the MW target, circulation target and core limit. Flow
+is chosen according to requested load relative to available capacity (60–100%),
+then expected conversion/cooling determines the needed core limit with 8 °C
+control headroom. A healthy 240 MW request therefore adjusts both settings and
+does not remain stuck at the old 85% / 286 °C default ceiling. The message retains
+ID, elapsed time, direction, previous/requested MW, planned core/flow settings,
+available capacity and explicit simulated source. Actual output follows the
+existing regulator/actuators, with all changes recorded in the Automation journal.
 
 The card distinguishes actual output, current target, last request, countdown and
-limiting/waiting status. Temperature/cooling/fuel limits and manual rod overrides
-remain authoritative; messages cannot change those limits or close a breaker.
+limiting/waiting status and available dispatch capacity. The operating temperature
+and circulation settings are owned by each incoming request; independent protection
+thresholds, cooling/fuel capability and manual pump/rod overrides remain authoritative.
+Messages cannot reset trips, start equipment, close breakers or change protection thresholds.
 Countdown and request delivery suspend during Stop, trip/meltdown, pause, Manual
 mode or temperature regulation. Hiding the console freezes simulated time as usual.
 No request can reset a trip, start a reactor/turbine, refuel or repair equipment.
 Resume after a stop/trip still requires the existing explicit operator actions.
 
-Disabling the feed retains the current electrical target. Operator MW edits apply
-immediately and are identified in the card; a later grid message may replace that
-target while following is enabled. Reset demo clears the feed and last message.
+Disabling the feed retains all current operating targets. Operator MW, temperature
+and circulation edits apply immediately and are identified in the card; a later
+grid message may replace them while following is enabled. Reset demo clears the feed and last message.
 Snapshots expose `commands.followGridRequests` separately from `gridDispatch`
 message/countdown/status data and measured/simulated electrical-output signals.
 
@@ -632,6 +678,8 @@ animation while instruments and controls continue to work.
   the main element retains alarm scheduling and shared-context lifecycle.
 - `nuclear/src/simulation/nuclear-power-supply.js` owns auxiliary-source selection,
   standby/manual diesel startup, fuel, capacity and pump power availability.
+- `nuclear/src/simulation/nuclear-power-temperature.js` maps local loop temperatures
+  to the shared absolute SVG/WebGL palette.
 - `nuclear/src/simulation/nuclear-power-grid.js` owns opt-in simulated grid messages,
   active-time cadence, readiness, requested MW changes and dispatch status.
 - `nuclear/src/simulation/nuclear-power-motion.js` integrates speed-dependent impeller
@@ -711,7 +759,7 @@ read-back, camera controls, mobile layout, stopped/reduced-motion visuals and
 hidden-view/GPU cleanup. Build the standalone app before running its browser
 regression; a running Nginx container can be checked with `NUCLEAR_POWER_APP_URL`.
 
-Grid/visual checkpoint (2026-11-07): 64 unit checks cover grid tracking, cadence,
+Grid/visual checkpoint (2026-11-07): 71 unit checks cover grid tracking, cadence,
 pause/mode/stop/trip guards, temperature/rod/breaker ownership and independent
 reaction/retained-heat phases. The browser regression also covers 3D/SVG exchanger
 steam, vessel reactions, cold/no-flow/Stop behavior, pause/reduced motion, grid
