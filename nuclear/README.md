@@ -46,7 +46,11 @@ Steam rises through the exchanger's secondary-side cutaway and turns into its
 outlet in both 3D and schematic views. Its density and speed follow secondary
 temperature and circulation, with no steam during cold circulation or zero flow.
 The vessel has moving reaction particles and individual fuel pulses driven by
-actual running power and rod insertion. Stop/trip removes reaction activity while
+actual running power, fuel capability and rod insertion. Higher reaction activity
+visibly increases particle travel and pulse speed; each rod's local activity has
+its own continuous phase, so withdrawn rods animate faster than inserted ones.
+Requested settings and turbine/electrical speed do not drive these effects.
+Stop/trip removes reaction activity while
 retained fuel heat keeps its separate glow. These visuals share pause, visibility,
 reduced-motion and renderer cleanup with the rest of the scene.
 

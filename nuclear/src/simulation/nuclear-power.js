@@ -923,6 +923,9 @@ export class NuclearPowerConsole extends HTMLElement {
             primaryFlow: sim.primaryFlow, secondaryFlow: sim.secondaryFlow,
             fuelTemperature: sim.condition.peakTemperature,
             reactorPower: sim.running && !sim.tripped && !sim.condition.meltdown ? sim.power : 0,
+            reactorActive: sim.running && !sim.tripped && !sim.condition.meltdown,
+            reactorRods: sim.controlRods,
+            reactorFuelCapability: sim.fuel.capability,
             shaftSpeed: sim.components?.items.turbine.actual.shaftSpeed,
             exchangerTransferFactor: sim.components.items.exchanger.actual.transferFactor,
             electricalOutput: sim.electricalOutput, supplyFactor: sim.supply.factor

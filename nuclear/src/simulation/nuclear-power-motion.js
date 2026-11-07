@@ -31,6 +31,39 @@ export function advanceInstrumentMotion(previous, signals, seconds) {
     return next;
 }
 
+// Visual reaction activity only, not a neutronics calculation. Use actual rod
+// positions and produced heat, never requested load or generator shaft speed.
+export function advanceReactorMotion(previous, signals, seconds) {
+    const bounded = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+    const dt = Number.isFinite(seconds) ? Math.max(0, Math.min(.1, seconds)) : 0;
+    const power = bounded(signals.reactorPower / 100);
+    const fuel = Number.isFinite(signals.reactorFuelCapability) ? Math.max(0, Math.min(1.15, signals.reactorFuelCapability)) : 1;
+    const active = (signals.reactorActive ?? power > 0) && fuel > 0;
+    const rods = signals.reactorRods || [];
+    const withdrawals = rods.map(rod => bounded((100 - rod.position) / 100));
+    const meanWithdrawal = withdrawals.length ? withdrawals.reduce((sum, value) => sum + value, 0) / withdrawals.length : power / Math.max(.001, fuel);
+    const activity = active ? bounded(power * .55 + meanWithdrawal * fuel * .45) : 0;
+    // Broader, immediately readable speed range: gentle at low activity, brisk
+    // at high activity. Integrating rate preserves position as activity changes.
+    const rate = value => value > 0 ? .1 + 1.6 * value ** 1.2 : 0;
+    const reactionRate = rate(activity);
+    const reactionChannels = withdrawals.map((withdrawal, index) => {
+        const local = active ? bounded(withdrawal * fuel * .65 + power * .35 * withdrawal / Math.max(.05, meanWithdrawal)) : 0;
+        const localRate = rate(local);
+        return {
+            activity: local,
+            rate: localRate,
+            phase: ((previous.reactionChannels?.[index]?.phase || 0) + localRate * dt) % 1,
+        };
+    });
+    return {
+        reactionActivity: activity,
+        reactionRate,
+        reactionPhase: ((previous.reactionPhase || 0) + reactionRate * dt) % 1,
+        reactionChannels,
+    };
+}
+
 // Illustration state only: these rates are not simulated RPM or extra plant physics.
 export function advanceProcessMotion(previous, signals, seconds) {
     const bounded = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
@@ -50,7 +83,7 @@ export function advanceProcessMotion(previous, signals, seconds) {
         heatPhase: (previous.heatPhase + heat * dt * .6) % 1,
         supplyPhase: (previous.supplyPhase + bounded(signals.supplyFactor) * dt * .6) % 1,
         thermalPhase: ((previous.thermalPhase || 0) + bounded((signals.fuelTemperature - 100) / 550) * dt * .4) % 1,
-        reactionPhase: ((previous.reactionPhase || 0) + bounded(signals.reactorPower / 100) * dt * .55) % 1,
+        ...advanceReactorMotion(previous, signals, dt),
         primaryTravel: (previous.primaryTravel || 0) + bounded(signals.primaryFlow / 100) * dt * 2,
         secondaryTravel: (previous.secondaryTravel || 0) + bounded(signals.secondaryFlow / 100) * dt * 2,
         steam, heat

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CORE_CHANNELS, NuclearPowerSimulation } from '../src/simulation/nuclear-power-model.js';
-import { advancePumpMotion, advanceProcessMotion } from '../src/simulation/nuclear-power-motion.js';
+import { advancePumpMotion, advanceProcessMotion, advanceReactorMotion } from '../src/simulation/nuclear-power-motion.js';
 
 // These scenarios explicitly exercise manual operation or opt into temperature Auto.
 const manualSimulation = () => {
@@ -488,4 +488,38 @@ test('reaction illustration follows actual core power independently of steam, sh
     assert.equal(stopped.reactionPhase, active.reactionPhase);
     assert.ok(stopped.thermalPhase > 0, 'Retained-heat illustration stays independent');
     assert.equal(advanceProcessMotion(active, { ...cold, reactorPower: 50 }, 0).reactionPhase, active.reactionPhase);
+});
+
+test('higher actual reaction activity speeds particle travel and fuel pulses, with faster withdrawn channels', () => {
+    const initial = { reactionPhase: .2, reactionChannels: [{phase:.2},{phase:.2}] };
+    const low = advanceReactorMotion(initial, { reactorActive: true, reactorPower: 10, reactorFuelCapability: 1,
+        reactorRods: [{ position: 90, target: 0 }, { position: 90, target: 0 }] }, .1);
+    const high = advanceReactorMotion(initial, { reactorActive: true, reactorPower: 80, reactorFuelCapability: 1,
+        reactorRods: [{ position: 20, target: 100 }, { position: 20, target: 100 }] }, .1);
+    assert.ok(high.reactionRate > low.reactionRate * 3);
+    assert.ok(high.reactionPhase - initial.reactionPhase > (low.reactionPhase - initial.reactionPhase) * 3);
+    const uneven = advanceReactorMotion(initial, { reactorActive: true, reactorPower: 50,
+        reactorRods: [{ position: 90 }, { position: 20 }] }, .1);
+    assert.ok(uneven.reactionChannels[1].rate > uneven.reactionChannels[0].rate);
+    assert.ok(uneven.reactionChannels[1].phase > uneven.reactionChannels[0].phase);
+    // A new request by itself must not change read-back-driven motion.
+    const targetOnly = advanceReactorMotion(initial, { reactorActive: true, reactorPower: 10, reactorFuelCapability: 1,
+        reactorRods: [{ position: 90, target: 100 }, { position: 90, target: 100 }] }, .1);
+    assert.deepEqual(targetOnly, low);
+});
+
+test('reaction speed changes preserve phase, and Stop or depleted fuel freeze every channel', () => {
+    const previous = { reactionPhase: .42, reactionChannels: [{ phase: .63 }] };
+    const signals = { reactorActive: true, reactorPower: 80, reactorFuelCapability: 1, reactorRods: [{ position: 20 }] };
+    const paused = advanceReactorMotion(previous, signals, 0);
+    assert.equal(paused.reactionPhase, previous.reactionPhase);
+    assert.equal(paused.reactionChannels[0].phase, previous.reactionChannels[0].phase);
+    for (const override of [{reactorActive:false}, {reactorFuelCapability:0}]) {
+        const stopped = advanceReactorMotion(previous, {...signals, ...override, fuelTemperature:600}, .1);
+        assert.equal(stopped.reactionActivity, 0);
+        assert.equal(stopped.reactionRate, 0);
+        assert.equal(stopped.reactionPhase, previous.reactionPhase);
+        assert.equal(stopped.reactionChannels[0].phase, previous.reactionChannels[0].phase);
+        assert.equal(stopped.reactionChannels[0].rate, 0);
+    }
 });
