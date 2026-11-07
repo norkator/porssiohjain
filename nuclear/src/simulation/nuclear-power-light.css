@@ -33,6 +33,15 @@
 :host([data-theme="light"]) .annunciator { color: #0f6959; background: #e2f3ed; border-color: #aad2c6; }
 :host([data-theme="light"]) .annunciator.has-alarm { color: #964619; background: #fff0df; border-color: #d8a97d; }
 :host([data-theme="light"]) .diagram-viewport { background: #f7fafb; }
+:host([data-theme="light"]) .plant-scene { background: radial-gradient(ellipse at 45% 35%, #f4f9f8 0%, #dce8ed 85%); }
+:host([data-theme="light"]) .plant-scene-label { color: #25485b; background: #f5fbfaf2; border-color: #9bb7bd; box-shadow: 0 3px 10px #29455518; }
+:host([data-theme="light"]) .plant-scene-label strong { color: #476c7d; }
+:host([data-theme="light"]) .plant-scene-label small { color: #236b5d; }
+:host([data-theme="light"]) .plant-scene-label:hover, :host([data-theme="light"]) .plant-scene-label.selected { border-color: #2a8b76; background: #ddf2eaf5; }
+:host([data-theme="light"]) .plant-scene-label:focus-visible { outline-color: #156b58; }
+:host([data-theme="light"]) .plant-scene-label.hot { background: #ffe5e2; border-color: #c83e37; }
+:host([data-theme="light"]) .plant-scene-label.hot small { color: #ac2823; }
+:host([data-theme="light"]) :is(.plant-scene-caption, .plant-scene-hint) { color: #476477; }
 :host([data-theme="light"]) #grid path { stroke: #d4e1e9; }
 :host([data-theme="light"]) :is(.panel-heading, .diagram-legend, .core-map-note, .setpoint, dl > div, .log-toolbar) { border-color: #ccd9e2; }
 :host([data-theme="light"]) :is(.pump-control, .pump-button) { color: #284c5d; background: #edf5f6; border-color: #b5cad3; }
@@ -143,6 +152,7 @@
 :host([data-theme="light"]) .generator-rotor { stroke: #126248; }
 :host([data-theme="light"]) .electrical-bus rect { fill: #e7eff2; stroke: #96aab4; }
 :host([data-theme="light"]) .electrical-bus text { fill: #496370; }
+:host([data-theme="light"]) .electrical-bus .bus-wire { stroke: #96aab4; }
 :host([data-theme="light"]) .electrical-bus .energized rect { fill: #d0efdf; stroke: #26744f; }
 :host([data-theme="light"]) .electrical-bus .energized text { fill: #145c37; }
 :host([data-theme="light"]) .electrical-bus .energized .bus-flow,

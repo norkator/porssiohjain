@@ -5,11 +5,26 @@ The standalone **porssiohjain-nuclear** React/Vite app for
 control room. Every signal and command is simulated in the browser; there are no
 backend requests, account login, MQTT connections, or device commands.
 
-React mounts the existing `nuclear-power-console` custom element. Its SVG renderer,
-shadow-root styles, deterministic simulation modules, dialog behavior and audio
+React mounts the existing `nuclear-power-console` custom element. Its shadow-root
+styles, deterministic simulation modules, dialog behavior and audio
 lifecycle are retained under `src/simulation/`. Each page owns its simulation;
 reloading or closing it discards the session. Only the light/dark theme preference
 is saved locally. The Vaadin desktop and Start menu open this app in a separate tab.
+
+The reactor overview opens as a low-poly Three.js cutaway. Drag to orbit within
+bounded angles, scroll or use +/− to zoom, and use **Reset view** to return to the
+closer initial framing. Arrow keys, +/− and Home also control the focused canvas.
+Select equipment directly or use its labeled button to open the existing component
+console. Rods, pump impellers, turbine, flow, fuel heat and melting follow the same
+simulation as the instruments. The taller viewport supports both themes and
+reduced motion. **Schematic** switches to the retained SVG overview without
+changing plant state; browsers without WebGL 2 fall back to it automatically.
+
+Auxiliary power has a separate 2D card beneath the instruments. It shows turbine,
+grid and diesel source states, highlights the source supplying the AC bus and
+routes power to both pumps. Select the card to open the existing movable auxiliary
+power / backup generator controls. The electrical supply diagram stays in 2D in
+both overview modes.
 
 ## Development and verification
 
@@ -33,7 +48,9 @@ npm run preview
 `npm test` runs the model, motion, failure, fuel, supply, component and audio tests.
 The browser regression serves `dist/` on a temporary loopback port and tests the
 actual React production build, including responsive layouts, themes, dialogs,
-controls, exports, animations and cleanup. It requires Chrome at
+controls, exports, animations and cleanup, including 3D picking, zoom, view switching,
+WebGL fallback and renderer disposal/reconnection. It uses Chrome's software WebGL
+renderer for deterministic headless coverage. It requires Chrome at
 `/opt/google/chrome/chrome`, or an installed Chromium selected with `CHROME_BIN`.
 Set `NUCLEAR_POWER_APP_URL=http://127.0.0.1:8080` to test a running app/container.
 Screenshot and export artifacts are written to the temporary directory printed by

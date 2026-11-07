@@ -116,6 +116,40 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .1px; white-space: nowra
 .diagram-scroll-hint { display: none; color: #9aafbd; font-size: 9px; padding: 9px 13px 0; }
 .schematic { display: block; width: 100%; min-width: 620px; min-height: 330px; }
 .diagram-viewport.zoomed .schematic { width: 150%; min-width: 1000px; }
+.overview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 13px; }
+.overview-status { color: var(--muted); font-size: 9px; }
+.overview-status:empty { display: none; }
+.scene-camera-tools { display: flex; gap: 4px; }
+.scene-camera-tools[hidden], .plant-scene[hidden] { display: none; }
+.diagram-viewport[data-overview="3d"] { overflow: hidden; padding: 0; }
+.diagram-viewport[data-overview="3d"] > .schematic { display: none; }
+.plant-scene { position: relative; width: 100%; height: clamp(380px, 40vw, 560px); overflow: hidden; background: radial-gradient(ellipse at 45% 35%, #203b49 0%, #111f2b 72%); }
+.plant-scene-canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.plant-scene-canvas:active { cursor: grabbing; }
+.plant-scene-canvas:focus-visible { outline: 2px solid var(--cool); outline-offset: -3px; }
+.plant-scene-labels { position: absolute; inset: 0; pointer-events: none; }
+.plant-scene-label { position: absolute; transform: translate(-50%, -50%); display: grid; gap: 2px; min-width: 100px; padding: 5px 7px; border: 1px solid #4a6472; border-radius: 4px; background: #142430ee; color: #d3e2e8; pointer-events: auto; text-align: left; white-space: nowrap; box-shadow: 0 3px 10px #08101840; }
+.plant-scene-label strong { font: 9px Consolas, monospace; letter-spacing: 1px; color: #93b7c6; }
+.plant-scene-label span { font-size: 10px; }
+.plant-scene-label small { font: 9px Consolas, monospace; color: #90cdbf; }
+.plant-scene-label:hover, .plant-scene-label.selected { border-color: #82cebb; background: #203c43f5; }
+.plant-scene-label:not(:disabled):active { transform: translate(-50%, calc(-50% + 1px)); }
+.plant-scene-label:focus-visible { outline: 2px solid #c4ffea; outline-offset: 3px; }
+.plant-scene-label.hot { border-color: #ff7670; background: #4e242a; }
+.plant-scene-label.hot small { color: #ff9c94; }
+.plant-scene-caption, .plant-scene-hint { position: absolute; pointer-events: none; font: 8px Consolas, monospace; letter-spacing: 1px; color: #a1b7c4; }
+.plant-scene-caption { top: 13px; left: 16px; }
+.plant-scene-hint { bottom: 12px; right: 16px; letter-spacing: 0; }
+@container nuclear-console (min-width: 1400px) {
+    .plant-scene { height: clamp(360px, calc(100dvh - 520px), 570px); }
+}
+@container nuclear-console (max-width: 650px) {
+    .plant-scene { height: 400px; }
+    .plant-scene-label { min-width: 74px; padding: 4px 5px; }
+    .plant-scene-label span { font-size: 8px; }
+    .plant-scene-label small { font-size: 7px; }
+    .overview-toolbar { flex-wrap: wrap; padding: 8px; }
+}
 .diagram-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 11px 18px; border-top: 1px solid #253440; color: #9baebd; font-size: 9px; }
 .diagram-legend > span, .trend-legend > span { display: inline-flex; align-items: center; gap: 7px; }
 .legend-line { width: 16px; height: 3px; border-radius: 1px; }
@@ -578,6 +612,20 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .electrical-bus .energized rect { fill: #204b3e; stroke: #83e4bb; }
 .electrical-bus .energized text { fill: #bdffe0; }
 .electrical-bus .energized .bus-flow, .bus-pump-flow { stroke: #83e4bb; }
+.auxiliary-card { margin-top: 12px; cursor: pointer; }
+.auxiliary-card:hover { border-color: #5d8c84; }
+.auxiliary-card > .panel-heading { height: 36px; padding: 0 10px; }
+.auxiliary-card h2 { font-size: 11px; }
+.auxiliary-card .local-tag { font-size: 7px; letter-spacing: .4px; }
+.auxiliary-power-diagram { display: block; width: 100%; padding: 5px; }
+.electrical-bus .bus-wire { fill: none; stroke: #4d6570; stroke-width: 2; }
+.electrical-bus .bus-source-state { font-size: 6px; }
+.auxiliary-power-diagram text { font-size: 12px; }
+.auxiliary-power-diagram .bus-source-state { font-size: 8px; }
+.auxiliary-card-summary { display: grid; gap: 3px; padding: 0 10px 10px; font: 8px Consolas, monospace; color: var(--muted); }
+.auxiliary-card-summary strong { font-size: 9px; color: var(--cool); }
+.auxiliary-card.unpowered .auxiliary-card-summary strong { color: var(--warm); }
+.auxiliary-card.unpowered :is(.ac-bus-node, .bus-pump-node) { opacity: .45; }
 .fuel-bundle rect { transition: fill .25s linear, stroke .25s linear; }
 
 .fuel-drips { fill: #ffb85c; pointer-events: none; }

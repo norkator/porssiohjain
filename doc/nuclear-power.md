@@ -36,13 +36,14 @@ expects further iteration after trying it. Keep the controls rich and interactiv
 keep all feature text English, and keep this document and the root `AGENTS.md`
 handoff current when behavior changes.
 
-The schematic includes a reactor cutaway with moving rods and fuel channels,
+The overview defaults to a low-poly 3D cutaway, with a retained SVG schematic
+available through the view selector. Both include moving rods and fuel channels,
 separate primary and secondary circuits, animated pumps and coolant flow, a heat
 exchanger, a turbine/generator, and a condenser. Click or keyboard-activate outlined
 equipment to open its movable component console. The reactor opens the core map;
 its former Equipment detail readings are inside that window. The main view has no
-Equipment detail card. The diagram can be zoomed and scrolled. Controls and
-instruments adapt to the browser viewport's width.
+Equipment detail card. The 3D scene supports bounded orbit and zoom; the SVG diagram can be zoomed and
+scrolled. Controls and instruments adapt to the browser viewport's width.
 
 Click the reactor vessel (or **Core map ↗**) to open the core map in a movable,
 nonmodal floating dialog above the process (up to 900 px wide, with a
@@ -195,6 +196,39 @@ unavailable storage falls back to dark and never prevents switching themes. Them
 changes do not reset simulation state or alter control settings.
 Light mode uses darker secondary labels and full-opacity disabled controls, so
 Auto-owned actuator settings remain readable while disabled.
+
+## 3D reactor overview
+
+The main overview opens as an isometric, low-poly Three.js scene, hosted inside the
+retained custom element. Vessel and heat-exchanger cutaways expose the internal
+fuel, control rods and transfer tubes. Separate primary and secondary pipework,
+pump impellers, turbine blades, generator and condenser share the existing plant
+state. No additional physics or command path is introduced.
+
+The taller viewport starts at 120% zoom. Drag to orbit within bounded angles, use
+the mouse wheel or +/− buttons to zoom (65–300%), and select **Reset view** to restore
+the initial camera. When the canvas has keyboard focus, arrow keys orbit, +/− zoom
+and Home resets. Equipment can be selected directly through canvas picking or
+through semantic HTML buttons with live readings. They open the same movable
+component/core dialogs and receive focus again when those dialogs close.
+
+**Schematic** returns to the original SVG process view without resetting the
+simulation. Both themes, actual rod insertion, motor/shaft coast-down, coolant
+flow, temperature-dependent steam/heat, retained fuel glow, molten drips and the
+growing melt pool are preserved. The scene uses the existing visibility-aware frame
+loop; pause and reduced motion freeze illustrative motion, hidden views suspend
+work, and detach disposes GPU resources and observers. Reconnection recreates the
+renderer around the retained simulation. Unsupported/lost WebGL 2 falls back to
+the usable SVG view. Stationary equipment surfaces and rotor blades are batched
+by material to reduce draw calls.
+
+Auxiliary power is a separate plain 2D card beneath the left instruments, outside
+both process views. It shows turbine-feed connection, grid availability, diesel
+standby/start/running state, the active supplying source, AC bus, and connections
+to both pumps, with requested demand and available capacity. Energized routes
+follow the existing supply phase. Select the card or press Enter/Space to open the
+existing auxiliary-power/backup-generator dialog. No electrical supply geometry
+is embedded in the 3D scene.
 
 ## Process animation
 
@@ -522,6 +556,8 @@ animation while instruments and controls continue to work.
 - `nuclear/src/App.tsx` mounts the console through React, independently of Vaadin.
 - `nuclear/src/simulation/nuclear-power.js` renders the native custom element, SVG
   schematic, controls, recent two-minute trends, and bounded event journal.
+- `nuclear/src/simulation/nuclear-power-scene.js` owns the low-poly overview,
+  bounded camera, picking, semantic labels, geometry batching and renderer cleanup.
 - `nuclear/src/simulation/nuclear-power.css` is isolated in the element's shadow root.
 - `nuclear/src/simulation/nuclear-power-light.css` supplies the optional light palette.
 - `nuclear/src/simulation/nuclear-power-model.js` contains the deterministic, browser-local
@@ -587,7 +623,8 @@ NUCLEAR_POWER_APP_URL=http://127.0.0.1:8080 npm run test:browser
 Browser tests use Chrome at `/opt/google/chrome/chrome` by default; `CHROME_BIN` can
 select another installed Chromium executable. Without `NUCLEAR_POWER_APP_URL`, a
 temporary loopback server tests the actual production build in `nuclear/dist/`,
-including the React entry point and bundled assets. Each run prints its temporary
+including the React entry point and bundled assets. Chrome uses software WebGL
+for headless 3D coverage. Each run prints its temporary
 screenshot/CSV artifact directory. No extra browser test dependency is required
 beyond Node and Chrome. The simulation tests require no Spring application.
 
@@ -597,7 +634,10 @@ Chrome regression and Nginx container build/HTTP smoke checks. The clean Vaadin
 production bundle contains no references to the removed console.
 Browser coverage includes React startup, cold
 start and controls, wide/mobile layouts, themes, floating dialogs, exports, animation
-and pause/visibility/detach/reduced-motion cleanup. No real MQTT/model devices are
+and pause/visibility/detach/reduced-motion cleanup. It also checks actual WebGL
+rendering, canvas picking and semantic equipment controls, camera zoom/reset,
+state-preserving view switching, the separate 2D source card, WebGL-loss fallback,
+and renderer disposal/reconnection. No real MQTT/model devices are
 connected.
 
 The model tests cover independent rod positions, bank behavior, speed/flow inertia,

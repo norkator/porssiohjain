@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-test('core map, centered variable-speed pumps, automatic control, trip recovery and logs work in browser', { timeout: 90000 }, async () => {
+test('3D overview, core map, centered pumps, automatic control, trip recovery and logs work in browser', { timeout: 120000 }, async () => {
     const artifacts = mkdtempSync(join(tmpdir(), 'nuclear-power-check-'));
     const appUrl = process.env.NUCLEAR_POWER_APP_URL;
     if (appUrl) {
@@ -40,7 +40,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         response.end(readFileSync(file));
     });
     if (!appUrl) await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-    const browser = spawn(process.env.CHROME_BIN || '/opt/google/chrome/chrome', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--remote-debugging-port=0', `--user-data-dir=${join(artifacts, 'profile')}`, 'about:blank']);
+    const browser = spawn(process.env.CHROME_BIN || '/opt/google/chrome/chrome', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--remote-debugging-port=0', `--user-data-dir=${join(artifacts, 'profile')}`, 'about:blank']);
     let socket;
     try {
         const endpoint = await new Promise((resolve, reject) => {
@@ -85,7 +85,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
                 await wait(100);
             }
             await screenshot('failure');
-            console.log('Failure context:', await evaluate(`({path:location.pathname,root:document.getElementById('root')?.innerHTML,text:document.querySelector('nuclear-power-console')?.shadowRoot?.textContent.slice(-1800)})`));
+            console.log('Failure context:', await evaluate(`(()=>{const c=document.querySelector('nuclear-power-console');return {path:location.pathname,active:c?.intersecting,paused:c?.simulation.paused,timer:c?.timer,frame:c?.animationFrame,motion:c?.processMotion,shaft:c?.simulation.components.items.turbine.actual.shaftSpeed,text:c?.shadowRoot?.textContent.slice(-1800)}})()`), exceptions);
             throw new Error(message);
         };
         const consoleCode = code => evaluate(`(()=>{const c=document.querySelector('nuclear-power-console');const s=c.shadowRoot;${code}})()`);
@@ -101,6 +101,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         };
         await page('Runtime.enable');
         await page('Page.enable');
+        await page('Page.bringToFront');
         await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: artifacts });
         await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
         await page('Page.navigate', { url: appUrl || `http://127.0.0.1:${server.address().port}/` });
@@ -120,6 +121,51 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.equal(await consoleCode('return c.processMotion.speed;'), 0);
         assert.equal(await consoleCode('return c.processMotion.steam;'), 0);
         assert.equal(await consoleCode("return Number(s.querySelector('.steam-particle').style.opacity);"), 0);
+        // Exercise the real WebGL renderer, semantic overlays and canvas picking.
+        await until(`!!document.querySelector('nuclear-power-console').overviewScene?.width`, '3D overview did not initialize');
+        assert.equal(await consoleCode('return c.overviewMode;'), '3d');
+        assert.equal(await consoleCode('return c.sceneUnavailable || false;'), false);
+        assert.ok(await consoleCode('return c.overviewScene.renderer.info.render.triangles;') > 100);
+        assert.equal(await consoleCode('return c.overviewScene.rods.length;'), 12);
+        assert.equal(await consoleCode('return c.overviewScene.paths.some(p=>p.dots.some(dot=>dot.visible));'), false);
+        assert.equal(await consoleCode('return c.overviewScene.turbineRotor.rotation.x;'), 0);
+        assert.equal(await consoleCode('return s.querySelector(".auxiliary-card svg").tagName;'), 'svg');
+        await consoleCode(`s.querySelector('.auxiliary-card').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));`);
+        assert.equal(await consoleCode(`return s.querySelector('.auxiliary-dialog').matches(':popover-open');`), true);
+        await action('close-power');
+        await action('pause');
+        const frozenPlant = await consoleCode('return c.simulation.snapshot();');
+        const frame = await consoleCode('return c.overviewScene.renderer.info.render.frame;');
+        await wait(150);
+        assert.equal(await consoleCode('return c.overviewScene.renderer.info.render.frame;'), frame, 'Paused 3D should not keep rendering');
+        await action('scene-zoom-in');
+        assert.ok(await consoleCode('return c.overviewScene.zoom;') > 1.2);
+        await consoleCode(`s.querySelector('.plant-scene-canvas').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));`);
+        assert.ok(await consoleCode('return c.overviewScene.yaw;') > .24);
+        await action('scene-home');
+        assert.equal(await consoleCode('return c.overviewScene.zoom;'), 1.2);
+        await consoleCode(`s.querySelector('.plant-scene-canvas').dispatchEvent(new WheelEvent('wheel',{deltaY:-120,bubbles:true,cancelable:true}));`);
+        assert.ok(await consoleCode('return c.overviewScene.zoom;') > 1.2);
+        await consoleCode(`s.querySelector('.plant-scene-canvas').dispatchEvent(new WheelEvent('wheel',{deltaY:240,bubbles:true,cancelable:true}));`);
+        assert.ok(await consoleCode('return c.overviewScene.zoom;') < 1.2);
+        await action('scene-home');
+        assert.equal(await consoleCode('return c.overviewScene.yaw;'), .24);
+        await consoleCode(`s.querySelector('[data-scene-equipment="reactor"]').click();`);
+        assert.equal(await consoleCode(`return s.querySelector('.core-dialog').matches(':popover-open');`), true);
+        await action('close-core');
+        assert.equal(await consoleCode('return s.activeElement?.dataset.sceneEquipment;'), 'reactor');
+        const pumpPoint = await consoleCode(`const view=c.overviewScene;const p=view.pumps.pumpA.getWorldPosition(view.pumps.pumpA.position.clone()).project(view.camera);const r=view.renderer.domElement.getBoundingClientRect();return {x:r.left+(p.x+1)*r.width/2,y:r.top+(1-p.y)*r.height/2};`);
+        await page('Input.dispatchMouseEvent', { type: 'mousePressed', ...pumpPoint, button: 'left', clickCount: 1 });
+        await page('Input.dispatchMouseEvent', { type: 'mouseReleased', ...pumpPoint, button: 'left', clickCount: 1 });
+        assert.equal(await consoleCode(`return s.querySelector('[data-component-dialog="pumpA"]').matches(':popover-open');`), true, 'Picking the 3D pump should open its existing console');
+        await consoleCode(`s.querySelector('[data-component-close="pumpA"]').click();`);
+        assert.equal(await consoleCode('return s.activeElement?.dataset.sceneEquipment;'), 'pumpA');
+        await screenshot('3d-cold-start');
+        await action('overview-schematic');
+        assert.equal(await consoleCode("return getComputedStyle(s.querySelector('.schematic')).display;"), 'block');
+        await action('overview-3d');
+        assert.deepEqual(await consoleCode('return c.simulation.snapshot();'), frozenPlant, 'Camera and view changes must preserve the simulation');
+        await action('pause');
         await advance(10);
         assert.equal(await consoleCode('return c.simulation.running;'), false);
         await action('pumpA'); await action('pumpB'); await advance(6);
@@ -128,14 +174,17 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await advance(8);
         assert.ok(await consoleCode('return c.simulation.power * 4.1 * c.simulation.secondaryFlow / 100;') > 10);
         const warmupRotor = await consoleCode("return s.querySelector('.generator-rotor').getAttribute('transform');");
-        await wait(200);
+        const warmup3dRotor = await consoleCode('return c.overviewScene.turbineRotor.rotation.x;');
+        await until(`document.querySelector('nuclear-power-console').overviewScene.turbineRotor.rotation.x !== ${warmup3dRotor}`, 'Turbine motion did not start');
         assert.notEqual(await consoleCode("return s.querySelector('.generator-rotor').getAttribute('transform');"), warmupRotor);
+        assert.notEqual(await consoleCode('return c.overviewScene.turbineRotor.rotation.x;'), warmup3dRotor);
+        assert.ok(await consoleCode('return c.overviewScene.paths.some(p=>p.dots.some(dot=>dot.visible));'));
         assert.equal(await consoleCode('return c.alarmSeverity();'), 0);
         assert.equal(await consoleCode('return c.dataset.theme;'), 'dark');
         await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
         assert.equal(await consoleCode('return c.dataset.theme;'), 'light');
         assert.equal(await consoleCode('return getComputedStyle(c).colorScheme;'), 'light');
-        await wait(200);
+        await until(`getComputedStyle(document.querySelector('nuclear-power-console').shadowRoot.querySelector('[data-action="start"]')).backgroundColor === 'rgb(229, 237, 241)'`, 'Light-theme disabled palette did not settle');
         const disabledContrast = await consoleCode(`const style=getComputedStyle(s.querySelector('[data-action="start"]'));const luminance=color=>{const rgb=color.match(/[\\d.]+/g).slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4;});return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;};const a=luminance(style.color),b=luminance(style.backgroundColor);return {opacity:Number(style.opacity),ratio:(Math.max(a,b)+.05)/(Math.min(a,b)+.05)};`);
         assert.equal(disabledContrast.opacity, 1);
         assert.ok(disabledContrast.ratio >= 4.5, 'Light-theme disabled controls should remain readable');
@@ -155,6 +204,14 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
             await screenshot(`wide-${width}-light`);
             await consoleCode(`const toggle=s.querySelector('#light-theme');toggle.checked=false;toggle.dispatchEvent(new Event('change',{bubbles:true}));`);
         }
+        await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+        await wait(100);
+        assert.ok(await consoleCode(`const r=s.querySelector('.plant-scene').getBoundingClientRect();return r.width>200 && r.width<=390;`));
+        assert.ok(await consoleCode(`return [...s.querySelectorAll('.plant-scene-label')].every(label=>{const r=label.getBoundingClientRect(),v=s.querySelector('.plant-scene').getBoundingClientRect();return r.left>=v.left && r.right<=v.right;});`));
+        await screenshot('3d-mobile');
+        await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
+        // Preserve the detailed SVG interaction regressions alongside the new view.
+        await action('overview-schematic');
         assert.equal(await consoleCode("return s.querySelector('.equipment-panel');"), null);
         await consoleCode(`s.querySelector('[data-equipment="pumpA"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));`);
         assert.equal(await consoleCode(`return s.querySelector('[data-component-dialog="pumpA"]').matches(':popover-open');`), true);
@@ -219,7 +276,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.ok(await consoleCode('return c.processMotion.speed;') > 0);
         assert.ok(await consoleCode('return c.processMotion.steam;') > 0);
         const processBefore = await consoleCode("return {angle:c.processMotion.angle, particle:s.querySelector('.steam-particle').getAttribute('cx'),drop:s.querySelector('[data-drop]').getAttribute('transform')};");
-        await wait(150);
+        await until(`document.querySelector('nuclear-power-console').processMotion.angle !== ${processBefore.angle}`, 'Running process did not animate');
         const processAfter = await consoleCode("return {angle:c.processMotion.angle, particle:s.querySelector('.steam-particle').getAttribute('cx'),drop:s.querySelector('[data-drop]').getAttribute('transform')};");
         assert.notEqual(processBefore.angle, processAfter.angle);
         assert.notEqual(processBefore.particle, processAfter.particle);
@@ -254,7 +311,7 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.ok(Number.parseFloat(await value('pumpAActual')) < 46);
         assert.ok(Number.parseFloat(await value('pumpBActual')) > 79);
         const angleBefore = await consoleCode('return {a:c.motion.A.angle,b:c.motion.B.angle};');
-        await wait(300);
+        await until(`document.querySelector('nuclear-power-console').motion.A.angle !== ${angleBefore.a}`, 'Pump impellers did not animate');
         const angleAfter = await consoleCode('return {a:c.motion.A.angle,b:c.motion.B.angle};');
         assert.ok((angleAfter.a - angleBefore.a + 360) % 360 < (angleAfter.b - angleBefore.b + 360) % 360);
         await action('reset');
@@ -443,15 +500,18 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await action('power-supply');
         assert.ok(await consoleCode(`return s.querySelector('.auxiliary-dialog').getBoundingClientRect().x;`) > auxiliaryBefore.x + 60, 'Position should survive closing and reopening');
         assert.equal(await value('powerSource'), 'EXTERNAL GRID');
+        assert.equal(await consoleCode(`return s.querySelector('[data-bus-source="grid"]').classList.contains('energized');`), true);
         await consoleCode(`const box=s.querySelector('#grid-supply');box.checked=false;box.dispatchEvent(new Event('change',{bubbles:true}));`);
         assert.equal(await value('powerSource'), 'NO AC SUPPLY');
+        assert.equal(await consoleCode(`return s.querySelector('.auxiliary-card').classList.contains('unpowered');`), true);
         await advance(12);
         assert.equal(await value('powerSource'), 'BACKUP DIESEL A + B');
+        assert.equal(await consoleCode(`return s.querySelector('[data-bus-source="diesel"]').classList.contains('energized');`), true);
         assert.equal(await consoleCode('return c.simulation.running;'), false);
         assert.equal(await consoleCode(`return s.querySelectorAll('.diesel-schematic').length;`), 2);
         assert.match(await consoleCode(`return s.querySelector('[data-diesel="A"] .diesel-visual-status').textContent;`), /SUPPLYING/);
         const fanBefore = await consoleCode(`return s.querySelector('[data-diesel="A"] .diesel-fan').getAttribute('transform');`);
-        await wait(220);
+        await until(`document.querySelector('nuclear-power-console').shadowRoot.querySelector('[data-diesel="A"] .diesel-fan').getAttribute('transform') !== ${JSON.stringify(fanBefore)}`, 'Supplying diesel fan did not animate');
         assert.notEqual(await consoleCode(`return s.querySelector('[data-diesel="A"] .diesel-fan').getAttribute('transform');`), fanBefore);
         assert.ok(await consoleCode(`return [...s.querySelectorAll('.diesel-schematic')].every(svg=>{const hub=new DOMPoint(349,139).matrixTransform(svg.getScreenCTM());const rotor=new DOMPoint(0,0).matrixTransform(svg.querySelector('.diesel-fan').getScreenCTM());return Math.hypot(hub.x-rotor.x,hub.y-rotor.y)<.01;});`), 'Alternator fans must stay centered');
         await action('close-core');
@@ -484,10 +544,12 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         await action('power-supply'); await screenshot('backup-generators-mobile');
         assert.ok(await consoleCode(`return s.querySelector('.auxiliary-dialog').scrollWidth <= s.querySelector('.auxiliary-dialog').clientWidth;`));
         assert.ok(await consoleCode(`const r=s.querySelector('.auxiliary-dialog').getBoundingClientRect();return r.left>=11 && r.top>=11 && r.right<=innerWidth-11 && r.bottom<=innerHeight-11;`), 'Floating generator window should stay within a narrow viewport');
-        await consoleCode(`c.style.display='none';`); await wait(150);
+        await consoleCode(`c.style.display='none';`);
+        await until(`!document.querySelector('nuclear-power-console').shadowRoot.querySelector('.auxiliary-dialog').matches(':popover-open')`, 'Hiding the console did not close the auxiliary window');
         assert.equal(await consoleCode(`return s.querySelector('.auxiliary-dialog').matches(':popover-open');`), false);
         assert.equal(await consoleCode(`return s.querySelector('[data-action="power-supply"]').getAttribute('aria-expanded');`), 'false');
-        await consoleCode(`c.style.display='';`); await wait(150);
+        await consoleCode(`c.style.display='';`);
+        await until(`document.querySelector('nuclear-power-console').intersecting`, 'Console did not resume after becoming visible');
         await action('close-power');
         await action('reset');
         await action('manual');
@@ -559,25 +621,38 @@ test('core map, centered variable-speed pumps, automatic control, trip recovery 
         assert.equal(await consoleCode('return c.animationFrame;'), null);
         await action('pause');
         await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-        await wait(100);
+        await until(`document.querySelector('nuclear-power-console').animationFrame === null`, 'Reduced motion did not stop the animation loop');
         assert.equal(await consoleCode('return c.animationFrame;'), null);
+        await action('overview-3d');
+        const reduced3dRotor = await consoleCode('return c.overviewScene.turbineRotor.rotation.x;');
         const reducedAngle = await consoleCode('return c.processMotion.angle;');
         await wait(300);
         assert.equal(await consoleCode('return c.processMotion.angle;'), reducedAngle);
+        assert.equal(await consoleCode('return c.overviewScene.turbineRotor.rotation.x;'), reduced3dRotor);
         assert.ok(await consoleCode('return Boolean(c.timer);'));
         await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
-        await wait(100);
+        await until(`!!document.querySelector('nuclear-power-console').animationFrame`, 'Animation did not resume after reduced motion');
         assert.ok(await consoleCode('return Boolean(c.animationFrame);'));
         await consoleCode(`c.style.display='none';`);
-        await wait(150);
+        await until(`document.querySelector('nuclear-power-console').timer === null`, 'Hiding the console did not suspend simulation');
         assert.equal(await consoleCode('return c.timer;'), null);
         assert.equal(await consoleCode('return c.animationFrame;'), null);
         await consoleCode(`c.style.display='';`);
-        await wait(150);
+        await until(`!!document.querySelector('nuclear-power-console').timer`, 'Showing the console did not resume simulation');
         assert.ok(await consoleCode('return Boolean(c.timer);'));
         await evaluate(`window.savedConsole=document.querySelector('nuclear-power-console');savedConsole.remove();`);
         assert.equal(await evaluate('savedConsole.timer'), null);
         assert.equal(await evaluate('savedConsole.animationFrame'), null);
+        assert.equal(await evaluate('savedConsole.overviewScene'), null);
+        assert.equal(await evaluate("savedConsole.shadowRoot.querySelector('.plant-scene').childElementCount"), 0);
+        await evaluate(`document.querySelector('#root .nuclear-power-view').append(savedConsole);`);
+        assert.ok(await consoleCode('return !!c.overviewScene;'), 'Reattaching the retained custom element should recreate its renderer');
+        // Loss of WebGL must leave the simulation and SVG equipment usable.
+        await consoleCode(`c.overviewScene.renderer.domElement.dispatchEvent(new Event('webglcontextlost',{cancelable:true}));`);
+        assert.equal(await consoleCode('return c.overviewMode;'), 'schematic');
+        assert.equal(await consoleCode('return c.overviewScene;'), null);
+        assert.equal(await consoleCode(`return s.querySelector('[data-action="overview-3d"]').disabled;`), true);
+        assert.equal(await consoleCode("return getComputedStyle(s.querySelector('.schematic')).display;"), 'block');
         assert.deepEqual(exceptions, []);
         console.log(`Browser verified standalone React application; artifacts: ${artifacts}`);
         await send('Browser.close');

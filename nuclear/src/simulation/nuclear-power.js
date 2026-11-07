@@ -9,6 +9,7 @@ import styles from './nuclear-power.css?inline';
 import { PlantAudio } from './nuclear-power-audio.js';
 import { equipmentDialogs, initializeEquipment, updateEquipment, drawEquipmentMotion, exerciseDialog, initializeExercises, updateExercises } from './nuclear-power-equipment.js';
 import lightStyles from './nuclear-power-light.css?inline';
+import { PlantOverviewScene } from './nuclear-power-scene.js';
 
 const radiation = `<svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true"><circle cx="20" cy="20" r="3.4"/><path d="M16 13.1 12 6.2a16 16 0 0 1 16 0l-4 6.9a8 8 0 0 0-8 0ZM12 20H4a16 16 0 0 0 8 13.9l4-6.9a8 8 0 0 1-4-7Zm12 7 4 6.9A16 16 0 0 0 36 20h-8a8 8 0 0 1-4 7Z"/></svg>`;
 // Explicit local (0,0) rotation avoids the asymmetric SVG bounding-box pivot.
@@ -135,11 +136,18 @@ const schematic = `
   <text x="746" y="468" class="equipment-tag">P-02</text><text x="746" y="486" class="pump-state" data-value="pumpB">RUNNING</text>
  </g>
  <path d="m725 465-8 5 8 5" class="arrow cool"/>
- <g class="electrical-bus" role="img" aria-label="Simulated auxiliary power source and pump supply">
-  ${[['turbine',30,'TURBINE'],['grid',185,'GRID'],['diesel',340,'DIESELS']].map(([id,x,label]) => `<g data-bus-source="${id}"><rect x="${x}" y="518" width="105" height="22" rx="4"/><text x="${x+52}" y="533" text-anchor="middle">${label}</text><path class="bus-flow" d="M${x+52} 518v-4H490v15"/></g>`).join('')}
-  <path class="bus-pump-flow" d="M490 529h180"/><text x="680" y="533">AC BUS → COOLANT PUMPS</text>
- </g>
 </svg>`;
+
+const auxiliaryCard = `<section class="panel auxiliary-card" role="button" tabindex="0" data-action="power-supply" aria-label="Open auxiliary power and backup generator controls" aria-haspopup="dialog" aria-controls="auxiliary-power-window" aria-expanded="false">
+ <div class="panel-heading"><h2>Auxiliary power</h2><span class="local-tag">MANAGE ↗</span></div>
+ <svg class="auxiliary-power-diagram electrical-bus" viewBox="0 0 300 165" role="img" aria-label="Simulated auxiliary power source and pump supply">
+  ${[['turbine',8,'TURBINE'],['grid',108,'GRID'],['diesel',208,'DIESELS']].map(([id,x,label]) => `<g data-bus-source="${id}"><rect x="${x}" y="14" width="84" height="38" rx="5"/><text x="${x+42}" y="31" text-anchor="middle">${label}</text><text class="bus-source-state" data-source-state="${id}" x="${x+42}" y="44" text-anchor="middle"></text><path class="bus-wire" d="M${x+42} 52v24H150v19"/><path class="bus-flow" d="M${x+42} 52v24H150v19"/></g>`).join('')}
+  <rect class="ac-bus-node" x="108" y="89" width="84" height="26" rx="4"/><text x="150" y="106" text-anchor="middle">AC BUS</text>
+  <path class="bus-wire" d="M150 115v12H65v10m85-10h85v10"/><path class="bus-pump-flow" d="M150 115v12H65v10m85-10h85v10"/>
+  <rect class="bus-pump-node" x="20" y="137" width="90" height="22" rx="4"/><text x="65" y="152" text-anchor="middle">PUMP A</text><rect class="bus-pump-node" x="190" y="137" width="90" height="22" rx="4"/><text x="235" y="152" text-anchor="middle">PUMP B</text>
+ </svg>
+ <div class="auxiliary-card-summary"><strong data-value="powerSource"></strong><span data-value="auxiliaryLoad"></span></div>
+</section>`;
 
 const coreMap = `<section class="core-map" aria-label="Top-down reactor core and individual control rods">
   <div class="core-map-heading"><span class="local-tag">R-01 / TOP-DOWN CORE MAP</span><span class="local-tag">FICTIONAL TWO-LOOP REACTOR</span></div>
@@ -219,6 +227,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.dieselMotion = { A: 0, B: 0 };
         this.processMotion = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0 };
         this.floatingDialogs = [];
+        this.overviewMode = '3d';
         this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
         this.intersecting = true;
         this.onVisibilityChange = () => this.updateActivity();
@@ -227,6 +236,7 @@ export class NuclearPowerConsole extends HTMLElement {
 
     connectedCallback() {
         if (!this.initialized) this.initialize();
+        this.setOverview(this.overviewMode);
         document.addEventListener('visibilitychange', this.onVisibilityChange);
         this.reducedMotion.addEventListener('change', this.onVisibilityChange);
         window.addEventListener('resize', this.onViewportResize);
@@ -255,6 +265,8 @@ export class NuclearPowerConsole extends HTMLElement {
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
         this.reducedMotion.removeEventListener('change', this.onVisibilityChange);
         window.removeEventListener('resize', this.onViewportResize);
+        this.overviewScene?.dispose();
+        this.overviewScene = null;
     }
 
     initialize() {
@@ -278,6 +290,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">Ⅱ</span> Rod insertion <span class="channel">ZI-01</span></div><div class="metric-reading"><span data-value="rodsNumber">36.0</span><span class="unit">%</span></div><div class="metric-foot"><span>TARGET <span data-value="rodTarget">36%</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="rods"></i></div></article>
           </section>
           <details class="fault-console"><summary>Faults &amp; incident</summary><div><label for="fault-scenario">Simulated fault scenario</label><select id="fault-scenario"><option value="none">No injected fault</option><option value="primary-restriction">Primary-loop obstruction</option><option value="secondary-loss">Secondary cooling loss</option><option value="pump-wear">Primary pump deterioration</option></select><button class="small-button" data-action="clear-fault">Clear injected fault</button><button class="small-button" data-action="repair" disabled>Repair components</button><p>Stop, clear the fault and cool down to enable repair. Meltdown requires Reset demo.</p><p data-value="incidentSummary">No incident recorded.</p><button class="small-button" data-action="export-incident" disabled>Export incident report</button></div></details>
+          ${auxiliaryCard}
           </aside>
 
           <section class="control-column" aria-label="Reactor and operator controls">
@@ -296,7 +309,8 @@ export class NuclearPowerConsole extends HTMLElement {
               <div class="annunciator" role="status"><span class="annunciator-icon">●</span><span data-value="annunciator">ALL SYSTEMS NORMAL</span><span class="plant-state" data-value="status">RUNNING</span></div>
               <div class="condition-strip" aria-label="Reactor condition"><strong data-value="conditionStage">NORMAL</strong><span>Fuel <b data-value="peakFuel"></b></span><span>Cooling margin <b data-value="coolingMargin"></b></span><span>Retained heat <b data-value="retainedHeat"></b></span><span>Rate <b data-value="temperatureRate"></b></span><span>Core damage <b data-value="coreDamage"></b></span><span>Pump stress <b data-value="pumpStress"></b></span></div>
               <p class="diagram-scroll-hint">Scroll sideways to explore · select equipment to inspect</p>
-              <div class="diagram-viewport" tabindex="0" aria-label="Scrollable plant diagram">${schematic}</div>
+              <div class="overview-toolbar"><div class="mode-switch" role="group" aria-label="Reactor overview presentation"><button data-action="overview-3d" aria-pressed="true">3D cutaway</button><button data-action="overview-schematic" aria-pressed="false">Schematic</button></div><span class="overview-status" role="status"></span><div class="scene-camera-tools" role="group" aria-label="3D camera"><button class="small-button" data-action="scene-zoom-out" aria-label="Zoom 3D view out">−</button><button class="small-button" data-action="scene-zoom-in" aria-label="Zoom 3D view in">+</button><button class="small-button" data-action="scene-home" aria-label="Reset 3D camera">Reset view</button></div></div>
+              <div class="diagram-viewport" data-overview="3d" tabindex="0" aria-label="Interactive plant overview"><div class="plant-scene" aria-label="Low-poly reactor cutaway"></div>${schematic}</div>
               <div class="diagram-legend"><span><i class="legend-line warm-line"></i> Hot / steam</span><span><i class="legend-line cool-line"></i> Coolant return</span><span><i class="legend-dot"></i> Simulated signal</span><span class="diagram-note">Illustrative process · independent demo session</span></div>
             </section>
 
@@ -403,9 +417,9 @@ export class NuclearPowerConsole extends HTMLElement {
             if (button && !button.disabled) this.act(button.dataset.action);
         });
         this.shadowRoot.addEventListener('keydown', event => {
-            if (event.target.matches('.trend-panel') && ['Enter', ' '].includes(event.key)) {
+            if (event.target.matches('.trend-panel, .auxiliary-card') && ['Enter', ' '].includes(event.key)) {
                 event.preventDefault();
-                this.act('trends-view');
+                this.act(event.target.dataset.action);
             }
             if (event.key === 'Escape') {
                 const dialog = event.target.closest('.floating-dialog:popover-open') || this.floatingDialogs.at(-1);
@@ -522,6 +536,55 @@ export class NuclearPowerConsole extends HTMLElement {
         if (persist) {
             try { localStorage.setItem('porssiohjain.nuclear-power.theme', this.dataset.theme); } catch { /* Theme still works without storage. */ }
         }
+        this.updateOverview();
+    }
+
+    setOverview(mode) {
+        this.overviewMode = mode === 'schematic' ? 'schematic' : '3d';
+        const viewport = this.shadowRoot.querySelector('.diagram-viewport');
+        const host = viewport.querySelector('.plant-scene');
+        if (this.overviewMode === '3d' && !this.overviewScene && !this.sceneUnavailable) {
+            try {
+                this.overviewScene = new PlantOverviewScene(host, {
+                    inspect: key => this.inspect(key),
+                    unavailable: () => this.fallbackOverview(),
+                });
+            } catch {
+                this.fallbackOverview();
+                return;
+            }
+        }
+        if (this.sceneUnavailable) this.overviewMode = 'schematic';
+        viewport.dataset.overview = this.overviewMode;
+        this.shadowRoot.querySelector('.diagram-scroll-hint').textContent = this.overviewMode === '3d' ? 'Drag to orbit · use + / − to zoom · select equipment' : 'Scroll sideways to explore · select equipment to inspect';
+        host.hidden = this.overviewMode !== '3d';
+        viewport.querySelector('.schematic').setAttribute('aria-hidden', String(this.overviewMode === '3d'));
+        for (const type of ['3d', 'schematic']) this.shadowRoot.querySelector(`[data-action="overview-${type}"]`).setAttribute('aria-pressed', String(type === this.overviewMode));
+        this.shadowRoot.querySelector('.scene-camera-tools').hidden = this.overviewMode !== '3d';
+        const zoom = this.shadowRoot.querySelector('[data-action="zoom"]');
+        zoom.hidden = this.overviewMode === '3d';
+        zoom.setAttribute('aria-pressed', String(this.overviewMode === '3d' ? this.overviewScene?.zoom > 1 : viewport.classList.contains('zoomed')));
+        zoom.textContent = zoom.getAttribute('aria-pressed') === 'true' ? 'Fit view' : 'Zoom +';
+        this.overviewScene?.resize();
+        this.updateOverview();
+    }
+
+    fallbackOverview() {
+        this.sceneUnavailable = true;
+        this.overviewScene?.dispose();
+        this.overviewScene = null;
+        this.shadowRoot.querySelector('[data-action="overview-3d"]').disabled = true;
+        this.shadowRoot.querySelector('.overview-status').textContent = '3D unavailable · schematic active';
+        this.setOverview('schematic');
+    }
+
+    updateOverview() {
+        if (this.overviewMode !== '3d' || !this.overviewScene || !this.isConnected || !this.intersecting || document.hidden) return;
+        this.overviewScene.update(this.simulation, this.processMotion, this.motion, this.selectedEquipment, this.dataset.theme);
+    }
+
+    equipmentTrigger(key) {
+        return this.shadowRoot.querySelector(this.overviewMode === '3d' ? `[data-scene-equipment="${key}"]` : `[data-equipment="${key}"]`);
     }
 
     selectRod(id) {
@@ -590,7 +653,10 @@ export class NuclearPowerConsole extends HTMLElement {
         if (dialog.classList.contains('core-dialog')) dialog.querySelectorAll('.fuel-exchanging').forEach(channel => channel.classList.remove('fuel-exchanging'));
         this.floatingDialogs = this.floatingDialogs.filter(item => item !== dialog);
         for (const trigger of this.shadowRoot.querySelectorAll(`[aria-controls="${dialog.id}"]`)) trigger.setAttribute('aria-expanded', 'false');
-        if (restoreFocus && this.isConnected) this.shadowRoot.querySelector(dialog.classList.contains('exercises-dialog') ? '[data-action="exercises"]' : dialog.dataset.componentDialog ? `[data-equipment="${dialog.dataset.componentDialog}"]` : dialog.classList.contains('trends-dialog') ? '.trend-panel' : dialog.classList.contains('meltdown-banner') ? '[data-action="meltdown-view"]' : dialog.classList.contains('core-dialog') ? '[data-equipment="reactor"]' : '[data-action="power-supply"]').focus({ preventScroll: true });
+        if (restoreFocus && this.isConnected) {
+            const trigger = dialog.dataset.componentDialog ? this.equipmentTrigger(dialog.dataset.componentDialog) : dialog.classList.contains('core-dialog') ? this.equipmentTrigger('reactor') : this.shadowRoot.querySelector(dialog.classList.contains('exercises-dialog') ? '[data-action="exercises"]' : dialog.classList.contains('trends-dialog') ? '.trend-panel' : dialog.classList.contains('meltdown-banner') ? '[data-action="meltdown-view"]' : '[data-action="power-supply"]');
+            trigger?.focus({ preventScroll: true });
+        }
     }
 
     positionFloatingDialog(dialog, left, top) {
@@ -703,7 +769,20 @@ export class NuclearPowerConsole extends HTMLElement {
             'clear-fault': () => sim.injectFault('none'), repair: () => sim.repairComponents(),
             'export-incident': () => this.exportIncident(),
             pause: () => sim.togglePause(), reset: () => sim.reset(),
+            'overview-3d': () => this.setOverview('3d'),
+            'overview-schematic': () => this.setOverview('schematic'),
+            'scene-zoom-in': () => this.overviewScene?.setZoom(this.overviewScene.zoom + .15),
+            'scene-zoom-out': () => this.overviewScene?.setZoom(this.overviewScene.zoom - .15),
+            'scene-home': () => this.overviewScene?.resetCamera(),
             zoom: () => {
+                if (this.overviewMode === '3d') {
+                    this.overviewScene?.setZoom(this.overviewScene.zoom > 1 ? 1 : 1.4);
+                    const zoomed = this.overviewScene?.zoom > 1;
+                    const button = this.shadowRoot.querySelector('[data-action="zoom"]');
+                    button.textContent = zoomed ? 'Fit view' : 'Zoom +';
+                    button.setAttribute('aria-pressed', String(zoomed));
+                    return;
+                }
                 const viewport = this.shadowRoot.querySelector('.diagram-viewport');
                 const zoomed = viewport.classList.toggle('zoomed');
                 const button = this.shadowRoot.querySelector('[data-action="zoom"]');
@@ -783,6 +862,7 @@ export class NuclearPowerConsole extends HTMLElement {
                 card.querySelector('.diesel-output-flow').style.strokeDashoffset = -phase / 4;
             }
         }
+        this.updateOverview();
     }
 
     drawProcessMotion(seconds = 0) {
@@ -840,11 +920,19 @@ export class NuclearPowerConsole extends HTMLElement {
         root.querySelector('.exchanger-bypass').style.opacity = .12 + bypass / 100 * .88;
         root.querySelector('.exchanger-bypass').style.strokeDashoffset = this.motion.A.offset;
         const source = sim.supply.source;
+        const dieselState = sim.supply.generators.some(generator => generator.state === 'STARTING') ? 'STARTING'
+            : sim.supply.generators.some(generator => generator.state === 'RUNNING') ? 'RUNNING'
+            : sim.supply.generators.some(generator => generator.automatic && generator.fuel > 0) ? 'STANDBY' : 'OFFLINE';
+        const sourceStates = { turbine: sim.supply.turbineConnected ? 'CONNECTED' : 'ISOLATED', grid: sim.supply.gridAvailable ? 'AVAILABLE' : 'ISOLATED', diesel: dieselState };
         for (const item of root.querySelectorAll('[data-bus-source]')) {
             const active = source.includes({turbine: 'TURBINE', grid: 'GRID', diesel: 'BACKUP'}[item.dataset.busSource]);
             item.classList.toggle('energized', active);
             item.querySelector('.bus-flow').style.strokeDashoffset = -motion.supplyPhase * 36;
+            const state = active ? 'SUPPLYING' : sourceStates[item.dataset.busSource];
+            const label = item.querySelector('.bus-source-state');
+            if (label.textContent !== state) label.textContent = state;
         }
+        root.querySelector('.auxiliary-card').classList.toggle('unpowered', sim.supply.factor <= 0);
         root.querySelector('.bus-pump-flow').style.opacity = sim.supply.factor > 0 ? 1 : .15;
         root.querySelector('.bus-pump-flow').style.strokeDashoffset = -motion.supplyPhase * 36;
         root.querySelector('.electrical-bus').setAttribute('aria-label', `Simulated auxiliary power: ${source}; pump supply ${sim.supply.factor > 0 ? 'energized' : 'unavailable'}`);
@@ -928,6 +1016,7 @@ export class NuclearPowerConsole extends HTMLElement {
         }
         this.lastProcessElapsed = sim.elapsed;
         this.drawProcessMotion();
+        this.updateOverview();
         const { signals, status } = sim.snapshot();
         this.classList.toggle('meltdown-active', sim.condition.meltdown);
         const meltdownDialog = this.shadowRoot.querySelector('.meltdown-banner');
