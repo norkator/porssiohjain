@@ -107,10 +107,18 @@ export class ReactorCondition {
         }
     }
 
-    canRepair(sim) {
-        return !sim.running && !this.meltdown && this.fault === 'none' && !sim.components?.hasFaults
-            && sim.temperature < 150 && this.peakTemperature < 200;
+    repairReadiness(sim) {
+        const checks = [
+            { id: 'stopped', label: 'Reactor stopped', ready: !sim.running },
+            { id: 'faults', label: 'Active faults cleared', ready: this.fault === 'none' && !sim.components?.hasFaults },
+            { id: 'coolant', label: 'Coolant below 150 °C', ready: sim.temperature < 150 },
+            { id: 'fuel', label: 'Peak fuel below 200 °C', ready: this.peakTemperature < 200 },
+            { id: 'meltdown', label: 'No meltdown — Reset demo required after meltdown', ready: !this.meltdown }
+        ];
+        return { ready: checks.every(check => check.ready), checks };
     }
+
+    canRepair(sim) { return this.repairReadiness(sim).ready; }
 
     repair(sim) {
         if (!this.canRepair(sim)) return false;

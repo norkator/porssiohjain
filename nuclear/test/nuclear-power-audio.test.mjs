@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PlantAudio } from '../src/simulation/nuclear-power-audio.js';
+import { PlantAudio, plantSoundState } from '../src/simulation/nuclear-power-audio.js';
+import { NuclearPowerSimulation } from '../src/simulation/nuclear-power-model.js';
 
 class Param {
     value = 0;
@@ -9,6 +10,7 @@ class Param {
     linearRampToValueAtTime(value, time) { this.value = value; this.events.push(['ramp', value, time]); }
     cancelScheduledValues(time) { this.events.push(['cancel', time]); }
     cancelAndHoldAtTime(time) { this.events.push(['hold', time]); }
+    setTargetAtTime(value, time, constant) { this.value = value; this.events.push(['target', value, time, constant]); }
 }
 
 class Node {
@@ -60,7 +62,7 @@ test('suspended/invalid commands are discarded without replay', () => {
     assert.equal(audio.hasActiveSounds, false);
 });
 
-test('repeated cues and mute stop all voices without any continuous running sound', () => {
+test('repeated command cues do not stack and mute stops all voices', () => {
     const context = new Context();
     const audio = new PlantAudio(context);
     assert.equal(audio.hasActiveSounds, false);
@@ -72,6 +74,95 @@ test('repeated cues and mute stop all voices without any continuous running soun
         assert.equal(node.disconnected, true);
         if (node.started) assert.ok(node.stops.includes(undefined));
     }
+});
+
+const loadPlant = audio => audio.preloadPlant(async () => ({ok:true,arrayBuffer:async()=>new ArrayBuffer(4)}));
+
+test('plant audio follows actual operation and coast-down, with faults independent of acknowledgement', () => {
+    const sim = new NuclearPowerSimulation();
+    assert.deepEqual(plantSoundState(sim), {activity:0, fault:false});
+    sim.autoElectricalTarget = 400;
+    assert.equal(plantSoundState(sim).activity, 0);
+    sim.running = true; sim.power = 64;
+    assert.equal(plantSoundState(sim).activity, .64);
+    sim.components.items.turbine.actual.shaftSpeed = 80;
+    sim.running = false;
+    assert.equal(plantSoundState(sim).activity, .8);
+    sim.condition.stage = 'STRAINED';
+    sim.alarms = [{acknowledged:true}];
+    assert.equal(plantSoundState(sim).fault, true);
+    sim.condition.stage = 'NORMAL';
+    sim.components.items.condenser.disturbance.value = .2;
+    assert.equal(plantSoundState(sim).fault, true);
+    sim.components.items.condenser.disturbance.value = 0;
+    sim.components.items.turbine.actual.shaftSpeed = 0;
+    assert.deepEqual(plantSoundState(sim), {activity:0, fault:false});
+});
+
+test('two gapless loops crossfade without stacking and command/UI cues preserve them', async () => {
+    const context = new Context(), audio = new PlantAudio(context);
+    await loadPlant(audio);
+    audio.updatePlant({activity:0, fault:false});
+    assert.equal(audio.nodes.size, 0);
+    audio.updatePlant({activity:1, fault:false});
+    const voices = [...audio.nodes];
+    assert.equal(voices.length, 2);
+    assert.ok(voices.every(v => v.oscillator.loop && v.oscillator.startTime === 10));
+    const normal = voices.find(v => v.plant === 'normal'), fault = voices.find(v => v.plant === 'fault');
+    assert.equal(normal.target, .10); assert.equal(fault.target, 0);
+    audio.updatePlant({activity:1, fault:true});
+    assert.equal(audio.nodes.size, 2);
+    assert.equal(normal.target, 0); assert.equal(fault.target, .10);
+    assert.deepEqual(fault.gain.gain.events.at(-1), ['target', .10, 10, .25]);
+    audio.updatePlant({activity:100, fault:true});
+    assert.equal(fault.target, .10);
+    audio.cue('stop');
+    await audio.preloadUi(async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(4)}));
+    audio.ui('on');
+    assert.ok(voices.every(v => audio.nodes.has(v) && !v.oscillator.disconnected));
+    audio.updatePlant({activity:.25, fault:false});
+    assert.equal(normal.target, .05); assert.equal(fault.target, 0);
+    audio.stop(); audio.stop();
+    assert.equal(audio.nodes.size, 0);
+    assert.ok(voices.every(v => v.oscillator.disconnected && v.gain.disconnected));
+});
+
+test('silence and suspension release loops; resuming creates only one fresh pair', async () => {
+    const context = new Context(), audio = new PlantAudio(context);
+    await loadPlant(audio);
+    for (const state of ['suspended', 'running', 'closed']) {
+        context.state = state;
+        audio.updatePlant({activity:.5, fault:false});
+        assert.equal(audio.nodes.size, state === 'running' ? 2 : 0);
+    }
+    context.state = 'running';
+    audio.updatePlant({activity:.5, fault:false});
+    const voices = [...audio.nodes];
+    audio.updatePlant({activity:0, fault:true});
+    assert.equal(audio.nodes.size, 0);
+    assert.ok(voices.every(v => v.oscillator.disconnected && v.gain.disconnected));
+});
+
+test('loading completes without playing late audio and failures never substitute a healthy sound', async () => {
+    const context = new Context(), audio = new PlantAudio(context);
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const urls = [];
+    const loading = audio.preloadPlant(async url => {
+        urls.push(url); await gate;
+        return {ok:true,arrayBuffer:async()=>new ArrayBuffer(4)};
+    });
+    audio.updatePlant({activity:1, fault:false});
+    audio.stop(); release(); await loading;
+    await loadPlant(audio);
+    assert.equal(urls.length, 2);
+    assert.equal(audio.nodes.size, 0);
+    assert.equal(context.created.length, 0);
+    const failed = new PlantAudio(context);
+    await failed.preloadPlant(async url => ({ok:url.includes('normal'),arrayBuffer:async()=>new ArrayBuffer(4)}));
+    assert.equal(failed.plantState, 'unavailable');
+    failed.updatePlant({activity:1, fault:true});
+    assert.equal(context.created.length, 0);
 });
 
 
@@ -86,7 +177,7 @@ test('Kenney samples preload once, play quietly without looping, and replace ear
     assert.equal(audio.ui('on'),true);
     const [first]=audio.nodes;
     assert.equal(first.oscillator.loop,false);
-    assert.equal(first.gain.gain.value,0.13);
+    assert.equal(first.gain.gain.value,0.26);
     assert.equal(audio.ui('off'),false); // Fast repeated input cannot stack clicks.
     context.currentTime+=.1;
     assert.equal(audio.ui('off'),true);

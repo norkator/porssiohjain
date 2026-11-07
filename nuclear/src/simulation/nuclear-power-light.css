@@ -33,16 +33,24 @@
 :host([data-theme="light"]) .annunciator { color: #0f6959; background: #e2f3ed; border-color: #aad2c6; }
 :host([data-theme="light"]) .annunciator.has-alarm { color: #964619; background: #fff0df; border-color: #d8a97d; }
 :host([data-theme="light"]) .diagram-viewport { background: #f7fafb; }
+:host([data-theme="light"]) .plant-scene { background: radial-gradient(ellipse at 45% 35%, #f4f9f8 0%, #dce8ed 85%); }
+:host([data-theme="light"]) .plant-scene-label { color: #25485b; background: #f5fbfaf2; border-color: #9bb7bd; box-shadow: 0 3px 10px #29455518; }
+:host([data-theme="light"]) .plant-scene-label strong { color: #476c7d; }
+:host([data-theme="light"]) .plant-scene-label small { color: #236b5d; }
+:host([data-theme="light"]) .plant-scene-label:hover, :host([data-theme="light"]) .plant-scene-label.selected { border-color: #2a8b76; background: #ddf2eaf5; }
+:host([data-theme="light"]) .plant-scene-label:focus-visible { outline-color: #156b58; }
+:host([data-theme="light"]) .plant-scene-label.hot { background: #ffe5e2; border-color: #c83e37; }
+:host([data-theme="light"]) .plant-scene-label.hot small { color: #ac2823; }
+:host([data-theme="light"]) :is(.plant-scene-caption, .plant-scene-hint) { color: #476477; }
 :host([data-theme="light"]) #grid path { stroke: #d4e1e9; }
 :host([data-theme="light"]) :is(.panel-heading, .diagram-legend, .core-map-note, .setpoint, dl > div, .log-toolbar) { border-color: #ccd9e2; }
-:host([data-theme="light"]) :is(.pump-control, .pump-button) { color: #284c5d; background: #edf5f6; border-color: #b5cad3; }
-:host([data-theme="light"]) .pump-button:hover { background: #dcebee; }
-:host([data-theme="light"]) .pump-button small { color: #506b7b; }
-:host([data-theme="light"]) .pump-button[aria-pressed="false"] { background: #f9eee0; border-color: #ceb292; }
-:host([data-theme="light"]) .emergency-button { color: #a23d2e; background: #fff0ec; border-color: #cc8f81; }
-:host([data-theme="light"]) .emergency-button:not(:disabled):hover { background: #f9dcd6; border-color: #ac5c4c; }
-:host([data-theme="light"]) .emergency-button small { color: #974738; }
-:host([data-theme="light"]) .emergency-symbol { border-color: #bd7765; }
+:host([data-theme="light"]) .pump-control { color: #284c5d; background: #edf5f6; border-color: #b5cad3; }
+:host([data-theme="light"]) .pump-switch-row { border-color: #b5cad3; background: linear-gradient(#e5eeee, #d5e1e3); }
+:host([data-theme="light"]) .pump-control[data-condition="strained"] { border-color: #a97631; box-shadow: inset 3px 0 #a97631; }
+:host([data-theme="light"]) .pump-control[data-condition="damaged"] { border-color: #b94c3b; box-shadow: inset 3px 0 #b94c3b; }
+:host([data-theme="light"]) .pump-identity > small { color: #506b7b; }
+:host([data-theme="light"]) .pump-control[data-lamp="fault"] .pump-badge { color: #a1342c; }
+:host([data-theme="light"]) .pump-rocker { border-color: #728b8d; box-shadow: inset 0 1px 4px #000, 0 1px 0 #fff; }
 :host([data-theme="light"]) .trip-recovery { background: #fff4e6; border-color: #ceaa7e; }
 :host([data-theme="light"]) :is(.trip-recovery > strong, .trip-recovery li, .trip-recovery p) { color: #875a2c; }
 :host([data-theme="light"]) .trip-recovery .ready { color: #08776a; }
@@ -79,6 +87,13 @@
 :host([data-theme="light"]) :is(.event-list, .diagram-viewport) { scrollbar-color: #a3b8c5 #edf3f5; }
 :host([data-theme="light"]) .floating-dialog { color: #263e50; background: #fff; border-color: #94adbc; box-shadow: 0 18px 65px #29415255; }
 :host([data-theme="light"]) .core-dialog-titlebar { background: #e3edf2; border-color: #b0c4d0; }
+:host([data-theme="light"]) .core-damage-panel { background: #e9f2f4; }
+:host([data-theme="light"]) .core-damage-panel[data-damaged="true"] { background: #fff0e8; border-color: #b97963; }
+:host([data-theme="light"]) .core-damage-panel[data-damaged="true"] h3 { color: #8d3b25; }
+:host([data-theme="light"]) .core-damage-list button { background: #fff8f0; border-color: #c1957e; color: #793e24; }
+:host([data-theme="light"]) .core-damage-list button:hover, :host([data-theme="light"]) .core-damage-list button[aria-pressed="true"] { background: #ffe0cc; border-color: #9d593d; }
+:host([data-theme="light"]) .core-damage-key { border-color: #a84637; }
+:host([data-theme="light"]) .core-damage-panel .core-repair-readiness { color: #865019; }
 :host([data-theme="light"][data-overheated="true"]) .core-temperature-metric { background: #fff0ed; border-color: #bf4037; }
 :host([data-theme="light"][data-overheated="true"]) .core-temperature-metric :is(.metric-reading, .metric-icon, .metric-foot) { color: #ac2e27; }
 :host([data-theme="light"][data-overheated="true"]) .core-temperature-metric :is(.status-dot, .metric-track i) { background: #bf4037; }
@@ -96,6 +111,28 @@
 
 /* Disabled controls remain readable while Auto owns the actuators. */
 :host([data-theme="light"]) button:disabled { opacity: 1; color: #526775; background: #e5edf1; border-color: #b2c1cb; }
+:host([data-theme="light"]) .operator-panel { --metal-top: #e6eded; --metal-bottom: #c5d0d2; --metal-edge: #85989b; --panel-legend: #2d464b; }
+:host([data-theme="light"]) .operator-panel .operation-state strong { color: #73501c; background: #f0e9d7; border-color: #a9ac9f; box-shadow: inset 0 1px 3px #556b7130; }
+:host([data-theme="light"][data-state="running"]) .operator-panel .operation-state strong { color: #176748; background: #e4f0df; }
+:host([data-theme="light"][data-state="tripped"]) .operator-panel .operation-state strong { color: #963c29; background: #ffe7d8; }
+:host([data-theme="light"]) .operator-panel .hardware-button { color: var(--panel-legend); background-color: #e5edf1; background-image: linear-gradient(var(--metal-top), var(--metal-bottom)); border-color: var(--metal-edge); box-shadow: inset 0 1px #fff, inset 0 -2px #7f92964d, 0 3px 0 #859598; }
+:host([data-theme="light"]) .operator-panel .hardware-button:not(:disabled):hover { background-image: linear-gradient(#f3f6f4, #d4dfde); border-color: #667e7c; }
+:host([data-theme="light"]) .hardware-label > strong { text-shadow: 0 1px #ffffffb0; }
+:host([data-theme="light"]) .setpoint { background: linear-gradient(#e5eded, #d4dfe0); border-color: #9aadae; box-shadow: inset 0 1px #fff, 0 2px 0 #91a3a4; }
+:host([data-theme="light"]) .operator-panel .regulator-display { color: #f5ce82; background: #24312c; border-color: #7b8e82; }
+:host([data-theme="light"]) .regulator-rail { background: linear-gradient(#b8c6c6, #d9e1dc); border-color: #839c98; }
+:host([data-theme="light"]) .regulator-scale { color: #405d58; background-image: repeating-linear-gradient(90deg, #607a70 0 1px, transparent 1px 10%); }
+:host([data-theme="light"]) .pump-speed-setting > label { color: #4f6878; }
+:host([data-theme="light"]) .load-trim-label > :last-child { color: #345a4d; background: #d6e2d7; border-color: #8ba59b; }
+:host([data-theme="light"]) .setpoint .load-trim-button { color: #34534f; border-color: #8ba5a2; background: linear-gradient(#f1f5f0, #d1ded8); }
+:host([data-theme="light"]) .emergency-station { background: linear-gradient(#e5e2cd, #c8cbbb); border-color: #9d955f; box-shadow: inset 0 1px #fff, 0 3px 0 #899486; }
+:host([data-theme="light"]) .emergency-station-heading, :host([data-theme="light"]) .emergency-reset-note { color: #545b47; }
+:host([data-theme="light"]) .emergency-station .emergency-button { color: #583e2c; background: transparent; border-color: transparent; }
+:host([data-theme="light"]) .emergency-station .emergency-button:not(:disabled):hover { background: #ffffff30; border-color: #a1945a; }
+:host([data-theme="light"]) .emergency-label small { color: #535e49; }
+:host([data-theme="light"]) .emergency-label > b { color: #755622; }
+:host([data-theme="light"]) .emergency-station[data-latched="true"] { background: linear-gradient(#f2d9c8, #dfc5b7); border-color: #af614b; }
+:host([data-theme="light"]) .emergency-station[data-latched="true"] :is(.trip-latch-indicator, .emergency-label > b) { color: #8e3627; }
 :host([data-theme="light"]) input:disabled { opacity: 1; accent-color: #718b96; }
 :host([data-theme="light"]) :is(.metric-label, .metric-foot, .control-label, .local-tag, .section-index, .range-labels, .event-time, .event-category, .log-toolbar, .diagram-scroll-hint, .control-note, .trend-note, .core-map-note, .console-footer, .footer-signature, .footer-signature span) { color: #40596a; }
 :host([data-theme="light"]) :is(.drawing-label, .equipment-tag, .component-subtitle, .instrument-label, .chart-labels) { fill: #3e596a; }
@@ -143,6 +180,7 @@
 :host([data-theme="light"]) .generator-rotor { stroke: #126248; }
 :host([data-theme="light"]) .electrical-bus rect { fill: #e7eff2; stroke: #96aab4; }
 :host([data-theme="light"]) .electrical-bus text { fill: #496370; }
+:host([data-theme="light"]) .electrical-bus .bus-wire { stroke: #96aab4; }
 :host([data-theme="light"]) .electrical-bus .energized rect { fill: #d0efdf; stroke: #26744f; }
 :host([data-theme="light"]) .electrical-bus .energized text { fill: #145c37; }
 :host([data-theme="light"]) .electrical-bus .energized .bus-flow,
@@ -166,6 +204,16 @@
 
 :host([data-theme="light"]) .equipment-valve circle { fill: #edf7f4; stroke: #39756c; }
 :host([data-theme="light"]) .equipment-valve > path { fill: #c8e3db; stroke: #39756c; }
+:host([data-theme="light"]) .header-control-card { background: #e3edf1; }
+:host([data-theme="light"]) .plant-tabs { background: #e9f0f3; }
+:host([data-theme="light"]) .loop-temperature-value { fill: #254b5d; }
+:host([data-theme="light"]) .exchanger-steam-puff { fill: #568d93; }
+:host([data-theme="light"]) .plant-tabs [aria-selected="true"] { color: #175e50; background: #d6eee5; border-color: #a5c9bc; border-bottom-color: #2a8b70; }
+:host([data-theme="light"]) .maintenance-count { color: #385e6c; background: #d3e3e9; }
+:host([data-theme="light"]) .plant-tabs [data-attention="true"] .maintenance-count { color: #784111; background: #ffe0af; }
+:host([data-theme="light"]) .maintenance-list > li { color: #344a55; background: #fff5e7; border-color: #d1a16d; }
+:host([data-theme="light"]) .maintenance-issue, :host([data-theme="light"]) .maintenance-readiness li:not(.ready) { color: #865019; }
+:host([data-theme="light"]) .maintenance-readiness { background: #e9f2f4; }
 :host([data-theme="light"]) .valve-handle path { stroke: #8e5215; }
 :host([data-theme="light"]) .exchanger-bypass { stroke: #ad651f; }
 :host([data-theme="light"]) .exercises-dialog select { color: #244c5b; background: #fff; }

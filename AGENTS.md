@@ -78,7 +78,9 @@ breaker/shaft affect the common electrical output and cooling model. Preserve
 manual pump overrides, explicit turbine restart/breaker readiness, component service
 interlocks, local trends, objectives and symptom-first scenarios. Plant audio has
 quiet Start/Stop cues, local CC0 Kenney UI Audio one-shot switch/adjustment samples
-(with bundled license/source records), and separate alarms; continuous operating hum is removed; preserve opt-in, bounded gain,
+(with bundled license/source records), and separate alarms; opt-in steam/turbine/generator loops follow actual running power
+and shaft coast-down, crossfading to a fault texture for actual stress/damage/disturbances.
+Cold sessions are silent; preserve opt-in, bounded gain,
 and mute/pause/hide/detach cleanup of every voice.
 New/reset sessions select Auto with Electrical output regulation (200 MW), but
 the reactor starts stopped/cold with fully inserted rods and both pumps disabled
@@ -91,21 +93,60 @@ bus flow share the visibility-aware frame loop. Rates are illustrative, not RPM;
 preserve cold-start stillness, retained heat, reduced motion and pause cleanup.
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
-recovery. Automatic control must never reset a trip or restart the plant by itself.
+recovery. Industrial Start/Stop pushbuttons and pump pilot lamps show actual running
+state; stress/wear has amber/red indication. Start/Stop caps have clear green/red
+halos with restrained shine, and the emergency cap has a soft armed glow and bright latched red glow.
+Load and pump-speed targets share engraved regulator rails, grooved handles and
+amber percentage displays; preserve native controls, Auto ownership and pump overrides.
+Pump ON/OFF rockers show requested enable state separately from actual motor
+lamps/coast-down status; preserve name, circuit, speed and flow readings. Emergency shutdown is a mushroom
+button held visibly depressed with a red lamp for every latched reactor trip.
+Only successful explicit Reset trip releases it; preserve interlocks and the
+stopped state after reset, readable disabled lamps, both themes and keyboard access.
+Automatic control must never reset a trip or restart the plant by itself.
 Manual mode requires operator Stop/Emergency shutdown: flow/temperature/hot-spot
 automatic trips apply only in Auto; alarms, damage and irreversible meltdown remain
 active in both modes. Switching modes must not clear an existing trip.
-Wide windows use stacked instruments on the left, controls/reactor/operator in the
-middle, and trends/logs on the right. Dark remains default; light theme is local to
-this feature. Auto can regulate core temperature or electrical MW; power requests
+Wide windows use stacked instruments on the left, tabbed reactor/auxiliary views
+and operator controls in the middle, and trends/logs on the right. Regulation, plant
+sound enable/mute, theme, simulation status and clock share the header card beside
+the title. UI clicks default to 100% of their bounded range (0.26 gain); there is no
+volume slider or test-click button. Thermal/electrical/flow instrument motion follows
+actual read-back and obeys cold/zero, pause, visibility and reduced-motion behavior.
+Dark remains default; light theme is local to this feature. Auto can regulate core temperature or electrical MW; power requests
 must respect the configured core-temperature ceiling and report limiting reasons.
+Follow simulated Grid controller requests is selected in new/reset sessions, with
+a fresh 45-second countdown held until dispatch is ready. Operators can disable
+following to retain their targets. The controller coordinates MW, circulation and operating
+core limit on each request (45 active seconds initially, then every 60). Bound
+requests to normal available capacity (healthy ceiling about 300 MW), derating for
+cooling/equipment restrictions, fuel and manual pump/rod overrides. Keep requested
+targets separate from actual output and suspend dispatch while stopped, tripped,
+paused, Manual/temperature-regulated or without circulation/generation capacity.
+It must never start/reset, close breakers, change protection thresholds, repair or
+refuel. Manual temperature entry has no 330 °C upper cap; independent alarms and
+Auto trips remain active. Disabling retains all operating targets; Reset demo
+clears messages and restores following. Both loops use actual-temperature colors, including hot
+returns and bypass, with core inlet/outlet and secondary return read-back. Primary
+cooling drop must honor actual bypass/heat rejection. Valve levers must be parallel
+to their pipe axis when open, perpendicular when closed, using actual read-back.
+Use shared distance-based marker travel per circuit so longer paths do not look
+faster. Exchanger steam stays on the secondary side and follows actual heat/flow;
+vessel reaction particles/pulses follow running power/rods, independently of retained
+heat. Preserve cold/no-flow/Stop, pause, reduced-motion and renderer cleanup.
 Clicking the vessel opens a movable floating core-map dialog while the process
 stays visible. Over 335 °C, the core card/outlet/annunciator stay red until cooling,
 independent of alarm acknowledgement. These are simulation limits, not hardware safety limits.
 `nuclear-power-condition.js` models retained heat, progressive faults, local fuel
 hot spots, stress/wear and accumulated damage before a slow meltdown. Trip reset
 must never erase heat/damage or heal components. Only cooled, stopped, fault-free
-non-melted sessions allow explicit repair; meltdown requires Reset demo. The latched meltdown has a red console pulse, bouncing
+non-melted sessions allow explicit repair; meltdown requires Reset demo. The Maintenance
+tab lists retained core/pump damage, component wear and exchanger fouling, with
+Inspect, explicit fault clearing, a shared readiness checklist and Repair all.
+The core map also lists each damaged local zone with damage/temperature, selectable
+rod details, red borders for all nonzero damage and the shared Repair all action.
+Repairs preserve heat, fuel, settings, hours and reactor/turbine trip latches.
+The latched meltdown has a red console pulse, bouncing
 movable nonmodal dialog with reset/export, and escalating opt-in warning/siren audio; preserve mute, pause,
 visibility cleanup and reduced-motion behavior. Preserve
 the incident's initiating cause independently of the rolling event journal.
@@ -118,11 +159,15 @@ fuel capability and regulates only rods without an explicit manual override. Sto
 release overrides and insert every rod. `nuclear-power-supply.js` models the auxiliary
 AC bus: turbine, external grid, then two armed standby diesels. Pumps must coast down
 without AC; restoring power must never reset trips or restart the reactor. The auxiliary
-power dialog manages grid/feed availability, diesel standby/start/stop/manual refuelling.
-It is movable and nonmodal like the core map; both can remain open over the process.
-Preserve shared dragging/keyboard movement, viewport clamping and per-window closing.
-Diesel SVG cutaways animate pistons/fans from reported engine state, show real simulated
-fuel reserve and bus-load indication, and obey pause/visibility/reduced-motion settings.
+power tab manages grid/feed availability, diesel standby/start/stop/manual refuelling.
+It replaces the former auxiliary floating dialog and sidebar card. Core/component
+windows remain movable and nonmodal over either tab; preserve their shared dragging,
+keyboard movement, viewport clamping and per-window closing. The auxiliary tab has
+two low-poly 3D diesel cutaways with actual-state pistons/fans, real simulated fuel
+fill and loaded/unloaded bus indication, plus the retained 2D source-to-pump route.
+Share the plant scene camera/disposal behavior, only render the selected tab, preserve
+state across tab switches, and obey pause/visibility/reduced-motion settings. Missing
+WebGL must leave the auxiliary readings and controls usable.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff

@@ -8,6 +8,7 @@ import { ReactorCondition } from './nuclear-power-condition.js';
 import { FuelInventory } from './nuclear-power-fuel.js';
 import { AuxiliaryPower } from './nuclear-power-supply.js';
 import { ComponentProcesses } from './nuclear-power-components.js';
+import { GridDispatcher, gridDispatchCapacity } from './nuclear-power-grid.js';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const approach = (value, target, seconds, response) => target + (value - target) * Math.exp(-seconds / response);
@@ -48,6 +49,7 @@ export class NuclearPowerSimulation {
         this.temperature = 30;
         this.returnTemperature = 30;
         this.secondaryTemperature = 28;
+        this.secondaryReturnTemperature = 28;
         this.pumpA = false;
         this.pumpB = false;
         this.pumpASpeed = 100;
@@ -77,6 +79,7 @@ export class NuclearPowerSimulation {
         this.fuel = new FuelInventory(CORE_CHANNELS);
         this.supply = new AuxiliaryPower();
         this.components = new ComponentProcesses(this);
+        this.gridDispatch = new GridDispatcher();
         this.record('Simulation initialized. Reactor stopped; start both pumps before reactor Start. Auto electrical output control; process fluctuations enabled.', 'info', 'system');
         this.sample();
     }
@@ -289,7 +292,7 @@ export class NuclearPowerSimulation {
 
     setAutoTargets(temperature, flow) {
         if (!Number.isFinite(temperature) || !Number.isFinite(flow)) return;
-        this.autoTemperature = clamp(temperature, 40, 330);
+        this.autoTemperature = Math.max(40, temperature);
         this.autoFlow = clamp(flow, 25, 100);
         this.controlIntegral = 0;
         this.outputControlIntegral = 0;
@@ -311,6 +314,9 @@ export class NuclearPowerSimulation {
         this.outputControlIntegral = 0;
         this.record(`Electrical output target set to ${this.autoElectricalTarget} MW electric.`, 'info', 'automation');
     }
+
+    setGridDispatchEnabled(enabled) { this.gridDispatch.setEnabled(this, enabled); }
+    requestGridDispatch() { return this.gridDispatch.request(this); }
 
     setFluctuations(enabled) {
         this.fluctuationsEnabled = enabled;
@@ -444,6 +450,7 @@ export class NuclearPowerSimulation {
         this.condition.prepare(dt);
         this.components.prepare(dt);
         this.supply.advance(this, dt);
+        this.gridDispatch.advance(this, dt);
         this.regulate();
         const fluctuation = this.disturbances();
         for (const rod of this.controlRods) {
@@ -460,10 +467,21 @@ export class NuclearPowerSimulation {
         const coreTarget = Math.max(30 + this.power * (4 + coolingLoss) + fluctuation.heat, retainedHeatTarget);
         const previousTemperature = this.temperature;
         this.temperature = approach(this.temperature, coreTarget, dt, 18);
+        // Read-back temperature drop follows actual heat removal. Bypassed or
+        // unavailable cooling cannot keep reporting a nominal cold return.
+        const heatLoad = this.power + this.condition.heatReserve * .125;
+        const primaryDrop = 28 * Math.min(this.primaryFlow, this.secondaryFlow) / 100
+            * heatLoad / 64 * this.components.coolingFactor;
         this.returnTemperature = approach(this.returnTemperature,
-            this.temperature - 28 * this.primaryFlow / 100 * this.power / 64, dt, 7);
+            Math.max(30, this.temperature - primaryDrop), dt, 7);
         this.secondaryTemperature = approach(this.secondaryTemperature,
             25 + (this.temperature - 25) * 0.61 * this.primaryFlow / 100 * this.components.items.exchanger.actual.transferFactor, dt, 12);
+        const condenser = this.components.items.condenser.actual;
+        const coolingSink = Math.min(this.secondaryTemperature, condenser.inletTemperature + 5);
+        const secondaryDrop = (this.secondaryTemperature - coolingSink) * .85
+            * condenser.coolingFactor * this.secondaryFlow / 100;
+        this.secondaryReturnTemperature = approach(this.secondaryReturnTemperature,
+            this.secondaryTemperature - secondaryDrop, dt, 7);
         this.condition.advance(this, dt, previousTemperature);
         this.components.advance(dt);
         if (this.condition.meltdown) {
@@ -502,6 +520,7 @@ export class NuclearPowerSimulation {
                 running: this.running, loadPercent: this.demand, mode: this.autoMode ? 'AUTO' : 'MANUAL',
                 temperatureTarget: this.autoTemperature, flowTarget: this.autoFlow,
                 objective: this.autoObjective, electricalTargetMw: this.autoElectricalTarget,
+                followGridRequests: this.gridDispatch.enabled,
                 pumps: {
                     A: { enabled: this.pumpA, speedPercent: this.pumpASpeed },
                     B: { enabled: this.pumpB, speedPercent: this.pumpBSpeed }
@@ -512,11 +531,14 @@ export class NuclearPowerSimulation {
             },
             fuel: this.fuel.assemblies.map(a => ({ id: a.id, reserve: signal(a.remaining, '%'), exposure: signal(a.exposure, 'demo full-power h'), replacements: a.replacements })),
             auxiliary: { source: this.supply.source, generators: this.supply.generators.map(g => ({ id: g.id, state: g.state, fuel: signal(g.fuel, '%'), load: signal(g.load, 'MW') })) },
+            gridDispatch: { source: 'SIMULATED', nextRequestInSeconds: this.gridDispatch.remaining, availableCapacityMw: gridDispatchCapacity(this),
+                lastRequest: this.gridDispatch.lastRequest ? { ...this.gridDispatch.lastRequest } : null, status: this.gridDispatch.status(this) },
             rods: this.controlRods.map(rod => ({ id: rod.id, insertion: signal(rod.position, '%') })),
             signals: {
                 coreTemperature: signal(this.temperature, '°C'),
                 returnTemperature: signal(this.returnTemperature, '°C'),
                 secondaryTemperature: signal(this.secondaryTemperature, '°C'),
+                secondaryReturnTemperature: signal(this.secondaryReturnTemperature, '°C'),
                 thermalOutput: signal(this.power * 12, 'MW'),
                 electricalOutput: signal(this.electricalOutput, 'MW'),
                 fuelTemperature: signal(this.condition.peakTemperature, '°C'),

@@ -1,4 +1,16 @@
 /* Phase-preserving SVG motion driven by reported simulation speed, not commands. */
+export const SVG_FLOW_SCALE = 19;
+
+export function valveHandleAngle(openingPercent, pipeAngle = 0) {
+    const opening = Number.isFinite(openingPercent) ? Math.max(0, Math.min(100, openingPercent)) : 0;
+    return pipeAngle + (1 - opening / 100) * 90;
+}
+
+export function flowMarkerDistance(travel, index, count, length) {
+    if (!Number.isFinite(travel) || !Number.isFinite(length) || length <= 0 || count <= 0) return 0;
+    return ((travel + index * length / count) % length + length) % length;
+}
+
 export function advancePumpMotion(previous, speedPercent, seconds) {
     const speed = Number.isFinite(speedPercent) ? Math.min(100, Math.max(0, speedPercent)) / 100 : 0;
     const dt = Number.isFinite(seconds) ? Math.min(0.1, Math.max(0, seconds)) : 0;
@@ -8,13 +20,58 @@ export function advancePumpMotion(previous, speedPercent, seconds) {
     };
 }
 
+// Instrument illustrations follow actual reported output/flow, never setpoints.
+export function advanceInstrumentMotion(previous, signals, seconds) {
+    const dt = Number.isFinite(seconds) ? Math.max(0, Math.min(.1, seconds)) : 0;
+    const next = {};
+    for (const key of ['thermal', 'electrical', 'flow']) {
+        const activity = Number.isFinite(signals[key]) ? Math.max(0, Math.min(1, signals[key])) : 0;
+        next[key] = ((previous[key] || 0) + activity * dt * .9) % 1;
+    }
+    return next;
+}
+
+// Visual reaction activity only, not a neutronics calculation. Use actual rod
+// positions and produced heat, never requested load or generator shaft speed.
+export function advanceReactorMotion(previous, signals, seconds) {
+    const bounded = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+    const dt = Number.isFinite(seconds) ? Math.max(0, Math.min(.1, seconds)) : 0;
+    const power = bounded(signals.reactorPower / 100);
+    const fuel = Number.isFinite(signals.reactorFuelCapability) ? Math.max(0, Math.min(1.15, signals.reactorFuelCapability)) : 1;
+    const active = (signals.reactorActive ?? power > 0) && fuel > 0;
+    const rods = signals.reactorRods || [];
+    const withdrawals = rods.map(rod => bounded((100 - rod.position) / 100));
+    const meanWithdrawal = withdrawals.length ? withdrawals.reduce((sum, value) => sum + value, 0) / withdrawals.length : power / Math.max(.001, fuel);
+    const activity = active ? bounded(power * .55 + meanWithdrawal * fuel * .45) : 0;
+    // Broader, immediately readable speed range: gentle at low activity, brisk
+    // at high activity. Integrating rate preserves position as activity changes.
+    const rate = value => value > 0 ? .1 + 1.6 * value ** 1.2 : 0;
+    const reactionRate = rate(activity);
+    const reactionChannels = withdrawals.map((withdrawal, index) => {
+        const local = active ? bounded(withdrawal * fuel * .65 + power * .35 * withdrawal / Math.max(.05, meanWithdrawal)) : 0;
+        const localRate = rate(local);
+        return {
+            activity: local,
+            rate: localRate,
+            phase: ((previous.reactionChannels?.[index]?.phase || 0) + localRate * dt) % 1,
+        };
+    });
+    return {
+        reactionActivity: activity,
+        reactionRate,
+        reactionPhase: ((previous.reactionPhase || 0) + reactionRate * dt) % 1,
+        reactionChannels,
+    };
+}
+
 // Illustration state only: these rates are not simulated RPM or extra plant physics.
 export function advanceProcessMotion(previous, signals, seconds) {
     const bounded = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
     const dt = Number.isFinite(seconds) ? Math.max(0, Math.min(.1, seconds)) : 0;
     const steam = bounded((signals.secondaryTemperature - 65) / 140) * bounded(signals.secondaryFlow / 100);
     const heat = bounded((signals.temperature - signals.secondaryTemperature) / 140)
-        * bounded(Math.min(signals.primaryFlow, signals.secondaryFlow) / 100);
+        * bounded(Math.min(signals.primaryFlow, signals.secondaryFlow) / 100)
+        * (Number.isFinite(signals.exchangerTransferFactor) ? bounded(signals.exchangerTransferFactor) : 1);
     // Output is authoritative for rotation; the toy model can generate during
     // warm-up before the separate illustrative steam-temperature threshold.
     const target = Number.isFinite(signals.shaftSpeed) ? bounded(signals.shaftSpeed / 100) : bounded(signals.electricalOutput / 300);
@@ -26,6 +83,9 @@ export function advanceProcessMotion(previous, signals, seconds) {
         heatPhase: (previous.heatPhase + heat * dt * .6) % 1,
         supplyPhase: (previous.supplyPhase + bounded(signals.supplyFactor) * dt * .6) % 1,
         thermalPhase: ((previous.thermalPhase || 0) + bounded((signals.fuelTemperature - 100) / 550) * dt * .4) % 1,
+        ...advanceReactorMotion(previous, signals, dt),
+        primaryTravel: (previous.primaryTravel || 0) + bounded(signals.primaryFlow / 100) * dt * 2,
+        secondaryTravel: (previous.secondaryTravel || 0) + bounded(signals.secondaryFlow / 100) * dt * 2,
         steam, heat
     };
 }

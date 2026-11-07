@@ -1,5 +1,6 @@
 /* Browser-local component consoles; all instrument values remain SIMULATED. */
 import * as componentModel from './nuclear-power-components.js';
+import { valveHandleAngle } from './nuclear-power-motion.js';
 const COMPONENT_SETTINGS = componentModel.COMPONENT_SETTINGS || {};
 const COMPONENT_ACTIONS = componentModel.COMPONENT_ACTIONS || {};
 
@@ -146,7 +147,7 @@ export function drawEquipmentMotion(host) {
         const item=sim.components.items[root.dataset.componentDialog];
         const read=item?.actual || {};
         const opening=read.dischargeValve ?? read.secondaryValve ?? read.admission ?? read.coolingValve ?? 100;
-        root.querySelector('.component-valve-handle').setAttribute('transform',`rotate(${-90+Number(opening)*.9} 0 0)`);
+        root.querySelector('.component-valve-handle').setAttribute('transform',`rotate(${valveHandleAngle(Number(opening))} 0 0)`);
         const flow=read.flow ?? read.shaftSpeed ?? read.coolingCapacity ?? read.effectiveness ?? 0;
         const path=root.querySelector('.component-flow');
         path.style.opacity=Math.max(.08,Math.min(1,Number(flow)/100));

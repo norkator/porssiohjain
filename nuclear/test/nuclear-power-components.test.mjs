@@ -110,6 +110,7 @@ test('authoritative electrical output feeds supply, snapshot, history and incide
 
 test('Auto can establish shaft readiness with an open breaker, but never closes it', () => {
     const s = new NuclearPowerSimulation();
+    s.setGridDispatchEnabled(false); // Isolate breaker readiness at the fixed target.
     assert.equal(s.setComponentSetting('turbine', 'breaker', false), true);
     assert.equal(s.setComponentSetting('turbine', 'breaker', true), false);
     startPumps(s); s.start(); advance(s, 60);

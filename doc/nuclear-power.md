@@ -36,13 +36,14 @@ expects further iteration after trying it. Keep the controls rich and interactiv
 keep all feature text English, and keep this document and the root `AGENTS.md`
 handoff current when behavior changes.
 
-The schematic includes a reactor cutaway with moving rods and fuel channels,
+The overview defaults to a low-poly 3D cutaway, with a retained SVG schematic
+available through the view selector. Both include moving rods and fuel channels,
 separate primary and secondary circuits, animated pumps and coolant flow, a heat
 exchanger, a turbine/generator, and a condenser. Click or keyboard-activate outlined
 equipment to open its movable component console. The reactor opens the core map;
 its former Equipment detail readings are inside that window. The main view has no
-Equipment detail card. The diagram can be zoomed and scrolled. Controls and
-instruments adapt to the browser viewport's width.
+Equipment detail card. The 3D scene supports bounded orbit and zoom; the SVG diagram can be zoomed and
+scrolled. Controls and instruments adapt to the browser viewport's width.
 
 Click the reactor vessel (or **Core map ↗**) to open the core map in a movable,
 nonmodal floating dialog above the process (up to 900 px wide, with a
@@ -117,15 +118,15 @@ warning/damage boundaries. These are illustrative demo levels. Acknowledgement
 silences ordinary attention tones; ongoing overheating/damage and meltdown remain
 audible until conditions resolve or the user mutes. Mute, pause, hidden views and detach stop audio;
 Reset demo clears the incident sound. Browsers require a user gesture to enable
-audio. Sound settings belong to this view instance and no audio files are fetched.
+audio. Sound settings belong to this view instance; bundled audio files load only after opt-in.
 The same switch enables distinct quiet ascending Start and descending Stop cues,
 only when that command changes the reactor's running state. Blocked/repeated commands
 produce no cue. Kenney UI Audio samples provide quiet on/off switch clicks and a short click when
 an adjustment is committed (not on every slider movement). They share Enable plant
 sounds and mute/pause/visibility cleanup, preload only when sound is enabled and
 never loop. One sampled UI voice plays at a time, with 80 ms input throttling and
-0.13 default gain; the Clicks volume slider adjusts UI samples independently (0–0.26 gain), and Test
-click previews the adjustment sound. Missing samples show an unavailable message.
+0.26 default gain (100% of the bounded UI-sample range). The Clicks slider and
+Test click button have been removed. Missing samples show an unavailable message.
 The context stays running while sounds are enabled and the view is active, even
 between sounds, to avoid suspend/resume races. Mute/pause/hide still suspend it.
 Unloaded/late clicks are skipped rather than replayed. Sample files and
@@ -133,10 +134,19 @@ the included CC0 license/source record are under
 `nuclear/public/audio/nuclear-power/kenney-ui`. Original pack:
 https://kenney.nl/assets/ui-audio; downloaded from the Calinou/kenney-ui-audio mirror
 because the original download returned 403. No external audio request occurs at runtime.
-Continuous operating hum has been removed. Routine operation is silent after the
-brief Start/Stop cue; cues peak at 0.0004. Warning and critical alarm sounds retain
-their separate escalation. Mute, pause, hidden views and detach stop all cue and
-alarm nodes immediately.
+Opt-in operating audio now uses two original seamless 16-second stereo WAV loops
+under `nuclear/public/audio/nuclear-power/plant-state`: steady steam/turbine/generator
+operation and a rough fault texture. Actual running reactor power and turbine
+shaft speed drive intensity, bounded to 0.10 gain. Cold sessions are silent; Stop
+allows audible shaft coast-down. Stress, damage, overheating, trips and actual
+component disturbance values select the fault texture independently of alarm
+acknowledgement, with approximately one-second crossfades. Requested MW or fault
+selection alone never controls playback. Both decoded loops share phase and are
+reused across state changes; missing files show an unavailable status. Late loading
+only stores buffers and never starts audio independently. Start/Stop cues retain
+their 0.0004 peak and do not interrupt operating loops. Warning and critical alarm
+sounds retain separate escalation. Mute, pause, hidden views and detach stop all
+loop, cue and alarm nodes immediately; Reset demo returns to cold silence.
 The temperature trend expands its scale above the old 400 °C range during a severe
 incident rather than clipping the continued rise.
 
@@ -148,6 +158,28 @@ rod settings also affect stress and local heat. These controls are simulation-on
 **Repair components** requires a stopped reactor, no injected fault, coolant below
 150 °C, fuel below 200 °C, and no meltdown. It repairs accumulated damage/stress while
 preserving heat and operating settings. Meltdown can only be cleared by **Reset demo**.
+
+The **Maintenance** overview tab collects retained core/pump damage, equipment wear
+and exchanger fouling in a live list, with a count visible on the tab. Core damage
+is grouped with its affected-channel count; temporary stress and depleted fuel
+are separate. **Inspect** opens the existing movable component/core console.
+**Repair all** services the listed components together through the existing
+cooled repair path. A shared readiness checklist shows Stop, fault clearance,
+coolant below 150 °C, peak fuel below 200 °C and no meltdown, with current
+temperatures. **Clear active faults** explicitly clears injected plant/component
+deterioration without healing damage or changing other periodic disturbances.
+Repairs preserve retained heat, fuel reserves, settings, operating hours and both
+reactor/turbine trip latches. They cannot start equipment or close a breaker.
+The list clears as repairs complete; Reset demo clears maintenance feedback.
+
+Inspecting the reactor now exposes a damage summary and every affected local
+zone directly above the core map. Entries identify the nearby CR rod, retained
+damage percentage and local fuel temperature; selecting one selects that rod
+and its existing detail readings. All nonzero retained damage has a red map
+border, including values below 1%. The dialog also offers **Repair all damage**
+through the same core/component bulk repair path, with explicit blocking
+reasons and current temperatures. Repairing removes the list entries and red
+borders while preserving fuel and trips; fuel replacement remains separate.
 
 Trip reset additionally requires cleared faults, repaired damage and local fuel
 below 410 °C. It does not clear retained heat, stress, damage or the incident history,
@@ -177,14 +209,57 @@ All constants are gameplay/demo parameters, not real reactor engineering:
 ## Layout and appearance
 
 The console uses the full browser width with no fixed maximum width. At
-container widths of at least 1400 px, it has three columns:
+container widths of at least 1400 px, it has three columns. Regulation, plant
+sound enable/mute, theme, simulation information and session clock share a header
+card beside the brand/title, leaving more room for the main overview:
 
 - left: stacked temperature, thermal output, electrical output, flow and rod cards,
   followed by the collapsed fault/incident tools; equipment details live in dialogs;
-- middle: regulation controls, then reactor overview beside the operator console;
+- middle: tabbed reactor/auxiliary overview beside the operator console;
 - right: live trends above the filterable event journal.
 
-The default overview fits 1920×1080 and 2560×1440 screens without page scrolling.
+The operator console uses beveled metal mounting plates, round green/red Start
+and Stop pushbuttons, engraved labels and pilot lamps. Lamps use actual running
+state rather than command availability: Start remains visibly lit while the
+reactor runs even though the button is disabled. Text distinguishes READY,
+INTERLOCKED, RUNNING, STOPPED and TRIPPED. Pump lamps follow actual motor speed,
+with amber stress and red retained damage/wear indication; an amber Reset trip
+lamp marks completed recovery readiness.
+
+The load setpoint and both pump speed targets share a metal regulator rail,
+grooved slider handle, engraved 0–100% scale and amber percentage display. Load
+also retains its fine-adjust buttons and AUTO/MANUAL/TRIP LOCK ownership label.
+The fill/readout follow a live adjustment until commit without changing the
+requested-versus-actual distinction. Native pointer/keyboard behavior, Auto
+ownership, individual pump overrides, trip recovery and speed/flow read-backs
+remain intact in both themes.
+
+The Start/Stop caps have restrained illuminated lenses and a soft nearby halo: green
+Start while running and red Stop while stopped. Emergency shutdown has a soft
+red locator halo while armed and a much brighter red cap/halo while latched.
+These are steady lights with no flashing or extra timers, retained when paused
+and under reduced motion. Pump cards use separate recessed ON/OFF rocker
+switches with native keyboard activation and switch semantics. Their position
+shows the requested enable state; the adjacent actual-state lamp/status can
+remain RUNNING/COASTING after OFF until the motor slows. Pump name, circuit,
+speed target, actual read-back, flow and stress/damage indication are retained.
+
+Emergency shutdown is a red mushroom pushbutton on a hazard-marked mounting
+plate. Its head remains depressed, its red trip lamp stays lit, and it reads
+**TRIP LATCHED** for every latched reactor trip, including automatic trips.
+The disabled latched button retains full visual contrast. Pressing it again
+cannot clear the trip. Only successful explicit **Reset trip** releases the
+head and extinguishes the trip lamp; the reactor remains stopped until Start.
+Start/Stop, protection thresholds and recovery interlocks are unchanged. Native
+keyboard/focus behavior, pause and reduced motion are preserved in both themes;
+the lights and physical button position introduce no animation timer.
+
+The default reactor overview fits 1920×1080 and 2560×1440 screens without page scrolling.
+The thermal output, electrical output and primary flow cards include heat wisps, a
+rotating generator symbol, flowing coolant markers and traveling meter highlights.
+Their phase and intensity follow actual reported output/flow, remain still at zero,
+and share pause, visibility, detach and reduced-motion cleanup. Numeric read-backs
+are not interpolated or substituted with requested settings.
 Long event lists scroll inside the journal. Narrower/resized windows progressively
 use two columns and then stacked sections, with mobile-sized controls retained.
 
@@ -196,9 +271,74 @@ changes do not reset simulation state or alter control settings.
 Light mode uses darker secondary labels and full-opacity disabled controls, so
 Auto-owned actuator settings remain readable while disabled.
 
+## 3D reactor overview
+
+The main overview opens as an isometric, low-poly Three.js scene, hosted inside the
+retained custom element. Vessel and heat-exchanger cutaways expose the internal
+fuel, control rods and transfer tubes. Separate primary and secondary pipework,
+pump impellers, turbine blades, generator and condenser share the existing plant
+state. No additional physics or command path is introduced.
+
+The taller viewport starts at 120% zoom. Drag to orbit within bounded angles, use
+the mouse wheel or +/− buttons to zoom (65–300%), and select **Reset view** to restore
+the initial camera. When the canvas has keyboard focus, arrow keys orbit, +/− zoom
+and Home resets. Equipment can be selected directly through canvas picking or
+through semantic HTML buttons with live readings. They open the same movable
+component/core dialogs and receive focus again when those dialogs close.
+
+**Schematic** returns to the original SVG process view without resetting the
+simulation. Both themes, actual rod insertion, motor/shaft coast-down, coolant
+flow, temperature-dependent steam/heat, retained fuel glow, molten drips and the
+growing melt pool are preserved. The scene uses the existing visibility-aware frame
+loop; pause and reduced motion freeze illustrative motion, hidden views suspend
+work, and detach disposes GPU resources and observers. Reconnection recreates the
+renderer around the retained simulation. Unsupported/lost WebGL 2 falls back to
+the usable SVG view. Stationary equipment surfaces and rotor blades are batched
+by material to reduce draw calls.
+
+The main panel has **Reactor overview**, **Auxiliary power** and **Maintenance** tabs, with keyboard
+arrow/Home/End navigation and retained plant state. Reactor overview keeps the 3D
+and SVG presentation selector. Auxiliary power contains the 3D backup generators,
+source switches, diesel controls and a compact 2D source-to-pump route. Only the
+selected 3D scene renders; switching tabs never resets the reactor, trips, fuel or
+settings. The header's source button selects the auxiliary tab. Core-map and other
+component windows remain movable and can stay open above either tab.
+
+## Loop temperatures, valves and flow
+
+SVG and 3D pipework, bypass and moving markers share one absolute illustrative
+temperature palette (blue/teal at low temperatures, yellow/orange as warmer, red
+above 335 °C). Equal temperatures have equal colors regardless of hot/return role.
+The legend shows the scale. Structural equipment paint remains distinct from fluid
+temperature. The reactor label shows core inlet and outlet; pump/exchanger/condenser
+labels expose the local return temperatures. Numeric SVG readings remain high
+contrast and the existing persistent over-temperature indication remains red.
+
+The primary return calculation now includes actual exchanger/condenser heat removal,
+both flows, generated power and retained heat. A 100% actual bypass or unavailable
+heat rejection removes the nominal primary temperature drop; read-back responds
+gradually. The new `secondaryReturnTemperature` follows secondary outlet temperature,
+actual condenser inlet/cooling factor and circulation, also gradually. Both are
+explicit simulated signals. Closing condenser cooling removes its return cooling
+drop. The bypass route shows flow only while its actual valve is open; exchanger
+heat-transfer highlights also obey actual transfer factor.
+
+Valve geometry is aligned to its local pipe axis, including vertical exchanger
+valves. At 100% actual opening the lever is parallel to the pipe; at 0% it is
+perpendicular, with intermediate angles following read-back. Main SVG and component
+consoles use the same opening-angle rule. Requested settings still ramp gradually.
+
+All 3D paths in a loop advect markers using one actual-flow-driven travel distance,
+then map that distance into each path's length. Marker spacing is comparable across
+short/long routes. SVG steam particles and dash motion use the corresponding shared
+distance. Steam density/visibility remains temperature-driven, but steam-line and
+return-line marker speed are no longer unrelated fractions of pipe length. These
+are illustrative animation distances, not measured water/steam velocities.
+
 ## Process animation
 
-The schematic uses the shared visibility-aware frame loop for illustrative motion:
+The selected 3D scene, retained SVG schematic and instrument cards use the shared
+visibility-aware frame loop for illustrative motion:
 
 - Turbine blades show projected rotation and the generator has a centered rotating
   rotor. The separate simulated shaft-speed read-back drives visual rotation, with
@@ -211,13 +351,26 @@ The schematic uses the shared visibility-aware frame loop for illustrative motio
   no steam. With no flow, particles stop and disappear.
 - The exchanger has traveling heat highlights and cross-circuit heat arrows driven
   by the temperature difference and actual flow in both loops. Fluids stay separate.
+  Secondary-side steam puffs rise inside its cutaway and turn toward the steam
+  outlet in both 3D and SVG views. Density/opacity and travel phase reuse the same
+  secondary temperature/actual-flow steam signal as the outlet pipe. Cold
+  circulation and zero secondary flow show no steam; retained hot circulation can
+  keep producing visible steam after shutdown. Puffs never represent an external leak.
+- The 3D vessel has moving reaction particles among the fuel channels and staggered
+  per-bundle emissive pulses. They use actual running thermal power and local rod
+  insertion, independently of shaft/output or retained-heat motion. Stop, trip and
+  meltdown remove reaction particles; retained fuel heat keeps its existing glow.
+  These are process illustrations, not added neutronics. The shared frame loop
+  freezes particle travel and pulses on pause/reduced motion and suspends hidden
+  views; particles are excluded from static batching and disposed with the scene.
 - Side-view fuel colors and core-map fuel glow follow local simulated temperatures.
   Retained fuel heat keeps the core glowing after shutdown; uneven channels remain
   visible. Meltdown gradually slumps the fuel, adds molten drips and grows a gently
   shifting molten pool. No explosion or random plant-state changes are introduced.
-- An auxiliary-power strip identifies turbine, grid or diesels and animates the
-  energized route into the pump bus. Loss of AC dims the bus; source restoration
-  does not restart the reactor. Existing diesel cutaways retain their own motion.
+- The auxiliary tab's 2D power route identifies turbine, grid or diesels and
+  animates the energized route into the pump bus. Loss of AC dims the bus; source
+  restoration does not restart the reactor. Its 3D diesels show pistons, shaft/fans,
+  actual fuel fill and electrical-output markers only while supplying load.
 
 Cold startup begins with inserted rods, no turbine rotation, steam or fuel glow,
 with both pumps stopped and no coolant circulation. Explicitly start both pumps
@@ -331,7 +484,9 @@ All component constants/rates and shaft percentages are illustrative demo values
 **Auto** has selectable **Core temperature** and **Electrical output** objectives.
 Electrical output regulation is the initial and Reset demo default (200 MW electric).
 Core temperature regulation remains selectable. It holds configurable core temperature
-(40–330 °C; default 286 °C) and circulation (25–100%; default 85%) targets.
+(minimum 40 °C, default 286 °C, no upper entry cap) and circulation
+(25–100%; default 85%) targets. Removing the old 330 °C input/model clamp does
+not change the independent over-temperature alarms or Auto trip conditions.
 A one-second illustrative regulator uses
 feed-forward plus proportional/integral temperature correction to adjust the rod
 bank, retaining individual offsets where travel allows. Independent feedback adjusts
@@ -366,6 +521,51 @@ the limiting reason (for example **Core temperature limit**); reported output is
 replaced with the requested value. Returning to temperature regulation restores that
 objective, preserving the electrical setpoint for later. Trips, manual mode and
 explicit restart rules remain authoritative for both objectives.
+
+### Simulated grid-controller requests
+
+The **Grid controller** card beneath the left instruments offers an explicit
+**Follow requests** checkbox and **Request now**. New/reset sessions select following
+by default and retain the stopped Auto/Electrical output 200 MW initial target. This is a local,
+deterministic dispatch exercise; there is no grid server or device connection.
+
+With the feed enabled and the reactor running in Auto → Electrical output, the
+first message arrives after 45 active simulated seconds, followed by one every
+60 active seconds. Request now immediately delivers the next message and restarts
+the interval. Requests alternate illustrative raise/lower changes and stay within
+normal available capacity, capped at 300 MW with healthy equipment. Capacity uses
+a 330 °C normal operating envelope and available pump circulation, with headroom
+and five-MW rounding; it derates for exchanger/condenser/turbine restrictions,
+pump trim/overrides, faults/wear, retained heat, fuel capability and fixed rod
+overrides. It is independent of the operator's uncapped manual temperature field.
+No request is delivered without usable circulation and generation capacity.
+
+Each message coordinates the MW target, circulation target and core limit. Flow
+is chosen according to requested load relative to available capacity (60–100%),
+then expected conversion/cooling determines the needed core limit with 8 °C
+control headroom. A healthy 240 MW request therefore adjusts both settings and
+does not remain stuck at the old 85% / 286 °C default ceiling. The message retains
+ID, elapsed time, direction, previous/requested MW, planned core/flow settings,
+available capacity and explicit simulated source. Actual output follows the
+existing regulator/actuators, with all changes recorded in the Automation journal.
+
+The card distinguishes actual output, current target, last request, countdown and
+limiting/waiting status and available dispatch capacity. The operating temperature
+and circulation settings are owned by each incoming request; independent protection
+thresholds, cooling/fuel capability and manual pump/rod overrides remain authoritative.
+Messages cannot reset trips, start equipment, close breakers or change protection thresholds.
+Countdown and request delivery suspend during Stop, trip/meltdown, pause, Manual
+mode or temperature regulation. Hiding the console freezes simulated time as usual.
+No request can reset a trip, start a reactor/turbine, refuel or repair equipment.
+Resume after a stop/trip still requires the existing explicit operator actions.
+
+Disabling the feed retains all current operating targets. Operator MW, temperature
+and circulation edits apply immediately and are identified in the card; a later
+grid message may replace them while following is enabled. Reset demo clears the
+last message/sequence, restores following and holds the initial 45-second countdown
+until the reactor is running and dispatch-ready.
+Snapshots expose `commands.followGridRequests` separately from `gridDispatch`
+message/countdown/status data and measured/simulated electrical-output signals.
 
 ### Individual rod overrides during Auto
 
@@ -424,27 +624,28 @@ These are illustrative UI interlocks, not a real refuelling procedure.
 
 ## Auxiliary power and backup generators
 
-The header always identifies the source that powers coolant pumps. Click it to open
-**Auxiliary power & backup generators**, with a live source path and diesel cards.
-It uses the same movable, nonmodal top-layer window behavior as the reactor core map:
-drag its title bar or focus the title bar and use arrow keys, with viewport clamping
-on movement/resize. Close with × or Escape; its position is retained when reopened.
-Both windows can stay open together, and the underlying process controls remain
-available. Reopening or dragging a window brings it forward. Escape closes the
-focused floating window (or the most recently opened one when focus is outside).
-Hiding/detaching the feature closes the windows. The generator window can remain
-open while paused, with its simulated state and visual motion frozen.
+The header identifies the source powering coolant pumps. Its source button or
+the main panel's **Auxiliary power** tab opens **Auxiliary power & backup generators**
+inside the main overview, replacing the former floating auxiliary dialog and left
+source card. Reactor/operator controls remain available. The core map and other
+floating consoles keep their existing movement, clamping and close behavior.
 
-Each diesel has an SVG engine cutaway, radiator, moving pistons, drive shaft,
-alternator fan, fuel tank and AC output line in the process diagram's visual style.
-Starting engines turn slowly; running engines animate faster; stopped/empty engines
-remain still. These are illustrative animation rates, not measured RPM. The tank
-fill follows actual simulated fuel reserve. A lit output terminal and moving power
-line appear only when that diesel is supplying bus load, so an unloaded running
-engine is visually distinct from one powering pumps. Text and accessible drawing
-labels identify standby, cranking, running/unloaded, supplying and empty states.
-Both themes have dedicated drawing colors. Motion uses the existing visibility-aware
-animation loop, stops with pause/hide/detach, and stays static with reduced motion.
+Two low-poly 3D diesel cutaways share the reactor scene's bounded orbit, wheel/button
+zoom, keyboard camera controls, picking, semantic labels, batching, themes and GPU
+cleanup. Each has radiator, pistons/connecting rods, crankshaft, alternator/fans,
+exhaust, fuel tank and output terminal. Starting engines move slowly; running
+engines move faster; stopped/empty engines remain still. These are illustrative
+rates, not measured RPM. Tank fill uses actual fuel reserve. Lit terminals and
+moving output markers appear only for a diesel supplying bus load, keeping running
+unloaded distinct from supplying. Selecting an engine focuses its existing controls.
+Text and labels expose standby, starting, running/unloaded, supplying and empty
+states. The 2D route retains explicit turbine, grid, diesel, AC bus and pump nodes.
+
+The scene shares the console's frame loop and stops with pause, hidden views and
+reduced motion. Switching to Reactor overview stops rendering the generator scene
+while the plant model and generator fuel consumption continue. Detach disposes
+both scene renderers; reconnect recreates the selected view. Unsupported/lost
+WebGL keeps all source/diesel readings and controls available in the auxiliary tab.
 
 Pump power is independent of reactor generation: after shutdown it normally comes from
 the external grid. The broad source arrangement is informed by the [NRC emergency power
@@ -459,7 +660,7 @@ cubed. Each diesel has 8 MW capacity, enough for the two simplified loops. Gener
 output and the grid-controller target remain **gross electrical generation**, separate
 from this auxiliary-load indication; no net-export model is implied.
 
-The dialog permits grid disconnection/restoration and turbine-feed isolation/reconnection.
+The auxiliary tab permits grid disconnection/restoration and turbine-feed isolation/reconnection.
 Each diesel has automatic standby, manual Start/Stop, remaining fuel, startup countdown,
 actual bus load/capacity and manual refuelling. Armed diesels start when both normal
 sources are unavailable, taking eight simulated seconds. Initial fuel differs (A 82%,
@@ -522,6 +723,10 @@ animation while instruments and controls continue to work.
 - `nuclear/src/App.tsx` mounts the console through React, independently of Vaadin.
 - `nuclear/src/simulation/nuclear-power.js` renders the native custom element, SVG
   schematic, controls, recent two-minute trends, and bounded event journal.
+- `nuclear/src/simulation/nuclear-power-scene.js` owns the low-poly overview,
+  bounded camera, picking, semantic labels, geometry batching and renderer cleanup.
+- `nuclear/src/simulation/nuclear-power-auxiliary-scene.js` reuses the plant scene
+  lifecycle/camera and renders the diesel cutaways, fuel, lamps and bus-load motion.
 - `nuclear/src/simulation/nuclear-power.css` is isolated in the element's shadow root.
 - `nuclear/src/simulation/nuclear-power-light.css` supplies the optional light palette.
 - `nuclear/src/simulation/nuclear-power-model.js` contains the deterministic, browser-local
@@ -536,12 +741,18 @@ animation while instruments and controls continue to work.
   uneven exposure, capability, acceleration and explicit replacement interlocks.
 - `nuclear/src/simulation/nuclear-power-components.js` owns component settings/read-backs,
   transfer/cooling factors, turbine shaft/breaker, disturbances, wear and exercises.
+- `nuclear/src/simulation/nuclear-power-maintenance.js` renders the live damage/wear/fouling
+  list, repair readiness and explicit bulk repair/fault-clear controls.
 - `nuclear/src/simulation/nuclear-power-equipment.js` renders the movable consoles and
   exercises, settings ownership, local trends and maintenance journal.
-- `nuclear/src/simulation/nuclear-power-audio.js` owns quiet Start/Stop cues;
+- `nuclear/src/simulation/nuclear-power-audio.js` owns operating-state loops, UI samples and quiet Start/Stop cues;
   the main element retains alarm scheduling and shared-context lifecycle.
 - `nuclear/src/simulation/nuclear-power-supply.js` owns auxiliary-source selection,
   standby/manual diesel startup, fuel, capacity and pump power availability.
+- `nuclear/src/simulation/nuclear-power-temperature.js` maps local loop temperatures
+  to the shared absolute SVG/WebGL palette.
+- `nuclear/src/simulation/nuclear-power-grid.js` owns simulated grid messages with following selected by default,
+  active-time cadence, readiness, requested MW changes and dispatch status.
 - `nuclear/src/simulation/nuclear-power-motion.js` integrates speed-dependent impeller
   angles and flow dash offsets without phase jumps. Animation frames are separate
   from the 250 ms plant/instrument update and obey visibility and reduced motion.
@@ -587,7 +798,8 @@ NUCLEAR_POWER_APP_URL=http://127.0.0.1:8080 npm run test:browser
 Browser tests use Chrome at `/opt/google/chrome/chrome` by default; `CHROME_BIN` can
 select another installed Chromium executable. Without `NUCLEAR_POWER_APP_URL`, a
 temporary loopback server tests the actual production build in `nuclear/dist/`,
-including the React entry point and bundled assets. Each run prints its temporary
+including the React entry point and bundled assets. Chrome uses software WebGL
+for headless 3D coverage. Each run prints its temporary
 screenshot/CSV artifact directory. No extra browser test dependency is required
 beyond Node and Chrome. The simulation tests require no Spring application.
 
@@ -597,7 +809,11 @@ Chrome regression and Nginx container build/HTTP smoke checks. The clean Vaadin
 production bundle contains no references to the removed console.
 Browser coverage includes React startup, cold
 start and controls, wide/mobile layouts, themes, floating dialogs, exports, animation
-and pause/visibility/detach/reduced-motion cleanup. No real MQTT/model devices are
+and pause/visibility/detach/reduced-motion cleanup. It also checks actual WebGL
+rendering, canvas picking and semantic equipment controls, camera zoom/reset,
+state-preserving overview/tab switching, the header controls, actual-driven
+instrument motion, 3D diesels and their 2D source route, WebGL-loss fallback,
+and renderer disposal/reconnection. No real MQTT/model devices are
 connected.
 
 The model tests cover independent rod positions, bank behavior, speed/flow inertia,
@@ -608,8 +824,14 @@ both view modes, control disabling in Auto, CSV export, mobile/container resizin
 wide-screen fitting and column ordering, theme default/persistence, electrical MW
 tracking and limiting, floating core-map opening/movement/closing with the process
 still visible, persistent overheat indication after acknowledgement, and
-pause/visibility/detach/reduced-motion cleanup. Generator checks also cover concurrent
-floating windows, background-control focus, pointer/keyboard movement, retained position,
-Escape/close, narrow-viewport clamping, centered animated fans, stopped/reduced-motion
-visuals and hidden-view cleanup. Build the standalone app before running its browser
+pause/visibility/detach/reduced-motion cleanup. Generator checks cover tab keyboard navigation, core-map coexistence, 3D
+rendering/picking, fuel fill, start/stop/manual refuelling, loaded versus unloaded
+read-back, camera controls, mobile layout, stopped/reduced-motion visuals and
+hidden-view/GPU cleanup. Build the standalone app before running its browser
 regression; a running Nginx container can be checked with `NUCLEAR_POWER_APP_URL`.
+
+Grid/visual checkpoint (2026-11-07): 71 unit checks cover grid tracking, cadence,
+pause/mode/stop/trip guards, temperature/rod/breaker ownership and independent
+reaction/retained-heat phases. The browser regression also covers 3D/SVG exchanger
+steam, vessel reactions, cold/no-flow/Stop behavior, pause/reduced motion, grid
+message delivery and requested-versus-actual output.

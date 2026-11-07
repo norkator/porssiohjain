@@ -1,6 +1,16 @@
-/* Quiet explicit Start/Stop cues only. Continuous operating audio is disabled. The caller owns gesture-based resume, visibility,
+/* Plant-state loops, quiet Start/Stop cues and UI samples. The caller owns gesture-based resume, visibility,
  * mute and pause, and calls cue only after an accepted Start/Stop state change.
  * No context creation, alarm tones, command inference or deferred cue replay. */
+
+export function plantSoundState(sim) {
+    const turbine = sim.components.items.turbine.actual;
+    // Actual heat production and shaft coast-down, never the requested MW/rod settings.
+    const activity = Math.min(1, Math.max(0, turbine.shaftSpeed / 100, sim.running ? sim.power / 100 : 0));
+    const fault = sim.tripped || turbine.tripped || sim.temperature > 335
+        || sim.condition.stage !== 'NORMAL' || sim.condition.damaged || sim.components.damaged
+        || Object.values(sim.components.items).some(item => Math.abs(item.disturbance.value) > .05);
+    return { activity, fault };
+}
 
 export class PlantAudio {
     constructor(context) {
@@ -8,9 +18,57 @@ export class PlantAudio {
         // Both synthesized cues and one-shot samples share cleanup and the sound switch.
         this.nodes = new Set();
         this.uiBuffers = new Map();
-        this.uiGain = 0.13;
+        this.uiGain = 0.26;
         this.uiState = 'not-loaded';
         this.lastUiAt = -Infinity;
+        this.plantBuffers = new Map();
+        this.plantState = 'not-loaded';
+    }
+
+    preloadPlant(fetcher = fetch) {
+        if (this.plantLoading) return this.plantLoading;
+        this.plantState = 'loading';
+        this.plantLoading = Promise.all(['normal', 'fault'].map(async kind => {
+            try {
+                const response = await fetcher(`/audio/nuclear-power/plant-state/plant-${kind}-loop.wav`);
+                if (!response.ok) return;
+                const buffer = await this.context.decodeAudioData(await response.arrayBuffer());
+                this.plantBuffers.set(kind, buffer);
+            } catch { /* Missing audio must never affect plant operation. */ }
+        })).then(() => { this.plantState = this.plantBuffers.size === 2 ? 'ready' : 'unavailable'; });
+        // Loading only stores buffers. The next permitted update decides whether to play.
+        return this.plantLoading;
+    }
+
+    updatePlant({ activity, fault }) {
+        if (this.context.state !== 'running' || this.plantState !== 'ready'
+                || !Number.isFinite(activity) || activity <= .005) {
+            for (const voice of this.nodes) if (voice.plant) this.halt(voice);
+            return;
+        }
+        const now = this.context.currentTime;
+        const level = .10 * Math.sqrt(Math.min(1, Math.max(0, activity)));
+        for (const kind of ['normal', 'fault']) {
+            let voice = [...this.nodes].find(node => node.plant === kind);
+            if (!voice) {
+                const source = this.context.createBufferSource();
+                const gain = this.context.createGain();
+                source.buffer = this.plantBuffers.get(kind);
+                source.loop = true;
+                gain.gain.setValueAtTime(0, now);
+                source.connect(gain); gain.connect(this.context.destination);
+                voice = { oscillator: source, gain, plant: kind };
+                this.nodes.add(voice);
+                source.onended = () => this.release(voice);
+                source.start(now);
+            }
+            const target = (fault ? kind === 'fault' : kind === 'normal') ? level : 0;
+            if (voice.target !== target) {
+                // Smooth ~1 s crossfades; preserve current gain even on rapid state changes.
+                voice.gain.gain.setTargetAtTime(target, now, .25);
+                voice.target = target;
+            }
+        }
     }
 
     preloadUi(fetcher = fetch) {
@@ -72,7 +130,7 @@ export class PlantAudio {
     cue(command) {
         if (!['start', 'stop'].includes(command) || this.context.state !== 'running') return;
         // One short command voice at a time, even during rapid operator actions.
-        for (const voice of this.nodes) this.halt(voice);
+        for (const voice of this.nodes) if (!voice.plant) this.halt(voice);
         const voice = this.voice('sine');
         const now = this.context.currentTime;
         const starting = command === 'start';
