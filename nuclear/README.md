@@ -42,6 +42,19 @@ this tab. Both 3D views support orbit, zoom, themes and cleanup; unavailable Web
 leaves auxiliary readings/controls usable. Switching tabs preserves plant state and
 only renders the selected scene. Core and component dialogs remain floating.
 
+The **Maintenance** tab shows a live count and list of components with retained
+damage, wear or exchanger fouling, including affected core channels. **Inspect**
+opens the existing component/core console. **Repair all** uses the existing
+stopped, fault-free cooldown conditions, displayed with current temperatures.
+**Clear active faults** stops injected deterioration without healing damage.
+Repairs preserve heat, fuel reserves, settings and trip latches; meltdown still
+requires Reset demo. The healthy list clears as repairs complete.
+The reactor's **Inspect** core map also lists every damaged local zone with its
+damage percentage and fuel temperature. Select an entry to show that rod's local
+readings on the map. All retained damage, including below 1%, has a red border.
+The dialog includes **Repair all damage** and current blocking reasons; repairing
+clears these entries without renewing fuel or clearing a trip.
+
 Steam rises through the exchanger's secondary-side cutaway and turns into its
 outlet in both 3D and schematic views. Its density and speed follow secondary
 temperature and circulation, with no steam during cold circulation or zero flow.

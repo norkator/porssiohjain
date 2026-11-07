@@ -13,6 +13,9 @@ import { PlantOverviewScene } from './nuclear-power-scene.js';
 import { AuxiliaryPowerScene } from './nuclear-power-auxiliary-scene.js';
 import { loopTemperatures, temperatureColor } from './nuclear-power-temperature.js';
 import { gridDispatchCapacity } from './nuclear-power-grid.js';
+import { maintenancePanel, coreDamagePanel, initializeMaintenance, updateMaintenance } from './nuclear-power-maintenance.js';
+
+const PLANT_TABS = ['reactor', 'auxiliary', 'maintenance'];
 
 const radiation = `<svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true"><circle cx="20" cy="20" r="3.4"/><path d="M16 13.1 12 6.2a16 16 0 0 1 16 0l-4 6.9a8 8 0 0 0-8 0ZM12 20H4a16 16 0 0 0 8 13.9l4-6.9a8 8 0 0 1-4-7Zm12 7 4 6.9A16 16 0 0 0 36 20h-8a8 8 0 0 1-4 7Z"/></svg>`;
 // Explicit local (0,0) rotation avoids the asymmetric SVG bounding-box pivot.
@@ -147,6 +150,7 @@ const schematic = `
 
 const coreMap = `<section class="core-map" aria-label="Top-down reactor core and individual control rods">
   <div class="core-map-heading"><span class="local-tag">R-01 / TOP-DOWN CORE MAP</span><span class="local-tag">FICTIONAL TWO-LOOP REACTOR</span></div>
+  ${coreDamagePanel(CORE_CHANNELS.filter(channel => channel.rodId).map(channel => channel.rodId))}
   <div class="core-map-layout"><div class="core-map-drawing"><svg viewBox="0 0 500 500" class="core-map-svg" role="group" aria-label="Core channel map; select a numbered control rod">
     <circle cx="250" cy="250" r="227" class="core-vessel-outer"/><circle cx="250" cy="250" r="214" class="core-vessel-inner"/>
     <path d="M250 9v29m0 424v29M9 250h29m424 0h29" class="core-crosshair"/>
@@ -154,7 +158,7 @@ const coreMap = `<section class="core-map" aria-label="Top-down reactor core and
       <rect x="-18" y="-18" width="36" height="36" rx="6"/>
       ${channel.rodId ? `<circle class="rod-depth-ring" r="14" transform="rotate(-90)"/><text text-anchor="middle" y="3.5">${channel.rodId.slice(3)}</text>` : '<title class="fuel-map-tooltip"></title><g class="fuel-exchange-glyph"><circle r="8" class="fuel-center"/><circle r="3" class="fuel-pin"/><circle r="14" class="fuel-reserve-ring" transform="rotate(-90)"/></g><g class="fuel-empty-marker" aria-hidden="true"><path d="M-6-13 6-1M6-13-6-1"/><text text-anchor="middle" y="12">EMPTY</text></g><text class="fuel-low-label" text-anchor="middle" y="4" aria-hidden="true"></text>'}
     </g>`).join('')}
-  </svg><div class="core-map-legend"><span><i class="legend-dot"></i> Control rod / insertion ring</span><span><i class="legend-dot warm-dot"></i> Fuel / remaining reserve ring</span><span>× EMPTY = depleted · % = low reserve</span></div><p class="fuel-map-summary" data-value="fuelInventoryState" aria-live="polite"></p><div class="fuel-map-actions"><button class="control-button" data-action="replace-all-fuel" disabled>Replace all fuel</button><p data-value="fuelReplacementReadiness"></p><p class="fuel-service-status" role="status" data-value="fuelServiceStatus"></p></div></div>
+  </svg><div class="core-map-legend"><span><i class="legend-dot"></i> Control rod / insertion ring</span><span><i class="legend-dot warm-dot"></i> Fuel / remaining reserve ring</span><span><i class="core-damage-key"></i> Red border = retained damage</span><span>× EMPTY = depleted · % = low reserve</span></div><p class="fuel-map-summary" data-value="fuelInventoryState" aria-live="polite"></p><div class="fuel-map-actions"><button class="control-button" data-action="replace-all-fuel" disabled>Replace all fuel</button><p data-value="fuelReplacementReadiness"></p><p class="fuel-service-status" role="status" data-value="fuelServiceStatus"></p></div></div>
   <section class="individual-rod" aria-label="Individual rod controls">
     <div class="eyebrow">INDIVIDUAL CONTROL ROD</div><label class="sr-only" for="rod-select">Selected control rod</label><select id="rod-select">${Array.from({ length: 12 }, (_, i) => `<option>CR-${String(i + 1).padStart(2, '0')}</option>`).join('')}</select>
     <div class="rod-depth-display"><div><span class="control-label">ACTUAL INSERTION</span><strong data-value="selectedRodActual">36.0%</strong><small data-value="selectedRodMotion">AT TARGET</small></div><div class="rod-depth-track"><i></i></div></div>
@@ -291,7 +295,7 @@ export class NuclearPowerConsole extends HTMLElement {
 
           <div class="workspace">
             <section class="panel process-panel" aria-label="Plant overview">
-              <div class="plant-tabs" role="tablist" aria-label="Plant overview"><button id="reactor-tab" role="tab" data-plant-tab="reactor" aria-controls="reactor-panel" aria-selected="true" tabindex="0">Reactor overview</button><button id="auxiliary-tab" role="tab" data-plant-tab="auxiliary" aria-controls="auxiliary-panel" aria-selected="false" tabindex="-1">Auxiliary power</button></div>
+              <div class="plant-tabs" role="tablist" aria-label="Plant overview"><button id="reactor-tab" role="tab" data-plant-tab="reactor" aria-controls="reactor-panel" aria-selected="true" tabindex="0">Reactor overview</button><button id="auxiliary-tab" role="tab" data-plant-tab="auxiliary" aria-controls="auxiliary-panel" aria-selected="false" tabindex="-1">Auxiliary power</button><button id="maintenance-tab" role="tab" data-plant-tab="maintenance" aria-controls="maintenance-panel" aria-selected="false" tabindex="-1">Maintenance <span class="maintenance-count">0</span></button></div>
               <div id="reactor-panel" role="tabpanel" aria-labelledby="reactor-tab">
               <div class="panel-heading"><div><span class="section-index">01</span><h2>Process view</h2></div><div class="diagram-tools"><button class="small-button" data-action="exercises" aria-controls="exercises-window" aria-expanded="false">Objectives &amp; scenarios</button><button class="small-button" data-action="core-view" aria-haspopup="dialog" aria-controls="core-map-window" aria-expanded="false">Core map ↗</button><button class="small-button" data-action="zoom" aria-label="Zoom process diagram" aria-pressed="false">Zoom +</button></div></div>
               <div class="annunciator" role="status"><span class="annunciator-icon">●</span><span data-value="annunciator">ALL SYSTEMS NORMAL</span><span class="plant-state" data-value="status">RUNNING</span></div>
@@ -302,6 +306,7 @@ export class NuclearPowerConsole extends HTMLElement {
               <div class="diagram-legend"><span><i class="temperature-scale" aria-hidden="true"></i> Loop temperature · 20 °C → 335+ °C</span><span><i class="legend-dot"></i> Simulated read-back</span><span class="diagram-note">Illustrative process · independent demo session</span></div>
               </div>
               ${auxiliaryPanel}
+              ${maintenancePanel(equipmentDetails)}
             </section>
 
             <aside class="operator-column" aria-label="Operator console">
@@ -365,6 +370,7 @@ export class NuclearPowerConsole extends HTMLElement {
 
         initializeEquipment(this);
         initializeExercises(this);
+        initializeMaintenance(this);
         for (const trigger of this.shadowRoot.querySelectorAll('[data-equipment]:not([data-equipment="reactor"])')) {
             trigger.setAttribute('aria-haspopup', 'dialog');
             trigger.setAttribute('aria-controls', `equipment-${trigger.dataset.equipment}-window`);
@@ -414,7 +420,8 @@ export class NuclearPowerConsole extends HTMLElement {
         this.shadowRoot.addEventListener('keydown', event => {
             if (event.target.matches('[data-plant-tab]') && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
                 event.preventDefault();
-                const tab = event.key === 'Home' ? 'reactor' : event.key === 'End' ? 'auxiliary' : this.plantTab === 'reactor' ? 'auxiliary' : 'reactor';
+                const index = PLANT_TABS.indexOf(this.plantTab);
+                const tab = event.key === 'Home' ? PLANT_TABS[0] : event.key === 'End' ? PLANT_TABS.at(-1) : PLANT_TABS[(index + (event.key === 'ArrowRight' ? 1 : -1) + PLANT_TABS.length) % PLANT_TABS.length];
                 this.setPlantTab(tab);
                 this.shadowRoot.querySelector(`[data-plant-tab="${tab}"]`).focus({ preventScroll: true });
             }
@@ -583,9 +590,9 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     setPlantTab(tab) {
-        this.plantTab = tab === 'auxiliary' ? 'auxiliary' : 'reactor';
+        this.plantTab = PLANT_TABS.includes(tab) ? tab : 'reactor';
         this.dataset.plantTab = this.plantTab;
-        for (const name of ['reactor', 'auxiliary']) {
+        for (const name of PLANT_TABS) {
             const selected = this.plantTab === name;
             this.shadowRoot.querySelector(`#${name}-panel`).hidden = !selected;
             const button = this.shadowRoot.querySelector(`#${name}-tab`);
@@ -604,7 +611,7 @@ export class NuclearPowerConsole extends HTMLElement {
             } catch { this.fallbackAuxiliary(); }
         }
         if (this.plantTab === 'auxiliary') this.auxiliaryScene?.resize();
-        else this.overviewScene?.resize();
+        else if (this.plantTab === 'reactor') this.overviewScene?.resize();
         this.updateOverview();
     }
 
@@ -1253,6 +1260,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.shadowRoot.querySelector('.fuel-inspector').hidden = !this.selectedFuel;
         this.updateSupply();
         updateEquipment(this);
+        updateMaintenance(this);
         updateExercises(this);
         drawEquipmentMotion(this);
         this.shadowRoot.querySelector('#fault-scenario').value = condition.fault;
@@ -1289,7 +1297,7 @@ export class NuclearPowerConsole extends HTMLElement {
             this.shadowRoot.querySelector(`[data-rod-side="${rod.id}"]`).setAttribute('transform', `translate(0 ${-15 + rod.position * 1.12})`);
             const channel = this.shadowRoot.querySelector(`[data-rod="${rod.id}"]`);
             const zone = sim.condition.zones.find(zone => zone.id === rod.id);
-            channel.dataset.condition = zone.damage >= 1 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
+            channel.dataset.condition = zone.damage > 0 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
             channel.classList.toggle('selected', !this.selectedFuel && rod.id === this.selectedRod);
             channel.classList.toggle('manual-override', rod.manualOverride);
             channel.setAttribute('aria-pressed', String(!this.selectedFuel && rod.id === this.selectedRod));
@@ -1323,7 +1331,7 @@ export class NuclearPowerConsole extends HTMLElement {
                 (rod.x - Number(element.dataset.fuelX)) ** 2 + (rod.y - Number(element.dataset.fuelY)) ** 2 <
                 (best.x - Number(element.dataset.fuelX)) ** 2 + (best.y - Number(element.dataset.fuelY)) ** 2 ? rod : best);
             const zone = sim.condition.zones.find(zone => zone.id === nearest.id);
-            element.dataset.condition = zone.damage >= 1 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
+            element.dataset.condition = zone.damage > 0 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
             const glow = Math.min(1, Math.max(0, (zone.temperature - 100) / 550));
             element.querySelector('.fuel-center').style.opacity = glow;
             element.querySelector('.fuel-center').style.fill = `hsl(${40 - glow * 35} 95% 65%)`;

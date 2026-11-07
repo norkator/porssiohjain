@@ -159,6 +159,28 @@ rod settings also affect stress and local heat. These controls are simulation-on
 150 °C, fuel below 200 °C, and no meltdown. It repairs accumulated damage/stress while
 preserving heat and operating settings. Meltdown can only be cleared by **Reset demo**.
 
+The **Maintenance** overview tab collects retained core/pump damage, equipment wear
+and exchanger fouling in a live list, with a count visible on the tab. Core damage
+is grouped with its affected-channel count; temporary stress and depleted fuel
+are separate. **Inspect** opens the existing movable component/core console.
+**Repair all** services the listed components together through the existing
+cooled repair path. A shared readiness checklist shows Stop, fault clearance,
+coolant below 150 °C, peak fuel below 200 °C and no meltdown, with current
+temperatures. **Clear active faults** explicitly clears injected plant/component
+deterioration without healing damage or changing other periodic disturbances.
+Repairs preserve retained heat, fuel reserves, settings, operating hours and both
+reactor/turbine trip latches. They cannot start equipment or close a breaker.
+The list clears as repairs complete; Reset demo clears maintenance feedback.
+
+Inspecting the reactor now exposes a damage summary and every affected local
+zone directly above the core map. Entries identify the nearby CR rod, retained
+damage percentage and local fuel temperature; selecting one selects that rod
+and its existing detail readings. All nonzero retained damage has a red map
+border, including values below 1%. The dialog also offers **Repair all damage**
+through the same core/component bulk repair path, with explicit blocking
+reasons and current temperatures. Repairing removes the list entries and red
+borders while preserving fuel and trips; fuel replacement remains separate.
+
 Trip reset additionally requires cleared faults, repaired damage and local fuel
 below 410 °C. It does not clear retained heat, stress, damage or the incident history,
 and it never restarts automatically. Auto reduces generation against cooling capacity
@@ -238,7 +260,7 @@ renderer around the retained simulation. Unsupported/lost WebGL 2 falls back to
 the usable SVG view. Stationary equipment surfaces and rotor blades are batched
 by material to reduce draw calls.
 
-The main panel has **Reactor overview** and **Auxiliary power** tabs, with keyboard
+The main panel has **Reactor overview**, **Auxiliary power** and **Maintenance** tabs, with keyboard
 arrow/Home/End navigation and retained plant state. Reactor overview keeps the 3D
 and SVG presentation selector. Auxiliary power contains the 3D backup generators,
 source switches, diesel controls and a compact 2D source-to-pump route. Only the
@@ -681,6 +703,8 @@ animation while instruments and controls continue to work.
   uneven exposure, capability, acceleration and explicit replacement interlocks.
 - `nuclear/src/simulation/nuclear-power-components.js` owns component settings/read-backs,
   transfer/cooling factors, turbine shaft/breaker, disturbances, wear and exercises.
+- `nuclear/src/simulation/nuclear-power-maintenance.js` renders the live damage/wear/fouling
+  list, repair readiness and explicit bulk repair/fault-clear controls.
 - `nuclear/src/simulation/nuclear-power-equipment.js` renders the movable consoles and
   exercises, settings ownership, local trends and maintenance journal.
 - `nuclear/src/simulation/nuclear-power-audio.js` owns operating-state loops, UI samples and quiet Start/Stop cues;

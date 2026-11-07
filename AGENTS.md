@@ -128,7 +128,13 @@ independent of alarm acknowledgement. These are simulation limits, not hardware 
 `nuclear-power-condition.js` models retained heat, progressive faults, local fuel
 hot spots, stress/wear and accumulated damage before a slow meltdown. Trip reset
 must never erase heat/damage or heal components. Only cooled, stopped, fault-free
-non-melted sessions allow explicit repair; meltdown requires Reset demo. The latched meltdown has a red console pulse, bouncing
+non-melted sessions allow explicit repair; meltdown requires Reset demo. The Maintenance
+tab lists retained core/pump damage, component wear and exchanger fouling, with
+Inspect, explicit fault clearing, a shared readiness checklist and Repair all.
+The core map also lists each damaged local zone with damage/temperature, selectable
+rod details, red borders for all nonzero damage and the shared Repair all action.
+Repairs preserve heat, fuel, settings, hours and reactor/turbine trip latches.
+The latched meltdown has a red console pulse, bouncing
 movable nonmodal dialog with reset/export, and escalating opt-in warning/siren audio; preserve mute, pause,
 visibility cleanup and reduced-motion behavior. Preserve
 the incident's initiating cause independently of the rolling event journal.
