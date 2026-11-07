@@ -29,6 +29,8 @@ export class PlantOverviewScene {
         this.rods = [];
         this.valves = [];
         this.pumps = {};
+        this.dynamicGroups = [];
+        this.dynamicMeshes = [];
         this.abort = new AbortController();
         this.yaw = .24;
         this.pitch = .7;
@@ -297,11 +299,12 @@ export class PlantOverviewScene {
     batchStaticMeshes() {
         // Keep picking by component while batching stationary surfaces. Rotor
         // blades are batched in their own moving coordinate system as well.
-        const moving = new Set([...this.fuel, ...this.rods, this.pool, ...this.drips,
-            ...this.drops, ...this.paths.flatMap(path => path.dots),
-            ...this.valves.map(valve => valve.handle), ...Object.values(this.pumps), this.turbineRotor]);
+        const moving = new Set([...this.fuel, ...this.rods, this.pool, ...(this.drips || []),
+            ...(this.drops || []), ...this.paths.flatMap(path => path.dots),
+            ...this.valves.map(valve => valve.handle), ...Object.values(this.pumps), this.turbineRotor,
+            ...this.dynamicGroups, ...this.dynamicMeshes]);
         this.scene.updateMatrixWorld(true);
-        for (const root of [this.scene, ...this.groups.values(), ...Object.values(this.pumps), this.turbineRotor]) {
+        for (const root of [this.scene, ...this.groups.values(), ...Object.values(this.pumps), this.turbineRotor, ...this.dynamicGroups].filter(Boolean)) {
             const batches = new Map();
             const inverse = root.matrixWorld.clone().invert();
             const visit = object => {
@@ -395,7 +398,7 @@ export class PlantOverviewScene {
     resetCamera() {
         this.yaw = .24;
         this.pitch = .7;
-        this.zoom = DEFAULT_ZOOM;
+        this.zoom = this.defaultZoom ?? DEFAULT_ZOOM;
         this.render();
     }
 
@@ -461,7 +464,7 @@ export class PlantOverviewScene {
     render() {
         if (this.disposed || !this.width || this.host.hidden) return;
         const aspect = this.width / this.height;
-        const halfHeight = Math.max(8.8, 14 / aspect) / this.zoom;
+        const halfHeight = Math.max(this.frameHeight ?? 8.8, (this.frameWidth ?? 14) / aspect) / this.zoom;
         Object.assign(this.camera, { left: -halfHeight * aspect, right: halfHeight * aspect, top: halfHeight, bottom: -halfHeight });
         this.camera.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * 36, Math.sin(this.pitch) * 36, Math.cos(this.yaw) * Math.cos(this.pitch) * 36).add(this.target);
         this.camera.lookAt(this.target);

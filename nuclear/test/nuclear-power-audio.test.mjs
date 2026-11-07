@@ -86,7 +86,7 @@ test('Kenney samples preload once, play quietly without looping, and replace ear
     assert.equal(audio.ui('on'),true);
     const [first]=audio.nodes;
     assert.equal(first.oscillator.loop,false);
-    assert.equal(first.gain.gain.value,0.13);
+    assert.equal(first.gain.gain.value,0.26);
     assert.equal(audio.ui('off'),false); // Fast repeated input cannot stack clicks.
     context.currentTime+=.1;
     assert.equal(audio.ui('off'),true);

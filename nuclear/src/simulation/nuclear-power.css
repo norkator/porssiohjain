@@ -702,6 +702,86 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .exercises-dialog p, .exercises-dialog li, .turbine-readiness li { color: var(--muted); font-size: 11px; }
 .exercises-dialog ol { max-height: 200px; overflow: auto; }
 
-.ui-volume-label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
-.ui-volume-label input[type="range"] { width: 65px; margin: 0; }
 .ui-sound-status { color: var(--muted); font-size: 10px; }
+
+.heading { flex-shrink: 0; }
+.header-control-card { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; border: 1px solid var(--border); border-radius: 8px; background: #192833; padding: 12px 14px; }
+.header-control-card .automation-strip { border: 0; padding: 0; margin: 0; background: transparent; align-content: center; gap: 8px 14px; }
+.header-control-card .regulation-status { flex-basis: 100%; flex-direction: row; align-items: center; flex-wrap: wrap; border: 0; padding: 0; gap: 5px 10px; }
+.header-control-card .regulation-status > span { flex: 1; min-width: 130px; }
+.header-control-card .regulation-status button { margin: 0; }
+.header-settings { display: grid; grid-template-columns: auto auto; align-content: center; align-items: center; gap: 6px 16px; padding-left: 14px; border-left: 1px solid var(--border); }
+.header-sound { grid-column: 1; grid-row: 1; display: grid; gap: 3px; }
+.header-settings .power-supply-button { grid-column: 1; grid-row: 2; padding: 5px 8px; max-width: 180px; }
+.header-settings .power-supply-button > span { font-size: 8px; overflow-wrap: anywhere; }
+.header-settings .power-supply-button small { font-size: 8px; }
+.header-settings .theme-toggle { grid-column: 2; grid-row: 1; justify-self: end; }
+.header-settings .session { grid-column: 2; grid-row: 2; }
+.header-settings .simulation-badge { padding: 3px 7px; font-size: 8px; }
+.header-settings .session-clock { margin-top: 4px; font-size: 10px; }
+.header-settings .session small { display: block; font-size: 8px; color: var(--muted); margin-top: 2px; }
+.plant-tabs { display: flex; gap: 4px; padding: 7px 12px 0; border-bottom: 1px solid var(--border); background: #111e29; }
+.plant-tabs button { padding: 9px 13px; border: 1px solid transparent; border-bottom: 2px solid transparent; border-radius: 5px 5px 0 0; background: transparent; color: var(--muted); font-size: 11px; }
+.plant-tabs [aria-selected="true"] { color: #b9f2de; background: #1d343c; border-color: #3a5a62; border-bottom-color: #8bd7bf; }
+.auxiliary-panel { padding: 12px; }
+.auxiliary-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.auxiliary-heading .eyebrow { font-size: 8px; letter-spacing: 1px; }
+.auxiliary-heading h2 { font-size: 13px; white-space: normal; }
+.auxiliary-camera-tools { display: flex; gap: 4px; }
+.auxiliary-scene.plant-scene { height: clamp(260px, calc(100dvh - 730px), 390px); border: 1px solid var(--border); border-radius: 5px; }
+.auxiliary-scene-status:empty { display: none; }
+.auxiliary-scene-status, .auxiliary-note { margin: 10px 0 0; color: var(--muted); font-size: 9px; line-height: 1.6; }
+.auxiliary-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 12px; }
+.auxiliary-controls .diesel-grid { display: contents; }
+.auxiliary-controls .supply-overview { padding: 10px; gap: 5px; }
+.auxiliary-controls .supply-overview > strong { font-size: 12px; overflow-wrap: anywhere; }
+.auxiliary-controls .supply-overview > span { font-size: 9px; }
+.auxiliary-controls .auxiliary-power-diagram { max-height: 130px; }
+.auxiliary-controls .supply-switches { margin: 0; display: grid; gap: 5px; }
+.auxiliary-controls label { font-size: 10px; }
+.auxiliary-controls .supply-overview p { color: var(--muted); font-size: 9px; line-height: 1.5; }
+.auxiliary-controls .diesel-card { padding: 10px; min-width: 0; }
+.auxiliary-controls .diesel-title h3 { font-size: 12px; }
+.auxiliary-controls .diesel-title strong { font-size: 9px; }
+.auxiliary-controls .diesel-symbol { font-size: 18px; }
+.auxiliary-controls .diesel-visual-status { margin-top: 6px; min-height: 25px; font-size: 8px; }
+.auxiliary-controls .diesel-meter { margin: 8px 0; }
+.auxiliary-controls dl { margin: 6px 0; }
+.auxiliary-controls dt, .auxiliary-controls dd { font-size: 9px; }
+.auxiliary-controls .button-pair { margin: 9px 0; gap: 5px; }
+.animated-metric { position: relative; isolation: isolate; }
+.animated-metric .metric-label { position: relative; z-index: 1; }
+.animated-metric .metric-reading { padding-right: 38px; }
+.metric-motion { position: absolute; right: 7px; top: 30px; width: 50px; height: 35px; color: var(--cool); opacity: calc(.18 + var(--instrument-strength, 0) * .72); pointer-events: none; }
+.thermal-metric .metric-motion { color: var(--warm); }
+.metric-heat-wisp, .thermal-base, .metric-electric-ring, .metric-dynamo path, .metric-flow-pipe { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.thermal-base, .metric-electric-ring, .metric-flow-pipe { opacity: .35; }
+.metric-electric-bolt { fill: currentColor; }
+.metric-flow-particle { fill: currentColor; }
+.animated-metric .metric-track i { position: relative; overflow: hidden; }
+.animated-metric .metric-track i::after { content: ''; position: absolute; inset: 0; width: 36%; background: linear-gradient(90deg, transparent, #ffffffb0, transparent); left: var(--instrument-phase, -30%); opacity: var(--instrument-strength, 0); }
+@container nuclear-console (min-width: 1400px) {
+    .diagram-viewport > .plant-scene { height: clamp(400px, calc(100dvh - 470px), 680px); }
+}
+@container nuclear-console (max-width: 1300px) {
+    .masthead { flex-wrap: wrap; }
+    .header-control-card { flex-basis: 100%; }
+}
+@container nuclear-console (max-width: 800px) {
+    .auxiliary-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .auxiliary-controls .supply-overview { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .auxiliary-controls .supply-overview .auxiliary-power-diagram { grid-column: 2; grid-row: 1 / 5; max-height: 180px; }
+    .auxiliary-controls .supply-overview p { grid-column: 1 / -1; }
+    .header-control-card { grid-template-columns: minmax(0, 1fr); }
+    .header-settings { border-left: 0; border-top: 1px solid var(--border); padding: 10px 0 0; }
+    .auxiliary-scene.plant-scene { height: 350px; }
+}
+@container nuclear-console (max-width: 520px) {
+    .header-control-card { padding: 10px; }
+    .auxiliary-panel { padding: 8px; }
+    .auxiliary-controls { grid-template-columns: minmax(0, 1fr); }
+    .auxiliary-controls .supply-overview { grid-template-columns: minmax(0, 1fr); }
+    .auxiliary-controls .supply-overview .auxiliary-power-diagram { grid-column: auto; grid-row: auto; max-height: 150px; }
+    .plant-tabs button { padding: 9px; font-size: 10px; }
+    .auxiliary-scene .plant-scene-label { min-width: 65px; }
+}

@@ -8,7 +8,7 @@ export class PlantAudio {
         // Both synthesized cues and one-shot samples share cleanup and the sound switch.
         this.nodes = new Set();
         this.uiBuffers = new Map();
-        this.uiGain = 0.13;
+        this.uiGain = 0.26;
         this.uiState = 'not-loaded';
         this.lastUiAt = -Infinity;
     }

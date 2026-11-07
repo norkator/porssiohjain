@@ -8,6 +8,17 @@ export function advancePumpMotion(previous, speedPercent, seconds) {
     };
 }
 
+// Instrument illustrations follow actual reported output/flow, never setpoints.
+export function advanceInstrumentMotion(previous, signals, seconds) {
+    const dt = Number.isFinite(seconds) ? Math.max(0, Math.min(.1, seconds)) : 0;
+    const next = {};
+    for (const key of ['thermal', 'electrical', 'flow']) {
+        const activity = Number.isFinite(signals[key]) ? Math.max(0, Math.min(1, signals[key])) : 0;
+        next[key] = ((previous[key] || 0) + activity * dt * .9) % 1;
+    }
+    return next;
+}
+
 // Illustration state only: these rates are not simulated RPM or extra plant physics.
 export function advanceProcessMotion(previous, signals, seconds) {
     const bounded = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;

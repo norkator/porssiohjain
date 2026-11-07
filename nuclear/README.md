@@ -20,11 +20,24 @@ simulation as the instruments. The taller viewport supports both themes and
 reduced motion. **Schematic** switches to the retained SVG overview without
 changing plant state; browsers without WebGL 2 fall back to it automatically.
 
-Auxiliary power has a separate 2D card beneath the instruments. It shows turbine,
-grid and diesel source states, highlights the source supplying the AC bus and
-routes power to both pumps. Select the card to open the existing movable auxiliary
-power / backup generator controls. The electrical supply diagram stays in 2D in
-both overview modes.
+The header card beside the title contains regulation targets, the opt-in plant
+sound switch, theme, simulation status and clock. UI clicks use 100% of the bounded
+sample-volume range (0.26 gain); the volume slider and test button are removed.
+
+The main panel has **Reactor overview** and **Auxiliary power** tabs. The auxiliary
+tab contains two low-poly 3D diesel cutaways, grid/feed switches and the existing
+standby, start/stop and manual refuelling controls. Pistons, shaft and fans follow
+reported starting/running state; tank fill follows actual fuel reserve, and lit
+terminals/flow markers identify engines supplying the bus. Running unloaded remains
+distinct from stopped. The source-to-pump route remains a plain 2D diagram inside
+this tab. Both 3D views support orbit, zoom, themes and cleanup; unavailable WebGL
+leaves auxiliary readings/controls usable. Switching tabs preserves plant state and
+only renders the selected scene. Core and component dialogs remain floating.
+
+Thermal output, electrical output and primary flow instruments have small animated
+heat, generator and coolant illustrations, plus traveling meter highlights. Their
+speed/intensity follows actual output/flow. They stay still at zero and share the
+pause, visibility and reduced-motion behavior of the main scene.
 
 ## Development and verification
 

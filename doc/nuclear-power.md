@@ -125,8 +125,8 @@ produce no cue. Kenney UI Audio samples provide quiet on/off switch clicks and a
 an adjustment is committed (not on every slider movement). They share Enable plant
 sounds and mute/pause/visibility cleanup, preload only when sound is enabled and
 never loop. One sampled UI voice plays at a time, with 80 ms input throttling and
-0.13 default gain; the Clicks volume slider adjusts UI samples independently (0–0.26 gain), and Test
-click previews the adjustment sound. Missing samples show an unavailable message.
+0.26 default gain (100% of the bounded UI-sample range). The Clicks slider and
+Test click button have been removed. Missing samples show an unavailable message.
 The context stays running while sounds are enabled and the view is active, even
 between sounds, to avoid suspend/resume races. Mute/pause/hide still suspend it.
 Unloaded/late clicks are skipped rather than replayed. Sample files and
@@ -178,14 +178,21 @@ All constants are gameplay/demo parameters, not real reactor engineering:
 ## Layout and appearance
 
 The console uses the full browser width with no fixed maximum width. At
-container widths of at least 1400 px, it has three columns:
+container widths of at least 1400 px, it has three columns. Regulation, plant
+sound enable/mute, theme, simulation information and session clock share a header
+card beside the brand/title, leaving more room for the main overview:
 
 - left: stacked temperature, thermal output, electrical output, flow and rod cards,
   followed by the collapsed fault/incident tools; equipment details live in dialogs;
-- middle: regulation controls, then reactor overview beside the operator console;
+- middle: tabbed reactor/auxiliary overview beside the operator console;
 - right: live trends above the filterable event journal.
 
-The default overview fits 1920×1080 and 2560×1440 screens without page scrolling.
+The default reactor overview fits 1920×1080 and 2560×1440 screens without page scrolling.
+The thermal output, electrical output and primary flow cards include heat wisps, a
+rotating generator symbol, flowing coolant markers and traveling meter highlights.
+Their phase and intensity follow actual reported output/flow, remain still at zero,
+and share pause, visibility, detach and reduced-motion cleanup. Numeric read-backs
+are not interpolated or substituted with requested settings.
 Long event lists scroll inside the journal. Narrower/resized windows progressively
 use two columns and then stacked sections, with mobile-sized controls retained.
 
@@ -222,17 +229,18 @@ renderer around the retained simulation. Unsupported/lost WebGL 2 falls back to
 the usable SVG view. Stationary equipment surfaces and rotor blades are batched
 by material to reduce draw calls.
 
-Auxiliary power is a separate plain 2D card beneath the left instruments, outside
-both process views. It shows turbine-feed connection, grid availability, diesel
-standby/start/running state, the active supplying source, AC bus, and connections
-to both pumps, with requested demand and available capacity. Energized routes
-follow the existing supply phase. Select the card or press Enter/Space to open the
-existing auxiliary-power/backup-generator dialog. No electrical supply geometry
-is embedded in the 3D scene.
+The main panel has **Reactor overview** and **Auxiliary power** tabs, with keyboard
+arrow/Home/End navigation and retained plant state. Reactor overview keeps the 3D
+and SVG presentation selector. Auxiliary power contains the 3D backup generators,
+source switches, diesel controls and a compact 2D source-to-pump route. Only the
+selected 3D scene renders; switching tabs never resets the reactor, trips, fuel or
+settings. The header's source button selects the auxiliary tab. Core-map and other
+component windows remain movable and can stay open above either tab.
 
 ## Process animation
 
-The schematic uses the shared visibility-aware frame loop for illustrative motion:
+The selected 3D scene, retained SVG schematic and instrument cards use the shared
+visibility-aware frame loop for illustrative motion:
 
 - Turbine blades show projected rotation and the generator has a centered rotating
   rotor. The separate simulated shaft-speed read-back drives visual rotation, with
@@ -249,9 +257,10 @@ The schematic uses the shared visibility-aware frame loop for illustrative motio
   Retained fuel heat keeps the core glowing after shutdown; uneven channels remain
   visible. Meltdown gradually slumps the fuel, adds molten drips and grows a gently
   shifting molten pool. No explosion or random plant-state changes are introduced.
-- An auxiliary-power strip identifies turbine, grid or diesels and animates the
-  energized route into the pump bus. Loss of AC dims the bus; source restoration
-  does not restart the reactor. Existing diesel cutaways retain their own motion.
+- The auxiliary tab's 2D power route identifies turbine, grid or diesels and
+  animates the energized route into the pump bus. Loss of AC dims the bus; source
+  restoration does not restart the reactor. Its 3D diesels show pistons, shaft/fans,
+  actual fuel fill and electrical-output markers only while supplying load.
 
 Cold startup begins with inserted rods, no turbine rotation, steam or fuel glow,
 with both pumps stopped and no coolant circulation. Explicitly start both pumps
@@ -458,27 +467,28 @@ These are illustrative UI interlocks, not a real refuelling procedure.
 
 ## Auxiliary power and backup generators
 
-The header always identifies the source that powers coolant pumps. Click it to open
-**Auxiliary power & backup generators**, with a live source path and diesel cards.
-It uses the same movable, nonmodal top-layer window behavior as the reactor core map:
-drag its title bar or focus the title bar and use arrow keys, with viewport clamping
-on movement/resize. Close with × or Escape; its position is retained when reopened.
-Both windows can stay open together, and the underlying process controls remain
-available. Reopening or dragging a window brings it forward. Escape closes the
-focused floating window (or the most recently opened one when focus is outside).
-Hiding/detaching the feature closes the windows. The generator window can remain
-open while paused, with its simulated state and visual motion frozen.
+The header identifies the source powering coolant pumps. Its source button or
+the main panel's **Auxiliary power** tab opens **Auxiliary power & backup generators**
+inside the main overview, replacing the former floating auxiliary dialog and left
+source card. Reactor/operator controls remain available. The core map and other
+floating consoles keep their existing movement, clamping and close behavior.
 
-Each diesel has an SVG engine cutaway, radiator, moving pistons, drive shaft,
-alternator fan, fuel tank and AC output line in the process diagram's visual style.
-Starting engines turn slowly; running engines animate faster; stopped/empty engines
-remain still. These are illustrative animation rates, not measured RPM. The tank
-fill follows actual simulated fuel reserve. A lit output terminal and moving power
-line appear only when that diesel is supplying bus load, so an unloaded running
-engine is visually distinct from one powering pumps. Text and accessible drawing
-labels identify standby, cranking, running/unloaded, supplying and empty states.
-Both themes have dedicated drawing colors. Motion uses the existing visibility-aware
-animation loop, stops with pause/hide/detach, and stays static with reduced motion.
+Two low-poly 3D diesel cutaways share the reactor scene's bounded orbit, wheel/button
+zoom, keyboard camera controls, picking, semantic labels, batching, themes and GPU
+cleanup. Each has radiator, pistons/connecting rods, crankshaft, alternator/fans,
+exhaust, fuel tank and output terminal. Starting engines move slowly; running
+engines move faster; stopped/empty engines remain still. These are illustrative
+rates, not measured RPM. Tank fill uses actual fuel reserve. Lit terminals and
+moving output markers appear only for a diesel supplying bus load, keeping running
+unloaded distinct from supplying. Selecting an engine focuses its existing controls.
+Text and labels expose standby, starting, running/unloaded, supplying and empty
+states. The 2D route retains explicit turbine, grid, diesel, AC bus and pump nodes.
+
+The scene shares the console's frame loop and stops with pause, hidden views and
+reduced motion. Switching to Reactor overview stops rendering the generator scene
+while the plant model and generator fuel consumption continue. Detach disposes
+both scene renderers; reconnect recreates the selected view. Unsupported/lost
+WebGL keeps all source/diesel readings and controls available in the auxiliary tab.
 
 Pump power is independent of reactor generation: after shutdown it normally comes from
 the external grid. The broad source arrangement is informed by the [NRC emergency power
@@ -493,7 +503,7 @@ cubed. Each diesel has 8 MW capacity, enough for the two simplified loops. Gener
 output and the grid-controller target remain **gross electrical generation**, separate
 from this auxiliary-load indication; no net-export model is implied.
 
-The dialog permits grid disconnection/restoration and turbine-feed isolation/reconnection.
+The auxiliary tab permits grid disconnection/restoration and turbine-feed isolation/reconnection.
 Each diesel has automatic standby, manual Start/Stop, remaining fuel, startup countdown,
 actual bus load/capacity and manual refuelling. Armed diesels start when both normal
 sources are unavailable, taking eight simulated seconds. Initial fuel differs (A 82%,
@@ -558,6 +568,8 @@ animation while instruments and controls continue to work.
   schematic, controls, recent two-minute trends, and bounded event journal.
 - `nuclear/src/simulation/nuclear-power-scene.js` owns the low-poly overview,
   bounded camera, picking, semantic labels, geometry batching and renderer cleanup.
+- `nuclear/src/simulation/nuclear-power-auxiliary-scene.js` reuses the plant scene
+  lifecycle/camera and renders the diesel cutaways, fuel, lamps and bus-load motion.
 - `nuclear/src/simulation/nuclear-power.css` is isolated in the element's shadow root.
 - `nuclear/src/simulation/nuclear-power-light.css` supplies the optional light palette.
 - `nuclear/src/simulation/nuclear-power-model.js` contains the deterministic, browser-local
@@ -636,7 +648,8 @@ Browser coverage includes React startup, cold
 start and controls, wide/mobile layouts, themes, floating dialogs, exports, animation
 and pause/visibility/detach/reduced-motion cleanup. It also checks actual WebGL
 rendering, canvas picking and semantic equipment controls, camera zoom/reset,
-state-preserving view switching, the separate 2D source card, WebGL-loss fallback,
+state-preserving overview/tab switching, the header controls, actual-driven
+instrument motion, 3D diesels and their 2D source route, WebGL-loss fallback,
 and renderer disposal/reconnection. No real MQTT/model devices are
 connected.
 
@@ -648,8 +661,8 @@ both view modes, control disabling in Auto, CSV export, mobile/container resizin
 wide-screen fitting and column ordering, theme default/persistence, electrical MW
 tracking and limiting, floating core-map opening/movement/closing with the process
 still visible, persistent overheat indication after acknowledgement, and
-pause/visibility/detach/reduced-motion cleanup. Generator checks also cover concurrent
-floating windows, background-control focus, pointer/keyboard movement, retained position,
-Escape/close, narrow-viewport clamping, centered animated fans, stopped/reduced-motion
-visuals and hidden-view cleanup. Build the standalone app before running its browser
+pause/visibility/detach/reduced-motion cleanup. Generator checks cover tab keyboard navigation, core-map coexistence, 3D
+rendering/picking, fuel fill, start/stop/manual refuelling, loaded versus unloaded
+read-back, camera controls, mobile layout, stopped/reduced-motion visuals and
+hidden-view/GPU cleanup. Build the standalone app before running its browser
 regression; a running Nginx container can be checked with `NUCLEAR_POWER_APP_URL`.

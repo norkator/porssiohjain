@@ -95,9 +95,13 @@ recovery. Automatic control must never reset a trip or restart the plant by itse
 Manual mode requires operator Stop/Emergency shutdown: flow/temperature/hot-spot
 automatic trips apply only in Auto; alarms, damage and irreversible meltdown remain
 active in both modes. Switching modes must not clear an existing trip.
-Wide windows use stacked instruments on the left, controls/reactor/operator in the
-middle, and trends/logs on the right. Dark remains default; light theme is local to
-this feature. Auto can regulate core temperature or electrical MW; power requests
+Wide windows use stacked instruments on the left, tabbed reactor/auxiliary views
+and operator controls in the middle, and trends/logs on the right. Regulation, plant
+sound enable/mute, theme, simulation status and clock share the header card beside
+the title. UI clicks default to 100% of their bounded range (0.26 gain); there is no
+volume slider or test-click button. Thermal/electrical/flow instrument motion follows
+actual read-back and obeys cold/zero, pause, visibility and reduced-motion behavior.
+Dark remains default; light theme is local to this feature. Auto can regulate core temperature or electrical MW; power requests
 must respect the configured core-temperature ceiling and report limiting reasons.
 Clicking the vessel opens a movable floating core-map dialog while the process
 stays visible. Over 335 °C, the core card/outlet/annunciator stay red until cooling,
@@ -118,11 +122,15 @@ fuel capability and regulates only rods without an explicit manual override. Sto
 release overrides and insert every rod. `nuclear-power-supply.js` models the auxiliary
 AC bus: turbine, external grid, then two armed standby diesels. Pumps must coast down
 without AC; restoring power must never reset trips or restart the reactor. The auxiliary
-power dialog manages grid/feed availability, diesel standby/start/stop/manual refuelling.
-It is movable and nonmodal like the core map; both can remain open over the process.
-Preserve shared dragging/keyboard movement, viewport clamping and per-window closing.
-Diesel SVG cutaways animate pistons/fans from reported engine state, show real simulated
-fuel reserve and bus-load indication, and obey pause/visibility/reduced-motion settings.
+power tab manages grid/feed availability, diesel standby/start/stop/manual refuelling.
+It replaces the former auxiliary floating dialog and sidebar card. Core/component
+windows remain movable and nonmodal over either tab; preserve their shared dragging,
+keyboard movement, viewport clamping and per-window closing. The auxiliary tab has
+two low-poly 3D diesel cutaways with actual-state pistons/fans, real simulated fuel
+fill and loaded/unloaded bus indication, plus the retained 2D source-to-pump route.
+Share the plant scene camera/disposal behavior, only render the selected tab, preserve
+state across tab switches, and obey pause/visibility/reduced-motion settings. Missing
+WebGL must leave the auxiliary readings and controls usable.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff
