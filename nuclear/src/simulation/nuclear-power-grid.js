@@ -41,7 +41,7 @@ export function gridOperatingTargets(sim, targetMw, capacity = gridDispatchCapac
 
 export class GridDispatcher {
     constructor() {
-        this.enabled = false;
+        this.enabled = true;
         this.remaining = 45;
         this.sequence = 0;
         this.lastRequest = null;

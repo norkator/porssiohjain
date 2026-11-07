@@ -101,8 +101,8 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .1px; white-space: nowra
 .fault-console > div { display: grid; gap: 9px; padding-top: 12px; }
 .fault-console select { width: 100%; font-size: 10px; }
 .fault-console p { font-size: 9px; line-height: 1.6; overflow-wrap: anywhere; }
-.pump-button[data-condition="strained"] { border-color: #ddac65; box-shadow: inset 3px 0 #ddac65; }
-.pump-button[data-condition="damaged"] { border-color: #f18374; box-shadow: inset 3px 0 #f18374; }
+.pump-control[data-condition="strained"] { border-color: #ddac65; box-shadow: inset 3px 0 #ddac65; }
+.pump-control[data-condition="damaged"] { border-color: #f18374; box-shadow: inset 3px 0 #f18374; }
 :host([data-condition="strained"]) .condition-strip > strong { color: #f1ba78; }
 :host(:is([data-condition="overheating"], [data-condition="core-damage"], [data-condition="component-damage"], [data-condition="meltdown"])) .condition-strip > strong { color: #ff9684; }
 :host(:is([data-condition="overheating"], [data-condition="core-damage"], [data-condition="meltdown"])) .core-glow { fill: url(#failure-glow); }
@@ -170,6 +170,37 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .1px; white-space: nowra
 .control-button { min-height: 37px; padding: 7px 10px; background: #243441; color: #d7e2e9; border: 1px solid #435361; border-radius: 4px; font-size: 12px; }
 .control-button:not(:disabled):hover { background: #344956; border-color: #76948e; }
 .start-button { background: #24413f; border-color: #42776b; color: #acf0d6; }
+.operator-panel { --metal-top: #34434a; --metal-bottom: #202c33; --metal-edge: #56646a; --panel-legend: #e1e7e6; }
+.operator-panel .operation-state strong { padding: 3px 7px; border: 1px solid #4a5558; border-radius: 2px; background: #101a1c; box-shadow: inset 0 1px 3px #0009; font-family: Consolas, monospace; letter-spacing: 1px; }
+.operator-panel .control-button:not(.hardware-button) { box-shadow: inset 0 1px #ffffff18, 0 2px 0 #0b141a; border-radius: 3px; }
+.operator-panel .hardware-button { position: relative; display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 68px; padding: 10px 7px; border: 1px solid var(--metal-edge); border-radius: 4px; color: var(--panel-legend); background-color: #26363c; background-image: linear-gradient(var(--metal-top), var(--metal-bottom)); box-shadow: inset 0 1px #ffffff25, inset 0 -2px #0006, 0 3px 0 #0b141a; text-align: left; }
+.hardware-button::before, .hardware-button::after { content: ''; position: absolute; width: 5px; height: 5px; border: 1px solid #7a8588; border-radius: 50%; background: linear-gradient(135deg, #8b9495 40%, #253135 42% 57%, #697679 59%); box-shadow: 0 1px 1px #0009; }
+.hardware-button::before { top: 4px; left: 4px; }
+.hardware-button::after { right: 4px; bottom: 4px; }
+.operator-panel .hardware-button:not(:disabled):hover { border-color: #9aa9a8; background-image: linear-gradient(#405258, #2b3a42); }
+.operator-panel .hardware-button:disabled { opacity: 1; cursor: default; }
+.hardware-face { display: grid; place-items: center; flex: 0 0 37px; height: 37px; border: 4px solid #192326; border-radius: 50%; background: radial-gradient(circle at 35% 25%, #519c70, #23603e 65%, #153c29); color: #e4fff0; box-shadow: 0 0 0 1px #7a8889, 0 3px 0 1px #0c1918, inset 0 2px 3px #ffffff45, inset 0 -3px 4px #0008; font: 700 15px Consolas, monospace; text-shadow: 0 1px 2px #000; transition: transform .12s, box-shadow .12s; }
+.stop-button .hardware-face { background: radial-gradient(circle at 35% 25%, #d56658, #9b2c29 65%, #60201d); color: #fff0e7; }
+.hardware-button:disabled[data-lamp="off"] .hardware-face { filter: saturate(.65) brightness(.8); }
+.hardware-face { position: relative; isolation: isolate; --button-glow: #5aff87; }
+.hardware-face::before { content: ''; position: absolute; inset: -12px; z-index: -1; pointer-events: none; border-radius: 50%; background: radial-gradient(circle, var(--button-glow) 15%, transparent 72%); filter: blur(5px); opacity: 0; }
+.hardware-face::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 9px 2px var(--button-glow); opacity: 0; }
+.stop-button .hardware-face { --button-glow: #ff6350; }
+.hardware-button[data-lamp="running"] .hardware-face { background: radial-gradient(circle at 38% 28%, #e2ffb8, #82f69b 35%, #32b65a 72%); border-color: #295c3e; box-shadow: 0 0 0 1px #b0ffd0, inset 0 2px 5px #f4ffe6c0, 0 3px 0 1px #163d24, 0 0 9px 3px #7bffa7cc, 0 0 23px 6px #45ff7280; text-shadow: 0 0 6px #fff, 0 1px 2px #124a27; }
+.hardware-button[data-lamp="stopped"] .hardware-face { background: radial-gradient(circle at 38% 28%, #ffd6af, #ff8165 35%, #d63832 75%); border-color: #74372f; box-shadow: 0 0 0 1px #ffc5a6, inset 0 2px 5px #fff1d0a0, 0 3px 0 1px #4b2020, 0 0 9px 3px #ff8c6dcc, 0 0 23px 6px #ff4e4980; text-shadow: 0 0 6px #fff, 0 1px 2px #771b20; }
+.hardware-button:is([data-lamp="running"], [data-lamp="stopped"]) .hardware-face::before { opacity: .85; }
+.hardware-button:is([data-lamp="running"], [data-lamp="stopped"]) .hardware-face::after { opacity: 1; }
+.operator-panel .hardware-button:not(:disabled):active { transform: none; }
+.hardware-button:not(:disabled):active .hardware-face { transform: translateY(2px); box-shadow: 0 0 0 1px #7a8889, 0 1px 0 1px #0c1918, inset 0 1px 4px #0006; }
+.hardware-label { display: grid; gap: 6px; min-width: 0; }
+.hardware-label > strong { font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; text-shadow: 0 1px #0009; }
+.hardware-indication { display: flex; align-items: center; gap: 5px; white-space: nowrap; font: 7px Consolas, monospace; letter-spacing: .1px; color: var(--muted); }
+.pilot-lamp { display: inline-block; flex: 0 0 8px; width: 8px; height: 8px; border: 1px solid #111d21; border-radius: 50%; background: radial-gradient(circle at 35% 28%, #53615f, #26332e 70%); box-shadow: 0 0 0 1px #667271, inset 0 1px 2px #000a; }
+[data-lamp="running"] .pilot-lamp { background: radial-gradient(circle at 35% 28%, #e3ffb0, #7ee78e 45%, #2e9450); box-shadow: 0 0 0 1px #5f7766, 0 0 7px #79ff8fa0; }
+[data-lamp="stopped"] .pilot-lamp, [data-lamp="warning"] .pilot-lamp { background: radial-gradient(circle at 35% 28%, #fff0b3, #f4ba55 45%, #b36e26); box-shadow: 0 0 0 1px #8c744d, 0 0 7px #ffbe59a0; }
+[data-lamp="fault"] .pilot-lamp { background: radial-gradient(circle at 35% 28%, #ffe0c0, #ff7764 45%, #b82f2f); box-shadow: 0 0 0 1px #8c5148, 0 0 7px #ff7764a0; }
+.reset-trip-button { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.reset-trip-button > span { font-size: 18px; color: var(--warm); }
 .compact { min-height: 30px; padding: 4px 6px; font-size: 10px; }
 .setpoint { padding: 12px 0; margin-top: 2px; border-bottom: 1px solid var(--border); }
 .setpoint label { display: flex; justify-content: space-between; align-items: center; color: #bdcad5; font-size: 11px; }
@@ -182,7 +213,6 @@ input:disabled { opacity: .4; cursor: default; }
 .control-label > span { color: #cfdae1; }
 .pump-controls { display: grid; gap: 7px; padding-bottom: 15px; }
 .pump-control { border: 1px solid #384d57; border-radius: 5px; background: #1a2933; overflow: hidden; padding-bottom: 10px; }
-.pump-control .pump-button { width: 100%; border: none; border-bottom: 1px solid #354852; border-radius: 0; }
 .pump-control > label { display: flex; justify-content: space-between; padding: 9px 11px 0; font-size: 9px; color: #a8bac5; }
 .pump-control > label strong { color: var(--cool); font: 11px Consolas, monospace; }
 .pump-control input[type="range"] { width: calc(100% - 24px); margin: 12px 12px 0; accent-color: var(--cool); }
@@ -195,18 +225,51 @@ input:disabled { opacity: .4; cursor: default; }
 .trip-recovery .ready { color: var(--cool); }
 .trip-recovery button { width: 100%; }
 .trip-recovery p { margin-top: 7px; font-size: 9px; color: #c4b3a8; }
-.pump-button { display: flex; align-items: center; gap: 10px; border: 1px solid #384d57; border-radius: 5px; background: #1b2c35; color: #d6e3e9; padding: 9px 10px; text-align: left; }
-.pump-button:hover { background: #2b3d47; }
+.pump-switch-row { display: grid; grid-template-columns: 23px minmax(0, 1fr) 42px; align-items: center; gap: 8px; padding: 9px 10px; border-bottom: 1px solid #354852; background: linear-gradient(#ffffff08, #00000015); box-shadow: inset 0 1px #ffffff18, inset 0 -2px #0003; }
 .pump-symbol { display: grid; place-items: center; font-size: 25px; width: 25px; color: var(--cool); }
-.pump-button strong { display: block; font-size: 11px; font-weight: 500; }
-.pump-button small { display: block; font-size: 9px; color: var(--muted); margin-top: 1px; }
-.pump-badge { margin-left: auto; font: 8px Consolas, monospace; color: var(--cool); letter-spacing: .5px; }
-.pump-button[aria-pressed="false"] { background: #2c2a29; border-color: #685244; }
-.pump-button[aria-pressed="false"] .pump-symbol, .pump-button[aria-pressed="false"] .pump-badge { color: var(--warm); }
-.emergency-button { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; color: #ffb7a7; background: linear-gradient(#4a2a2b, #3b2529); border: 1px solid #92504b; border-radius: 5px; padding: 12px 10px; text-align: left; font-size: 11px; }
-.emergency-button:not(:disabled):hover { background: #603035; border-color: #ef8b7a; }
-.emergency-button small { display: block; font: 7px Consolas, monospace; letter-spacing: .7px; color: #e29586; margin-top: 4px; }
-.emergency-symbol { height: 23px; width: 23px; border: 1px solid #b86a5b; display: grid; place-items: center; border-radius: 50%; font-weight: 700; font-size: 14px; }
+.pump-identity > strong { display: block; font-size: 11px; font-weight: 500; }
+.pump-identity > small { display: block; font-size: 9px; color: var(--muted); margin-top: 1px; }
+.pump-badge { display: flex; align-items: center; gap: 5px; margin-top: 6px; font: 8px Consolas, monospace; color: var(--cool); letter-spacing: .5px; }
+.pump-control[data-lamp="off"] :is(.pump-symbol, .pump-badge) { color: var(--muted); }
+.pump-control[data-lamp="warning"] .pump-badge { color: var(--warm); }
+.pump-control[data-lamp="fault"] .pump-badge { color: #ff9e8e; }
+.pump-rocker { display: grid; place-items: center; width: 42px; height: 46px; padding: 3px; border: 1px solid #738185; border-radius: 5px; background: linear-gradient(#111a1f, #344148); box-shadow: inset 0 1px 4px #000, 0 1px 0 #9caaab70; }
+.pump-rocker-face { display: grid; width: 32px; height: 36px; border: 1px solid #738383; border-radius: 3px; background: linear-gradient(#3e4d50 0%, #19272b 48%, #142024 52%, #415151 100%); box-shadow: 0 -2px 0 #526160, 0 3px 3px #000b; transform: perspective(100px) rotateX(-14deg); transition: transform .12s; }
+.pump-rocker-face > span { display: flex; align-items: center; justify-content: center; gap: 4px; font: 9px Consolas, monospace; }
+.pump-rocker-face small { font-size: 6px; letter-spacing: .5px; }
+.rocker-on { color: #91a4a0; border-bottom: 1px solid #0a151b; }
+.rocker-off { color: #e3e9dd; }
+.pump-rocker[aria-checked="true"] .pump-rocker-face { transform: perspective(100px) rotateX(14deg); background: linear-gradient(#254536, #182c26 48%, #334744 52%, #53615e); box-shadow: 0 2px 0 #101d1b, 0 -2px 3px #000b; }
+.pump-rocker[aria-checked="true"] .rocker-on { color: #b8ffd2; text-shadow: 0 0 5px #65ff99; box-shadow: inset 0 2px #81e0a3; }
+.pump-rocker[aria-checked="true"] .rocker-off { color: #93a39b; }
+.pump-rocker:hover { border-color: #b3c8be; }
+.pump-rocker:not(:disabled):active { transform: none; }
+.emergency-station { position: relative; overflow: hidden; padding: 10px 9px 7px; border: 1px solid #77704f; border-radius: 4px; background: linear-gradient(#343a36, #252d2d); box-shadow: inset 0 1px #ffffff25, 0 3px 0 #0b141a; }
+.emergency-station::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: repeating-linear-gradient(135deg, #d4ad4f 0 7px, #1b2529 7px 14px); }
+.emergency-station-heading { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #bdbba2; font: 7px Consolas, monospace; letter-spacing: .2px; }
+.trip-latch-indicator { display: inline-flex; align-items: center; gap: 5px; }
+.trip-latch-indicator b { font-weight: 400; }
+.emergency-button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 68px; padding: 8px 3px; border: 1px solid transparent; border-radius: 3px; color: #f3d9bb; background: transparent; text-align: left; }
+.emergency-button:disabled { opacity: 1; }
+.emergency-button:not(:disabled):hover { background: #ffffff07; border-color: #aa9061; }
+.emergency-button:not(:disabled):active { transform: none; }
+.emergency-bezel { position: relative; display: grid; place-items: center; flex: 0 0 58px; height: 58px; border: 1px solid #a99b61; border-radius: 50%; background: radial-gradient(circle, #1b2223 47%, #d4af4f 49% 66%, #8d7538 68%); box-shadow: 0 2px 3px #0009, inset 0 1px #f6dc93; }
+.emergency-stem { position: absolute; width: 30px; height: 34px; border-radius: 5px; background: linear-gradient(90deg, #541b1b, #9d3530 45%, #441719); transform: translateY(5px); box-shadow: 0 4px 0 #101b1c; }
+.emergency-mushroom { position: relative; display: grid; place-items: center; width: 48px; height: 41px; margin-top: -8px; border: 1px solid #f6a08b; border-radius: 48% 48% 42% 42%; background: radial-gradient(ellipse at 35% 20%, #ee8672, #c5473c 45%, #932b2a 80%); color: #fff3d4; box-shadow: inset 0 2px 3px #ffcfab80, inset 0 -4px 5px #630e22b0, 0 6px 0 #5b1e22, 0 8px 5px #0008; font: 700 9px Consolas, monospace; letter-spacing: 1px; text-shadow: 0 1px 2px #521817; transition: transform .12s, box-shadow .12s; }
+.emergency-mushroom { isolation: isolate; box-shadow: inset 0 2px 3px #ffcfab80, inset 0 -4px 5px #630e22b0, 0 6px 0 #5b1e22, 0 0 10px 2px #ff5b4b80, 0 0 20px #ff43384d; }
+.emergency-mushroom::before { content: ''; position: absolute; inset: -12px; z-index: -1; pointer-events: none; border-radius: 50%; background: radial-gradient(ellipse, #ff5c4f80, transparent 72%); filter: blur(5px); opacity: .5; }
+.emergency-label { display: grid; gap: 5px; min-width: 0; }
+.emergency-label strong { font-size: 11px; line-height: 1.4; font-weight: 600; }
+.emergency-label small { font: 7px Consolas, monospace; letter-spacing: .5px; color: #c0b899; }
+.emergency-label > b { font: 7px Consolas, monospace; letter-spacing: .3px; color: #f4ce7c; }
+.emergency-reset-note { font: 7px Consolas, monospace; color: #b9b59f; line-height: 1.5; text-align: center; }
+.emergency-button:not(:disabled):active .emergency-mushroom, .emergency-station[data-latched="true"] .emergency-mushroom { transform: translateY(6px); box-shadow: inset 0 2px 4px #5e112080, 0 1px 0 #52191d, 0 2px 3px #0008; }
+.emergency-station[data-latched="true"] .emergency-mushroom { background: radial-gradient(ellipse at 38% 25%, #ffe6b8, #ff9472 27%, #ee4b3e 65%, #c12a30); border-color: #ffe0ac; box-shadow: inset 0 2px 5px #ffefbbb0, inset 0 -3px 4px #b72436, 0 1px 0 #52191d, 0 0 10px 4px #ff8f6ad9, 0 0 25px 9px #ff534f99; text-shadow: 0 0 6px #fff5d7, 0 1px 2px #751b21; }
+.emergency-station[data-latched="true"] .emergency-mushroom::before { opacity: 1; }
+.emergency-station[data-latched="true"] { border-color: #d27c67; background: linear-gradient(#453934, #342927); }
+.emergency-station[data-latched="true"] .trip-latch-indicator { color: #ffbba0; }
+.emergency-station[data-latched="true"] .trip-latch-indicator .pilot-lamp { background: radial-gradient(circle at 35% 28%, #fff0cf, #ff8064 45%, #b52e30); box-shadow: 0 0 0 1px #8c5148, 0 0 8px #ff7764b0; }
+.emergency-station[data-latched="true"] .emergency-label > b { color: #ffbba0; }
 .control-note { font-size: 8px; text-align: center; color: #9eafbf; margin-top: 9px; }
 .equipment-content { padding: 12px; }
 .equipment-title { display: flex; align-items: center; gap: 9px; }
@@ -546,7 +609,7 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
     .operator-column { grid-template-columns: minmax(0, 1fr); gap: 14px; }
     .operator-content { padding: 16px; }
     .control-button { min-height: 40px; }
-    .pump-button { padding: 12px; }
+    .pump-switch-row { padding: 10px 12px; }
     .emergency-button { min-height: 55px; }
     .panel-heading { height: 46px; }
     .annunciator { margin: 12px 10px 0; font-size: 8px; letter-spacing: .1px; }

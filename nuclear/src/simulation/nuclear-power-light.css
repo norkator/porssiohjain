@@ -44,14 +44,13 @@
 :host([data-theme="light"]) :is(.plant-scene-caption, .plant-scene-hint) { color: #476477; }
 :host([data-theme="light"]) #grid path { stroke: #d4e1e9; }
 :host([data-theme="light"]) :is(.panel-heading, .diagram-legend, .core-map-note, .setpoint, dl > div, .log-toolbar) { border-color: #ccd9e2; }
-:host([data-theme="light"]) :is(.pump-control, .pump-button) { color: #284c5d; background: #edf5f6; border-color: #b5cad3; }
-:host([data-theme="light"]) .pump-button:hover { background: #dcebee; }
-:host([data-theme="light"]) .pump-button small { color: #506b7b; }
-:host([data-theme="light"]) .pump-button[aria-pressed="false"] { background: #f9eee0; border-color: #ceb292; }
-:host([data-theme="light"]) .emergency-button { color: #a23d2e; background: #fff0ec; border-color: #cc8f81; }
-:host([data-theme="light"]) .emergency-button:not(:disabled):hover { background: #f9dcd6; border-color: #ac5c4c; }
-:host([data-theme="light"]) .emergency-button small { color: #974738; }
-:host([data-theme="light"]) .emergency-symbol { border-color: #bd7765; }
+:host([data-theme="light"]) .pump-control { color: #284c5d; background: #edf5f6; border-color: #b5cad3; }
+:host([data-theme="light"]) .pump-switch-row { border-color: #b5cad3; background: linear-gradient(#e5eeee, #d5e1e3); }
+:host([data-theme="light"]) .pump-control[data-condition="strained"] { border-color: #a97631; box-shadow: inset 3px 0 #a97631; }
+:host([data-theme="light"]) .pump-control[data-condition="damaged"] { border-color: #b94c3b; box-shadow: inset 3px 0 #b94c3b; }
+:host([data-theme="light"]) .pump-identity > small { color: #506b7b; }
+:host([data-theme="light"]) .pump-control[data-lamp="fault"] .pump-badge { color: #a1342c; }
+:host([data-theme="light"]) .pump-rocker { border-color: #728b8d; box-shadow: inset 0 1px 4px #000, 0 1px 0 #fff; }
 :host([data-theme="light"]) .trip-recovery { background: #fff4e6; border-color: #ceaa7e; }
 :host([data-theme="light"]) :is(.trip-recovery > strong, .trip-recovery li, .trip-recovery p) { color: #875a2c; }
 :host([data-theme="light"]) .trip-recovery .ready { color: #08776a; }
@@ -112,6 +111,21 @@
 
 /* Disabled controls remain readable while Auto owns the actuators. */
 :host([data-theme="light"]) button:disabled { opacity: 1; color: #526775; background: #e5edf1; border-color: #b2c1cb; }
+:host([data-theme="light"]) .operator-panel { --metal-top: #e6eded; --metal-bottom: #c5d0d2; --metal-edge: #85989b; --panel-legend: #2d464b; }
+:host([data-theme="light"]) .operator-panel .operation-state strong { color: #73501c; background: #f0e9d7; border-color: #a9ac9f; box-shadow: inset 0 1px 3px #556b7130; }
+:host([data-theme="light"][data-state="running"]) .operator-panel .operation-state strong { color: #176748; background: #e4f0df; }
+:host([data-theme="light"][data-state="tripped"]) .operator-panel .operation-state strong { color: #963c29; background: #ffe7d8; }
+:host([data-theme="light"]) .operator-panel .hardware-button { color: var(--panel-legend); background-color: #e5edf1; background-image: linear-gradient(var(--metal-top), var(--metal-bottom)); border-color: var(--metal-edge); box-shadow: inset 0 1px #fff, inset 0 -2px #7f92964d, 0 3px 0 #859598; }
+:host([data-theme="light"]) .operator-panel .hardware-button:not(:disabled):hover { background-image: linear-gradient(#f3f6f4, #d4dfde); border-color: #667e7c; }
+:host([data-theme="light"]) .hardware-label > strong { text-shadow: 0 1px #ffffffb0; }
+:host([data-theme="light"]) .emergency-station { background: linear-gradient(#e5e2cd, #c8cbbb); border-color: #9d955f; box-shadow: inset 0 1px #fff, 0 3px 0 #899486; }
+:host([data-theme="light"]) .emergency-station-heading, :host([data-theme="light"]) .emergency-reset-note { color: #545b47; }
+:host([data-theme="light"]) .emergency-station .emergency-button { color: #583e2c; background: transparent; border-color: transparent; }
+:host([data-theme="light"]) .emergency-station .emergency-button:not(:disabled):hover { background: #ffffff30; border-color: #a1945a; }
+:host([data-theme="light"]) .emergency-label small { color: #535e49; }
+:host([data-theme="light"]) .emergency-label > b { color: #755622; }
+:host([data-theme="light"]) .emergency-station[data-latched="true"] { background: linear-gradient(#f2d9c8, #dfc5b7); border-color: #af614b; }
+:host([data-theme="light"]) .emergency-station[data-latched="true"] :is(.trip-latch-indicator, .emergency-label > b) { color: #8e3627; }
 :host([data-theme="light"]) input:disabled { opacity: 1; accent-color: #718b96; }
 :host([data-theme="light"]) :is(.metric-label, .metric-foot, .control-label, .local-tag, .section-index, .range-labels, .event-time, .event-category, .log-toolbar, .diagram-scroll-hint, .control-note, .trend-note, .core-map-note, .console-footer, .footer-signature, .footer-signature span) { color: #40596a; }
 :host([data-theme="light"]) :is(.drawing-label, .equipment-tag, .component-subtitle, .instrument-label, .chart-labels) { fill: #3e596a; }

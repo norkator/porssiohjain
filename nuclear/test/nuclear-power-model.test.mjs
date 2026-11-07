@@ -278,6 +278,7 @@ test('fluctuations remain bounded and event retention does not grow without limi
 
 test('grid-style automatic control follows electrical MW targets and can reduce output to zero', () => {
     const sim = manualSimulation();
+    sim.setGridDispatchEnabled(false); // Hold the operator's fixed MW requests.
     sim.setAutoObjective('power');
     sim.setElectricalTarget(150);
     sim.setAutoMode(true);
@@ -297,6 +298,7 @@ test('grid-style automatic control follows electrical MW targets and can reduce 
 
 test('unachievable electrical demand respects the core limit and reports the constraint', () => {
     const sim = manualSimulation();
+    sim.setGridDispatchEnabled(false); // Keep the deliberately unachievable request.
     sim.setAutoObjective('power');
     sim.setElectricalTarget(400);
     sim.setAutoMode(true);

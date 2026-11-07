@@ -24,6 +24,22 @@ The header card beside the title contains regulation targets, the opt-in plant
 sound switch, theme, simulation status and clock. UI clicks use 100% of the bounded
 sample-volume range (0.26 gain); the volume slider and test button are removed.
 
+The operator console uses recessed metal plates, round Start/Stop pushbuttons and
+pilot lights. Green means the reactor or pump motor is actually running; amber
+marks a stopped reactor or a ready trip reset. Pump stress/damage has amber/red
+indication. Labels distinguish readiness, interlocks and actual operation, including
+when a command is disabled. Emergency shutdown is a red mushroom button with a
+trip lamp: it stays depressed and reads **TRIP LATCHED** for any latched reactor
+trip, and releases only after a successful **Reset trip**. Repeated presses cannot
+reset it; clearing the latch leaves the reactor stopped. The controls retain their
+existing interlocks, keyboard access and both themes. These are simulated controls.
+The button faces cast clear colored halos: green Start during running, red Stop
+while stopped, and a soft emergency locator glow that becomes bright red when
+latched. These are steady lights, including with reduced motion. Pump cards use
+recessed **ON/OFF rocker switches**, preserving circuit, speed and flow readings.
+Rocker position shows the requested enable state; the separate status and lamp
+still show actual motor operation, including coast-down after switching OFF.
+
 **Enable plant sounds** also enables seamless steam/turbine/generator loops.
 Actual reactor output and turbine shaft speed drive the sound level; stress,
 damage, overheating, trips and actual component disturbances crossfade to a rough
@@ -68,8 +84,9 @@ retained fuel heat keeps its separate glow. These visuals share pause, visibilit
 reduced-motion and renderer cleanup with the rest of the scene.
 
 The **Grid controller** card below the instruments can **Follow requests** in
-Auto → Electrical output. The optional simulated feed is off initially, sends its
-first raise/lower MW request after 45 active seconds, then every 60 active seconds.
+Auto → Electrical output. Following is selected in new sessions and after Reset
+demo. The simulated feed sends its first raise/lower MW request after 45 active
+seconds, then every 60 active seconds.
 **Request now** delivers one immediately. Each message coordinates the electrical
 target, circulation target and operating core limit. Requests stay within normal
 available capacity (up to about 300 MW healthy), derated for equipment restrictions,
@@ -78,7 +95,7 @@ operating targets, actual output, countdown and limiting reason. Actual output
 continues through the existing regulator and protections. Dispatch waits during
 Stop, trips, pause, Manual or temperature regulation and unavailable circulation/
 generation; it never starts the plant or closes a breaker. Disabling retains all
-current targets. Reset demo clears the feed/messages. Manual temperature entry has
+current targets. Reset demo clears messages and restores following. Manual temperature entry has
 no 330 °C cap; existing alarms and automatic trip thresholds still apply.
 
 Both coolant loops use the same absolute temperature colors, including return

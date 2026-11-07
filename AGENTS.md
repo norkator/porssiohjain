@@ -93,7 +93,15 @@ bus flow share the visibility-aware frame loop. Rates are illustrative, not RPM;
 preserve cold-start stillness, retained heat, reduced motion and pause cleanup.
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
-recovery. Automatic control must never reset a trip or restart the plant by itself.
+recovery. Industrial Start/Stop pushbuttons and pump pilot lamps show actual running
+state; stress/wear has amber/red indication. Start/Stop caps have clear green/red
+halos, and the emergency cap has a soft armed glow and bright latched red glow.
+Pump ON/OFF rockers show requested enable state separately from actual motor
+lamps/coast-down status; preserve name, circuit, speed and flow readings. Emergency shutdown is a mushroom
+button held visibly depressed with a red lamp for every latched reactor trip.
+Only successful explicit Reset trip releases it; preserve interlocks and the
+stopped state after reset, readable disabled lamps, both themes and keyboard access.
+Automatic control must never reset a trip or restart the plant by itself.
 Manual mode requires operator Stop/Emergency shutdown: flow/temperature/hot-spot
 automatic trips apply only in Auto; alarms, damage and irreversible meltdown remain
 active in both modes. Switching modes must not clear an existing trip.

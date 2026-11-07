@@ -313,13 +313,13 @@ export class NuclearPowerConsole extends HTMLElement {
               <section class="panel operator-panel"><div class="panel-heading"><div><span class="section-index">02</span><h2>Operator console</h2></div><span class="local-tag">LOCAL</span></div>
                 <div class="operator-content">
                   <div class="operation-state"><span><i class="status-dot" data-indicator="reactor"></i> REACTOR STATE</span><strong data-value="status">RUNNING</strong></div>
-                  <div class="button-pair"><button class="control-button start-button" data-action="start">▶ Start</button><button class="control-button" data-action="stop">■ Stop</button></div>
-                  <section class="trip-recovery" hidden aria-label="Simulated trip recovery"><strong>SHUTDOWN RECOVERY</strong><ul></ul><button class="control-button" data-action="reset-trip" disabled>Reset trip</button><p>Reset clears the latch. Then press Start to resume.</p></section>
+                  <div class="button-pair reactor-pushbuttons" role="group" aria-label="Reactor run controls"><button class="control-button hardware-button start-button" data-action="start" aria-label="Start reactor" aria-describedby="start-indication"><span class="hardware-face" aria-hidden="true">I</span><span class="hardware-label"><strong>Start</strong><span class="hardware-indication" id="start-indication"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="startIndication">INTERLOCKED</span></span></span></button><button class="control-button hardware-button stop-button" data-action="stop" aria-label="Stop reactor" aria-describedby="stop-indication"><span class="hardware-face" aria-hidden="true">O</span><span class="hardware-label"><strong>Stop</strong><span class="hardware-indication" id="stop-indication"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="stopIndication">STOPPED</span></span></span></button></div>
+                  <section class="trip-recovery" hidden aria-label="Simulated trip recovery"><strong>SHUTDOWN RECOVERY</strong><ul></ul><button class="control-button reset-trip-button" data-action="reset-trip" disabled><span aria-hidden="true">↻</span> Reset trip <i class="pilot-lamp" aria-hidden="true"></i></button><p>Reset clears the latch. Then press Start to resume.</p></section>
                   <div class="setpoint"><label for="load">Load setpoint <strong data-value="demand">64%</strong></label><input id="load" type="range" min="0" max="100" value="64" aria-label="Load setpoint"/><div class="range-labels"><span>0%</span><span>100%</span></div><div class="button-pair"><button class="control-button compact" data-action="load-down">− Decrease</button><button class="control-button compact" data-action="load-up">+ Increase</button></div></div>
                   <div class="rod-control"><div class="control-label">CONTROL RODS <span>IN <span data-value="rodTarget">36%</span></span></div><div class="button-pair"><button class="control-button compact" data-action="insert">↓ Insert</button><button class="control-button compact" data-action="withdraw">↑ Withdraw</button></div></div>
-                  <div class="pump-controls">${['A', 'B'].map(pump => `<div class="pump-control"><button class="pump-button" data-action="pump${pump}" aria-pressed="true"><span class="pump-symbol">✣</span><span><strong>Pump ${pump}</strong><small>${pump === 'A' ? 'Primary' : 'Secondary'} circuit</small></span><span class="pump-badge" data-value="pump${pump}">RUNNING</span></button><label for="pump-${pump}-speed">Speed target <strong data-value="pump${pump}Target">100%</strong></label><input id="pump-${pump}-speed" data-pump-speed="${pump}" type="range" min="0" max="100" step="1" value="100"/><div class="pump-readback"><span>ACTUAL <strong data-value="pump${pump}Actual">100.0%</strong></span><span data-value="${pump === 'A' ? 'flow' : 'secondaryFlow'}"></span></div></div>`).join('')}</div>
-                  <button class="emergency-button" data-action="trip"><span class="emergency-symbol">!</span><span>Emergency shutdown<small>INSERT ALL RODS / SIMULATION</small></span><span>↘</span></button>
-                  <p class="control-note">Every control operates this simulation only.</p>
+                  <div class="pump-controls">${['A', 'B'].map(pump => `<div class="pump-control" data-pump-card="${pump}"><div class="pump-switch-row"><span class="pump-symbol" aria-hidden="true">✣</span><div class="pump-identity"><strong>Pump ${pump}</strong><small>${pump === 'A' ? 'Primary' : 'Secondary'} circuit</small><span class="pump-badge" id="pump-${pump}-status"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="pump${pump}">STOPPED</span></span></div><button class="pump-rocker" data-action="pump${pump}" role="switch" aria-checked="false" aria-label="Pump ${pump} run switch" aria-describedby="pump-${pump}-status"><span class="pump-rocker-face" aria-hidden="true"><span class="rocker-on">I <small>ON</small></span><span class="rocker-off">O <small>OFF</small></span></span></button></div><label for="pump-${pump}-speed">Speed target <strong data-value="pump${pump}Target">100%</strong></label><input id="pump-${pump}-speed" data-pump-speed="${pump}" type="range" min="0" max="100" step="1" value="100"/><div class="pump-readback"><span>ACTUAL <strong data-value="pump${pump}Actual">100.0%</strong></span><span data-value="${pump === 'A' ? 'flow' : 'secondaryFlow'}"></span></div></div>`).join('')}</div>
+                  <section class="emergency-station" aria-label="Reactor protection"><div class="emergency-station-heading"><span>ESD-01 / REACTOR TRIP</span><span class="trip-latch-indicator"><i class="pilot-lamp" aria-hidden="true"></i><b data-value="tripLatch">ARMED</b></span></div><button class="emergency-button" data-action="trip" aria-label="Emergency shutdown" aria-pressed="false" aria-describedby="emergency-indication"><span class="emergency-bezel" aria-hidden="true"><span class="emergency-stem"></span><span class="emergency-mushroom">TRIP</span></span><span class="emergency-label"><strong>Emergency shutdown</strong><small>INSERT ALL RODS</small><b id="emergency-indication" data-value="emergencyIndication">PUSH TO TRIP</b></span></button><p class="emergency-reset-note" data-value="emergencyResetNote">Latching trip · reset at recovery panel</p></section>
+                  <p class="control-note">Pilot lights show actual state · SIMULATED</p>
                 </div>
               </section>
             </aside>
@@ -1135,6 +1135,11 @@ export class NuclearPowerConsole extends HTMLElement {
             flow: `${n(signals.primaryFlow.value)} m³/h`, flowNumber: n(signals.primaryFlow.value),
             rods: `${n(sim.rods, 1)}%`, rodsNumber: n(sim.rods, 1), rodTarget: percent(sim.rodTarget),
             load: `${n(sim.power, 1)}%`, demand: percent(sim.demand), status,
+            startIndication: sim.running ? 'RUNNING' : sim.startupReadiness().ready ? 'READY' : 'INTERLOCKED',
+            stopIndication: sim.tripped ? 'TRIPPED' : sim.running ? 'AVAILABLE' : 'STOPPED',
+            tripLatch: sim.tripped ? 'LATCHED' : 'ARMED',
+            emergencyIndication: sim.tripped ? 'TRIP LATCHED' : 'PUSH TO TRIP',
+            emergencyResetNote: sim.tripped ? 'Held down · use Reset trip after recovery' : 'Latching trip · reset at recovery panel',
             secondaryFlow: `${n(signals.secondaryFlow.value)} m³/h`,
             pumpA: pumpState(sim.pumpA, sim.pumpASpeed, sim.primaryFlow), pumpB: pumpState(sim.pumpB, sim.pumpBSpeed, sim.secondaryFlow),
             pumpATarget: percent(sim.pumpASpeed), pumpBTarget: percent(sim.pumpBSpeed),
@@ -1213,15 +1218,25 @@ export class NuclearPowerConsole extends HTMLElement {
         this.updateCore();
         const meters = { temperature: Math.min(100, sim.temperature / 4), power: sim.power, electric: signals.electricalOutput.value / 4.1, flow: sim.primaryFlow, rods: sim.rods };
         for (const [key, value] of Object.entries(meters)) this.shadowRoot.querySelector(`[data-meter="${key}"]`).style.width = `${value}%`;
-        for (const pump of ['A', 'B']) this.shadowRoot.querySelector(`[data-action="pump${pump}"]`).setAttribute('aria-pressed', String(sim[`pump${pump}`]));
+        for (const pump of ['A', 'B']) this.shadowRoot.querySelector(`[data-action="pump${pump}"]`).setAttribute('aria-checked', String(sim[`pump${pump}`]));
         for (const pump of ['A', 'B']) {
             const component = condition.components[pump];
             const button = this.shadowRoot.querySelector(`[data-action="pump${pump}"]`);
             button.dataset.condition = component.damage >= 1 ? 'damaged' : component.stress >= 25 ? 'strained' : 'normal';
+            button.dataset.lamp = component.damage >= 1 || sim.components.items[`pump${pump}`].wear >= 1 ? 'fault' : component.stress >= 25 ? 'warning' : sim.components.items[`pump${pump}`].actual.speed >= .5 ? 'running' : 'off';
+            const card = button.closest('.pump-control');
+            card.dataset.condition = button.dataset.condition;
+            card.dataset.lamp = button.dataset.lamp;
             button.title = `Actual motor speed ${n(sim.components.items[`pump${pump}`].actual.speed, 1)}%; flow ${n(sim[pump === 'A' ? 'primaryFlow' : 'secondaryFlow'], 1)}%; stress ${n(component.stress)}%; damage ${n(component.damage, 1)}%`;
         }
         this.shadowRoot.querySelector('[data-indicator="primary"]').classList.toggle('off', !sim.pumpA);
         this.shadowRoot.querySelector('[data-indicator="reactor"]').classList.toggle('off', !sim.running);
+        this.shadowRoot.querySelector('[data-action="start"]').dataset.lamp = sim.running ? 'running' : 'off';
+        this.shadowRoot.querySelector('[data-action="stop"]').dataset.lamp = !sim.running ? 'stopped' : 'off';
+        const tripButton = this.shadowRoot.querySelector('[data-action="trip"]');
+        tripButton.setAttribute('aria-pressed', String(sim.tripped));
+        this.shadowRoot.querySelector('.emergency-station').dataset.latched = String(sim.tripped);
+        this.shadowRoot.querySelector('[data-action="reset-trip"]').dataset.lamp = sim.tripped && sim.tripRecovery().ready ? 'warning' : 'off';
         const disabled = {
             start: !sim.startupReadiness().ready, stop: !sim.running, trip: sim.tripped,
             insert: sim.autoMode || !sim.running || sim.tripped || sim.rodTarget >= 100,

@@ -218,6 +218,34 @@ card beside the brand/title, leaving more room for the main overview:
 - middle: tabbed reactor/auxiliary overview beside the operator console;
 - right: live trends above the filterable event journal.
 
+The operator console uses beveled metal mounting plates, round green/red Start
+and Stop pushbuttons, engraved labels and pilot lamps. Lamps use actual running
+state rather than command availability: Start remains visibly lit while the
+reactor runs even though the button is disabled. Text distinguishes READY,
+INTERLOCKED, RUNNING, STOPPED and TRIPPED. Pump lamps follow actual motor speed,
+with amber stress and red retained damage/wear indication; an amber Reset trip
+lamp marks completed recovery readiness.
+
+The Start/Stop caps have strong illuminated lenses and colored light spill: green
+Start while running and red Stop while stopped. Emergency shutdown has a soft
+red locator halo while armed and a much brighter red cap/halo while latched.
+These are steady lights with no flashing or extra timers, retained when paused
+and under reduced motion. Pump cards use separate recessed ON/OFF rocker
+switches with native keyboard activation and switch semantics. Their position
+shows the requested enable state; the adjacent actual-state lamp/status can
+remain RUNNING/COASTING after OFF until the motor slows. Pump name, circuit,
+speed target, actual read-back, flow and stress/damage indication are retained.
+
+Emergency shutdown is a red mushroom pushbutton on a hazard-marked mounting
+plate. Its head remains depressed, its red trip lamp stays lit, and it reads
+**TRIP LATCHED** for every latched reactor trip, including automatic trips.
+The disabled latched button retains full visual contrast. Pressing it again
+cannot clear the trip. Only successful explicit **Reset trip** releases the
+head and extinguishes the trip lamp; the reactor remains stopped until Start.
+Start/Stop, protection thresholds and recovery interlocks are unchanged. Native
+keyboard/focus behavior, pause and reduced motion are preserved in both themes;
+the lights and physical button position introduce no animation timer.
+
 The default reactor overview fits 1920×1080 and 2560×1440 screens without page scrolling.
 The thermal output, electrical output and primary flow cards include heat wisps, a
 rotating generator symbol, flowing coolant markers and traveling meter highlights.

@@ -6,6 +6,7 @@ import { gridDispatchCapacity } from '../src/simulation/nuclear-power-grid.js';
 const advance = (sim, seconds) => { for (let i = 0; i < seconds * 4; i++) sim.tick(.25); };
 const operating = () => {
     const sim = new NuclearPowerSimulation();
+    sim.setGridDispatchEnabled(false); // These scenarios deliver their own requests.
     sim.setFluctuations(false);
     sim.togglePump('A'); sim.togglePump('B');
     advance(sim, 6);
@@ -45,8 +46,8 @@ test('grid messages raise and lower the requested MW while actual output respond
 
 test('periodic grid requests follow simulated time and suspend during pause, stopped, Manual and temperature regulation', () => {
     const sim = new NuclearPowerSimulation();
-    assert.equal(sim.gridDispatch.enabled, false);
-    sim.setGridDispatchEnabled(true);
+    assert.equal(sim.gridDispatch.enabled, true);
+    assert.equal(sim.snapshot().commands.followGridRequests, true);
     advance(sim, 60);
     assert.equal(sim.gridDispatch.remaining, 45);
     assert.equal(sim.gridDispatch.sequence, 0);
@@ -73,7 +74,7 @@ test('periodic grid requests follow simulated time and suspend during pause, sto
     assert.equal(sim.autoElectricalTarget, 180);
 });
 
-test('grid requests preserve trip recovery and Stop, and Reset demo disables the feed', () => {
+test('grid requests preserve trip recovery and Stop, and Reset demo restores following without restarting', () => {
     const sim = operating();
     sim.setGridDispatchEnabled(true);
     sim.requestGridDispatch();
@@ -92,9 +93,15 @@ test('grid requests preserve trip recovery and Stop, and Reset demo disables the
     sim.start(); sim.stop(); advance(sim, 20);
     assert.equal(sim.running, false);
     assert.equal(sim.gridDispatch.sequence, sequence);
+    sim.setGridDispatchEnabled(false);
     sim.reset();
-    assert.equal(sim.gridDispatch.enabled, false);
+    assert.equal(sim.gridDispatch.enabled, true);
     assert.equal(sim.gridDispatch.lastRequest, null);
+    assert.equal(sim.gridDispatch.remaining, 45);
+    assert.equal(sim.gridDispatch.sequence, 0);
+    assert.equal(sim.running, false);
+    advance(sim, 60);
+    assert.equal(sim.gridDispatch.sequence, 0);
     assert.equal(sim.autoElectricalTarget, 200);
 });
 
