@@ -7,6 +7,7 @@ import { advanceProcessMotion, flowMarkerDistance, valveHandleAngle } from '../s
 const advance = (sim, seconds) => { for (let i = 0; i < seconds * 4; i++) sim.tick(.25); };
 const operating = () => {
     const sim = new NuclearPowerSimulation();
+    sim.setGridDispatchEnabled(false); // Compare cooling at one fixed operating point.
     sim.setFluctuations(false);
     sim.togglePump('A'); sim.togglePump('B'); advance(sim, 6);
     sim.setAutoTargets(286, 100); sim.start(); advance(sim, 240);

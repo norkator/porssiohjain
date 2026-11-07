@@ -33,12 +33,19 @@ trip lamp: it stays depressed and reads **TRIP LATCHED** for any latched reactor
 trip, and releases only after a successful **Reset trip**. Repeated presses cannot
 reset it; clearing the latch leaves the reactor stopped. The controls retain their
 existing interlocks, keyboard access and both themes. These are simulated controls.
-The button faces cast clear colored halos: green Start during running, red Stop
+The button faces have restrained illumination: green Start during running, red Stop
 while stopped, and a soft emergency locator glow that becomes bright red when
 latched. These are steady lights, including with reduced motion. Pump cards use
 recessed **ON/OFF rocker switches**, preserving circuit, speed and flow readings.
 Rocker position shows the requested enable state; the separate status and lamp
 still show actual motor operation, including coast-down after switching OFF.
+The load setpoint uses a metal regulator plate, a grooved slider handle, an
+engraved 0–100% rail, an amber percentage display and fine-adjust buttons. Its
+AUTO/MANUAL/TRIP LOCK label identifies control ownership. Native slider input,
+keyboard adjustment and automatic/trip interlocks are preserved.
+Both pump speed targets share the same regulator rail, grooved handle, engraved
+scale and illuminated percentage display. Manual overrides, automatic ownership
+and actual speed/flow read-backs remain separate from these requested targets.
 
 **Enable plant sounds** also enables seamless steam/turbine/generator loops.
 Actual reactor output and turbine shaft speed drive the sound level; stress,

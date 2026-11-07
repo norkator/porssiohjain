@@ -315,9 +315,9 @@ export class NuclearPowerConsole extends HTMLElement {
                   <div class="operation-state"><span><i class="status-dot" data-indicator="reactor"></i> REACTOR STATE</span><strong data-value="status">RUNNING</strong></div>
                   <div class="button-pair reactor-pushbuttons" role="group" aria-label="Reactor run controls"><button class="control-button hardware-button start-button" data-action="start" aria-label="Start reactor" aria-describedby="start-indication"><span class="hardware-face" aria-hidden="true">I</span><span class="hardware-label"><strong>Start</strong><span class="hardware-indication" id="start-indication"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="startIndication">INTERLOCKED</span></span></span></button><button class="control-button hardware-button stop-button" data-action="stop" aria-label="Stop reactor" aria-describedby="stop-indication"><span class="hardware-face" aria-hidden="true">O</span><span class="hardware-label"><strong>Stop</strong><span class="hardware-indication" id="stop-indication"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="stopIndication">STOPPED</span></span></span></button></div>
                   <section class="trip-recovery" hidden aria-label="Simulated trip recovery"><strong>SHUTDOWN RECOVERY</strong><ul></ul><button class="control-button reset-trip-button" data-action="reset-trip" disabled><span aria-hidden="true">↻</span> Reset trip <i class="pilot-lamp" aria-hidden="true"></i></button><p>Reset clears the latch. Then press Start to resume.</p></section>
-                  <div class="setpoint"><label for="load">Load setpoint <strong data-value="demand">64%</strong></label><input id="load" type="range" min="0" max="100" value="64" aria-label="Load setpoint"/><div class="range-labels"><span>0%</span><span>100%</span></div><div class="button-pair"><button class="control-button compact" data-action="load-down">− Decrease</button><button class="control-button compact" data-action="load-up">+ Increase</button></div></div>
+                  <div class="setpoint"><label for="load"><span class="regulator-caption"><small>LR-01 / REACTOR LOAD</small><span>Load setpoint</span></span><strong class="regulator-display" data-value="demand">64%</strong></label><div class="regulator-rail" style="--regulator-position:64%"><input id="load" type="range" min="0" max="100" value="64" aria-label="Load setpoint" aria-describedby="load-owner"/><div class="regulator-scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100%</span></div></div><div class="load-trim-label"><span>FINE ADJUST</span><span id="load-owner" data-value="loadOwner">AUTO</span></div><div class="button-pair"><button class="control-button compact load-trim-button" data-action="load-down">− Decrease</button><button class="control-button compact load-trim-button" data-action="load-up">+ Increase</button></div></div>
                   <div class="rod-control"><div class="control-label">CONTROL RODS <span>IN <span data-value="rodTarget">36%</span></span></div><div class="button-pair"><button class="control-button compact" data-action="insert">↓ Insert</button><button class="control-button compact" data-action="withdraw">↑ Withdraw</button></div></div>
-                  <div class="pump-controls">${['A', 'B'].map(pump => `<div class="pump-control" data-pump-card="${pump}"><div class="pump-switch-row"><span class="pump-symbol" aria-hidden="true">✣</span><div class="pump-identity"><strong>Pump ${pump}</strong><small>${pump === 'A' ? 'Primary' : 'Secondary'} circuit</small><span class="pump-badge" id="pump-${pump}-status"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="pump${pump}">STOPPED</span></span></div><button class="pump-rocker" data-action="pump${pump}" role="switch" aria-checked="false" aria-label="Pump ${pump} run switch" aria-describedby="pump-${pump}-status"><span class="pump-rocker-face" aria-hidden="true"><span class="rocker-on">I <small>ON</small></span><span class="rocker-off">O <small>OFF</small></span></span></button></div><label for="pump-${pump}-speed">Speed target <strong data-value="pump${pump}Target">100%</strong></label><input id="pump-${pump}-speed" data-pump-speed="${pump}" type="range" min="0" max="100" step="1" value="100"/><div class="pump-readback"><span>ACTUAL <strong data-value="pump${pump}Actual">100.0%</strong></span><span data-value="${pump === 'A' ? 'flow' : 'secondaryFlow'}"></span></div></div>`).join('')}</div>
+                  <div class="pump-controls">${['A', 'B'].map(pump => `<div class="pump-control" data-pump-card="${pump}"><div class="pump-switch-row"><span class="pump-symbol" aria-hidden="true">✣</span><div class="pump-identity"><strong>Pump ${pump}</strong><small>${pump === 'A' ? 'Primary' : 'Secondary'} circuit</small><span class="pump-badge" id="pump-${pump}-status"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="pump${pump}">STOPPED</span></span></div><button class="pump-rocker" data-action="pump${pump}" role="switch" aria-checked="false" aria-label="Pump ${pump} run switch" aria-describedby="pump-${pump}-status"><span class="pump-rocker-face" aria-hidden="true"><span class="rocker-on">I <small>ON</small></span><span class="rocker-off">O <small>OFF</small></span></span></button></div><div class="pump-speed-setting"><label for="pump-${pump}-speed"><span class="regulator-caption"><small>${pump === 'A' ? 'P-01' : 'P-02'} / MOTOR SPEED</small><span>Speed target</span></span><strong class="regulator-display" data-value="pump${pump}Target">100%</strong></label><div class="regulator-rail" style="--regulator-position:100%"><input id="pump-${pump}-speed" data-pump-speed="${pump}" type="range" min="0" max="100" step="1" value="100"/><div class="regulator-scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100%</span></div></div></div><div class="pump-readback"><span>ACTUAL <strong data-value="pump${pump}Actual">100.0%</strong></span><span data-value="${pump === 'A' ? 'flow' : 'secondaryFlow'}"></span></div></div>`).join('')}</div>
                   <section class="emergency-station" aria-label="Reactor protection"><div class="emergency-station-heading"><span>ESD-01 / REACTOR TRIP</span><span class="trip-latch-indicator"><i class="pilot-lamp" aria-hidden="true"></i><b data-value="tripLatch">ARMED</b></span></div><button class="emergency-button" data-action="trip" aria-label="Emergency shutdown" aria-pressed="false" aria-describedby="emergency-indication"><span class="emergency-bezel" aria-hidden="true"><span class="emergency-stem"></span><span class="emergency-mushroom">TRIP</span></span><span class="emergency-label"><strong>Emergency shutdown</strong><small>INSERT ALL RODS</small><b id="emergency-indication" data-value="emergencyIndication">PUSH TO TRIP</b></span></button><p class="emergency-reset-note" data-value="emergencyResetNote">Latching trip · reset at recovery panel</p></section>
                   <p class="control-note">Pilot lights show actual state · SIMULATED</p>
                 </div>
@@ -476,6 +476,7 @@ export class NuclearPowerConsole extends HTMLElement {
             this.update();
         });
         this.shadowRoot.querySelector('#load').addEventListener('input', event => {
+            event.target.closest('.regulator-rail').style.setProperty('--regulator-position', `${event.target.value}%`);
             // Update the requested setting immediately; journal once on commit.
             this.shadowRoot.querySelectorAll('[data-value="demand"]').forEach(element => { element.textContent = `${event.target.value}%`; });
         });
@@ -485,6 +486,7 @@ export class NuclearPowerConsole extends HTMLElement {
         });
         for (const input of this.shadowRoot.querySelectorAll('[data-pump-speed]')) {
             input.addEventListener('input', () => {
+                input.closest('.regulator-rail').style.setProperty('--regulator-position', `${input.value}%`);
                 this.shadowRoot.querySelector(`[data-value="pump${input.dataset.pumpSpeed}Target"]`).textContent = `${input.value}%`;
             });
             input.addEventListener('change', () => {
@@ -1135,6 +1137,7 @@ export class NuclearPowerConsole extends HTMLElement {
             flow: `${n(signals.primaryFlow.value)} m³/h`, flowNumber: n(signals.primaryFlow.value),
             rods: `${n(sim.rods, 1)}%`, rodsNumber: n(sim.rods, 1), rodTarget: percent(sim.rodTarget),
             load: `${n(sim.power, 1)}%`, demand: percent(sim.demand), status,
+            loadOwner: sim.tripped ? 'TRIP LOCK' : sim.autoMode ? 'AUTO' : 'MANUAL',
             startIndication: sim.running ? 'RUNNING' : sim.startupReadiness().ready ? 'READY' : 'INTERLOCKED',
             stopIndication: sim.tripped ? 'TRIPPED' : sim.running ? 'AVAILABLE' : 'STOPPED',
             tripLatch: sim.tripped ? 'LATCHED' : 'ARMED',
@@ -1255,6 +1258,7 @@ export class NuclearPowerConsole extends HTMLElement {
         // Preserve a pointer/keyboard adjustment until its change event is committed.
         if (this.shadowRoot.activeElement !== load) load.value = sim.demand;
         load.disabled = sim.tripped || sim.autoMode;
+        load.closest('.regulator-rail').style.setProperty('--regulator-position', `${load.value}%`);
         const inputs = {
             '#individual-rod': [selectedRod.target, rodBlocked],
             '#pump-A-speed': [sim.pumpASpeed, sim.autoMode && sim.running && !sim.components?.items.pumpA.override],
@@ -1266,6 +1270,7 @@ export class NuclearPowerConsole extends HTMLElement {
             const input = this.shadowRoot.querySelector(selector);
             if (this.shadowRoot.activeElement !== input) input.value = value;
             input.disabled = isDisabled;
+            input.closest('.regulator-rail')?.style.setProperty('--regulator-position', `${input.value}%`);
         }
         this.shadowRoot.querySelector('#auto-objective').value = sim.autoObjective;
         this.shadowRoot.querySelector('#rod-override').checked = selectedRod.manualOverride;

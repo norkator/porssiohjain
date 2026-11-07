@@ -95,7 +95,9 @@ Preserve individual rod targets, bank offsets, speed-dependent centered pump/flo
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
 recovery. Industrial Start/Stop pushbuttons and pump pilot lamps show actual running
 state; stress/wear has amber/red indication. Start/Stop caps have clear green/red
-halos, and the emergency cap has a soft armed glow and bright latched red glow.
+halos with restrained shine, and the emergency cap has a soft armed glow and bright latched red glow.
+Load and pump-speed targets share engraved regulator rails, grooved handles and
+amber percentage displays; preserve native controls, Auto ownership and pump overrides.
 Pump ON/OFF rockers show requested enable state separately from actual motor
 lamps/coast-down status; preserve name, circuit, speed and flow readings. Emergency shutdown is a mushroom
 button held visibly depressed with a red lamp for every latched reactor trip.
@@ -113,7 +115,9 @@ volume slider or test-click button. Thermal/electrical/flow instrument motion fo
 actual read-back and obeys cold/zero, pause, visibility and reduced-motion behavior.
 Dark remains default; light theme is local to this feature. Auto can regulate core temperature or electrical MW; power requests
 must respect the configured core-temperature ceiling and report limiting reasons.
-The opt-in simulated Grid controller coordinates MW, circulation and operating
+Follow simulated Grid controller requests is selected in new/reset sessions, with
+a fresh 45-second countdown held until dispatch is ready. Operators can disable
+following to retain their targets. The controller coordinates MW, circulation and operating
 core limit on each request (45 active seconds initially, then every 60). Bound
 requests to normal available capacity (healthy ceiling about 300 MW), derating for
 cooling/equipment restrictions, fuel and manual pump/rod overrides. Keep requested
@@ -122,7 +126,7 @@ paused, Manual/temperature-regulated or without circulation/generation capacity.
 It must never start/reset, close breakers, change protection thresholds, repair or
 refuel. Manual temperature entry has no 330 °C upper cap; independent alarms and
 Auto trips remain active. Disabling retains all operating targets; Reset demo
-clears the feed/messages. Both loops use actual-temperature colors, including hot
+clears messages and restores following. Both loops use actual-temperature colors, including hot
 returns and bypass, with core inlet/outlet and secondary return read-back. Primary
 cooling drop must honor actual bypass/heat rejection. Valve levers must be parallel
 to their pipe axis when open, perpendicular when closed, using actual read-back.

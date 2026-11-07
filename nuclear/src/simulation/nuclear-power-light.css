@@ -118,6 +118,13 @@
 :host([data-theme="light"]) .operator-panel .hardware-button { color: var(--panel-legend); background-color: #e5edf1; background-image: linear-gradient(var(--metal-top), var(--metal-bottom)); border-color: var(--metal-edge); box-shadow: inset 0 1px #fff, inset 0 -2px #7f92964d, 0 3px 0 #859598; }
 :host([data-theme="light"]) .operator-panel .hardware-button:not(:disabled):hover { background-image: linear-gradient(#f3f6f4, #d4dfde); border-color: #667e7c; }
 :host([data-theme="light"]) .hardware-label > strong { text-shadow: 0 1px #ffffffb0; }
+:host([data-theme="light"]) .setpoint { background: linear-gradient(#e5eded, #d4dfe0); border-color: #9aadae; box-shadow: inset 0 1px #fff, 0 2px 0 #91a3a4; }
+:host([data-theme="light"]) .operator-panel .regulator-display { color: #f5ce82; background: #24312c; border-color: #7b8e82; }
+:host([data-theme="light"]) .regulator-rail { background: linear-gradient(#b8c6c6, #d9e1dc); border-color: #839c98; }
+:host([data-theme="light"]) .regulator-scale { color: #405d58; background-image: repeating-linear-gradient(90deg, #607a70 0 1px, transparent 1px 10%); }
+:host([data-theme="light"]) .pump-speed-setting > label { color: #4f6878; }
+:host([data-theme="light"]) .load-trim-label > :last-child { color: #345a4d; background: #d6e2d7; border-color: #8ba59b; }
+:host([data-theme="light"]) .setpoint .load-trim-button { color: #34534f; border-color: #8ba5a2; background: linear-gradient(#f1f5f0, #d1ded8); }
 :host([data-theme="light"]) .emergency-station { background: linear-gradient(#e5e2cd, #c8cbbb); border-color: #9d955f; box-shadow: inset 0 1px #fff, 0 3px 0 #899486; }
 :host([data-theme="light"]) .emergency-station-heading, :host([data-theme="light"]) .emergency-reset-note { color: #545b47; }
 :host([data-theme="light"]) .emergency-station .emergency-button { color: #583e2c; background: transparent; border-color: transparent; }

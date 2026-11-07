@@ -126,6 +126,9 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode(`return s.querySelector('[data-action="start"]').disabled;`), true);
         assert.equal(await value('startIndication'), 'INTERLOCKED');
         assert.equal(await value('stopIndication'), 'STOPPED');
+        assert.equal(await value('loadOwner'), 'AUTO');
+        assert.equal(await consoleCode('return s.querySelector("#load").disabled;'), true);
+        assert.equal(await consoleCode('return s.querySelectorAll(".regulator-rail").length;'), 3);
         assert.equal(await consoleCode('return s.querySelector("[data-action=start]").dataset.lamp;'), 'off');
         assert.equal(await consoleCode('return s.querySelector("[data-action=stop]").dataset.lamp;'), 'stopped');
         assert.equal(await consoleCode('return s.querySelector("[data-action=trip]").getAttribute("aria-pressed");'), 'false');
@@ -133,7 +136,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return s.querySelector("[data-action=pumpA]").getAttribute("role");'), 'switch');
         assert.equal(await consoleCode('return s.querySelector("[data-action=pumpA]").getAttribute("aria-checked");'), 'false');
         assert.equal(await consoleCode('return s.querySelector("[data-pump-card=A]").dataset.lamp;'), 'off');
-        assert.ok(await consoleCode('return Number(getComputedStyle(s.querySelector(".stop-button .hardware-face"),"::before").opacity) > .8;'), 'Stopped reactor must illuminate the red Stop face');
+        assert.ok(await consoleCode('return Number(getComputedStyle(s.querySelector(".stop-button .hardware-face"),"::before").opacity) > .15;'), 'Stopped reactor must illuminate the red Stop face');
         assert.equal(await consoleCode('return getComputedStyle(s.querySelector(".start-button .hardware-face"),"::before").opacity;'), '0');
         assert.ok(await consoleCode('return Number(getComputedStyle(s.querySelector(".emergency-mushroom"),"::before").opacity) > 0;'), 'Armed emergency button should have a visible locator glow');
         assert.equal(await consoleCode('return c.simulation.primaryFlow;'), 0);
@@ -234,7 +237,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return s.querySelector("[data-action=start]").dataset.lamp;'), 'running');
         assert.equal(await consoleCode('return s.querySelector("[data-action=stop]").dataset.lamp;'), 'off');
         assert.equal(await consoleCode('return getComputedStyle(s.querySelector("[data-action=start]")).opacity;'), '1', 'Read-back lamp must remain visible while Start is disabled');
-        assert.ok(await consoleCode('return Number(getComputedStyle(s.querySelector(".start-button .hardware-face"),"::before").opacity) > .8;'), 'Running reactor must illuminate the green Start face');
+        assert.ok(await consoleCode('return Number(getComputedStyle(s.querySelector(".start-button .hardware-face"),"::before").opacity) > .15;'), 'Running reactor must illuminate the green Start face');
         assert.equal(await consoleCode('return getComputedStyle(s.querySelector(".stop-button .hardware-face"),"::before").opacity;'), '0');
         await advance(8);
         assert.ok(await consoleCode('return c.simulation.power * 4.1 * c.simulation.secondaryFlow / 100;') > 10);
@@ -286,6 +289,10 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await advance(8);
         assert.equal(await consoleCode('return c.simulation.components.items.pumpA.override;'), true);
         assert.equal(await consoleCode('return c.simulation.pumpASpeed;'), 55);
+        assert.equal(await consoleCode('return s.querySelector("#pump-A-speed").closest(".regulator-rail").style.getPropertyValue("--regulator-position");'), '55%');
+        assert.equal(await value('pumpATarget'), '55%');
+        assert.equal(await consoleCode('return s.querySelector("#pump-A-speed").disabled;'), false);
+        assert.equal(await consoleCode('return s.querySelector("#pump-B-speed").disabled;'), true);
         assert.ok(await consoleCode('return c.simulation.primaryFlow;') < 65);
         await consoleCode(`s.querySelector('[data-equipment="exchanger"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));`);
         assert.equal(await consoleCode(`return s.querySelector('[data-component-dialog="exchanger"]').matches(':popover-open');`), true);
@@ -358,6 +365,15 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await action('manual');
         await input('#auto-objective', 'temperature');
         await warmOperatingPoint();
+        assert.equal(await value('loadOwner'), 'MANUAL');
+        await input('#load', 45);
+        assert.equal(await value('demand'), '45%');
+        assert.equal(await consoleCode('return s.querySelector(".regulator-rail").style.getPropertyValue("--regulator-position");'), '45%');
+        await action('load-up');
+        assert.equal(await value('demand'), '50%');
+        await action('load-down');
+        assert.equal(await value('demand'), '45%');
+        await input('#load', 64);
         await wait(300);
         assert.ok(await consoleCode('return c.processMotion.speed;') > 0);
         assert.ok(await consoleCode('return c.processMotion.steam;') > 0);

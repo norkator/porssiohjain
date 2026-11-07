@@ -226,7 +226,15 @@ INTERLOCKED, RUNNING, STOPPED and TRIPPED. Pump lamps follow actual motor speed,
 with amber stress and red retained damage/wear indication; an amber Reset trip
 lamp marks completed recovery readiness.
 
-The Start/Stop caps have strong illuminated lenses and colored light spill: green
+The load setpoint and both pump speed targets share a metal regulator rail,
+grooved slider handle, engraved 0–100% scale and amber percentage display. Load
+also retains its fine-adjust buttons and AUTO/MANUAL/TRIP LOCK ownership label.
+The fill/readout follow a live adjustment until commit without changing the
+requested-versus-actual distinction. Native pointer/keyboard behavior, Auto
+ownership, individual pump overrides, trip recovery and speed/flow read-backs
+remain intact in both themes.
+
+The Start/Stop caps have restrained illuminated lenses and a soft nearby halo: green
 Start while running and red Stop while stopped. Emergency shutdown has a soft
 red locator halo while armed and a much brighter red cap/halo while latched.
 These are steady lights with no flashing or extra timers, retained when paused
@@ -517,8 +525,8 @@ explicit restart rules remain authoritative for both objectives.
 ### Simulated grid-controller requests
 
 The **Grid controller** card beneath the left instruments offers an explicit
-**Follow requests** opt-in and **Request now**. New/reset sessions leave it off and
-retain the normal stopped Auto/Electrical output 200 MW default. This is a local,
+**Follow requests** checkbox and **Request now**. New/reset sessions select following
+by default and retain the stopped Auto/Electrical output 200 MW initial target. This is a local,
 deterministic dispatch exercise; there is no grid server or device connection.
 
 With the feed enabled and the reactor running in Auto → Electrical output, the
@@ -553,7 +561,9 @@ Resume after a stop/trip still requires the existing explicit operator actions.
 
 Disabling the feed retains all current operating targets. Operator MW, temperature
 and circulation edits apply immediately and are identified in the card; a later
-grid message may replace them while following is enabled. Reset demo clears the feed and last message.
+grid message may replace them while following is enabled. Reset demo clears the
+last message/sequence, restores following and holds the initial 45-second countdown
+until the reactor is running and dispatch-ready.
 Snapshots expose `commands.followGridRequests` separately from `gridDispatch`
 message/countdown/status data and measured/simulated electrical-output signals.
 
@@ -741,7 +751,7 @@ animation while instruments and controls continue to work.
   standby/manual diesel startup, fuel, capacity and pump power availability.
 - `nuclear/src/simulation/nuclear-power-temperature.js` maps local loop temperatures
   to the shared absolute SVG/WebGL palette.
-- `nuclear/src/simulation/nuclear-power-grid.js` owns opt-in simulated grid messages,
+- `nuclear/src/simulation/nuclear-power-grid.js` owns simulated grid messages with following selected by default,
   active-time cadence, readiness, requested MW changes and dispatch status.
 - `nuclear/src/simulation/nuclear-power-motion.js` integrates speed-dependent impeller
   angles and flow dash offsets without phase jumps. Animation frames are separate
