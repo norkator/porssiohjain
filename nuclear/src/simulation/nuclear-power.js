@@ -12,6 +12,7 @@ import lightStyles from './nuclear-power-light.css?inline';
 import { PlantOverviewScene } from './nuclear-power-scene.js';
 import { AuxiliaryPowerScene } from './nuclear-power-auxiliary-scene.js';
 import { loopTemperatures, temperatureColor } from './nuclear-power-temperature.js';
+import { gridDispatchCapacity } from './nuclear-power-grid.js';
 
 const radiation = `<svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true"><circle cx="20" cy="20" r="3.4"/><path d="M16 13.1 12 6.2a16 16 0 0 1 16 0l-4 6.9a8 8 0 0 0-8 0ZM12 20H4a16 16 0 0 0 8 13.9l4-6.9a8 8 0 0 1-4-7Zm12 7 4 6.9A16 16 0 0 0 36 20h-8a8 8 0 0 1-4 7Z"/></svg>`;
 // Explicit local (0,0) rotation avoids the asymmetric SVG bounding-box pivot.
@@ -282,7 +283,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">Ⅱ</span> Rod insertion <span class="channel">ZI-01</span></div><div class="metric-reading"><span data-value="rodsNumber">36.0</span><span class="unit">%</span></div><div class="metric-foot"><span>TARGET <span data-value="rodTarget">36%</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="rods"></i></div></article>
           </section>
           <details class="fault-console"><summary>Faults &amp; incident</summary><div><label for="fault-scenario">Simulated fault scenario</label><select id="fault-scenario"><option value="none">No injected fault</option><option value="primary-restriction">Primary-loop obstruction</option><option value="secondary-loss">Secondary cooling loss</option><option value="pump-wear">Primary pump deterioration</option></select><button class="small-button" data-action="clear-fault">Clear injected fault</button><button class="small-button" data-action="repair" disabled>Repair components</button><p>Stop, clear the fault and cool down to enable repair. Meltdown requires Reset demo.</p><p data-value="incidentSummary">No incident recorded.</p><button class="small-button" data-action="export-incident" disabled>Export incident report</button></div></details>
-          <section class="panel grid-dispatch-panel" aria-label="Simulated grid controller"><div class="panel-heading"><h2>Grid controller</h2><span class="local-tag">SIMULATED</span></div><div class="grid-dispatch-content"><div class="grid-dispatch-controls"><label><input id="follow-grid" type="checkbox"/> Follow requests</label><button class="small-button" data-action="grid-request" disabled>Request now</button></div><strong data-value="gridStatus"></strong><p class="grid-dispatch-message" data-value="gridMessage" role="status" aria-live="polite"></p><span data-value="gridReadback"></span><small data-value="gridNext"></small></div></section>
+          <section class="panel grid-dispatch-panel" aria-label="Simulated grid controller"><div class="panel-heading"><h2>Grid controller</h2><span class="local-tag">SIMULATED</span></div><div class="grid-dispatch-content"><div class="grid-dispatch-controls"><label><input id="follow-grid" type="checkbox"/> Follow requests</label><button class="small-button" data-action="grid-request" disabled>Request now</button></div><strong data-value="gridStatus"></strong><p class="grid-dispatch-message" data-value="gridMessage" role="status" aria-live="polite"></p><span data-value="gridReadback"></span><span data-value="gridOperatingTargets"></span><span data-value="gridCapacity"></span><small data-value="gridNext"></small></div></section>
           </aside>
 
           <section class="control-column" aria-label="Reactor and operator controls">
@@ -1136,8 +1137,10 @@ export class NuclearPowerConsole extends HTMLElement {
             fuelReplacementReadiness: fuelReadiness.ready ? 'Ready for manual replacement. Reactor will remain stopped.' : fuelReadiness.reasons.join('. ') + '.',
             powerSource: sim.supply.source, auxiliaryLoad: `${n(sim.supply.demand, 2)} MW requested / ${n(sim.supply.capacity, 1)} MW available`,
             gridStatus: sim.gridDispatch.status(sim),
-            gridMessage: sim.gridDispatch.lastRequest ? `${this.time(sim.gridDispatch.lastRequest.time)} · ${sim.gridDispatch.lastRequest.message}` : 'Incoming raise/lower requests adjust the MW target in Auto.',
+            gridMessage: sim.gridDispatch.lastRequest ? `${this.time(sim.gridDispatch.lastRequest.time)} · ${sim.gridDispatch.lastRequest.message}` : 'Incoming requests set MW, core limit and circulation in Auto.',
             gridReadback: `Actual ${n(sim.electricalOutput, 1)} MW / target ${n(sim.autoElectricalTarget)} MW`,
+            gridOperatingTargets: `Core limit ${n(sim.autoTemperature)} °C / circulation ${n(sim.autoFlow)}%`,
+            gridCapacity: `Available dispatch: up to ${n(gridDispatchCapacity(sim))} MW`,
             gridNext: sim.gridDispatch.enabled ? `${sim.gridDispatch.readiness(sim).ready ? 'Next request in' : 'Countdown held at'} ${Math.ceil(sim.gridDispatch.remaining)} s` : 'Enable to follow simulated grid messages.',
             mode: sim.autoMode ? 'AUTO' : 'MANUAL',
             conditionStage: condition.stage,

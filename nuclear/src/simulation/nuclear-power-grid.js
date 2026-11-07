@@ -1,6 +1,43 @@
 // Browser-local dispatch exercise. Requests change the existing electrical target;
 // the plant regulator remains responsible for actual output and all interlocks.
 const CHANGES_MW = [40, -60, 80, -40, 60, -80];
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+function expectedFlows(sim, circulation) {
+    return ['pumpA', 'pumpB'].map((id, index) => {
+        const item = sim.components.items[id];
+        if (!sim[id] || sim.supply.factor <= 0) return 0;
+        const speed = clamp((item.override ? item.settings.speed : circulation) + item.settings.trim, 0, 100);
+        return speed / 100 * sim.components.pumpFactor(id) * sim.condition.flowFactor(index === 0 ? 'A' : 'B') * Math.cbrt(sim.supply.factor);
+    });
+}
+
+// Dispatch uses a normal 330 C operating envelope, independent of the user's
+// uncapped manual setting. Existing alarms/trips remain separate protections.
+export function gridDispatchCapacity(sim) {
+    const turbine = sim.components.items.turbine;
+    if (!sim.running || sim.tripped || sim.condition.meltdown || turbine.actual.tripped || !turbine.settings.breaker) return 0;
+    const [primary, secondary] = expectedFlows(sim, 100);
+    const cooling = sim.components.coolingFactor;
+    const transfer = sim.components.transferFactor;
+    if (primary <= 0 || secondary <= 0 || transfer < .05) return 0;
+    const coolingLoss = (1 - primary) * 1.2 + (1 - secondary) * .6 + (1 - cooling) * 4;
+    const temperaturePower = (330 - 30) / (4 + coolingLoss);
+    const coolingPower = Math.max(0, (1200 * Math.min(primary, secondary) * cooling - sim.condition.heatReserve * 1.5) / 12);
+    const availableWithdrawal = sim.controlRods.reduce((sum, rod) => sum + (rod.manualOverride ? 100 - rod.target : 100), 0) / sim.controlRods.length;
+    const thermal = Math.min(95, temperaturePower, coolingPower, availableWithdrawal * sim.fuel.capability);
+    // Leave headroom for ordinary fluctuation; messages use five-MW steps.
+    return Math.max(0, Math.floor(Math.min(300, thermal * 4.1 * secondary * transfer * .98) / 5) * 5);
+}
+
+export function gridOperatingTargets(sim, targetMw, capacity = gridDispatchCapacity(sim)) {
+    const circulationPercent = Math.ceil(clamp(60 + 40 * targetMw / Math.max(5, capacity), 60, 100));
+    const [primary, secondary] = expectedFlows(sim, circulationPercent);
+    const coolingLoss = (1 - primary) * 1.2 + (1 - secondary) * .6 + (1 - sim.components.coolingFactor) * 4;
+    const thermal = targetMw / Math.max(.01, 4.1 * secondary * sim.components.transferFactor);
+    const coreLimitC = Math.ceil(Math.max(40, 30 + thermal * (4 + coolingLoss) + 8));
+    return { coreLimitC, circulationPercent };
+}
 
 export class GridDispatcher {
     constructor() {
@@ -25,24 +62,30 @@ export class GridDispatcher {
         if (sim.autoObjective !== 'power') return { ready: false, reason: 'Select Electrical output regulation' };
         if (!sim.running) return { ready: false, reason: 'Waiting for reactor Start' };
         if (sim.paused) return { ready: false, reason: 'Simulation paused' };
+        if (!sim.circulationReady()) return { ready: false, reason: 'Waiting for coolant circulation' };
+        if (gridDispatchCapacity(sim) < 5) return { ready: false, reason: 'No available dispatch capacity' };
         return { ready: true, reason: '' };
     }
 
     request(sim) {
         if (!this.readiness(sim).ready) return null;
         const previousTargetMw = sim.autoElectricalTarget;
+        const capacityMw = gridDispatchCapacity(sim);
         let change = CHANGES_MW[this.sequence % CHANGES_MW.length];
-        let targetMw = Math.max(0, Math.min(400, previousTargetMw + change));
+        let targetMw = Math.max(0, Math.min(capacityMw, previousTargetMw + change));
         // A request at an endpoint must still ask for an actual change.
         if (targetMw === previousTargetMw) {
             change = -change;
-            targetMw = Math.max(0, Math.min(400, previousTargetMw + change));
+            targetMw = Math.max(0, Math.min(capacityMw, previousTargetMw + change));
         }
         const id = `GC-${String(++this.sequence).padStart(3, '0')}`;
         const direction = targetMw > previousTargetMw ? 'RAISE' : 'LOWER';
         const message = `${id}: ${direction === 'RAISE' ? 'Raise' : 'Lower'} electrical output from ${previousTargetMw} to ${targetMw} MW.`;
-        this.lastRequest = { id, direction, previousTargetMw, targetMw, time: sim.elapsed, source: 'SIMULATED_GRID_CONTROLLER', message };
+        const targets = gridOperatingTargets(sim, targetMw, capacityMw);
+        this.lastRequest = { id, direction, previousTargetMw, targetMw, ...targets, capacityMw,
+            time: sim.elapsed, source: 'SIMULATED_GRID_CONTROLLER', message };
         this.remaining = 60;
+        sim.setAutoTargets(targets.coreLimitC, targets.circulationPercent);
         sim.setElectricalTarget(targetMw);
         sim.record(`Simulated grid controller — ${message}`, 'info', 'automation');
         return this.lastRequest;
@@ -58,8 +101,8 @@ export class GridDispatcher {
         const readiness = this.readiness(sim);
         if (!readiness.ready) return readiness.reason;
         if (!this.lastRequest) return 'Waiting for first grid message';
-        if (sim.autoElectricalTarget !== this.lastRequest.targetMw) return 'Operator target changed';
         if (sim.regulationLimit) return `Limited: ${sim.regulationLimit}`;
+        if (sim.autoElectricalTarget !== this.lastRequest.targetMw || sim.autoTemperature !== this.lastRequest.coreLimitC || sim.autoFlow !== this.lastRequest.circulationPercent) return 'Operator targets changed';
         return Math.abs(sim.electricalOutput - this.lastRequest.targetMw) <= 5 ? 'Requested output reached' : 'Following grid target';
     }
 }

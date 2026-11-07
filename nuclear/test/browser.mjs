@@ -133,6 +133,10 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.overviewScene.exchangerSteam.some(puff=>puff.visible);'), false);
         assert.equal(await consoleCode('return c.overviewScene.reactorReactions.some(particle=>particle.visible);'), false);
         assert.equal(await consoleCode('return s.querySelector("#follow-grid").checked;'), false);
+        assert.equal(await consoleCode('return s.querySelector("#auto-temperature").hasAttribute("max");'), false);
+        await input('#auto-temperature', 500);
+        assert.equal(await consoleCode('return c.simulation.autoTemperature;'), 500);
+        await input('#auto-temperature', 286);
         assert.equal(await consoleCode('return s.querySelector(".header-control-card").contains(s.querySelector("#auto-objective"));'), true);
         assert.equal(await consoleCode('return s.querySelector(".header-control-card").contains(s.querySelector("[data-action=sound]"));'), true);
         assert.equal(await consoleCode('return s.querySelector(".header-control-card").contains(s.querySelector("#light-theme"));'), true);
@@ -141,6 +145,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.deepEqual(await consoleCode('return c.instrumentMotion;'), {thermal:0,electrical:0,flow:0});
         assert.ok(await consoleCode('return [...s.querySelectorAll("[data-instrument]")].every(card=>card.dataset.active==="false");'));
         await action('pause');
+        assert.ok(await consoleCode(`let correct=true;for(const valve of c.overviewScene.valves){const actual=c.simulation.components.items[valve.id].actual;const saved=actual[valve.key];const svg=s.querySelector('[data-valve-component="'+valve.id+'"][data-valve-key="'+valve.key+'"]');for(const opening of [0,100]){actual[valve.key]=opening;c.update();const direction=valve.handle.position.clone().set(1,0,0).transformDirection(valve.handle.matrixWorld);const parallel=Math.abs(direction.dot(valve.pipeDirection));correct&&=opening===100?parallel>.999:parallel<.001;const angle=Number(svg.dataset.pipeAngle)+(opening===100?0:90);correct&&=svg.querySelector('.valve-handle').getAttribute('transform')==='rotate('+angle+' 0 0)';}actual[valve.key]=saved;}c.update();return correct;`), 'Open handles must align with each pipe, and closed handles must be perpendicular');
         const frozenPlant = await consoleCode('return c.simulation.snapshot();');
         await tab('auxiliary');
         assert.equal(await consoleCode('return c.plantTab;'), 'auxiliary');
@@ -325,6 +330,8 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         const frozenActivity = await consoleCode('return {steam:c.overviewScene.exchangerSteam.map(p=>p.position.toArray()),reaction:c.overviewScene.reactorReactions.map(p=>p.position.toArray())};');
         await wait(180);
         assert.deepEqual(await consoleCode('return {steam:c.overviewScene.exchangerSteam.map(p=>p.position.toArray()),reaction:c.overviewScene.reactorReactions.map(p=>p.position.toArray())};'), frozenActivity);
+        assert.ok(await consoleCode(`const source=c.overviewScene.paths.find(p=>p.temperatureKey==='secondaryHot');const returning=c.overviewScene.paths.find(p=>p.temperatureKey==='secondaryReturn');const saved={...c.processMotion};c.processMotion.secondaryTravel=0;c.updateOverview();const a=source.dots[0].position.clone(),b=returning.dots[0].position.clone();c.drawMotion(.1);const da=a.distanceTo(source.dots[0].position),db=b.distanceTo(returning.dots[0].position);c.processMotion=saved;c.update();return Math.abs(da-db)<1e-6 && da>0;`), 'Secondary steam and return sections must move the same distance per frame');
+        assert.ok(await consoleCode(`const saved=c.simulation.returnTemperature;const hot=c.overviewScene.paths.find(p=>p.temperatureKey==='primaryHot');const returning=c.overviewScene.paths.find(p=>p.temperatureKey==='primaryReturn');c.simulation.returnTemperature=c.simulation.temperature;c.update();const same=hot.material.color.getHexString()===returning.material.color.getHexString();const svgSame=s.querySelector('.pipe[data-loop-segment="primaryHot"]').style.stroke===s.querySelector('.pipe[data-loop-segment="primaryReturn"]').style.stroke;const readback=c.overviewScene.labels.get('reactor').reading.textContent.includes('In '+c.simulation.returnTemperature.toFixed(0)+' °C');c.simulation.returnTemperature=30;c.update();const changed=hot.material.color.getHexString()!==returning.material.color.getHexString();c.simulation.returnTemperature=saved;c.update();return same && svgSame && changed && readback;`), 'Hot returns must match hot inlet/outlet colors in both views');
         // Changing read-back while paused tests visibility without advancing physics.
         await consoleCode('const temp=c.simulation.secondaryTemperature,flow=c.simulation.secondaryFlow;c.simulation.secondaryTemperature=30;c.update();window.coldSteamHidden=c.overviewScene.exchangerSteam.every(p=>!p.visible);c.simulation.secondaryTemperature=temp;c.simulation.secondaryFlow=0;c.update();window.noFlowSteamHidden=c.overviewScene.exchangerSteam.every(p=>!p.visible);c.simulation.secondaryFlow=flow;c.update();');
         assert.equal(await evaluate('window.coldSteamHidden && window.noFlowSteamHidden'), true);
@@ -422,6 +429,9 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await action('grid-request');
         assert.match(await value('gridMessage'), /Raise electrical output from 150 to 190 MW/);
         assert.equal(await consoleCode('return Number(s.querySelector("#auto-electrical").value);'), 190);
+        assert.equal(await consoleCode('return Number(s.querySelector("#auto-temperature").value) === c.simulation.gridDispatch.lastRequest.coreLimitC;'), true);
+        assert.equal(await consoleCode('return Number(s.querySelector("#auto-flow").value) === c.simulation.gridDispatch.lastRequest.circulationPercent;'), true);
+        assert.ok(await consoleCode('return c.simulation.gridDispatch.lastRequest.targetMw <= c.simulation.gridDispatch.lastRequest.capacityMw;'));
         assert.ok(Math.abs(await consoleCode('return c.simulation.electricalOutput;') - 150) < 3, 'Grid targets must remain separate from actual output');
         await screenshot('grid-controller-following');
         await action('grid-request');
@@ -430,6 +440,8 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.simulation.autoElectricalTarget;'), 130);
         assert.equal(await consoleCode('return s.querySelector("[data-action=grid-request]").disabled;'), true);
         await input('#auto-electrical', 150);
+        await input('#auto-temperature', 275);
+        await input('#auto-flow', 80);
         await page('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
         await advance(1200); // Check the power view with a full event journal.
         assert.ok(await consoleCode(`return s.querySelector('.console-footer').getBoundingClientRect().bottom;`) <= 1080, 'Electrical control and a full journal should fit a wide screen');

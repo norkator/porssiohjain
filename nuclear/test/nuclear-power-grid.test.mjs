@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NuclearPowerSimulation } from '../src/simulation/nuclear-power-model.js';
+import { gridDispatchCapacity } from '../src/simulation/nuclear-power-grid.js';
 
 const advance = (sim, seconds) => { for (let i = 0; i < seconds * 4; i++) sim.tick(.25); };
 const operating = () => {
@@ -24,6 +25,8 @@ test('grid messages raise and lower the requested MW while actual output respond
     assert.equal(raise.direction, 'RAISE');
     assert.equal(raise.targetMw, 160);
     assert.equal(sim.autoElectricalTarget, 160);
+    assert.equal(sim.autoTemperature, raise.coreLimitC);
+    assert.equal(sim.autoFlow, raise.circulationPercent);
     assert.equal(sim.electricalOutput, initial, 'A request cannot overwrite measured output');
     assert.equal(sim.snapshot().gridDispatch.lastRequest.id, 'GC-001');
     assert.equal(sim.snapshot().commands.followGridRequests, true);
@@ -105,9 +108,10 @@ test('grid targets remain bounded and preserve the core ceiling, rod overrides a
         assert.notEqual(request.targetMw, request.previousTargetMw);
         assert.equal(request.direction, request.targetMw > request.previousTargetMw ? 'RAISE' : 'LOWER');
     }
-    sim.setAutoTargets(150, 85);
     sim.setElectricalTarget(400);
     sim.requestGridDispatch();
+    // Operator overrides between messages still act as the regulator's ceiling.
+    sim.setAutoTargets(150, 85);
     sim.gridDispatch.remaining = 1000;
     advance(sim, 240);
     assert.equal(sim.tripped, false);
@@ -123,4 +127,51 @@ test('grid targets remain bounded and preserve the core ceiling, rod overrides a
     sim.gridDispatch.remaining = 1000; advance(sim, 20);
     assert.equal(sim.components.items.turbine.settings.breaker, false);
     assert.equal(sim.electricalOutput, 0);
+    assert.equal(sim.requestGridDispatch(), null);
+});
+
+test('normal grid requests fit available capacity and coordinate temperature and circulation for 240 MW', () => {
+    const sim = operating();
+    sim.setElectricalTarget(200);
+    sim.setAutoTargets(286, 85);
+    sim.setGridDispatchEnabled(true);
+    const request = sim.requestGridDispatch();
+    assert.equal(request.targetMw, 240);
+    assert.equal(request.capacityMw, 300);
+    assert.ok(request.circulationPercent > 85);
+    assert.ok(request.coreLimitC > 286);
+    sim.gridDispatch.remaining = 1000;
+    advance(sim, 300);
+    assert.ok(Math.abs(sim.electricalOutput - 240) < 2);
+    assert.equal(sim.tripped, false);
+    assert.ok(sim.temperature < 335);
+    assert.equal(sim.gridDispatch.status(sim), 'Requested output reached');
+    sim.setAutoTargets(1000, 100);
+    assert.equal(sim.autoTemperature, 1000, 'Manual temperature entry has no 330 C cap');
+    sim.setElectricalTarget(400);
+    const reduced = sim.requestGridDispatch();
+    assert.ok(reduced.targetMw <= 300);
+    assert.equal(reduced.direction, 'LOWER');
+});
+
+test('dispatch capacity derates for equipment, fuel and operator-owned pumps/rods instead of issuing impossible demands', () => {
+    const sim = operating();
+    sim.setGridDispatchEnabled(true);
+    const full = gridDispatchCapacity(sim);
+    sim.components.items.exchanger.actual.transferFactor = .6;
+    const restricted = gridDispatchCapacity(sim);
+    assert.ok(restricted < full);
+    sim.setElectricalTarget(300);
+    assert.ok(sim.requestGridDispatch().targetMw <= restricted);
+    sim.components.items.exchanger.actual.transferFactor = 1;
+    sim.setComponentOverride('pumpA', true);
+    sim.setComponentSetting('pumpA', 'speed', 40);
+    assert.ok(gridDispatchCapacity(sim) < full);
+    sim.setComponentOverride('pumpA', false);
+    for (const rod of sim.controlRods) { rod.manualOverride = true; rod.target = 90; }
+    assert.ok(gridDispatchCapacity(sim) < 50);
+    sim.controlRods.forEach(rod => { rod.manualOverride = false; });
+    sim.fuel.assemblies.forEach(assembly => { assembly.remaining = 0; });
+    assert.equal(gridDispatchCapacity(sim), 0);
+    assert.equal(sim.requestGridDispatch(), null);
 });

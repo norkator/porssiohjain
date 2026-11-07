@@ -8,7 +8,7 @@ import { ReactorCondition } from './nuclear-power-condition.js';
 import { FuelInventory } from './nuclear-power-fuel.js';
 import { AuxiliaryPower } from './nuclear-power-supply.js';
 import { ComponentProcesses } from './nuclear-power-components.js';
-import { GridDispatcher } from './nuclear-power-grid.js';
+import { GridDispatcher, gridDispatchCapacity } from './nuclear-power-grid.js';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const approach = (value, target, seconds, response) => target + (value - target) * Math.exp(-seconds / response);
@@ -531,7 +531,7 @@ export class NuclearPowerSimulation {
             },
             fuel: this.fuel.assemblies.map(a => ({ id: a.id, reserve: signal(a.remaining, '%'), exposure: signal(a.exposure, 'demo full-power h'), replacements: a.replacements })),
             auxiliary: { source: this.supply.source, generators: this.supply.generators.map(g => ({ id: g.id, state: g.state, fuel: signal(g.fuel, '%'), load: signal(g.load, 'MW') })) },
-            gridDispatch: { source: 'SIMULATED', nextRequestInSeconds: this.gridDispatch.remaining,
+            gridDispatch: { source: 'SIMULATED', nextRequestInSeconds: this.gridDispatch.remaining, availableCapacityMw: gridDispatchCapacity(this),
                 lastRequest: this.gridDispatch.lastRequest ? { ...this.gridDispatch.lastRequest } : null, status: this.gridDispatch.status(this) },
             rods: this.controlRods.map(rod => ({ id: rod.id, insertion: signal(rod.position, '%') })),
             signals: {
