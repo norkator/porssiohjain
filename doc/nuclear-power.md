@@ -147,6 +147,23 @@ only stores buffers and never starts audio independently. Start/Stop cues retain
 their 0.0004 peak and do not interrupt operating loops. Warning and critical alarm
 sounds retain separate escalation. Mute, pause, hidden views and detach stop all
 loop, cue and alarm nodes immediately; Reset demo returns to cold silence.
+Machinery audio is scoped to the selected tab. **Reactor overview** plays the
+reactor operating loops and Start/Stop cues; **Auxiliary power** plays independent
+diesel startup, running-loop and shutdown voices. Switching tabs stops the outgoing
+machinery immediately; **Maintenance** has no machinery audio. UI clicks and alarm
+escalation remain shared across tabs under the existing sound opt-in.
+
+Original stereo PCM WAVs under `nuclear/public/audio/nuclear-power/diesel` provide
+an eight-second starter/ignition/acceleration cue, a seamless twelve-second exhaust,
+clatter and fan loop, and a 3.2-second shutdown. Read-back states drive playback,
+including automatic starts, cancelled starts and fuel exhaustion. Running gain
+follows actual bus load (0.035 unloaded to 0.05 loaded per engine). The two engines
+have independent voices; startup resumes at the current simulated countdown after
+pause/tab changes, while an already-running engine resumes directly into its loop.
+Past shutdowns and blocked/repeated commands are never replayed. Mute, pause, hide,
+detach and Reset demo clear all diesel voices; late loading never starts playback
+independently. Generation script, source notes and asset checks live in `nuclear/`.
+
 The temperature trend expands its scale above the old 400 °C range during a severe
 incident rather than clipping the continued rise.
 

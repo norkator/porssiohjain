@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { PlantAudio, plantSoundState } from '../src/simulation/nuclear-power-audio.js';
 import { NuclearPowerSimulation } from '../src/simulation/nuclear-power-model.js';
 
@@ -20,7 +21,7 @@ class Node {
     stops = [];
     connect(target) { this.connections.push(target); }
     disconnect() { this.disconnected = true; this.connections = []; }
-    start(time) { this.started = true; this.startTime = time; }
+    start(time, offset = 0) { this.started = true; this.startTime = time; this.offset = offset; }
     stop(time) { this.stops.push(time); }
 }
 
@@ -77,6 +78,149 @@ test('repeated command cues do not stack and mute stops all voices', () => {
 });
 
 const loadPlant = audio => audio.preloadPlant(async () => ({ok:true,arrayBuffer:async()=>new ArrayBuffer(4)}));
+const loadDiesels = async audio => {
+    await audio.preloadDiesels(async () => ({ok:true,arrayBuffer:async()=>new ArrayBuffer(4)}));
+    for (const [kind, buffer] of audio.dieselBuffers) buffer.duration = kind === 'startup' ? 8 : kind === 'shutdown' ? 3.2 : 12;
+};
+
+test('diesels follow actual startup, load, independent stops and fuel exhaustion', async () => {
+    const audio = new PlantAudio(new Context()), sim = new NuclearPowerSimulation();
+    await loadDiesels(audio);
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal(audio.nodes.size, 0);
+    sim.supply.setGrid(sim, false); // Automatic eight-second startup for both engines.
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal(audio.nodes.size, 2);
+    assert.ok([...audio.nodes].every(v => v.kind === 'startup' && !v.oscillator.loop));
+    const starts = [...audio.nodes];
+    audio.updateScene(sim, 'auxiliary');
+    assert.deepEqual([...audio.nodes], starts);
+    sim.supply.advance(sim, 8);
+    audio.updateScene(sim, 'auxiliary');
+    assert.ok(starts.every(v => v.oscillator.disconnected));
+    assert.ok([...audio.nodes].every(v => v.kind === 'running-loop' && v.oscillator.loop));
+    const a = [...audio.nodes].find(v => v.diesel === 'A');
+    assert.ok(a.target > .035 && a.target <= .05);
+    sim.supply.setGrid(sim, true);
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal(a.target, .035, 'Unloaded engines remain audible');
+    sim.supply.command(sim, 'A', 'stop');
+    audio.updateScene(sim, 'auxiliary');
+    const shutdown = [...audio.nodes].find(v => v.diesel === 'A');
+    assert.equal(shutdown.kind, 'shutdown');
+    assert.equal(shutdown.oscillator.loop, false);
+    assert.equal([...audio.nodes].find(v => v.diesel === 'B').kind, 'running-loop');
+    audio.updateScene(sim, 'auxiliary');
+    assert.ok(audio.nodes.has(shutdown));
+    shutdown.oscillator.onended();
+    sim.supply.command(sim, 'A', 'stop');
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal(audio.nodes.size, 1, 'Repeated stop does not replay shutdown');
+    sim.supply.generators[1].fuel = .00001;
+    sim.supply.advance(sim, 1);
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal([...audio.nodes][0].kind, 'shutdown');
+    audio.stop();
+    assert.equal(audio.nodes.size, 0);
+});
+
+test('tabs isolate machinery and reactor command cues, keeping current-state diesel playback', async () => {
+    const audio = new PlantAudio(new Context()), sim = new NuclearPowerSimulation();
+    await loadDiesels(audio); await loadPlant(audio);
+    sim.components.items.turbine.actual.shaftSpeed = 90;
+    sim.supply.command(sim, 'A', 'start');
+    sim.supply.advance(sim, 3);
+    audio.updateScene(sim, 'reactor');
+    audio.cue('start');
+    const reactor = [...audio.nodes];
+    audio.updateScene(sim, 'auxiliary');
+    assert.ok(reactor.every(v => v.oscillator.disconnected));
+    assert.equal(audio.nodes.size, 1);
+    assert.equal([...audio.nodes][0].oscillator.offset, 3);
+    audio.cue('stop');
+    assert.equal(audio.nodes.size, 1, 'Reactor commands are inaudible in auxiliary');
+    const startup = [...audio.nodes][0];
+    startup.oscillator.onended();
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal(audio.nodes.size, 0, 'Finished startup never loops while waiting for a simulation tick');
+    audio.stop();
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal([...audio.nodes][0].oscillator.offset, 3, 'Resume uses remaining startup time');
+    audio.updateScene(sim, 'maintenance');
+    assert.equal(audio.nodes.size, 0);
+    sim.supply.advance(sim, 5);
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal([...audio.nodes][0].kind, 'running-loop', 'Returning does not replay startup');
+    audio.updateScene(sim, 'reactor');
+    assert.ok([...audio.nodes].every(v => v.plant));
+    sim.supply.command(sim, 'A', 'stop');
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal(audio.nodes.size, 0, 'Off-tab shutdown is not replayed');
+});
+
+test('diesel shutdown is interrupted by restart; suspension clears all state without deferred cues', async () => {
+    const context = new Context(), audio = new PlantAudio(context), sim = new NuclearPowerSimulation();
+    await loadDiesels(audio);
+    sim.supply.command(sim, 'A', 'start');
+    audio.updateScene(sim, 'auxiliary');
+    sim.supply.command(sim, 'A', 'stop');
+    audio.updateScene(sim, 'auxiliary');
+    const shutdown = [...audio.nodes][0];
+    sim.supply.command(sim, 'A', 'start');
+    audio.updateScene(sim, 'auxiliary');
+    assert.ok(shutdown.oscillator.disconnected);
+    assert.equal([...audio.nodes][0].kind, 'startup');
+    context.state = 'suspended';
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal(audio.nodes.size, 0);
+    sim.supply.command(sim, 'A', 'stop');
+    context.state = 'running';
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal(audio.nodes.size, 0);
+});
+
+test('late or failed diesel loads never replay shutdown or create voices by themselves', async () => {
+    const audio = new PlantAudio(new Context()), sim = new NuclearPowerSimulation();
+    let release;
+    const gate = new Promise(resolve => { release = resolve; });
+    const loading = audio.preloadDiesels(async () => {
+        await gate; return {ok:true,arrayBuffer:async()=>new ArrayBuffer(4)};
+    });
+    sim.supply.command(sim, 'A', 'start'); audio.updateScene(sim, 'auxiliary');
+    sim.supply.command(sim, 'A', 'stop'); audio.updateScene(sim, 'auxiliary');
+    audio.stop(); release(); await loading;
+    assert.equal(audio.nodes.size, 0);
+    audio.updateScene(sim, 'auxiliary');
+    assert.equal(audio.nodes.size, 0);
+    const failed = new PlantAudio(new Context());
+    await failed.preloadDiesels(async () => { throw new Error('Missing audio'); });
+    assert.equal(failed.dieselState, 'unavailable');
+    sim.supply.command(sim, 'A', 'start'); failed.updateScene(sim, 'auxiliary');
+    assert.equal(failed.nodes.size, 0);
+});
+
+test('bundled diesel PCM assets have expected durations, bounded peaks and smooth endpoints', () => {
+    for (const [kind, seconds] of [['startup', 8], ['running-loop', 12], ['shutdown', 3.2]]) {
+        const wav = readFileSync(new URL(`../public/audio/nuclear-power/diesel/diesel-${kind}.wav`, import.meta.url));
+        assert.equal(wav.toString('ascii', 0, 4), 'RIFF');
+        assert.equal(wav.readUInt16LE(22), 2);
+        assert.equal(wav.readUInt32LE(24), 48000);
+        assert.equal(wav.readUInt16LE(34), 16);
+        assert.equal(wav.readUInt32LE(40), seconds * 48000 * 4);
+        let peak = 0, squares = 0;
+        for (let i = 44; i < wav.length; i += 2) {
+            const sample = wav.readInt16LE(i);
+            peak = Math.max(peak, Math.abs(sample)); squares += sample ** 2;
+        }
+        assert.ok(peak < 18100 && peak > 6000);
+        assert.ok(Math.sqrt(squares / ((wav.length - 44) / 2)) > 2000);
+        for (let channel = 0; channel < 2; channel++) {
+            const first = wav.readInt16LE(44 + channel * 2), last = wav.readInt16LE(wav.length - 4 + channel * 2);
+            if (kind === 'running-loop') assert.ok(Math.abs(first - last) < 1500);
+            else assert.ok(Math.abs(first) < 20 && Math.abs(last) < 20);
+        }
+    }
+});
 
 test('plant audio follows actual operation and coast-down, with faults independent of acknowledgement', () => {
     const sim = new NuclearPowerSimulation();

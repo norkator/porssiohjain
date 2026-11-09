@@ -10,7 +10,8 @@ import { tmpdir } from 'node:os';
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-test('3D overview, core map, centered pumps, automatic control, trip recovery and logs work in browser', { timeout: 180000 }, async () => {
+// Software WebGL plus both scenes' audio lifecycle checks can exceed three minutes.
+test('3D overview, core map, centered pumps, automatic control, trip recovery and logs work in browser', { timeout: 300000 }, async () => {
     const artifacts = mkdtempSync(join(tmpdir(), 'nuclear-power-check-'));
     const appUrl = process.env.NUCLEAR_POWER_APP_URL;
     if (appUrl) {
@@ -320,6 +321,8 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await page('Input.dispatchMouseEvent', {type:'mouseReleased',...soundButton,button:'left',clickCount:1});
         await consoleCode('return c.plantAudio.preloadUi();');
         await consoleCode('return c.plantAudio.preloadPlant();');
+        await consoleCode('return c.plantAudio.preloadDiesels();');
+        assert.equal(await consoleCode('return c.plantAudio.dieselState;'), 'ready');
         assert.equal(await consoleCode('return c.plantAudio.plantState;'), 'ready');
         assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.plant).length;'), 0);
         assert.equal(await consoleCode('return c.plantAudio.uiBuffers.size;'), 3);
@@ -334,10 +337,48 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await advance(10);
         await until(`document.querySelector('nuclear-power-console').plantAudio.nodes.size >= 2`, 'Operating loops did not start');
         assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.plant && v.oscillator.loop).length;'), 2);
-        await consoleCode("c.simulation.condition.stage='STRAINED';c.update();");
-        assert.ok(await consoleCode("return [...c.plantAudio.nodes].find(v=>v.plant==='fault').target > 0;"));
-        await consoleCode("c.simulation.condition.stage='NORMAL';c.update();");
-        assert.equal(await consoleCode("return [...c.plantAudio.nodes].find(v=>v.plant==='fault').target;"), 0);
+        // Inspect injected stages in the same turn, before the live simulation recalculates them.
+        assert.ok(await consoleCode("c.simulation.condition.stage='STRAINED';c.update();return [...c.plantAudio.nodes].find(v=>v.plant==='fault').target > 0;"));
+        assert.equal(await consoleCode("c.simulation.condition.stage='NORMAL';c.update();return [...c.plantAudio.nodes].find(v=>v.plant==='fault').target;"), 0);
+        await tab('auxiliary');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.plant || v.diesel).length;'), 0);
+        await consoleCode('s.querySelector("[data-generator=A][data-generator-action=start]").click();');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].find(v=>v.diesel==="A")?.kind;'), 'startup');
+        await advance(8);
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].find(v=>v.diesel==="A")?.kind;'), 'running-loop');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].find(v=>v.diesel==="A")?.target;'), .035);
+        await tab('reactor');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.diesel).length;'), 0);
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.plant).length;'), 2);
+        await tab('auxiliary');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.plant).length;'), 0);
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].find(v=>v.diesel==="A")?.kind;'), 'running-loop');
+        await consoleCode('s.querySelector("[data-generator=B][data-generator-action=start]").click();');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].find(v=>v.diesel==="B")?.kind;'), 'startup');
+        await action('pause');
+        assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
+        await action('pause');
+        await until(`[...document.querySelector('nuclear-power-console').plantAudio.nodes].filter(v=>v.diesel).length===2`, 'Diesels did not resume');
+        await consoleCode("Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));");
+        assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
+        await consoleCode("delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));c.update();");
+        await until(`[...document.querySelector('nuclear-power-console').plantAudio.nodes].filter(v=>v.diesel).length===2`, 'Visible diesels did not resume');
+        assert.equal(await consoleCode('const parent=c.parentElement;c.remove();const count=c.plantAudio.nodes.size;parent.append(c);return count;'), 0);
+        await until(`[...document.querySelector('nuclear-power-console').plantAudio.nodes].filter(v=>v.diesel).length===2`, 'Reattached diesels did not resume');
+        await action('sound');
+        assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
+        await action('sound');
+        await until(`[...document.querySelector('nuclear-power-console').plantAudio.nodes].filter(v=>v.diesel).length===2`, 'Unmuted diesels did not resume');
+        await advance(8);
+        await consoleCode('s.querySelector("[data-generator=A][data-generator-action=stop]").click();');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].find(v=>v.diesel==="A")?.kind;'), 'shutdown');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].find(v=>v.diesel==="B")?.kind;'), 'running-loop');
+        await consoleCode('s.querySelector("[data-generator=B][data-generator-action=stop]").click();');
+        await tab('maintenance');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.diesel || v.plant).length;'), 0);
+        await tab('auxiliary');
+        assert.equal(await consoleCode('return [...c.plantAudio.nodes].filter(v=>v.diesel).length;'), 0, 'No old shutdown on tab return');
+        await tab('reactor');
         await consoleCode('c.intersecting=false;c.updateActivity();c.update();');
         assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
         await consoleCode('c.intersecting=true;c.updateActivity();c.update();');
@@ -352,11 +393,10 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
         await action('pause');
         await action('stop');
-        await action('pumpA');
+        assert.ok(await consoleCode("s.querySelector('[data-action=pumpA]').click();return [...c.plantAudio.nodes].some(voice=>voice.ui && voice.oscillator.loop===false && voice.oscillator.buffer===c.plantAudio.uiBuffers.get('off'));"));
         assert.equal(await consoleCode('return s.querySelector("[data-action=pumpA]").getAttribute("aria-checked");'), 'false');
         assert.equal(await value('pumpA'), 'COASTING');
         assert.equal(await consoleCode('return s.querySelector("[data-pump-card=A]").dataset.lamp;'), 'running', 'Rocker OFF must not pretend the motor has already stopped');
-        assert.ok(await consoleCode("return [...c.plantAudio.nodes].some(voice=>voice.ui && voice.oscillator.loop===false && voice.oscillator.buffer===c.plantAudio.uiBuffers.get('off'));"));
         await action('sound');
         assert.equal(await consoleCode('return c.plantAudio.nodes.size;'), 0);
         await resetWithoutDispatch();

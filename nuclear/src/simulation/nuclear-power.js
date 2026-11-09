@@ -6,7 +6,7 @@
 import { CORE_CHANNELS, NuclearPowerSimulation } from './nuclear-power-model.js';
 import { advancePumpMotion, advanceProcessMotion, advanceInstrumentMotion, flowMarkerDistance, valveHandleAngle, SVG_FLOW_SCALE } from './nuclear-power-motion.js';
 import styles from './nuclear-power.css?inline';
-import { PlantAudio, plantSoundState } from './nuclear-power-audio.js';
+import { PlantAudio } from './nuclear-power-audio.js';
 import { equipmentDialogs, initializeEquipment, updateEquipment, drawEquipmentMotion, exerciseDialog, initializeExercises, updateExercises } from './nuclear-power-equipment.js';
 import lightStyles from './nuclear-power-light.css?inline';
 import { PlantOverviewScene } from './nuclear-power-scene.js';
@@ -593,6 +593,7 @@ export class NuclearPowerConsole extends HTMLElement {
 
     setPlantTab(tab) {
         this.plantTab = PLANT_TABS.includes(tab) ? tab : 'reactor';
+        this.plantAudio?.setScene(this.plantTab);
         this.dataset.plantTab = this.plantTab;
         for (const name of PLANT_TABS) {
             const selected = this.plantTab === name;
@@ -615,6 +616,7 @@ export class NuclearPowerConsole extends HTMLElement {
         if (this.plantTab === 'auxiliary') this.auxiliaryScene?.resize();
         else if (this.plantTab === 'reactor') this.overviewScene?.resize();
         this.updateOverview();
+        this.updateAlarmSound();
     }
 
     fallbackAuxiliary() {
@@ -773,8 +775,10 @@ export class NuclearPowerConsole extends HTMLElement {
                     if (Audio) {
                         this.alarmAudio ||= new Audio();
                         this.plantAudio ||= new PlantAudio(this.alarmAudio);
+                        this.plantAudio.setScene(this.plantTab);
                         this.plantAudio.preloadUi().then(() => this.update());
                         this.plantAudio.preloadPlant().then(() => this.update());
+                        this.plantAudio.preloadDiesels().then(() => this.update());
                         this.alarmAudio.resume().catch(() => {});
                     } else this.soundEnabled = false;
                 }
@@ -807,7 +811,7 @@ export class NuclearPowerConsole extends HTMLElement {
             'export-log': () => this.exportLog(),
             'clear-fault': () => sim.injectFault('none'), repair: () => sim.repairComponents(),
             'export-incident': () => this.exportIncident(),
-            pause: () => sim.togglePause(), reset: () => sim.reset(),
+            pause: () => sim.togglePause(), reset: () => { this.plantAudio?.stop(); sim.reset(); },
             'overview-3d': () => this.setOverview('3d'),
             'overview-schematic': () => this.setOverview('schematic'),
             'scene-zoom-in': () => this.overviewScene?.setZoom(this.overviewScene.zoom + .15),
@@ -1044,7 +1048,7 @@ export class NuclearPowerConsole extends HTMLElement {
         const button = this.shadowRoot.querySelector('[data-action="sound"]');
         button.textContent = this.soundEnabled ? 'Mute plant sounds' : 'Enable plant sounds';
         button.setAttribute('aria-pressed', String(!!this.soundEnabled));
-        const audioStates = [this.plantAudio?.uiState, this.plantAudio?.plantState];
+        const audioStates = [this.plantAudio?.uiState, this.plantAudio?.plantState, this.plantAudio?.dieselState];
         this.shadowRoot.querySelector('.ui-sound-status').textContent = !this.soundEnabled ? ''
             : audioStates.includes('unavailable') ? 'Some sound files unavailable'
                 : audioStates.every(state => state === 'ready') ? '' : 'Loading sounds…';
@@ -1052,7 +1056,7 @@ export class NuclearPowerConsole extends HTMLElement {
         const context = this.alarmAudio;
         if (!context) return;
         if (context.state === 'suspended') { context.resume().catch(() => {}); return; }
-        this.plantAudio?.updatePlant(plantSoundState(sim));
+        this.plantAudio?.updateScene(sim, this.plantTab);
         if (!pending && severity < 2) { this.stopAlarmSound(false); return; }
         const now = context.currentTime;
         const mode = meltdown ? 'meltdown' : ['quiet', 'attention', 'overheating', 'core-damage', 'critical'][severity];

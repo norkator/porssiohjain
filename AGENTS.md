@@ -80,7 +80,13 @@ quiet Start/Stop cues, local CC0 Kenney UI Audio one-shot switch/adjustment samp
 (with bundled license/source records), and separate alarms; opt-in steam/turbine/generator loops follow actual running power
 and shaft coast-down, crossfading to a fault texture for actual stress/damage/disturbances.
 Cold sessions are silent; preserve opt-in, bounded gain,
-and mute/pause/hide/detach cleanup of every voice.
+and mute/pause/hide/detach cleanup of every voice. Machinery audio follows the selected
+tab: Reactor overview has plant loops and reactor Start/Stop cues; Auxiliary power
+has independent diesel startup, seamless running and shutdown sounds driven by actual
+state/countdown and bus load. Maintenance has no machinery audio; UI clicks and
+alarms remain shared. Tab changes stop outgoing machinery immediately; resuming
+uses current state without replaying past starts/stops. Preserve automatic diesel
+starts, fuel-exhaustion shutdowns, opt-in loading and Reset demo cleanup.
 New/reset sessions select Auto with Electrical output regulation (200 MW), but
 the reactor starts stopped/cold with fully inserted rods and both pumps disabled
 (zero actual motor speed/flow, retained 100% speed targets). Explicitly start both

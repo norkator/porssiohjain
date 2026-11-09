@@ -55,6 +55,15 @@ and a stopped turbine fades with its actual coast-down. Mute, pause, hidden view
 and detach stop all voices. The original synthesized WAVs and generation notes
 are in `public/audio/nuclear-power/plant-state/`; they load only after sound opt-in.
 
+Machinery audio follows the selected tab: **Reactor overview** plays reactor
+operating loops and Start/Stop cues; **Auxiliary power** plays independent diesel
+startup, seamless running and shutdown sounds. Switching tabs silences the outgoing
+machinery immediately; **Maintenance** has no machinery audio. Alarms and UI clicks
+remain shared. Diesel sounds follow actual startup/running/stopped/empty state,
+including automatic starts and fuel exhaustion; running volume follows bus load.
+Returning to a tab resumes current engine operation without replaying past events.
+Original diesel WAVs and regeneration notes are in `public/audio/nuclear-power/diesel/`.
+
 The main panel has **Reactor overview** and **Auxiliary power** tabs. The auxiliary
 tab contains two low-poly 3D diesel cutaways, grid/feed switches and the existing
 standby, start/stop and manual refuelling controls. Pistons, shaft and fans follow
