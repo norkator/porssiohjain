@@ -90,10 +90,63 @@ jobs:
           retention-days: 30
           compression-level: 0
 
+  shell-compatibility:
+    if: github.ref == 'refs/heads/extensions'
+    name: Test Ubuntu ${{ matrix.ubuntu }} Shell
+    needs: build
+    runs-on: ubuntu-24.04
+    container: ubuntu:${{ matrix.ubuntu }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['24.04', '26.04']
+    defaults:
+      run:
+        working-directory: gnome
+        shell: bash
+    steps:
+      - name: Install native Shell test dependencies
+        working-directory: /
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install --no-install-recommends -y \
+            build-essential gnome-shell gjs gir1.2-adw-1 dbus-x11 python3 \
+            libgl1-mesa-dri libegl-mesa0 fonts-dejavu-core
+          useradd --create-home gnome-test
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download x86_64 packages
+        uses: actions/download-artifact@v8
+        with:
+          name: gnome-extensions-linux-x86_64
+          path: gnome/dist/x86_64
+
+      - name: Verify installer and native menus
+        run: |
+          chown -R gnome-test "$GITHUB_WORKSPACE"
+          runuser -u gnome-test -- python3 tools/check.py
+          runuser -u gnome-test -- python3 tools/smoke.py
+
+      - name: Upload Shell log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gnome-shell-log-ubuntu-${{ matrix.ubuntu }}
+          path: gnome/dist/shell-smoke-*.log
+          if-no-files-found: ignore
+          retention-days: 14
+
   release:
     if: github.ref == 'refs/heads/extensions'
     name: Publish latest GNOME packages
-    needs: build
+    needs: [build, shell-compatibility]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -129,7 +182,9 @@ jobs:
 
           Source: [{os.environ['GITHUB_SHA']}]({source})
 
-          Built on Ubuntu 24.04 for GNOME Shell 46. Choose **x86_64** for Intel/AMD
+          Built on Ubuntu 24.04 for GNOME Shell 46 (Ubuntu 24.04) and 50
+          (Ubuntu 26.04), with native Shell checks on both Ubuntu versions.
+          Choose **x86_64** for Intel/AMD
           PCs or **aarch64** for ARM64 systems (`uname -m` shows your architecture).
 
           ### Install bundle

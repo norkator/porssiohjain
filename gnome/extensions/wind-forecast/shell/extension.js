@@ -17,6 +17,10 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import {WindChart} from './chart.js';
 import {currentForecast, daySummary, formatChange, formatMegawatts, visibleChart} from './model.js';
 
+// Shell 48+ uses orientation; retain the Shell 46 BoxLayout API.
+const verticalLayout = 'orientation' in St.BoxLayout.prototype
+    ? {orientation: Clutter.Orientation.VERTICAL} : {vertical: true};
+
 export default class WindForecastExtension extends Extension {
     enable() {
         this._enabled = true;
@@ -45,7 +49,7 @@ export default class WindForecastExtension extends Extension {
         this._indicator.add_child(panel);
 
         const menuItem = new PopupMenu.PopupMenuSection();
-        this._content = new St.BoxLayout({vertical: true, style_class: 'porssiohjain-wind-content'});
+        this._content = new St.BoxLayout({...verticalLayout, style_class: 'porssiohjain-wind-content'});
         menuItem.box.add_child(this._content);
         this._content.add_child(new St.Label({text: 'Wind power forecast', style_class: 'porssiohjain-wind-heading'}));
         this._caption = this._addLabel('', 'porssiohjain-wind-caption');
@@ -53,7 +57,7 @@ export default class WindForecastExtension extends Extension {
         const metrics = new St.BoxLayout({style_class: 'porssiohjain-wind-metrics'});
         this._values = {};
         for (const [key, title] of [['current', 'Now · MW'], ['today', 'Today avg · MW'], ['tomorrow', 'Tomorrow avg · MW'], ['change', 'Tomorrow vs today']]) {
-            const box = new St.BoxLayout({vertical: true, x_expand: true, style_class: 'porssiohjain-wind-metric'});
+            const box = new St.BoxLayout({...verticalLayout, x_expand: true, style_class: 'porssiohjain-wind-metric'});
             box.add_child(new St.Label({text: title, style_class: 'porssiohjain-wind-caption'}));
             const value = new St.Label({text: '—', style_class: 'porssiohjain-wind-value'});
             box.add_child(value);

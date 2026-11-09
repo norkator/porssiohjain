@@ -19,10 +19,9 @@ Read [doc/account-tier-limits.md](doc/account-tier-limits.md) before changing ac
 Read [gnome/AGENTS.md](gnome/AGENTS.md) before changing the GNOME extensions,
 installer, packaging tools, or `.github/workflows/gnome-extensions.yml`. The
 workspace contains electricity-price and Finnish wind-power forecast indicators,
-with Rust helpers and native GJS menus. GNOME Shell 46 / Ubuntu 24.04 is the
-current tested target. The user explicitly deferred Ubuntu 26.04 / GNOME 50
-compatibility work until they install that Ubuntu version; do not start that port
-as part of unrelated maintenance.
+with Rust helpers and native GJS menus. Both GNOME Shell 46 / Ubuntu 24.04 and
+Shell 50 / Ubuntu 26.04 are supported. Preserve both targets; read the native
+verification and release coverage in the GNOME handoff before compatibility work.
 
 ## Control Table handoff
 

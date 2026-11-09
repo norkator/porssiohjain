@@ -2,21 +2,17 @@
 
 ## Current state and user decision
 
-Checkpoint: 2026-10-17. Both extensions are implemented and tested on **GNOME
-Shell 46 / Ubuntu 24.04**. Their metadata intentionally declares only `"46"`.
+Checkpoint: 2026-11-09. The user upgraded to Ubuntu 26.04.1 / GNOME Shell 50.1
+and resumed compatibility work, explicitly retaining Ubuntu 24.04 support.
+Both extensions' version 2 metadata declares `"46"` and `"50"`.
 
-The user decided to revisit **Ubuntu 26.04 / GNOME 50 only after installing
-Ubuntu 26.04**. Compatibility work is deferred. Preserve the current supported
-version until that work resumes; adding a version to metadata requires testing
-the menu, chart, preferences, and lifecycle on that version.
-
-When the user resumes that work, retain GNOME 46 support, check the upstream
-porting guides for versions 47 through 50, adapt affected APIs, and test both
-desktop versions before updating metadata, installer expectations, release
-coverage, and README compatibility claims. The Rust helpers are independent of
-the Shell UI API. In particular, review the newer `orientation` API replacing
-deprecated St widget `vertical` properties; verify the actual installed API
-rather than assuming that a metadata change is sufficient.
+Preserve GNOME Shell 46 / Ubuntu 24.04 and Shell 50 / Ubuntu 26.04 support.
+Porting guides 47 through 50 were reviewed. Menus use the newer BoxLayout
+`orientation` property when available, falling back to `vertical` on Shell 46.
+The installed Shell 50.1 still exposes both properties, but `vertical` is
+deprecated. The Rust helpers are independent of the Shell UI API. Adding another
+Shell version requires native menu, chart, preferences and lifecycle verification
+before changing metadata, installer expectations, release coverage or support claims.
 
 References: [Ubuntu 26.04 release notes](https://documentation.ubuntu.com/release-notes/26.04/changes-since-previous-interim/),
 [GNOME porting guides](https://gjs.guide/extensions/upgrading/gnome-shell-50.html).
@@ -104,6 +100,7 @@ make list
 make check
 make build EXTENSION=electricity-prices
 make release EXTENSION=wind-forecast
+make smoke
 ```
 
 `tools/package.py` discovers registered extension folders and builds native
@@ -115,8 +112,10 @@ rules for `dist/`, `target/`, compiled schemas, and Python caches.
 
 The root `.github/workflows/gnome-extensions.yml` runs **only on pushes to the
 `extensions` branch**. It discovers every registered extension, checks and
-builds on native Ubuntu 24.04 x86_64 and ARM64 runners, then updates the rolling
-`gnome-extensions-latest` prerelease after both builds succeed. Preserve the
+builds on native Ubuntu 24.04 x86_64 and ARM64 runners, then runs installer and
+headless Shell checks on x86_64 Ubuntu 24.04 and 26.04 containers. It updates the
+rolling `gnome-extensions-latest` prerelease only after both architecture builds
+and both compatibility jobs succeed. Preserve the
 branch restriction, serialized publication, source-head check, and checksum
 verification. A new registered extension is included automatically. Building
 locally does not publish a release.
@@ -137,6 +136,17 @@ inspection, opening preferences, retaining data with a warning after a failed
 refresh, and cleanup on disable during a request. ARM64 is built by CI; local
 native verification was x86_64. This records local checks, not confirmation of
 a remotely published release.
+
+`make smoke` checks both built archives using real Rust helpers against a local
+HTTP fixture, menus, Cairo chart repaints, pointer handlers with native actor
+picking/transforms, virtual keyboard input, opening preferences, cached-data
+warnings after HTTP failure, helper cancellation and disable/re-enable cleanup.
+These checks pass on isolated Shell 46.0 and 50.1 sessions. Shell 46 also passed
+virtual pointer movement; headless pointer warping on Shell 50 did not deliver
+coordinates reliably, so the repeatable test supplies coordinates to the recorded
+motion handler. Physical pointer use on the user's desktop remains a manual check.
+Version 2 was installed locally for both indicators with settings preserved and
+activation queued for the next login.
 
 For future native checks, use a separate nested/headless Shell with isolated
 XDG data/config/cache/state directories and a private D-Bus session. Routine

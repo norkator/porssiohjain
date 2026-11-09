@@ -22,8 +22,9 @@ is no background daemon or local web server.
 
 ## Install
 
-Target: GNOME Shell 46, as shipped in Ubuntu 24.04. Other Shell versions are not
-declared compatible until their menu, chart, and preference APIs are verified.
+Targets: GNOME Shell 46 / Ubuntu 24.04 and Shell 50 / Ubuntu 26.04. Version 2
+supports both. Reinstall after an Ubuntu upgrade and log out and back in; older
+version 1 packages declare only Shell 46.
 
 ### Prebuilt release
 

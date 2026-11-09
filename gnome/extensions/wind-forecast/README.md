@@ -23,8 +23,10 @@ background daemon or web server is needed.
 
 ## Install
 
-Target: **GNOME Shell 46 / Ubuntu 24.04**. Run installers as your normal desktop
-user, without `sudo`. Log out and back in after installing or updating.
+Targets: **GNOME Shell 46 / Ubuntu 24.04** and **Shell 50 / Ubuntu 26.04**.
+Version 2 supports both; older version 1 packages declare only Shell 46.
+Run installers as your normal desktop user, without `sudo`. Reinstall after an
+Ubuntu upgrade and log out and back in after installing or updating.
 
 ### Automatic installation from this repository
 

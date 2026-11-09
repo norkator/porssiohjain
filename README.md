@@ -82,7 +82,7 @@ can run together, and neither requires an account or API token.
   </tr>
 </table>
 
-Tested on **GNOME Shell 46 / Ubuntu 24.04**.
+Supports **GNOME Shell 46 / Ubuntu 24.04** and **Shell 50 / Ubuntu 26.04**.
 [Installation instructions](gnome/README.md) ·
 [Download ready-to-install packages](https://github.com/norkator/porssiohjain/releases/tag/gnome-extensions-latest)
 

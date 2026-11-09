@@ -6,19 +6,19 @@ and lockfile. Building does not install or enable anything in your desktop sessi
 
 | Extension | Folder | GNOME Shell |
 | --- | --- | --- |
-| Electricity prices | [extensions/electricity-prices](extensions/electricity-prices) | 46 (Ubuntu 24.04) |
-| Wind forecast | [extensions/wind-forecast](extensions/wind-forecast) | 46 (Ubuntu 24.04) |
+| Electricity prices | [extensions/electricity-prices](extensions/electricity-prices) | 46 (Ubuntu 24.04), 50 (Ubuntu 26.04) |
+| Wind forecast | [extensions/wind-forecast](extensions/wind-forecast) | 46 (Ubuntu 24.04), 50 (Ubuntu 26.04) |
 
 ## Compatibility and development handoff
 
-GNOME Shell 46 / Ubuntu 24.04 remains the tested and supported target. Ubuntu
-26.04 / GNOME 50 support is deferred until the user installs Ubuntu 26.04 and
-resumes compatibility testing. Both extensions currently declare only Shell 46;
-an upgrade requires a compatibility update before they can be enabled there.
+Both extensions support GNOME Shell 46 / Ubuntu 24.04 and Shell 50 / Ubuntu
+26.04. Version 2 adds Shell 50 while retaining Shell 46. Reinstall the updated
+packages after upgrading Ubuntu, then log out and back in; the older version 1
+packages declare only Shell 46 and appear incompatible on Shell 50.
 
 For a fresh development session, read [AGENTS.md](AGENTS.md) for the implementation
 map, data contracts, installer details, release constraints, previous verification,
-and the deferred compatibility work.
+and compatibility verification.
 
 ## Download a ready package
 
@@ -71,6 +71,8 @@ From this folder:
 make list
 make check
 make build EXTENSION=electricity-prices
+make build EXTENSION=wind-forecast
+make smoke
 ```
 
 The output is `dist/<architecture>/electricity-prices@porssiohjain.fi.shell-extension.zip`.
@@ -82,6 +84,14 @@ newer than the installation target; the bundled helper is a native Linux executa
 strict schema validation. Installer tests use temporary GNOME data and settings;
 no live backend is needed.
 
+`make smoke` uses both built archives, a local fixture HTTP server, temporary
+settings/data/runtime directories and private session/system D-Bus connections.
+It starts a headless Shell to check both menus, chart drawing, pointer handlers,
+keyboard inspection, preferences, refresh errors and disable/re-enable cleanup.
+It does not modify the running desktop. Logs go to `dist/shell-smoke-<version>.log`.
+Native checks also need `gnome-shell`, `gir1.2-adw-1`, `dbus-x11`, Mesa software
+rendering (`libgl1-mesa-dri`, `libegl-mesa0`) and fonts (`fonts-dejavu-core`).
+
 See the [electricity prices README](extensions/electricity-prices/README.md) and
 [wind forecast README](extensions/wind-forecast/README.md) for installation,
 settings, behavior, and manual verification.
@@ -91,8 +101,9 @@ settings, behavior, and manual verification.
 [gnome-extensions.yml](../.github/workflows/gnome-extensions.yml) runs only on pushes
 to the `extensions` branch. Merge or commit the desired changes there and push
 that branch. It checks and builds every registered extension on native Ubuntu
-24.04 x86_64 and ARM64 runners. After both builds succeed, it updates the dedicated
-`gnome-extensions-latest` prerelease with ZIPs, standalone installation bundles,
+24.04 x86_64 and ARM64 runners. After both builds and additional native x86_64
+Shell and installer checks on Ubuntu 24.04 and 26.04 succeed, it updates the
+dedicated `gnome-extensions-latest` prerelease with ZIPs, standalone installation bundles,
 SHA256 checksums, and the source commit. Packages are also kept as workflow
 artifacts for 30 days. The last published packages remain available if a build fails.
 

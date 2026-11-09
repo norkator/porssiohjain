@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := build
 EXTENSION ?= electricity-prices
 
-.PHONY: build release test check list
+.PHONY: build release test check smoke list
 
 build:
 	python3 tools/package.py $(EXTENSION)
@@ -17,6 +17,9 @@ check:
 	cargo fmt --all -- --check
 	cargo clippy --workspace --all-targets --locked -- -D warnings
 	$(MAKE) test
+
+smoke:
+	python3 tools/smoke.py
 
 list:
 	python3 tools/package.py --list
