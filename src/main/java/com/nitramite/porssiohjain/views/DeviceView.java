@@ -1062,6 +1062,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                     VaadinIcon.LIST,
                     this::openAcCommandLogDialog
             ));
+            toolActions.add(createDialogActionButton(
+                    t("device.hp.testButton"),
+                    VaadinIcon.TOOLS,
+                    this::openHeatPumpTestDialog
+            ));
         }
 
         if (!shared) {
@@ -1421,6 +1426,24 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             });
         });
         return section;
+    }
+
+    private void openHeatPumpTestDialog() {
+        if (selectedDevice == null || selectedDevice.getDeviceType() != DeviceType.HEAT_PUMP
+                || Boolean.TRUE.equals(selectedDevice.getShared())) {
+            return;
+        }
+        try {
+            AccountEntity currentAccount = ViewAuthUtils.getAuthenticatedAccount(authService, t("device.notification.notLoggedIn"));
+            if (currentAccount == null) {
+                return;
+            }
+            deviceService.getDeviceAcData(currentAccount.getId(), selectedDevice.getId());
+            heatPumpStateDialogService.openTestDialog(selectedDevice);
+        } catch (Exception e) {
+            Notification.show(t("device.notification.failed", e.getMessage()))
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 
     private void openAcCommandLogDialog() {

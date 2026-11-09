@@ -72,23 +72,31 @@ public class HeatPumpStateDialogService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void openStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
+        openStateDialog(deviceResponse, stateHexField, false);
+    }
+
+    public void openTestDialog(DeviceResponse deviceResponse) {
+        openStateDialog(deviceResponse, new TextField(), true);
+    }
+
+    private void openStateDialog(DeviceResponse deviceResponse, TextField stateHexField, boolean standalone) {
         DeviceAcDataEntity acData = getAcData(deviceResponse);
         if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD) {
-            openMitsubishiStateDialog(deviceResponse, stateHexField);
+            openMitsubishiStateDialog(deviceResponse, stateHexField, standalone);
             return;
         }
         if (acData.getAcType() == AcType.TOSHIBA) {
-            openToshibaStateDialog(deviceResponse, stateHexField);
+            openToshibaStateDialog(deviceResponse, stateHexField, standalone);
             return;
         }
         if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD_HOME) {
-            openMitsubishiMelCloudHomeStateDialog(deviceResponse, stateHexField);
+            openMitsubishiMelCloudHomeStateDialog(deviceResponse, stateHexField, standalone);
             return;
         }
         throw new UnsupportedOperationException("State editing is not implemented for " + acData.getAcType());
     }
 
-    private void openToshibaStateDialog(DeviceResponse deviceResponse, TextField stateHexField) {
+    private void openToshibaStateDialog(DeviceResponse deviceResponse, TextField stateHexField, boolean standalone) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
         dialog.setWidth("900px");
@@ -303,18 +311,23 @@ public class HeatPumpStateDialogService {
             }
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        dialog.getFooter().add(saveButton);
+        if (!standalone) {
+            dialog.getFooter().add(saveButton);
+        }
 
-        Button cancelButton = new Button(t("common.cancel"), event -> {
+        Button cancelButton = new Button(t(standalone ? "common.close" : "common.cancel"), event -> {
             stateHexField.clear();
             dialog.close();
         });
         dialog.getFooter().add(cancelButton);
 
         dialog.open();
+        if (standalone) {
+            acquireCurrentStateButton.click();
+        }
     }
 
-    private void openMitsubishiStateDialog(DeviceResponse deviceResponse, TextField stateJsonField) {
+    private void openMitsubishiStateDialog(DeviceResponse deviceResponse, TextField stateJsonField, boolean standalone) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
         dialog.setWidth("900px");
@@ -539,18 +552,23 @@ public class HeatPumpStateDialogService {
             }
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        dialog.getFooter().add(saveButton);
+        if (!standalone) {
+            dialog.getFooter().add(saveButton);
+        }
 
-        Button cancelButton = new Button(t("common.cancel"), event -> {
+        Button cancelButton = new Button(t(standalone ? "common.close" : "common.cancel"), event -> {
             stateJsonField.clear();
             dialog.close();
         });
         dialog.getFooter().add(cancelButton);
 
         dialog.open();
+        if (standalone) {
+            acquireCurrentStateButton.click();
+        }
     }
 
-    private void openMitsubishiMelCloudHomeStateDialog(DeviceResponse deviceResponse, TextField stateJsonField) {
+    private void openMitsubishiMelCloudHomeStateDialog(DeviceResponse deviceResponse, TextField stateJsonField, boolean standalone) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(t("controlTable.dialog.queryState.title"));
         dialog.setWidth("1000px");
@@ -886,9 +904,15 @@ public class HeatPumpStateDialogService {
             }
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        Button cancelButton = new Button(t("common.cancel"), event -> dialog.close());
-        dialog.getFooter().add(cancelButton, saveButton);
+        Button cancelButton = new Button(t(standalone ? "common.close" : "common.cancel"), event -> dialog.close());
+        dialog.getFooter().add(cancelButton);
+        if (!standalone) {
+            dialog.getFooter().add(saveButton);
+        }
         dialog.open();
+        if (standalone) {
+            acquireCurrentStateButton.click();
+        }
     }
 
     public Component createSentCommandInfoContent(String sentData) {

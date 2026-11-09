@@ -22,6 +22,9 @@ import com.nitramite.porssiohjain.services.HeatPumpAcDeviceSelectionService;
 import com.nitramite.porssiohjain.services.AcCommandDispatchService;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateResponse;
 import com.nitramite.porssiohjain.services.mitsubishi.MitsubishiAcStateService;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeException;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeState;
+import com.nitramite.porssiohjain.services.mitsubishihome.MitsubishiMelCloudHomeStateService;
 import com.nitramite.porssiohjain.services.models.CreateDeviceRequest;
 import com.nitramite.porssiohjain.services.models.ClaimProvisionedDeviceRequest;
 import com.nitramite.porssiohjain.services.models.DeviceResponse;
@@ -52,6 +55,7 @@ public class DevicesController {
     private final HeatPumpAcDeviceSelectionService heatPumpAcDeviceSelectionService;
     private final ToshibaAcStateService toshibaAcStateService;
     private final MitsubishiAcStateService mitsubishiAcStateService;
+    private final MitsubishiMelCloudHomeStateService mitsubishiMelCloudHomeStateService;
     private final AcCommandDispatchService acCommandDispatchService;
     private final FactoryProvisioningService factoryProvisioningService;
 
@@ -158,13 +162,18 @@ public class DevicesController {
                 if (response != null) {
                     currentState = acData.getLastPolledStateHex();
                 }
+            } else if (acData.getAcType() == AcType.MITSUBISHI_MELCLOUD_HOME) {
+                MitsubishiMelCloudHomeState response = mitsubishiMelCloudHomeStateService.getAcState(acData);
+                if (response != null) {
+                    currentState = acData.getLastPolledStateHex();
+                }
             } else {
                 throw new IllegalArgumentException("Device is not a supported heat pump");
             }
         } catch (RestClientResponseException ex) {
             queryStatus = ex.getStatusCode().value();
             log.warn("Heat pump cloud query failed. deviceId={}, type={}, status={}", deviceId, acData.getAcType(), queryStatus);
-        } catch (RestClientException ex) {
+        } catch (RestClientException | MitsubishiMelCloudHomeException ex) {
             log.warn("Heat pump cloud query unavailable. deviceId={}, type={}", deviceId, acData.getAcType());
         }
 

@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.entity.repository;
 import com.nitramite.porssiohjain.entity.DeviceAcDataEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -23,6 +24,7 @@ import java.util.Optional;
 @Repository
 public interface DeviceAcDataRepository extends JpaRepository<DeviceAcDataEntity, Long> {
 
+    @EntityGraph(attributePaths = {"device", "device.account"})
     Optional<DeviceAcDataEntity> findByDevice(DeviceEntity device);
 
     List<DeviceAcDataEntity> findByDeviceDeviceType(DeviceType deviceType);
