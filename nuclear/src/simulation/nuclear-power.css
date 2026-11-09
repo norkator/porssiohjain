@@ -766,6 +766,68 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .fuel-channel.fuel-exchanging > rect { stroke: var(--cool); stroke-width: 3px; }
 
 .equipment-dialog { width: min(850px, calc(100vw - 24px)); }
+[data-component-dialog="exchanger"] { width: min(960px, calc(100vw - 24px)); }
+.hx-console { --hx-metal: #354854; --hx-metal-edge: #1c2c39; --hx-surface: #101e29; --hx-ink: #e0ecef; background: var(--hx-surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.hx-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 18px 20px 0; }
+.hx-heading .eyebrow { font-size: 9px; }
+.equipment-dialog .hx-heading h3 { color: var(--hx-ink); font-size: 17px; margin: 4px 0; }
+.hx-transfer { padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; color: var(--cool); font: 12px Consolas, monospace; }
+.hx-help { padding: 8px 20px 0; color: var(--muted); font-size: 11px; }
+.hx-model-scroll { overflow-x: auto; }
+.hx-model { display: block; width: 100%; min-width: 620px; }
+.hx-model text { fill: var(--hx-ink); font: 11px Consolas, monospace; pointer-events: none; }
+.hx-model .hx-circuit { fill: var(--muted); font-size: 10px; letter-spacing: 1.3px; }
+.hx-model .hx-port { fill: var(--muted); font-size: 10px; }
+.hx-model .hx-temperature { font-size: 16px; }
+.hx-model .hx-part-name { font: 600 12px "Segoe UI", sans-serif; }
+.hx-model .hx-part-value { fill: var(--warm); font-size: 10px; }
+.hx-shell { fill: url(#hx-shell); stroke: #69808b; stroke-width: 2; }
+.hx-chamber { fill: var(--hx-surface); stroke: #637d87; }
+.hx-pipe-shell { fill: none; stroke: var(--hx-metal); stroke-width: 16; stroke-linejoin: round; }
+.hx-water { fill: none; stroke-width: 9; stroke-linejoin: round; }
+.hx-tube-shell { fill: none; stroke: #71818b; stroke-width: 16; }
+.hx-tubes { fill: none; stroke-width: 10; }
+.hx-flow { fill: none; stroke: #f0ffff; stroke-width: 2; stroke-dasharray: 3 22; stroke-linecap: round; pointer-events: none; }
+.hx-part { cursor: ew-resize; touch-action: none; outline: none; }
+.hx-hit { fill: transparent; stroke: #708c9b; stroke-width: 1; stroke-dasharray: 3 5; pointer-events: all; }
+.hx-part:hover .hx-hit, .hx-part.selected .hx-hit, .hx-part:focus-visible .hx-hit { stroke: var(--cool); stroke-width: 2; fill: #73d5c50a; }
+.hx-part:focus-visible .hx-hit { stroke-dasharray: none; stroke-width: 3; }
+.hx-valve-body { fill: var(--hx-surface); stroke: #829ba5; stroke-width: 2; }
+.hx-valve-seat { fill: var(--hx-metal); stroke: #829ba5; stroke-width: 1.5; }
+.hx-actual-lever { stroke: var(--cool); stroke-width: 6; stroke-linecap: round; fill: var(--hx-surface); }
+.hx-request-lever { stroke: var(--warm); stroke-width: 3; stroke-dasharray: 3 4; }
+.hx-leader { fill: none; stroke: #708c9b; stroke-dasharray: 3 4; pointer-events: none; }
+.hx-deposits { fill: #b58a53; stroke: #efd4a0; stroke-width: 1; pointer-events: none; }
+.hx-heat { fill: none; stroke: #ffc66e; stroke-width: 2; pointer-events: none; }
+.hx-steam { fill: #cbf4ec; pointer-events: none; }
+.hx-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; padding: 0 12px 14px; font-size: 10px; color: var(--muted); }
+.hx-legend i { display: inline-block; width: 15px; vertical-align: middle; margin-right: 5px; border-top: 3px solid var(--cool); }
+.hx-legend .hx-dashed { border-color: var(--warm); border-top-style: dashed; }
+.hx-adjustment { margin: 0 18px; padding: 14px; background: var(--hx-metal-edge); border: 1px solid var(--border); border-radius: 8px; }
+.hx-part-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.hx-part-tabs .small-button { min-height: 36px; flex: 1 1 auto; }
+.hx-part-tabs [aria-pressed="true"] { color: var(--cool); border-color: var(--cool); }
+.hx-adjustment-title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 5px; }
+.hx-adjustment-title label { font-weight: 600; }
+.hx-adjustment-title output { color: var(--warm); font: 11px Consolas, monospace; }
+.hx-adjustment-rail { display: flex; align-items: center; gap: 16px; margin: 6px 0; }
+.hx-adjustment-rail input { flex: 1; min-width: 0; accent-color: var(--cool); height: 36px; cursor: ew-resize; }
+.hx-adjustment-rail button { width: 44px; height: 40px; font-size: 20px; }
+.hx-part-hint, .hx-service-note { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.hx-service-note { color: var(--warm); }
+.hx-live-readings { display: flex; flex-wrap: wrap; gap: 10px 24px; padding: 16px 20px 6px; font-size: 10px; color: var(--muted); }
+.hx-live-readings strong { display: block; color: var(--hx-ink); font: 14px Consolas, monospace; margin-top: 3px; }
+.hx-console > .component-reason, .hx-console > .component-response { margin: 8px 20px 12px; }
+[data-component-dialog="exchanger"] .component-disturbances label { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 0; }
+[data-component-dialog="exchanger"] .component-disturbances input { accent-color: var(--cool); }
+[data-component-dialog="exchanger"] .component-disturbances output { color: var(--warm); font: 12px Consolas, monospace; }
+@media (max-width: 600px) {
+    [data-component-dialog="exchanger"] .equipment-dialog-body { padding: 8px; }
+    .hx-heading { padding: 12px 12px 0; }
+    .hx-help { padding: 8px 12px; }
+    .hx-adjustment { margin: 0 8px; padding: 10px; }
+    .hx-model-scroll { scrollbar-width: thin; }
+}
 .equipment-dialog-body { min-height: 0; overflow: auto; padding: 18px; }
 .component-description, .component-owner, .component-reason, .component-response, .component-trend-note, .component-disturbance-state { color: var(--muted); font-size: 11px; margin: 8px 0 12px; }
 .equipment-console-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }

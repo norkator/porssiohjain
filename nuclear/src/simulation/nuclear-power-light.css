@@ -1,4 +1,8 @@
 /* Component-local light palette, independent of the default dark palette. */
+:host([data-theme="light"]) .hx-console { --hx-metal: #d2e1e6; --hx-metal-edge: #e6eef2; --hx-surface: #f8fbfc; --hx-ink: #244455; }
+:host([data-theme="light"]) .hx-flow { stroke: #254b5b; }
+:host([data-theme="light"]) .hx-heat { stroke: #ab610e; }
+:host([data-theme="light"]) .hx-steam { fill: #497d83; }
 :host([data-theme="light"]) {
     color-scheme: light;
     color: #263e50;

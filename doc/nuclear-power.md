@@ -455,7 +455,18 @@ former detail card is now a collapsible reading section inside the core-map wind
   Release resumes regulation through the existing actual-speed inertia; enable state
   is never silently changed by Auto. Other tuning remains operator-owned while Auto
   compensates through available reactor/pump controls.
-- Heat exchanger: primary bypass, secondary valve, effectiveness and fouling.
+- Heat exchanger: an interactive SVG cutaway replaces numeric setting fields. Drag
+  the primary bypass, secondary valve, tube bundle or fouling deposits horizontally
+  and release to apply one command; actual response continues through existing
+  inertia. Arrow keys adjust 1% (10% with Shift), Home/End select endpoints, and
+  part-selection buttons expose a native slider and ±5% buttons for touch/keyboard
+  use. Dashed valve handles show requests separately from solid actual handles.
+  Temperature colors, flow, heat arrows, secondary steam and deposits follow actual
+  state on the shared visibility/pause/reduced-motion-aware animation loop. The
+  cutaway scrolls horizontally on narrow screens while the controls fit the window.
+  Disturbance strength/period also use sliders with readouts; trends, faults, service
+  interlocks and the movable nonmodal lifecycle remain intact.
+  Settings remain primary bypass, secondary valve, effectiveness and fouling.
   Transfer is the product of remaining non-bypassed flow, valve opening,
   effectiveness, unfouled fraction, disturbance and wear factors. Restrictions reduce
   heat removal, affect secondary temperature and electrical output, and can heat the

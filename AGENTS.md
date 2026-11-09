@@ -173,6 +173,11 @@ fill and loaded/unloaded bus indication, plus the retained 2D source-to-pump rou
 Share the plant scene camera/disposal behavior, only render the selected tab, preserve
 state across tab switches, and obey pause/visibility/reduced-motion settings. Missing
 WebGL must leave the auxiliary readings and controls usable.
+The heat exchanger dialog uses an interactive SVG cutaway: drag valves, tube bundle
+or deposits horizontally, or select a part for slider/keyboard/±5% adjustments.
+Keep requested dashed handles separate from actual solid handles, use the shared
+animation loop for heat/flow/steam, preserve cleaning interlocks and floating-window
+lifecycle, and retain usable controls alongside the scrollable mobile cutaway.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff

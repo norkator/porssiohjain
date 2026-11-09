@@ -20,6 +20,17 @@ simulation as the instruments. The taller viewport supports both themes and
 reduced motion. **Schematic** switches to the retained SVG overview without
 changing plant state; browsers without WebGL 2 fall back to it automatically.
 
+The **Heat exchanger** console has an interactive cutaway. Drag the primary bypass,
+secondary valve, tube bundle or deposits left/right, then release to apply a setting.
+Select a part for a native slider and ±5% buttons; focused model parts support arrow
+keys (1%, or 10% with Shift) and Home/End. No numeric entry is needed. Dashed valve
+handles show requests, solid handles show actual positions. Fluid colors, flow,
+secondary steam, heat arrows and deposits follow simulated read-back through the
+shared animation loop, including pause/reduced-motion behavior. Cleaning still
+requires a cooled, stopped, fault-free plant. Local trends, faults and maintenance
+remain in the same movable window. On narrow screens the cutaway scrolls sideways
+while the part selector and adjustment slider fit the window.
+
 The header card beside the title contains regulation targets, the opt-in plant
 sound switch, theme, simulation status and clock. UI clicks use 100% of the bounded
 sample-volume range (0.26 gain); the volume slider and test button are removed.
