@@ -1,4 +1,4 @@
-/* Plant-state loops, quiet Start/Stop cues and UI samples. The caller owns gesture-based resume, visibility,
+/* Plant/diesel sounds, quiet Start/Stop cues and UI samples. The caller owns gesture-based resume, visibility,
  * mute and pause, and calls cue only after an accepted Start/Stop state change.
  * No context creation, alarm tones, command inference or deferred cue replay. */
 
@@ -23,6 +23,89 @@ export class PlantAudio {
         this.lastUiAt = -Infinity;
         this.plantBuffers = new Map();
         this.plantState = 'not-loaded';
+        this.dieselBuffers = new Map();
+        this.dieselState = 'not-loaded';
+        this.dieselStates = new Map();
+        this.completedStarts = new Set();
+        this.scene = 'reactor';
+    }
+
+    setScene(scene) {
+        if (this.scene === scene) return;
+        this.scene = scene;
+        // Tab changes stop outgoing machinery immediately; shared UI sounds remain.
+        for (const voice of this.nodes) if (!voice.ui) this.halt(voice);
+        this.dieselStates.clear();
+        this.completedStarts.clear();
+    }
+
+    updateScene(sim, scene) {
+        this.setScene(scene);
+        if (scene === 'reactor') {
+            this.updatePlant(plantSoundState(sim));
+            this.updateDiesels(sim.supply.generators);
+        }
+    }
+
+    preloadDiesels(fetcher = fetch) {
+        if (this.dieselLoading) return this.dieselLoading;
+        this.dieselState = 'loading';
+        this.dieselLoading = Promise.all(['startup', 'running-loop', 'shutdown'].map(async kind => {
+            try {
+                const response = await fetcher(`/audio/nuclear-power/diesel/diesel-${kind}.wav`);
+                if (!response.ok) return;
+                this.dieselBuffers.set(kind, await this.context.decodeAudioData(await response.arrayBuffer()));
+            } catch { /* Sound availability never affects auxiliary power. */ }
+        })).then(() => { this.dieselState = this.dieselBuffers.size === 3 ? 'ready' : 'unavailable'; });
+        return this.dieselLoading;
+    }
+
+    updateDiesels(generators) {
+        if (this.scene !== 'reactor' || this.context.state !== 'running') {
+            for (const voice of this.nodes) if (voice.diesel) this.halt(voice);
+            this.dieselStates.clear();
+            this.completedStarts.clear();
+            return;
+        }
+        for (const generator of generators) {
+            const { id, state, startRemaining, load, capacity } = generator;
+            const previous = this.dieselStates.get(id);
+            this.dieselStates.set(id, state);
+            let voice = [...this.nodes].find(node => node.diesel === id);
+            const kind = state === 'STARTING' ? 'startup' : state === 'RUNNING' ? 'running-loop'
+                : ['STARTING', 'RUNNING'].includes(previous) || voice?.kind === 'shutdown' ? 'shutdown' : null;
+            if (voice && voice.kind !== kind) { this.halt(voice); voice = null; }
+            if (!kind || this.dieselState !== 'ready') continue;
+            const now = this.context.currentTime;
+            if (!voice) {
+                // One-shots never replay on repeated updates, late loads or returning to a tab.
+                if (kind === 'shutdown' && !['STARTING', 'RUNNING'].includes(previous)) continue;
+                if (kind === 'startup' && previous === state && this.completedStarts.has(id)) continue;
+                const source = this.context.createBufferSource();
+                const gain = this.context.createGain();
+                source.buffer = this.dieselBuffers.get(kind);
+                source.loop = kind === 'running-loop';
+                gain.gain.setValueAtTime(0, now);
+                source.connect(gain); gain.connect(this.context.destination);
+                voice = { oscillator: source, gain, diesel: id, kind };
+                this.nodes.add(voice);
+                this.completedStarts.delete(id);
+                source.onended = () => {
+                    if (kind === 'startup') this.completedStarts.add(id);
+                    this.release(voice);
+                };
+                // Startup resumes at the simulated crank position after pause/tab changes.
+                const offset = kind === 'startup' ? Math.min(source.buffer.duration - .001, Math.max(0, 8 - startRemaining))
+                    : source.loop && id === 'B' ? Math.min(3, source.buffer.duration / 2) : 0;
+                source.start(now, offset);
+            }
+            const fraction = Number.isFinite(load / capacity) ? Math.min(1, Math.max(0, load / capacity)) : 0;
+            const target = kind === 'running-loop' ? .035 + .015 * fraction : .045;
+            if (voice.target !== target) {
+                voice.gain.gain.setTargetAtTime(target, now, .08);
+                voice.target = target;
+            }
+        }
     }
 
     preloadPlant(fetcher = fetch) {
@@ -128,9 +211,9 @@ export class PlantAudio {
     }
 
     cue(command) {
-        if (!['start', 'stop'].includes(command) || this.context.state !== 'running') return;
+        if (!['start', 'stop'].includes(command) || this.context.state !== 'running' || this.scene !== 'reactor') return;
         // One short command voice at a time, even during rapid operator actions.
-        for (const voice of this.nodes) if (!voice.plant) this.halt(voice);
+        for (const voice of this.nodes) if (!voice.plant && !voice.diesel) this.halt(voice);
         const voice = this.voice('sine');
         const now = this.context.currentTime;
         const starting = command === 'start';
@@ -151,5 +234,7 @@ export class PlantAudio {
 
     stop() {
         for (const voice of this.nodes) this.halt(voice);
+        this.dieselStates.clear();
+        this.completedStarts.clear();
     }
 }

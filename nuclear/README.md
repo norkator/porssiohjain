@@ -12,13 +12,68 @@ reloading or closing it discards the session. Only the light/dark theme preferen
 is saved locally. The Vaadin desktop and Start menu open this app in a separate tab.
 
 The reactor overview opens as a low-poly Three.js cutaway. Drag to orbit within
-bounded angles, scroll or use +/− to zoom, and use **Reset view** to return to the
-closer initial framing. Arrow keys, +/− and Home also control the focused canvas.
+bounded angles. Hold the mouse wheel and drag to shift the center, or use
+Shift+drag. Scroll or use +/− to zoom. **Reset view** restores the initial center,
+rotation and zoom. Arrow keys orbit, Shift+arrow keys pan, +/− zoom and Home resets
+the focused canvas. Panning is bounded. Equipment labels fade until hovered,
+keyboard-focused or showing an open dialog, keeping the plant visible behind them.
 Select equipment directly or use its labeled button to open the existing component
 console. Rods, pump impellers, turbine, flow, fuel heat and melting follow the same
 simulation as the instruments. The taller viewport supports both themes and
 reduced motion. **Schematic** switches to the retained SVG overview without
 changing plant state; browsers without WebGL 2 fall back to it automatically.
+
+The reactor has a flat, RBMK-inspired tiled channel deck, a blue spent-fuel pool
+behind it with storage racks, and an overhead fuel-handling crane.
+The top caps, internal fuel assemblies and control rods share the core map's
+channel coordinates. Aqua collars make actual rod movement visible inside the
+open-front upper guide chamber; rods stay beneath the deck. Small sliders on green
+control-channel caps also show actual insertion from above; the caps themselves
+stay stationary during regulation. **Replace selected fuel** and **Replace all
+fuel** now trigger one approximately ten-second illustrative crane transfer:
+align, lower the grabber, lift one assembly clear of the deck, carry it to the
+pool, lower/release it and return to park. A batch replacement shows one assembly
+to keep the sequence short. Move or close the floating core map to watch the
+process underneath. The selected channel cap opens only during pickup.
+
+Fuel renewal remains immediate and uses the existing cooled/stopped checks; the
+animation never changes heat, damage, trips or operating settings. Displayed
+pool assemblies represent replacement batches, not a complete physical spent-fuel
+inventory. The 35 racks retain their batches until manual dispatch; a full pool
+blocks further UI replacement until space is freed. Repeating replacement
+restarts a single illustration; starting the reactor cancels an unfinished
+illustration. Pause, hidden views, tab/view switches and detach freeze movement;
+returning resumes its current position. Reduced motion places the sample
+immediately. Reset demo clears the crane and displayed pool samples. The existing
+core-map exchange animation and WebGL fallback remain available.
+
+Click the **spent-fuel pool** or **Spent fuel ↗** to open its movable, nonmodal
+window, available from the schematic/WebGL fallback too. Each stored batch shows
+its source, assembly count and a 60-second demo cooling countdown. Cooling starts
+on placement and follows simulated plant time, including while another tab is
+selected; pause/hide/detach freeze that clock. Select a cooled batch and dispatch
+it to **Long-term storage** or **Reprocessing**, or dispatch all cooled batches.
+Dispatch frees the racks, removes their 3D fuel and records the destination/count
+in the event journal and a bounded recent-dispatch list. Dispatch is free in this
+demo; fee handling is reserved for later gameplay. No measured pool temperature
+or real fuel-handling procedure is modeled.
+
+See [the fuel-handling work plan](FUEL-HANDLING-PLAN.md) for the user's references,
+the implementation checkpoint, and staged tasks for transfers, inventory and
+gameplay, including continuation guidance for another instance.
+
+The **Heat exchanger** console has a compact interactive cutaway with local trends
+on its right on wide screens, fitting the default window without vertical scrolling.
+The trend and controls stack on narrow screens. Drag the primary bypass,
+secondary valve, tube bundle or deposits left/right, then release to apply a setting.
+Select a part for a native slider and ±5% buttons; focused model parts support arrow
+keys (1%, or 10% with Shift) and Home/End. No numeric entry is needed. Dashed valve
+handles show requests, solid handles show actual positions. Fluid colors, flow,
+secondary steam, heat arrows and deposits follow simulated read-back through the
+shared animation loop, including pause/reduced-motion behavior. Cleaning still
+requires a cooled, stopped, fault-free plant. Local trends, faults and maintenance
+remain in the same movable window. On narrow screens the cutaway scrolls sideways
+while the part selector and adjustment slider fit the window.
 
 The header card beside the title contains regulation targets, the opt-in plant
 sound switch, theme, simulation status and clock. UI clicks use 100% of the bounded
@@ -55,15 +110,30 @@ and a stopped turbine fades with its actual coast-down. Mute, pause, hidden view
 and detach stop all voices. The original synthesized WAVs and generation notes
 are in `public/audio/nuclear-power/plant-state/`; they load only after sound opt-in.
 
-The main panel has **Reactor overview** and **Auxiliary power** tabs. The auxiliary
-tab contains two low-poly 3D diesel cutaways, grid/feed switches and the existing
-standby, start/stop and manual refuelling controls. Pistons, shaft and fans follow
-reported starting/running state; tank fill follows actual fuel reserve, and lit
-terminals/flow markers identify engines supplying the bus. Running unloaded remains
-distinct from stopped. The source-to-pump route remains a plain 2D diagram inside
-this tab. Both 3D views support orbit, zoom, themes and cleanup; unavailable WebGL
-leaves auxiliary readings/controls usable. Switching tabs preserves plant state and
-only renders the selected scene. Core and component dialogs remain floating.
+Machinery audio follows the selected tab: **Reactor overview** mixes reactor
+operating loops/Start/Stop cues and independent diesel startup, seamless running
+and shutdown sounds. **Maintenance** silences all machinery immediately; alarms
+and UI clicks remain shared. Diesel sounds follow actual startup/running/stopped/
+empty state, including automatic starts and fuel exhaustion; volume follows bus
+load. Returning to the plant resumes current operation without replaying past events.
+Original diesel WAVs and regeneration notes are in `public/audio/nuclear-power/diesel/`.
+
+The main panel has **Reactor overview** and **Maintenance** tabs. Small diesel
+cutaways sit behind the turbine/generator in the main 3D plant, with the external
+grid, AC bus and source-to-pump electrical routes. Pistons/shaft/fans follow actual
+engine state; tank fill shows fuel, and lit terminals/moving wire markers show
+actual bus load. Clicking either diesel opens its own movable dialog, with a
+pump-style ON/OFF rocker, automatic standby, startup countdown, fuel/load and
+manual refuelling. OFF disables standby as before. The two dialogs can coexist.
+
+The **Pump power source** panel sits above Grid controller on the left, with source,
+requested/available load and buttons to open each diesel. Its ↗ button (or the 3D
+grid/bus) opens **Electrical supply & connections**, retaining the 2D route and
+native grid/feed switches styled as the same ON/OFF rockers. Their keyboard and
+requested/actual behavior remain. There is no Auxiliary power tab or header grid
+button. Sidebar controls remain available in the schematic/WebGL fallback.
+Maintenance suspends rendering; all dialogs retain the shared movement, clamping,
+closing/focus and detach cleanup. No power/supply model behavior has changed.
 
 The **Maintenance** tab shows a live count and list of components with retained
 damage, wear or exchanger fouling, including affected core channels. **Inspect**

@@ -2,12 +2,16 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loopTemperatures, temperatureColor } from './nuclear-power-temperature.js';
 import { flowMarkerDistance, valveHandleAngle } from './nuclear-power-motion.js';
+import { CORE_CHANNELS } from './nuclear-power-model.js';
+import { buildFuelHandlingHall, updateFuelHandlingHall, CHANNEL_PITCH, ROD_INSERTED_Y, ROD_TRAVEL } from './nuclear-power-refuelling-scene.js';
+import { buildElectricalScene, updateElectricalScene, ELECTRICAL_LABELS } from './nuclear-power-electrical-scene.js';
 
 const TAU = Math.PI * 2;
 const DEFAULT_ZOOM = 1.2;
+const MAX_PAN_DISTANCE = 8;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const equipment = [
-    ['reactor', 'R-01', 'Reactor vessel', [-7.4, 7.5, 0]],
+    ['reactor', 'R-01', 'Reactor vessel', [-10.1, 5.3, 1.1]],
     ['exchanger', 'HX-01', 'Heat exchanger', [-1.3, 6.5, -1.5]],
     ['turbine', 'TG-01', 'Turbine / generator', [7.2, 4.8, -1.5]],
     ['condenser', 'C-01', 'Condenser', [7, .3, 3.1]],
@@ -26,6 +30,7 @@ export class PlantOverviewScene {
         this.materials = new Set();
         this.groups = new Map();
         this.labels = new Map();
+        this.featureLabels = [];
         this.paths = [];
         this.fuel = [];
         this.rods = [];
@@ -33,6 +38,7 @@ export class PlantOverviewScene {
         this.pumps = {};
         this.dynamicGroups = [];
         this.dynamicMeshes = [];
+        this.instancedMeshes = [];
         this.abort = new AbortController();
         this.yaw = .24;
         this.pitch = .7;
@@ -49,10 +55,12 @@ export class PlantOverviewScene {
         canvas.className = 'plant-scene-canvas';
         canvas.tabIndex = 0;
         canvas.setAttribute('role', 'group');
-        canvas.setAttribute('aria-label', 'Interactive 3D plant. Drag or use arrow keys to rotate. Scroll or use plus and minus to zoom; Home resets the view. Equipment buttons open component consoles.');
+        canvas.setAttribute('aria-label', 'Interactive 3D plant. Drag or use arrow keys to rotate. Hold the mouse wheel and drag to pan; Shift+drag or Shift+arrow keys also pan. Scroll or use plus and minus to zoom; Home resets the view. Equipment buttons open component consoles.');
+        canvas.title = 'Drag to orbit · hold mouse wheel and drag to pan · Shift+drag or Shift+arrows to pan · scroll to zoom · Home to reset';
         host.replaceChildren(canvas);
         try {
             this.build();
+            this.defaultTarget = this.target.clone();
             this.batchStaticMeshes();
             this.buildLabels();
             this.bindCamera();
@@ -139,6 +147,8 @@ export class PlantOverviewScene {
     }
 
     build() {
+        this.frameHeight = 12.2;
+        this.target.set(0, 4.15, -1.4);
         this.steel = this.material('#708d9e');
         this.steelLight = this.material('#b6cbd4');
         this.darkSteel = this.material('#344c5c');
@@ -159,10 +169,10 @@ export class PlantOverviewScene {
         rim.position.set(10, 8, -8);
         this.scene.add(rim);
         this.floorMaterial = this.material('#1a2b37');
-        this.box(this.scene, [24, .35, 13], this.floorMaterial, [0, -.35, .4]);
+        this.box(this.scene, [24, .35, 16.5], this.floorMaterial, [0, -.35, -1.25]);
         const grid = new THREE.GridHelper(24, 24, '#54717e', '#334d5c');
-        grid.scale.z = .54;
-        grid.position.set(0, -.16, .4);
+        grid.scale.z = 16.5 / 24;
+        grid.position.set(0, -.16, -1.25);
         this.grid = grid;
         this.scene.add(grid);
         this.geometries.add(grid.geometry);
@@ -177,20 +187,28 @@ export class PlantOverviewScene {
             this.material('#7d9aaa', { side: THREE.DoubleSide }), [0, 3.7, 0]);
         for (const y of [1.7, 5.8]) this.mesh(reactor, new THREE.TorusGeometry(1.65, .13, 4, 12), this.steelLight, [0, y, 0]).rotation.x = Math.PI / 2;
         this.cylinder(reactor, 1.72, .32, this.steelLight, [0, 6, 0]);
-        this.cylinder(reactor, 1.3, .55, this.steel, [0, 6.4, 0], .8);
-        for (let i = 0; i < 8; i++) {
-            const angle = i / 8 * TAU;
-            this.cylinder(reactor, .09, .18, this.darkSteel, [Math.cos(angle) * 1.5, 6.23, Math.sin(angle) * 1.5], .09, 6);
-        }
-        for (let i = 0; i < 12; i++) {
-            const x = (i % 4 - 1.5) * .55;
-            const z = (Math.floor(i / 4) - 1) * .62;
+        const rodChannels = CORE_CHANNELS.filter(channel => channel.rodId)
+            .sort((a, b) => a.rodId.localeCompare(b.rodId));
+        for (const channel of CORE_CHANNELS.filter(channel => channel.fuelId)) {
+            const x = channel.x * CHANNEL_PITCH;
+            const z = channel.y * CHANNEL_PITCH;
             const material = this.material('#997c58', { emissive: '#000000' });
-            const fuel = this.box(reactor, [.32, 2.45, .32], material, [x, 3, z]);
+            const fuel = this.box(reactor, [.2, 2.45, .2], material, [x, 3, z]);
+            fuel.userData.fuelId = channel.fuelId;
+            fuel.userData.zoneIndex = rodChannels.reduce((nearest, rod, index) => {
+                const distance = candidate => (candidate.x - channel.x) ** 2 + (candidate.y - channel.y) ** 2;
+                return distance(rod) < distance(rodChannels[nearest]) ? index : nearest;
+            }, 0);
             this.fuel.push(fuel);
-            const rod = this.cylinder(reactor, .065, 2.7, this.steelLight, [x + .17, 3.2, z + .17], .065, 6);
+        }
+        const absorberMaterial = this.material('#7bbebc', { emissive: '#266d71', emissiveIntensity: .12, metalness: .45 });
+        for (const channel of rodChannels) {
+            const rod = this.cylinder(reactor, .075, 2.25, absorberMaterial,
+                [channel.x * CHANNEL_PITCH, ROD_INSERTED_Y, channel.y * CHANNEL_PITCH], .075, 6);
+            rod.userData.rodId = channel.rodId;
             this.rods.push(rod);
         }
+        buildFuelHandlingHall(this, reactor);
         this.reactionMaterial = this.material('#ffe6a1', {
             emissive: '#ffc14e', emissiveIntensity: .9, transparent: true,
             opacity: 0, depthWrite: false, metalness: 0,
@@ -297,19 +315,20 @@ export class PlantOverviewScene {
         this.flow([[6, 2.8, -.6], [6, 2.8, 2.3], [6, 1.7, 2.3]], 'B', 'steam', this.material('#4c9eac'), 'secondaryExhaust');
         this.flow([[7, .9, 4], [7, .9, 4.4], [2.2, 1.2, 4.4], [.7, 1.2, 4.4], [.7, 1.3, -1.5], [-.3, 1.3, -1.5]], 'B', 'water', this.material('#4c9eac'), 'secondaryReturn');
         this.markerHighlight = new THREE.Color('#fff6e6');
+        buildElectricalScene(this);
 
     }
 
     buildLabels() {
         const layer = document.createElement('div');
         layer.className = 'plant-scene-labels';
-        for (const [id, tag, name, position] of equipment) {
+        for (const [id, tag, name, position] of [...equipment, ...ELECTRICAL_LABELS]) {
             const button = document.createElement('button');
             button.className = 'plant-scene-label';
             button.dataset.sceneEquipment = id;
             button.setAttribute('aria-label', `Open ${name.toLowerCase()} controls`);
             button.setAttribute('aria-haspopup', 'dialog');
-            button.setAttribute('aria-controls', id === 'reactor' ? 'core-map-window' : `equipment-${id}-window`);
+            button.setAttribute('aria-controls', id === 'reactor' ? 'core-map-window' : id.startsWith('diesel') ? `${id}-window` : ['grid', 'bus'].includes(id) ? 'electrical-supply-window' : `equipment-${id}-window`);
             button.setAttribute('aria-expanded', 'false');
             const title = document.createElement('strong');
             title.textContent = tag;
@@ -321,12 +340,36 @@ export class PlantOverviewScene {
             layer.append(button);
             this.labels.set(id, { button, reading, anchor: new THREE.Vector3(...position) });
         }
+        for (const [id, title, detail, position] of [
+            ['spent-fuel-pool', 'SF-01 / Spent-fuel pool', 'Empty storage racks', [-10.6, 6.4, -4.75]],
+            ['fuel-crane', 'FH-01 / Fuel-handling crane', 'Parked', [-7.4, 11.9, -4.75]],
+        ]) {
+            const label = document.createElement(id === 'spent-fuel-pool' ? 'button' : 'span');
+            label.className = 'plant-scene-label plant-scene-feature';
+            label.dataset.sceneFeature = id;
+            if (id === 'spent-fuel-pool') {
+                label.dataset.sceneEquipment = 'spentFuel';
+                label.setAttribute('aria-label', 'Open spent-fuel pool and dispatch controls');
+                label.setAttribute('aria-haspopup', 'dialog');
+                label.setAttribute('aria-controls', 'spent-fuel-window');
+                label.setAttribute('aria-expanded', 'false');
+                label.addEventListener('click', () => this.inspect('spentFuel'), { signal: this.abort.signal });
+            }
+            const name = document.createElement('strong');
+            name.textContent = title;
+            const description = document.createElement('small');
+            description.textContent = detail;
+            label.append(name, description);
+            layer.append(label);
+            this.featureLabels.push({ id, button: label, reading: description, anchor: new THREE.Vector3(...position) });
+        }
+        this.renderer.domElement.setAttribute('aria-description', 'The tiled reactor deck stays closed during regulation. Control rods and aqua collars move inside the open-front guide chamber; small sliders on green caps indicate actual rod insertion. Behind the reactor are a spent-fuel pool and a fuel-handling crane. Each manual replacement can illustrate one assembly moving into the pool.');
         const caption = document.createElement('span');
         caption.className = 'plant-scene-caption';
         caption.textContent = 'UNIT 01 / CUTAWAY';
         const hint = document.createElement('span');
         hint.className = 'plant-scene-hint';
-        hint.textContent = 'Drag to orbit · scroll to zoom';
+        hint.textContent = 'Drag: orbit · wheel-drag: pan · scroll: zoom';
         this.host.append(layer, caption, hint);
     }
 
@@ -374,8 +417,15 @@ export class PlantOverviewScene {
             this.setZoom(this.zoom * Math.exp(-clamp(delta, -300, 300) * .0015));
         }, { ...options, passive: false });
         canvas.addEventListener('pointerdown', event => {
-            if (event.button !== 0 || this.drag) return;
-            this.drag = { id: event.pointerId, x: event.clientX, y: event.clientY, yaw: this.yaw, pitch: this.pitch, moved: false };
+            if (![0, 1].includes(event.button) || this.drag) return;
+            const mode = event.button === 1 || event.shiftKey ? 'pan' : 'orbit';
+            if (mode === 'pan') {
+                event.preventDefault(); // Suppress middle-button browser autoscroll.
+                canvas.focus({ preventScroll: true });
+            }
+            this.drag = { id: event.pointerId, button: event.button, mode, target: this.target.clone(),
+                x: event.clientX, y: event.clientY, yaw: this.yaw, pitch: this.pitch, moved: false };
+            canvas.dataset.dragging = mode;
             canvas.setPointerCapture(event.pointerId);
         }, options);
         canvas.addEventListener('pointermove', event => {
@@ -384,16 +434,21 @@ export class PlantOverviewScene {
             const dy = event.clientY - this.drag.y;
             this.drag.moved ||= Math.hypot(dx, dy) > 5;
             if (!this.drag.moved) return;
+            if (this.drag.mode === 'pan') {
+                this.pan(dx, dy, this.drag.target);
+                return;
+            }
             this.yaw = clamp(this.drag.yaw - dx * .004, -.48, .65);
             this.pitch = clamp(this.drag.pitch + dy * .003, .4, .95);
             this.render();
         }, options);
         canvas.addEventListener('pointerup', event => {
-            if (!this.drag || this.drag.id !== event.pointerId) return;
-            const moved = this.drag.moved;
+            if (!this.drag || this.drag.id !== event.pointerId || this.drag.button !== event.button) return;
+            const { moved, mode } = this.drag;
             this.drag = null;
+            delete canvas.dataset.dragging;
             if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-            if (moved) return;
+            if (moved || mode === 'pan') return;
             const rect = canvas.getBoundingClientRect();
             this.raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), this.camera);
             for (const hit of this.raycaster.intersectObjects([...this.groups.values()], true)) {
@@ -402,13 +457,21 @@ export class PlantOverviewScene {
                 if (object) { this.inspect(object.userData.equipment); break; }
             }
         }, options);
-        for (const type of ['pointercancel', 'lostpointercapture']) canvas.addEventListener(type, () => { this.drag = null; }, options);
+        for (const type of ['pointercancel', 'lostpointercapture']) canvas.addEventListener(type, () => {
+            this.drag = null;
+            delete canvas.dataset.dragging;
+        }, options);
         canvas.addEventListener('keydown', event => {
             const directions = { ArrowLeft: [-.08, 0], ArrowRight: [.08, 0], ArrowUp: [0, .06], ArrowDown: [0, -.06] };
             if (directions[event.key]) {
-                this.yaw = clamp(this.yaw + directions[event.key][0], -.48, .65);
-                this.pitch = clamp(this.pitch + directions[event.key][1], .4, .95);
-                this.render();
+                if (event.shiftKey) {
+                    const [dx, dy] = { ArrowLeft: [36, 0], ArrowRight: [-36, 0], ArrowUp: [0, 36], ArrowDown: [0, -36] }[event.key];
+                    this.pan(dx, dy);
+                } else {
+                    this.yaw = clamp(this.yaw + directions[event.key][0], -.48, .65);
+                    this.pitch = clamp(this.pitch + directions[event.key][1], .4, .95);
+                    this.render();
+                }
             } else if (['+', '=', '-', '_'].includes(event.key)) this.setZoom(this.zoom + (['+', '='].includes(event.key) ? .15 : -.15));
             else if (event.key === 'Home') this.resetCamera();
             else return;
@@ -429,27 +492,44 @@ export class PlantOverviewScene {
         this.render();
     }
 
+    pan(dx, dy, origin = this.target) {
+        if (!this.height) return;
+        // Camera-plane motion keeps dragging aligned with the screen at every
+        // orbit angle. Orthographic scale makes it follow the pointer at any zoom.
+        const unitsPerPixel = (this.camera.top - this.camera.bottom) / this.height;
+        const offset = new THREE.Vector3().copy(origin).sub(this.defaultTarget)
+            .addScaledVector(new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0), -dx * unitsPerPixel)
+            .addScaledVector(new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1), dy * unitsPerPixel)
+            .clampLength(0, MAX_PAN_DISTANCE);
+        this.target.copy(this.defaultTarget).add(offset);
+        this.render();
+    }
+
     resetCamera() {
         this.yaw = .24;
         this.pitch = .7;
         this.zoom = this.defaultZoom ?? DEFAULT_ZOOM;
+        this.target.copy(this.defaultTarget);
         this.render();
     }
 
-    update(sim, motion, pumps, selected, theme) {
+    update(sim, motion, pumps, selected, theme, fuelTransfer, dieselMotion) {
         if (this.disposed) return;
         if (theme !== this.theme) {
             this.theme = theme;
             this.floorMaterial.color.set(theme === 'light' ? '#d2e0e3' : '#1a2b37');
             this.grid.material.color.set(theme === 'light' ? '#9cb5bd' : '#405a69');
         }
-        for (const [index, rod] of this.rods.entries()) rod.position.y = 3.2 + (1 - sim.controlRods[index].position / 100) * 2.5;
+        for (const [index, rod] of this.rods.entries()) rod.position.y = ROD_INSERTED_Y + (1 - sim.controlRods[index].position / 100) * ROD_TRAVEL;
+        for (const { rodIndex, x, marker } of this.refuelling.rodIndicators) {
+            marker.position.x = x + (1 - sim.controlRods[rodIndex].position / 50) * .085;
+        }
         for (const [index, fuel] of this.fuel.entries()) {
-            const zone = sim.condition.zones[index % sim.condition.zones.length];
+            const zone = sim.condition.zones[fuel.userData.zoneIndex];
             const heat = clamp((zone.temperature - 100) / 550, 0, 1);
             fuel.material.color.setHSL(.1 - heat * .09, .28 + heat * .6, .36 + heat * .14);
             fuel.material.emissive.setHSL(.05 - heat * .04, 1, .5);
-            const channel = motion.reactionChannels?.[index];
+            const channel = motion.reactionChannels?.[fuel.userData.zoneIndex];
             const reaction = sim.running && !sim.tripped && !sim.condition.meltdown ? channel?.activity || 0 : 0;
             const pulse = .5 + .5 * Math.sin(((channel?.phase ?? motion.reactionPhase) + index / this.fuel.length) * TAU);
             fuel.material.emissiveIntensity = heat * (.6 + .1 * Math.sin(motion.thermalPhase * TAU)) + reaction * (.25 + pulse * .55);
@@ -459,7 +539,7 @@ export class PlantOverviewScene {
         const reactionActivity = sim.running && !sim.tripped && !sim.condition.meltdown ? motion.reactionActivity || 0 : 0;
         this.reactionMaterial.opacity = reactionActivity * .9;
         for (const [index, particle] of this.reactorReactions.entries()) {
-            const channel = motion.reactionChannels?.[index % this.fuel.length];
+            const channel = motion.reactionChannels?.[this.fuel[index % this.fuel.length].userData.zoneIndex];
             const phase = ((channel?.phase ?? motion.reactionPhase) + index / this.reactorReactions.length) % 1;
             const travel = phase < .5 ? phase * 2 : (1 - phase) * 2;
             const source = this.fuel[index % this.fuel.length];
@@ -530,11 +610,13 @@ export class PlantOverviewScene {
             pumpB: `${sim.secondaryReturnTemperature.toFixed(0)} °C · ${sim.components.items.pumpB.actual.speed.toFixed(0)}% speed`,
         };
         for (const [id, label] of this.labels) {
-            if (label.reading.textContent !== readings[id]) label.reading.textContent = readings[id];
+            if (readings[id] !== undefined && label.reading.textContent !== readings[id]) label.reading.textContent = readings[id];
             label.button.classList.toggle('selected', id === selected);
             label.button.classList.toggle('hot', id === 'reactor' && sim.temperature > 335);
         }
         this.labels.get('reactor').button.setAttribute('aria-label', `Open reactor core map; simulated inlet ${sim.returnTemperature.toFixed(1)} degrees Celsius, outlet ${sim.temperature.toFixed(1)} degrees Celsius`);
+        if (fuelTransfer) updateFuelHandlingHall(this, fuelTransfer);
+        updateElectricalScene(this, sim.supply, dieselMotion, motion.supplyPhase);
         this.render();
     }
 
@@ -547,7 +629,7 @@ export class PlantOverviewScene {
         this.camera.lookAt(this.target);
         this.camera.updateProjectionMatrix();
         this.camera.updateMatrixWorld();
-        for (const label of this.labels.values()) {
+        for (const label of [...this.labels.values(), ...this.featureLabels]) {
             const point = label.anchor.clone().project(this.camera);
             // Keep semantic buttons reachable even at the bounded camera extremes.
             const halfWidth = label.button.offsetWidth / 2 + 6;
@@ -564,6 +646,7 @@ export class PlantOverviewScene {
         this.abort.abort();
         this.resizeObserver?.disconnect();
         this.drag = null;
+        for (const mesh of this.instancedMeshes) mesh.dispose();
         for (const geometry of this.geometries) geometry.dispose();
         for (const material of this.materials) material.dispose();
         this.scene.clear();
