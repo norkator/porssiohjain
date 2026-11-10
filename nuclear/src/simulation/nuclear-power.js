@@ -262,7 +262,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <label for="auto-flow">Circulation target <span><input id="auto-flow" type="number" min="25" max="100" step="1" value="85"/> %</span></label>
             <div class="regulation-status"><strong data-value="regulation">MANUAL CONTROL</strong><span data-value="regulationDetail">Individual rods and pump speeds available.</span><button class="small-button" data-action="fluctuations" aria-pressed="true">Fluctuations: On</button></div>
           </section>
-              <div class="header-settings"><div class="header-sound"><button class="small-button" data-action="sound" aria-pressed="false">Enable plant sounds</button><span class="ui-sound-status" role="status"></span></div><button class="small-button power-supply-button" data-action="power-supply" aria-controls="electrical-supply-window"><span>ϟ <span data-value="powerSource"></span></span><small>Electrical supply →</small></button><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div><small>Browser-local demo</small></div></div>
+              <div class="header-settings"><div class="header-sound"><button class="small-button" data-action="sound" aria-pressed="false">Enable plant sounds</button><span class="ui-sound-status" role="status"></span></div><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div><small>Browser-local demo</small></div></div>
             </section>
           </header>
 
@@ -605,7 +605,7 @@ export class NuclearPowerConsole extends HTMLElement {
         if (['dieselA', 'dieselB', 'grid', 'bus'].includes(key)) {
             if (this.plantTab !== 'reactor') return this.shadowRoot.querySelector(`#${this.plantTab}-tab`);
             return this.shadowRoot.querySelector(this.overviewMode === '3d' ? `[data-scene-equipment="${key}"]`
-                : key.startsWith('diesel') ? `[data-electrical-open="${key.slice(-1)}"]` : '.power-supply-button');
+                : key.startsWith('diesel') ? `[data-electrical-open="${key.slice(-1)}"]` : '[data-action=power-supply]');
         }
         if (key === 'spentFuel' && this.plantTab !== 'reactor') return this.shadowRoot.querySelector(`#${this.plantTab}-tab`);
         if (key === 'spentFuel') return this.shadowRoot.querySelector(this.plantTab === 'reactor' && this.overviewMode === '3d'
@@ -1382,7 +1382,7 @@ export class NuclearPowerConsole extends HTMLElement {
         const supply = this.simulation.supply;
         this.shadowRoot.querySelector('#grid-supply').checked = supply.gridAvailable;
         this.shadowRoot.querySelector('#turbine-supply').checked = supply.turbineConnected;
-        this.shadowRoot.querySelector('.power-supply-button').dataset.supply = supply.factor === 0 ? 'lost' : supply.source.startsWith('BACKUP') ? 'backup' : 'normal';
+        this.shadowRoot.querySelector('.power-source-panel').dataset.supply = supply.factor === 0 ? 'lost' : supply.source.startsWith('BACKUP') ? 'backup' : 'normal';
         for (const item of this.shadowRoot.querySelectorAll('[data-supply]')) item.classList.toggle('energized', supply.source.includes(item.dataset.supply === 'turbine' ? 'TURBINE' : item.dataset.supply === 'grid' ? 'GRID' : 'DIESEL'));
         for (const g of supply.generators) {
             this.shadowRoot.querySelector(`[data-diesel-summary="${g.id}"]`).textContent = `${g.state} · ${g.fuel.toFixed(0)}%`;

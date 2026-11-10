@@ -124,7 +124,7 @@ export function updateElectricalScene(view, supply, phases, busPhase) {
         const engine = view.engines.get(generator.id);
         const phase = (phases?.[generator.id] || 0) / 360;
         engine.crank.rotation.x = engine.rotor.rotation.x = phase * TAU;
-        engine.fan.rotation.z = -phase * TAU;
+        engine.fan.rotation.z = phase === 0 ? 0 : -phase * TAU;
         for (const [index, piston] of engine.pistons.entries()) piston.position.y = 2 + Math.sin((phase + index / 4) * TAU) * .26;
         engine.fill.scale.y = Math.max(.001, generator.fuel / 100);
         engine.fill.position.y = .35 + .55 * generator.fuel / 100;

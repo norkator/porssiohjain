@@ -80,13 +80,12 @@ quiet Start/Stop cues, local CC0 Kenney UI Audio one-shot switch/adjustment samp
 (with bundled license/source records), and separate alarms; opt-in steam/turbine/generator loops follow actual running power
 and shaft coast-down, crossfading to a fault texture for actual stress/damage/disturbances.
 Cold sessions are silent; preserve opt-in, bounded gain,
-and mute/pause/hide/detach cleanup of every voice. Machinery audio follows the selected
-tab: Reactor overview has plant loops and reactor Start/Stop cues; Auxiliary power
-has independent diesel startup, seamless running and shutdown sounds driven by actual
-state/countdown and bus load. Maintenance has no machinery audio; UI clicks and
-alarms remain shared. Tab changes stop outgoing machinery immediately; resuming
-uses current state without replaying past starts/stops. Preserve automatic diesel
-starts, fuel-exhaustion shutdowns, opt-in loading and Reset demo cleanup.
+and mute/pause/hide/detach cleanup of every voice. Reactor overview mixes plant
+loops/Start/Stop cues and independent actual-state diesel startup/running/shutdown
+sounds. Reactor cues must not interrupt diesel voices. Maintenance silences all
+machinery immediately; UI clicks/alarms remain shared. Returning resumes actual
+state without replay. Preserve automatic starts, fuel exhaustion, bounded gain,
+opt-in loading and Reset cleanup.
 New/reset sessions select Auto with Electrical output regulation (200 MW), but
 the reactor starts stopped/cold with fully inserted rods and both pumps disabled
 (zero actual motor speed/flow, retained 100% speed targets). Explicitly start both
@@ -112,7 +111,7 @@ Automatic control must never reset a trip or restart the plant by itself.
 Manual mode requires operator Stop/Emergency shutdown: flow/temperature/hot-spot
 automatic trips apply only in Auto; alarms, damage and irreversible meltdown remain
 active in both modes. Switching modes must not clear an existing trip.
-Wide windows use stacked instruments on the left, tabbed reactor/auxiliary views
+Wide windows use stacked instruments on the left, tabbed reactor/maintenance views
 and operator controls in the middle, and trends/logs on the right. Regulation, plant
 sound enable/mute, theme, simulation status and clock share the header card beside
 the title. UI clicks default to 100% of their bounded range (0.26 gain); there is no
@@ -163,16 +162,20 @@ let automation replace fuel or component repair replenish it. Auto compensates d
 fuel capability and regulates only rods without an explicit manual override. Stop/trip
 release overrides and insert every rod. `nuclear-power-supply.js` models the auxiliary
 AC bus: turbine, external grid, then two armed standby diesels. Pumps must coast down
-without AC; restoring power must never reset trips or restart the reactor. The auxiliary
-power tab manages grid/feed availability, diesel standby/start/stop/manual refuelling.
-It replaces the former auxiliary floating dialog and sidebar card. Core/component
-windows remain movable and nonmodal over either tab; preserve their shared dragging,
-keyboard movement, viewport clamping and per-window closing. The auxiliary tab has
-two low-poly 3D diesel cutaways with actual-state pistons/fans, real simulated fuel
-fill and loaded/unloaded bus indication, plus the retained 2D source-to-pump route.
-Share the plant scene camera/disposal behavior, only render the selected tab, preserve
-state across tab switches, and obey pause/visibility/reduced-motion settings. Missing
-WebGL must leave the auxiliary readings and controls usable.
+without AC; restoring power must never reset trips or restart the reactor.
+The separate Auxiliary power view is removed. Two small 3D diesel cutaways behind
+the turbine/generator, grid, AC bus and source-to-pump electrical routes share the
+main plant renderer/camera/disposal. Actual engine/fuel/load drive pistons/fans,
+tank fill, lamps and markers; preserve pause/hide/reduced-motion/maintenance stops.
+Each diesel opens its own movable, nonmodal control dialog with a pump-style ON/OFF
+rocker, standby, countdown, load/fuel and explicit refuelling. OFF disables standby.
+The Pump power source panel is above Grid controller at left; its button and the
+3D grid/bus open Electrical supply & connections. Native grid-available and
+turbine-feed switches use the same rocker styling, preserving keyboard behavior.
+The old top-right EXTERNAL GRID/source button is removed. Controls remain usable
+in the SVG/WebGL fallback. Core/component/pool/electrical windows share dragging,
+keyboard movement, viewport clamping, per-window closing and focus restoration.
+Scene labels are translucent until hover/focus or their dialog opens.
 The heat exchanger dialog uses an interactive SVG cutaway: drag valves, tube bundle
 or deposits horizontally, or select a part for slider/keyboard/±5% adjustments.
 Keep requested dashed handles separate from actual solid handles, use the shared
@@ -196,7 +199,7 @@ Dispatch frees visible racks, records count/destination/history and costs zero
 until later gameplay. Preserve crane pause/hide/tab/detach freezing; pool cooling
 follows plant time across tabs. Reduced motion skips movement but never cooling.
 Reset demo clears pool/jobs/shipments, without changing repair/trip semantics.
-Middle-wheel drag or Shift+drag pans both 3D views; Shift+arrows also pan,
+Middle-wheel drag or Shift+drag pans the unified 3D view; Shift+arrows also pan,
 plain wheel zooms, and Home/Reset view restores center/orbit/zoom. Read
 `nuclear/FUEL-HANDLING-PLAN.md` before full spent-fuel inventory or gameplay work;
 the latest scope update records the intentionally representative animation.

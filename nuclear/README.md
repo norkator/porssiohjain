@@ -15,7 +15,8 @@ The reactor overview opens as a low-poly Three.js cutaway. Drag to orbit within
 bounded angles. Hold the mouse wheel and drag to shift the center, or use
 Shift+drag. Scroll or use +/− to zoom. **Reset view** restores the initial center,
 rotation and zoom. Arrow keys orbit, Shift+arrow keys pan, +/− zoom and Home resets
-the focused canvas. Panning is bounded and also works in the auxiliary 3D view.
+the focused canvas. Panning is bounded. Equipment labels fade until hovered,
+keyboard-focused or showing an open dialog, keeping the plant visible behind them.
 Select equipment directly or use its labeled button to open the existing component
 console. Rods, pump impellers, turbine, flow, fuel heat and melting follow the same
 simulation as the instruments. The taller viewport supports both themes and
@@ -109,24 +110,30 @@ and a stopped turbine fades with its actual coast-down. Mute, pause, hidden view
 and detach stop all voices. The original synthesized WAVs and generation notes
 are in `public/audio/nuclear-power/plant-state/`; they load only after sound opt-in.
 
-Machinery audio follows the selected tab: **Reactor overview** plays reactor
-operating loops and Start/Stop cues; **Auxiliary power** plays independent diesel
-startup, seamless running and shutdown sounds. Switching tabs silences the outgoing
-machinery immediately; **Maintenance** has no machinery audio. Alarms and UI clicks
-remain shared. Diesel sounds follow actual startup/running/stopped/empty state,
-including automatic starts and fuel exhaustion; running volume follows bus load.
-Returning to a tab resumes current engine operation without replaying past events.
+Machinery audio follows the selected tab: **Reactor overview** mixes reactor
+operating loops/Start/Stop cues and independent diesel startup, seamless running
+and shutdown sounds. **Maintenance** silences all machinery immediately; alarms
+and UI clicks remain shared. Diesel sounds follow actual startup/running/stopped/
+empty state, including automatic starts and fuel exhaustion; volume follows bus
+load. Returning to the plant resumes current operation without replaying past events.
 Original diesel WAVs and regeneration notes are in `public/audio/nuclear-power/diesel/`.
 
-The main panel has **Reactor overview** and **Auxiliary power** tabs. The auxiliary
-tab contains two low-poly 3D diesel cutaways, grid/feed switches and the existing
-standby, start/stop and manual refuelling controls. Pistons, shaft and fans follow
-reported starting/running state; tank fill follows actual fuel reserve, and lit
-terminals/flow markers identify engines supplying the bus. Running unloaded remains
-distinct from stopped. The source-to-pump route remains a plain 2D diagram inside
-this tab. Both 3D views support orbit, zoom, themes and cleanup; unavailable WebGL
-leaves auxiliary readings/controls usable. Switching tabs preserves plant state and
-only renders the selected scene. Core and component dialogs remain floating.
+The main panel has **Reactor overview** and **Maintenance** tabs. Small diesel
+cutaways sit behind the turbine/generator in the main 3D plant, with the external
+grid, AC bus and source-to-pump electrical routes. Pistons/shaft/fans follow actual
+engine state; tank fill shows fuel, and lit terminals/moving wire markers show
+actual bus load. Clicking either diesel opens its own movable dialog, with a
+pump-style ON/OFF rocker, automatic standby, startup countdown, fuel/load and
+manual refuelling. OFF disables standby as before. The two dialogs can coexist.
+
+The **Pump power source** panel sits above Grid controller on the left, with source,
+requested/available load and buttons to open each diesel. Its ↗ button (or the 3D
+grid/bus) opens **Electrical supply & connections**, retaining the 2D route and
+native grid/feed switches styled as the same ON/OFF rockers. Their keyboard and
+requested/actual behavior remain. There is no Auxiliary power tab or header grid
+button. Sidebar controls remain available in the schematic/WebGL fallback.
+Maintenance suspends rendering; all dialogs retain the shared movement, clamping,
+closing/focus and detach cleanup. No power/supply model behavior has changed.
 
 The **Maintenance** tab shows a live count and list of components with retained
 damage, wear or exchanger fouling, including affected core channels. **Inspect**

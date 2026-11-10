@@ -37,6 +37,34 @@ References supplied by the user (local files, not portable assets):
 
 ## Work steps
 
+### Unified electrical cutaway and controls (latest user additions)
+
+- Remove Auxiliary power view and its separate renderer. Both diesels are small
+  cutaways behind the main turbine/generator, alongside external grid, AC bus and
+  actual-state electrical routes to the pumps. `nuclear-power-electrical-scene.js`
+  reuses the original engine geometry/motion in the plant renderer at 46% scale.
+- Each diesel opens its own nonmodal floating dialog for standby, run, fuel/load,
+  startup countdown and manual refuelling. Start/Stop is a single pump-style ON/OFF
+  rocker with switch semantics. OFF keeps disabling automatic standby; actual
+  state and countdown remain separate read-backs.
+- A compact Pump power source panel is above Grid controller at left. It opens
+  either diesel and the shared Electrical supply & connections dialog. Native
+  grid-available and turbine-feed checkboxes now have the same rocker styling,
+  retaining keyboard activation and the existing change handlers. Remove the
+  former top-right EXTERNAL GRID/header button entirely.
+- All scene info cards are 55% opaque by default, fully opaque on hover, keyboard
+  focus or while their dialog is open. Passive crane labels also accept hover.
+- Plant audio now mixes actual reactor and diesel machinery in Reactor overview;
+  Maintenance stops both. Reactor command cues must never interrupt diesel voices.
+  Pause/mute/hide/detach and returning without replaying past starts/stops remain.
+- Core, pool and equipment windows still coexist and use the common lifecycle.
+  Source/diesel controls also work in the SVG/WebGL fallback. All 92 unit checks,
+  the production build and full browser regression pass for the consolidated view.
+  Final screenshots/exports are at `/tmp/nuclear-power-check-y5BNZM/`, including
+  `integrated-diesel-dialogs.png`, `wide-1920-light.png`, and backup-generator,
+  pool, exchanger and mobile views. The earlier pool/exchanger-only pass succeeded
+  at `/tmp/nuclear-power-check-uAA7Hr/`.
+
 ### Pool dispatch and compact exchanger update
 
 The user next requested a clickable pool, manual dispatch of cooled fuel to
@@ -71,8 +99,8 @@ its right. Costs belong to later gameplay, not this pass.
   controls and all read-back/cleaning/motion behavior remain. Below 850 px viewport
   width the columns stack, retaining horizontal scrolling inside the mobile SVG.
 
-Validation: 92 unit checks and production build pass; expanded browser checks
-are in progress. Update the final artifact directory after verification.
+Validation: 92 unit checks, production build and expanded browser checks pass.
+See the latest unified-view checkpoint above for final artifacts.
 
 ### Scope update after the visual foundation
 
@@ -222,14 +250,14 @@ Implementation notes:
   requested positions.
 - The platform extends rearward; the default camera frames the taller crane.
   User orbit/zoom, semantic equipment controls and the SVG fallback remain.
-- Current continuation verification passes: all 90 unit checks (`npm test`),
+- Current continuation verification passes: all 92 unit checks (`npm test`),
   production build (`npm run build`) and expanded Chrome/WebGL regression
   (`npm run test:browser`). Dependencies were installed with `npm ci`.
   The browser checks include shared fuel/channel identities, deck alignment,
   the entire pool/crane fitting the default camera, actual rod/cap-indicator
   travel beneath the stationary deck, and existing themes/mobile/pause/fallback/
   tab/lifecycle behavior.
-- Final browser screenshots/exports: `/tmp/nuclear-power-check-dXx1HX/`, including
+- Final browser screenshots/exports: `/tmp/nuclear-power-check-y5BNZM/`, including
   `fuel-crane-lifting-dark.png`, `fuel-crane-lifting-light.png`,
   `fuel-crane-traversing.png` and `fuel-crane-pool-deposit.png`.
   Earlier cropped design views: `/tmp/nuclear-fuel-design/`. These temporary

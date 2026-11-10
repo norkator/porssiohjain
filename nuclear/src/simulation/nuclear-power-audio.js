@@ -213,7 +213,7 @@ export class PlantAudio {
     cue(command) {
         if (!['start', 'stop'].includes(command) || this.context.state !== 'running' || this.scene !== 'reactor') return;
         // One short command voice at a time, even during rapid operator actions.
-        for (const voice of this.nodes) if (!voice.plant) this.halt(voice);
+        for (const voice of this.nodes) if (!voice.plant && !voice.diesel) this.halt(voice);
         const voice = this.voice('sine');
         const now = this.context.currentTime;
         const starting = command === 'start';
