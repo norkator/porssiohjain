@@ -270,6 +270,25 @@ vaadin-button[theme~="large"] {
     padding: 6px 12px;
 }
 
+vaadin-button.device-creation-link,
+vaadin-button.device-creation-link:hover,
+vaadin-button.device-creation-link:active {
+    align-self: flex-start;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    color: var(--lumo-primary-text-color);
+    text-decoration: underline;
+    cursor: pointer;
+    filter: none;
+}
+
+vaadin-button.device-creation-link[focus-ring] {
+    outline: 1px dotted currentColor;
+    outline-offset: 2px;
+}
+
 vaadin-grid::part(fresh-control-device-call) {
     background-color: rgba(46, 160, 67, 0.18);
     color: #0b4f1c;

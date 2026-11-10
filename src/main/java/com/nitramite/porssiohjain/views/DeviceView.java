@@ -142,7 +142,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final int COMMAND_LOG_PREVIEW_LENGTH = 120;
-    private static final String MQTT_CONTROL_SCRIPT_TEMPLATE = "devices/shelly/script.js";
+    private static final String SHELLY_CONTROL_SCRIPT_TEMPLATE = "devices/shelly/script.js";
 
     private DeviceResponse selectedDevice;
     private String pendingAcDeviceId;
@@ -206,10 +206,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             case TEMPERATURE_SENSOR -> t("device.type.temperatureSensor");
         });
         deviceTypeCombo.setValue(DeviceType.STANDARD);
-        deviceTypeCombo.setHelperText(t("device.type.helper"));
+        deviceTypeCombo.setHelperText(formatDeviceTypeHelper(DeviceType.STANDARD));
         // deviceTypeCombo.setWidth("250px");
 
-        devicePlatformCombo.setItems(DevicePlatform.values());
+        devicePlatformCombo.setItems(devicePlatformOptions());
         devicePlatformCombo.setItemLabelGenerator(this::formatDevicePlatform);
         devicePlatformCombo.setValue(DevicePlatform.GENERIC_MQTT);
         devicePlatformCombo.setHelperText(t("device.platform.helper"));
@@ -409,7 +409,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         FormLayout formLayout = new FormLayout();
         formLayout.setWidthFull();
-        formLayout.add(nameField, timezoneCombo, deviceTypeCombo, devicePlatformCombo, enabledField);
+        formLayout.add(deviceTypeCombo, devicePlatformCombo, nameField, timezoneCombo, enabledField);
         DesktopFormState.watch(formLayout);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
@@ -424,20 +424,33 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         actions.setAlignItems(Alignment.START);
 
         claimProvisionedSection = createClaimProvisionedDeviceSection();
-        creationForm = new VerticalLayout(formLayout, heatPumpForm, tuyaDevicePicker, actions);
+        claimProvisionedSection.setVisible(false);
+        Button claimProvisionedLink = new Button(t("device.claim.title"), event -> showClaimProvisionedForm(true));
+        claimProvisionedLink.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        claimProvisionedLink.addClassName("device-creation-link");
+        creationForm = new VerticalLayout(formLayout, heatPumpForm, tuyaDevicePicker, actions, claimProvisionedLink);
         creationForm.setPadding(false);
         DesktopFormState.watch(creationForm);
         DesktopFormState.watch(claimProvisionedSection);
         createDialog = new DesktopCreateDialog(this, t("device.button.addNew"), i18n);
         tuyaCreateTask = new TuyaTask(this);
-        createDialog.add(creationForm, Divider.createDivider(), claimProvisionedSection);
+        createDialog.add(creationForm, claimProvisionedSection);
+        createDialog.onCreate(() -> {
+            showClaimProvisionedForm(false);
+            createDialog.open();
+        });
 
         card.add(title, deviceGrid, createDialog.openButton(), limitInfo);
         add(card);
 
         deviceTypeCombo.addValueChangeListener(event -> {
             DeviceType type = event.getValue();
+            deviceTypeCombo.setHelperText(formatDeviceTypeHelper(type));
             boolean isHeatPump = type == DeviceType.HEAT_PUMP;
+            if (isHeatPump) {
+                devicePlatformCombo.setValue(DevicePlatform.GENERIC_MQTT);
+            }
+            devicePlatformCombo.setReadOnly(isHeatPump);
             heatPumpForm.setVisible(isHeatPump);
             if (!isHeatPump) {
                 pendingAcDeviceId = null;
@@ -456,7 +469,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
                 pendingTuyaDevice = null;
                 tuyaDevicePicker.reset();
             }
-            claimProvisionedSection.setVisible(!tuya);
+            claimProvisionedLink.setVisible(!tuya);
             updateSaveButtonState();
         });
 
@@ -507,6 +520,12 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         return section;
     }
 
+    private void showClaimProvisionedForm(boolean claim) {
+        creationForm.setVisible(!claim);
+        claimProvisionedSection.setVisible(claim);
+        createDialog.setHeaderTitle(t(claim ? "device.claim.title" : "device.button.addNew"));
+    }
+
     private VerticalLayout createClaimProvisionedDeviceSection() {
         VerticalLayout section = new VerticalLayout();
         section.setPadding(false);
@@ -514,8 +533,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         section.setAlignItems(Alignment.START);
         section.setWidthFull();
 
-        H2 title = new H2(t("device.claim.title"));
-        title.getStyle().set("margin", "0");
+        Button backToDeviceForm = new Button(t("device.claim.backToForm"), VaadinIcon.ARROW_LEFT.create(),
+                event -> showClaimProvisionedForm(false));
+        backToDeviceForm.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        backToDeviceForm.addClassName("device-creation-link");
 
         Span description = new Span(t("device.claim.description"));
         description.getStyle().set("color", "var(--lumo-secondary-text-color)");
@@ -532,7 +553,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         actions.setPadding(false);
         actions.setSpacing(true);
 
-        section.add(title, description, formLayout, actions, provisionedLookupInfo);
+        section.add(backToDeviceForm, description, formLayout, actions, provisionedLookupInfo);
         return section;
     }
 
@@ -949,7 +970,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         dialogDeviceTypeCombo.setReadOnly(shared || tuya || device.isSimulated());
 
         ComboBox<DevicePlatform> dialogDevicePlatformCombo = new ComboBox<>(t("device.field.platform"));
-        dialogDevicePlatformCombo.setItems(java.util.Arrays.stream(DevicePlatform.values())
+        dialogDevicePlatformCombo.setItems(devicePlatformOptions().stream()
                 .filter(platform -> tuya || platform != DevicePlatform.TUYA_SMART).toList());
         dialogDevicePlatformCombo.setItemLabelGenerator(this::formatDevicePlatform);
         dialogDevicePlatformCombo.setValue(device.getDevicePlatform() != null ? device.getDevicePlatform() : DevicePlatform.GENERIC_MQTT);
@@ -1048,9 +1069,9 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
 
         if (device.getDeviceType() == DeviceType.STANDARD && device.getDevicePlatform() == DevicePlatform.GENERIC_MQTT) {
             toolActions.add(createDialogActionButton(
-                    t("device.mqttScript.button"),
+                    t("device.shellyScript.button"),
                     VaadinIcon.FILE_CODE,
-                    this::openMqttControlScriptDialog
+                    this::openShellyControlScriptDialog
             ));
         }
 
@@ -1364,6 +1385,24 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         return i18n.t(key, args);
     }
 
+    private String formatDeviceTypeHelper(DeviceType type) {
+        if (type == null) {
+            return t("device.type.helper");
+        }
+        return t(switch (type) {
+            case STANDARD -> "device.type.relay.helper";
+            case HEAT_PUMP -> "device.type.heatPump.helper";
+            case THERMOSTAT -> "device.type.thermostat.helper";
+            case TEMPERATURE_SENSOR -> "device.type.temperatureSensor.helper";
+        });
+    }
+
+    private List<DevicePlatform> devicePlatformOptions() {
+        return java.util.Arrays.stream(DevicePlatform.values())
+                .sorted(java.util.Comparator.comparing(platform -> platform != DevicePlatform.GENERIC_MQTT))
+                .toList();
+    }
+
     private String formatDevicePlatform(DevicePlatform platform) {
         if (platform == null) {
             return t("device.platform.genericMqtt");
@@ -1576,7 +1615,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         }
     }
 
-    private void openMqttControlScriptDialog() {
+    private void openShellyControlScriptDialog() {
         if (selectedDevice == null
                 || selectedDevice.getDeviceType() != DeviceType.STANDARD
                 || selectedDevice.getDevicePlatform() != DevicePlatform.GENERIC_MQTT) {
@@ -1584,10 +1623,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         }
 
         try {
-            String script = buildMqttControlScript(selectedDevice);
+            String script = buildShellyControlScript(selectedDevice);
 
             Dialog dialog = new Dialog();
-            dialog.setHeaderTitle(t("device.mqttScript.dialog.title", selectedDevice.getDeviceName()));
+            dialog.setHeaderTitle(t("device.shellyScript.dialog.title", selectedDevice.getDeviceName()));
             dialog.setWidth("min(1000px, 95vw)");
             dialog.setHeight("min(760px, 90vh)");
 
@@ -1596,10 +1635,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             content.setSpacing(true);
             content.setSizeFull();
 
-            Span description = new Span(t("device.mqttScript.dialog.description"));
+            Span description = new Span(t("device.shellyScript.dialog.description"));
             description.getStyle().set("color", "var(--lumo-secondary-text-color)");
 
-            TextArea scriptArea = new TextArea(t("device.mqttScript.dialog.label"));
+            TextArea scriptArea = new TextArea(t("device.shellyScript.dialog.label"));
             scriptArea.setReadOnly(true);
             scriptArea.setWidthFull();
             scriptArea.setHeightFull();
@@ -1608,7 +1647,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             content.add(description, scriptArea);
             content.setFlexGrow(1, scriptArea);
 
-            Button copyButton = new Button(t("device.mqttScript.copy"), VaadinIcon.COPY.create(), event -> copyToClipboard(script, t("device.mqttScript.copied")));
+            Button copyButton = new Button(t("device.shellyScript.copy"), VaadinIcon.COPY.create(), event -> copyToClipboard(script, t("device.shellyScript.copied")));
             copyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
             Button closeButton = new Button(t("common.cancel"), event -> dialog.close());
             dialog.getFooter().add(closeButton, copyButton);
@@ -1620,8 +1659,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         }
     }
 
-    private String buildMqttControlScript(DeviceResponse device) throws IOException {
-        ClassPathResource resource = new ClassPathResource(MQTT_CONTROL_SCRIPT_TEMPLATE);
+    private String buildShellyControlScript(DeviceResponse device) throws IOException {
+        ClassPathResource resource = new ClassPathResource(SHELLY_CONTROL_SCRIPT_TEMPLATE);
         String template;
         try (var inputStream = resource.getInputStream()) {
             template = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
