@@ -179,12 +179,18 @@ Keep requested dashed handles separate from actual solid handles, use the shared
 animation loop for heat/flow/steam, preserve cleaning interlocks and floating-window
 lifecycle, and retain usable controls alongside the scrollable mobile cutaway.
 The 3D cutaway has an RBMK-inspired tiled channel deck, rear spent-fuel pool
-with empty racks, and a parked overhead fuel-handling crane. Keep stationary
+with initially empty racks, and an overhead fuel-handling crane. Keep stationary
 caps and actual moving rods/aqua collars visible in the open-front guide
 chamber beneath them. Deck, fuel and rod positions share `CORE_CHANNELS`.
-Pool/crane are scenery; existing fuel replacement is unchanged. Read
-`nuclear/FUEL-HANDLING-PLAN.md` before implementing crane transfers, spent-fuel
-inventory or refuelling gameplay; it records the user ideas and staged work.
+Selected and batch fuel replacement each illustrate one 10.5-second crane
+transfer into the pool; only the pickup cap opens. Fuel still renews immediately
+through existing interlocks. Pool samples are cosmetic (35 cyclic display slots),
+not a full spent inventory. Preserve pause/hide/tab/detach freezing, reduced-motion
+immediate placement and Reset demo cleanup, without changing heat/damage/trips.
+Middle-wheel drag or Shift+drag pans both 3D views; Shift+arrows also pan,
+plain wheel zooms, and Home/Reset view restores center/orbit/zoom. Read
+`nuclear/FUEL-HANDLING-PLAN.md` before full spent-fuel inventory or gameplay work;
+the latest scope update records the intentionally representative animation.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff

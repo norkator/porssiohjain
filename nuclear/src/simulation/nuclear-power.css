@@ -142,7 +142,8 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .1px; white-space: nowra
 .plant-scene-feature small { font-size: 8px; }
 .plant-scene-caption, .plant-scene-hint { position: absolute; pointer-events: none; font: 8px Consolas, monospace; letter-spacing: 1px; color: #a1b7c4; }
 .plant-scene-caption { top: 13px; left: 16px; }
-.plant-scene-hint { bottom: 12px; right: 16px; letter-spacing: 0; }
+.plant-scene-hint { bottom: 12px; right: 16px; max-width: calc(100% - 32px); text-align: right; letter-spacing: 0; }
+.plant-scene-canvas[data-dragging] { cursor: grabbing; }
 @container nuclear-console (min-width: 1400px) {
     .plant-scene { height: clamp(360px, calc(100dvh - 520px), 570px); }
 }

@@ -150,7 +150,7 @@ export class AuxiliaryPowerScene extends PlantOverviewScene {
         }
         const hint = document.createElement('span');
         hint.className = 'plant-scene-hint';
-        hint.textContent = 'Drag to orbit · scroll to zoom';
+        hint.textContent = 'Drag: orbit · wheel-drag: pan · scroll: zoom';
         this.host.append(layer, hint);
     }
 

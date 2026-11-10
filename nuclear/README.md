@@ -12,8 +12,10 @@ reloading or closing it discards the session. Only the light/dark theme preferen
 is saved locally. The Vaadin desktop and Start menu open this app in a separate tab.
 
 The reactor overview opens as a low-poly Three.js cutaway. Drag to orbit within
-bounded angles, scroll or use +/− to zoom, and use **Reset view** to return to the
-closer initial framing. Arrow keys, +/− and Home also control the focused canvas.
+bounded angles. Hold the mouse wheel and drag to shift the center, or use
+Shift+drag. Scroll or use +/− to zoom. **Reset view** restores the initial center,
+rotation and zoom. Arrow keys orbit, Shift+arrow keys pan, +/− zoom and Home resets
+the focused canvas. Panning is bounded and also works in the auxiliary 3D view.
 Select equipment directly or use its labeled button to open the existing component
 console. Rods, pump impellers, turbine, flow, fuel heat and melting follow the same
 simulation as the instruments. The taller viewport supports both themes and
@@ -21,15 +23,27 @@ reduced motion. **Schematic** switches to the retained SVG overview without
 changing plant state; browsers without WebGL 2 fall back to it automatically.
 
 The reactor has a flat, RBMK-inspired tiled channel deck, a blue spent-fuel pool
-behind it with empty storage racks, and a parked overhead fuel-handling crane.
+behind it with storage racks, and an overhead fuel-handling crane.
 The top caps, internal fuel assemblies and control rods share the core map's
 channel coordinates. Aqua collars make actual rod movement visible inside the
 open-front upper guide chamber; rods stay beneath the deck. Small sliders on green
 control-channel caps also show actual insertion from above; the caps themselves
-stay stationary. The pool and crane
-are visual foundations for later handling gameplay. Existing manual fuel
-replacement still uses its current readiness checks and cosmetic core-map
-animation. The crane does not yet transfer fuel or populate the pool.
+stay stationary during regulation. **Replace selected fuel** and **Replace all
+fuel** now trigger one approximately ten-second illustrative crane transfer:
+align, lower the grabber, lift one assembly clear of the deck, carry it to the
+pool, lower/release it and return to park. A batch replacement shows one assembly
+to keep the sequence short. Move or close the floating core map to watch the
+process underneath. The selected channel cap opens only during pickup.
+
+Fuel renewal remains immediate and uses the existing cooled/stopped checks; the
+animation never changes heat, damage, trips or operating settings. Displayed
+pool assemblies represent replacement actions, not a complete spent-fuel
+inventory. The 35 display slots cycle after filling. Repeating replacement
+restarts a single illustration; starting the reactor cancels an unfinished
+illustration. Pause, hidden views, tab/view switches and detach freeze movement;
+returning resumes its current position. Reduced motion places the sample
+immediately. Reset demo clears the crane and displayed pool samples. The existing
+core-map exchange animation and WebGL fallback remain available.
 
 See [the fuel-handling work plan](FUEL-HANDLING-PLAN.md) for the user's references,
 the implementation checkpoint, and staged tasks for transfers, inventory and

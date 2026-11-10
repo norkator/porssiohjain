@@ -14,6 +14,7 @@ import { AuxiliaryPowerScene } from './nuclear-power-auxiliary-scene.js';
 import { loopTemperatures, temperatureColor } from './nuclear-power-temperature.js';
 import { gridDispatchCapacity } from './nuclear-power-grid.js';
 import { maintenancePanel, coreDamagePanel, initializeMaintenance, updateMaintenance } from './nuclear-power-maintenance.js';
+import { FuelTransferAnimation } from './nuclear-power-refuelling.js';
 
 const PLANT_TABS = ['reactor', 'auxiliary', 'maintenance'];
 
@@ -202,6 +203,7 @@ export class NuclearPowerConsole extends HTMLElement {
         super();
         this.attachShadow({ mode: 'open' });
         this.simulation = new NuclearPowerSimulation();
+        this.fuelTransfer = new FuelTransferAnimation(CORE_CHANNELS);
         this.selectedEquipment = 'reactor';
         this.selectedRod = 'CR-01';
         this.selectedFuel = null;
@@ -577,6 +579,7 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     fallbackOverview() {
+        this.fuelTransfer.finish();
         this.sceneUnavailable = true;
         this.overviewScene?.dispose();
         this.overviewScene = null;
@@ -587,7 +590,7 @@ export class NuclearPowerConsole extends HTMLElement {
 
     updateOverview() {
         if (!this.isConnected || !this.intersecting || document.hidden) return;
-        if (this.plantTab === 'reactor' && this.overviewMode === '3d') this.overviewScene?.update(this.simulation, this.processMotion, this.motion, this.selectedEquipment, this.dataset.theme);
+        if (this.plantTab === 'reactor' && this.overviewMode === '3d') this.overviewScene?.update(this.simulation, this.processMotion, this.motion, this.selectedEquipment, this.dataset.theme, this.fuelTransfer);
         if (this.plantTab === 'auxiliary') this.auxiliaryScene?.update(this.simulation.supply, this.dieselMotion, this.processMotion.supplyPhase, this.dataset.theme);
     }
 
@@ -645,7 +648,11 @@ export class NuclearPowerConsole extends HTMLElement {
         const ids = all ? this.simulation.fuel.assemblies.map(assembly => assembly.id) : [this.selectedFuel];
         const replaced = all ? this.simulation.replaceAllFuel() : this.simulation.replaceFuel(this.selectedFuel);
         if (!replaced) return;
+        const exampleId = ids.includes(this.selectedFuel) ? this.selectedFuel : ids[0];
+        this.fuelTransfer.start(exampleId, ids.length, this.reducedMotion.matches || this.sceneUnavailable
+            || this.overviewMode !== '3d' || this.plantTab !== 'reactor');
         this.fuelServiceStatus = all ? `All ${ids.length} fuel assemblies renewed. Reactor remains stopped.` : `${this.selectedFuel} renewed. Reactor remains stopped.`;
+        this.fuelServiceStatus += ' One assembly represents this replacement in the crane view.';
         for (const [index, id] of ids.entries()) {
             const channel = this.shadowRoot.querySelector(`[data-fuel-id="${id}"]`);
             channel.classList.remove('fuel-exchanging');
@@ -811,7 +818,7 @@ export class NuclearPowerConsole extends HTMLElement {
             'export-log': () => this.exportLog(),
             'clear-fault': () => sim.injectFault('none'), repair: () => sim.repairComponents(),
             'export-incident': () => this.exportIncident(),
-            pause: () => sim.togglePause(), reset: () => { this.plantAudio?.stop(); sim.reset(); },
+            pause: () => sim.togglePause(), reset: () => { this.plantAudio?.stop(); this.fuelTransfer.reset(); sim.reset(); },
             'overview-3d': () => this.setOverview('3d'),
             'overview-schematic': () => this.setOverview('schematic'),
             'scene-zoom-in': () => this.overviewScene?.setZoom(this.overviewScene.zoom + .15),
@@ -845,6 +852,10 @@ export class NuclearPowerConsole extends HTMLElement {
 
     updateActivity() {
         const active = this.isConnected && this.intersecting && !document.hidden && !this.simulation.paused;
+        if (this.reducedMotion.matches && this.fuelTransfer.job) {
+            this.fuelTransfer.finish();
+            this.updateOverview();
+        }
         this.dataset.animating = String(active);
         if (this.reducedMotion.matches) this.shadowRoot.querySelectorAll('.fuel-exchanging').forEach(channel => channel.classList.remove('fuel-exchanging'));
         if (!active) this.stopAlarmSound();
@@ -886,6 +897,7 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     drawMotion(seconds) {
+        if (this.plantTab === 'reactor' && this.overviewMode === '3d') this.fuelTransfer.advance(seconds);
         this.drawProcessMotion(seconds);
         drawEquipmentMotion(this);
         for (const [pump, flow, circuit] of [['A', this.simulation.primaryFlow, 'primary'], ['B', this.simulation.secondaryFlow, 'secondary']]) {
@@ -1091,6 +1103,7 @@ export class NuclearPowerConsole extends HTMLElement {
         if (!this.initialized) return;
         const sim = this.simulation;
         if (this.lastProcessElapsed > sim.elapsed) {
+            this.fuelTransfer.reset();
             this.plantAudio?.stop();
             this.componentMessages = {};
             this.revealScenario = false;
@@ -1101,6 +1114,7 @@ export class NuclearPowerConsole extends HTMLElement {
             this.instrumentMotion = { thermal: 0, electrical: 0, flow: 0 };
         }
         this.lastProcessElapsed = sim.elapsed;
+        if (sim.running || sim.condition.meltdown) this.fuelTransfer.cancel();
         this.drawProcessMotion();
         this.drawInstrumentMotion();
         this.updateOverview();

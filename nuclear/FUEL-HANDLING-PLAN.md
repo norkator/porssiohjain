@@ -37,6 +37,35 @@ References supplied by the user (local files, not portable assets):
 
 ## Work steps
 
+### Scope update after the visual foundation
+
+The user requested middle-mouse dragging to change the camera center, then
+explicitly limited the next animation to **one representative fuel assembly per
+replacement action**, even for Replace all, to save time. That smaller animation
+is implemented; the complete inventory/job system in step 2 remains future work.
+
+- Middle-button drag or Shift+drag pans either 3D scene in its camera plane.
+  Shift+arrow keys also pan. Plain wheel scrolling still zooms, plain drag still
+  orbits. Pan distance is bounded to eight scene units; Home/Reset view restores
+  each scene's original center, orbit and zoom.
+- Successful selected/batch replacement starts one 10.5-second visual transfer.
+  The bridge/trolley align with the selected assembly (or first assembly for an
+  unselected batch), the grabber descends, that cap opens, and one assembly lifts
+  vertically clear before travelling to the pool. It lowers into a rack, releases,
+  and the empty grabber retracts/returns to park.
+- Core fuel renews immediately through existing model actions. The animation is
+  cosmetic and never changes heat, damage, trips, settings, startup checks or
+  real fuel inventory. The refreshed core mesh/cap returns once extraction clears
+  the deck. Fresh insertion is not animated in this pass.
+- Pool samples are representative displays, one per completed replacement action,
+  with 35 cyclic display slots. They are not a full spent-fuel inventory; never
+  build gameplay capacity/ownership rules on them without implementing step 2.
+- Repeated actions restart one illustration rather than queueing 49 lifts. Start/
+  meltdown cancels an unfinished illustration without changing fuel. Pause/hide/
+  tab or overview switching/detach freeze it; returning resumes. Closing the core
+  map does not cancel the crane. Reduced motion/fallback uses immediate placement.
+  Reset demo clears active motion and all displayed samples, including at T+0.
+
 ### 1. Visual foundation — current implementation pass
 
 - [x] Replace the conical reactor lid with the channel deck, keeping the open-front
@@ -55,8 +84,9 @@ References supplied by the user (local files, not portable assets):
 
 ### 2. Fuel-handling state and inventory
 
-- Add a deterministic state module (suggested `nuclear-power-refuelling.js`).
-  Keep simulation state outside Three.js and React rendering.
+- Extend the existing cosmetic `nuclear-power-refuelling.js` state or introduce
+  a separate authoritative model when full handling is requested. Keep simulation
+  state outside Three.js and React rendering.
 - Give discharged assemblies unique identities and history (source core channel,
   remaining reserve/exposure, replacement number and discharge time). Reserve a
   destination rack before lifting. Start with empty pool slots.
@@ -117,7 +147,11 @@ References supplied by the user (local files, not portable assets):
 - `src/simulation/nuclear-power-scene.js`: Three.js overview, camera, batching,
   picking, shared render lifecycle and GPU disposal.
 - `src/simulation/nuclear-power-refuelling-scene.js`: visual deck, pool and parked
-  crane; named anchors/groups for future movement (added in step 1).
+  crane; instanced opening channel caps, moving crane/cables/grabber, carried fuel
+  and representative submerged rack samples.
+- `src/simulation/nuclear-power-refuelling.js`: pure cosmetic transfer state,
+  choreography, shared dimensions and bounded display samples. This is not the
+  full inventory/job system proposed in step 2.
 - `src/simulation/nuclear-power-model.js`: `CORE_CHANNELS`, simulation state,
   commands and snapshots.
 - `src/simulation/nuclear-power-fuel.js`: fuel inventory, readiness and immediate
@@ -128,33 +162,37 @@ References supplied by the user (local files, not portable assets):
 
 ## Handoff checkpoint
 
-Step 1 is complete and verified. Start continuation at step 2. Steps 2–5 describe
-future work, not completed behavior. No crane transfers or gameplay were added
-in this design pass.
+Step 1 and the smaller representative transfer requested afterward are complete.
+Steps 2–5 remain the plan for full inventory/handling/gameplay, with the scope
+update above superseding any old statements that the crane is static scenery.
 
 Implementation notes:
 
 - The deck has 61 shared channels: 49 fuel assemblies and 12 control rods. Internal
   fuel meshes now match the same coordinates instead of the earlier simplified
   twelve-box layout. Heat/reaction visuals use the nearest existing rod zone.
-- The pool has 35 empty, named rack positions. Choose how to handle capacity
-  before implementing full-core transfers; the current immediate Replace all
-  action does not use the pool.
+- The pool starts with 35 empty, named rack positions and now displays at most
+  one sample per replacement action. Choose real capacity rules before full-core
+  transfers; the current samples are cosmetic and slots cycle when full.
 - `overviewScene.refuelling` holds `deckChannels` (world-space pickup anchors),
   `rodIndicators`, `pool.slots` (world-space rack-top anchors), and separate
   `crane.bridge`, `crane.trolley`, `crane.hoist` and `crane.grabber` groups.
   The hall/group geometry is still batched and disposed by the existing renderer.
+  Caps/handles use tracked instanced meshes so only the pickup channel opens.
 - Current rod movement is a cutaway illustration beneath the closed deck. The
   cap sliders are actual-insertion indicators, not moving channel caps or
   requested positions.
 - The platform extends rearward; the default camera frames the taller crane.
   User orbit/zoom, semantic equipment controls and the SVG fallback remain.
-- Verification passed: `npm ci`, all 86 unit checks (`npm test`), production build
-  (`npm run build`) and full Chrome/WebGL regression (`npm run test:browser`).
+- Current continuation verification passes: all 90 unit checks (`npm test`),
+  production build (`npm run build`) and expanded Chrome/WebGL regression
+  (`npm run test:browser`). Dependencies were installed with `npm ci`.
   The browser checks include shared fuel/channel identities, deck alignment,
   the entire pool/crane fitting the default camera, actual rod/cap-indicator
   travel beneath the stationary deck, and existing themes/mobile/pause/fallback/
   tab/lifecycle behavior.
-- Final browser screenshots/exports: `/tmp/nuclear-power-check-UrVJZx/`.
-  Additional cropped design views: `/tmp/nuclear-fuel-design/`. These temporary
+- Final browser screenshots/exports: `/tmp/nuclear-power-check-dXx1HX/`, including
+  `fuel-crane-lifting-dark.png`, `fuel-crane-lifting-light.png`,
+  `fuel-crane-traversing.png` and `fuel-crane-pool-deposit.png`.
+  Earlier cropped design views: `/tmp/nuclear-fuel-design/`. These temporary
   artifacts may disappear; regenerate with the browser test if needed.

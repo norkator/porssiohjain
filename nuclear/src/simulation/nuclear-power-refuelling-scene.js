@@ -1,14 +1,15 @@
 import * as THREE from 'three';
 import { CORE_CHANNELS } from './nuclear-power-model.js';
+import { CHANNEL_PITCH, FUEL_HANDLING, FUEL_POOL_SLOTS } from './nuclear-power-refuelling.js';
 
-export const CHANNEL_PITCH = .33;
+export { CHANNEL_PITCH } from './nuclear-power-refuelling.js';
 export const ROD_INSERTED_Y = 2.95;
 export const ROD_TRAVEL = 1.95;
 
-// Scenery and named movement anchors only. Future handling state belongs in the
-// simulation, never in these meshes. The pool starts with empty storage racks.
+// Presentation adapter. The console owns cosmetic transfer state; inventory and
+// replacement interlocks remain in the simulation. Racks start empty.
 export function buildFuelHandlingHall(view, reactor) {
-    const deckY = 6.18;
+    const deckY = FUEL_HANDLING.deckY;
     const concrete = view.material('#889d9f', { metalness: 0, roughness: .94 });
     const cap = view.material('#c7d0c7', { metalness: .35 });
     const capAlternate = view.material('#a8b8b4', { metalness: .35 });
@@ -26,19 +27,34 @@ export function buildFuelHandlingHall(view, reactor) {
     // internal fuel/rod meshes use the core map's actual channel coordinates.
     view.cylinder(reactor, 1.83, .16, orange, [0, 6.1, 0], 1.83, 32);
     view.cylinder(reactor, 1.66, .035, view.darkSteel, [0, deckY, 0], 1.66, 32);
+    const instances = (size, material, count) => {
+        const geometry = new THREE.BoxGeometry(...size);
+        view.geometries.add(geometry);
+        const mesh = new THREE.InstancedMesh(geometry, material, count);
+        reactor.add(mesh);
+        view.instancedMeshes.push(mesh);
+        view.dynamicMeshes.push(mesh);
+        return mesh;
+    };
+    const caps = instances([.305, .075, .305], view.material('#ffffff', { metalness: .35 }), CORE_CHANNELS.length);
+    const handles = instances([.11, .025, .035], view.steel, CORE_CHANNELS.filter(channel => channel.fuelId).length);
+    let handleIndex = 0;
     const rodIndicators = [];
-    const deckChannels = CORE_CHANNELS.map(channel => {
+    const deckChannels = CORE_CHANNELS.map((channel, capIndex) => {
         const x = channel.x * CHANNEL_PITCH;
         const z = channel.y * CHANNEL_PITCH;
-        view.box(reactor, [.305, .075, .305], channel.rodId ? controlCap :
-            (channel.x + channel.y) % 2 === 0 ? cap : capAlternate, [x, deckY + .04, z]);
+        caps.setMatrixAt(capIndex, new THREE.Matrix4().makeTranslation(x, deckY + .04, z));
+        caps.setColorAt(capIndex, (channel.rodId ? controlCap :
+            (channel.x + channel.y) % 2 === 0 ? cap : capAlternate).color);
+        const fuelHandle = channel.fuelId ? handleIndex++ : null;
         if (channel.rodId) {
             view.box(reactor, [.23, .018, .07], view.darkSteel, [x, deckY + .09, z]);
             const marker = view.box(reactor, [.055, .025, .08], positionMarker, [x - .085, deckY + .11, z]);
             view.dynamicMeshes.push(marker);
             rodIndicators.push({ rodIndex: Number(channel.rodId.slice(3)) - 1, x, marker });
-        } else view.box(reactor, [.11, .025, .035], view.steel, [x, deckY + .09, z]);
+        } else handles.setMatrixAt(fuelHandle, new THREE.Matrix4().makeTranslation(x, deckY + .09, z));
         return { id: channel.fuelId || channel.rodId, kind: channel.rodId ? 'control' : 'fuel',
+            capIndex, handleIndex: fuelHandle,
             position: new THREE.Vector3(reactor.position.x + x, deckY + .1, z) };
     });
     for (let i = 0; i < 32; i++) {
@@ -114,7 +130,7 @@ export function buildFuelHandlingHall(view, reactor) {
     }
 
     // Two longitudinal runways, a travelling bridge, transverse trolley, and a
-    // hoist are separate groups so future transfer animation need not rebuild
+    // hoist are separate groups so transfer animation need not rebuild
     // batched hall geometry. Parked over the pool, clear of the channel deck.
     for (const x of [-2.8, 2.8]) {
         for (const z of [-7.2, 2.15]) {
@@ -151,7 +167,11 @@ export function buildFuelHandlingHall(view, reactor) {
     const hoist = new THREE.Group();
     hoist.name = 'fuel-crane-hoist';
     trolley.add(hoist);
-    for (const x of [-.09, .09]) view.cylinder(hoist, .018, 1.65, view.darkSteel, [x, -.82, 0], .018, 5);
+    const cables = new THREE.Group();
+    cables.name = 'fuel-crane-cables';
+    cables.scale.y = 1.8;
+    hoist.add(cables);
+    for (const x of [-.09, .09]) view.cylinder(cables, .018, 1, view.darkSteel, [x, -.5, 0], .018, 5);
     const grabber = new THREE.Group();
     grabber.name = 'fuel-crane-grabber';
     grabber.position.y = -1.8;
@@ -161,9 +181,62 @@ export function buildFuelHandlingHall(view, reactor) {
         view.box(grabber, [.06, .3, .08], view.steelLight, [x, -.23, 0]);
         view.box(grabber, [.12, .06, .08], view.steelLight, [x * .7, -.4, 0]);
     }
-    // Retain the hall's named coordinate space when batching static surfaces.
-    view.dynamicGroups.push(hall, bridge, trolley, hoist, grabber);
+    const spentMaterial = view.material('#b5a276', { metalness: .45 });
+    const carriedFuel = new THREE.Group();
+    carriedFuel.name = 'transferred-fuel-assembly';
+    carriedFuel.visible = false;
+    hall.add(carriedFuel);
+    for (const x of [-.065, .065]) for (const z of [-.065, .065]) {
+        view.cylinder(carriedFuel, .035, FUEL_HANDLING.assemblyHeight, spentMaterial, [x, 0, z], .035, 6);
+    }
+    for (const y of [-1.15, -.6, .6, 1.15]) view.box(carriedFuel, [.22, .055, .22], view.steelLight, [0, y, 0]);
+    const storedGeometry = new THREE.BoxGeometry(.2, FUEL_HANDLING.assemblyHeight, .2);
+    const storedFuel = FUEL_POOL_SLOTS.map(slot => {
+        const mesh = view.mesh(hall, storedGeometry, spentMaterial, [slot.x, FUEL_HANDLING.storedFuelY, slot.z]);
+        mesh.visible = false;
+        view.dynamicMeshes.push(mesh);
+        return mesh;
+    });
+    // Retain named coordinate spaces when batching static surfaces.
+    view.dynamicGroups.push(hall, bridge, trolley, hoist, cables, grabber, carriedFuel);
     view.refuelling = { hall, deckY, deckChannels, rodCollars, rodIndicators,
-        pool: { group: pool, water, surface, slots: poolSlots },
-        crane: { bridge, trolley, hoist, grabber } };
+        caps, handles, hiddenCapId: null,
+        pool: { group: pool, water, surface, slots: poolSlots, storedFuel },
+        crane: { bridge, trolley, hoist, cables, grabber, carriedFuel } };
+}
+
+export function updateFuelHandlingHall(view, animation) {
+    const pose = animation.pose;
+    const { hall, deckChannels, deckY, caps, handles, pool, crane } = view.refuelling;
+    crane.bridge.position.z = pose.z;
+    crane.trolley.position.x = pose.x;
+    const cableLength = FUEL_HANDLING.bridgeY + FUEL_HANDLING.trolleyY - pose.grabberY;
+    crane.cables.scale.y = cableLength;
+    crane.grabber.position.y = -cableLength;
+    crane.carriedFuel.visible = pose.carrying;
+    crane.carriedFuel.position.set(pose.x, pose.grabberY - FUEL_HANDLING.gripOffset - FUEL_HANDLING.assemblyHeight / 2, pose.z);
+    for (const [index, mesh] of pool.storedFuel.entries()) {
+        mesh.visible = !!animation.samples[index];
+        // A representative display may reuse old slots after the 35th action.
+        if (animation.job?.slotIndex === index && !animation.job.deposited) mesh.visible = false;
+    }
+    for (const fuel of view.fuel) fuel.visible = !(pose.sourceHidden && fuel.userData.fuelId === pose.sourceId);
+    const hiddenCapId = pose.openCap ? pose.sourceId : null;
+    if (hiddenCapId !== view.refuelling.hiddenCapId) {
+        for (const id of [view.refuelling.hiddenCapId, hiddenCapId].filter(Boolean)) {
+            const channel = deckChannels.find(channel => channel.id === id);
+            const matrix = new THREE.Matrix4().makeTranslation(channel.position.x - hall.position.x, deckY + .04, channel.position.z);
+            if (id === hiddenCapId) matrix.scale(new THREE.Vector3(0, 0, 0));
+            caps.setMatrixAt(channel.capIndex, matrix);
+            matrix.elements[13] = deckY + .09;
+            handles.setMatrixAt(channel.handleIndex, matrix);
+        }
+        caps.instanceMatrix.needsUpdate = true;
+        handles.instanceMatrix.needsUpdate = true;
+        view.refuelling.hiddenCapId = hiddenCapId;
+    }
+    const occupied = animation.samples.filter(Boolean).length;
+    view.featureLabels.find(label => label.id === 'fuel-crane').reading.textContent = pose.phase;
+    view.featureLabels.find(label => label.id === 'spent-fuel-pool').reading.textContent = occupied
+        ? `${occupied} displayed ${occupied === 1 ? 'assembly' : 'assemblies'}` : 'Empty storage racks';
 }

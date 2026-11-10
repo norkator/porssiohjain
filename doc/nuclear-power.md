@@ -37,15 +37,23 @@ keep all feature text English, and keep this document and the root `AGENTS.md`
 handoff current when behavior changes.
 
 The 3D reactor has a flat RBMK-inspired tiled channel deck, a rear spent-fuel
-pool with 35 empty storage racks, and a parked overhead handling crane. The
+pool with 35 initially empty display racks, and an overhead handling crane. The
 appearance does not change the fictional two-loop model. Deck caps, 49 fuel
 assemblies and twelve control rods share `CORE_CHANNELS` positions/identities.
 The caps stay stationary; actual rod movement and aqua collars remain visible
 inside the open-front upper guide chamber beneath them. The crane bridge,
-trolley, hoist and grabber are separate scene groups for later fuel transfer.
-The new pool/crane are scenery: no transfer commands, stored spent inventory
-or pool-cooling telemetry exist yet. Existing manual fuel replacement and
-its readiness rules are unchanged. See [the continuation plan](../nuclear/FUEL-HANDLING-PLAN.md)
+trolley, hoist and grabber animate one representative assembly for each
+successful selected or batch fuel replacement: align, lower, lift clear of
+the deck, traverse to the pool, lower/release and return to park (10.5 s).
+Only the pickup cap opens; regulation keeps all caps fixed. Fuel renewal
+remains immediate with unchanged readiness checks. Display samples are
+cosmetic, one per replacement action, and cycle through 35 slots; they are
+not a full spent-fuel inventory or cooling model. Repeated commands restart
+one illustration, without queueing the entire core. Starting/meltdown cancels
+an unfinished illustration; pause, hiding, tab/view switches and detach freeze
+it. Returning resumes; reduced motion/fallback places the sample immediately.
+Reset demo clears active motion and samples, including at T+0. The animation
+never changes heat, damage, trips, settings or the stopped state. See [the continuation plan](../nuclear/FUEL-HANDLING-PLAN.md)
 for the user references, implementation checkpoint and future gameplay steps.
 
 The overview defaults to a low-poly 3D cutaway, with a retained SVG schematic
@@ -54,7 +62,7 @@ separate primary and secondary circuits, animated pumps and coolant flow, a heat
 exchanger, a turbine/generator, and a condenser. Click or keyboard-activate outlined
 equipment to open its movable component console. The reactor opens the core map;
 its former Equipment detail readings are inside that window. The main view has no
-Equipment detail card. The 3D scene supports bounded orbit and zoom; the SVG diagram can be zoomed and
+Equipment detail card. The 3D scene supports bounded orbit, pan and zoom; the SVG diagram can be zoomed and
 scrolled. Controls and instruments adapt to the browser viewport's width.
 
 Click the reactor vessel (or **Core map ↗**) to open the core map in a movable,
@@ -310,8 +318,10 @@ state. No additional physics or command path is introduced.
 
 The taller viewport starts at 120% zoom. Drag to orbit within bounded angles, use
 the mouse wheel or +/− buttons to zoom (65–300%), and select **Reset view** to restore
-the initial camera. When the canvas has keyboard focus, arrow keys orbit, +/− zoom
-and Home resets. Equipment can be selected directly through canvas picking or
+the initial camera, including its center. Hold the mouse wheel and drag to pan
+in the camera plane; Shift+drag also pans. Panning is bounded to eight scene
+units and applies to both 3D views. When the canvas has keyboard focus, arrow
+keys orbit, Shift+arrow keys pan, +/− zoom and Home resets. Equipment can be selected directly through canvas picking or
 through semantic HTML buttons with live readings. They open the same movable
 component/core dialogs and receive focus again when those dialogs close.
 

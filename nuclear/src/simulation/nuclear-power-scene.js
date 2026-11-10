@@ -3,10 +3,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loopTemperatures, temperatureColor } from './nuclear-power-temperature.js';
 import { flowMarkerDistance, valveHandleAngle } from './nuclear-power-motion.js';
 import { CORE_CHANNELS } from './nuclear-power-model.js';
-import { buildFuelHandlingHall, CHANNEL_PITCH, ROD_INSERTED_Y, ROD_TRAVEL } from './nuclear-power-refuelling-scene.js';
+import { buildFuelHandlingHall, updateFuelHandlingHall, CHANNEL_PITCH, ROD_INSERTED_Y, ROD_TRAVEL } from './nuclear-power-refuelling-scene.js';
 
 const TAU = Math.PI * 2;
 const DEFAULT_ZOOM = 1.2;
+const MAX_PAN_DISTANCE = 8;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const equipment = [
     ['reactor', 'R-01', 'Reactor vessel', [-10.1, 5.3, 1.1]],
@@ -36,6 +37,7 @@ export class PlantOverviewScene {
         this.pumps = {};
         this.dynamicGroups = [];
         this.dynamicMeshes = [];
+        this.instancedMeshes = [];
         this.abort = new AbortController();
         this.yaw = .24;
         this.pitch = .7;
@@ -52,10 +54,12 @@ export class PlantOverviewScene {
         canvas.className = 'plant-scene-canvas';
         canvas.tabIndex = 0;
         canvas.setAttribute('role', 'group');
-        canvas.setAttribute('aria-label', 'Interactive 3D plant. Drag or use arrow keys to rotate. Scroll or use plus and minus to zoom; Home resets the view. Equipment buttons open component consoles.');
+        canvas.setAttribute('aria-label', 'Interactive 3D plant. Drag or use arrow keys to rotate. Hold the mouse wheel and drag to pan; Shift+drag or Shift+arrow keys also pan. Scroll or use plus and minus to zoom; Home resets the view. Equipment buttons open component consoles.');
+        canvas.title = 'Drag to orbit · hold mouse wheel and drag to pan · Shift+drag or Shift+arrows to pan · scroll to zoom · Home to reset';
         host.replaceChildren(canvas);
         try {
             this.build();
+            this.defaultTarget = this.target.clone();
             this.batchStaticMeshes();
             this.buildLabels();
             this.bindCamera();
@@ -347,15 +351,15 @@ export class PlantOverviewScene {
             description.textContent = detail;
             label.append(name, description);
             layer.append(label);
-            this.featureLabels.push({ button: label, anchor: new THREE.Vector3(...position) });
+            this.featureLabels.push({ id, button: label, reading: description, anchor: new THREE.Vector3(...position) });
         }
-        this.renderer.domElement.setAttribute('aria-description', 'The tiled reactor deck stays closed during regulation. Control rods and aqua collars move inside the open-front guide chamber; small sliders on green caps indicate actual rod insertion. Behind the reactor are an empty spent-fuel pool and a parked overhead fuel-handling crane.');
+        this.renderer.domElement.setAttribute('aria-description', 'The tiled reactor deck stays closed during regulation. Control rods and aqua collars move inside the open-front guide chamber; small sliders on green caps indicate actual rod insertion. Behind the reactor are a spent-fuel pool and a fuel-handling crane. Each manual replacement can illustrate one assembly moving into the pool.');
         const caption = document.createElement('span');
         caption.className = 'plant-scene-caption';
         caption.textContent = 'UNIT 01 / CUTAWAY';
         const hint = document.createElement('span');
         hint.className = 'plant-scene-hint';
-        hint.textContent = 'Drag to orbit · scroll to zoom';
+        hint.textContent = 'Drag: orbit · wheel-drag: pan · scroll: zoom';
         this.host.append(layer, caption, hint);
     }
 
@@ -403,8 +407,15 @@ export class PlantOverviewScene {
             this.setZoom(this.zoom * Math.exp(-clamp(delta, -300, 300) * .0015));
         }, { ...options, passive: false });
         canvas.addEventListener('pointerdown', event => {
-            if (event.button !== 0 || this.drag) return;
-            this.drag = { id: event.pointerId, x: event.clientX, y: event.clientY, yaw: this.yaw, pitch: this.pitch, moved: false };
+            if (![0, 1].includes(event.button) || this.drag) return;
+            const mode = event.button === 1 || event.shiftKey ? 'pan' : 'orbit';
+            if (mode === 'pan') {
+                event.preventDefault(); // Suppress middle-button browser autoscroll.
+                canvas.focus({ preventScroll: true });
+            }
+            this.drag = { id: event.pointerId, button: event.button, mode, target: this.target.clone(),
+                x: event.clientX, y: event.clientY, yaw: this.yaw, pitch: this.pitch, moved: false };
+            canvas.dataset.dragging = mode;
             canvas.setPointerCapture(event.pointerId);
         }, options);
         canvas.addEventListener('pointermove', event => {
@@ -413,16 +424,21 @@ export class PlantOverviewScene {
             const dy = event.clientY - this.drag.y;
             this.drag.moved ||= Math.hypot(dx, dy) > 5;
             if (!this.drag.moved) return;
+            if (this.drag.mode === 'pan') {
+                this.pan(dx, dy, this.drag.target);
+                return;
+            }
             this.yaw = clamp(this.drag.yaw - dx * .004, -.48, .65);
             this.pitch = clamp(this.drag.pitch + dy * .003, .4, .95);
             this.render();
         }, options);
         canvas.addEventListener('pointerup', event => {
-            if (!this.drag || this.drag.id !== event.pointerId) return;
-            const moved = this.drag.moved;
+            if (!this.drag || this.drag.id !== event.pointerId || this.drag.button !== event.button) return;
+            const { moved, mode } = this.drag;
             this.drag = null;
+            delete canvas.dataset.dragging;
             if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-            if (moved) return;
+            if (moved || mode === 'pan') return;
             const rect = canvas.getBoundingClientRect();
             this.raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1), this.camera);
             for (const hit of this.raycaster.intersectObjects([...this.groups.values()], true)) {
@@ -431,13 +447,21 @@ export class PlantOverviewScene {
                 if (object) { this.inspect(object.userData.equipment); break; }
             }
         }, options);
-        for (const type of ['pointercancel', 'lostpointercapture']) canvas.addEventListener(type, () => { this.drag = null; }, options);
+        for (const type of ['pointercancel', 'lostpointercapture']) canvas.addEventListener(type, () => {
+            this.drag = null;
+            delete canvas.dataset.dragging;
+        }, options);
         canvas.addEventListener('keydown', event => {
             const directions = { ArrowLeft: [-.08, 0], ArrowRight: [.08, 0], ArrowUp: [0, .06], ArrowDown: [0, -.06] };
             if (directions[event.key]) {
-                this.yaw = clamp(this.yaw + directions[event.key][0], -.48, .65);
-                this.pitch = clamp(this.pitch + directions[event.key][1], .4, .95);
-                this.render();
+                if (event.shiftKey) {
+                    const [dx, dy] = { ArrowLeft: [36, 0], ArrowRight: [-36, 0], ArrowUp: [0, 36], ArrowDown: [0, -36] }[event.key];
+                    this.pan(dx, dy);
+                } else {
+                    this.yaw = clamp(this.yaw + directions[event.key][0], -.48, .65);
+                    this.pitch = clamp(this.pitch + directions[event.key][1], .4, .95);
+                    this.render();
+                }
             } else if (['+', '=', '-', '_'].includes(event.key)) this.setZoom(this.zoom + (['+', '='].includes(event.key) ? .15 : -.15));
             else if (event.key === 'Home') this.resetCamera();
             else return;
@@ -458,14 +482,28 @@ export class PlantOverviewScene {
         this.render();
     }
 
+    pan(dx, dy, origin = this.target) {
+        if (!this.height) return;
+        // Camera-plane motion keeps dragging aligned with the screen at every
+        // orbit angle. Orthographic scale makes it follow the pointer at any zoom.
+        const unitsPerPixel = (this.camera.top - this.camera.bottom) / this.height;
+        const offset = new THREE.Vector3().copy(origin).sub(this.defaultTarget)
+            .addScaledVector(new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0), -dx * unitsPerPixel)
+            .addScaledVector(new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1), dy * unitsPerPixel)
+            .clampLength(0, MAX_PAN_DISTANCE);
+        this.target.copy(this.defaultTarget).add(offset);
+        this.render();
+    }
+
     resetCamera() {
         this.yaw = .24;
         this.pitch = .7;
         this.zoom = this.defaultZoom ?? DEFAULT_ZOOM;
+        this.target.copy(this.defaultTarget);
         this.render();
     }
 
-    update(sim, motion, pumps, selected, theme) {
+    update(sim, motion, pumps, selected, theme, fuelTransfer) {
         if (this.disposed) return;
         if (theme !== this.theme) {
             this.theme = theme;
@@ -567,6 +605,7 @@ export class PlantOverviewScene {
             label.button.classList.toggle('hot', id === 'reactor' && sim.temperature > 335);
         }
         this.labels.get('reactor').button.setAttribute('aria-label', `Open reactor core map; simulated inlet ${sim.returnTemperature.toFixed(1)} degrees Celsius, outlet ${sim.temperature.toFixed(1)} degrees Celsius`);
+        if (fuelTransfer) updateFuelHandlingHall(this, fuelTransfer);
         this.render();
     }
 
@@ -596,6 +635,7 @@ export class PlantOverviewScene {
         this.abort.abort();
         this.resizeObserver?.disconnect();
         this.drag = null;
+        for (const mesh of this.instancedMeshes) mesh.dispose();
         for (const geometry of this.geometries) geometry.dispose();
         for (const material of this.materials) material.dispose();
         this.scene.clear();

@@ -94,6 +94,14 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         const tab = name => consoleCode(`s.querySelector('[data-plant-tab="${name}"]').click();`);
         const value = name => consoleCode(`return s.querySelector('[data-value="${name}"]').textContent;`);
         const input = (selector, value) => consoleCode(`const input=s.querySelector(${JSON.stringify(selector)});input.value=${JSON.stringify(String(value))};input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));`);
+        const dragCamera = async (selector, button, dx, dy, modifiers = 0) => {
+            const point = await consoleCode(`const r=s.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.left+r.width*.75,y:r.top+r.height*.15};`);
+            const buttons = button === 'middle' ? 4 : 1;
+            await page('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button, buttons, modifiers, clickCount: 1 });
+            await page('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x + dx, y: point.y + dy, button, buttons, modifiers });
+            await page('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x + dx, y: point.y + dy, button, buttons: 0, modifiers, clickCount: 1 });
+        };
+        const advanceFuelTransfer = seconds => consoleCode(`for(let i=0;i<${Math.ceil(seconds * 10)};i++)c.fuelTransfer.advance(.1);c.update();`);
         // Fixed-target scenarios explicitly opt out after checking the new reset default.
         const stopFollowingGrid = () => consoleCode('const box=s.querySelector("#follow-grid");box.checked=false;box.dispatchEvent(new Event("change",{bubbles:true}));');
         const resetWithoutDispatch = async () => {
@@ -209,6 +217,12 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.ok(await consoleCode('return c.auxiliaryScene.zoom;') > 1.25);
         await action('auxiliary-home');
         assert.equal(await consoleCode('return c.auxiliaryScene.zoom;'), 1.25);
+        const auxiliaryTarget = await consoleCode('return c.auxiliaryScene.target.toArray();');
+        await dragCamera('.auxiliary-scene .plant-scene-canvas', 'middle', 40, 20);
+        assert.notDeepEqual(await consoleCode('return c.auxiliaryScene.target.toArray();'), auxiliaryTarget);
+        assert.equal(await consoleCode('return c.auxiliaryScene.zoom;'), 1.25);
+        await action('auxiliary-home');
+        assert.deepEqual(await consoleCode('return c.auxiliaryScene.target.toArray();'), auxiliaryTarget);
         await consoleCode('s.querySelector("[data-auxiliary-equipment=dieselA]").click();');
         assert.equal(await consoleCode('return s.activeElement.dataset.dieselAuto;'), 'A');
         await screenshot('3d-generators-standby');
@@ -225,8 +239,29 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.ok(await consoleCode('return c.overviewScene.zoom;') > 1.2);
         await consoleCode(`s.querySelector('.plant-scene-canvas').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));`);
         assert.ok(await consoleCode('return c.overviewScene.yaw;') > .24);
+        const beforePan = await consoleCode(`const v=c.overviewScene;const p=v.refuelling.deckChannels[0].position.clone().project(v.camera);
+            return {target:v.target.toArray(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,x:(p.x+1)*v.width/2,y:(1-p.y)*v.height/2};`);
+        await dragCamera('.diagram-viewport .plant-scene-canvas', 'middle', 48, 24);
+        const afterPan = await consoleCode(`const v=c.overviewScene;const p=v.refuelling.deckChannels[0].position.clone().project(v.camera);
+            return {target:v.target.toArray(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,x:(p.x+1)*v.width/2,y:(1-p.y)*v.height/2};`);
+        assert.notDeepEqual(afterPan.target, beforePan.target);
+        assert.equal(afterPan.yaw, beforePan.yaw);
+        assert.equal(afterPan.pitch, beforePan.pitch);
+        assert.equal(afterPan.zoom, beforePan.zoom);
+        assert.ok(Math.abs(afterPan.x - beforePan.x - 48) < .1 && Math.abs(afterPan.y - beforePan.y - 24) < .1,
+            'Middle-button drag must follow the pointer in camera space at the current orbit and zoom');
+        assert.equal(await consoleCode('return s.querySelector(".core-dialog").matches(":popover-open");'), false);
+        await dragCamera('.diagram-viewport .plant-scene-canvas', 'left', -24, 12, 8);
+        assert.notDeepEqual(await consoleCode('return c.overviewScene.target.toArray();'), afterPan.target);
+        const shiftTarget = await consoleCode('return c.overviewScene.target.toArray();');
+        await consoleCode(`s.querySelector('.plant-scene-canvas').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',shiftKey:true,bubbles:true}));`);
+        assert.notDeepEqual(await consoleCode('return c.overviewScene.target.toArray();'), shiftTarget);
+        assert.equal(await consoleCode('return c.overviewScene.yaw;'), beforePan.yaw);
+        await consoleCode('c.overviewScene.pan(1000000,-1000000);');
+        assert.ok(await consoleCode('return c.overviewScene.target.distanceTo(c.overviewScene.defaultTarget);') <= 8.000001);
         await action('scene-home');
         assert.equal(await consoleCode('return c.overviewScene.zoom;'), 1.2);
+        assert.deepEqual(await consoleCode('return c.overviewScene.target.toArray();'), beforePan.target);
         await consoleCode(`s.querySelector('.plant-scene-canvas').dispatchEvent(new WheelEvent('wheel',{deltaY:-120,bubbles:true,cancelable:true}));`);
         assert.ok(await consoleCode('return c.overviewScene.zoom;') > 1.2);
         await consoleCode(`s.querySelector('.plant-scene-canvas').dispatchEvent(new WheelEvent('wheel',{deltaY:240,bubbles:true,cancelable:true}));`);
@@ -238,6 +273,9 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await action('close-core');
         assert.equal(await consoleCode('return s.activeElement?.dataset.sceneEquipment;'), 'reactor');
         const pumpPoint = await consoleCode(`const view=c.overviewScene;const p=view.pumps.pumpA.getWorldPosition(view.pumps.pumpA.position.clone()).project(view.camera);const r=view.renderer.domElement.getBoundingClientRect();return {x:r.left+(p.x+1)*r.width/2,y:r.top+(1-p.y)*r.height/2};`);
+        await page('Input.dispatchMouseEvent', { type: 'mousePressed', ...pumpPoint, button: 'middle', clickCount: 1 });
+        await page('Input.dispatchMouseEvent', { type: 'mouseReleased', ...pumpPoint, button: 'middle', clickCount: 1 });
+        assert.equal(await consoleCode(`return s.querySelector('[data-component-dialog="pumpA"]').matches(':popover-open');`), false);
         await page('Input.dispatchMouseEvent', { type: 'mousePressed', ...pumpPoint, button: 'left', clickCount: 1 });
         await page('Input.dispatchMouseEvent', { type: 'mouseReleased', ...pumpPoint, button: 'left', clickCount: 1 });
         assert.equal(await consoleCode(`return s.querySelector('[data-component-dialog="pumpA"]').matches(':popover-open');`), true, 'Picking the 3D pump should open its existing console');
@@ -760,6 +798,72 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
         await action('select-control-rod');
         assert.equal(await consoleCode(`return s.querySelector('.fuel-inspector').hidden;`), true);
+
+        // Exercise the crane separately, preserving the preceding supply scenario.
+        await consoleCode(`window.beforeCrane={simulation:c.simulation,selectedRod:c.selectedRod,selectedFuel:c.selectedFuel};
+            c.simulation=new c.simulation.constructor();c.lastProcessElapsed=0;c.fuelTransfer.reset();c.update();c.updateActivity();`);
+        await page('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+        await consoleCode('c.scrollIntoView({block:"start"});');
+        await action('overview-3d');
+        await action('pause');
+        await consoleCode(`c.simulation.trip();c.simulation.condition.heatReserve=5;c.selectFuel('FA-17');c.update();`);
+        await action('replace-fuel');
+        assert.equal(await consoleCode('return c.fuelTransfer.job.id;'), 'FA-17');
+        assert.equal(await consoleCode('return c.simulation.fuel.assemblies.find(a=>a.id==="FA-17").replacements;'), 1);
+        await action('close-core');
+        await advanceFuelTransfer(4.4);
+        assert.equal(await consoleCode('return c.overviewScene.refuelling.crane.carriedFuel.visible;'), true);
+        assert.equal(await consoleCode('return c.overviewScene.refuelling.hiddenCapId;'), 'FA-17');
+        assert.equal(await consoleCode('return c.overviewScene.fuel.find(mesh=>mesh.userData.fuelId==="FA-17").visible;'), false);
+        assert.ok(await consoleCode(`const crane=c.overviewScene.refuelling.crane;
+            const hook=crane.grabber.getWorldPosition(crane.grabber.position.clone());
+            const fuel=crane.carriedFuel.getWorldPosition(crane.carriedFuel.position.clone());
+            return Math.abs(hook.x-fuel.x)<1e-6&&Math.abs(hook.z-fuel.z)<1e-6&&Math.abs(hook.y-fuel.y-1.625)<1e-6;`),
+            'The carried assembly must stay attached below the crane grabber');
+        assert.equal(await consoleCode('return c.simulation.tripped && !c.simulation.running && c.simulation.condition.heatReserve===5;'), true);
+        await screenshot('fuel-crane-lifting-dark');
+        await consoleCode('c.setTheme("light");'); await screenshot('fuel-crane-lifting-light');
+        await consoleCode('c.setTheme("dark");');
+        const pausedLift = await consoleCode('return c.fuelTransfer.job.elapsed;');
+        await wait(150);
+        assert.equal(await consoleCode('return c.fuelTransfer.job.elapsed;'), pausedLift);
+        await action('pause');
+        await until(`document.querySelector('nuclear-power-console').fuelTransfer.job.elapsed>${pausedLift}`, 'Crane did not resume from pause');
+        await tab('auxiliary');
+        const outgoingLift = await consoleCode('return c.fuelTransfer.job.elapsed;');
+        await wait(180);
+        assert.equal(await consoleCode('return c.fuelTransfer.job.elapsed;'), outgoingLift, 'Outgoing machinery must freeze on tab switch');
+        await tab('reactor');
+        await until(`document.querySelector('nuclear-power-console').fuelTransfer.job.elapsed>${outgoingLift}`, 'Crane did not resume on returning to its tab');
+        await action('pause');
+        await advanceFuelTransfer(1.2);
+        await screenshot('fuel-crane-traversing');
+        await advanceFuelTransfer(6);
+        assert.equal(await consoleCode('return c.fuelTransfer.job;'), null);
+        assert.equal(await consoleCode('return c.overviewScene.refuelling.crane.carriedFuel.visible;'), false);
+        assert.equal(await consoleCode('return c.overviewScene.refuelling.hiddenCapId;'), null);
+        assert.equal(await consoleCode('return c.overviewScene.refuelling.pool.storedFuel.filter(mesh=>mesh.visible).length;'), 1);
+        assert.equal(await consoleCode('return c.simulation.tripped && !c.simulation.running;'), true);
+        await screenshot('fuel-crane-pool-deposit');
+        await action('replace-all-fuel');
+        assert.equal(await consoleCode('return c.fuelTransfer.job.count;'), 49);
+        const renewedState = await consoleCode('return c.simulation.snapshot();');
+        await advanceFuelTransfer(11);
+        assert.equal(await consoleCode('return c.overviewScene.refuelling.pool.storedFuel.filter(mesh=>mesh.visible).length;'), 2,
+            'Replace all must illustrate one assembly, not queue every core channel');
+        assert.deepEqual(await consoleCode('return c.simulation.snapshot();'), renewedState);
+        await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+        await action('replace-all-fuel');
+        assert.equal(await consoleCode('return c.fuelTransfer.job;'), null);
+        assert.equal(await consoleCode('return c.overviewScene.refuelling.pool.storedFuel.filter(mesh=>mesh.visible).length;'), 3);
+        await page('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+        await action('replace-fuel');
+        assert.ok(await consoleCode('return !!c.fuelTransfer.job;'));
+        await action('reset');
+        assert.equal(await consoleCode('return c.fuelTransfer.job;'), null);
+        assert.equal(await consoleCode('return c.overviewScene.refuelling.pool.storedFuel.some(mesh=>mesh.visible);'), false);
+        await consoleCode(`c.simulation=window.beforeCrane.simulation;c.selectedRod=window.beforeCrane.selectedRod;c.selectedFuel=window.beforeCrane.selectedFuel;
+            c.lastProcessElapsed=c.simulation.elapsed;c.fuelTransfer.reset();c.setOverview('schematic');c.update();c.updateActivity();delete window.beforeCrane;`);
 
         await page('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
         await consoleCode(`c.scrollIntoView({block:'start'});`);
