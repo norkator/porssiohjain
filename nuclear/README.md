@@ -247,3 +247,12 @@ to the future URL.
 See [the feature specification](../doc/nuclear-power.md) for the simulation rules,
 interlocks and future physical-model work. The repository's [license](../LICENSE)
 also applies to this app; bundled third-party audio retains its CC0 license.
+
+## Search visibility
+
+The production build includes static introductory content, three linked control-room
+guides, canonical and social metadata, structured app data, a sharing screenshot,
+`/robots.txt` and `/sitemap.xml`. The guides work without JavaScript and do not mount
+the simulator. The interactive homepage retains its existing React/custom-element
+lifecycle. See [SEO.md](SEO.md) for content maintenance, verification and the
+Search Console steps after deployment.

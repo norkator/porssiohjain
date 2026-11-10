@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { join, extname, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
+import { pages, siteUrl } from '../site/pages.mjs';
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -30,13 +31,16 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
     const contentTypes = {
         '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
         '.svg': 'image/svg+xml', '.wav': 'audio/wav', '.txt': 'text/plain', '.md': 'text/plain',
+        '.xml': 'application/xml', '.png': 'image/png',
     };
     const server = createServer((request, response) => {
         const path = new URL(request.url, 'http://localhost').pathname;
-        const file = resolve(dist, path === '/' ? 'index.html' : `.${path}`);
+        let file = resolve(dist, path.endsWith('/') ? `.${path}index.html` : `.${path}`);
         if (!file.startsWith(dist.endsWith(sep) ? dist : dist + sep) || !existsSync(file)) {
             response.writeHead(404); response.end(); return;
         }
+        if (statSync(file).isDirectory()) file = join(file, 'index.html');
+        if (!existsSync(file)) { response.writeHead(404); response.end(); return; }
         response.setHeader('Content-Type', contentTypes[extname(file)] || 'application/octet-stream');
         response.end(readFileSync(file));
     });
@@ -121,7 +125,47 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await page('Page.bringToFront');
         await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: artifacts });
         await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
-        await page('Page.navigate', { url: appUrl || `http://127.0.0.1:${server.address().port}/` });
+        const baseUrl = appUrl || `http://127.0.0.1:${server.address().port}/`;
+        // Check the actual shipped HTML with JavaScript disabled, as a crawler sees it.
+        await page('Emulation.setScriptExecutionDisabled', { value: true });
+        for (const entry of pages) {
+            const url = new URL(entry.path, baseUrl).href;
+            const response = await fetch(url);
+            assert.equal(response.status, 200);
+            const html = await response.text();
+            assert.ok(html.includes('<h1>'), 'Headings must arrive in the HTTP response');
+            assert.ok(html.includes(`href="${siteUrl}${entry.path}"`));
+            assert.doesNotMatch(html, /<!-- site:/);
+            await page('Page.navigate', { url });
+            await until(`document.readyState === 'complete' && document.title === ${JSON.stringify(entry.title)}`, 'Static search page did not load');
+            assert.equal(await evaluate('document.querySelector("h1").textContent'), entry.heading);
+            assert.ok(await evaluate('document.querySelector("h1").getBoundingClientRect().height > 0'));
+            assert.ok(await evaluate('document.querySelector("article.site-content").textContent.length > 2000'));
+            assert.equal(await evaluate('document.querySelector("nuclear-power-console")'), null);
+            assert.ok(await evaluate('document.querySelector("link[rel=stylesheet]").sheet.cssRules.length > 0'));
+            await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+            assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Static content must fit a phone');
+            if (entry.path === '/guides/startup/') await screenshot('startup-guide-mobile');
+            await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
+        }
+        const sitemap = await fetch(new URL('/sitemap.xml', baseUrl));
+        assert.equal(sitemap.status, 200);
+        assert.match(sitemap.headers.get('content-type'), /xml/);
+        const xml = await sitemap.text();
+        for (const entry of pages) assert.ok(xml.includes(`<loc>${siteUrl}${entry.path}</loc>`));
+        const robots = await fetch(new URL('/robots.txt', baseUrl));
+        assert.equal(robots.status, 200);
+        assert.match(robots.headers.get('content-type'), /text\/plain/);
+        assert.ok((await robots.text()).includes(`Sitemap: ${siteUrl}/sitemap.xml`));
+        const preview = await fetch(new URL('/images/nuclear-power-control-room.png', baseUrl));
+        assert.equal(preview.status, 200);
+        assert.match(preview.headers.get('content-type'), /image\/png/);
+        const previewBytes = Buffer.from(await preview.arrayBuffer());
+        assert.equal(previewBytes.readUInt32BE(16), 1200);
+        assert.equal(previewBytes.readUInt32BE(20), 630);
+        assert.equal((await fetch(new URL('/this-page-does-not-exist', baseUrl))).status, 404);
+        await page('Emulation.setScriptExecutionDisabled', { value: false });
+        await page('Page.navigate', { url: baseUrl });
         await until(`!!document.querySelector('nuclear-power-console')?.shadowRoot?.querySelector('.console')`, 'Control room did not render');
         assert.equal(await evaluate(`document.documentElement.lang`), 'en');
         assert.equal(await evaluate(`document.querySelectorAll('#root .nuclear-power-view nuclear-power-console').length`), 1);
