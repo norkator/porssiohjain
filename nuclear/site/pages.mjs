@@ -42,7 +42,7 @@ export const pages = [
             <li>Press the reactor <strong>Start</strong> button when the startup interlocks are satisfied. Watch actual output rise toward the requested target.</li>
             <li>Inspect components and live trends. Grid-controller following is enabled initially; disable it if you want to keep your own operating targets.</li>
           </ol>
-          <p>The <a href="/guides/startup/" target="_blank" rel="noopener">full startup guide</a> explains blocked starts, camera controls and ending a session. Guides open in another tab so you can keep the current plant running.</p>
+          <p>The <a href="/guides/startup/" target="_blank" rel="noopener">full startup guide</a> explains blocked starts, camera controls and ending a session. Guides open in another tab so your current plant session stays available.</p>
           <h2>Control-room guides</h2>
           <nav class="site-grid site-guide-links" aria-label="Control-room guides">
             <a href="/guides/startup/" target="_blank" rel="noopener"><strong>Startup and first megawatts ↗</strong><span>Start both pumps, establish circulation and bring the cold reactor online.</span></a>

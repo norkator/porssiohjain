@@ -117,7 +117,10 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         const warmOperatingPoint = () => consoleCode(`if(!c.simulation.pumpA)c.simulation.togglePump('A');if(!c.simulation.pumpB)c.simulation.togglePump('B');c.simulation.primaryFlow=100;c.simulation.secondaryFlow=100;for(const id of ['pumpA','pumpB'])Object.assign(c.simulation.components.items[id].actual,{speed:100,flow:100,available:true});c.simulation.start(); Object.assign(c.simulation,{power:64,temperature:286,returnTemperature:258,secondaryTemperature:184}); c.simulation.controlRods.forEach(r=>{r.position=36;}); Object.assign(c.simulation.condition,{fuelTemperature:323.3,heatReserve:96,coolingMargin:288}); c.simulation.condition.zones.forEach(z=>{z.temperature=323.3;}); c.simulation.history=[];c.simulation.sample();c.update();`);
         const screenshot = async name => {
             await wait(200); // Let palette/hover transitions settle before capturing.
-            const result = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
+            // Keep simulator captures focused on the console, without the guide below it.
+            const clip = await evaluate(`(()=>{const c=document.querySelector('nuclear-power-console');if(!c)return null;
+                return {x:0,y:0,width:document.documentElement.scrollWidth,height:Math.max(innerHeight,c.getBoundingClientRect().bottom+scrollY),scale:1};})()`);
+            const result = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, ...(clip ? { clip } : {}) });
             writeFileSync(join(artifacts, `${name}.png`), Buffer.from(result.data, 'base64'));
         };
         await page('Runtime.enable');
