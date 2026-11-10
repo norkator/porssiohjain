@@ -21,7 +21,7 @@ export function equipmentDialogs(details) {
       <div class="core-dialog-titlebar" tabindex="0" aria-label="Move ${item.name} with arrow keys or drag"><span aria-hidden="true">⠿</span><h2 id="equipment-${id}-title">${item.tag} / ${item.name}</h2><button class="small-button" data-component-close="${id}" aria-label="Close ${item.name}">×</button></div>
       <div class="equipment-dialog-body">
         <p class="component-description">${item.description} All values simulated.</p>
-        ${id === 'exchanger' ? `${exchangerConsole()}<div hidden><label class="component-override"><input type="checkbox" data-component-override="exchanger"/></label><p class="component-owner"></p></div><details><summary>All actual readings</summary><dl class="component-readbacks"></dl></details>` : `<div class="equipment-console-grid">
+        ${id === 'exchanger' ? `<div class="hx-workspace">${exchangerConsole()}<aside class="hx-sidebar"><div hidden><label class="component-override"><input type="checkbox" data-component-override="exchanger"/></label><p class="component-owner"></p></div><details><summary>All actual readings</summary><dl class="component-readbacks"></dl></details>` : `<div class="equipment-console-grid">
           <section><h3>Requested settings</h3><label class="component-override"><input type="checkbox" data-component-override="${id}"/> Manual override in Auto</label><p class="component-owner"></p>
           <div class="component-settings">${(COMPONENT_SETTINGS[id] || []).filter(setting=>!setting.key.startsWith('disturbance')).map(setting => `<label>${setting.label}<span>${settingInput(setting,id)} ${setting.unit || ''}</span><small data-setting-actual="${setting.key}"></small></label>`).join('')}</div>
           <div class="component-buttons">${(COMPONENT_ACTIONS[id] || []).filter(action=>!Object.hasOwn(actionLabels,action.key)).map(action => `<button class="control-button" data-component-action="${action.key}" data-component="${id}">${action.label}</button>`).join('')}</div>
@@ -34,9 +34,10 @@ export function equipmentDialogs(details) {
           <p class="component-response"></p>
           </section>
         </div>`}
-        <section class="component-trends"><h3>Local trends · last 2 minutes</h3><p class="component-trend-legend"></p><svg viewBox="0 0 600 145" role="img" aria-label="Simulated component readings with operator adjustment markers"><path class="component-trend-grid" d="M35 10V115H585M35 62H585"/><g class="component-trend-traces"></g><g class="component-trend-markers"></g><text x="35" y="140">−2 MIN</text><text x="545" y="140">NOW</text></svg><p class="component-trend-note">Each trace uses its own displayed range. Dashed markers show operator changes.</p></section>
+        <section class="component-trends"><h3>Local trends · last 2 minutes</h3><p class="component-trend-legend"></p><svg viewBox="${id === 'exchanger' ? '0 0 360 230' : '0 0 600 145'}" role="img" aria-label="Simulated component readings with operator adjustment markers"><path class="component-trend-grid" d="${id === 'exchanger' ? 'M35 10V200H345M35 105H345' : 'M35 10V115H585M35 62H585'}"/><g class="component-trend-traces"></g><g class="component-trend-markers"></g><text x="35" y="${id === 'exchanger' ? 225 : 140}">−2 MIN</text><text x="${id === 'exchanger' ? 310 : 545}" y="${id === 'exchanger' ? 225 : 140}">NOW</text></svg><p class="component-trend-note">Each trace uses its own displayed range. Dashed markers show operator changes.</p></section>
         <details class="component-disturbances"><summary>Disturbances &amp; progressive faults</summary><p>A nudge fades away; periodic disturbances continue until stopped. Clearing faults preserves wear and damage.</p><label>Fluctuation strength (%) <input type="${id === 'exchanger' ? 'range' : 'number'}" min="0" max="80" step="1" value="10" aria-label="Fluctuation strength (%)" data-component="${id}" data-component-setting="disturbanceAmplitude"/>${id === 'exchanger' ? '<output data-hx-disturbance="disturbanceAmplitude"></output>' : ''}</label><label>Period (seconds) <input type="${id === 'exchanger' ? 'range' : 'number'}" min="2" max="120" step="1" value="15" aria-label="Period (seconds)" data-component="${id}" data-component-setting="disturbancePeriod"/>${id === 'exchanger' ? '<output data-hx-disturbance="disturbancePeriod"></output>' : ''}</label><div class="component-buttons">${Object.entries(actionLabels).map(([action,text])=>`<button class="small-button" data-component-action="${action}" data-component="${id}">${text}</button>`).join('')}</div><p class="component-disturbance-state"></p></details>
         <details><summary>Maintenance &amp; operating history</summary><p class="component-maintenance-state"></p><ol class="component-maintenance-log"></ol></details>
+        ${id === 'exchanger' ? '</aside></div>' : ''}
       </div>
     </section>`).join('');
 }
@@ -79,6 +80,8 @@ function entries(node, pairs) {
 }
 
 function renderTrend(root, item, elapsed) {
+    const compact = root.dataset.componentDialog === 'exchanger';
+    const span = compact ? 310 : 550, bottom = compact ? 200 : 115;
     const history = item.history || [];
     const sample = history.at(-1);
     if (!sample) return;
@@ -94,15 +97,15 @@ function renderTrend(root, item, elapsed) {
         legend.push(`${label(key)}: ${format(min)}–${format(max)}`);
         const path = document.createElementNS('http://www.w3.org/2000/svg','path');
         path.setAttribute('class', `component-trace trace-${index}`);
-        path.setAttribute('d', history.filter(point=>Number.isFinite(read(point))).map((point,i)=>`${i?'L':'M'}${35+(point.time-elapsed+120)/120*550} ${115-(read(point)-min)/(max-min)*105}`).join(' '));
+        path.setAttribute('d', history.filter(point=>Number.isFinite(read(point))).map((point,i)=>`${i?'L':'M'}${35+(point.time-elapsed+120)/120*span} ${bottom-(read(point)-min)/(max-min)*(bottom-10)}`).join(' '));
         traces.append(path);
     }
     root.querySelector('.component-trend-legend').textContent = legend.join(' · ');
     const markers = root.querySelector('.component-trend-markers'); markers.replaceChildren();
     for (const event of (item.changes || []).filter(event=>event.time >= elapsed-120)) {
-        const x = 35 + (event.time-elapsed+120)/120*550;
+        const x = 35 + (event.time-elapsed+120)/120*span;
         const line = document.createElementNS('http://www.w3.org/2000/svg','path');
-        line.setAttribute('d',`M${x} 10V115`); line.setAttribute('class','component-change-marker');
+        line.setAttribute('d',`M${x} 10V${bottom}`); line.setAttribute('class','component-change-marker');
         const title = document.createElementNS('http://www.w3.org/2000/svg','title'); title.textContent=event.message || 'Operator adjustment'; line.append(title); markers.append(line);
     }
 }

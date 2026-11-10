@@ -41,8 +41,10 @@ export class PlantAudio {
 
     updateScene(sim, scene) {
         this.setScene(scene);
-        if (scene === 'reactor') this.updatePlant(plantSoundState(sim));
-        if (scene === 'auxiliary') this.updateDiesels(sim.supply.generators);
+        if (scene === 'reactor') {
+            this.updatePlant(plantSoundState(sim));
+            this.updateDiesels(sim.supply.generators);
+        }
     }
 
     preloadDiesels(fetcher = fetch) {
@@ -59,7 +61,7 @@ export class PlantAudio {
     }
 
     updateDiesels(generators) {
-        if (this.scene !== 'auxiliary' || this.context.state !== 'running') {
+        if (this.scene !== 'reactor' || this.context.state !== 'running') {
             for (const voice of this.nodes) if (voice.diesel) this.halt(voice);
             this.dieselStates.clear();
             this.completedStarts.clear();

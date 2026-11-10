@@ -43,6 +43,7 @@
 :host([data-theme="light"]) .plant-scene-label small { color: #236b5d; }
 :host([data-theme="light"]) .plant-scene-label:hover, :host([data-theme="light"]) .plant-scene-label.selected { border-color: #2a8b76; background: #ddf2eaf5; }
 :host([data-theme="light"]) .plant-scene-label:focus-visible { outline-color: #156b58; }
+:host([data-theme="light"]) :is(.spent-fuel-summary > span, .spent-fuel-batch, .spent-fuel-dispatch select) { background: #e6f0f1; color: #25485b; }
 :host([data-theme="light"]) .plant-scene-label.hot { background: #ffe5e2; border-color: #c83e37; }
 :host([data-theme="light"]) .plant-scene-label.hot small { color: #ac2823; }
 :host([data-theme="light"]) :is(.plant-scene-caption, .plant-scene-hint) { color: #476477; }

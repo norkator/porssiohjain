@@ -46,15 +46,32 @@ trolley, hoist and grabber animate one representative assembly for each
 successful selected or batch fuel replacement: align, lower, lift clear of
 the deck, traverse to the pool, lower/release and return to park (10.5 s).
 Only the pickup cap opens; regulation keeps all caps fixed. Fuel renewal
-remains immediate with unchanged readiness checks. Display samples are
-cosmetic, one per replacement action, and cycle through 35 slots; they are
-not a full spent-fuel inventory or cooling model. Repeated commands restart
+remains immediate through its existing cooldown checks. Each replacement
+stores one representative batch (with its actual replaced assembly count)
+in one of 35 racks. Batches remain until manual dispatch; a full pool blocks
+further UI replacement until a rack is freed. This is not a complete physical
+spent-fuel inventory or pool-temperature model. Repeated commands restart
 one illustration, without queueing the entire core. Starting/meltdown cancels
 an unfinished illustration; pause, hiding, tab/view switches and detach freeze
 it. Returning resumes; reduced motion/fallback places the sample immediately.
 Reset demo clears active motion and samples, including at T+0. The animation
 never changes heat, damage, trips, settings or the stopped state. See [the continuation plan](../nuclear/FUEL-HANDLING-PLAN.md)
 for the user references, implementation checkpoint and future gameplay steps.
+
+Click the pool or **Spent fuel ↗** to open its movable, nonmodal window, also
+available from the schematic/WebGL fallback. Unique session batches show
+source channel, represented count, rack and a 60-second simulated cooling
+countdown starting at placement. Cooling follows plant time across tabs and
+freezes with pause/hide/detach. Reduced motion skips crane motion but never
+skips cooling. Explicit selected/all-cooled dispatch to **Long-term storage**
+or **Reprocessing** frees racks and removes their 3D fuel, without changing
+core fuel, retained heat, damage, settings or trips. Invalid routes, missing/
+cooling batches, duplicates and crane-occupied racks cannot dispatch. The
+journal records destination/count; a bounded 20-shipment history and total
+dispatched count remain in the session. Cost is zero; future gameplay can
+extend the shipment cost contract. Reset demo clears pool/cooling/history.
+The pool shares dialog dragging, keyboard movement, clamping, focus return,
+Escape and close-on-hide/detach behavior with the component windows.
 
 The overview defaults to a low-poly 3D cutaway, with a retained SVG schematic
 available through the view selector. Both include moving rods and fuel channels,
@@ -477,7 +494,11 @@ former detail card is now a collapsible reading section inside the core-map wind
   Release resumes regulation through the existing actual-speed inertia; enable state
   is never silently changed by Auto. Other tuning remains operator-owned while Auto
   compensates through available reactor/pump controls.
-- Heat exchanger: an interactive SVG cutaway replaces numeric setting fields. Drag
+- Heat exchanger: a compact interactive SVG cutaway (up to 520 px wide) sits
+  beside a right-hand local trend and collapsed details, fitting the default
+  window without vertical scrolling at 1440×900 and larger. Below 850 px
+  viewport width the columns stack. The narrow trend has its own plot bounds
+  and retains range legends/operator markers. The cutaway replaces numeric setting fields. Drag
   the primary bypass, secondary valve, tube bundle or fouling deposits horizontally
   and release to apply one command; actual response continues through existing
   inertia. Arrow keys adjust 1% (10% with Shift), Home/End select endpoints, and

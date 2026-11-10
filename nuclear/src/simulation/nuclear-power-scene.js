@@ -4,6 +4,7 @@ import { loopTemperatures, temperatureColor } from './nuclear-power-temperature.
 import { flowMarkerDistance, valveHandleAngle } from './nuclear-power-motion.js';
 import { CORE_CHANNELS } from './nuclear-power-model.js';
 import { buildFuelHandlingHall, updateFuelHandlingHall, CHANNEL_PITCH, ROD_INSERTED_Y, ROD_TRAVEL } from './nuclear-power-refuelling-scene.js';
+import { buildElectricalScene, updateElectricalScene, ELECTRICAL_LABELS } from './nuclear-power-electrical-scene.js';
 
 const TAU = Math.PI * 2;
 const DEFAULT_ZOOM = 1.2;
@@ -314,19 +315,20 @@ export class PlantOverviewScene {
         this.flow([[6, 2.8, -.6], [6, 2.8, 2.3], [6, 1.7, 2.3]], 'B', 'steam', this.material('#4c9eac'), 'secondaryExhaust');
         this.flow([[7, .9, 4], [7, .9, 4.4], [2.2, 1.2, 4.4], [.7, 1.2, 4.4], [.7, 1.3, -1.5], [-.3, 1.3, -1.5]], 'B', 'water', this.material('#4c9eac'), 'secondaryReturn');
         this.markerHighlight = new THREE.Color('#fff6e6');
+        buildElectricalScene(this);
 
     }
 
     buildLabels() {
         const layer = document.createElement('div');
         layer.className = 'plant-scene-labels';
-        for (const [id, tag, name, position] of equipment) {
+        for (const [id, tag, name, position] of [...equipment, ...ELECTRICAL_LABELS]) {
             const button = document.createElement('button');
             button.className = 'plant-scene-label';
             button.dataset.sceneEquipment = id;
             button.setAttribute('aria-label', `Open ${name.toLowerCase()} controls`);
             button.setAttribute('aria-haspopup', 'dialog');
-            button.setAttribute('aria-controls', id === 'reactor' ? 'core-map-window' : `equipment-${id}-window`);
+            button.setAttribute('aria-controls', id === 'reactor' ? 'core-map-window' : id.startsWith('diesel') ? `${id}-window` : ['grid', 'bus'].includes(id) ? 'electrical-supply-window' : `equipment-${id}-window`);
             button.setAttribute('aria-expanded', 'false');
             const title = document.createElement('strong');
             title.textContent = tag;
@@ -342,9 +344,17 @@ export class PlantOverviewScene {
             ['spent-fuel-pool', 'SF-01 / Spent-fuel pool', 'Empty storage racks', [-10.6, 6.4, -4.75]],
             ['fuel-crane', 'FH-01 / Fuel-handling crane', 'Parked', [-7.4, 11.9, -4.75]],
         ]) {
-            const label = document.createElement('span');
+            const label = document.createElement(id === 'spent-fuel-pool' ? 'button' : 'span');
             label.className = 'plant-scene-label plant-scene-feature';
             label.dataset.sceneFeature = id;
+            if (id === 'spent-fuel-pool') {
+                label.dataset.sceneEquipment = 'spentFuel';
+                label.setAttribute('aria-label', 'Open spent-fuel pool and dispatch controls');
+                label.setAttribute('aria-haspopup', 'dialog');
+                label.setAttribute('aria-controls', 'spent-fuel-window');
+                label.setAttribute('aria-expanded', 'false');
+                label.addEventListener('click', () => this.inspect('spentFuel'), { signal: this.abort.signal });
+            }
             const name = document.createElement('strong');
             name.textContent = title;
             const description = document.createElement('small');
@@ -503,7 +513,7 @@ export class PlantOverviewScene {
         this.render();
     }
 
-    update(sim, motion, pumps, selected, theme, fuelTransfer) {
+    update(sim, motion, pumps, selected, theme, fuelTransfer, dieselMotion) {
         if (this.disposed) return;
         if (theme !== this.theme) {
             this.theme = theme;
@@ -600,12 +610,13 @@ export class PlantOverviewScene {
             pumpB: `${sim.secondaryReturnTemperature.toFixed(0)} °C · ${sim.components.items.pumpB.actual.speed.toFixed(0)}% speed`,
         };
         for (const [id, label] of this.labels) {
-            if (label.reading.textContent !== readings[id]) label.reading.textContent = readings[id];
+            if (readings[id] !== undefined && label.reading.textContent !== readings[id]) label.reading.textContent = readings[id];
             label.button.classList.toggle('selected', id === selected);
             label.button.classList.toggle('hot', id === 'reactor' && sim.temperature > 335);
         }
         this.labels.get('reactor').button.setAttribute('aria-label', `Open reactor core map; simulated inlet ${sim.returnTemperature.toFixed(1)} degrees Celsius, outlet ${sim.temperature.toFixed(1)} degrees Celsius`);
         if (fuelTransfer) updateFuelHandlingHall(this, fuelTransfer);
+        updateElectricalScene(this, sim.supply, dieselMotion, motion.supplyPhase);
         this.render();
     }
 

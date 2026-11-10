@@ -178,15 +178,24 @@ or deposits horizontally, or select a part for slider/keyboard/±5% adjustments.
 Keep requested dashed handles separate from actual solid handles, use the shared
 animation loop for heat/flow/steam, preserve cleaning interlocks and floating-window
 lifecycle, and retain usable controls alongside the scrollable mobile cutaway.
+The compact exchanger cutaway (up to 520 px) and local trends share left/right
+columns on wide screens to avoid default-view scrolling; below 850 px they
+stack. Preserve the narrower trend bounds and operator change markers.
 The 3D cutaway has an RBMK-inspired tiled channel deck, rear spent-fuel pool
 with initially empty racks, and an overhead fuel-handling crane. Keep stationary
 caps and actual moving rods/aqua collars visible in the open-front guide
 chamber beneath them. Deck, fuel and rod positions share `CORE_CHANNELS`.
 Selected and batch fuel replacement each illustrate one 10.5-second crane
 transfer into the pool; only the pickup cap opens. Fuel still renews immediately
-through existing interlocks. Pool samples are cosmetic (35 cyclic display slots),
-not a full spent inventory. Preserve pause/hide/tab/detach freezing, reduced-motion
-immediate placement and Reset demo cleanup, without changing heat/damage/trips.
+through existing interlocks. Pool batches represent replacement actions, not a
+full physical inventory. Click the pool or Spent fuel button for its shared
+movable window. After 60 simulated seconds of cooling from placement, manually
+dispatch selected/all cooled batches to long-term storage or reprocessing.
+The 35 racks retain batches until dispatch; full pool blocks UI replacement.
+Dispatch frees visible racks, records count/destination/history and costs zero
+until later gameplay. Preserve crane pause/hide/tab/detach freezing; pool cooling
+follows plant time across tabs. Reduced motion skips movement but never cooling.
+Reset demo clears pool/jobs/shipments, without changing repair/trip semantics.
 Middle-wheel drag or Shift+drag pans both 3D views; Shift+arrows also pan,
 plain wheel zooms, and Home/Reset view restores center/orbit/zoom. Read
 `nuclear/FUEL-HANDLING-PLAN.md` before full spent-fuel inventory or gameplay work;

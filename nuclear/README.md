@@ -37,19 +37,33 @@ process underneath. The selected channel cap opens only during pickup.
 
 Fuel renewal remains immediate and uses the existing cooled/stopped checks; the
 animation never changes heat, damage, trips or operating settings. Displayed
-pool assemblies represent replacement actions, not a complete spent-fuel
-inventory. The 35 display slots cycle after filling. Repeating replacement
+pool assemblies represent replacement batches, not a complete physical spent-fuel
+inventory. The 35 racks retain their batches until manual dispatch; a full pool
+blocks further UI replacement until space is freed. Repeating replacement
 restarts a single illustration; starting the reactor cancels an unfinished
 illustration. Pause, hidden views, tab/view switches and detach freeze movement;
 returning resumes its current position. Reduced motion places the sample
 immediately. Reset demo clears the crane and displayed pool samples. The existing
 core-map exchange animation and WebGL fallback remain available.
 
+Click the **spent-fuel pool** or **Spent fuel ↗** to open its movable, nonmodal
+window, available from the schematic/WebGL fallback too. Each stored batch shows
+its source, assembly count and a 60-second demo cooling countdown. Cooling starts
+on placement and follows simulated plant time, including while another tab is
+selected; pause/hide/detach freeze that clock. Select a cooled batch and dispatch
+it to **Long-term storage** or **Reprocessing**, or dispatch all cooled batches.
+Dispatch frees the racks, removes their 3D fuel and records the destination/count
+in the event journal and a bounded recent-dispatch list. Dispatch is free in this
+demo; fee handling is reserved for later gameplay. No measured pool temperature
+or real fuel-handling procedure is modeled.
+
 See [the fuel-handling work plan](FUEL-HANDLING-PLAN.md) for the user's references,
 the implementation checkpoint, and staged tasks for transfers, inventory and
 gameplay, including continuation guidance for another instance.
 
-The **Heat exchanger** console has an interactive cutaway. Drag the primary bypass,
+The **Heat exchanger** console has a compact interactive cutaway with local trends
+on its right on wide screens, fitting the default window without vertical scrolling.
+The trend and controls stack on narrow screens. Drag the primary bypass,
 secondary valve, tube bundle or deposits left/right, then release to apply a setting.
 Select a part for a native slider and ±5% buttons; focused model parts support arrow
 keys (1%, or 10% with Shift) and Home/End. No numeric entry is needed. Dashed valve

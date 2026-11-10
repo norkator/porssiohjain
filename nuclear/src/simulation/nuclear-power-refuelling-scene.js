@@ -81,6 +81,8 @@ export function buildFuelHandlingHall(view, reactor) {
     const pool = new THREE.Group();
     pool.name = 'spent-fuel-pool';
     pool.position.set(0, 0, -4.75);
+    pool.userData.equipment = 'spentFuel';
+    view.groups.set('spentFuel', pool);
     hall.add(pool);
     view.box(pool, [5, .24, 4.2], concrete, [0, 1.9, 0]);
     view.box(pool, [4.5, .12, 3.7], blue, [0, 2.08, 0]);
@@ -217,7 +219,7 @@ export function updateFuelHandlingHall(view, animation) {
     crane.carriedFuel.position.set(pose.x, pose.grabberY - FUEL_HANDLING.gripOffset - FUEL_HANDLING.assemblyHeight / 2, pose.z);
     for (const [index, mesh] of pool.storedFuel.entries()) {
         mesh.visible = !!animation.samples[index];
-        // A representative display may reuse old slots after the 35th action.
+        // A reserved rack stays empty until the crane actually releases its batch.
         if (animation.job?.slotIndex === index && !animation.job.deposited) mesh.visible = false;
     }
     for (const fuel of view.fuel) fuel.visible = !(pose.sourceHidden && fuel.userData.fuelId === pose.sourceId);
@@ -237,6 +239,7 @@ export function updateFuelHandlingHall(view, animation) {
     }
     const occupied = animation.samples.filter(Boolean).length;
     view.featureLabels.find(label => label.id === 'fuel-crane').reading.textContent = pose.phase;
+    const cooled = animation.samples.filter(sample => sample && animation.dispatchReadiness(sample.reference).ready).length;
     view.featureLabels.find(label => label.id === 'spent-fuel-pool').reading.textContent = occupied
-        ? `${occupied} displayed ${occupied === 1 ? 'assembly' : 'assemblies'}` : 'Empty storage racks';
+        ? `${occupied} ${occupied === 1 ? 'batch' : 'batches'} · ${cooled} cooled` : 'Empty storage racks';
 }

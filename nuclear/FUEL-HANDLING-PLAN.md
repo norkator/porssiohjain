@@ -37,6 +37,43 @@ References supplied by the user (local files, not portable assets):
 
 ## Work steps
 
+### Pool dispatch and compact exchanger update
+
+The user next requested a clickable pool, manual dispatch of cooled fuel to
+storage/reprocessing, and a smaller heat-exchanger visualization with trends on
+its right. Costs belong to later gameplay, not this pass.
+
+- The pool geometry and semantic label open a movable, keyboard-accessible
+  nonmodal window. **Spent fuel ↗** opens it in the schematic/WebGL fallback.
+- Deposited representative batches have unique session references, source channel,
+  assembly count, rack, placement time and cooling-ready time. Cooling takes 60
+  **simulated** seconds after placement; it is a demo gate rather than a physical
+  pool-temperature model. It follows plant time across tabs and pauses with the
+  plant/hide/detach. Reduced motion still requires cooling time after placement.
+- Explicit selected/all-cooled dispatch offers Long-term storage or Reprocessing,
+  frees racks/removes 3D samples, logs source count/destination, and retains the
+  latest 20 shipments plus total dispatched assemblies. `dispatch()` returns a
+  shipment with `cost: 0` as a future fee integration point; there is no balance or
+  currency model yet. Unknown destinations, hot/missing batches, duplicates and
+  a rack still occupied by the crane cannot dispatch.
+- The earlier cyclic display behavior is superseded: batches no longer disappear
+  when 35 racks fill. The replacement UI and its action guard require a free rack,
+  and tell the operator to dispatch cooled fuel. Existing model replacement,
+  heat, damage, settings, latches and explicit manual ownership remain unchanged.
+- This is still one representative batch per replacement action (one/all), with
+  actual replaced assembly count retained. It is not a full per-assembly spent
+  inventory, transport simulation, repository model or fresh-fuel supply model.
+- Reset demo clears batches, cooling, shipments and UI feedback. The pool window
+  shares the existing close-on-hide/detach, Escape, focus return, drag/arrow-key
+  movement and viewport clamping; it can coexist with the core/component windows.
+- The exchanger uses a roughly 520 px maximum cutaway and a right-hand sidebar
+  with a taller, narrower local trend and collapsed details. Native adjustment
+  controls and all read-back/cleaning/motion behavior remain. Below 850 px viewport
+  width the columns stack, retaining horizontal scrolling inside the mobile SVG.
+
+Validation: 92 unit checks and production build pass; expanded browser checks
+are in progress. Update the final artifact directory after verification.
+
 ### Scope update after the visual foundation
 
 The user requested middle-mouse dragging to change the camera center, then
@@ -57,8 +94,8 @@ is implemented; the complete inventory/job system in step 2 remains future work.
   cosmetic and never changes heat, damage, trips, settings, startup checks or
   real fuel inventory. The refreshed core mesh/cap returns once extraction clears
   the deck. Fresh insertion is not animated in this pass.
-- Pool samples are representative displays, one per completed replacement action,
-  with 35 cyclic display slots. They are not a full spent-fuel inventory; never
+- Pool samples are representative batches, one per completed replacement action,
+  with 35 retained rack slots (see the later dispatch update above). They are not a full spent-fuel inventory; never
   build gameplay capacity/ownership rules on them without implementing step 2.
 - Repeated actions restart one illustration rather than queueing 49 lifts. Start/
   meltdown cancels an unfinished illustration without changing fuel. Pause/hide/
@@ -171,9 +208,10 @@ Implementation notes:
 - The deck has 61 shared channels: 49 fuel assemblies and 12 control rods. Internal
   fuel meshes now match the same coordinates instead of the earlier simplified
   twelve-box layout. Heat/reaction visuals use the nearest existing rod zone.
-- The pool starts with 35 empty, named rack positions and now displays at most
-  one sample per replacement action. Choose real capacity rules before full-core
-  transfers; the current samples are cosmetic and slots cycle when full.
+- The pool starts with 35 empty, named rack positions and stores one representative
+  batch per replacement action. Filled racks stay occupied until manual cooled
+  dispatch; the UI blocks replacement when full. Full per-assembly inventory and
+  transport/cost rules remain future work.
 - `overviewScene.refuelling` holds `deckChannels` (world-space pickup anchors),
   `rodIndicators`, `pool.slots` (world-space rack-top anchors), and separate
   `crane.bridge`, `crane.trolley`, `crane.hoist` and `crane.grabber` groups.
