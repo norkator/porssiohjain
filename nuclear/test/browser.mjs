@@ -11,8 +11,8 @@ import { pages, siteUrl } from '../site/pages.mjs';
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-// Software WebGL plus both scenes' audio lifecycle checks can exceed three minutes.
-test('3D overview, core map, centered pumps, automatic control, trip recovery and logs work in browser', { timeout: 300000 }, async () => {
+// Software WebGL, audio, fuel handling and lifecycle checks can exceed five minutes.
+test('3D overview, core map, centered pumps, automatic control, trip recovery and logs work in browser', { timeout: 360000 }, async () => {
     const artifacts = mkdtempSync(join(tmpdir(), 'nuclear-power-check-'));
     const appUrl = process.env.NUCLEAR_POWER_APP_URL;
     if (appUrl) {
@@ -249,7 +249,52 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return s.querySelector("[data-action=test-ui-sound]");'), null);
         assert.deepEqual(await consoleCode('return c.instrumentMotion;'), {thermal:0,electrical:0,flow:0});
         assert.ok(await consoleCode('return [...s.querySelectorAll("[data-instrument]")].every(card=>card.dataset.active==="false");'));
+        // A static cold scene must not redraw with the clock or mutate hidden diagrams.
+        await consoleCode(`c.simulation.setFluctuations(false);Object.assign(c.simulation,{temperature:30,returnTemperature:30,secondaryTemperature:25,secondaryReturnTemperature:25});c.update();`);
+        await wait(300);
+        const idle = await consoleCode(`window.hiddenDiagramChanges=0;window.hiddenDiagramObserver=new MutationObserver(records=>{window.hiddenDiagramChanges+=records.length;});for(const node of [s.querySelector('.schematic'),s.querySelector('.core-map-svg'),...s.querySelectorAll('.component-readbacks')])window.hiddenDiagramObserver.observe(node,{subtree:true,childList:true,attributes:true,characterData:true});return {elapsed:c.simulation.elapsed,frame:c.overviewScene.renderer.info.render.frame};`);
+        await wait(800);
+        assert.ok(await consoleCode('return c.simulation.elapsed;') > idle.elapsed, 'Idle rendering must not pause plant time');
+        assert.equal(await consoleCode('return c.overviewScene.renderer.info.render.frame;'), idle.frame, 'Unchanged cold geometry must not redraw with the 250 ms timer');
+        assert.equal(await evaluate('window.hiddenDiagramChanges'), 0, 'Hidden schematic, core and equipment readbacks must stay untouched');
+        assert.equal(await consoleCode('return c.animationFrame;'), null);
+        await evaluate('window.hiddenDiagramObserver.disconnect();');
+        await consoleCode('c.simulation.setFluctuations(true);c.update();');
         await action('pause');
+        // Closed windows refresh synchronously when reopened, including during pause.
+        await action('core-view');
+        await action('close-core');
+        const closedFuelLabel = await consoleCode(`window.savedIdleReserve=c.simulation.fuel.assemblies[0].remaining;const label=s.querySelector('[data-fuel-id="FA-01"] .fuel-low-label').textContent;c.simulation.fuel.assemblies[0].remaining=10;c.update();return label;`);
+        assert.equal(await consoleCode(`return s.querySelector('[data-fuel-id="FA-01"] .fuel-low-label').textContent;`), closedFuelLabel);
+        await action('core-view');
+        assert.equal(await consoleCode(`return s.querySelector('[data-fuel-id="FA-01"] .fuel-low-label').textContent;`), '10%');
+        await consoleCode('c.simulation.fuel.assemblies[0].remaining=window.savedIdleReserve;c.update();');
+        await action('close-core');
+        const cadence = await consoleCode(`
+            const saved={raf:window.requestAnimationFrame,cancel:window.cancelAnimationFrame,draw:c.drawMotion,moving:c.hasVisualMotion};
+            let callback;
+            const frames=[];
+            try {
+                window.requestAnimationFrame=cb=>{callback=cb;return 1;};
+                window.cancelAnimationFrame=()=>{};
+                c.drawMotion=dt=>frames.push(dt);
+                c.hasVisualMotion=()=>true;
+                c.simulation.paused=false;
+                c.updateActivity();
+                const start=c.lastFrame;
+                for(let i=1;i<=144;i++)callback(start+i*1000/144);
+                return {count:frames.length,seconds:frames.reduce((a,b)=>a+b,0)};
+            } finally {
+                c.simulation.paused=true;
+                c.updateActivity();
+                window.requestAnimationFrame=saved.raf;
+                window.cancelAnimationFrame=saved.cancel;
+                c.drawMotion=saved.draw;
+                c.hasVisualMotion=saved.moving;
+            }
+        `);
+        assert.ok(cadence.count >= 24 && cadence.count <= 31, `High-refresh animation must stay near 30 fps: ${cadence.count}`);
+        assert.ok(cadence.seconds > .95 && cadence.seconds <= 1.001, 'Frame limiting must preserve elapsed animation time');
         await consoleCode('s.querySelector("[data-scene-equipment=spentFuel]").click();');
         assert.equal(await consoleCode('return s.querySelector(".spent-fuel-dialog").matches(":popover-open");'), true);
         assert.equal(await consoleCode('return s.querySelector("[data-pool-value=occupied]").textContent;'), '0 / 35');
@@ -275,14 +320,41 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
                 &&v.refuelling.crane.bridge.position.equals(parked);
             c.simulation.controlRods.forEach((rod,i)=>rod.position=original[i]);c.update();return correct;`),
             'Control rods must visibly withdraw inside the cutaway beneath stationary deck caps without moving the fuel crane');
-        assert.ok(await consoleCode(`let correct=true;for(const valve of c.overviewScene.valves){const actual=c.simulation.components.items[valve.id].actual;const saved=actual[valve.key];const svg=s.querySelector('[data-valve-component="'+valve.id+'"][data-valve-key="'+valve.key+'"]');for(const opening of [0,100]){actual[valve.key]=opening;c.update();const direction=valve.handle.position.clone().set(1,0,0).transformDirection(valve.handle.matrixWorld);const parallel=Math.abs(direction.dot(valve.pipeDirection));correct&&=opening===100?parallel>.999:parallel<.001;const angle=Number(svg.dataset.pipeAngle)+(opening===100?0:90);correct&&=svg.querySelector('.valve-handle').getAttribute('transform')==='rotate('+angle+' 0 0)';}actual[valve.key]=saved;}c.update();return correct;`), 'Open handles must align with each pipe, and closed handles must be perpendicular');
+        assert.ok(await consoleCode(`
+            const valves=c.overviewScene.valves;
+            const saved=valves.map(valve=>c.simulation.components.items[valve.id].actual[valve.key]);
+            let correct=true;
+            try {
+                for(const opening of [0,100]) {
+                    for(const valve of valves)c.simulation.components.items[valve.id].actual[valve.key]=opening;
+                    c.update();
+                    for(const valve of valves) {
+                        const direction=valve.handle.position.clone().set(1,0,0).transformDirection(valve.handle.matrixWorld);
+                        const parallel=Math.abs(direction.dot(valve.pipeDirection));
+                        correct&&=opening===100?parallel>.999:parallel<.001;
+                    }
+                    c.setOverview('schematic');
+                    for(const valve of valves) {
+                        const svg=s.querySelector('[data-valve-component="'+valve.id+'"][data-valve-key="'+valve.key+'"]');
+                        const angle=Number(svg.dataset.pipeAngle)+(opening===100?0:90);
+                        correct&&=svg.querySelector('.valve-handle').getAttribute('transform')==='rotate('+angle+' 0 0)';
+                    }
+                    c.setOverview('3d');
+                }
+                return correct;
+            } finally {
+                valves.forEach((valve,i)=>{c.simulation.components.items[valve.id].actual[valve.key]=saved[i];});
+                c.setOverview('3d');
+                c.update();
+            }
+        `), 'Open handles must align with each pipe, and closed handles must be perpendicular');
         const frozenPlant = await consoleCode('return c.simulation.snapshot();');
         assert.equal(await consoleCode('return s.querySelector("#auxiliary-tab");'), null);
         assert.equal(await consoleCode('return s.querySelector(".header-settings .power-supply-button");'), null);
         assert.equal(await consoleCode('return c.overviewScene.engines.size;'), 2);
         assert.equal(await consoleCode('return c.overviewScene.engines.get("A").fan.rotation.z;'), 0);
         assert.ok(await consoleCode('return [...c.overviewScene.engines.values()].every(engine=>engine.group.scale.x<=.5&&engine.group.position.z<-5);'));
-        assert.ok(await consoleCode('return Math.abs(c.overviewScene.engines.get("A").fill.scale.y-c.simulation.supply.generators[0].fuel/100)<1e-9;'));
+        assert.ok(await consoleCode('c.updateOverview();return Math.abs(c.overviewScene.engines.get("A").fill.scale.y-c.simulation.supply.generators[0].fuel/100)<1e-9;'));
         assert.equal(await consoleCode('return c.overviewScene.electricalPaths.length;'), 6);
         assert.ok(await consoleCode('return s.querySelector(".power-source-panel").getBoundingClientRect().bottom<=s.querySelector(".grid-dispatch-panel").getBoundingClientRect().top;'));
         await consoleCode('s.querySelector("[data-scene-equipment=dieselA]").click();');
@@ -377,8 +449,11 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         const warmupRotor = await consoleCode("return s.querySelector('.generator-rotor').getAttribute('transform');");
         const warmup3dRotor = await consoleCode('return c.overviewScene.turbineRotor.rotation.x;');
         await until(`document.querySelector('nuclear-power-console').overviewScene.turbineRotor.rotation.x !== ${warmup3dRotor}`, 'Turbine motion did not start');
-        assert.notEqual(await consoleCode("return s.querySelector('.generator-rotor').getAttribute('transform');"), warmupRotor);
+        assert.equal(await consoleCode("return s.querySelector('.generator-rotor').getAttribute('transform');"), warmupRotor, 'The hidden schematic must not animate');
         assert.notEqual(await consoleCode('return c.overviewScene.turbineRotor.rotation.x;'), warmup3dRotor);
+        await action('overview-schematic');
+        assert.notEqual(await consoleCode("return s.querySelector('.generator-rotor').getAttribute('transform');"), warmupRotor, 'The schematic must refresh immediately when selected');
+        await action('overview-3d');
         assert.ok(await consoleCode('return c.overviewScene.paths.some(p=>p.dots.some(dot=>dot.visible));'));
         assert.equal(await consoleCode('return c.alarmSeverity();'), 0);
         assert.equal(await consoleCode('return c.dataset.theme;'), 'dark');
@@ -641,7 +716,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.deepEqual(await consoleCode('return {steam:c.overviewScene.exchangerSteam.map(p=>p.position.toArray()),reaction:c.overviewScene.reactorReactions.map(p=>p.position.toArray())};'), frozenActivity);
         assert.ok(await consoleCode(`const savedPower=c.simulation.power,savedRods=c.simulation.controlRods.map(r=>r.position),savedMotion=structuredClone(c.processMotion);const sample=(power,insertion)=>{c.simulation.power=power;c.simulation.controlRods.forEach(r=>{r.position=insertion;});c.processMotion.reactionPhase=.1;c.processMotion.reactionChannels=c.simulation.controlRods.map(()=>({phase:.1}));c.update();const before=c.overviewScene.reactorReactions[0].position.clone();c.drawMotion(.05);return {distance:before.distanceTo(c.overviewScene.reactorReactions[0].position),rate:c.processMotion.reactionChannels[0].rate};};const low=sample(10,90),high=sample(80,20);c.simulation.power=savedPower;c.simulation.controlRods.forEach((r,i)=>{r.position=savedRods[i];});c.processMotion=savedMotion;c.update();return high.distance>low.distance*3 && high.rate>low.rate*3;`), 'Higher reaction activity must visibly increase 3D particle speed');
         assert.ok(await consoleCode(`const source=c.overviewScene.paths.find(p=>p.temperatureKey==='secondaryHot');const returning=c.overviewScene.paths.find(p=>p.temperatureKey==='secondaryReturn');const saved={...c.processMotion};c.processMotion.secondaryTravel=0;c.updateOverview();const a=source.dots[0].position.clone(),b=returning.dots[0].position.clone();c.drawMotion(.1);const da=a.distanceTo(source.dots[0].position),db=b.distanceTo(returning.dots[0].position);c.processMotion=saved;c.update();return Math.abs(da-db)<1e-6 && da>0;`), 'Secondary steam and return sections must move the same distance per frame');
-        assert.ok(await consoleCode(`const saved=c.simulation.returnTemperature;const hot=c.overviewScene.paths.find(p=>p.temperatureKey==='primaryHot');const returning=c.overviewScene.paths.find(p=>p.temperatureKey==='primaryReturn');c.simulation.returnTemperature=c.simulation.temperature;c.update();const same=hot.material.color.getHexString()===returning.material.color.getHexString();const svgSame=s.querySelector('.pipe[data-loop-segment="primaryHot"]').style.stroke===s.querySelector('.pipe[data-loop-segment="primaryReturn"]').style.stroke;const readback=c.overviewScene.labels.get('reactor').reading.textContent.includes('In '+c.simulation.returnTemperature.toFixed(0)+' °C');c.simulation.returnTemperature=30;c.update();const changed=hot.material.color.getHexString()!==returning.material.color.getHexString();c.simulation.returnTemperature=saved;c.update();return same && svgSame && changed && readback;`), 'Hot returns must match hot inlet/outlet colors in both views');
+        assert.ok(await consoleCode(`const saved=c.simulation.returnTemperature;const hot=c.overviewScene.paths.find(p=>p.temperatureKey==='primaryHot');const returning=c.overviewScene.paths.find(p=>p.temperatureKey==='primaryReturn');c.simulation.returnTemperature=c.simulation.temperature;c.update();const same=hot.material.color.getHexString()===returning.material.color.getHexString();c.setOverview('schematic');const svgSame=s.querySelector('.pipe[data-loop-segment="primaryHot"]').style.stroke===s.querySelector('.pipe[data-loop-segment="primaryReturn"]').style.stroke;c.setOverview('3d');const readback=c.overviewScene.labels.get('reactor').reading.textContent.includes('In '+c.simulation.returnTemperature.toFixed(0)+' °C');c.simulation.returnTemperature=30;c.update();const changed=hot.material.color.getHexString()!==returning.material.color.getHexString();c.simulation.returnTemperature=saved;c.update();return same && svgSame && changed && readback;`), 'Hot returns must match hot inlet/outlet colors in both views');
         // Changing read-back while paused tests visibility without advancing physics.
         await consoleCode('const temp=c.simulation.secondaryTemperature,flow=c.simulation.secondaryFlow;c.simulation.secondaryTemperature=30;c.update();window.coldSteamHidden=c.overviewScene.exchangerSteam.every(p=>!p.visible);c.simulation.secondaryTemperature=temp;c.simulation.secondaryFlow=0;c.update();window.noFlowSteamHidden=c.overviewScene.exchangerSteam.every(p=>!p.visible);c.simulation.secondaryFlow=flow;c.update();');
         assert.equal(await evaluate('window.coldSteamHidden && window.noFlowSteamHidden'), true);
@@ -1017,6 +1092,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await value('powerSource'), 'BACKUP DIESEL A + B');
         assert.equal(await consoleCode('return c.simulation.running;'), false);
         assert.equal(await consoleCode('return s.querySelector("[data-bus-source=diesel]").classList.contains("energized");'), true);
+        await consoleCode('c.openDiesel("A");');
         assert.match(await consoleCode('return s.querySelector("[data-diesel=A] .diesel-visual-status").textContent;'), /SUPPLYING/);
         await consoleCode('s.querySelector(".electrical-supply-dialog [data-electrical-close]").click();');
         await action('overview-3d');
@@ -1024,7 +1100,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await until(`document.querySelector('nuclear-power-console').overviewScene.engines.get('A').fan.rotation.z !== ${fanBefore}`, 'Supplying 3D diesel did not animate');
         assert.ok(await consoleCode('return c.overviewScene.engines.get("A").markers.every(marker=>marker.visible);'));
         assert.ok(await consoleCode('return c.overviewScene.engines.get("A").terminalMaterial.emissiveIntensity;') > 0);
-        assert.ok(await consoleCode('return Math.abs(c.overviewScene.engines.get("A").fill.scale.y-c.simulation.supply.generators[0].fuel/100)<1e-9;'));
+        assert.ok(await consoleCode('c.updateOverview();return Math.abs(c.overviewScene.engines.get("A").fill.scale.y-c.simulation.supply.generators[0].fuel/100)<1e-9;'));
         await screenshot('backup-generators-dark');
         await consoleCode('c.setTheme("light");'); await screenshot('backup-generators-light');
         await consoleCode('c.setTheme("dark");');
@@ -1035,7 +1111,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.overviewScene.engines.get("A").fan.rotation.z;'), pausedDiesel);
         assert.deepEqual(await consoleCode('return {...c.instrumentMotion};'), pausedInstruments);
         await action('pause');
-        await consoleCode('for(const id of ["A","B"])s.querySelector(`[data-generator="${id}"][data-generator-action=stop]`).click();');
+        await consoleCode('for(const id of ["A","B"]){c.openDiesel(id);s.querySelector(`[data-generator="${id}"][data-generator-action=stop]`).click();}');
         await advance(6);
         assert.equal(await value('powerSource'), 'NO AC SUPPLY');
         const stoppedFan = await consoleCode('return c.overviewScene.engines.get("A").fan.rotation.z;');
@@ -1192,8 +1268,10 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode(`return s.querySelector('[data-action="reset-trip"]').disabled;`), true);
         assert.equal(await consoleCode(`return s.querySelector('[data-action="repair"]').disabled;`), true);
         assert.equal(await consoleCode('return s.querySelector("[data-maintenance-action=repair]").disabled;'), true);
+        await action('core-view');
         assert.equal(await consoleCode('return s.querySelector("[data-core-repair]").disabled;'), true);
         assert.ok(await consoleCode(`return s.querySelectorAll('[data-rod][data-condition="damaged"]').length;`) > 0);
+        await action('close-core');
         await action('export-incident');
         for (let attempt = 0; attempt < 40 && !readdirSync(artifacts).includes('nuclear-power-incident.json'); attempt++) await wait(100);
         const incident = JSON.parse(readFileSync(join(artifacts, 'nuclear-power-incident.json'), 'utf8'));

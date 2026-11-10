@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setText } from './nuclear-power-presentation.js';
 import { CORE_CHANNELS } from './nuclear-power-model.js';
 import { CHANNEL_PITCH, FUEL_HANDLING, FUEL_POOL_SLOTS } from './nuclear-power-refuelling.js';
 
@@ -238,8 +239,8 @@ export function updateFuelHandlingHall(view, animation) {
         view.refuelling.hiddenCapId = hiddenCapId;
     }
     const occupied = animation.samples.filter(Boolean).length;
-    view.featureLabels.find(label => label.id === 'fuel-crane').reading.textContent = pose.phase;
+    setText(view.featureLabels.find(label => label.id === 'fuel-crane').reading, pose.phase);
     const cooled = animation.samples.filter(sample => sample && animation.dispatchReadiness(sample.reference).ready).length;
-    view.featureLabels.find(label => label.id === 'spent-fuel-pool').reading.textContent = occupied
-        ? `${occupied} ${occupied === 1 ? 'batch' : 'batches'} · ${cooled} cooled` : 'Empty storage racks';
+    setText(view.featureLabels.find(label => label.id === 'spent-fuel-pool').reading, occupied
+        ? `${occupied} ${occupied === 1 ? 'batch' : 'batches'} · ${cooled} cooled` : 'Empty storage racks');
 }

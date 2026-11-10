@@ -2,11 +2,11 @@
 import * as componentModel from './nuclear-power-components.js';
 import { valveHandleAngle } from './nuclear-power-motion.js';
 import { exchangerConsole, initializeExchanger, updateExchanger, drawExchanger } from './nuclear-power-exchanger.js';
+import { formatReading as format } from './nuclear-power-presentation.js';
 const COMPONENT_SETTINGS = componentModel.COMPONENT_SETTINGS || {};
 const COMPONENT_ACTIONS = componentModel.COMPONENT_ACTIONS || {};
 
 const label = key => key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
-const format = value => typeof value === 'number' ? value.toLocaleString('en-US', {maximumFractionDigits: 2}) : String(value ?? '—');
 function settingInput(setting, id) {
     const attrs=`data-component-setting="${setting.key}" data-component="${id}"`;
     if (setting.type === 'boolean') return `<input ${attrs} type="checkbox"/>`;
@@ -113,7 +113,7 @@ function renderTrend(root, item, elapsed) {
 export function updateEquipment(host) {
     const sim = host.simulation;
     if (!sim.components) return;
-    for (const root of host.shadowRoot.querySelectorAll('[data-component-dialog]')) {
+    for (const root of host.shadowRoot.querySelectorAll('[data-component-dialog]:popover-open')) {
         const id = root.dataset.componentDialog, item = sim.components.items[id];
         if (!item) continue;
         root.querySelector('[data-component-override]').checked = !!item.override;
@@ -188,6 +188,7 @@ export function initializeExercises(host) {
 
 export function updateExercises(host) {
     const root=host.shadowRoot, sim=host.simulation;
+    if (!root.querySelector('.exercises-dialog').matches(':popover-open')) return;
     const readiness=sim.startupReadiness?.();
     const checks=readiness?.checks || [];
     const list=root.querySelector('.exercise-startup-checks'); list.replaceChildren();

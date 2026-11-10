@@ -69,46 +69,50 @@ export function updateMaintenance(host) {
     const readiness = sim.condition.repairReadiness(sim);
     const panel = root.querySelector('#maintenance-panel');
     const tab = root.querySelector('#maintenance-tab');
-    tab.querySelector('.maintenance-count').textContent = String(items.length);
+    setText(tab.querySelector('.maintenance-count'), String(items.length));
     tab.dataset.attention = String(items.length > 0);
-    setText(panel.querySelector('.maintenance-summary'), items.length
-        ? `${items.length} ${items.length === 1 ? 'component needs' : 'components need'} attention${readiness.ready ? ' · Ready to repair' : ' · Repair conditions below'}` : 'All components free of retained damage, wear and fouling.');
-    panel.querySelector('.maintenance-empty').hidden = items.length > 0;
-    for (const row of panel.querySelectorAll('[data-maintenance-component]')) {
-        const item = items.find(item => item.id === row.dataset.maintenanceComponent);
-        row.hidden = !item;
-        if (!item) continue;
-        row.querySelector('.maintenance-issue').textContent = [
-            item.damage > 0 ? `${percent(item.damage)} damage` : '',
-            item.zones ? `${item.zones} affected core ${item.zones === 1 ? 'channel' : 'channels'}` : '',
-            item.wear > 0 ? `${percent(item.wear)} wear` : '',
-            item.fouling > 0 ? `${percent(item.fouling)} fouling` : ''
-        ].filter(Boolean).join(' · ');
-    }
-    panel.querySelector('[data-maintenance-action="repair"]').disabled = !items.length || !readiness.ready;
-    panel.querySelector('[data-maintenance-action="clear"]').disabled = sim.condition.meltdown || (sim.condition.fault === 'none' && !sim.components.hasFaults);
-    panel.querySelector('.maintenance-temperatures').textContent = `Coolant ${sim.temperature.toFixed(1)} °C · Peak fuel ${sim.condition.peakTemperature.toFixed(1)} °C`;
-    for (const check of readiness.checks) {
-        const element = panel.querySelector(`[data-repair-check="${check.id}"]`);
-        element.textContent = `${check.ready ? '✓' : '○'} ${check.id === 'meltdown' && check.ready ? 'No meltdown' : check.label}`;
-        element.classList.toggle('ready', check.ready);
+    if (host.plantTab === 'maintenance') {
+        setText(panel.querySelector('.maintenance-summary'), items.length
+            ? `${items.length} ${items.length === 1 ? 'component needs' : 'components need'} attention${readiness.ready ? ' · Ready to repair' : ' · Repair conditions below'}` : 'All components free of retained damage, wear and fouling.');
+        panel.querySelector('.maintenance-empty').hidden = items.length > 0;
+        for (const row of panel.querySelectorAll('[data-maintenance-component]')) {
+            const item = items.find(item => item.id === row.dataset.maintenanceComponent);
+            row.hidden = !item;
+            if (!item) continue;
+            row.querySelector('.maintenance-issue').textContent = [
+                item.damage > 0 ? `${percent(item.damage)} damage` : '',
+                item.zones ? `${item.zones} affected core ${item.zones === 1 ? 'channel' : 'channels'}` : '',
+                item.wear > 0 ? `${percent(item.wear)} wear` : '',
+                item.fouling > 0 ? `${percent(item.fouling)} fouling` : ''
+            ].filter(Boolean).join(' · ');
+        }
+        panel.querySelector('[data-maintenance-action="repair"]').disabled = !items.length || !readiness.ready;
+        panel.querySelector('[data-maintenance-action="clear"]').disabled = sim.condition.meltdown || (sim.condition.fault === 'none' && !sim.components.hasFaults);
+        panel.querySelector('.maintenance-temperatures').textContent = `Coolant ${sim.temperature.toFixed(1)} °C · Peak fuel ${sim.condition.peakTemperature.toFixed(1)} °C`;
+        for (const check of readiness.checks) {
+            const element = panel.querySelector(`[data-repair-check="${check.id}"]`);
+            element.textContent = `${check.ready ? '✓' : '○'} ${check.id === 'meltdown' && check.ready ? 'No meltdown' : check.label}`;
+            element.classList.toggle('ready', check.ready);
+        }
     }
     const core = root.querySelector('.core-damage-panel');
-    core.dataset.damaged = String(zones.length > 0);
-    setText(core.querySelector('.core-damage-summary'), zones.length
-        ? `${zones.length} affected core ${zones.length === 1 ? 'channel' : 'channels'} · peak damage ${percent(sim.condition.coreDamage)}` : 'No retained core damage');
-    core.querySelector('.core-damage-hint').hidden = !zones.length;
-    core.querySelector('.core-damage-list').hidden = !zones.length;
-    core.querySelector('[data-core-repair]').disabled = !zones.length || !readiness.ready;
-    for (const zone of sim.condition.zones) {
-        const row = core.querySelector(`[data-core-damage-row="${zone.id}"]`);
-        row.hidden = zone.damage <= 0;
-        const button = row.querySelector('button');
-        setText(button.querySelector('span'), `${percent(zone.damage)} damage · ${zone.temperature.toFixed(1)} °C fuel`);
-        button.setAttribute('aria-pressed', String(!host.selectedFuel && host.selectedRod === zone.id));
+    if (core.closest('.core-dialog').matches(':popover-open')) {
+        core.dataset.damaged = String(zones.length > 0);
+        setText(core.querySelector('.core-damage-summary'), zones.length
+            ? `${zones.length} affected core ${zones.length === 1 ? 'channel' : 'channels'} · peak damage ${percent(sim.condition.coreDamage)}` : 'No retained core damage');
+        core.querySelector('.core-damage-hint').hidden = !zones.length;
+        core.querySelector('.core-damage-list').hidden = !zones.length;
+        core.querySelector('[data-core-repair]').disabled = !zones.length || !readiness.ready;
+        for (const zone of sim.condition.zones) {
+            const row = core.querySelector(`[data-core-damage-row="${zone.id}"]`);
+            row.hidden = zone.damage <= 0;
+            const button = row.querySelector('button');
+            setText(button.querySelector('span'), `${percent(zone.damage)} damage · ${zone.temperature.toFixed(1)} °C fuel`);
+            button.setAttribute('aria-pressed', String(!host.selectedFuel && host.selectedRod === zone.id));
+        }
+        setText(core.querySelector('.core-repair-readiness'), !zones.length ? '' : readiness.ready
+            ? 'Ready to repair. Heat, fuel and trip latches are preserved.'
+            : `Repair blocked: ${readiness.checks.filter(check => !check.ready).map(check => repairBlockers[check.id]).join('; ')}. Coolant ${sim.temperature.toFixed(1)} °C · peak fuel ${sim.condition.peakTemperature.toFixed(1)} °C.`);
     }
-    setText(core.querySelector('.core-repair-readiness'), !zones.length ? '' : readiness.ready
-        ? 'Ready to repair. Heat, fuel and trip latches are preserved.'
-        : `Repair blocked: ${readiness.checks.filter(check => !check.ready).map(check => repairBlockers[check.id]).join('; ')}. Coolant ${sim.temperature.toFixed(1)} °C · peak fuel ${sim.condition.peakTemperature.toFixed(1)} °C.`);
     for (const element of root.querySelectorAll('.maintenance-result')) setText(element, host.maintenanceStatus || '');
 }

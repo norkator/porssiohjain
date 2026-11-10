@@ -509,31 +509,12 @@ export class NuclearPowerSimulation {
         this.history = this.history.filter(point => point.time >= this.elapsed - 120);
     }
 
-    snapshot() {
+    // Live instruments do not need a clone of every component's retained history.
+    readings() {
         const signal = (value, unit) => ({ value, unit, source: 'SIMULATED', quality: 'GOOD', time: this.elapsed });
         return {
-            components: structuredClone({ items: this.components.items, maintenance: this.components.maintenance, objective: this.components.objective, scenario: this.components.scenario }),
             elapsed: this.elapsed,
             status: this.condition.meltdown ? 'MELTDOWN' : this.tripped ? 'TRIPPED' : !this.running ? this.temperature > 40 || this.power > 0.1 ? 'COOLING DOWN' : 'STOPPED' : this.power < 2 ? 'STANDBY' : 'RUNNING',
-            // Requests remain distinct from reported signals for a future scale-model adapter.
-            commands: {
-                running: this.running, loadPercent: this.demand, mode: this.autoMode ? 'AUTO' : 'MANUAL',
-                temperatureTarget: this.autoTemperature, flowTarget: this.autoFlow,
-                objective: this.autoObjective, electricalTargetMw: this.autoElectricalTarget,
-                followGridRequests: this.gridDispatch.enabled,
-                pumps: {
-                    A: { enabled: this.pumpA, speedPercent: this.pumpASpeed },
-                    B: { enabled: this.pumpB, speedPercent: this.pumpBSpeed }
-                },
-                rods: this.controlRods.map(rod => ({ id: rod.id, insertionPercent: rod.target, owner: this.autoMode && !rod.manualOverride ? 'AUTO' : 'MANUAL' })),
-                auxiliary: { gridAvailable: this.supply.gridAvailable, turbineConnected: this.supply.turbineConnected,
-                    generators: this.supply.generators.map(g => ({ id: g.id, automaticStandby: g.automatic })) }
-            },
-            fuel: this.fuel.assemblies.map(a => ({ id: a.id, reserve: signal(a.remaining, '%'), exposure: signal(a.exposure, 'demo full-power h'), replacements: a.replacements })),
-            auxiliary: { source: this.supply.source, generators: this.supply.generators.map(g => ({ id: g.id, state: g.state, fuel: signal(g.fuel, '%'), load: signal(g.load, 'MW') })) },
-            gridDispatch: { source: 'SIMULATED', nextRequestInSeconds: this.gridDispatch.remaining, availableCapacityMw: gridDispatchCapacity(this),
-                lastRequest: this.gridDispatch.lastRequest ? { ...this.gridDispatch.lastRequest } : null, status: this.gridDispatch.status(this) },
-            rods: this.controlRods.map(rod => ({ id: rod.id, insertion: signal(rod.position, '%') })),
             signals: {
                 coreTemperature: signal(this.temperature, '°C'),
                 returnTemperature: signal(this.returnTemperature, '°C'),
@@ -557,6 +538,33 @@ export class NuclearPowerSimulation {
                 rodInsertion: signal(this.rods, '%'),
                 load: signal(this.power, '%')
             }
+        };
+    }
+
+    snapshot() {
+        const signal = (value, unit) => ({ value, unit, source: 'SIMULATED', quality: 'GOOD', time: this.elapsed });
+        return {
+            ...this.readings(),
+            components: structuredClone({ items: this.components.items, maintenance: this.components.maintenance, objective: this.components.objective, scenario: this.components.scenario }),
+            // Requests remain distinct from reported signals for a future scale-model adapter.
+            commands: {
+                running: this.running, loadPercent: this.demand, mode: this.autoMode ? 'AUTO' : 'MANUAL',
+                temperatureTarget: this.autoTemperature, flowTarget: this.autoFlow,
+                objective: this.autoObjective, electricalTargetMw: this.autoElectricalTarget,
+                followGridRequests: this.gridDispatch.enabled,
+                pumps: {
+                    A: { enabled: this.pumpA, speedPercent: this.pumpASpeed },
+                    B: { enabled: this.pumpB, speedPercent: this.pumpBSpeed }
+                },
+                rods: this.controlRods.map(rod => ({ id: rod.id, insertionPercent: rod.target, owner: this.autoMode && !rod.manualOverride ? 'AUTO' : 'MANUAL' })),
+                auxiliary: { gridAvailable: this.supply.gridAvailable, turbineConnected: this.supply.turbineConnected,
+                    generators: this.supply.generators.map(g => ({ id: g.id, automaticStandby: g.automatic })) }
+            },
+            fuel: this.fuel.assemblies.map(a => ({ id: a.id, reserve: signal(a.remaining, '%'), exposure: signal(a.exposure, 'demo full-power h'), replacements: a.replacements })),
+            auxiliary: { source: this.supply.source, generators: this.supply.generators.map(g => ({ id: g.id, state: g.state, fuel: signal(g.fuel, '%'), load: signal(g.load, 'MW') })) },
+            gridDispatch: { source: 'SIMULATED', nextRequestInSeconds: this.gridDispatch.remaining, availableCapacityMw: gridDispatchCapacity(this),
+                lastRequest: this.gridDispatch.lastRequest ? { ...this.gridDispatch.lastRequest } : null, status: this.gridDispatch.status(this) },
+            rods: this.controlRods.map(rod => ({ id: rod.id, insertion: signal(rod.position, '%') }))
         };
     }
 }

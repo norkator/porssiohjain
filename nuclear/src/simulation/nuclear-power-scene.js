@@ -481,9 +481,13 @@ export class PlantOverviewScene {
 
     resize() {
         if (this.disposed || !this.host.clientWidth || !this.host.clientHeight) return;
-        this.width = this.host.clientWidth;
-        this.height = this.host.clientHeight;
-        this.renderer.setSize(this.width, this.height, false);
+        const width = this.host.clientWidth, height = this.host.clientHeight;
+        if (width !== this.width || height !== this.height) {
+            this.width = width;
+            this.height = height;
+            this.renderer.setSize(width, height, false);
+        }
+        this.labelSignature = null;
         this.render();
     }
 
@@ -622,20 +626,36 @@ export class PlantOverviewScene {
 
     render() {
         if (this.disposed || !this.width || this.host.hidden) return;
-        const aspect = this.width / this.height;
-        const halfHeight = Math.max(this.frameHeight ?? 8.8, (this.frameWidth ?? 14) / aspect) / this.zoom;
-        Object.assign(this.camera, { left: -halfHeight * aspect, right: halfHeight * aspect, top: halfHeight, bottom: -halfHeight });
-        this.camera.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * 36, Math.sin(this.pitch) * 36, Math.cos(this.yaw) * Math.cos(this.pitch) * 36).add(this.target);
-        this.camera.lookAt(this.target);
-        this.camera.updateProjectionMatrix();
-        this.camera.updateMatrixWorld();
-        for (const label of [...this.labels.values(), ...this.featureLabels]) {
-            const point = label.anchor.clone().project(this.camera);
-            // Keep semantic buttons reachable even at the bounded camera extremes.
-            const halfWidth = label.button.offsetWidth / 2 + 6;
-            const halfHeight = label.button.offsetHeight / 2 + 6;
-            label.button.style.left = `${clamp((point.x + 1) * this.width / 2, halfWidth, this.width - halfWidth)}px`;
-            label.button.style.top = `${clamp((1 - point.y) * this.height / 2, halfHeight, this.height - halfHeight)}px`;
+        const cameraSignature = [this.width, this.height, this.zoom, this.yaw, this.pitch, this.target.x, this.target.y, this.target.z].join(',');
+        if (cameraSignature !== this.cameraSignature) {
+            this.cameraSignature = cameraSignature;
+            const aspect = this.width / this.height;
+            const halfHeight = Math.max(this.frameHeight ?? 8.8, (this.frameWidth ?? 14) / aspect) / this.zoom;
+            Object.assign(this.camera, { left: -halfHeight * aspect, right: halfHeight * aspect, top: halfHeight, bottom: -halfHeight });
+            this.camera.position.set(Math.sin(this.yaw) * Math.cos(this.pitch) * 36, Math.sin(this.pitch) * 36, Math.cos(this.yaw) * Math.cos(this.pitch) * 36).add(this.target);
+            this.camera.lookAt(this.target);
+            this.camera.updateProjectionMatrix();
+            this.camera.updateMatrixWorld();
+        }
+        const labels = [...this.labels.values(), ...this.featureLabels];
+        const labelSignature = cameraSignature + labels.map(label => label.button.textContent).join('|');
+        if (labelSignature !== this.labelSignature) {
+            this.labelSignature = labelSignature;
+            // Read all label sizes before writing positions; unchanged labels/camera
+            // need no layout measurements on subsequent animation frames.
+            const positions = labels.map(label => {
+                const point = label.anchor.clone().project(this.camera);
+                // Keep semantic buttons reachable even at the bounded camera extremes.
+                const halfWidth = label.button.offsetWidth / 2 + 6;
+                const halfHeight = label.button.offsetHeight / 2 + 6;
+                return { button: label.button,
+                    left: `${clamp((point.x + 1) * this.width / 2, halfWidth, this.width - halfWidth)}px`,
+                    top: `${clamp((1 - point.y) * this.height / 2, halfHeight, this.height - halfHeight)}px` };
+            });
+            for (const { button, left, top } of positions) {
+                if (button.style.left !== left) button.style.left = left;
+                if (button.style.top !== top) button.style.top = top;
+            }
         }
         this.renderer.render(this.scene, this.camera);
     }

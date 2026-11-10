@@ -16,6 +16,7 @@ import { gridDispatchCapacity } from './nuclear-power-grid.js';
 import { maintenancePanel, coreDamagePanel, initializeMaintenance, updateMaintenance } from './nuclear-power-maintenance.js';
 import { FuelTransferAnimation } from './nuclear-power-refuelling.js';
 import { spentFuelDialog, initializeSpentFuel, updateSpentFuel } from './nuclear-power-spent-fuel.js';
+import { formatNumber, formatPercent, hasPlantMotion, setText } from './nuclear-power-presentation.js';
 
 const PLANT_TABS = ['reactor', 'maintenance'];
 
@@ -202,6 +203,8 @@ export class NuclearPowerConsole extends HTMLElement {
         this.instrumentMotion = { thermal: 0, electrical: 0, flow: 0 };
         this.processMotion = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0 };
         this.floatingDialogs = [];
+        this.timer = null;
+        this.animationFrame = null;
         this.overviewMode = '3d';
         this.plantTab = 'reactor';
         this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -537,7 +540,7 @@ export class NuclearPowerConsole extends HTMLElement {
         if (persist) {
             try { localStorage.setItem('porssiohjain.nuclear-power.theme', this.dataset.theme); } catch { /* Theme still works without storage. */ }
         }
-        this.updateOverview();
+        this.updateOverview(true);
     }
 
     setOverview(mode) {
@@ -567,7 +570,10 @@ export class NuclearPowerConsole extends HTMLElement {
         zoom.setAttribute('aria-pressed', String(this.overviewMode === '3d' ? this.overviewScene?.zoom > 1 : viewport.classList.contains('zoomed')));
         zoom.textContent = zoom.getAttribute('aria-pressed') === 'true' ? 'Fit view' : 'Zoom +';
         this.overviewScene?.resize();
-        this.updateOverview();
+        this.drawProcessMotion();
+        if (this.overviewMode === 'schematic') this.updateSchematicState();
+        this.updateOverview(true);
+        this.updateActivity();
     }
 
     fallbackOverview() {
@@ -580,9 +586,30 @@ export class NuclearPowerConsole extends HTMLElement {
         this.setOverview('schematic');
     }
 
-    updateOverview() {
+    updateOverview(force = false) {
         if (!this.isConnected || !this.intersecting || document.hidden) return;
-        if (this.plantTab === 'reactor' && this.overviewMode === '3d') this.overviewScene?.update(this.simulation, this.processMotion, this.motion, this.selectedEquipment, this.dataset.theme, this.fuelTransfer, this.dieselMotion);
+        if (this.plantTab !== 'reactor' || this.overviewMode !== '3d' || !this.overviewScene) return;
+        const sim = this.simulation;
+        if (!hasPlantMotion(sim) && this.processMotion.speed <= .0001 && !this.fuelTransfer.job) {
+            // The clock still ticks in a cold session. Redraw static geometry only
+            // when its displayed readings, colors, valves or pool contents change.
+            const signature = JSON.stringify([
+                this.dataset.theme, this.selectedEquipment,
+                [sim.temperature, sim.returnTemperature, sim.secondaryTemperature, sim.secondaryReturnTemperature].map(value => value.toFixed(1)),
+                Object.values(loopTemperatures(sim)).map(temperatureColor),
+                sim.controlRods.map(rod => rod.position.toFixed(2)),
+                sim.components.items.pumpA.actual.dischargeValve, sim.components.items.pumpB.actual.dischargeValve,
+                sim.components.items.exchanger.actual.bypass, sim.components.items.exchanger.actual.secondaryValve,
+                sim.components.items.turbine.actual.admission, sim.components.items.condenser.actual.coolingValve,
+                sim.supply.source, sim.supply.factor, sim.supply.gridAvailable, sim.supply.demand.toFixed(2),
+                sim.supply.generators.map(generator => [generator.state, generator.fuel.toFixed(0)]),
+                this.fuelTransfer.pose.phase,
+                this.fuelTransfer.samples.map(sample => sample && [sample.reference, this.fuelTransfer.dispatchReadiness(sample.reference).ready]),
+            ]);
+            if (!force && signature === this.idleOverviewSignature) return;
+            this.idleOverviewSignature = signature;
+        } else this.idleOverviewSignature = null;
+        this.overviewScene.update(sim, this.processMotion, this.motion, this.selectedEquipment, this.dataset.theme, this.fuelTransfer, this.dieselMotion);
     }
 
     setPlantTab(tab) {
@@ -597,7 +624,11 @@ export class NuclearPowerConsole extends HTMLElement {
             button.tabIndex = selected ? 0 : -1;
         }
         if (this.plantTab === 'reactor') this.overviewScene?.resize();
-        this.updateOverview();
+        this.drawProcessMotion();
+        if (this.plantTab === 'reactor' && this.overviewMode === 'schematic') this.updateSchematicState();
+        this.updateOverview(true);
+        updateMaintenance(this);
+        this.updateActivity();
         this.updateAlarmSound();
     }
 
@@ -677,7 +708,6 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     openSpentFuel() {
-        updateSpentFuel(this);
         const dialog = this.shadowRoot.querySelector('.spent-fuel-dialog');
         this.openFloatingDialog(dialog);
         dialog.querySelector('.core-dialog-titlebar').focus({ preventScroll: true });
@@ -690,6 +720,13 @@ export class NuclearPowerConsole extends HTMLElement {
         dialog.showPopover();
         this.floatingDialogs = this.floatingDialogs.filter(item => item !== dialog);
         this.floatingDialogs.push(dialog);
+        // Refresh before measuring/focusing a newly visible window, including while paused.
+        if (dialog.classList.contains('core-dialog')) { this.updateCore(); updateMaintenance(this); }
+        if (dialog.dataset.componentDialog) { updateEquipment(this); drawEquipmentMotion(this); }
+        if (dialog.classList.contains('spent-fuel-dialog')) updateSpentFuel(this);
+        if (dialog.classList.contains('exercises-dialog')) updateExercises(this);
+        if (dialog.dataset.dieselDialog || dialog.classList.contains('electrical-supply-dialog')) { this.updateSupply(); this.drawSupplyMotion(); }
+        if (dialog.classList.contains('trends-dialog')) this.updateTrend();
         this.positionFloatingDialog(dialog);
         for (const trigger of this.shadowRoot.querySelectorAll(`[aria-controls="${dialog.id}"]`)) trigger.setAttribute('aria-expanded', 'true');
     }
@@ -873,39 +910,49 @@ export class NuclearPowerConsole extends HTMLElement {
                 const now = performance.now();
                 this.simulation.tick((now - this.lastTick) / 1000);
                 this.lastTick = now;
-                this.update();
+                this.update(true);
             }, 250);
         } else if (!active && this.timer) {
             clearInterval(this.timer);
             this.timer = null;
         }
-        if (active && !this.reducedMotion.matches && !this.animationFrame) {
+        const animate = active && !this.reducedMotion.matches && this.hasVisualMotion();
+        if (animate && !this.animationFrame) {
             this.lastFrame = performance.now();
             const frame = now => {
                 const dt = (now - this.lastFrame) / 1000;
-                this.lastFrame = now;
-                this.drawMotion(dt);
+                // Cap presentation at 30 fps, independently of monitor refresh and plant ticks.
+                if (dt >= 1 / 30 - .0005) {
+                    this.lastFrame = now;
+                    this.drawMotion(dt);
+                }
                 this.animationFrame = requestAnimationFrame(frame);
             };
             this.animationFrame = requestAnimationFrame(frame);
-        } else if ((!active || this.reducedMotion.matches) && this.animationFrame) {
+        } else if (!animate && this.animationFrame) {
             cancelAnimationFrame(this.animationFrame);
             this.animationFrame = null;
         }
     }
 
+    hasVisualMotion() {
+        const sim = this.simulation;
+        if (sim.power > .01 || sim.electricalOutput > .1 || sim.primaryFlow > .1) return true;
+        const processVisible = this.plantTab === 'reactor' || this.shadowRoot.querySelector('.equipment-dialog:popover-open');
+        return !!processVisible && (hasPlantMotion(sim) || this.processMotion.speed > .0001
+            || (this.plantTab === 'reactor' && this.overviewMode === '3d' && !!this.fuelTransfer.job));
+    }
+
     drawMotion(seconds) {
         if (this.plantTab === 'reactor' && this.overviewMode === '3d') this.fuelTransfer.advance(seconds);
-        this.drawProcessMotion(seconds);
-        drawEquipmentMotion(this);
-        for (const [pump, flow, circuit] of [['A', this.simulation.primaryFlow, 'primary'], ['B', this.simulation.secondaryFlow, 'secondary']]) {
+        for (const [pump, flow] of [['A', this.simulation.primaryFlow], ['B', this.simulation.secondaryFlow]]) {
             const previous = this.motion[pump];
             const flowMotion = advancePumpMotion(previous, flow, seconds);
             const shaftMotion = advancePumpMotion(previous, this.simulation.components.items[`pump${pump}`].actual.speed, seconds);
-            const motion = this.motion[pump] = { angle: shaftMotion.angle, offset: flowMotion.offset };
-            this.shadowRoot.querySelector(`.pump-${pump.toLowerCase()} .rotor`).setAttribute('transform', `rotate(${motion.angle} 0 0)`);
-            for (const path of this.shadowRoot.querySelectorAll(`.flow.${circuit}`)) path.style.strokeDashoffset = -(pump === 'A' ? this.processMotion.primaryTravel : this.processMotion.secondaryTravel) * SVG_FLOW_SCALE;
+            this.motion[pump] = { angle: shaftMotion.angle, offset: flowMotion.offset };
         }
+        this.drawProcessMotion(seconds);
+        drawEquipmentMotion(this);
         for (const generator of this.simulation.supply.generators) {
             const speed = generator.state === 'RUNNING' ? 360 : generator.state === 'STARTING' ? 120 : 0;
             this.dieselMotion[generator.id] = (this.dieselMotion[generator.id] + Math.min(.1, Math.max(0, seconds)) * speed) % 360;
@@ -939,7 +986,7 @@ export class NuclearPowerConsole extends HTMLElement {
         }
     }
 
-    drawProcessMotion(seconds = 0) {
+    drawProcessMotion(seconds = 0, draw = true) {
         const sim = this.simulation;
         const motion = this.processMotion = advanceProcessMotion(this.processMotion, {
             temperature: sim.temperature, secondaryTemperature: sim.secondaryTemperature,
@@ -953,15 +1000,31 @@ export class NuclearPowerConsole extends HTMLElement {
             exchangerTransferFactor: sim.components.items.exchanger.actual.transferFactor,
             electricalOutput: sim.electricalOutput, supplyFactor: sim.supply.factor
         }, seconds);
+        if (!draw) return;
+        if (this.plantTab === 'reactor' && this.overviewMode === 'schematic') this.drawSchematicMotion();
+        if (this.shadowRoot.querySelector('.electrical-supply-dialog').matches(':popover-open')) this.drawSupplyMotion();
+    }
+
+    drawSchematicMotion() {
+        const sim = this.simulation, motion = this.processMotion;
         const root = this.shadowRoot;
+        const steamPath = root.querySelector('.steam-flow');
+        // This path is static. Measure it once, before writing any particle attributes.
+        this.steamPathLength ||= steamPath.getTotalLength();
+        const particles = [...root.querySelectorAll('.steam-particle')].map(dot => ({ dot,
+            point: steamPath.getPointAtLength(flowMarkerDistance(motion.secondaryTravel * SVG_FLOW_SCALE, Number(dot.dataset.particle), 6, this.steamPathLength)),
+        }));
         const temperatures = loopTemperatures(sim);
         for (const segment of root.querySelectorAll('[data-loop-segment]')) segment.style.stroke = temperatureColor(temperatures[segment.dataset.loopSegment]);
-        const steamPath = root.querySelector('.steam-flow');
-        for (const dot of root.querySelectorAll('.steam-particle')) {
-            const point = steamPath.getPointAtLength(flowMarkerDistance(motion.secondaryTravel * SVG_FLOW_SCALE, Number(dot.dataset.particle), 6, steamPath.getTotalLength()));
+        for (const { dot, point } of particles) {
             dot.setAttribute('cx', point.x); dot.setAttribute('cy', point.y);
             dot.style.opacity = motion.steam;
         }
+        for (const [pump, circuit] of [['A', 'primary'], ['B', 'secondary']]) {
+            root.querySelector(`.pump-${pump.toLowerCase()} .rotor`).setAttribute('transform', `rotate(${this.motion[pump].angle} 0 0)`);
+            for (const path of root.querySelectorAll(`.flow.${circuit}`)) path.style.strokeDashoffset = -(pump === 'A' ? motion.primaryTravel : motion.secondaryTravel) * SVG_FLOW_SCALE;
+        }
+        for (const rod of sim.controlRods) root.querySelector(`[data-rod-side="${rod.id}"]`).setAttribute('transform', `translate(0 ${-15 + rod.position * 1.12})`);
         root.querySelector('.steam-flow').style.opacity = motion.steam;
         root.querySelector('.exchanger-heat-flow').style.strokeDashoffset = -motion.heatPhase * 40;
         root.querySelector('.exchanger-heat-flow').style.opacity = motion.heat;
@@ -1010,6 +1073,30 @@ export class NuclearPowerConsole extends HTMLElement {
         const bypass = sim.components?.items.exchanger.actual.bypass || 0;
         root.querySelector('.exchanger-bypass').style.opacity = .12 + bypass / 100 * .88;
         root.querySelector('.exchanger-bypass').style.strokeDashoffset = this.motion.A.offset;
+    }
+
+    updateSchematicState() {
+        const condition = this.simulation.condition;
+        const meltScale = 1 - condition.meltProgress * 0.25;
+        this.shadowRoot.querySelector('.fuel-bundle').setAttribute('transform', `translate(0 ${350 * (1 - meltScale) + condition.meltProgress * 8}) scale(1 ${meltScale})`);
+        this.shadowRoot.querySelector('.melt-pool').setAttribute('opacity', condition.meltProgress);
+        this.shadowRoot.querySelector('.melt-pool').setAttribute('ry', 9 + condition.meltProgress * 15);
+        for (const [i, channel] of [...this.shadowRoot.querySelectorAll('.fuel-bundle rect')].entries()) {
+            const zones = condition.zones.slice(i * 2, i * 2 + 3);
+            const temperature = Math.max(...zones.map(zone => zone.temperature));
+            const heat = Math.min(1, Math.max(0, (temperature - 100) / 550));
+            channel.style.fill = `hsl(${40 - heat * 35} 90% ${30 + heat * 40}%)`;
+            channel.style.stroke = `hsl(${40 - heat * 35} 95% ${45 + heat * 40}%)`;
+            const slump = condition.meltProgress * (8 + i * 3);
+            channel.setAttribute('y', 230 + slump);
+            channel.setAttribute('height', 112 - slump);
+            channel.setAttribute('rx', 3 + condition.meltProgress * 3);
+        }
+        this.shadowRoot.querySelector('.melt-pool').setAttribute('rx', 38 + condition.meltProgress * 22);
+    }
+
+    drawSupplyMotion() {
+        const sim = this.simulation, motion = this.processMotion, root = this.shadowRoot;
         const source = sim.supply.source;
         const dieselState = sim.supply.generators.some(generator => generator.state === 'STARTING') ? 'STARTING'
             : sim.supply.generators.some(generator => generator.state === 'RUNNING') ? 'RUNNING'
@@ -1097,7 +1184,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.nextAlarmAt = now + [4, 3, 2, 1.3, 1, 0.85][severity];
     }
 
-    update() {
+    update(fromTimer = false) {
         if (!this.initialized) return;
         const sim = this.simulation;
         if (this.lastProcessElapsed > sim.elapsed) {
@@ -1115,10 +1202,10 @@ export class NuclearPowerConsole extends HTMLElement {
         this.lastProcessElapsed = sim.elapsed;
         this.fuelTransfer.setPoolTime(sim.elapsed);
         if (sim.running || sim.condition.meltdown) this.fuelTransfer.cancel();
-        this.drawProcessMotion();
-        this.drawInstrumentMotion();
-        this.updateOverview();
-        const { signals, status } = sim.snapshot();
+        const draw = !fromTimer || !this.animationFrame;
+        this.drawProcessMotion(0, draw);
+        if (draw) { this.drawInstrumentMotion(); this.updateOverview(); }
+        const { signals, status } = sim.readings();
         this.classList.toggle('meltdown-active', sim.condition.meltdown);
         const meltdownDialog = this.shadowRoot.querySelector('.meltdown-banner');
         this.shadowRoot.querySelector('[data-action="meltdown-view"]').hidden = !sim.condition.meltdown;
@@ -1130,8 +1217,7 @@ export class NuclearPowerConsole extends HTMLElement {
         }
         if (!sim.condition.meltdown) this.meltdownShown = false;
         this.updateAlarmSound();
-        const n = (value, decimals = 0) => value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-        const percent = value => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`;
+        const n = formatNumber, percent = formatPercent;
         const selectedRod = sim.controlRods.find(rod => rod.id === this.selectedRod);
         const powerObjective = sim.autoObjective === 'power';
         const condition = sim.condition;
@@ -1220,22 +1306,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.dataset.secondaryFlow = String(sim.secondaryFlow >= 0.5);
         this.dataset.turbine = String(sim.power > 2 && sim.secondaryFlow > 10);
         this.style.setProperty('--core-intensity', Math.min(1, Math.max(0.1, sim.power / 100, (condition.peakTemperature - 300) / 400)));
-        const meltScale = 1 - condition.meltProgress * 0.25;
-        this.shadowRoot.querySelector('.fuel-bundle').setAttribute('transform', `translate(0 ${350 * (1 - meltScale) + condition.meltProgress * 8}) scale(1 ${meltScale})`);
-        this.shadowRoot.querySelector('.melt-pool').setAttribute('opacity', condition.meltProgress);
-        this.shadowRoot.querySelector('.melt-pool').setAttribute('ry', 9 + condition.meltProgress * 15);
-        for (const [i, channel] of [...this.shadowRoot.querySelectorAll('.fuel-bundle rect')].entries()) {
-            const zones = condition.zones.slice(i * 2, i * 2 + 3);
-            const temperature = Math.max(...zones.map(zone => zone.temperature));
-            const heat = Math.min(1, Math.max(0, (temperature - 100) / 550));
-            channel.style.fill = `hsl(${40 - heat * 35} 90% ${30 + heat * 40}%)`;
-            channel.style.stroke = `hsl(${40 - heat * 35} 95% ${45 + heat * 40}%)`;
-            const slump = condition.meltProgress * (8 + i * 3);
-            channel.setAttribute('y', 230 + slump);
-            channel.setAttribute('height', 112 - slump);
-            channel.setAttribute('rx', 3 + condition.meltProgress * 3);
-        }
-        this.shadowRoot.querySelector('.melt-pool').setAttribute('rx', 38 + condition.meltProgress * 22);
+        if (this.plantTab === 'reactor' && this.overviewMode === 'schematic') this.updateSchematicState();
         this.updateCore();
         const meters = { temperature: Math.min(100, sim.temperature / 4), power: sim.power, electric: signals.electricalOutput.value / 4.1, flow: sim.primaryFlow, rods: sim.rods };
         for (const [key, value] of Object.entries(meters)) this.shadowRoot.querySelector(`[data-meter="${key}"]`).style.width = `${value}%`;
@@ -1328,12 +1399,13 @@ export class NuclearPowerConsole extends HTMLElement {
         annunciator.classList.toggle('unacknowledged', pending);
         this.updateEvents();
         this.updateTrend();
+        this.updateActivity();
     }
 
     updateCore() {
+        if (!this.shadowRoot.querySelector('.core-dialog').matches(':popover-open')) return;
         const sim = this.simulation;
         for (const rod of sim.controlRods) {
-            this.shadowRoot.querySelector(`[data-rod-side="${rod.id}"]`).setAttribute('transform', `translate(0 ${-15 + rod.position * 1.12})`);
             const channel = this.shadowRoot.querySelector(`[data-rod="${rod.id}"]`);
             const zone = sim.condition.zones.find(zone => zone.id === rod.id);
             channel.dataset.condition = zone.damage > 0 ? 'damaged' : zone.temperature > 410 ? 'hot' : 'normal';
@@ -1385,8 +1457,9 @@ export class NuclearPowerConsole extends HTMLElement {
         this.shadowRoot.querySelector('.power-source-panel').dataset.supply = supply.factor === 0 ? 'lost' : supply.source.startsWith('BACKUP') ? 'backup' : 'normal';
         for (const item of this.shadowRoot.querySelectorAll('[data-supply]')) item.classList.toggle('energized', supply.source.includes(item.dataset.supply === 'turbine' ? 'TURBINE' : item.dataset.supply === 'grid' ? 'GRID' : 'DIESEL'));
         for (const g of supply.generators) {
-            this.shadowRoot.querySelector(`[data-diesel-summary="${g.id}"]`).textContent = `${g.state} · ${g.fuel.toFixed(0)}%`;
+            setText(this.shadowRoot.querySelector(`[data-diesel-summary="${g.id}"]`), `${g.state} · ${g.fuel.toFixed(0)}%`);
             const card = this.shadowRoot.querySelector(`[data-diesel="${g.id}"]`);
+            if (!card.closest('.diesel-dialog').matches(':popover-open')) continue;
             card.dataset.state = g.state.toLowerCase();
             card.dataset.loaded = String(g.state === 'RUNNING' && g.load > 0);
             const visualState = g.state === 'RUNNING' ? g.load > 0 ? 'SUPPLYING AUXILIARY BUS' : 'RUNNING / NO BUS LOAD'
@@ -1478,6 +1551,8 @@ export class NuclearPowerConsole extends HTMLElement {
         const sim = this.simulation;
         const points = sim.history;
         for (const root of this.shadowRoot.querySelectorAll('.trend-display')) {
+            const dialog = root.closest('.floating-dialog');
+            if (dialog && !dialog.matches(':popover-open')) continue;
             const temperatureMax = Math.max(400, Math.ceil(Math.max(sim.temperature, ...points.map(point => point.temperature)) / 200) * 200);
             root.querySelector('[data-value="chartTempMax"]').textContent = temperatureMax;
             root.querySelector('[data-value="chartTempMid"]').textContent = temperatureMax / 2;

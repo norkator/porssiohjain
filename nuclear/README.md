@@ -23,6 +23,15 @@ simulation as the instruments. The taller viewport supports both themes and
 reduced motion. **Schematic** switches to the retained SVG overview without
 changing plant state; browsers without WebGL 2 fall back to it automatically.
 
+Plant calculations and instrument refreshes run every 250 ms. Presentation uses
+one visibility-aware animation loop capped at 30 fps, which stops when there is
+no visible motion. A static cold 3D scene redraws only when its displayed state,
+camera or size changes; plant time and controls remain active. Hidden diagrams,
+closed component/core/pool windows and inactive maintenance content defer their
+expensive updates until shown, including immediate refresh when opened during
+pause. Live readings reuse number formatters and avoid cloning component histories.
+Software WebGL can still cost substantially more CPU than hardware acceleration.
+
 The reactor has a flat, RBMK-inspired tiled channel deck, a blue spent-fuel pool
 behind it with storage racks, and an overhead fuel-handling crane.
 The top caps, internal fuel assemblies and control rods share the core map's

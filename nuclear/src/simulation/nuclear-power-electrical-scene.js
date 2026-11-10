@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setText } from './nuclear-power-presentation.js';
 
 const TAU = Math.PI * 2;
 
@@ -132,13 +133,13 @@ export function updateElectricalScene(view, supply, phases, busPhase) {
         engine.terminalMaterial.emissiveIntensity = loaded ? .9 : 0;
         const state = generator.state === 'RUNNING' ? loaded ? 'SUPPLYING' : 'RUNNING / UNLOADED' : generator.state;
         const label = view.labels.get(`diesel${generator.id}`);
-        label.reading.textContent = `${state} · ${generator.fuel.toFixed(0)}% fuel`;
+        setText(label.reading, `${state} · ${generator.fuel.toFixed(0)}% fuel`);
         label.button.classList.toggle('selected', loaded);
     }
     view.busLamp.emissiveIntensity = supply.factor > 0 ? .8 : 0;
     view.gridLamp.emissiveIntensity = supply.source.includes('GRID') ? .8 : 0;
-    view.labels.get('grid').reading.textContent = supply.source.includes('GRID') ? 'SUPPLYING' : supply.gridAvailable ? 'AVAILABLE' : 'ISOLATED';
-    view.labels.get('bus').reading.textContent = supply.factor > 0 ? `${supply.demand.toFixed(2)} MW` : 'NO AC SUPPLY';
+    setText(view.labels.get('grid').reading, supply.source.includes('GRID') ? 'SUPPLYING' : supply.gridAvailable ? 'AVAILABLE' : 'ISOLATED');
+    setText(view.labels.get('bus').reading, supply.factor > 0 ? `${supply.demand.toFixed(2)} MW` : 'NO AC SUPPLY');
     for (const route of view.electricalPaths) {
         const loaded = route.source === 'bus' ? supply.factor > 0 : route.source.startsWith('diesel')
             ? supply.generators.find(generator => generator.id === route.source.slice(-1)).load > 0

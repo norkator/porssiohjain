@@ -41,6 +41,7 @@ export function initializeSpentFuel(host) {
 
 export function updateSpentFuel(host) {
     const root = host.shadowRoot.querySelector('.spent-fuel-dialog');
+    if (!root.matches(':popover-open')) return;
     const pool = host.fuelTransfer, ui = host.spentFuelUI;
     const samples = pool.samples.filter(Boolean);
     if (!samples.some(sample => sample.reference === ui.selected)) ui.selected = samples[0]?.reference || null;
