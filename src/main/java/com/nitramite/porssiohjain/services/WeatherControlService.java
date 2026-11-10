@@ -11,6 +11,8 @@
 
 package com.nitramite.porssiohjain.services;
 
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
+
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.DeviceEntity;
 import com.nitramite.porssiohjain.entity.SiteEntity;
@@ -310,6 +312,8 @@ public class WeatherControlService {
         DeviceEntity device = deviceRepository.findById(deviceId)
                 .orElseThrow(() -> new EntityNotFoundException("Device not found with id: " + deviceId));
         ensureOwnership(accountId, device.getAccount().getId());
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART)
+            throw new IllegalArgumentException("Tuya relay commands are not supported yet");
         return device;
     }
 

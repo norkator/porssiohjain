@@ -210,13 +210,79 @@ class ListCreationViewsTest {
     }
 
     @Test
+    void tuyaAccountManagerShowsNamedAccountsAndRenamesOnlySelectedConnection() {
+        var tuya = mock(com.nitramite.porssiohjain.services.tuya.TuyaService.class);
+        var first = new com.nitramite.porssiohjain.services.tuya.TuyaService.ConnectionStatus(10L, true, "Own home");
+        var owner = new com.nitramite.porssiohjain.services.tuya.TuyaService.ConnectionStatus(11L, false, "Home owner");
+        when(tuya.listConnections(7L)).thenReturn(List.of(first, owner));
+        Runnable changed = mock(Runnable.class);
+        TuyaConnectionDialog dialog = new TuyaConnectionDialog(tuya, auth, i18n, changed);
+        dialog.open();
+        @SuppressWarnings("unchecked")
+        var linked = (com.vaadin.flow.component.combobox.ComboBox<com.nitramite.porssiohjain.services.tuya.TuyaService.ConnectionStatus>)
+                descendants(dialog).filter(com.vaadin.flow.component.combobox.ComboBox.class::isInstance).findFirst().orElseThrow();
+        assertEquals(List.of(first, owner), linked.getListDataView().getItems().toList());
+        TextField name = descendants(dialog).filter(TextField.class::isInstance).map(TextField.class::cast)
+                .filter(field -> field.getLabel().equals("tuya.accountName")).findFirst().orElseThrow();
+        linked.setValue(first);
+        assertEquals("Own home", name.getValue());
+        name.setValue("My own account");
+        descendants(dialog).filter(c -> c instanceof Button button && button.getText().equals("tuya.account.rename"))
+                .map(Button.class::cast).findFirst().orElseThrow().click();
+        verify(tuya).renameConnection(7L, 10L, "My own account");
+        verify(changed).run();
+        descendants(dialog).filter(c -> c instanceof Button button && button.getText().equals("tuya.account.add"))
+                .map(Button.class::cast).findFirst().orElseThrow().click();
+        assertNull(linked.getValue());
+        assertTrue(name.isEmpty());
+        verify(tuya, never()).disconnect(any(), any());
+        dialog.close();
+    }
+
+    @Test
+    void tuyaPickerRequiresAccountChoiceAndClearsDeviceWhenItChanges() {
+        var tuya = mock(com.nitramite.porssiohjain.services.tuya.TuyaService.class);
+        var first = new com.nitramite.porssiohjain.services.tuya.TuyaService.ConnectionStatus(10L, true, "Own home");
+        var owner = new com.nitramite.porssiohjain.services.tuya.TuyaService.ConnectionStatus(11L, true, "Home owner");
+        var disconnected = new com.nitramite.porssiohjain.services.tuya.TuyaService.ConnectionStatus(12L, false, "Old account");
+        when(tuya.listConnections(7L)).thenReturn(List.of(first, owner, disconnected));
+        @SuppressWarnings("unchecked")
+        java.util.function.Consumer<com.nitramite.porssiohjain.services.tuya.TuyaService.CloudDevice> selected = mock(java.util.function.Consumer.class);
+        TuyaDevicePicker picker = new TuyaDevicePicker(tuya, i18n, () -> 7L, () -> { }, selected);
+        descendants(picker).filter(c -> c instanceof Button button && button.getText().equals("tuya.loadDevices"))
+                .map(Button.class::cast).findFirst().orElseThrow().click();
+        @SuppressWarnings("unchecked")
+        var linked = (com.vaadin.flow.component.combobox.ComboBox<com.nitramite.porssiohjain.services.tuya.TuyaService.ConnectionStatus>)
+                descendants(picker).filter(c -> c instanceof com.vaadin.flow.component.combobox.ComboBox<?> field
+                        && field.getLabel().equals("tuya.account")).findFirst().orElseThrow();
+        assertEquals(List.of(first, owner), linked.getListDataView().getItems().toList());
+        assertNull(picker.connectionId());
+        @SuppressWarnings("unchecked")
+        var deviceField = (com.vaadin.flow.component.combobox.ComboBox<com.nitramite.porssiohjain.services.tuya.TuyaService.CloudDevice>)
+                descendants(picker).filter(c -> c instanceof com.vaadin.flow.component.combobox.ComboBox<?> field
+                        && field.getLabel().equals("tuya.device")).findFirst().orElseThrow();
+        var sensor = new com.nitramite.porssiohjain.services.tuya.TuyaService.CloudDevice("sensor-1", "Sensor", "wsdcg", true, true, List.of());
+        deviceField.setItems(sensor);
+        deviceField.setValue(sensor);
+        linked.setValue(owner);
+        assertEquals(11L, picker.connectionId());
+        assertNull(deviceField.getValue());
+        verify(selected).accept(sensor);
+        verify(selected).accept(null);
+        picker.reset();
+        assertNull(picker.connectionId());
+    }
+
+    @Test
     void tuyaQrGenerationRequiresUserCodeBeforeContactingTuya() {
         var tuya = mock(com.nitramite.porssiohjain.services.tuya.TuyaService.class);
-        when(tuya.connectionStatus(7L)).thenReturn(new com.nitramite.porssiohjain.services.tuya.TuyaService.ConnectionStatus(false, ""));
         TuyaConnectionDialog dialog = new TuyaConnectionDialog(tuya, auth, i18n, () -> { });
         dialog.open();
         TextField code = descendants(dialog).filter(TextField.class::isInstance).map(TextField.class::cast)
-                .findFirst().orElseThrow();
+                .filter(field -> field.getLabel().equals("tuya.userCode")).findFirst().orElseThrow();
+        TextField name = descendants(dialog).filter(TextField.class::isInstance).map(TextField.class::cast)
+                .filter(field -> field.getLabel().equals("tuya.accountName")).findFirst().orElseThrow();
+        name.setValue("Home owner");
         Button generate = descendants(dialog).filter(c -> c instanceof Button button && button.getText().equals("tuya.qr.generate"))
                 .map(Button.class::cast).findFirst().orElseThrow();
 
@@ -226,7 +292,7 @@ class ListCreationViewsTest {
         code.setValue("   ");
         assertFalse(generate.isEnabled());
         generate.click();
-        verify(tuya, never()).beginLogin(any(), anyString());
+        verify(tuya, never()).beginLogin(any(), any(), anyString(), anyString());
 
         code.setValue("my-user-code");
         assertTrue(generate.isEnabled());

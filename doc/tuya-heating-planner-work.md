@@ -59,3 +59,9 @@ Remaining live checks after deployment:
 The starting worktree was clean. Current changes belong to this task. No commit, live cloud request, production app, or production database migration has been run for this work.
 
 If Gradle fails with sandbox network/wildcard-IP restrictions, retry the wrapper command with the tool's required escalation rather than changing production settings.
+
+## Multi-account and relay follow-up (2026-11-10)
+
+The Tuya connector now keeps multiple named connections per Pörssiohjain account (V123). Sensor discovery/import selects a connection explicitly, and each scheduled/manual poll uses the device mapping's connection. Existing sensors and their measurement history remain attached to the original connection. Disconnecting one connection marks only its devices offline. Error 1106 provides permission/shared-home-owner guidance. See [Tuya integration](tuya-smart-integration.md) for the account manager, migration and live checks.
+
+Read-only relay discovery/import and Boolean switch read-back prepare future relay support. Relays remain excluded from MQTT automation and command paths; their states are not temperature measurements. Zigbee ingestion, sensor freshness, explicit planner sensor selection and thermostat control remain unchanged. Live multi-account and relay validation remains outstanding.

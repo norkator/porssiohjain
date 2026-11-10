@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.PowerplantComparisonType;
 import com.nitramite.porssiohjain.entity.enums.PowerplantElementType;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
@@ -155,7 +156,8 @@ public class PowerplantView extends VerticalLayout implements BeforeEnterObserve
         applyBoardSize();
 
         standardDevices = deviceService.listDevices(accountId, accountId).stream()
-                .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
+                .filter(device -> device.getDeviceType() == DeviceType.STANDARD
+                        && device.getDevicePlatform() != DevicePlatform.TUYA_SMART)
                 .sorted(Comparator.comparing(DeviceResponse::getDeviceName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
         measurementOptions = powerplantService.getMeasurementOptions(accountId);

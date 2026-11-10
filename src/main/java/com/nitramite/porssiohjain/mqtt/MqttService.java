@@ -38,6 +38,8 @@ public class MqttService {
     }
 
     public void switchControl(String deviceId, int channel, boolean on, DevicePlatform platform) {
+        if (platform == DevicePlatform.TUYA_SMART)
+            throw new IllegalArgumentException("Tuya devices do not accept MQTT relay commands");
         if (platform == DevicePlatform.OPENBEKEN) {
             String topic = deviceId + "/" + channel + "/set";
             String payload = on ? "1" : "0";

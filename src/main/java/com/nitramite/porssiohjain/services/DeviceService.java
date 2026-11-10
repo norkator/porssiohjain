@@ -79,8 +79,9 @@ public class DeviceService {
         demoAccountGuard.assertWritable(authAccountId);
         DeviceType resolvedDeviceType = deviceType == null ? DeviceType.STANDARD : deviceType;
         DevicePlatform resolvedDevicePlatform = devicePlatform == null ? DevicePlatform.GENERIC_MQTT : devicePlatform;
-        if (resolvedDevicePlatform == DevicePlatform.TUYA_SMART && resolvedDeviceType != DeviceType.TEMPERATURE_SENSOR) {
-            throw new IllegalArgumentException("Tuya Smart currently supports temperature sensors only");
+        if (resolvedDevicePlatform == DevicePlatform.TUYA_SMART
+                && resolvedDeviceType != DeviceType.TEMPERATURE_SENSOR && resolvedDeviceType != DeviceType.STANDARD) {
+            throw new IllegalArgumentException("Tuya Smart supports temperature sensors and read-only relays");
         }
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
@@ -249,10 +250,11 @@ public class DeviceService {
                 .mqttPasswordChangeAllowed(entity.isMqttPasswordChangeAllowed())
                 .mqttPasswordChangeAllowedUntil(entity.getMqttPasswordChangeAllowedUntil())
                 .mqttDeviceProfile(entity.getMqttDeviceProfile())
-                .mqttCapabilities(mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
+                .mqttCapabilities(entity.getDevicePlatform() == DevicePlatform.TUYA_SMART ? List.of()
+                        : mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
                 .build();
 
-        if (entity.getDeviceType() == DeviceType.STANDARD) {
+        if (entity.getDeviceType() == DeviceType.STANDARD && entity.getDevicePlatform() != DevicePlatform.TUYA_SMART) {
             Map<Integer, Integer> channelSnapshot = controlService.getControlsSnapshotForDevice(entity.getUuid().toString());
             boolean hasActiveChannels = channelSnapshot.values().stream()
                     .anyMatch(value -> value != null && value == 1);
@@ -347,8 +349,8 @@ public class DeviceService {
         }
         DevicePlatform previousPlatform = device.getDevicePlatform();
         if ((previousPlatform == DevicePlatform.TUYA_SMART || resolvedDevicePlatform == DevicePlatform.TUYA_SMART)
-                && (previousPlatform != resolvedDevicePlatform || resolvedDeviceType != DeviceType.TEMPERATURE_SENSOR)) {
-            throw new IllegalArgumentException("Keep the linked Tuya Smart platform and temperature sensor type");
+                && (previousPlatform != resolvedDevicePlatform || resolvedDeviceType != previousType)) {
+            throw new IllegalArgumentException("Keep the linked Tuya Smart platform and device type");
         }
         device.setDeviceName(newName);
         device.setTimezone(newTimezone);
@@ -455,7 +457,7 @@ public class DeviceService {
                 ));
         // List<Long> linkedIds = powerLimitDeviceRepository.findDeviceIdsByPowerLimitId(powerLimitId);
         return deviceRepository.findByAccountId(limit.getAccount().getId()).stream()
-                .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
+                .filter(device -> device.getDeviceType() == DeviceType.STANDARD && device.getDevicePlatform() != DevicePlatform.TUYA_SMART)
                 // .filter(d -> !linkedIds.contains(d.getId()))
                 .map(this::mapDeviceToResponse)
                 .collect(Collectors.toList());
@@ -472,7 +474,8 @@ public class DeviceService {
                 .mqttDeviceProfile(entity.getMqttDeviceProfile())
                 .mqttPasswordChangeAllowed(entity.isMqttPasswordChangeAllowed())
                 .mqttPasswordChangeAllowedUntil(entity.getMqttPasswordChangeAllowedUntil())
-                .mqttCapabilities(mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
+                .mqttCapabilities(entity.getDevicePlatform() == DevicePlatform.TUYA_SMART ? List.of()
+                        : mqttProfileService.getCapabilities(entity.getMqttDeviceProfile()))
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();

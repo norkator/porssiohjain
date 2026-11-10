@@ -53,27 +53,49 @@ public class TuyaService {
     private static final Set<String> HUMIDITY_CODES = Set.of("va_humidity", "humidity_value");
 
     @Transactional(readOnly = true)
-    public ConnectionStatus connectionStatus(Long accountId) {
+    public List<ConnectionStatus> listConnections(Long accountId) {
         requireAccountId(accountId);
-        return connections.findByAccountId(accountId)
-                .map(c -> new ConnectionStatus(c.getSessionData() != null, Objects.toString(c.getAccountLabel(), "")))
-                .orElse(new ConnectionStatus(false, ""));
+        return connections.findByAccountIdOrderByIdAsc(accountId).stream().map(this::connectionStatus).toList();
     }
 
-    public QrLogin beginLogin(Long accountId, String userCode) {
+    private ConnectionStatus connectionStatus(TuyaConnectionEntity connection) {
+        return new ConnectionStatus(connection.getId(), connection.getSessionData() != null,
+                Objects.toString(connection.getAccountLabel(), ""));
+    }
+
+    @Transactional
+    public void renameConnection(Long accountId, Long connectionId, String label) {
+        demoGuard.assertWritable(accountId);
+        TuyaConnectionEntity connection = ownedConnection(accountId, connectionId);
+        connection.setAccountLabel(requireLabel(label));
+        connections.save(connection);
+    }
+
+    @Transactional(readOnly = true)
+    public ConnectionStatus deviceConnection(Long accountId, Long deviceId) {
+        requireAccountId(accountId);
+        return devices.findByDeviceIdAndConnectionAccountId(deviceId, accountId)
+                .map(link -> connectionStatus(link.getConnection()))
+                .orElseThrow(() -> new TuyaException("tuya.error.device"));
+    }
+
+    @Transactional
+    public QrLogin beginLogin(Long accountId, Long connectionId, String label, String userCode) {
         requireAccountId(accountId);
         demoGuard.assertWritable(accountId);
+        if (connectionId != null) ownedConnection(accountId, connectionId);
+        String name = requireLabel(label);
         String code = userCode == null ? "" : userCode.trim();
         if (code.isEmpty() || code.length() > 128) throw new TuyaException("tuya.error.userCode");
         pendingLogins.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(Instant.now()));
         String token = api.createQrCode(code);
-        PendingLogin pending = new PendingLogin(UUID.randomUUID(), code, token, Instant.now().plusSeconds(120));
+        PendingLogin pending = new PendingLogin(UUID.randomUUID(), connectionId, name, code, token, Instant.now().plusSeconds(120));
         pendingLogins.put(accountId, pending);
         return new QrLogin(pending.id(), "tuyaSmart--qrLogin?token=" + token, pending.expiresAt());
     }
 
     @Transactional
-    public void finishLogin(Long accountId, UUID attemptId) {
+    public ConnectionStatus finishLogin(Long accountId, UUID attemptId) {
         requireAccountId(accountId);
         demoGuard.assertWritable(accountId);
         // Lock the account too: the first connection does not yet have a row to lock.
@@ -85,15 +107,17 @@ public class TuyaService {
         if (!result.path("success").asBoolean(false))
             throw new TuyaException("tuya.error.loginPending", result.path("code").asText(""));
         TuyaSession session = api.sessionFromLogin(pending.userCode(), result);
-        TuyaConnectionEntity connection = connections.lockByAccountId(accountId).orElseGet(TuyaConnectionEntity::new);
-        if (connection.getProviderUserId() != null && !connection.getProviderUserId().equals(session.userId())
-                && devices.existsByConnectionId(connection.getId())) throw new TuyaException("tuya.error.accountChanged");
+        TuyaConnectionEntity connection = pending.connectionId() == null
+                ? connections.findByAccountIdAndProviderUserId(accountId, session.userId()).orElseGet(TuyaConnectionEntity::new)
+                : ownedConnection(accountId, pending.connectionId());
+        if (connection.getProviderUserId() != null && !connection.getProviderUserId().equals(session.userId())) throw new TuyaException("tuya.error.accountChanged");
         connection.setAccount(account);
         connection.setProviderUserId(session.userId());
-        connection.setAccountLabel(result.path("result").path("username").asText(session.userId()));
+        connection.setAccountLabel(pending.label());
         connection.setSessionData(writeSession(session));
         connections.save(connection);
         pendingLogins.remove(accountId, pending);
+        return connectionStatus(connection);
     }
 
     public void cancelLogin(Long accountId, UUID attemptId) {
@@ -102,15 +126,16 @@ public class TuyaService {
     }
 
     @Transactional(noRollbackFor = TuyaException.class)
-    public void disconnect(Long accountId) {
+    public void disconnect(Long accountId, Long connectionId) {
         requireAccountId(accountId);
         demoGuard.assertWritable(accountId);
-        TuyaConnectionEntity connection = requireConnection(accountId);
+        TuyaConnectionEntity connection = requireConnection(accountId, connectionId);
         // Revoke before clearing local tokens. A failed request leaves a retryable connection.
         api.revoke(refresh(connection));
         connection.setSessionData(null);
         connections.save(connection);
-        pendingLogins.remove(accountId);
+        pendingLogins.computeIfPresent(accountId,
+                (key, pending) -> Objects.equals(pending.connectionId(), connectionId) ? null : pending);
         for (TuyaDeviceEntity link : devices.findByConnectionId(connection.getId())) {
             link.getDevice().setApiOnline(false);
             link.getDevice().setMqttOnline(false);
@@ -119,8 +144,8 @@ public class TuyaService {
     }
 
     @Transactional(noRollbackFor = TuyaException.class)
-    public List<Home> homes(Long accountId) {
-        TuyaSession session = refresh(requireConnection(accountId));
+    public List<Home> homes(Long accountId, Long connectionId) {
+        TuyaSession session = refresh(requireConnection(accountId, connectionId));
         JsonNode result = api.get(session, "/v1.0/m/life/users/homes", Map.of());
         requireArray(result);
         List<Home> homes = new ArrayList<>();
@@ -129,9 +154,9 @@ public class TuyaService {
     }
 
     @Transactional(noRollbackFor = TuyaException.class)
-    public List<CloudDevice> devices(Long accountId, String homeId) {
+    public List<CloudDevice> devices(Long accountId, Long connectionId, String homeId) {
         checkId(homeId);
-        TuyaSession session = refresh(requireConnection(accountId));
+        TuyaSession session = refresh(requireConnection(accountId, connectionId));
         JsonNode result = api.get(session, "/v1.0/m/life/ha/home/devices", Map.of("homeId", homeId));
         requireArray(result);
         List<CloudDevice> found = new ArrayList<>();
@@ -140,21 +165,25 @@ public class TuyaService {
     }
 
     @Transactional(noRollbackFor = TuyaException.class)
-    public void importDevice(Long accountId, String externalId, String name, String timezone, boolean enabled) {
+    public void importDevice(Long accountId, Long connectionId, String externalId, String name, String timezone, boolean enabled) {
         requireAccountId(accountId);
         demoGuard.assertWritable(accountId);
         checkId(externalId);
         if (name == null || name.isBlank() || name.length() > 255) throw new TuyaException("tuya.error.name");
         try { ZoneId.of(timezone); } catch (Exception e) { throw new TuyaException("tuya.error.timezone"); }
-        TuyaConnectionEntity connection = requireConnection(accountId);
+        // Serialize imports across this account's connections, including shared devices and quotas.
+        accounts.findWithLockById(accountId).orElseThrow(() -> new TuyaException("tuya.error.account"));
+        TuyaConnectionEntity connection = requireConnection(accountId, connectionId);
         TuyaSession session = refresh(connection);
-        if (devices.existsByConnectionIdAndTuyaDeviceId(connection.getId(), externalId)) throw new TuyaException("tuya.error.duplicate");
+        if (devices.existsByConnectionAccountIdAndTuyaDeviceId(accountId, externalId)) throw new TuyaException("tuya.error.duplicate");
         JsonNode detail = detail(session, externalId);
         JsonNode specs = specifications(session, externalId);
-        if (!cloudDevice(detail).temperatureSensor() && !hasTemperature(specs.path("status")))
+        // Relay capability is independent of temperature: a relay may expose both.
+        boolean relay = !relayCodes(detail, specs).isEmpty();
+        if (!relay && !cloudDevice(detail).temperatureSensor() && !hasTemperature(specs.path("status")))
             throw new TuyaException("tuya.error.unsupported");
         var localDevice = deviceService.createDevice(accountId, accountId, name.trim(), timezone,
-                DeviceType.TEMPERATURE_SENSOR, DevicePlatform.TUYA_SMART, enabled,
+                relay ? DeviceType.STANDARD : DeviceType.TEMPERATURE_SENSOR, DevicePlatform.TUYA_SMART, enabled,
                 null, AcType.NONE, null, null, null, null);
         TuyaDeviceEntity link = new TuyaDeviceEntity();
         link.setConnection(connection);
@@ -171,7 +200,7 @@ public class TuyaService {
         if (link.getDevice().getDevicePlatform() != DevicePlatform.TUYA_SMART
                 || !Objects.equals(link.getDevice().getAccount().getId(), accountId)) throw new TuyaException("tuya.error.device");
         try {
-            TuyaSession session = refresh(requireConnection(accountId));
+            TuyaSession session = refresh(requireConnection(accountId, link.getConnection().getId()));
             JsonNode detail = detail(session, link.getTuyaDeviceId());
             JsonNode specs = specifications(session, link.getTuyaDeviceId());
             Instant fetchedAt = Instant.now();
@@ -262,12 +291,23 @@ public class TuyaService {
         } catch (RuntimeException ignored) { return null; }
     }
 
-    private TuyaConnectionEntity requireConnection(Long accountId) {
+    private TuyaConnectionEntity ownedConnection(Long accountId, Long connectionId) {
         requireAccountId(accountId);
-        TuyaConnectionEntity connection = connections.lockByAccountId(accountId)
+        if (connectionId == null) throw new TuyaException("tuya.error.notConnected");
+        return connections.lockByIdAndAccountId(connectionId, accountId)
                 .orElseThrow(() -> new TuyaException("tuya.error.notConnected"));
+    }
+
+    private TuyaConnectionEntity requireConnection(Long accountId, Long connectionId) {
+        TuyaConnectionEntity connection = ownedConnection(accountId, connectionId);
         if (connection.getSessionData() == null) throw new TuyaException("tuya.error.notConnected");
         return connection;
+    }
+
+    private static String requireLabel(String label) {
+        if (label == null || label.isBlank() || label.trim().length() > 255)
+            throw new TuyaException("tuya.error.accountName");
+        return label.trim();
     }
 
     private TuyaSession refresh(TuyaConnectionEntity connection) {
@@ -296,12 +336,29 @@ public class TuyaService {
         String category = device.path("category").asText("");
         return new CloudDevice(TuyaApiClient.required(device, "id"), device.path("name").asText(""), category,
                 device.path("online").asBoolean(false), hasTemperature(device.path("status"))
-                        || Set.of("wsdcg", "qxj").contains(category));
+                        || Set.of("wsdcg", "qxj").contains(category), relayCodes(device, mapper.createObjectNode()));
     }
 
     private static boolean hasTemperature(JsonNode properties) {
         for (JsonNode property : properties) if (TEMPERATURE_CODES.contains(property.path("code").asText())) return true;
         return false;
+    }
+
+    private static boolean relayCode(String code) {
+        return code.matches("switch(?:_[1-9][0-9]*)?");
+    }
+
+    private static List<String> relayCodes(JsonNode detail, JsonNode specs) {
+        Set<String> codes = new TreeSet<>();
+        for (JsonNode status : detail.path("status")) {
+            String code = status.path("code").asText();
+            if (relayCode(code) && status.path("value").isBoolean()) codes.add(code);
+        }
+        for (String section : List.of("status", "functions")) for (JsonNode definition : specs.path(section)) {
+            String code = definition.path("code").asText();
+            if (relayCode(code) && "Boolean".equalsIgnoreCase(definition.path("type").asText())) codes.add(code);
+        }
+        return List.copyOf(codes);
     }
 
     List<Reading> decodeReadings(JsonNode detail, JsonNode specifications) {
@@ -311,8 +368,15 @@ public class TuyaService {
         for (JsonNode definition : specifications.path("status")) definitions.put(definition.path("code").asText(), definition);
         Set<String> codes = new LinkedHashSet<>(definitions.keySet());
         codes.addAll(values.keySet());
+        List<String> relays = relayCodes(detail, specifications);
+        codes.addAll(relays);
         List<Reading> readings = new ArrayList<>();
         for (String code : codes) {
+            if (relays.contains(code)) {
+                JsonNode value = values.get(code);
+                readings.add(new Reading(code, value != null && value.isBoolean() ? value.asText() : "", ""));
+                continue;
+            }
             if (!TEMPERATURE_CODES.contains(code) && !HUMIDITY_CODES.contains(code)
                     && !Set.of("battery_percentage", "battery_state").contains(code)) continue;
             JsonNode value = values.get(code);
@@ -374,15 +438,17 @@ public class TuyaService {
         if (!result.isArray()) throw new TuyaException("tuya.error.response");
     }
 
-    private record PendingLogin(UUID id, String userCode, String token, Instant expiresAt) {
+    private record PendingLogin(UUID id, Long connectionId, String label, String userCode, String token, Instant expiresAt) {
         @Override public String toString() { return "PendingLogin[redacted]"; }
     }
     public record QrLogin(UUID id, String payload, Instant expiresAt) {
         @Override public String toString() { return "QrLogin[redacted]"; }
     }
-    public record ConnectionStatus(boolean connected, String label) { }
+    public record ConnectionStatus(Long id, boolean connected, String label) { }
     public record Home(String id, String name) { }
-    public record CloudDevice(String id, String name, String category, boolean online, boolean temperatureSensor) { }
+    public record CloudDevice(String id, String name, String category, boolean online, boolean temperatureSensor, List<String> relayCodes) {
+        public DeviceType deviceType() { return relayCodes.isEmpty() ? DeviceType.TEMPERATURE_SENSOR : DeviceType.STANDARD; }
+    }
     public record Reading(String code, String value, String unit) { }
     public record Snapshot(boolean online, Instant fetchedAt, List<Reading> readings) { }
 }

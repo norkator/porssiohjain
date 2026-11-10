@@ -1,48 +1,64 @@
 # Tuya Smart integration
 
-Pörssiohjain provides a Vaadin integration for linking an existing Tuya Smart account, selecting devices from its homes, polling temperature, humidity, and battery properties, and using imported sensors in Heating Planner. Account linking, discovery, sensor import, and manual polling were confirmed with one physical temperature/humidity sensor on 2026-10-15. Scheduled polling and Heating Planner support require deployment of the new measurement migration and live validation.
+Pörssiohjain provides a Vaadin integration for linking named Tuya Smart accounts, selecting devices from their homes, polling sensor readings and relay states, and using imported temperature sensors in Heating Planner. Account linking, discovery, sensor import, and manual polling were confirmed with one physical temperature/humidity sensor on 2026-10-15. Scheduled polling and Heating Planner support require deployment of the new measurement migration and live validation.
 
 The connector is implemented in Java. It uses the sharing protocol from Tuya's Python SDK without requiring Python, a separate connector process, or a Home Assistant installation.
 
 ## Scope
 
-- One saved Tuya account connection per Pörssiohjain account, reused by all selected Tuya devices.
+- Multiple named Tuya account connections per Pörssiohjain account. Each imported device keeps its own connection; homes and discovery use the explicitly selected account.
 - Connection setup, device selection, and manual polling in Vaadin's **Devices** view; background polling every 30 minutes for enabled imported devices with a saved connection.
-- Imported devices use `DevicePlatform.TUYA_SMART` and `DeviceType.TEMPERATURE_SENSOR`.
-- Read-only device access: temperature, humidity, battery percentage, and reported battery state when exposed by Tuya.
+- Imported devices use `DevicePlatform.TUYA_SMART`, with `DeviceType.TEMPERATURE_SENSOR` for sensors or `DeviceType.STANDARD` for read-only relays.
+- Read-only device access: temperature, humidity, battery percentage/state and Boolean relay channels when exposed by Tuya. Relay commands and automation are not enabled.
 - Normalized numeric measurement history, retained for one month, and explicit room/floor sensor selection in Heating Planner.
 
 Device commands, new Tuya REST endpoints, and a React setup flow are outside this integration. Existing devices remain in the Tuya Smart app. The existing Heating Planner widget summary can expose the selected sensors through its common measurement service.
 
 ## Link an account and add a device
 
-1. Open **Devices → Tuya Smart connection**. The add-device form also provides this connection action.
-2. Find **User Code** in Tuya Smart under **Me → Settings → Account and Security**. Enter it in the required **Tuya User Code** field. **Generate new QR code** stays disabled while the field is blank or contains only whitespace.
+1. Open **Devices → Tuya Smart accounts**. The add-device form also provides this connection action.
+2. Choose **Add Tuya account**, enter a recognizable local **Account name**, and find **User Code** in Tuya Smart under **Me → Settings → Account and Security**. Enter it in the required **Tuya User Code** field. **Generate new QR code** stays disabled while the field is blank or contains only whitespace.
 3. Generate the QR code. In Tuya Smart, use **+ → Scan**, scan it, and approve the login. Tuya may identify the authorization as **Home Assistant**, because the connector uses that public client registration. The connection dialog explains this before scanning.
-4. Return to Vaadin and choose **Complete linking after approval**. If approval is still pending, retry. If the code expires, generate a new one. A successful login displays the saved account label and the disconnect action.
-5. Open the add-device form and choose **Platform = Tuya Smart**. The device type becomes **Temperature sensor**. Choose **Load homes / devices**, select a home, then select a device. A single returned home is selected automatically.
-6. Adjust the local device name, timezone, and enabled setting, then save. The selected Tuya device cannot be imported twice into the same connection.
+4. Return to Vaadin and choose **Complete linking after approval**. If approval is still pending, retry. If the code expires, generate a new one. A successful login displays the saved account name and the disconnect action. The account selector lists both connected and disconnected accounts. Use **Save account name** to rename the selected connection. To reconnect, select the saved account and scan with that same Tuya account; use **Add Tuya account** for a different identity.
+5. Open the add-device form and choose **Platform = Tuya Smart**. Choose **Load homes / devices**, select the named Tuya account, then select a home and device. A single connected account or returned home is selected automatically. Supported relay channels select the standard device type; import validates capabilities against device details and property definitions.
+6. Adjust the local device name, timezone, and enabled setting, then save. The selected Tuya device cannot be imported twice into the same Pörssiohjain account, including through different Tuya accounts that can see the same shared device.
 7. Open the saved device's **Manage** dialog and choose **Poll now** to display its latest reported values and cloud online state.
 8. In **Heating Planner**, select the imported sensor explicitly in the room's **Room sensor** or **Floor sensor** selector and save the configuration. Select a floor sensor only when it actually measures the floor; room measurements are never assigned that role automatically.
 
-Account linking is normally performed once per Tuya account. Subsequent devices reuse the saved connection while authorization remains valid. Refresh the home/device list after adding devices in Tuya Smart. Imported devices keep their Tuya platform and sensor type; the manage dialog allows editing their local name, timezone, and enabled setting.
+Account linking is normally performed once per Tuya account. Subsequent devices reuse the saved connection while authorization remains valid. Refresh the home/device list after adding devices in Tuya Smart. Imported devices keep their Tuya platform and device type; the manage dialog allows editing their local name, timezone, and enabled setting.
 
 ## Connection lifecycle and persistence
 
-Flyway migration [V111__create_tuya_connection.sql](../src/main/resources/db/migration/V111__create_tuya_connection.sql) creates:
+Flyway migration [V111__create_tuya_connection.sql](../src/main/resources/db/migration/V111__create_tuya_connection.sql) creates the connection tables; the current schema after V123 is:
 
 | Table | Purpose |
 | --- | --- |
-| `tuya_connection` | Account ownership, provider user ID, display label, and encrypted session data. The account ID is unique. |
+| `tuya_connection` | Account ownership, provider user ID, display label, and encrypted session data. The account/provider-user-ID pair is unique. |
 | `tuya_device` | A local device's connection and external Tuya device ID. Both the local device mapping and the connection/external-ID pair are unique. |
+
+Migration [V123__multiple_tuya_accounts.sql](../src/main/resources/db/migration/V123__multiple_tuya_accounts.sql) replaces the original single-account uniqueness rule with account/provider identity uniqueness. Existing connection IDs, encrypted sessions, labels and device mappings remain intact.
 
 The session contains the User Code, regional endpoint, terminal ID, provider user ID, access and refresh tokens, and expiry. It is encrypted using the existing [CryptoConverter](../src/main/java/com/nitramite/porssiohjain/utils/CryptoConverter.java) and `app.crypto.key`. The Tuya password is not collected. QR login attempts are temporary server memory state; they are not saved as reusable credentials.
 
-Saved session data supports reuse across browser sessions and application restarts. Before cloud requests, the service refreshes tokens approaching expiry and saves their replacements. Database row locking serializes token refresh and cloud operations for a connection. Successful refreshes remain saved if a subsequent cloud read fails. The saved-connection label indicates that session data exists; it does not independently verify current cloud authorization.
+Saved session data supports reuse across browser sessions and application restarts. Before cloud requests, the service refreshes tokens approaching expiry and saves their replacements. Database row locking serializes token refresh and cloud operations for each connection independently. Linking and importing also lock the owning Pörssiohjain account to serialize account identity changes, cross-connection duplicate checks and device limits. Successful refreshes remain saved if a subsequent cloud read fails. The saved-connection label indicates that session data exists; it does not independently verify current cloud authorization.
 
-If authorization is revoked or cannot be refreshed, generate and approve a new QR code. Reconnecting to a different Tuya account is rejected while existing device mappings refer to the original provider user ID.
+If authorization is revoked or cannot be refreshed, generate and approve a new QR code. Reconnecting a selected connection to a different Tuya identity is rejected. Adding the same provider account again reuses its saved row and mappings, updates its session, and applies the entered local name. Other linked accounts remain unchanged.
 
-**Disconnect Tuya account** sends Tuya's terminal-expiry request and clears local session data only after success. A failed request leaves the connection available for retry. Local device mappings remain for reconnecting the same account. Normal application shutdown preserves authorization. Deleting a local device removes its Tuya mapping through the database cascade.
+**Disconnect Tuya account** sends Tuya's terminal-expiry request and clears local session data only after success. A failed request leaves the connection available for retry. Only devices attached to that selected connection are marked offline. Other connections continue polling. Local device mappings remain for reconnecting the same account. Normal application shutdown preserves authorization. Deleting a local device removes its Tuya mapping through the database cascade.
+
+## Permission error 1106
+
+Tuya documents `1106` as a permission denial ([Tuya error codes](https://github.com/tuya/tuya-home-assistant/blob/main/docs/error_code.md)). The application maps it to specific English/Finnish guidance rather than suggesting only token expiry. A shared home's administrator/member role may expose different API permissions from its owner's account; this is a possible explanation, not a diagnosis from the error alone. Link the home owner's Tuya account under a separate local name, select it in discovery, and retry the home/device operation. This does not bypass Tuya permissions. Other Tuya failures retain their safe translated key/code without exposing provider payloads or credentials.
+
+## Relay preparation
+
+Discovery recognizes Boolean `switch` and `switch_N` status values. Import also checks Boolean definitions in both `status` and `functions`, permitting a relay to be imported before its first state report. A relay with temperature properties remains classified as a relay. Unsupported properties such as `switch_led`, string-valued switches without a Boolean definition, and category names alone do not establish relay capability.
+
+Polling displays each supported property code separately with On/Off/Unavailable state. Missing or malformed values are never treated as Off. Relay states remain cloud read-back at fetch time; they are not command acknowledgements and are not stored as temperature/humidity measurements. Devices that also expose supported sensor properties can still retain those readings.
+
+This is a read-only foundation. Relays have no MQTT capabilities or synthetic four-channel state from the control scheduler. The Vaadin selectors and backend assignment checks exclude Tuya from price, production, weather, power-limit, load-shedding and Powerplant relay control. The MQTT transport additionally refuses Tuya relay commands. Device management hides MQTT tools and certificates for Tuya devices.
+
+Future relay commands must use the device's actual Boolean function codes through the sharing API and its own saved connection, with explicit ownership, online/enabled checks, channel mapping, and read-back kept separate from requested state. Do not assume MQTT channels `0..3`, infer an acknowledgement from a successful request, or automatically enable schedules during import. No new Tuya REST endpoints or React setup flow are introduced here. The React device list identifies imported Tuya devices, omits synthetic relay On/Off state and MQTT actions, preserves the imported type in management, and excludes Tuya from automation selectors.
 
 ## Polling and sensor values
 
@@ -61,7 +77,7 @@ Numeric readings require integer-type property definitions with a usable scale. 
 
 A device can be imported when its discovery data exposes a supported temperature property, its category is `wsdcg` or `qxj`, or its property definitions expose a supported temperature property. This permits selecting a recognized sensor before it reports a value. Other models and properties depend on what the sharing API exposes, which can differ from the Tuya app's capabilities. [Home Assistant's Tuya documentation](https://www.home-assistant.io/integrations/tuya/) describes that API limitation.
 
-Cloud requests from the dialog run on background threads, with UI polling used only to deliver results. The background scheduler starts a polling pass every 30 minutes, starting 15 seconds after application startup. A separate worker keeps slow cloud requests off the shared control scheduler; an unfinished pass prevents overlapping passes. Each device is handled in its own transaction so one failed account does not stop other sensors. Pending QR attempts are never used by the scheduler.
+Cloud requests from the dialog run on background threads, with UI polling used only to deliver results. The background scheduler starts a polling pass every 30 minutes, starting 15 seconds after application startup. A separate worker keeps slow cloud requests off the shared control scheduler; an unfinished pass prevents overlapping passes. Each device is handled in its own transaction so one failed account does not stop other devices. Pending QR attempts are never used by the scheduler.
 
 ## Measurement storage, freshness, and status
 
@@ -85,12 +101,12 @@ Fresh floor input still requires explicit selection; stale/missing input disable
 
 | Component | Responsibility |
 | --- | --- |
-| [DeviceView](../src/main/java/com/nitramite/porssiohjain/views/DeviceView.java) | Tuya platform selection, sensor import, and the manage-dialog polling action. |
-| [TuyaConnectionDialog](../src/main/java/com/nitramite/porssiohjain/views/TuyaConnectionDialog.java) | Required User Code input, QR rendering, login completion, relinking, and disconnect. |
-| [TuyaDevicePicker](../src/main/java/com/nitramite/porssiohjain/views/TuyaDevicePicker.java) | Home and device discovery/selection. |
+| [DeviceView](../src/main/java/com/nitramite/porssiohjain/views/DeviceView.java) | Tuya platform selection, sensor/relay import, and the manage-dialog polling action. |
+| [TuyaConnectionDialog](../src/main/java/com/nitramite/porssiohjain/views/TuyaConnectionDialog.java) | Named-account selection/renaming, required User Code input, QR rendering, login completion, relinking, and per-account disconnect. |
+| [TuyaDevicePicker](../src/main/java/com/nitramite/porssiohjain/views/TuyaDevicePicker.java) | Named-account, home and device discovery/selection. |
 | [TuyaTask](../src/main/java/com/nitramite/porssiohjain/views/TuyaTask.java) | Background requests and delivery of results to the attached Vaadin UI. |
 | [TuyaService](../src/main/java/com/nitramite/porssiohjain/services/tuya/TuyaService.java) | Account ownership, login attempts, saved sessions, token refresh, import validation, and reading conversion. |
-| [TuyaScheduler](../src/main/java/com/nitramite/porssiohjain/scheduled/TuyaScheduler.java) | Thirty-minute sensor polling and daily generic measurement cleanup. |
+| [TuyaScheduler](../src/main/java/com/nitramite/porssiohjain/scheduled/TuyaScheduler.java) | Thirty-minute device polling and daily generic measurement cleanup. |
 | [DeviceMeasurementService](../src/main/java/com/nitramite/porssiohjain/services/DeviceMeasurementService.java) | Common read contract over Zigbee history and generic measurements for Heating Planner. |
 | [TuyaApiClient](../src/main/java/com/nitramite/porssiohjain/services/tuya/TuyaApiClient.java) and [TuyaSharingCodec](../src/main/java/com/nitramite/porssiohjain/services/tuya/TuyaSharingCodec.java) | Tuya HTTP requests, signing, encryption, and response handling. |
 
@@ -128,14 +144,19 @@ Use Java 21 and the repository Gradle wrapper:
   --tests 'com.nitramite.porssiohjain.services.heating.*' \
   --tests com.nitramite.porssiohjain.services.DeviceMeasurementServiceTest \
   --tests com.nitramite.porssiohjain.DeviceServiceTest \
+  --tests com.nitramite.porssiohjain.mqtt.MqttServiceTest \
   --tests com.nitramite.porssiohjain.ZigbeeGatewaySyncServiceTest \
   --tests com.nitramite.porssiohjain.views.HeatingPlannerViewTest \
   --tests com.nitramite.porssiohjain.views.ListCreationViewsTest
 ```
 
-Automated checks cover SDK signing/encryption reference vectors, HTTP handling, token rotation, ownership, duplicate import rejection, encrypted JPA persistence, migration/repository isolation and cleanup boundaries, polling failures, offline cached values, Celsius normalization, timestamp freshness, existing Zigbee history compatibility, and Vaadin behavior.
+Automated checks cover named multi-account linking/renaming, connection-scoped discovery and polling, reconnect identity protection, V123 upgrade preservation, relay capability/read-back and MQTT exclusions, SDK signing/encryption reference vectors, HTTP handling, token rotation, ownership, cross-connection duplicate import rejection, encrypted JPA persistence, migration/repository isolation and cleanup boundaries, polling failures, offline cached values, Celsius normalization, timestamp freshness, existing Zigbee history compatibility, and Vaadin behavior.
+
+The 2026-11-10 follow-up passed Java 21 compilation and 132 focused tests across 14 classes (Tuya, device/control services, relay transport, Vaadin and measurement compatibility), plus `npm run build` in `hybrid-web`. V123 upgrade assertions use H2 with its account-FK backing-index behavior adapted in the test harness; the production PostgreSQL migration has not been executed here.
 
 Live account linking, home/device discovery, import, and polling were confirmed on 2026-10-15 with one physical temperature/humidity sensor. The reported results were temperature **20.9 °C**, humidity **51%**, and battery **100%**. This validates the flow for that account and sensor; it does not establish support for every Tuya model.
+
+Named multi-account management, owner-account access to the reported shared home, and relay discovery/import/read-back require live validation after V123 deployment. Automated checks do not establish device-specific Tuya permissions.
 
 Additional live checks remain: deploy V112, observe automatic readings over several 30-minute intervals, select a Tuya room/floor sensor in Heating Planner, verify cloud-snapshot labels and offline/stale behavior, token refresh after expiry, reuse after an application restart, and explicit disconnect/reconnect. Compare returned units/values with the Tuya app and repeat polling after the sensor reports a change.
 

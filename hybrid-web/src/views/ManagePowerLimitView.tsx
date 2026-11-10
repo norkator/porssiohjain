@@ -108,7 +108,7 @@ export default function ManagePowerLimitView() {
       setSites(siteResponse);
       setLinks(linkResponse);
       setNotifications(notificationResponse);
-      setDevices(deviceResponse.filter((device) => device.deviceType === "STANDARD" && !device.shared));
+      setDevices(deviceResponse.filter((device) => device.deviceType === "STANDARD" && device.devicePlatform !== "TUYA_SMART" && !device.shared));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : t("failedOne"));
     } finally {

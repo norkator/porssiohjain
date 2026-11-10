@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.ProductionApiType;
 import com.nitramite.porssiohjain.entity.enums.ResourceType;
 import com.nitramite.porssiohjain.entity.repository.*;
@@ -233,6 +234,8 @@ public class ProductionSourceService {
         DeviceEntity device = deviceRepository
                 .findByIdAndAccount(deviceId, account)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found for account"));
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART)
+            throw new IllegalArgumentException("Tuya relay commands are not supported yet");
         ProductionSourceDeviceEntity entity = new ProductionSourceDeviceEntity();
         entity.setProductionSource(source);
         entity.setDevice(device);

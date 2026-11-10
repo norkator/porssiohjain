@@ -89,7 +89,8 @@ export default function ManageDeviceView() {
       acDeviceId.trim().length > 0
     );
   const canSave = deviceName.trim().length > 0 && timezoneIsValid && heatPumpReady && !device?.shared && !isSaving && !isDeleting;
-  const isStandard = deviceType === "STANDARD";
+  const isTuya = device?.devicePlatform === "TUYA_SMART";
+  const isStandard = deviceType === "STANDARD" && !isTuya;
   const showShellyScript = isStandard && device?.devicePlatform === "GENERIC_MQTT";
 
   useEffect(() => {
@@ -381,12 +382,12 @@ export default function ManageDeviceView() {
                     </label>
                     <select
                       className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
-                      disabled={device?.shared || device?.simulated}
+                      disabled={device?.shared || device?.simulated || isTuya}
                       id="device-type"
                       onChange={(event) => setDeviceType(event.target.value as DeviceType)}
                       value={deviceType}
                     >
-                      {DEVICE_TYPES.map((option) => (
+                      {(isTuya ? [deviceType] : DEVICE_TYPES).map((option) => (
                         <option key={option} value={option}>{deviceTypeLabels[option] ?? formatDeviceType(option)}</option>
                       ))}
                     </select>
@@ -431,7 +432,7 @@ export default function ManageDeviceView() {
                         </label>
                         <select
                           className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-4 text-on-surface outline-none transition-all focus:border-primary"
-                          disabled={device?.shared || device?.simulated}
+                          disabled={device?.shared || device?.simulated || isTuya}
                           id="ac-type"
                           onChange={(event) => setAcType(event.target.value as AcType)}
                           value={acType}

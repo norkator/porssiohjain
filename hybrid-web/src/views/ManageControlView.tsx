@@ -225,7 +225,7 @@ export default function ManageControlView() {
         setDeviceLinks(linksResponse);
         setHeatPumpLinks(heatPumpLinksResponse);
         setThermostatLinkCount(thermostatLinksResponse.length);
-        setStandardDevices(devicesResponse.filter((device) => device.deviceType === "STANDARD"));
+        setStandardDevices(devicesResponse.filter((device) => device.deviceType === "STANDARD" && device.devicePlatform !== "TUYA_SMART"));
         setHeatPumpDevices(devicesResponse.filter((device) => device.deviceType === "HEAT_PUMP"));
         setIsLoadingLinks(false);
       } catch (error) {

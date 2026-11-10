@@ -60,6 +60,13 @@ class MqttServiceTest {
         assertEquals("0", message.getPayload());
     }
 
+    @Test
+    void neverRoutesTuyaRelayCommandsThroughMqtt() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> mqttService.switchControl("tuya-relay", 0, true, DevicePlatform.TUYA_SMART));
+        org.mockito.Mockito.verifyNoInteractions(mqttOutboundChannel);
+    }
+
     private Message<?> captureOutboundMessage() {
         ArgumentCaptor<Message<?>> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(mqttOutboundChannel).send(messageCaptor.capture());

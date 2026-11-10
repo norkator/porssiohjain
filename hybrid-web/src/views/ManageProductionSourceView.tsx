@@ -115,7 +115,7 @@ export default function ManageProductionSourceView() {
   const [deleteNotificationConfirmId, setDeleteNotificationConfirmId] = useState<number | null>(null);
   const [isDeletingNotificationId, setIsDeletingNotificationId] = useState<number | null>(null);
 
-  const standardDevices = devices.filter((device) => device.deviceType === "STANDARD" && !device.shared);
+  const standardDevices = devices.filter((device) => device.deviceType === "STANDARD" && device.devicePlatform !== "TUYA_SMART" && !device.shared);
   const heatPumpDevices = devices.filter((device) => device.deviceType === "HEAT_PUMP" && !device.shared);
 
   const resetHeatPumpForm = () => {

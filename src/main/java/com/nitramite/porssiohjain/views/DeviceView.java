@@ -53,6 +53,7 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -222,7 +223,10 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         tuyaDevicePicker = new TuyaDevicePicker(tuyaService, i18n, this::tuyaAccountId,
                 tuyaConnectionDialog::open, device -> {
                     pendingTuyaDevice = device;
-                    if (device != null) nameField.setValue(device.name());
+                    if (device != null) {
+                        nameField.setValue(device.name());
+                        deviceTypeCombo.setValue(device.deviceType());
+                    }
                     updateSaveButtonState();
                 });
         tuyaDevicePicker.setVisible(false);
@@ -754,16 +758,18 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             if (devicePlatform == DevicePlatform.TUYA_SMART) {
                 if (pendingTuyaDevice == null || tuyaSaving) return;
                 String externalId = pendingTuyaDevice.id();
+                Long connectionId = tuyaDevicePicker.connectionId();
                 tuyaSaving = true;
                 updateSaveButtonState();
                 tuyaCreateTask.run(() -> {
-                    tuyaService.importDevice(accountId, externalId, deviceName, timezone, enabled);
+                    tuyaService.importDevice(accountId, connectionId, externalId, deviceName, timezone, enabled);
                     return true;
                 }, ignored -> {
                     tuyaSaving = false;
                     if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
                     Notification.show(t("device.notification.created")).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    if (pendingTuyaDevice != null && externalId.equals(pendingTuyaDevice.id())
+                    if (pendingTuyaDevice != null && java.util.Objects.equals(connectionId, tuyaDevicePicker.connectionId())
+                            && externalId.equals(pendingTuyaDevice.id())
                             && deviceName.equals(nameField.getValue()) && timezone.equals(timezoneCombo.getValue())
                             && enabled == enabledField.getValue()) {
                         clearForm();
@@ -1032,7 +1038,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         toolActions.setSpacing(true);
         toolActions.setWidthFull();
 
-        if (device.getDeviceType() == DeviceType.STANDARD || device.getDeviceType() == DeviceType.THERMOSTAT) {
+        if (!tuya && (device.getDeviceType() == DeviceType.STANDARD || device.getDeviceType() == DeviceType.THERMOSTAT)) {
             toolActions.add(createDialogActionButton(
                     t("device.controls.button"),
                     VaadinIcon.CODE,
@@ -1069,7 +1075,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             ));
         }
 
-        if (!shared) {
+        if (!shared && !tuya) {
             toolActions.add(createDialogActionButton(
                     t("device.mqttPasswordChange.button"),
                     VaadinIcon.KEY,
@@ -1077,11 +1083,11 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
             ));
         }
 
-        if (toolActions.getComponentCount() > 0 || device.getDeviceType() == DeviceType.STANDARD) {
+        if (toolActions.getComponentCount() > 0 || (!tuya && device.getDeviceType() == DeviceType.STANDARD)) {
             content.add(Divider.createDivider(), new H2(t("device.manage.toolsTitle")), toolActions);
         }
 
-        if (device.getDeviceType() == DeviceType.STANDARD) {
+        if (!tuya && device.getDeviceType() == DeviceType.STANDARD) {
             content.add(Divider.createDivider(), createCertificateSection());
         }
 
@@ -1383,6 +1389,7 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private String formatTuyaReading(String code) {
+        if (code.matches("switch(?:_[1-9][0-9]*)?")) return t("tuya.reading.relay") + " (" + code + ")";
         return switch (code) {
             case "va_humidity", "humidity_value" -> t("tuya.reading.humidity");
             case "battery_percentage" -> t("tuya.reading.batteryPercentage");
@@ -1398,12 +1405,17 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         Span status = new Span(t("tuya.poll.help"));
         Grid<TuyaService.Reading> readings = new Grid<>(TuyaService.Reading.class, false);
         readings.addColumn(reading -> formatTuyaReading(reading.code())).setHeader(t("tuya.reading"));
-        readings.addColumn(reading -> reading.value().isBlank() ? t("tuya.unavailable") : reading.value()).setHeader(t("tuya.value"));
+        readings.addColumn(reading -> reading.value().isBlank() ? t("tuya.unavailable")
+                : reading.value().equals("true") ? t("tuya.relay.on")
+                : reading.value().equals("false") ? t("tuya.relay.off") : reading.value()).setHeader(t("tuya.value"));
         readings.addColumn(TuyaService.Reading::unit).setHeader(t("tuya.unit"));
         readings.setAllRowsVisible(true);
         readings.setWidthFull();
         Button poll = new Button(t("tuya.poll"));
-        VerticalLayout section = new VerticalLayout(new H2("Tuya Smart"), status, poll, readings);
+        var connection = tuyaService.deviceConnection(tuyaAccountId(), device.getId());
+        Span account = new Span(t("tuya.device.account", connection.label()));
+        VerticalLayout section = new VerticalLayout(new H2("Tuya Smart"), account, status, poll, readings);
+        if (device.getDeviceType() == DeviceType.STANDARD) section.add(new Paragraph(t("tuya.relay.help")));
         section.setPadding(false);
         TuyaTask task = new TuyaTask(section);
         poll.addClickListener(event -> {

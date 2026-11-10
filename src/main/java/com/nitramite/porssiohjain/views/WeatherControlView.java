@@ -15,6 +15,7 @@ import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.WeatherMetricType;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
@@ -431,7 +432,8 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         standardDeviceSelect = new ComboBox<>(t("controlTable.deviceSelect"));
         standardDeviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
         standardDeviceSelect.setItems(deviceService.getAllDevices(accountId).stream()
-                .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
+                .filter(device -> device.getDeviceType() == DeviceType.STANDARD
+                        && device.getDevicePlatform() != DevicePlatform.TUYA_SMART)
                 .toList());
         standardDeviceSelect.setWidthFull();
 
@@ -792,7 +794,8 @@ public class WeatherControlView extends VerticalLayout implements BeforeEnterObs
         }
 
         DeviceResponse matchingDevice = deviceService.getAllDevices(accountId).stream()
-                .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
+                .filter(device -> device.getDeviceType() == DeviceType.STANDARD
+                        && device.getDevicePlatform() != DevicePlatform.TUYA_SMART)
                 .filter(device -> device.getId().equals(rule.getDeviceId()))
                 .findFirst()
                 .orElse(null);

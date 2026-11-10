@@ -31,6 +31,8 @@ function formatDevicePlatform(devicePlatform: DevicePlatform) {
       return "Tasmota";
     case "ESPHOME":
       return "ESPHome";
+    case "TUYA_SMART":
+      return "Tuya Smart";
     case "GENERIC_MQTT":
     default:
       return null;
@@ -213,7 +215,7 @@ export default function DevicesView() {
                               void handleOpenHeatPumpDialog(device);
                             }
                           }] : []),
-                          ...(device.deviceType === "STANDARD" && device.mqttOnline ? [{
+                          ...(device.deviceType === "STANDARD" && device.devicePlatform !== "TUYA_SMART" && device.mqttOnline ? [{
                             label: t("relays"),
                             onClick: () => {
                               setRelayDialogDevice(device);
@@ -225,7 +227,7 @@ export default function DevicesView() {
                         detailLabel={t("lastSeen")}
                         detailValue={formatDeviceLastCommunication(device.lastCommunication)}
                         manageTo={`/devices/${device.id}`}
-                        channelStatus={device.deviceType === "STANDARD"
+                        channelStatus={device.deviceType === "STANDARD" && device.devicePlatform !== "TUYA_SMART"
                           ? {
                               label: device.hasActiveChannels ? t("on") : t("off"),
                               tone: device.hasActiveChannels ? "active" : "inactive"

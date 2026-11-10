@@ -16,7 +16,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "tuya_connection")
+@Table(name = "tuya_connection", uniqueConstraints = @UniqueConstraint(columnNames = {"account_id", "provider_user_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,8 +25,8 @@ public class TuyaConnectionEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "account_id", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "account_id", nullable = false)
     private AccountEntity account;
 
     @Column(name = "provider_user_id", length = 128)

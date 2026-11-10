@@ -51,7 +51,7 @@ export type HeatPumpStateResponse = {
 };
 
 export type DeviceType = "STANDARD" | "HEAT_PUMP";
-export type DevicePlatform = "OPENBEKEN" | "TASMOTA" | "ESPHOME" | "GENERIC_MQTT";
+export type DevicePlatform = "OPENBEKEN" | "TASMOTA" | "ESPHOME" | "GENERIC_MQTT" | "TUYA_SMART";
 export type MqttDeviceProfile = "GENERIC_RELAY" | "OPENBEKEN_RELAY" | "TASMOTA_RELAY" | "ESPHOME_RELAY" | "GENERIC_THERMOSTAT";
 export type AcType = "NONE" | "TOSHIBA" | "MITSUBISHI_MELCLOUD" | "MITSUBISHI_MELCLOUD_HOME";
 

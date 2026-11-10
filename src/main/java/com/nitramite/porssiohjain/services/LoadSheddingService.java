@@ -17,6 +17,7 @@ import com.nitramite.porssiohjain.entity.LoadSheddingLinkEntity;
 import com.nitramite.porssiohjain.entity.LoadSheddingNodeEntity;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.LoadSheddingTriggerState;
 import com.nitramite.porssiohjain.entity.repository.AccountRepository;
 import com.nitramite.porssiohjain.entity.repository.DeviceRepository;
@@ -163,6 +164,8 @@ public class LoadSheddingService {
         if (!device.getAccount().getId().equals(accountId)) {
             throw new IllegalStateException("Forbidden!");
         }
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART)
+            throw new IllegalArgumentException("Tuya relay commands are not supported yet");
         if (device.getDeviceType() != DeviceType.STANDARD) {
             throw new IllegalArgumentException("Only standard devices are supported in load shedding");
         }

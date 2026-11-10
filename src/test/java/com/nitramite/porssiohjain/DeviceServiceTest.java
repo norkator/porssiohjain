@@ -445,9 +445,28 @@ class DeviceServiceTest {
     }
 
     @Test
-    void tuyaCannotBeCreatedOrConvertedIntoRelay() {
+    void importedTuyaRelayUsesDeviceQuotaWithoutMqttCapabilitiesOrSyntheticChannelStates() {
+        AccountEntity account = AccountEntity.builder().id(1L).build();
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(deviceRepository.save(any(DeviceEntity.class))).thenAnswer(invocation -> {
+            DeviceEntity device = invocation.getArgument(0);
+            device.setId(10L);
+            device.setUuid(UUID.randomUUID());
+            return device;
+        });
+        var response = deviceService.createDevice(1L, 1L, "Tuya relay", "Europe/Helsinki", DeviceType.STANDARD,
+                DevicePlatform.TUYA_SMART, true, null, null, null, null, null, null);
+        assertThat(response.getMqttCapabilities()).isEmpty();
+        assertThat(response.getRelayChannelStates()).isNull();
+        assertThat(response.getHasActiveChannels()).isNull();
+        verify(accountLimitService).assertCanCreateDevice(1L);
+        org.mockito.Mockito.verifyNoInteractions(controlService);
+    }
+
+    @Test
+    void tuyaCannotBeCreatedAsThermostatOrConvertedToAnotherPlatform() {
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> deviceService.createDevice(
-                1L, 1L, "Cloud relay", "Europe/Helsinki", DeviceType.STANDARD, DevicePlatform.TUYA_SMART,
+                1L, 1L, "Cloud thermostat", "Europe/Helsinki", DeviceType.THERMOSTAT, DevicePlatform.TUYA_SMART,
                 true, null, null, null, null, null, null));
         AccountEntity account = AccountEntity.builder().id(1L).build();
         DeviceEntity sensor = DeviceEntity.builder().id(10L).account(account).deviceType(DeviceType.TEMPERATURE_SENSOR)

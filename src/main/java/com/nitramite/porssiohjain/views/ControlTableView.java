@@ -574,7 +574,8 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
         deviceSelect.setItems(
                 deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
-                        .filter(d -> d.getDeviceType() == DeviceType.STANDARD)
+                        .filter(d -> d.getDeviceType() == DeviceType.STANDARD
+                        && d.getDevicePlatform() != DevicePlatform.TUYA_SMART)
                         .toList()
         );
         deviceSelect.setWidthFull();

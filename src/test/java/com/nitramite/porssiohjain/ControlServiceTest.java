@@ -359,6 +359,42 @@ class ControlServiceTest {
     }
 
     @Test
+    void ignoresTuyaInMqttDispatchEvenIfItsConnectionFlagIsIncorrect() {
+        DeviceEntity relay = DeviceEntity.builder().deviceType(DeviceType.STANDARD)
+                .devicePlatform(DevicePlatform.TUYA_SMART).mqttOnline(true).build();
+        when(deviceRepository.findByMqttOnlineTrue()).thenReturn(List.of(relay));
+        controlService.mqttDeviceControls();
+        verifyNoInteractions(mqttService, controlDeviceRepository);
+    }
+
+    @Test
+    void rejectsDebugCommandsToReadOnlyTuyaRelaysEvenIfFlaggedMqttOnline() {
+        AccountEntity owner = AccountEntity.builder().id(1L).build();
+        DeviceEntity relay = DeviceEntity.builder().id(20L).account(owner).deviceType(DeviceType.STANDARD)
+                .devicePlatform(DevicePlatform.TUYA_SMART).mqttOnline(true).build();
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(deviceRepository.findByIdAndAccount(20L, owner)).thenReturn(Optional.of(relay));
+        assertThrows(IllegalArgumentException.class, () -> controlService.sendDebugMqttRelayCommand(1L, 20L, 0, true));
+        verifyNoInteractions(mqttService);
+    }
+
+    @Test
+    void rejectsReadOnlyTuyaRelayBeforeCreatingAnAutomationAssignment() {
+        AccountEntity owner = AccountEntity.builder().id(1L).build();
+        ControlEntity control = new ControlEntity();
+        control.setId(10L);
+        control.setAccount(owner);
+        DeviceEntity relay = DeviceEntity.builder().id(20L).account(owner).deviceType(DeviceType.STANDARD)
+                .devicePlatform(DevicePlatform.TUYA_SMART).build();
+        when(controlRepository.findById(10L)).thenReturn(Optional.of(control));
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(deviceRepository.findByIdAndAccount(20L, owner)).thenReturn(Optional.of(relay));
+        assertThrows(IllegalArgumentException.class,
+                () -> controlService.addDeviceToControl(1L, 10L, 20L, 0, BigDecimal.ONE));
+        verifyNoInteractions(controlDeviceRepository, mqttService);
+    }
+
+    @Test
     void consecutiveModeRejectsPartialQuarterDurationsOnCreateAndUpdate() {
         for (Integer minutes : new Integer[] {null, -15, 14, 181, 1515}) {
             assertThrows(IllegalArgumentException.class, () -> controlService.createControl(

@@ -28,6 +28,7 @@ final class TuyaDevicePicker extends VerticalLayout {
     private final I18nService i18n;
     private final Supplier<Long> account;
     private final TuyaTask task = new TuyaTask(this);
+    private final ComboBox<TuyaService.ConnectionStatus> connections;
     private final ComboBox<TuyaService.Home> homes;
     private final ComboBox<TuyaService.CloudDevice> devices;
     private final Button load;
@@ -40,6 +41,9 @@ final class TuyaDevicePicker extends VerticalLayout {
         this.i18n = i18n;
         this.account = account;
         setPadding(false);
+        connections = new ComboBox<>(i18n.t("tuya.account"));
+        connections.setWidthFull();
+        connections.setItemLabelGenerator(TuyaService.ConnectionStatus::label);
         homes = new ComboBox<>(i18n.t("tuya.home"));
         homes.setItemLabelGenerator(home -> home.name() + " (" + home.id() + ")");
         devices = new ComboBox<>(i18n.t("tuya.device"));
@@ -47,11 +51,15 @@ final class TuyaDevicePicker extends VerticalLayout {
         devices.setHelperText(i18n.t("tuya.device.help"));
         homes.setWidthFull();
         devices.setWidthFull();
-        load = new Button(i18n.t("tuya.loadDevices"), event -> loadHomes());
+        load = new Button(i18n.t("tuya.loadDevices"), event -> loadConnections());
         connect = new Button(i18n.t("tuya.connection.title"), event -> openConnection.run());
         HorizontalLayout buttons = new HorizontalLayout(connect, load);
         buttons.setWrap(true);
-        add(buttons, homes, devices, status);
+        add(buttons, connections, homes, devices, status);
+        connections.addValueChangeListener(event -> {
+            clearDiscovery();
+            if (event.getValue() != null) loadHomes(event.getValue().id());
+        });
         homes.addValueChangeListener(event -> {
             devices.clear();
             devices.setItems(java.util.List.of());
@@ -62,6 +70,16 @@ final class TuyaDevicePicker extends VerticalLayout {
     }
 
     void reset() {
+        connections.clear();
+        connections.setItems(java.util.List.of());
+        clearDiscovery();
+    }
+
+    Long connectionId() {
+        return connections.getValue() == null ? null : connections.getValue().id();
+    }
+
+    private void clearDiscovery() {
         task.cancel();
         homes.clear();
         homes.setItems(java.util.List.of());
@@ -71,12 +89,21 @@ final class TuyaDevicePicker extends VerticalLayout {
         busy(false);
     }
 
-    private void loadHomes() {
+    private void loadConnections() {
         Long accountId = account.get();
         if (accountId == null) return;
         reset();
+        var result = service.listConnections(accountId).stream().filter(TuyaService.ConnectionStatus::connected).toList();
+        connections.setItems(result);
+        status.setText(i18n.t(result.isEmpty() ? "tuya.connection.none" : "tuya.account.choose"));
+        if (result.size() == 1) connections.setValue(result.getFirst());
+    }
+
+    private void loadHomes(Long connectionId) {
+        Long accountId = account.get();
+        if (accountId == null) return;
         busy(true);
-        task.run(() -> service.homes(accountId), result -> {
+        task.run(() -> service.homes(accountId, connectionId), result -> {
             if (!Objects.equals(accountId, account.get())) return;
             busy(false);
             homes.setItems(result);
@@ -89,7 +116,8 @@ final class TuyaDevicePicker extends VerticalLayout {
         Long accountId = account.get();
         if (accountId == null) return;
         busy(true);
-        task.run(() -> service.devices(accountId, home.id()), result -> {
+        Long connectionId = connectionId();
+        task.run(() -> service.devices(accountId, connectionId, home.id()), result -> {
             if (!Objects.equals(accountId, account.get())) return;
             busy(false);
             devices.setItems(result);
@@ -104,6 +132,7 @@ final class TuyaDevicePicker extends VerticalLayout {
     }
 
     private void busy(boolean busy) {
+        connections.setEnabled(!busy);
         homes.setEnabled(!busy);
         devices.setEnabled(!busy);
         load.setEnabled(!busy);

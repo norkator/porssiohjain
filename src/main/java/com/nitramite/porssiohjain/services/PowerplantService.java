@@ -19,6 +19,7 @@ import com.nitramite.porssiohjain.entity.PowerplantSettingsEntity;
 import com.nitramite.porssiohjain.entity.ZigbeeDeviceMeasurementEntity;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.PowerplantComparisonType;
 import com.nitramite.porssiohjain.entity.enums.PowerplantElementType;
 import com.nitramite.porssiohjain.entity.enums.ZigbeeMeasurementType;
@@ -346,6 +347,8 @@ public class PowerplantService {
     }
 
     private void validateStandardRelayDevice(DeviceEntity device) {
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART)
+            throw new IllegalArgumentException("Tuya relay commands are not supported yet");
         if (device.getDeviceType() != DeviceType.STANDARD) {
             throw new IllegalArgumentException("Only standard relay devices are supported");
         }

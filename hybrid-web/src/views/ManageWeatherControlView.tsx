@@ -103,7 +103,7 @@ export default function ManageWeatherControlView() {
   const [heatPumpLastPolledState, setHeatPumpLastPolledState] = useState<string | null>(null);
   const [heatPumpDialogAcType, setHeatPumpDialogAcType] = useState<AcType>("NONE");
 
-  const standardDevices = devices.filter((device) => device.deviceType === "STANDARD" && !device.shared);
+  const standardDevices = devices.filter((device) => device.deviceType === "STANDARD" && device.devicePlatform !== "TUYA_SMART" && !device.shared);
   const heatPumpDevices = devices.filter((device) => device.deviceType === "HEAT_PUMP" && !device.shared);
 
   const resetLinkForm = () => {

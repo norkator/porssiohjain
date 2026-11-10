@@ -20,7 +20,7 @@ import java.util.Optional;
 
 public interface TuyaDeviceRepository extends JpaRepository<TuyaDeviceEntity, Long> {
     Optional<TuyaDeviceEntity> findByDeviceIdAndConnectionAccountId(Long deviceId, Long accountId);
-    boolean existsByConnectionIdAndTuyaDeviceId(Long connectionId, String tuyaDeviceId);
+    boolean existsByConnectionAccountIdAndTuyaDeviceId(Long accountId, String tuyaDeviceId);
     boolean existsByConnectionId(Long connectionId);
 
     List<TuyaDeviceEntity> findByConnectionId(Long connectionId);

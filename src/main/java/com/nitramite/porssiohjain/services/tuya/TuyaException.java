@@ -20,7 +20,7 @@ public class TuyaException extends RuntimeException {
     }
 
     public TuyaException(String messageKey, String code) {
-        super(messageKey);
+        super("1106".equals(code) ? "tuya.error.permission" : messageKey);
         this.code = code != null && code.matches("[A-Za-z0-9_-]{1,40}") ? code : "";
     }
 

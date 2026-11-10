@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.services;
 
 import com.nitramite.porssiohjain.entity.*;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.services.models.*;
 import com.nitramite.porssiohjain.services.nordpool.NordpoolMarket;
@@ -167,6 +168,8 @@ public class PowerLimitService {
         DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found for account: " + deviceId));
 
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART)
+            throw new IllegalArgumentException("Tuya relay commands are not supported yet");
         PowerLimitDeviceEntity entity = PowerLimitDeviceEntity.builder()
                 .powerLimit(limit)
                 .device(device)

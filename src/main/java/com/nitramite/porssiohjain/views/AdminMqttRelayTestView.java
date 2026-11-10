@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
 import com.nitramite.porssiohjain.services.I18nService;
@@ -133,7 +134,8 @@ public class AdminMqttRelayTestView extends VerticalLayout implements BeforeEnte
 
     private void refreshGrid() {
         List<DeviceResponse> devices = deviceService.getAllDevices(account.getId()).stream()
-                .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
+                .filter(device -> device.getDeviceType() == DeviceType.STANDARD
+                        && device.getDevicePlatform() != DevicePlatform.TUYA_SMART)
                 .filter(device -> Boolean.TRUE.equals(device.getMqttOnline()))
                 .filter(device -> !Boolean.TRUE.equals(device.getShared()))
                 .sorted(Comparator.comparing(DeviceResponse::getDeviceName, String.CASE_INSENSITIVE_ORDER))

@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.ComparisonType;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.services.*;
@@ -448,7 +449,8 @@ public class ProductionSourceView extends VerticalLayout implements BeforeEnterO
     private Component createAddDeviceLayout() {
         ComboBox<DeviceResponse> deviceSelect = new ComboBox<>(t("productionsources.devices.device"));
         deviceSelect.setItems(deviceService.getAllDevices(accountId).stream()
-                .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
+                .filter(device -> device.getDeviceType() == DeviceType.STANDARD
+                        && device.getDevicePlatform() != DevicePlatform.TUYA_SMART)
                 .toList());
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
 

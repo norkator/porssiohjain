@@ -14,6 +14,7 @@ package com.nitramite.porssiohjain.views;
 import com.nitramite.porssiohjain.entity.AccountEntity;
 import com.nitramite.porssiohjain.entity.enums.ControlAction;
 import com.nitramite.porssiohjain.entity.enums.DeviceType;
+import com.nitramite.porssiohjain.entity.enums.DevicePlatform;
 import com.nitramite.porssiohjain.entity.enums.LoadSheddingTriggerState;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.DeviceService;
@@ -164,7 +165,8 @@ public class LoadSheddingView extends VerticalLayout implements BeforeEnterObser
         accountId = account.getId();
 
         standardDevices = deviceService.listDevices(accountId, accountId).stream()
-                .filter(device -> device.getDeviceType() == DeviceType.STANDARD)
+                .filter(device -> device.getDeviceType() == DeviceType.STANDARD
+                        && device.getDevicePlatform() != DevicePlatform.TUYA_SMART)
                 .sorted(Comparator.comparing(DeviceResponse::getDeviceName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
 

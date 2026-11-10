@@ -735,8 +735,11 @@ public class ControlService {
     private DeviceEntity getOwnedDevice(Long accountId, Long deviceId) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
-        return deviceRepository.findByIdAndAccount(deviceId, account)
+        DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
                 .orElseThrow(() -> new EntityNotFoundException("Device not found for account with id: " + deviceId));
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART)
+            throw new IllegalArgumentException("Tuya relay commands are not supported yet");
+        return device;
     }
 
     private DeviceResponse toDeviceResponse(DeviceEntity device) {
@@ -1336,6 +1339,7 @@ public class ControlService {
         List<DeviceEntity> mqttDevices = deviceRepository.findByMqttOnlineTrue();
         List<MqttControlCommand> commands = new ArrayList<>();
         for (DeviceEntity device : mqttDevices) {
+            if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART) continue;
             String uuid = device.getUuid().toString();
             Map<Integer, Integer> controls = getControlsForDevice(uuid);
             for (Map.Entry<Integer, Integer> entry : controls.entrySet()) {
@@ -1372,8 +1376,8 @@ public class ControlService {
         DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
                 .orElseThrow(() -> new IllegalArgumentException("Device not found: " + deviceId));
 
-        if (device.getDeviceType() != DeviceType.STANDARD) {
-            throw new IllegalArgumentException("Debug relay command is only supported for standard devices");
+        if (device.getDeviceType() != DeviceType.STANDARD || device.getDevicePlatform() == DevicePlatform.TUYA_SMART) {
+            throw new IllegalArgumentException("Debug relay command is only supported for standard MQTT devices");
         }
         if (!device.isMqttOnline()) {
             throw new IllegalArgumentException("Device is not connected with MQTT");

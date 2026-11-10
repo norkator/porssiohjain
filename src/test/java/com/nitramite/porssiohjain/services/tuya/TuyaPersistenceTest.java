@@ -51,9 +51,22 @@ class TuyaPersistenceTest {
                 session.persist(account);
                 TuyaConnectionEntity connection = new TuyaConnectionEntity();
                 connection.setAccount(account);
+                connection.setProviderUserId("first-user");
+                connection.setAccountLabel("My account");
                 connection.setSessionData("{\"accessToken\":\"private-access\",\"refreshToken\":\"private-refresh\"}");
                 session.persist(connection);
+                TuyaConnectionEntity owner = new TuyaConnectionEntity();
+                owner.setAccount(account);
+                owner.setProviderUserId("home-owner");
+                owner.setAccountLabel("Home owner");
+                session.persist(owner);
                 session.flush();
+                var repository = new org.springframework.data.jpa.repository.support.JpaRepositoryFactory(session)
+                        .getRepository(com.nitramite.porssiohjain.entity.repository.TuyaConnectionRepository.class);
+                assertEquals(2, repository.findByAccountIdOrderByIdAsc(account.getId()).size());
+                assertEquals(owner.getId(), repository.findByAccountIdAndProviderUserId(account.getId(), "home-owner").orElseThrow().getId());
+                assertTrue(repository.lockByIdAndAccountId(owner.getId(), account.getId()).isPresent());
+                assertTrue(repository.lockByIdAndAccountId(owner.getId(), account.getId() + 100).isEmpty());
                 id = connection.getId();
                 String stored = session.createNativeQuery("select session_data from tuya_connection where id = :id", String.class)
                         .setParameter("id", id).getSingleResult();
@@ -63,6 +76,60 @@ class TuyaPersistenceTest {
             }
             try (var session = factory.openSession()) {
                 assertTrue(session.find(TuyaConnectionEntity.class, id).getSessionData().contains("private-refresh"));
+            }
+        }
+    }
+
+    @Test
+    void upgradeKeepsExistingLinksAndAllowsSeveralAccountsWithProviderIdentityUniqueness() throws Exception {
+        try (var connection = DriverManager.getConnection("jdbc:h2:mem:tuya-upgrade-" + UUID.randomUUID() + ";MODE=PostgreSQL")) {
+            var sql = connection.createStatement();
+            sql.execute("create table account (id bigint primary key)");
+            sql.execute("create table device (id bigint primary key)");
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V111__create_tuya_connection.sql"));
+            sql.execute("insert into account values (1), (2)");
+            sql.execute("insert into device values (1), (2)");
+            sql.execute("insert into tuya_connection (id, account_id, provider_user_id, account_label, session_data) "
+                    + "values (10, 1, 'original-user', 'Original account', 'encrypted-session')");
+            sql.execute("insert into tuya_device (device_id, connection_id, tuya_device_id) values (1, 10, 'sensor-1')");
+            // H2 generates a random unique-constraint name; PostgreSQL assigns the name used by V123.
+            String uniqueName;
+            try (var names = sql.executeQuery("select constraint_name from information_schema.table_constraints "
+                    + "where table_name = 'TUYA_CONNECTION' and constraint_type = 'UNIQUE'")) {
+                assertTrue(names.next());
+                uniqueName = names.getString(1);
+            }
+            // Unlike PostgreSQL, H2 reuses this unique index for the account FK and retains
+            // its uniqueness after DROP CONSTRAINT. Rebuild that FK around the actual migration.
+            String foreignKey;
+            try (var names = sql.executeQuery("select constraint_name from information_schema.table_constraints "
+                    + "where table_name = 'TUYA_CONNECTION' and constraint_type = 'FOREIGN KEY'")) {
+                assertTrue(names.next());
+                foreignKey = names.getString(1);
+            }
+            sql.execute("alter table tuya_connection drop constraint " + foreignKey);
+            sql.execute("alter table tuya_connection rename constraint " + uniqueName + " to tuya_connection_account_id_key");
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V123__multiple_tuya_accounts.sql"));
+            sql.execute("alter table tuya_connection add foreign key (account_id) references account(id) on delete cascade");
+            sql.execute("insert into tuya_connection (id, account_id, provider_user_id, account_label) "
+                    + "values (11, 1, 'owner-user', 'Home owner'), (12, 2, 'original-user', 'Other customer')");
+            assertThrows(java.sql.SQLException.class, () -> sql.execute("insert into tuya_connection (account_id, provider_user_id) "
+                    + "values (1, 'original-user')"));
+            try (var result = sql.executeQuery("select c.account_label, c.session_data, d.tuya_device_id "
+                    + "from tuya_connection c join tuya_device d on d.connection_id = c.id where c.id = 10")) {
+                assertTrue(result.next());
+                assertEquals("Original account", result.getString(1));
+                assertEquals("encrypted-session", result.getString(2));
+                assertEquals("sensor-1", result.getString(3));
+            }
+            sql.execute("delete from account where id = 1");
+            try (var result = sql.executeQuery("select count(*) from tuya_device")) {
+                assertTrue(result.next());
+                assertEquals(0, result.getInt(1));
+            }
+            try (var result = sql.executeQuery("select count(*) from tuya_connection")) {
+                assertTrue(result.next());
+                assertEquals(1, result.getInt(1));
             }
         }
     }

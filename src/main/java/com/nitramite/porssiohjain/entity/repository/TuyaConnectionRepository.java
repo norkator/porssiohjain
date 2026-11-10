@@ -17,11 +17,13 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface TuyaConnectionRepository extends JpaRepository<TuyaConnectionEntity, Long> {
-    Optional<TuyaConnectionEntity> findByAccountId(Long accountId);
+    List<TuyaConnectionEntity> findByAccountIdOrderByIdAsc(Long accountId);
+    Optional<TuyaConnectionEntity> findByAccountIdAndProviderUserId(Long accountId, String providerUserId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select c from TuyaConnectionEntity c where c.account.id = :accountId")
-    Optional<TuyaConnectionEntity> lockByAccountId(@Param("accountId") Long accountId);
+    @Query("select c from TuyaConnectionEntity c where c.account.id = :accountId and c.id = :connectionId")
+    Optional<TuyaConnectionEntity> lockByIdAndAccountId(@Param("connectionId") Long connectionId, @Param("accountId") Long accountId);
 }
