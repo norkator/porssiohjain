@@ -137,6 +137,9 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .1px; white-space: nowra
 .plant-scene-label:focus-visible { outline: 2px solid #c4ffea; outline-offset: 3px; }
 .plant-scene-label.hot { border-color: #ff7670; background: #4e242a; }
 .plant-scene-label.hot small { color: #ff9c94; }
+.plant-scene-feature { min-width: 0; padding: 4px 6px; pointer-events: none; border-color: #59767d; }
+.plant-scene-feature strong { font-size: 8px; letter-spacing: .35px; }
+.plant-scene-feature small { font-size: 8px; }
 .plant-scene-caption, .plant-scene-hint { position: absolute; pointer-events: none; font: 8px Consolas, monospace; letter-spacing: 1px; color: #a1b7c4; }
 .plant-scene-caption { top: 13px; left: 16px; }
 .plant-scene-hint { bottom: 12px; right: 16px; letter-spacing: 0; }

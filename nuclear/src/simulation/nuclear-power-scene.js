@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { loopTemperatures, temperatureColor } from './nuclear-power-temperature.js';
 import { flowMarkerDistance, valveHandleAngle } from './nuclear-power-motion.js';
+import { CORE_CHANNELS } from './nuclear-power-model.js';
+import { buildFuelHandlingHall, CHANNEL_PITCH, ROD_INSERTED_Y, ROD_TRAVEL } from './nuclear-power-refuelling-scene.js';
 
 const TAU = Math.PI * 2;
 const DEFAULT_ZOOM = 1.2;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const equipment = [
-    ['reactor', 'R-01', 'Reactor vessel', [-7.4, 7.5, 0]],
+    ['reactor', 'R-01', 'Reactor vessel', [-10.1, 5.3, 1.1]],
     ['exchanger', 'HX-01', 'Heat exchanger', [-1.3, 6.5, -1.5]],
     ['turbine', 'TG-01', 'Turbine / generator', [7.2, 4.8, -1.5]],
     ['condenser', 'C-01', 'Condenser', [7, .3, 3.1]],
@@ -26,6 +28,7 @@ export class PlantOverviewScene {
         this.materials = new Set();
         this.groups = new Map();
         this.labels = new Map();
+        this.featureLabels = [];
         this.paths = [];
         this.fuel = [];
         this.rods = [];
@@ -139,6 +142,8 @@ export class PlantOverviewScene {
     }
 
     build() {
+        this.frameHeight = 12.2;
+        this.target.set(0, 4.15, -1.4);
         this.steel = this.material('#708d9e');
         this.steelLight = this.material('#b6cbd4');
         this.darkSteel = this.material('#344c5c');
@@ -159,10 +164,10 @@ export class PlantOverviewScene {
         rim.position.set(10, 8, -8);
         this.scene.add(rim);
         this.floorMaterial = this.material('#1a2b37');
-        this.box(this.scene, [24, .35, 13], this.floorMaterial, [0, -.35, .4]);
+        this.box(this.scene, [24, .35, 16.5], this.floorMaterial, [0, -.35, -1.25]);
         const grid = new THREE.GridHelper(24, 24, '#54717e', '#334d5c');
-        grid.scale.z = .54;
-        grid.position.set(0, -.16, .4);
+        grid.scale.z = 16.5 / 24;
+        grid.position.set(0, -.16, -1.25);
         this.grid = grid;
         this.scene.add(grid);
         this.geometries.add(grid.geometry);
@@ -177,20 +182,28 @@ export class PlantOverviewScene {
             this.material('#7d9aaa', { side: THREE.DoubleSide }), [0, 3.7, 0]);
         for (const y of [1.7, 5.8]) this.mesh(reactor, new THREE.TorusGeometry(1.65, .13, 4, 12), this.steelLight, [0, y, 0]).rotation.x = Math.PI / 2;
         this.cylinder(reactor, 1.72, .32, this.steelLight, [0, 6, 0]);
-        this.cylinder(reactor, 1.3, .55, this.steel, [0, 6.4, 0], .8);
-        for (let i = 0; i < 8; i++) {
-            const angle = i / 8 * TAU;
-            this.cylinder(reactor, .09, .18, this.darkSteel, [Math.cos(angle) * 1.5, 6.23, Math.sin(angle) * 1.5], .09, 6);
-        }
-        for (let i = 0; i < 12; i++) {
-            const x = (i % 4 - 1.5) * .55;
-            const z = (Math.floor(i / 4) - 1) * .62;
+        const rodChannels = CORE_CHANNELS.filter(channel => channel.rodId)
+            .sort((a, b) => a.rodId.localeCompare(b.rodId));
+        for (const channel of CORE_CHANNELS.filter(channel => channel.fuelId)) {
+            const x = channel.x * CHANNEL_PITCH;
+            const z = channel.y * CHANNEL_PITCH;
             const material = this.material('#997c58', { emissive: '#000000' });
-            const fuel = this.box(reactor, [.32, 2.45, .32], material, [x, 3, z]);
+            const fuel = this.box(reactor, [.2, 2.45, .2], material, [x, 3, z]);
+            fuel.userData.fuelId = channel.fuelId;
+            fuel.userData.zoneIndex = rodChannels.reduce((nearest, rod, index) => {
+                const distance = candidate => (candidate.x - channel.x) ** 2 + (candidate.y - channel.y) ** 2;
+                return distance(rod) < distance(rodChannels[nearest]) ? index : nearest;
+            }, 0);
             this.fuel.push(fuel);
-            const rod = this.cylinder(reactor, .065, 2.7, this.steelLight, [x + .17, 3.2, z + .17], .065, 6);
+        }
+        const absorberMaterial = this.material('#7bbebc', { emissive: '#266d71', emissiveIntensity: .12, metalness: .45 });
+        for (const channel of rodChannels) {
+            const rod = this.cylinder(reactor, .075, 2.25, absorberMaterial,
+                [channel.x * CHANNEL_PITCH, ROD_INSERTED_Y, channel.y * CHANNEL_PITCH], .075, 6);
+            rod.userData.rodId = channel.rodId;
             this.rods.push(rod);
         }
+        buildFuelHandlingHall(this, reactor);
         this.reactionMaterial = this.material('#ffe6a1', {
             emissive: '#ffc14e', emissiveIntensity: .9, transparent: true,
             opacity: 0, depthWrite: false, metalness: 0,
@@ -321,6 +334,22 @@ export class PlantOverviewScene {
             layer.append(button);
             this.labels.set(id, { button, reading, anchor: new THREE.Vector3(...position) });
         }
+        for (const [id, title, detail, position] of [
+            ['spent-fuel-pool', 'SF-01 / Spent-fuel pool', 'Empty storage racks', [-10.6, 6.4, -4.75]],
+            ['fuel-crane', 'FH-01 / Fuel-handling crane', 'Parked', [-7.4, 11.9, -4.75]],
+        ]) {
+            const label = document.createElement('span');
+            label.className = 'plant-scene-label plant-scene-feature';
+            label.dataset.sceneFeature = id;
+            const name = document.createElement('strong');
+            name.textContent = title;
+            const description = document.createElement('small');
+            description.textContent = detail;
+            label.append(name, description);
+            layer.append(label);
+            this.featureLabels.push({ button: label, anchor: new THREE.Vector3(...position) });
+        }
+        this.renderer.domElement.setAttribute('aria-description', 'The tiled reactor deck stays closed during regulation. Control rods and aqua collars move inside the open-front guide chamber; small sliders on green caps indicate actual rod insertion. Behind the reactor are an empty spent-fuel pool and a parked overhead fuel-handling crane.');
         const caption = document.createElement('span');
         caption.className = 'plant-scene-caption';
         caption.textContent = 'UNIT 01 / CUTAWAY';
@@ -443,13 +472,16 @@ export class PlantOverviewScene {
             this.floorMaterial.color.set(theme === 'light' ? '#d2e0e3' : '#1a2b37');
             this.grid.material.color.set(theme === 'light' ? '#9cb5bd' : '#405a69');
         }
-        for (const [index, rod] of this.rods.entries()) rod.position.y = 3.2 + (1 - sim.controlRods[index].position / 100) * 2.5;
+        for (const [index, rod] of this.rods.entries()) rod.position.y = ROD_INSERTED_Y + (1 - sim.controlRods[index].position / 100) * ROD_TRAVEL;
+        for (const { rodIndex, x, marker } of this.refuelling.rodIndicators) {
+            marker.position.x = x + (1 - sim.controlRods[rodIndex].position / 50) * .085;
+        }
         for (const [index, fuel] of this.fuel.entries()) {
-            const zone = sim.condition.zones[index % sim.condition.zones.length];
+            const zone = sim.condition.zones[fuel.userData.zoneIndex];
             const heat = clamp((zone.temperature - 100) / 550, 0, 1);
             fuel.material.color.setHSL(.1 - heat * .09, .28 + heat * .6, .36 + heat * .14);
             fuel.material.emissive.setHSL(.05 - heat * .04, 1, .5);
-            const channel = motion.reactionChannels?.[index];
+            const channel = motion.reactionChannels?.[fuel.userData.zoneIndex];
             const reaction = sim.running && !sim.tripped && !sim.condition.meltdown ? channel?.activity || 0 : 0;
             const pulse = .5 + .5 * Math.sin(((channel?.phase ?? motion.reactionPhase) + index / this.fuel.length) * TAU);
             fuel.material.emissiveIntensity = heat * (.6 + .1 * Math.sin(motion.thermalPhase * TAU)) + reaction * (.25 + pulse * .55);
@@ -459,7 +491,7 @@ export class PlantOverviewScene {
         const reactionActivity = sim.running && !sim.tripped && !sim.condition.meltdown ? motion.reactionActivity || 0 : 0;
         this.reactionMaterial.opacity = reactionActivity * .9;
         for (const [index, particle] of this.reactorReactions.entries()) {
-            const channel = motion.reactionChannels?.[index % this.fuel.length];
+            const channel = motion.reactionChannels?.[this.fuel[index % this.fuel.length].userData.zoneIndex];
             const phase = ((channel?.phase ?? motion.reactionPhase) + index / this.reactorReactions.length) % 1;
             const travel = phase < .5 ? phase * 2 : (1 - phase) * 2;
             const source = this.fuel[index % this.fuel.length];
@@ -547,7 +579,7 @@ export class PlantOverviewScene {
         this.camera.lookAt(this.target);
         this.camera.updateProjectionMatrix();
         this.camera.updateMatrixWorld();
-        for (const label of this.labels.values()) {
+        for (const label of [...this.labels.values(), ...this.featureLabels]) {
             const point = label.anchor.clone().project(this.camera);
             // Keep semantic buttons reachable even at the bounded camera extremes.
             const halfWidth = label.button.offsetWidth / 2 + 6;

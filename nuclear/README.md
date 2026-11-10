@@ -20,6 +20,21 @@ simulation as the instruments. The taller viewport supports both themes and
 reduced motion. **Schematic** switches to the retained SVG overview without
 changing plant state; browsers without WebGL 2 fall back to it automatically.
 
+The reactor has a flat, RBMK-inspired tiled channel deck, a blue spent-fuel pool
+behind it with empty storage racks, and a parked overhead fuel-handling crane.
+The top caps, internal fuel assemblies and control rods share the core map's
+channel coordinates. Aqua collars make actual rod movement visible inside the
+open-front upper guide chamber; rods stay beneath the deck. Small sliders on green
+control-channel caps also show actual insertion from above; the caps themselves
+stay stationary. The pool and crane
+are visual foundations for later handling gameplay. Existing manual fuel
+replacement still uses its current readiness checks and cosmetic core-map
+animation. The crane does not yet transfer fuel or populate the pool.
+
+See [the fuel-handling work plan](FUEL-HANDLING-PLAN.md) for the user's references,
+the implementation checkpoint, and staged tasks for transfers, inventory and
+gameplay, including continuation guidance for another instance.
+
 The **Heat exchanger** console has an interactive cutaway. Drag the primary bypass,
 secondary valve, tube bundle or deposits left/right, then release to apply a setting.
 Select a part for a native slider and ±5% buttons; focused model parts support arrow

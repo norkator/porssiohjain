@@ -151,6 +151,21 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.sceneUnavailable || false;'), false);
         assert.ok(await consoleCode('return c.overviewScene.renderer.info.render.triangles;') > 100);
         assert.equal(await consoleCode('return c.overviewScene.rods.length;'), 12);
+        assert.deepEqual(await consoleCode('return c.overviewScene.refuelling.deckChannels.filter(channel=>channel.kind==="fuel").map(channel=>channel.id);'),
+            await consoleCode('return c.simulation.fuel.assemblies.map(assembly=>assembly.id);'), 'Deck channels must identify the same assemblies as the core map');
+        assert.deepEqual(await consoleCode('return c.overviewScene.fuel.map(mesh=>mesh.userData.fuelId);'),
+            await consoleCode('return c.simulation.fuel.assemblies.map(assembly=>assembly.id);'));
+        assert.equal(await consoleCode('return new Set(c.overviewScene.refuelling.pool.slots.map(slot=>slot.id)).size;'), 35);
+        assert.equal(await consoleCode('return s.querySelector("[data-scene-feature=spent-fuel-pool]").textContent;'), 'SF-01 / Spent-fuel poolEmpty storage racks');
+        assert.equal(await consoleCode('return s.querySelector("[data-scene-feature=fuel-crane]").textContent;'), 'FH-01 / Fuel-handling craneParked');
+        assert.ok(await consoleCode(`const v=c.overviewScene;let fits=true;
+            v.refuelling.hall.traverse(mesh=>{if(!mesh.isMesh)return;const positions=mesh.geometry.attributes.position;
+                for(let i=0;i<positions.count;i++){const p=mesh.position.clone().fromBufferAttribute(positions,i).applyMatrix4(mesh.matrixWorld).project(v.camera);
+                    if(Math.abs(p.x)>1||Math.abs(p.y)>1)fits=false;}});return fits;`), 'The default camera must fit the entire pool and taller crane');
+        assert.ok(await consoleCode(`const v=c.overviewScene;return v.refuelling.deckChannels.every(channel=>{
+            const mesh=channel.kind==='fuel'?v.fuel.find(mesh=>mesh.userData.fuelId===channel.id):v.rods.find(mesh=>mesh.userData.rodId===channel.id);
+            const point=mesh.getWorldPosition(mesh.position.clone());return Math.abs(point.x-channel.position.x)<1e-6&&Math.abs(point.z-channel.position.z)<1e-6;
+        });`), 'Fuel and control rods must align with their own deck caps');
         assert.equal(await consoleCode('return c.overviewScene.paths.some(p=>p.dots.some(dot=>dot.visible));'), false);
         assert.equal(await consoleCode('return c.overviewScene.turbineRotor.rotation.x;'), 0);
         assert.equal(await consoleCode('return c.overviewScene.exchangerSteam.some(puff=>puff.visible);'), false);
@@ -171,6 +186,15 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.deepEqual(await consoleCode('return c.instrumentMotion;'), {thermal:0,electrical:0,flow:0});
         assert.ok(await consoleCode('return [...s.querySelectorAll("[data-instrument]")].every(card=>card.dataset.active==="false");'));
         await action('pause');
+        assert.ok(await consoleCode(`const v=c.overviewScene;const original=c.simulation.controlRods.map(rod=>rod.position);
+            const parked=v.refuelling.crane.bridge.position.clone();const inserted=v.rods.map(rod=>rod.position.y);
+            const indicators=v.refuelling.rodIndicators.map(indicator=>indicator.marker.position.x);
+            c.simulation.controlRods.forEach(rod=>rod.position=0);c.update();
+            const correct=v.rods.every((rod,i)=>rod.position.y>inserted[i]+1.8&&rod.position.y+1.125<v.refuelling.deckY)
+                &&v.refuelling.rodIndicators.every((indicator,i)=>indicator.marker.position.x>indicators[i]+.16)
+                &&v.refuelling.crane.bridge.position.equals(parked);
+            c.simulation.controlRods.forEach((rod,i)=>rod.position=original[i]);c.update();return correct;`),
+            'Control rods must visibly withdraw inside the cutaway beneath stationary deck caps without moving the fuel crane');
         assert.ok(await consoleCode(`let correct=true;for(const valve of c.overviewScene.valves){const actual=c.simulation.components.items[valve.id].actual;const saved=actual[valve.key];const svg=s.querySelector('[data-valve-component="'+valve.id+'"][data-valve-key="'+valve.key+'"]');for(const opening of [0,100]){actual[valve.key]=opening;c.update();const direction=valve.handle.position.clone().set(1,0,0).transformDirection(valve.handle.matrixWorld);const parallel=Math.abs(direction.dot(valve.pipeDirection));correct&&=opening===100?parallel>.999:parallel<.001;const angle=Number(svg.dataset.pipeAngle)+(opening===100?0:90);correct&&=svg.querySelector('.valve-handle').getAttribute('transform')==='rotate('+angle+' 0 0)';}actual[valve.key]=saved;}c.update();return correct;`), 'Open handles must align with each pipe, and closed handles must be perpendicular');
         const frozenPlant = await consoleCode('return c.simulation.snapshot();');
         await tab('auxiliary');

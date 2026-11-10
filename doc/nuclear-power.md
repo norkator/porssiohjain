@@ -36,6 +36,18 @@ expects further iteration after trying it. Keep the controls rich and interactiv
 keep all feature text English, and keep this document and the root `AGENTS.md`
 handoff current when behavior changes.
 
+The 3D reactor has a flat RBMK-inspired tiled channel deck, a rear spent-fuel
+pool with 35 empty storage racks, and a parked overhead handling crane. The
+appearance does not change the fictional two-loop model. Deck caps, 49 fuel
+assemblies and twelve control rods share `CORE_CHANNELS` positions/identities.
+The caps stay stationary; actual rod movement and aqua collars remain visible
+inside the open-front upper guide chamber beneath them. The crane bridge,
+trolley, hoist and grabber are separate scene groups for later fuel transfer.
+The new pool/crane are scenery: no transfer commands, stored spent inventory
+or pool-cooling telemetry exist yet. Existing manual fuel replacement and
+its readiness rules are unchanged. See [the continuation plan](../nuclear/FUEL-HANDLING-PLAN.md)
+for the user references, implementation checkpoint and future gameplay steps.
+
 The overview defaults to a low-poly 3D cutaway, with a retained SVG schematic
 available through the view selector. Both include moving rods and fuel channels,
 separate primary and secondary circuits, animated pumps and coolant flow, a heat
