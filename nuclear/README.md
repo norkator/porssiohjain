@@ -288,6 +288,8 @@ controls, exports, animations and cleanup, including 3D picking, zoom, view swit
 WebGL fallback and renderer disposal/reconnection. It uses Chrome's software WebGL
 renderer for deterministic headless coverage. It requires Chrome at
 `/opt/google/chrome/chrome`, or an installed Chromium selected with `CHROME_BIN`.
+CI uses that executable directly. Startup allows 60 seconds and reads the profile's
+`DevToolsActivePort` file as well as stdout/stderr, with early-exit diagnostics.
 Set `NUCLEAR_POWER_APP_URL=http://127.0.0.1:8080` to test a running app/container.
 Screenshot and export artifacts are written to the temporary directory printed by
 the test. Tests do not need the Spring application.

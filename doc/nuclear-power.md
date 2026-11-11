@@ -968,6 +968,13 @@ for headless 3D coverage. Each run prints its temporary
 screenshot/CSV artifact directory. No extra browser test dependency is required
 beyond Node and Chrome. The simulation tests require no Spring application.
 
+Chrome startup allows 60 seconds and discovers DevTools through the profile's
+`DevToolsActivePort` file or a complete stdout/stderr announcement. This also
+handles launchers that suppress the announcement. An early exit fails immediately;
+startup failures include the command, profile, exit status (when available), and
+both output streams. CI uses `/opt/google/chrome/chrome` directly to avoid the
+distribution's shell launcher. Focused startup regressions run with `npm test`.
+
 Migration checkpoint (2026-11-07): all 59 model/motion/failure/resource/component/audio
 checks and 23 focused Java desktop tests pass, as do the React production build,
 Chrome regression and Nginx container build/HTTP smoke checks. The clean Vaadin

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { join, extname, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pages, siteUrl } from '../site/pages.mjs';
+import { waitForChrome } from './chrome-startup.mjs';
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -45,19 +46,12 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         response.end(readFileSync(file));
     });
     if (!appUrl) await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-    const browser = spawn(process.env.CHROME_BIN || '/opt/google/chrome/chrome', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--remote-debugging-port=0', `--user-data-dir=${join(artifacts, 'profile')}`, 'about:blank']);
+    console.log(`Browser artifacts: ${artifacts}`);
+    const profileDir = join(artifacts, 'profile');
+    const browser = spawn(process.env.CHROME_BIN || '/opt/google/chrome/chrome', ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--remote-debugging-port=0', `--user-data-dir=${profileDir}`, 'about:blank']);
     let socket;
     try {
-        const endpoint = await new Promise((resolve, reject) => {
-            let output = '';
-            const timer = setTimeout(() => reject(new Error('Chrome startup timeout: ' + output.slice(-1000))), 10000);
-            browser.stderr.on('data', chunk => {
-                output += chunk;
-                const match = output.match(/DevTools listening on (ws:\/\/\S+)/);
-                if (match) { clearTimeout(timer); resolve(match[1]); }
-            });
-            browser.on('error', error => { clearTimeout(timer); reject(error); });
-        });
+        const endpoint = await waitForChrome(browser, profileDir);
         socket = new WebSocket(endpoint);
         await new Promise(resolve => socket.addEventListener('open', resolve, { once: true }));
         const pending = new Map();

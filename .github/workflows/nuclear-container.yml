@@ -33,7 +33,8 @@ jobs:
       - run: npm run build
       - run: npm run test:browser
         env:
-          CHROME_BIN: /usr/bin/google-chrome
+          # Use the executable directly, without the distribution's shell launcher.
+          CHROME_BIN: /opt/google/chrome/chrome
 
   build-and-push:
     needs: test
