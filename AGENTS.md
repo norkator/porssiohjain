@@ -120,14 +120,18 @@ lamps/coast-down status; preserve name, circuit, speed and flow readings. Emerge
 button held visibly depressed with a red lamp for every latched reactor trip.
 Its transparent hinged plastic cover must be opened before manual activation;
 keep the native cover toggle before the button in keyboard order. Opening/closing
-the cover never changes the plant or blocks automatic trips. New/reset sessions
+the cover never changes the plant or clears a trip. New/reset sessions
 close it; preserve both themes and pause/reduced-motion handling.
 Only successful explicit Reset trip releases it; preserve interlocks and the
 stopped state after reset, readable disabled lamps, both themes and keyboard access.
 Automatic control must never reset a trip or restart the plant by itself.
-Manual mode requires operator Stop/Emergency shutdown: flow/temperature/hot-spot
-automatic trips apply only in Auto; alarms, damage and irreversible meltdown remain
-active in both modes. Switching modes must not clear an existing trip.
+Both Auto and Manual require operator Stop/Emergency shutdown. Flow, temperature,
+hot spots and high output/core/circulation targets must never automatically activate
+the emergency latch. Auto still limits output and regulates rods/pumps; alarms,
+retained heat and progressive damage remain active. Irreversible meltdown stops
+generation through its own failure state without pressing the emergency button;
+Reset demo is still required. Mode changes never activate or clear a trip, and an
+explicit operator trip remains latched across meltdown.
 Wide windows use stacked instruments on the left, tabbed reactor/maintenance views
 and operator controls in the middle, and trends/logs on the right. Regulation, plant
 sound enable/mute, theme, simulation status and clock share the header card beside
@@ -146,7 +150,7 @@ targets separate from actual output and suspend dispatch while stopped, tripped,
 paused, Manual/temperature-regulated or without circulation/generation capacity.
 It must never start/reset, close breakers, change protection thresholds, repair or
 refuel. Manual temperature entry has no 330 °C upper cap; independent alarms and
-Auto trips remain active. Disabling retains all operating targets; Reset demo
+damage remain active, while emergency shutdown stays operator-only in both modes. Disabling retains all operating targets; Reset demo
 clears messages and restores following. Both loops use actual-temperature colors, including hot
 returns and bypass, with core inlet/outlet and secondary return read-back. Primary
 cooling drop must honor actual bypass/heat rejection. Valve levers must be parallel

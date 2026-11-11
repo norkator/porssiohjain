@@ -110,9 +110,9 @@ keeps them static and pause/hidden-view suspension freezes the bounce. Acknowled
 indication; it clears only when temperature falls back to 335 °C or below. Both
 themes have explicit high-temperature colors. Normal running temperatures use a
 green card, reading and status indicator; stopped/tripped or damaged states do not
-show this green operating indication. The independent 360 °C simulated
-coolant trip is active in Auto, with an additional Auto local-fuel hot-spot trip. These are
-illustrative, not physical safety limits.
+show this green operating indication. High coolant temperature, local fuel hot spots
+and low primary flow raise alarms and affect damage in both modes, without activating
+emergency shutdown. These are illustrative, not physical safety limits.
 
 ## Progressive stress, damage and meltdown
 
@@ -132,7 +132,7 @@ are separate signals; a hot spot can precede high average coolant temperature.
 
 Stages are **NORMAL**, **STRAINED**, **OVERHEATING**, **PROTECTIVE SHUTDOWN**,
 **COMPONENT DAMAGE**, **CORE DAMAGE**, and latched **MELTDOWN**. The order depends on
-the fault: protection may trip before temperatures rise. Stress recedes after
+the fault and operator response; emergency shutdown only follows an explicit command. Stress recedes after
 correction, while damage does not heal automatically. At meltdown, fuel deforms
 gradually and a glowing pool grows over subsequent seconds; there is no explosion.
 Generation shuts down and the session remains inspectable/exportable.
@@ -241,7 +241,7 @@ borders while preserving fuel and trips; fuel replacement remains separate.
 Trip reset additionally requires cleared faults, repaired damage and local fuel
 below 410 °C. It does not clear retained heat, stress, damage or the incident history,
 and it never restarts automatically. Auto reduces generation against cooling capacity
-and local fuel hot spots; it does not bypass protective trips or restart failed pumps.
+and local fuel hot spots; it never activates or resets emergency shutdown or restarts failed pumps.
 
 ### Illustrative model constants
 
@@ -256,7 +256,7 @@ All constants are gameplay/demo parameters, not real reactor engineering:
   reading coupled to retained fuel heat rather than dropping immediately to ambient.
 - Rod imbalance creates local temperatures. Above 410 °C, exposure accumulates;
   above 450 °C and after 15 seconds of exposure, channel damage accumulates.
-  A local peak above 470 °C trips generation in Auto. Cooling failure can continue afterward.
+  Hot spots raise alarms and constrain Auto output, without latching emergency shutdown.
 - Meltdown latches only after a channel reaches 100% damage with fuel at least
   650 °C. Its visual progression then ramps with a 12-second response.
 - Pump stress comes from sustained requested/actual flow mismatch. Stress above
@@ -306,14 +306,14 @@ plate, behind a transparent hinged plastic cover. First select **Lift cover**,
 then press the exposed button; **Close cover** blocks manual access again.
 The native cover toggle comes before the button in keyboard order. Enter/Space
 opens the cover, then Tab reaches the button. Cover movement never changes plant
-state or clears a trip, and automatic trips work with either cover position.
+state or clears a trip. Emergency shutdown is operator-only in both Auto and Manual.
 New sessions and **Reset demo** close the cover; pause and reduced motion skip
 the lid transition. Its head remains depressed, its red trip lamp stays lit, and it reads
-**TRIP LATCHED** for every latched reactor trip, including automatic trips.
+**TRIP LATCHED** after the operator explicitly activates emergency shutdown.
 The disabled latched button retains full visual contrast. Pressing it again
 cannot clear the trip. Only successful explicit **Reset trip** releases the
 head and extinguishes the trip lamp; the reactor remains stopped until Start.
-Start/Stop, protection thresholds and recovery interlocks are unchanged. Native
+Start/Stop and recovery interlocks are preserved. Native
 keyboard/focus behavior, pause and reduced motion are preserved in both themes;
 the lights and physical button position introduce no animation timer.
 
@@ -471,8 +471,8 @@ Controls:
   rotation follows motor speed and each circuit's coolant animation follows flow, including
   coast-down, with continuous phase and an explicit local SVG rotation pivot.
 - Emergency shutdown: latches a simulated trip and inserts rods. Restart requires
-  **Reset trip**, then **Start**. In Auto, low primary flow or high core temperature can also
-  trigger the illustrative protection sequence. Reset trip requires all rods at
+  **Reset trip**, then **Start**. Only an explicit operator command activates this
+  latch, in both Auto and Manual. Reset trip requires all rods at
   least 99.5% inserted, both enabled circuits with target/actual speed at least 20%,
   and core temperature below the demo limit of 335 °C. These are arbitrary simulation
   limits, not real nuclear operating instructions. A checklist explains readiness.
@@ -483,12 +483,15 @@ Controls:
 - Pause/Resume: freezes/resumes simulated time and animations.
 - Reset demo: restores the initial stopped state, event log, and trend history.
 
-Manual mode leaves protective shutdown to the operator: low primary flow, high
-coolant temperature and fuel hot spots still raise alarms and accumulate damage,
-but do not insert rods or stop generation automatically. Use **Emergency shutdown**
-or **Stop** explicitly. Switching to Auto restores the protective trips on the next
-simulation tick; switching modes never clears an existing trip. Irreversible
-meltdown still ends generation and requires **Reset demo** in either mode.
+Both Auto and Manual leave emergency shutdown to the operator. Low primary flow,
+high coolant temperature, local fuel hot spots and high output/core/circulation
+targets never press or latch the emergency button. Use **Emergency shutdown** or
+**Stop** explicitly. Auto still regulates rods/pumps and limits output against
+cooling, fuel, hot spots and the configured core ceiling. Alarms, retained heat and
+progressive damage remain active. Switching modes never activates or clears the
+emergency latch. Irreversible meltdown still ends generation through its separate
+failure state in either mode, without activating the emergency button; **Reset demo**
+is required afterward. Explicit emergency trips retain their latch across meltdown.
 
 ## Parallel pumps, overpressure and leaking water
 
@@ -651,7 +654,8 @@ Electrical output regulation is the initial and Reset demo default (200 MW elect
 Core temperature regulation remains selectable. It holds configurable core temperature
 (minimum 40 °C, default 286 °C, no upper entry cap) and circulation
 (25–100%; default 85%) targets. Removing the old 330 °C input/model clamp does
-not change the independent over-temperature alarms or Auto trip conditions.
+not change the independent over-temperature alarms or accumulated-damage model.
+Emergency shutdown is operator-only even with all Auto targets set very high.
 A one-second illustrative regulator uses
 feed-forward plus proportional/integral temperature correction to adjust the rod
 bank, retaining individual offsets where travel allows. Independent feedback adjusts
@@ -716,9 +720,9 @@ existing regulator/actuators, with all changes recorded in the Automation journa
 
 The card distinguishes actual output, current target, last request, countdown and
 limiting/waiting status and available dispatch capacity. The operating temperature
-and circulation settings are owned by each incoming request; independent protection
+and circulation settings are owned by each incoming request; alarm/damage
 thresholds, cooling/fuel capability and manual pump/rod overrides remain authoritative.
-Messages cannot reset trips, start equipment, close breakers or change protection thresholds.
+Messages cannot activate/reset emergency shutdown, start equipment, close breakers or change alarm/damage thresholds.
 Countdown and request delivery suspend during Stop, trip/meltdown, pause, Manual
 mode or temperature regulation. Hiding the console freezes simulated time as usual.
 No request can reset a trip, start a reactor/turbine, refuel or repair equipment.
@@ -856,8 +860,8 @@ the reactor. Instruments have an independent, idealized simulated DC supply; bat
 capacity and charging are not modeled.
 
 Source transitions, starts/stops and refuelling enter the journal. Total AC loss begins
-an incident, raises an alarm and interacts with existing low-flow protection, retained
-heat and progressive core damage. Backup availability does not heal damaged pumps.
+an incident, raises low-flow alarms and affects retained heat and progressive core
+damage. It never activates emergency shutdown in either mode. Backup availability does not heal damaged pumps.
 Supply, diesel fuel and startup time freeze with the rest of the paused/hidden simulation.
 
 ## Expanded live trends
