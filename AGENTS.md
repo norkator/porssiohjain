@@ -105,6 +105,10 @@ amber percentage displays; preserve native controls, Auto ownership and pump ove
 Pump ON/OFF rockers show requested enable state separately from actual motor
 lamps/coast-down status; preserve name, circuit, speed and flow readings. Emergency shutdown is a mushroom
 button held visibly depressed with a red lamp for every latched reactor trip.
+Its transparent hinged plastic cover must be opened before manual activation;
+keep the native cover toggle before the button in keyboard order. Opening/closing
+the cover never changes the plant or blocks automatic trips. New/reset sessions
+close it; preserve both themes and pause/reduced-motion handling.
 Only successful explicit Reset trip releases it; preserve interlocks and the
 stopped state after reset, readable disabled lamps, both themes and keyboard access.
 Automatic control must never reset a trip or restart the plant by itself.

@@ -207,6 +207,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.animationFrame = null;
         this.overviewMode = '3d';
         this.plantTab = 'reactor';
+        this.tripCoverOpen = false;
         this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
         this.intersecting = true;
         this.onVisibilityChange = () => this.updateActivity();
@@ -310,7 +311,15 @@ export class NuclearPowerConsole extends HTMLElement {
                   <div class="setpoint"><label for="load"><span class="regulator-caption"><small>LR-01 / REACTOR LOAD</small><span>Load setpoint</span></span><strong class="regulator-display" data-value="demand">64%</strong></label><div class="regulator-rail" style="--regulator-position:64%"><input id="load" type="range" min="0" max="100" value="64" aria-label="Load setpoint" aria-describedby="load-owner"/><div class="regulator-scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100%</span></div></div><div class="load-trim-label"><span>FINE ADJUST</span><span id="load-owner" data-value="loadOwner">AUTO</span></div><div class="button-pair"><button class="control-button compact load-trim-button" data-action="load-down">− Decrease</button><button class="control-button compact load-trim-button" data-action="load-up">+ Increase</button></div></div>
                   <div class="rod-control"><div class="control-label">CONTROL RODS <span>IN <span data-value="rodTarget">36%</span></span></div><div class="button-pair"><button class="control-button compact" data-action="insert">↓ Insert</button><button class="control-button compact" data-action="withdraw">↑ Withdraw</button></div></div>
                   <div class="pump-controls">${['A', 'B'].map(pump => `<div class="pump-control" data-pump-card="${pump}"><div class="pump-switch-row"><span class="pump-symbol" aria-hidden="true">✣</span><div class="pump-identity"><strong>Pump ${pump}</strong><small>${pump === 'A' ? 'Primary' : 'Secondary'} circuit</small><span class="pump-badge" id="pump-${pump}-status"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="pump${pump}">STOPPED</span></span></div><button class="pump-rocker" data-action="pump${pump}" role="switch" aria-checked="false" aria-label="Pump ${pump} run switch" aria-describedby="pump-${pump}-status"><span class="pump-rocker-face" aria-hidden="true"><span class="rocker-on">I <small>ON</small></span><span class="rocker-off">O <small>OFF</small></span></span></button></div><div class="pump-speed-setting"><label for="pump-${pump}-speed"><span class="regulator-caption"><small>${pump === 'A' ? 'P-01' : 'P-02'} / MOTOR SPEED</small><span>Speed target</span></span><strong class="regulator-display" data-value="pump${pump}Target">100%</strong></label><div class="regulator-rail" style="--regulator-position:100%"><input id="pump-${pump}-speed" data-pump-speed="${pump}" type="range" min="0" max="100" step="1" value="100"/><div class="regulator-scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100%</span></div></div></div><div class="pump-readback"><span>ACTUAL <strong data-value="pump${pump}Actual">100.0%</strong></span><span data-value="${pump === 'A' ? 'flow' : 'secondaryFlow'}"></span></div></div>`).join('')}</div>
-                  <section class="emergency-station" aria-label="Reactor protection"><div class="emergency-station-heading"><span>ESD-01 / REACTOR TRIP</span><span class="trip-latch-indicator"><i class="pilot-lamp" aria-hidden="true"></i><b data-value="tripLatch">ARMED</b></span></div><button class="emergency-button" data-action="trip" aria-label="Emergency shutdown" aria-pressed="false" aria-describedby="emergency-indication"><span class="emergency-bezel" aria-hidden="true"><span class="emergency-stem"></span><span class="emergency-mushroom">TRIP</span></span><span class="emergency-label"><strong>Emergency shutdown</strong><small>INSERT ALL RODS</small><b id="emergency-indication" data-value="emergencyIndication">PUSH TO TRIP</b></span></button><p class="emergency-reset-note" data-value="emergencyResetNote">Latching trip · reset at recovery panel</p></section>
+                  <section class="emergency-station" aria-label="Reactor protection" data-cover-open="false">
+                    <div class="emergency-station-heading"><span>ESD-01 / REACTOR TRIP</span><span class="trip-latch-indicator"><i class="pilot-lamp" aria-hidden="true"></i><b data-value="tripLatch">ARMED</b></span></div>
+                    <div class="emergency-guard">
+                      <button type="button" class="emergency-cover-toggle" data-action="trip-cover" aria-label="Open emergency shutdown cover" aria-expanded="false" aria-controls="emergency-trip-button"><span class="emergency-cover-grip"><i aria-hidden="true"></i><span data-value="tripCoverAction">LIFT COVER ↑</span><i aria-hidden="true"></i></span></button>
+                      <span class="emergency-cover-pane" aria-hidden="true"></span>
+                      <button type="button" id="emergency-trip-button" class="emergency-button" data-action="trip" aria-label="Emergency shutdown" aria-pressed="false" aria-describedby="emergency-indication" disabled><span class="emergency-bezel" aria-hidden="true"><span class="emergency-stem"></span><span class="emergency-mushroom">TRIP</span></span><span class="emergency-label"><strong>Emergency shutdown</strong><small>INSERT ALL RODS</small><b id="emergency-indication" data-value="emergencyIndication">LIFT COVER TO ACCESS</b></span></button>
+                    </div>
+                    <p class="emergency-reset-note" data-value="emergencyResetNote">Latching trip · reset at recovery panel</p>
+                  </section>
                   <p class="control-note">Pilot lights show actual state · SIMULATED</p>
                 </div>
               </section>
@@ -833,7 +842,8 @@ export class NuclearPowerConsole extends HTMLElement {
             'load-down': () => sim.setLoad(sim.demand - 5), 'load-up': () => sim.setLoad(sim.demand + 5),
             insert: () => sim.moveRods(5), withdraw: () => sim.moveRods(-5),
             pumpA: () => sim.togglePump('A'), pumpB: () => sim.togglePump('B'),
-            trip: () => sim.trip(), acknowledge: () => sim.acknowledge(),
+            'trip-cover': () => { this.tripCoverOpen = !this.tripCoverOpen; },
+            trip: () => { if (this.tripCoverOpen) sim.trip(); }, acknowledge: () => sim.acknowledge(),
             'reset-trip': () => sim.resetTrip(),
             'rod-insert': () => sim.setRod(this.selectedRod, sim.controlRods.find(rod => rod.id === this.selectedRod).target + 1),
             'rod-withdraw': () => sim.setRod(this.selectedRod, sim.controlRods.find(rod => rod.id === this.selectedRod).target - 1),
@@ -856,7 +866,7 @@ export class NuclearPowerConsole extends HTMLElement {
             'export-log': () => this.exportLog(),
             'clear-fault': () => sim.injectFault('none'), repair: () => sim.repairComponents(),
             'export-incident': () => this.exportIncident(),
-            pause: () => sim.togglePause(), reset: () => { this.plantAudio?.stop(); this.fuelTransfer.reset(); this.spentFuelMessage = ''; sim.reset(); },
+            pause: () => sim.togglePause(), reset: () => { this.plantAudio?.stop(); this.fuelTransfer.reset(); this.spentFuelMessage = ''; this.tripCoverOpen = false; sim.reset(); },
             'overview-3d': () => this.setOverview('3d'),
             'overview-schematic': () => this.setOverview('schematic'),
             'scene-zoom-in': () => this.overviewScene?.setZoom(this.overviewScene.zoom + .15),
@@ -1188,6 +1198,7 @@ export class NuclearPowerConsole extends HTMLElement {
         if (!this.initialized) return;
         const sim = this.simulation;
         if (this.lastProcessElapsed > sim.elapsed) {
+            this.tripCoverOpen = false;
             this.fuelTransfer.reset();
             this.spentFuelMessage = '';
             this.plantAudio?.stop();
@@ -1245,7 +1256,8 @@ export class NuclearPowerConsole extends HTMLElement {
             startIndication: sim.running ? 'RUNNING' : sim.startupReadiness().ready ? 'READY' : 'INTERLOCKED',
             stopIndication: sim.tripped ? 'TRIPPED' : sim.running ? 'AVAILABLE' : 'STOPPED',
             tripLatch: sim.tripped ? 'LATCHED' : 'ARMED',
-            emergencyIndication: sim.tripped ? 'TRIP LATCHED' : 'PUSH TO TRIP',
+            emergencyIndication: sim.tripped ? 'TRIP LATCHED' : this.tripCoverOpen ? 'PUSH TO TRIP' : 'LIFT COVER TO ACCESS',
+            tripCoverAction: this.tripCoverOpen ? 'CLOSE COVER ↓' : 'LIFT COVER ↑',
             emergencyResetNote: sim.tripped ? 'Held down · use Reset trip after recovery' : 'Latching trip · reset at recovery panel',
             secondaryFlow: `${n(signals.secondaryFlow.value)} m³/h`,
             pumpA: pumpState(sim.pumpA, sim.pumpASpeed, sim.primaryFlow), pumpB: pumpState(sim.pumpB, sim.pumpBSpeed, sim.secondaryFlow),
@@ -1328,9 +1340,13 @@ export class NuclearPowerConsole extends HTMLElement {
         const tripButton = this.shadowRoot.querySelector('[data-action="trip"]');
         tripButton.setAttribute('aria-pressed', String(sim.tripped));
         this.shadowRoot.querySelector('.emergency-station').dataset.latched = String(sim.tripped);
+        this.shadowRoot.querySelector('.emergency-station').dataset.coverOpen = String(this.tripCoverOpen);
+        const tripCover = this.shadowRoot.querySelector('[data-action="trip-cover"]');
+        tripCover.setAttribute('aria-expanded', String(this.tripCoverOpen));
+        tripCover.setAttribute('aria-label', `${this.tripCoverOpen ? 'Close' : 'Open'} emergency shutdown cover`);
         this.shadowRoot.querySelector('[data-action="reset-trip"]').dataset.lamp = sim.tripped && sim.tripRecovery().ready ? 'warning' : 'off';
         const disabled = {
-            start: !sim.startupReadiness().ready, stop: !sim.running, trip: sim.tripped,
+            start: !sim.startupReadiness().ready, stop: !sim.running, trip: sim.tripped || !this.tripCoverOpen,
             insert: sim.autoMode || !sim.running || sim.tripped || sim.rodTarget >= 100,
             withdraw: sim.autoMode || !sim.running || sim.tripped || sim.rodTarget <= 0,
             'rod-insert': rodBlocked || selectedRod.target >= 100,

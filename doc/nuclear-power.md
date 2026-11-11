@@ -301,7 +301,13 @@ remain RUNNING/COASTING after OFF until the motor slows. Pump name, circuit,
 speed target, actual read-back, flow and stress/damage indication are retained.
 
 Emergency shutdown is a red mushroom pushbutton on a hazard-marked mounting
-plate. Its head remains depressed, its red trip lamp stays lit, and it reads
+plate, behind a transparent hinged plastic cover. First select **Lift cover**,
+then press the exposed button; **Close cover** blocks manual access again.
+The native cover toggle comes before the button in keyboard order. Enter/Space
+opens the cover, then Tab reaches the button. Cover movement never changes plant
+state or clears a trip, and automatic trips work with either cover position.
+New sessions and **Reset demo** close the cover; pause and reduced motion skip
+the lid transition. Its head remains depressed, its red trip lamp stays lit, and it reads
 **TRIP LATCHED** for every latched reactor trip, including automatic trips.
 The disabled latched button retains full visual contrast. Pressing it again
 cannot clear the trip. Only successful explicit **Reset trip** releases the

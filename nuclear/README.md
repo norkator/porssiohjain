@@ -92,8 +92,14 @@ The operator console uses recessed metal plates, round Start/Stop pushbuttons an
 pilot lights. Green means the reactor or pump motor is actually running; amber
 marks a stopped reactor or a ready trip reset. Pump stress/damage has amber/red
 indication. Labels distinguish readiness, interlocks and actual operation, including
-when a command is disabled. Emergency shutdown is a red mushroom button with a
-trip lamp: it stays depressed and reads **TRIP LATCHED** for any latched reactor
+when a command is disabled. Emergency shutdown has a transparent hinged plastic
+cover: first select **Lift cover**, then press the exposed red mushroom button.
+The native cover toggle precedes the button in keyboard order; Enter/Space opens
+the cover and Tab reaches the button. **Close cover** blocks access again without
+changing the plant. New sessions and **Reset demo** close the cover. Automatic
+trips work with either cover position, and pause/reduced motion skip the lid animation.
+The trip lamp and button stay visible through the lid: the button stays depressed
+and reads **TRIP LATCHED** for any latched reactor
 trip, and releases only after a successful **Reset trip**. Repeated presses cannot
 reset it; clearing the latch leaves the reactor stopped. The controls retain their
 existing interlocks, keyboard access and both themes. These are simulated controls.
