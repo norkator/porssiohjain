@@ -9,6 +9,7 @@ import styles from './nuclear-power.css?inline';
 import { PlantAudio } from './nuclear-power-audio.js';
 import { equipmentDialogs, initializeEquipment, updateEquipment, drawEquipmentMotion, exerciseDialog, initializeExercises, updateExercises } from './nuclear-power-equipment.js';
 import lightStyles from './nuclear-power-light.css?inline';
+import generationStyles from './nuclear-power-generation-console.css?inline';
 import { PlantOverviewScene } from './nuclear-power-scene.js';
 import { powerSourcePanel, electricalDialogs, initializeElectrical } from './nuclear-power-electrical.js';
 import { loopTemperatures, temperatureColor } from './nuclear-power-temperature.js';
@@ -280,7 +281,7 @@ export class NuclearPowerConsole extends HTMLElement {
     initialize() {
         this.initialized = true;
         this.setAttribute('lang', 'en');
-        this.shadowRoot.innerHTML = `<style>${styles}\n${lightStyles}</style>
+        this.shadowRoot.innerHTML = `<style>${styles}\n${lightStyles}\n${generationStyles}</style>
         <main class="console">
           <header class="masthead">
             <div class="brand-mark">${radiation}</div>
@@ -339,14 +340,14 @@ export class NuclearPowerConsole extends HTMLElement {
                   <div class="setpoint"><label for="load"><span class="regulator-caption"><small>LR-01 / REACTOR LOAD</small><span>Load setpoint</span></span><strong class="regulator-display" data-value="demand">64%</strong></label><div class="regulator-rail" style="--regulator-position:64%"><input id="load" type="range" min="0" max="100" value="64" aria-label="Load setpoint" aria-describedby="load-owner"/><div class="regulator-scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100%</span></div></div><div class="load-trim-label"><span>FINE ADJUST</span><span id="load-owner" data-value="loadOwner">AUTO</span></div><div class="button-pair"><button class="control-button compact load-trim-button" data-action="load-down">− Decrease</button><button class="control-button compact load-trim-button" data-action="load-up">+ Increase</button></div></div>
                   <div class="rod-control"><div class="control-label">CONTROL RODS <span>IN <span data-value="rodTarget">36%</span></span></div><div class="button-pair"><button class="control-button compact" data-action="insert">↓ Insert</button><button class="control-button compact" data-action="withdraw">↑ Withdraw</button></div></div>
                   <div class="pump-controls">${pumpControls()}</div>
-                  <section class="emergency-station" aria-label="Reactor protection" data-cover-open="false">
+                  <section class="emergency-station" aria-label="Operator emergency shutdown" data-cover-open="false">
                     <div class="emergency-station-heading"><span>ESD-01 / REACTOR TRIP</span><span class="trip-latch-indicator"><i class="pilot-lamp" aria-hidden="true"></i><b data-value="tripLatch">ARMED</b></span></div>
                     <div class="emergency-guard">
                       <button type="button" class="emergency-cover-toggle" data-action="trip-cover" aria-label="Open emergency shutdown cover" aria-expanded="false" aria-controls="emergency-trip-button"><span class="emergency-cover-grip"><i aria-hidden="true"></i><span data-value="tripCoverAction">LIFT COVER ↑</span><i aria-hidden="true"></i></span></button>
                       <span class="emergency-cover-pane" aria-hidden="true"></span>
                       <button type="button" id="emergency-trip-button" class="emergency-button" data-action="trip" aria-label="Emergency shutdown" aria-pressed="false" aria-describedby="emergency-indication" disabled><span class="emergency-bezel" aria-hidden="true"><span class="emergency-stem"></span><span class="emergency-mushroom">TRIP</span></span><span class="emergency-label"><strong>Emergency shutdown</strong><small>INSERT ALL RODS</small><b id="emergency-indication" data-value="emergencyIndication">LIFT COVER TO ACCESS</b></span></button>
                     </div>
-                    <p class="emergency-reset-note" data-value="emergencyResetNote">Latching trip · reset at recovery panel</p>
+                    <p class="emergency-reset-note" data-value="emergencyResetNote">Operator only · Manual &amp; Auto</p>
                   </section>
                   <p class="control-note">Pilot lights show actual state · SIMULATED</p>
                 </div>
@@ -1320,7 +1321,7 @@ export class NuclearPowerConsole extends HTMLElement {
             tripLatch: sim.tripped ? 'LATCHED' : 'ARMED',
             emergencyIndication: sim.tripped ? 'TRIP LATCHED' : this.tripCoverOpen ? 'PUSH TO TRIP' : 'LIFT COVER TO ACCESS',
             tripCoverAction: this.tripCoverOpen ? 'CLOSE COVER ↓' : 'LIFT COVER ↑',
-            emergencyResetNote: sim.tripped ? 'Held down · use Reset trip after recovery' : 'Latching trip · reset at recovery panel',
+            emergencyResetNote: sim.tripped ? 'Held down · use Reset trip after recovery' : 'Operator only · Manual & Auto',
             secondaryFlow: `${n(signals.secondaryFlow.value)} m³/h`, secondaryFlowNumber: n(signals.secondaryFlow.value),
             pumpA: pumpState(sim.pumpA, sim.pumpASpeed, sim.primaryFlow), pumpB: pumpState(sim.pumpB, sim.pumpBSpeed, sim.secondaryFlow),
             pumpATarget: percent(sim.pumpASpeed), pumpBTarget: percent(sim.pumpBSpeed),

@@ -145,12 +145,12 @@ export class NuclearPowerSimulation {
         this.updateAlarms();
     }
 
-    stop() {
+    stop(reason = 'Normal shutdown. Coolant circulation maintained.') {
         if (!this.running) return;
         this.running = false;
         this.clearRodOverrides();
         this.controlRods.forEach(rod => { rod.target = 100; });
-        this.record('Normal shutdown. Coolant circulation maintained.');
+        this.record(reason);
         this.updateAlarms();
     }
 
@@ -490,15 +490,10 @@ export class NuclearPowerSimulation {
             Math.max(coolingSink, this.secondaryTemperature - secondaryDrop), dt, 7);
         this.condition.advance(this, dt, previousTemperature);
         this.components.advance(dt);
-        if (this.condition.meltdown) {
-            this.trip('Simulated core meltdown');
-        } else if (this.autoMode && this.running && this.condition.peakTemperature > 470) {
-            this.trip('Simulated protection: local fuel hot spot');
-        } else if (this.autoMode && this.running && this.power > 10 && this.primaryFlow < 15) {
-            this.trip('Simulated protection: primary flow lost');
-        } else if (this.autoMode && this.running && this.temperature > 360) {
-            this.trip('Simulated protection: high core temperature');
-        }
+        // Emergency shutdown is an operator action in both modes. Auto may regulate
+        // output down, but alarms/flow/temperature must never latch the mushroom button.
+        // Terminal core failure still ends generation through its separate meltdown latch.
+        if (this.condition.meltdown) this.stop('Simulated core meltdown ended generation. Reset demo required.');
         this.updateAlarms();
         if (this.elapsed - this.history.at(-1).time >= 1) this.sample();
         if (this.elapsed - this.lastProcessLog >= 10) {

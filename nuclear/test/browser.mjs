@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { join, extname, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pages, siteUrl } from '../site/pages.mjs';
+import { checkGenerationConsoles } from './generation-consoles.browser.mjs';
 import { waitForChrome } from './chrome-startup.mjs';
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
@@ -367,8 +368,8 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await value('emergencyIndication'), 'TRIP LATCHED');
         assert.equal(await consoleCode('return s.querySelector("[data-action=trip]").getAttribute("aria-pressed");'), 'true');
         await action('reset');
-        await consoleCode('c.simulation.trip("Automatic trip with cover closed");c.update();');
-        assert.equal(await consoleCode('return c.tripCoverOpen;'), false, 'Automatic trips must work without opening the cover');
+        await consoleCode('c.simulation.trip("Explicit operator trip command");c.update();');
+        assert.equal(await consoleCode('return c.tripCoverOpen;'), false, 'A trip command never changes the cover position');
         assert.equal(await value('tripLatch'), 'LATCHED');
         await action('trip-cover');
         assert.equal(await consoleCode('return c.simulation.tripped;'), true, 'Opening the cover cannot reset a trip');
@@ -832,6 +833,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.simulation.electricalOutput;'), 0);
         await screenshot('equipment-turbine');
         await consoleCode(`s.querySelector('[data-component-close="turbine"]').click();`);
+        await checkGenerationConsoles({ consoleCode, action, input, page, advance, until, screenshot, warmOperatingPoint, resetWithoutDispatch });
         await action('exercises');
         assert.ok(await consoleCode("return s.querySelector('#operating-objective').options.length;") >= 3);
         await consoleCode(`s.querySelector('[data-exercise="objective"]').click();`);
@@ -1097,6 +1099,16 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await input('#auto-electrical', 400);
         await advance(180);
         assert.equal(await value('regulationDetail'), 'Core temperature limit');
+        await input('#auto-temperature', 1000);
+        await input('#auto-flow', 100);
+        await advance(90);
+        assert.equal(await consoleCode('return c.simulation.tripped;'), false, 'High Auto targets cannot press emergency shutdown');
+        assert.equal(await consoleCode('return c.simulation.running;'), true);
+        assert.equal(await consoleCode('return s.querySelector("[data-action=trip]").getAttribute("aria-pressed");'), 'false');
+        assert.equal(await value('tripLatch'), 'ARMED');
+        assert.match(await value('emergencyResetNote'), /Operator only/);
+        await input('#auto-temperature', 275);
+        await input('#auto-flow', 80);
         await input('#auto-objective', 'temperature');
         await advance(180);
         await action('fluctuations');
@@ -1523,6 +1535,8 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await screenshot('cooling-loss-warning');
         await advance(300);
         assert.equal(await value('status'), 'MELTDOWN');
+        assert.equal(await consoleCode('return c.simulation.tripped;'), false, 'Meltdown failure does not activate the operator emergency button');
+        assert.equal(await consoleCode('return s.querySelector("[data-action=trip]").getAttribute("aria-pressed");'), 'false');
         assert.equal(await value('conditionStage'), 'MELTDOWN');
         assert.ok(Number(await value('chartTempMax')) >= await consoleCode('return c.simulation.temperature;'));
         assert.equal(await consoleCode(`return s.querySelector('[data-action="reset-trip"]').disabled;`), true);

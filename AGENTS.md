@@ -213,6 +213,17 @@ lifecycle, and retain usable controls alongside the scrollable mobile cutaway.
 The compact exchanger cutaway (up to 520 px) and local trends share left/right
 columns on wide screens to avoid default-view scrolling; below 850 px they
 stack. Preserve the narrower trend bounds and operator change markers.
+Turbine/generator and condenser dialogs use interactive SVG cutaways beside local
+trends, with draggable valves/dials, native sliders and fine adjustments; no numeric
+entry fields remain, including disturbances. Keep governor 0.1 s steps, load-ramp
+MW/s and cooling-inlet 0–60 °C bounds. Requested valves stay dashed, actual valves
+solid. Turbine/generator rotation follows actual shaft coast-down independently of
+output; electrical markers require actual generation. The native breaker rocker
+always permits opening and closes only when ready; preserve explicit admission,
+turbine trip/reset and cooled service checks. Condenser steam/drops follow actual
+heat/flow/cooling and remain absent when cold or without flow. Cancel uncommitted
+drag/slider previews on cancellation/close/hide, and preserve shared motion cleanup,
+both themes, floating-window lifecycle and narrow cutaway scrolling.
 The 3D cutaway has an RBMK-inspired tiled channel deck, rear spent-fuel pool
 with initially empty racks, and an overhead fuel-handling crane. Keep stationary
 caps and actual moving rods/aqua collars visible in the open-front guide

@@ -30,7 +30,7 @@ function expectedFlows(sim, circulation) {
 }
 
 // Dispatch uses a normal 330 C operating envelope, independent of the user's
-// uncapped manual setting. Existing alarms/trips remain separate protections.
+// uncapped manual setting. Alarms and operator emergency shutdown remain separate.
 export function gridDispatchCapacity(sim) {
     const turbine = sim.components.items.turbine;
     if (!sim.running || sim.tripped || sim.condition.meltdown || turbine.actual.tripped || !turbine.settings.breaker) return 0;

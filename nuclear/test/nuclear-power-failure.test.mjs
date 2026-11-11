@@ -25,11 +25,14 @@ const manualSimulation = () => {
 const advance = (sim, seconds) => { for (let i = 0; i < seconds * 4; i++) sim.tick(0.25); };
 const loseCooling = sim => { sim.togglePump('A'); sim.togglePump('B'); };
 
-test('retained heat rises after an Auto cooling-loss trip, with warning time before damage', () => {
+test('retained heat rises after an explicit cooling-loss shutdown in Auto, with warning time before damage', () => {
     const sim = manualSimulation();
     sim.setAutoMode(true);
     const fuel = sim.condition.fuelTemperature;
     loseCooling(sim);
+    advance(sim, 3);
+    assert.equal(sim.tripped, false);
+    sim.trip();
     advance(sim, 20);
     assert.equal(sim.tripped, true);
     assert.ok(sim.condition.heatReserve > 50);
@@ -58,6 +61,8 @@ test('continued cooling loss progresses through overheating and damage before a 
     assert.ok(sim.elapsed - firstDamage > 20);
     assert.equal(sim.snapshot().status, 'MELTDOWN');
     assert.equal(sim.running, false);
+    assert.equal(sim.tripped, false, 'Terminal core failure does not press the operator emergency button');
+    assert.equal(sim.electricalOutput, 0);
     assert.equal(sim.condition.stage, 'MELTDOWN');
     assert.ok(sim.events.some(event => event.message.includes('OVERHEATING')));
     assert.ok(sim.events.some(event => event.message.includes('CORE DAMAGE')));
@@ -150,16 +155,38 @@ test('normal automatic generation remains protected and pause freezes failure ev
     assert.equal(JSON.stringify(sim.condition), before);
 });
 
-test('automatic control reduces output but cannot remove retained heat without either cooling loop', () => {
+test('Auto reduces output during cooling loss while retained heat and alarms remain active without a trip', () => {
     const sim = manualSimulation();
     sim.setAutoMode(true);
+    const fuel = sim.condition.fuelTemperature;
     loseCooling(sim);
     advance(sim, 3);
     assert.ok(sim.power < 64);
     assert.equal(sim.condition.coreDamage, 0);
-    advance(sim, 300);
-    assert.equal(sim.condition.meltdown, true);
+    assert.ok(sim.condition.heatReserve > 50);
+    advance(sim, 20);
+    assert.ok(sim.condition.fuelTemperature > fuel);
+    assert.ok(sim.alarms.some(alarm => alarm.id === 'primary'));
     assert.equal(sim.autoMode, true);
-    assert.equal(sim.running, false);
-    assert.equal(sim.tripped, true);
+    assert.equal(sim.running, true);
+    assert.equal(sim.tripped, false);
+});
+
+test('terminal core failure stops generation in both modes without activating the emergency button', () => {
+    for (const auto of [false, true]) {
+        const sim = manualSimulation();
+        sim.setAutoMode(auto);
+        sim.condition.fuelTemperature = 700;
+        sim.condition.zones.forEach(zone => { zone.temperature = 700; zone.damage = 100; });
+        sim.tick(.25);
+        assert.equal(sim.condition.meltdown, true);
+        assert.equal(sim.running, false);
+        assert.equal(sim.tripped, false);
+        assert.equal(sim.rodTarget, 100);
+        assert.equal(sim.electricalOutput, 0);
+        sim.resetTrip(); sim.start();
+        assert.equal(sim.running, false);
+        assert.equal(sim.condition.meltdown, true);
+        assert.equal(sim.tripped, false);
+    }
 });

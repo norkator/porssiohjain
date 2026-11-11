@@ -57,7 +57,7 @@ test('stopping preserves circulation, cools the plant, and allows a normal resta
     assert.equal(sim.snapshot().status, 'RUNNING');
 });
 
-test('pump failure can be acknowledged without hiding the active fault and primary loss trips in Auto', () => {
+test('Auto primary flow loss keeps alarms active and leaves emergency shutdown to the operator', () => {
     const sim = manualSimulation();
     sim.setAutoMode(true);
     sim.togglePump('A');
@@ -65,8 +65,12 @@ test('pump failure can be acknowledged without hiding the active fault and prima
     sim.acknowledge();
     assert.equal(sim.alarms[0].acknowledged, true);
     advance(sim, 5);
+    assert.equal(sim.tripped, false);
+    assert.equal(sim.running, true);
+    assert.ok(sim.alarms.some(alarm => alarm.id === 'primary'));
+    assert.equal(sim.alarms.some(alarm => alarm.id === 'trip'), false);
+    sim.trip();
     assert.equal(sim.tripped, true);
-    assert.equal(sim.running, false);
     assert.equal(sim.rodTarget, 100);
     assert.equal(sim.alarms.find(alarm => alarm.id === 'trip').acknowledged, false);
     sim.start();
@@ -431,14 +435,48 @@ test('Manual keeps shutdown under operator control across low flow and high cool
     assert.equal(sim.tripped, true);
 });
 
-test('switching a degraded Manual session to Auto restores automatic protection', () => {
+test('switching a degraded Manual session to Auto never activates emergency shutdown', () => {
     const sim = manualSimulation();
     sim.togglePump('A'); sim.togglePump('B');
     advance(sim, 20);
     assert.equal(sim.tripped, false);
     sim.setAutoMode(true); sim.tick();
+    assert.equal(sim.tripped, false);
+    assert.equal(sim.running, true);
+    assert.ok(sim.alarms.some(alarm => alarm.id === 'primary'));
+    sim.trip();
     assert.equal(sim.tripped, true);
-    assert.equal(sim.running, false);
+    sim.setAutoMode(false); sim.setAutoMode(true);
+    assert.equal(sim.tripped, true, 'Mode switching cannot clear an explicit emergency shutdown');
+});
+
+test('high Auto output, temperature and circulation targets never latch emergency shutdown', () => {
+    for (const objective of ['power', 'temperature']) {
+        const sim = manualSimulation();
+        sim.setAutoMode(true); sim.setAutoObjective(objective);
+        sim.setGridDispatchEnabled(false); sim.setFluctuations(false);
+        sim.setElectricalTarget(400); sim.setAutoTargets(1000, 100);
+        let hottest = sim.temperature;
+        for (let i = 0; i < 120 * 4; i++) {
+            sim.tick(.25);
+            hottest = Math.max(hottest, sim.temperature);
+            assert.equal(sim.tripped, false, `${objective} target must not trip at T+${sim.elapsed}`);
+        }
+        assert.equal(sim.condition.meltdown, false);
+        assert.equal(sim.running, true);
+        assert.ok(hottest > 360, 'Exercise the former high-temperature trip threshold');
+        assert.ok(sim.alarms.some(alarm => alarm.id === 'temperature'));
+        assert.ok(sim.regulationLimit, 'Auto still reports regulation limits');
+        sim.condition.fuelTemperature = 520;
+        sim.condition.zones.forEach(zone => { zone.temperature = 520; });
+        sim.tick(.25);
+        assert.ok(sim.condition.peakTemperature > 470);
+        assert.equal(sim.tripped, false, 'A local fuel hot spot raises alarms without pressing emergency shutdown');
+        assert.ok(sim.alarms.some(alarm => alarm.id === 'fuel'));
+        sim.trip();
+        assert.equal(sim.tripped, true);
+        assert.equal(sim.running, false);
+    }
 });
 
 

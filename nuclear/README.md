@@ -88,6 +88,22 @@ The header card beside the title contains regulation targets, the opt-in plant
 sound switch, theme, simulation status and clock. UI clicks use 100% of the bounded
 sample-volume range (0.26 gain); the volume slider and test button are removed.
 
+The **Turbine & generator** and **Condenser** windows also use interactive cutaways
+beside local trends. Drag the steam/cooling valve or a regulator dial, or select a
+control for its native slider and fine-adjust buttons. Governor response retains
+0.1-second steps, load ramp uses MW/s, and cooling inlet temperature spans 0–60 °C.
+Arrow keys adjust one step (ten with Shift); Home/End choose bounds. Drags preview
+until release; cancellation, closing and hiding discard uncommitted changes.
+All tuning and disturbance fields use sliders with readouts, with no numeric entry.
+Dashed valve requests stay separate from solid actual positions. Turbine and
+generator rotors follow actual shaft coast-down; electrical markers appear only
+with actual output. The native breaker rocker retains explicit readiness checks,
+and turbine trip/reset/admission controls preserve the existing interlocks.
+Condenser water, steam and falling condensate follow actual flow, heat and cooling.
+Both windows share pause, reduced-motion, hide/detach cleanup, movable positioning
+and both themes. Narrow screens stack trends and scroll only the illustration
+horizontally; the adjustment controls fit the window.
+
 The 3D toolbar's **Labels** selector defaults to **Compact** equipment tags. Hover
 or keyboard focus reveals the name and live readings; the selected equipment's
 card stays expanded. **Full** shows every card. **Off** hides the cards while
@@ -247,7 +263,12 @@ continues through the existing regulator and protections. Dispatch waits during
 Stop, trips, pause, Manual or temperature regulation and unavailable circulation/
 generation; it never starts the plant or closes a breaker. Disabling retains all
 current targets. Reset demo clears messages and restores following. Manual temperature entry has
-no 330 °C cap; existing alarms and automatic trip thresholds still apply.
+no 330 °C cap. Emergency shutdown is operator-only in both Auto and Manual:
+high output/core/circulation targets, low flow and fuel hot spots never press or
+latch the emergency button. Auto still limits output against cooling, fuel and
+the configured core ceiling. Alarms, accumulated damage and retained heat remain
+active. Irreversible meltdown ends generation through its own failure state,
+without activating the emergency button; Reset demo is still required afterward.
 
 Both coolant loops use the same absolute temperature colors, including return
 pipes and bypass. Core inlet/outlet and secondary return temperatures are displayed.

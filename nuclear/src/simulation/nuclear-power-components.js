@@ -180,7 +180,7 @@ export class ComponentProcesses {
     }
     get electricalOutput() {
         const t = this.items.turbine;
-        if (t.actual.tripped || !t.settings.breaker) return 0;
+        if (this.sim.condition.meltdown || t.actual.tripped || !t.settings.breaker) return 0;
         const available = this.sim.power * 4.1 * this.sim.secondaryFlow / 100 * this.transferFactor;
         return Math.max(0, Math.min(410, this.rampActive ? Math.min(available, t.actual.loadLimit) : available));
     }

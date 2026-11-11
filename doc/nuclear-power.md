@@ -586,9 +586,20 @@ former detail card is now a collapsible reading section inside the core-map wind
   heat removal, affect secondary temperature and electrical output, and can heat the
   core. Fault-free cooled/stopped service removes fouling; running adjustments cannot
   decrease accumulated fouling to bypass that requirement.
-- Condenser: cooling-water valve and 0–60 °C inlet temperature. Warmer water and
-  restriction reduce heat rejection, cooling margin and available generation.
-- Turbine: steam admission, governor response (0.1–30 s), load ramp (1–400 MW/s),
+- Condenser: an interactive SVG cutaway shows actual cooling-water flow, secondary
+  steam, falling condensate and return temperatures. Drag the cooling-water valve
+  or inlet-temperature dial, or select a control for a native slider and fine-adjust
+  buttons. Settings remain cooling-water valve and 0–60 °C inlet temperature.
+  Warmer water and restriction reduce heat rejection, cooling margin and available
+  generation. Condensate follows actual heat, secondary flow and cooling capacity;
+  cold/no-flow states do not show condensation.
+- Turbine/generator: an interactive SVG cutaway exposes the steam-admission valve,
+  governor-response and load-ramp dials. Turbine and generator rotors share actual
+  shaft motion/coast-down; electrical-route markers require actual output. The native
+  generator-breaker rocker shows the actual open/closed contact in the cutaway,
+  with closing locked until ready and an explanation beside the switch. Separate
+  explicit Open admission, Trip turbine and Reset turbine trip buttons retain all
+  existing interlocks. Tuning remains steam admission, governor response (0.1–30 s), load ramp (1–400 MW/s),
   manual generator breaker and separate turbine trip/reset/Start. Shaft speed has its
   own simulated inertia and can remain nonzero with zero electrical output. The
   breaker closes only with shaft speed ≥90%, cooling available, no turbine trip,
@@ -597,6 +608,18 @@ former detail card is now a collapsible reading section inside the core-map wind
   the breaker. Reset requires cooled/stopped/fault-free conditions and shaft ≤5%;
   it leaves admission closed and breaker open until explicit turbine Start/tuning.
   It never resets the reactor trip or restarts the reactor.
+
+Both new cutaways have native sliders and readouts for tuning and disturbance
+strength/period, with no numeric entry fields. Arrow keys adjust one schema step
+(0.1 s for governor response), Shift adjusts ten steps and Home/End choose bounds.
+Fine-adjust buttons move five steps. Dragging previews the request, committing
+only on release; pointer cancellation, lost capture and closing/hiding discard
+uncommitted previews. Solid actual valves remain separate from dashed requested
+positions. Local trends sit beside the cutaway with collapsed readings, readiness
+and maintenance history; turbine trends show shaft speed, electrical output and
+admission. Below 850 px columns stack, with horizontal scrolling confined to the
+illustration. Both themes and the shared pause/visibility/reduced-motion/detach
+lifecycle are preserved, with no independent animation timer or model changes.
 
 Component disturbances have adjustable strength and period, a one-shot nudge,
 continuous periodic fluctuation, progressive deterioration and explicit clearing.
@@ -906,6 +929,9 @@ animation while instruments and controls continue to work.
   internal damage; it uses the existing component commands and shared frame loop.
 - `nuclear/src/simulation/nuclear-power-audio.js` owns operating-state loops, UI samples and quiet Start/Stop cues;
   the main element retains alarm scheduling and shared-context lifecycle.
+- `nuclear/src/simulation/nuclear-power-generation-console.js` and its isolated CSS
+  render the turbine/generator and condenser cutaways, drag/keyboard/range tuning,
+  breaker rocker/readiness, actual-state animation and preview cancellation.
 - `nuclear/src/simulation/nuclear-power-pumps.js` owns four pump identities, parallel
   branch flow, normalized pressure, retained pipe damage and isolation checks.
 - `nuclear/src/simulation/nuclear-power-pump-scene.js` builds the four cutaways,
