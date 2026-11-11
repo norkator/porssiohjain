@@ -534,7 +534,18 @@ live readings, an animated valve/flow illustration, causal explanation, local
 operating hours, retained wear and a bounded maintenance history. The reactor's
 former detail card is now a collapsible reading section inside the core-map window.
 
-- Pumps: start/stop, speed, ±25 percentage-point speed trim and discharge valve.
+- Pumps: each of the four dialogs has a compact interactive SVG cutaway beside
+  local speed/flow/pressure trends. Drag the impeller, valve or trim, or select a
+  part for a native slider and ±5 controls. Keyboard arrows adjust one unit
+  (ten with Shift); Home/End choose bounds. Dragging previews until release;
+  cancellation and closing/hiding discard uncommitted changes. Dashed amber
+  requests remain separate from solid actual speed/valve read-back. Native
+  ON/OFF rockers show requested enable while motor status follows actual
+  running/coast-down. Disturbances use sliders too; numeric percentage entry
+  fields are removed. Readings/history are collapsed. At wide sizes, the default
+  dialog fits without scrolling; below 850 px the columns stack and only the
+  cutaway scrolls horizontally. Controls remain start/stop, speed, ±25 percentage-
+  point speed trim and discharge valve.
   Actual motor speed is distinct from flow: restricting a valve can reduce flow
   without reducing shaft speed. AC supply remains authoritative. Speed is Auto-owned
   while running unless the operator explicitly enables the pump's manual override.
@@ -762,9 +773,13 @@ availability and turbine-feed connection remain native checkboxes/switches with
 pump-style rocker faces, keyboard activation and existing change handlers. The
 former Auxiliary power view and top-right EXTERNAL GRID button are removed.
 
-Scene info cards are 55% opaque until hover, keyboard focus or opening their
-dialog; reduced motion removes their transition. They remain usable over the
-process. The unified scene freezes on pause/hide/reduced motion and while
+The 3D toolbar offers **Labels: Off / Compact / Full**. New sessions default to
+compact equipment tags, revealing full names/readings on hover or keyboard focus.
+The selected card stays expanded; Full shows every card. Off hides visual cards
+while retaining canvas picking and keyboard controls (a focused control reveals
+its full card). Cards are reclamped when their size changes. The setting survives
+view/tab switches, Reset demo and element reconnection; reduced motion removes
+the opacity transition. The unified scene freezes on pause/hide/reduced motion and while
 Maintenance is selected. Detach disposes one renderer; reconnect restores current
 plant state. SVG fallback keeps the sidebar and all electrical dialogs usable.
 
@@ -873,6 +888,9 @@ animation while instruments and controls continue to work.
   list, repair readiness and explicit bulk repair/fault-clear controls.
 - `nuclear/src/simulation/nuclear-power-equipment.js` renders the movable consoles and
   exercises, settings ownership, local trends and maintenance journal.
+- `nuclear/src/simulation/nuclear-power-pump-console.js` renders the four interactive
+  pump cutaways, drag/keyboard/range adjustments, requested/actual indicators and
+  internal damage; it uses the existing component commands and shared frame loop.
 - `nuclear/src/simulation/nuclear-power-audio.js` owns operating-state loops, UI samples and quiet Start/Stop cues;
   the main element retains alarm scheduling and shared-context lifecycle.
 - `nuclear/src/simulation/nuclear-power-pumps.js` owns four pump identities, parallel

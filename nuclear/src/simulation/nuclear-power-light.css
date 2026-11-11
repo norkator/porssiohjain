@@ -234,3 +234,8 @@
 :host([data-theme="light"]) .pipe-crack { stroke: #a44329; }
 :host([data-theme="light"]) .pipe-inspection rect { fill: #e7f3f4; stroke: #6d939d; }
 :host([data-theme="light"]) .pump-cutaway-shell { fill: #dcebef; stroke: #617f8d; }
+:host([data-theme="light"]) .scene-labels-control select { color: #264557; background: #fff; border-color: #a6bbc8; }
+:host([data-theme="light"]) .pump-console { --pump-metal: #d6e4e8; --pump-surface: #f6fafb; --pump-ink: #264454; }
+:host([data-theme="light"]) .pump-console-flow { stroke: #275d70; }
+:host([data-theme="light"]) .pump-fitting-spray { fill: #1480b7; stroke: #a9e4ff; }
+:host([data-theme="light"]) .pump-console[data-overpressure="true"] [data-pump-value="pressure"] { color: #a13b21; }

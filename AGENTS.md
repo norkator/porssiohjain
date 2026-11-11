@@ -192,7 +192,19 @@ turbine-feed switches use the same rocker styling, preserving keyboard behavior.
 The old top-right EXTERNAL GRID/source button is removed. Controls remain usable
 in the SVG/WebGL fallback. Core/component/pool/electrical windows share dragging,
 keyboard movement, viewport clamping, per-window closing and focus restoration.
-Scene labels are translucent until hover/focus or their dialog opens.
+The 3D Labels selector offers Off / Compact / Full, defaulting to Compact tags.
+Hover/focus reveals full names and readings; the selected card stays expanded.
+Off hides visual cards while keeping canvas picking and keyboard focus reveal.
+Preserve expansion-aware viewport clamping, both themes/reduced motion and the
+choice across view/tab switches, Reset demo and element reconnection.
+All four pump dialogs use a compact SVG cutaway with adjacent local speed/flow/
+pressure trends. Drag the impeller, discharge valve or trim, or select a control
+for native sliders, keyboard arrows/Home/End and ±5 adjustments. No numeric
+percentage entry fields remain; disturbances also use sliders. Preserve Auto
+ownership/overrides, requested dashed versus actual solid indicators, native run
+rockers, part damage, repair checks and shared animation cleanup. Preview drags
+until release; cancel uncommitted values on cancellation or close/hide. Narrow
+views stack trends and keep horizontal scrolling inside the cutaway.
 The heat exchanger dialog uses an interactive SVG cutaway: drag valves, tube bundle
 or deposits horizontally, or select a part for slider/keyboard/±5% adjustments.
 Keep requested dashed handles separate from actual solid handles, use the shared

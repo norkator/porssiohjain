@@ -139,6 +139,18 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .1px; white-space: nowra
 .plant-scene-label:focus-visible { outline: 2px solid #c4ffea; outline-offset: 3px; }
 .plant-scene-label.hot { border-color: #ff7670; background: #4e242a; }
 .plant-scene-label.hot small { color: #ff9c94; }
+.scene-labels-control { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+.scene-labels-control select { padding: 4px 5px; border: 1px solid #526b79; border-radius: 4px; color: #d4e7e6; background: #172b36; font-size: 10px; }
+.plant-scene-label { z-index: 1; }
+.plant-scene-label.selected { z-index: 3; opacity: 1; }
+.plant-scene-label:is(:hover, :focus-visible) { z-index: 4; }
+.plant-scene[data-labels="compact"] .plant-scene-label:not(:hover):not(:focus-visible):not(.selected),
+.plant-scene[data-labels="off"] .plant-scene-label:not(:focus-visible) { min-width: 0; padding: 5px 7px; gap: 0; }
+.plant-scene[data-labels="compact"] .plant-scene-label:not(:hover):not(:focus-visible):not(.selected) { opacity: .85; }
+.plant-scene[data-labels="compact"] .plant-scene-label:not(:hover):not(:focus-visible):not(.selected) > :is(span, small),
+.plant-scene[data-labels="off"] .plant-scene-label:not(:focus-visible) > :is(span, small) { display: none; }
+.plant-scene[data-labels="off"] .plant-scene-label { opacity: 0; pointer-events: none; }
+.plant-scene[data-labels="off"] .plant-scene-label:focus-visible { opacity: 1; pointer-events: auto; }
 .plant-scene-feature { min-width: 0; padding: 4px 6px; pointer-events: auto; border-color: #59767d; }
 .plant-scene-feature strong { font-size: 8px; letter-spacing: .35px; }
 .plant-scene-feature small { font-size: 8px; }
@@ -827,6 +839,71 @@ select { background: #1b2c38; color: #cadddf; border: 1px solid #47606c; padding
 .fuel-channel.fuel-exchanging > rect { stroke: var(--cool); stroke-width: 3px; }
 
 .equipment-dialog { width: min(850px, calc(100vw - 24px)); }
+[data-component-dialog^="pump"] { width: min(960px, calc(100vw - 24px)); }
+[data-component-dialog^="pump"] .equipment-dialog-body { padding: 12px; }
+[data-component-dialog^="pump"] > .equipment-dialog-body > .component-description { margin: 0 0 8px; font-size: 10px; }
+.pump-workspace { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.pump-sidebar { display: flex; flex-direction: column; min-width: 0; }
+.pump-sidebar .component-trends { order: -1; }
+.pump-console { --pump-metal: #344c5b; --pump-surface: #111f2b; --pump-ink: #deebee; border: 1px solid var(--border); border-radius: 9px; background: var(--pump-surface); overflow: hidden; }
+.pump-console-heading { display: flex; align-items: center; gap: 10px; padding: 9px 12px 0; }
+.pump-console-heading > div { margin-right: auto; }
+.pump-console-heading .eyebrow { font-size: 8px; letter-spacing: 1px; }
+.equipment-dialog .pump-console-heading h3 { font-size: 14px; color: var(--pump-ink); margin: 3px 0; }
+.pump-console-state { font: 9px Consolas, monospace; color: var(--muted); }
+.pump-console[data-running="true"] .pump-console-state { color: var(--cool); }
+.pump-console-ownership { padding: 5px 12px 0; font-size: 10px; }
+.pump-console-ownership .component-override { font-size: 10px; }
+.pump-console-ownership .component-owner { margin: 3px 0; color: var(--muted); font-size: 9px; }
+.pump-console-help { margin: 6px 12px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.pump-model-scroll { overflow-x: auto; }
+.pump-model { display: block; width: 100%; min-width: 460px; max-width: 520px; margin: 0 auto; }
+.pump-model text { fill: var(--pump-ink); font: 11px Consolas, monospace; pointer-events: none; }
+.pump-model .pump-adjust-name { font: 600 11px "Segoe UI", sans-serif; }
+.pump-model .pump-adjust-value { fill: var(--warm); font-size: 10px; }
+.pump-model .pump-model-port { fill: var(--muted); font-size: 9px; }
+.pump-console-pipe-shell { fill: none; stroke: var(--pump-metal); stroke-width: 22; }
+.pump-console-water { fill: none; stroke-width: 13; }
+.pump-console-flow { fill: none; stroke: #e6ffff; stroke-width: 2; stroke-dasharray: 4 18; pointer-events: none; }
+.pump-console-shell { fill: var(--pump-metal); stroke: #7393a0; stroke-width: 2; }
+.pump-chamber, .pump-trim-knob { fill: var(--pump-surface); stroke: #7997a0; stroke-width: 2; }
+.pump-valve-seat { fill: var(--pump-metal); stroke: #9bb6bd; stroke-width: 1.5; }
+.pump-adjustable { cursor: ew-resize; touch-action: none; outline: none; }
+.pump-adjust-hit { fill: transparent; stroke: #738f9c; stroke-width: 1; stroke-dasharray: 3 5; pointer-events: all; }
+.pump-adjustable:is(:hover, :focus-visible, .selected) .pump-adjust-hit { stroke: var(--cool); stroke-width: 2; fill: #73d5c50a; }
+.pump-adjustable:focus-visible .pump-adjust-hit { stroke-dasharray: none; stroke-width: 3; }
+.pump-adjustable[aria-disabled="true"] { cursor: default; }
+.pump-adjustable[aria-disabled="true"] .pump-adjust-hit { stroke: #71838d; }
+.pump-speed-ring { fill: none; }
+.pump-speed-ring.requested { stroke: var(--warm); stroke-width: 2; stroke-dasharray: 4 5; }
+.pump-speed-ring.actual { stroke: var(--cool); stroke-width: 4; transform: rotate(-90deg); }
+.pump-valve-request { stroke: var(--warm); stroke-width: 3; stroke-dasharray: 3 4; fill: none; }
+.pump-valve-actual { stroke: var(--cool); stroke-width: 6; stroke-linecap: round; fill: var(--pump-surface); }
+[data-pump-trim-pointer] { stroke: var(--warm); stroke-width: 3; }
+.pump-fitting-spray { fill: #75d7ff; stroke: #c5edff; stroke-width: .4; pointer-events: none; }
+.pump-console-live { display: flex; justify-content: space-between; gap: 8px; padding: 5px 12px 9px; color: var(--muted); font-size: 9px; }
+.pump-console-live strong { display: block; margin-top: 2px; color: var(--pump-ink); font: 12px Consolas, monospace; }
+.pump-console[data-overpressure="true"] [data-pump-value="pressure"] { color: #ff9d7d; }
+.pump-adjustment { margin: 0 10px; padding: 8px; background: var(--pump-metal); border: 1px solid var(--border); border-radius: 7px; }
+.pump-part-tabs { display: flex; gap: 4px; margin-bottom: 7px; }
+.pump-part-tabs button { flex: 1; min-height: 28px; padding: 4px; font-size: 10px; }
+.pump-part-tabs [aria-pressed="true"] { color: var(--cool); border-color: var(--cool); }
+.pump-adjustment-title { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px; font-size: 11px; }
+.pump-adjustment-title output { color: var(--warm); font: 10px Consolas, monospace; }
+.pump-adjustment-rail { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.pump-adjustment-rail input[type="range"] { flex: 1; min-width: 0; margin: 0; height: 30px; accent-color: var(--cool); }
+.pump-adjustment-rail button { width: 32px; height: 30px; font-size: 18px; }
+.pump-setting-hint, .pump-adjustment .component-reason { margin: 4px 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.pump-adjustment .component-reason:empty { display: none; }
+.pump-console .pump-internal-inspection { margin: 8px 10px 10px; padding: 8px; }
+.pump-repair-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.equipment-dialog .pump-repair-heading h3 { margin: 0; font-size: 11px; }
+.pump-repair-heading button { min-height: 25px; padding: 3px 5px; font-size: 9px; }
+.pump-console .pump-internal-inspection ul { margin: 8px 0 5px; gap: 5px; }
+.pump-console .pump-repair-state { margin: 4px 0 0; font-size: 9px; line-height: 1.4; }
+.pump-sidebar details { padding: 9px 0; font-size: 10px; }
+.pump-sidebar .component-disturbances input[type="range"] { height: 25px; margin: 5px 0; }
+@media (max-width: 850px) { .pump-workspace { grid-template-columns: minmax(0, 1fr); } }
 [data-component-dialog="exchanger"] { width: min(960px, calc(100vw - 24px)); }
 .hx-workspace { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .hx-sidebar { display: flex; flex-direction: column; min-width: 0; }

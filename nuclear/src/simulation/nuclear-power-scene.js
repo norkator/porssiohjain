@@ -27,6 +27,7 @@ const equipment = [
 export class PlantOverviewScene {
     constructor(host, { inspect, unavailable }) {
         this.host = host;
+        host.dataset.labels = 'compact';
         this.inspect = inspect;
         this.disposed = false;
         this.geometries = new Set();
@@ -311,11 +312,15 @@ export class PlantOverviewScene {
     buildLabels() {
         const layer = document.createElement('div');
         layer.className = 'plant-scene-labels';
+        const bindExpansion = label => {
+            const relayout = () => { this.labelSignature = null; this.render(); };
+            for (const event of ['pointerenter', 'pointerleave', 'focus', 'blur']) label.addEventListener(event, relayout, { signal: this.abort.signal });
+        };
         for (const [id, tag, name, position] of [...equipment, ...ELECTRICAL_LABELS]) {
             const button = document.createElement('button');
             button.className = 'plant-scene-label';
             button.dataset.sceneEquipment = id;
-            button.setAttribute('aria-label', `Open ${name.toLowerCase()} controls`);
+            button.setAttribute('aria-label', `${tag}: open ${name.toLowerCase()} controls`);
             button.setAttribute('aria-haspopup', 'dialog');
             button.setAttribute('aria-controls', id === 'reactor' ? 'core-map-window' : id.startsWith('diesel') ? `${id}-window` : ['grid', 'bus'].includes(id) ? 'electrical-supply-window' : `equipment-${id}-window`);
             button.setAttribute('aria-expanded', 'false');
@@ -326,16 +331,19 @@ export class PlantOverviewScene {
             const reading = document.createElement('small');
             button.append(title, text, reading);
             button.addEventListener('click', () => this.inspect(id), { signal: this.abort.signal });
+            bindExpansion(button);
             layer.append(button);
             this.labels.set(id, { button, reading, anchor: new THREE.Vector3(...position) });
         }
-        for (const [id, title, detail, position] of [
-            ['spent-fuel-pool', 'SF-01 / Spent-fuel pool', 'Empty storage racks', [-10.6, 6.4, -4.75]],
-            ['fuel-crane', 'FH-01 / Fuel-handling crane', 'Parked', [-7.4, 11.9, -4.75]],
+        for (const [id, tag, title, detail, position] of [
+            ['spent-fuel-pool', 'SF-01', 'Spent-fuel pool', 'Empty storage racks', [-10.6, 6.4, -4.75]],
+            ['fuel-crane', 'FH-01', 'Fuel-handling crane', 'Parked', [-7.4, 11.9, -4.75]],
         ]) {
             const label = document.createElement(id === 'spent-fuel-pool' ? 'button' : 'span');
             label.className = 'plant-scene-label plant-scene-feature';
             label.dataset.sceneFeature = id;
+            label.tabIndex = 0;
+            label.setAttribute('aria-label', `${tag}: ${title}`);
             if (id === 'spent-fuel-pool') {
                 label.dataset.sceneEquipment = 'spentFuel';
                 label.setAttribute('aria-label', 'Open spent-fuel pool and dispatch controls');
@@ -345,10 +353,13 @@ export class PlantOverviewScene {
                 label.addEventListener('click', () => this.inspect('spentFuel'), { signal: this.abort.signal });
             }
             const name = document.createElement('strong');
-            name.textContent = title;
+            name.textContent = tag;
+            const text = document.createElement('span');
+            text.textContent = title;
             const description = document.createElement('small');
             description.textContent = detail;
-            label.append(name, description);
+            label.append(name, text, description);
+            bindExpansion(label);
             layer.append(label);
             this.featureLabels.push({ id, button: label, reading: description, anchor: new THREE.Vector3(...position) });
         }
@@ -482,6 +493,14 @@ export class PlantOverviewScene {
 
     setZoom(zoom) {
         this.zoom = clamp(zoom, .65, 3);
+        this.render();
+    }
+
+    setLabelMode(mode) {
+        const value = ['off', 'compact', 'full'].includes(mode) ? mode : 'compact';
+        if (this.host.dataset.labels === value) return;
+        this.host.dataset.labels = value;
+        this.labelSignature = null;
         this.render();
     }
 
@@ -628,7 +647,7 @@ export class PlantOverviewScene {
             this.camera.updateMatrixWorld();
         }
         const labels = [...this.labels.values(), ...this.featureLabels];
-        const labelSignature = cameraSignature + labels.map(label => label.button.textContent).join('|');
+        const labelSignature = cameraSignature + this.host.dataset.labels + labels.map(label => label.button.textContent + label.button.className).join('|');
         if (labelSignature !== this.labelSignature) {
             this.labelSignature = labelSignature;
             // Read all label sizes before writing positions; unchanged labels/camera

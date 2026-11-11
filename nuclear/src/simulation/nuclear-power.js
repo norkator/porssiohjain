@@ -226,6 +226,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.timer = null;
         this.animationFrame = null;
         this.overviewMode = '3d';
+        this.sceneLabelMode = 'compact';
         this.plantTab = 'reactor';
         this.tripCoverOpen = false;
         this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -315,7 +316,7 @@ export class NuclearPowerConsole extends HTMLElement {
               <div class="annunciator" role="status"><span class="annunciator-icon">●</span><span data-value="annunciator">ALL SYSTEMS NORMAL</span><span class="plant-state" data-value="status">RUNNING</span></div>
               <div class="condition-strip" aria-label="Reactor condition"><strong data-value="conditionStage">NORMAL</strong><span>Fuel <b data-value="peakFuel"></b></span><span>Cooling margin <b data-value="coolingMargin"></b></span><span>Retained heat <b data-value="retainedHeat"></b></span><span>Rate <b data-value="temperatureRate"></b></span><span>Core damage <b data-value="coreDamage"></b></span><span>Pump stress <b data-value="pumpStress"></b></span></div>
               <p class="diagram-scroll-hint">Scroll sideways to explore · select equipment to inspect</p>
-              <div class="overview-toolbar"><div class="mode-switch" role="group" aria-label="Reactor overview presentation"><button data-action="overview-3d" aria-pressed="true">3D cutaway</button><button data-action="overview-schematic" aria-pressed="false">Schematic</button></div><button class="small-button" data-action="spent-fuel" aria-haspopup="dialog" aria-controls="spent-fuel-window" aria-expanded="false">Spent fuel ↗</button><span class="overview-status" role="status"></span><div class="scene-camera-tools" role="group" aria-label="3D camera"><button class="small-button" data-action="scene-zoom-out" aria-label="Zoom 3D view out">−</button><button class="small-button" data-action="scene-zoom-in" aria-label="Zoom 3D view in">+</button><button class="small-button" data-action="scene-home" aria-label="Reset 3D camera">Reset view</button></div></div>
+              <div class="overview-toolbar"><div class="mode-switch" role="group" aria-label="Reactor overview presentation"><button data-action="overview-3d" aria-pressed="true">3D cutaway</button><button data-action="overview-schematic" aria-pressed="false">Schematic</button></div><button class="small-button" data-action="spent-fuel" aria-haspopup="dialog" aria-controls="spent-fuel-window" aria-expanded="false">Spent fuel ↗</button><label class="scene-labels-control">Labels <select id="scene-labels" aria-label="3D equipment labels"><option value="off">Off</option><option value="compact" selected>Compact</option><option value="full">Full</option></select></label><span class="overview-status" role="status"></span><div class="scene-camera-tools" role="group" aria-label="3D camera"><button class="small-button" data-action="scene-zoom-out" aria-label="Zoom 3D view out">−</button><button class="small-button" data-action="scene-zoom-in" aria-label="Zoom 3D view in">+</button><button class="small-button" data-action="scene-home" aria-label="Reset 3D camera">Reset view</button></div></div>
               <div class="diagram-viewport" data-overview="3d" tabindex="0" aria-label="Interactive plant overview"><div class="plant-scene" aria-label="Low-poly reactor cutaway"></div>${schematic}</div>
               <div class="diagram-legend"><span><i class="temperature-scale" aria-hidden="true"></i> Loop temperature · 20 °C → 335+ °C</span><span><i class="legend-dot"></i> Simulated read-back</span><span class="diagram-note">Illustrative process · independent demo session</span></div>
               </div>
@@ -396,6 +397,7 @@ export class NuclearPowerConsole extends HTMLElement {
         initializeElectrical(this);
         initializeExercises(this);
         initializeMaintenance(this);
+        this.shadowRoot.querySelector('#scene-labels').addEventListener('change', event => this.setSceneLabels(event.target.value));
         for (const trigger of this.shadowRoot.querySelectorAll('[data-equipment]:not([data-equipment="reactor"])')) {
             trigger.setAttribute('aria-haspopup', 'dialog');
             trigger.setAttribute('aria-controls', `equipment-${trigger.dataset.equipment}-window`);
@@ -594,6 +596,8 @@ export class NuclearPowerConsole extends HTMLElement {
         viewport.querySelector('.schematic').setAttribute('aria-hidden', String(this.overviewMode === '3d'));
         for (const type of ['3d', 'schematic']) this.shadowRoot.querySelector(`[data-action="overview-${type}"]`).setAttribute('aria-pressed', String(type === this.overviewMode));
         this.shadowRoot.querySelector('.scene-camera-tools').hidden = this.overviewMode !== '3d';
+        this.shadowRoot.querySelector('.scene-labels-control').hidden = this.overviewMode !== '3d';
+        this.overviewScene?.setLabelMode(this.sceneLabelMode);
         const zoom = this.shadowRoot.querySelector('[data-action="zoom"]');
         zoom.hidden = this.overviewMode === '3d';
         zoom.setAttribute('aria-pressed', String(this.overviewMode === '3d' ? this.overviewScene?.zoom > 1 : viewport.classList.contains('zoomed')));
@@ -613,6 +617,12 @@ export class NuclearPowerConsole extends HTMLElement {
         this.shadowRoot.querySelector('[data-action="overview-3d"]').disabled = true;
         this.shadowRoot.querySelector('.overview-status').textContent = '3D unavailable · schematic active';
         this.setOverview('schematic');
+    }
+
+    setSceneLabels(mode) {
+        this.sceneLabelMode = ['off', 'compact', 'full'].includes(mode) ? mode : 'compact';
+        this.shadowRoot.querySelector('#scene-labels').value = this.sceneLabelMode;
+        this.overviewScene?.setLabelMode(this.sceneLabelMode);
     }
 
     updateOverview(force = false) {
