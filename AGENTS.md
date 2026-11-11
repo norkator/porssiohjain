@@ -65,7 +65,11 @@ scale-model control room, not a simulator of a specific real reactor. All curren
 signals and commands are browser-local simulation; no MQTT devices are connected.
 The app, simulation modules, styles, bundled audio and tests live in `nuclear/`.
 React hosts the retained `nuclear-power-console` custom element; preserve its lifecycle.
-Run `npm ci`, `npm test`, `npm run build` and `npm run test:browser` in that folder.
+For routine changes, run focused unit checks and `npm run build` in that folder.
+Use `npm run test:browser:equipment` when equipment UI/interaction coverage is needed.
+Reserve the full `npm run test:browser` for broad changes, explicit requests or CI;
+do not repeatedly replay the whole browser suite for small edits or timing-only
+fixes. Run `npm ci` when installing dependencies or after lockfile changes.
 No Spring app or account login is needed. `.github/workflows/nuclear-container.yml`
 publishes `ghcr.io/norkator/porssiohjain-nuclear:latest` for amd64/arm64 on production
 pushes/manual runs. The Vaadin desktop/Start link opens `https://nuclear.porssiohjain.fi`

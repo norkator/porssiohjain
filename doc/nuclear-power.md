@@ -1042,6 +1042,12 @@ npm run test:browser
 NUCLEAR_POWER_APP_URL=http://127.0.0.1:8080 npm run test:browser
 ```
 
+Routine verification should scale with the change: use focused unit tests and the
+build for small edits; run `npm run test:browser:equipment` for turbine/condenser
+controls, wear/damage and equipment motion. Keep the full browser suite for broad
+regressions, explicit requests and CI. Avoid repeatedly replaying unrelated SEO,
+audio, fuel, export and desktop scenarios during small UI iterations.
+
 Browser tests use Chrome at `/opt/google/chrome/chrome` by default; `CHROME_BIN` can
 select another installed Chromium executable. Without `NUCLEAR_POWER_APP_URL`, a
 temporary loopback server tests the actual production build in `nuclear/dist/`,
