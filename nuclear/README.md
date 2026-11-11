@@ -132,14 +132,16 @@ The load setpoint uses a metal regulator plate, a grooved slider handle, an
 engraved 0–100% rail, an amber percentage display and fine-adjust buttons. Its
 AUTO/MANUAL/TRIP LOCK label identifies control ownership. Native slider input,
 keyboard adjustment and automatic/trip interlocks are preserved.
-Both pump speed targets share the same regulator rail, grooved handle, engraved
+All four pump speed targets share the same regulator rail, grooved handle, engraved
 scale and illuminated percentage display. Manual overrides, automatic ownership
 and actual speed/flow read-backs remain separate from these requested targets.
 
 Each circuit has two manually enabled, parallel pumps: primary **A / A2** and
 secondary **B / B2**. A2/B2 are the backup units; all four start OFF with retained
 100% speed targets. Either pump can provide its circuit's startup circulation.
-The backup rockers remain visible below the main pump controls. **Backup A2/B2 ↗**
+Each main/backup pair has independent speed sliders and ON/OFF rockers in the main
+view. Adjusting an OFF pump's speed retains its target without starting it. Running
+Auto owns each speed unless that pump has an explicit override. **Backup A2/B2 ↗**
 opens that pump's speed, discharge valve, Auto override, local trends and internal
 inspection. Auto adjusts only enabled pumps and never enables a backup. Each
 3D/SVG branch shows its own actual motor/flow, including coast-down and loss of AC.

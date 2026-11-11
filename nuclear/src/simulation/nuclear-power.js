@@ -198,13 +198,18 @@ const equipmentDetails = {
 };
 
 const pumpRocker = key => `<button class="pump-rocker" data-action="pump${key}" role="switch" aria-checked="false" aria-label="Pump ${key} run switch" aria-describedby="pump-${key}-status"><span class="pump-rocker-face" aria-hidden="true"><span class="rocker-on">I <small>ON</small></span><span class="rocker-off">O <small>OFF</small></span></span></button>`;
+const pumpSpeedControl = pump => `<div class="pump-control${pump.backup ? ' backup-pump-row' : ''}" data-pump-card="${pump.key}">
+    <div class="pump-speed-setting">
+      <div class="pump-speed-heading"><button class="pump-open" data-equipment="${pump.id}" aria-label="Inspect ${pump.backup ? 'backup ' : ''}pump ${pump.key}">${pump.backup ? 'Backup' : 'Pump'} ${pump.key} ↗</button><label class="regulator-display" for="pump-${pump.key}-speed"><span class="sr-only">${pump.circuit} ${pump.backup ? 'backup ' : ''}pump ${pump.key} speed target </span><span data-value="${pump.id}Target">100%</span></label></div>
+      <div class="regulator-rail" style="--regulator-position:100%"><input id="pump-${pump.key}-speed" data-pump-speed="${pump.key}" type="range" min="0" max="100" step="1" value="100"/><div class="regulator-scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100%</span></div></div>
+      <div class="pump-readback"><span class="pump-badge" id="pump-${pump.key}-status"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="${pump.id}">STOPPED</span></span><span title="Actual motor speed">ACT <strong data-value="${pump.id}Actual">0%</strong></span><span data-value="${pump.id}Flow" title="Actual branch flow"></span></div>
+    </div>${pumpRocker(pump.key)}
+  </div>`;
 const pumpControls = () => ['A', 'B'].map(key => {
-    const definition = pumpDefinition(key), backup = `${key}2`;
-    return `<div class="pump-control" data-pump-card="${key}">
-      <div class="pump-switch-row"><span class="pump-symbol" aria-hidden="true">✣</span><div class="pump-identity"><strong>Pump ${key}</strong><small>${definition.circuit === 'primary' ? 'Primary' : 'Secondary'} circuit</small><span class="pump-badge" id="pump-${key}-status"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="pump${key}">STOPPED</span></span></div>${pumpRocker(key)}</div>
-      <div class="pump-speed-setting"><label for="pump-${key}-speed"><span class="regulator-caption"><small>${definition.tag} / MOTOR SPEED</small><span>Speed target</span></span><strong class="regulator-display" data-value="pump${key}Target">100%</strong></label><div class="regulator-rail" style="--regulator-position:100%"><input id="pump-${key}-speed" data-pump-speed="${key}" type="range" min="0" max="100" step="1" value="100"/><div class="regulator-scale" aria-hidden="true"><span>0</span><span>25</span><span>50</span><span>75</span><span>100%</span></div></div></div>
-      <div class="pump-readback"><span>ACTUAL <strong data-value="pump${key}Actual">0%</strong></span><span data-value="pump${key}Flow"></span><button class="circuit-pressure" data-equipment="${definition.circuit}Pipes" aria-label="Inspect ${definition.circuit} pipework and pressure" title="Relative circulation pressure: 100% is nominal. Sustained pressure above 145% damages pipework."><span data-value="${definition.circuit}Pressure"></span> ↗</button></div>
-      <div class="pump-control backup-pump-row" data-pump-card="${backup}"><div><button class="backup-pump-open" data-equipment="pump${backup}" aria-label="Inspect backup pump ${backup} and adjust speed">Backup ${backup} ↗</button><span class="pump-badge" id="pump-${backup}-status"><i class="pilot-lamp" aria-hidden="true"></i><span data-value="pump${backup}">STOPPED</span><span data-value="pump${backup}Actual">0%</span></span></div>${pumpRocker(backup)}</div>
+    const { circuit } = pumpDefinition(key);
+    return `<div class="pump-circuit">
+      <div class="pump-circuit-heading"><span>${circuit === 'primary' ? 'Primary' : 'Secondary'} · Speed targets</span><button class="circuit-pressure" data-equipment="${circuit}Pipes" aria-label="Inspect ${circuit} pipework and pressure" title="Relative circulation pressure: 100% is nominal. Sustained pressure above 145% damages pipework."><span data-value="${circuit}Pressure"></span> ↗</button></div>
+      ${PUMPS.filter(pump => pump.circuit === circuit).map(pumpSpeedControl).join('')}
     </div>`;
 }).join('');
 
@@ -1434,8 +1439,7 @@ export class NuclearPowerConsole extends HTMLElement {
         load.closest('.regulator-rail').style.setProperty('--regulator-position', `${load.value}%`);
         const inputs = {
             '#individual-rod': [selectedRod.target, rodBlocked],
-            '#pump-A-speed': [sim.pumpASpeed, sim.autoMode && sim.running && !sim.components?.items.pumpA.override],
-            '#pump-B-speed': [sim.pumpBSpeed, sim.autoMode && sim.running && !sim.components?.items.pumpB.override],
+            ...Object.fromEntries(PUMPS.map(pump => [`#pump-${pump.key}-speed`, [sim[`${pump.id}Speed`], sim.autoMode && sim.running && !sim.components?.items[pump.id].override]])),
             '#auto-temperature': [sim.autoTemperature, false], '#auto-flow': [sim.autoFlow, false],
             '#auto-electrical': [sim.autoElectricalTarget, false]
         };
@@ -1444,6 +1448,7 @@ export class NuclearPowerConsole extends HTMLElement {
             if (this.shadowRoot.activeElement !== input) input.value = value;
             input.disabled = isDisabled;
             input.closest('.regulator-rail')?.style.setProperty('--regulator-position', `${input.value}%`);
+            if (input.dataset.pumpSpeed) this.shadowRoot.querySelector(`[data-value="pump${input.dataset.pumpSpeed}Target"]`).textContent = `${input.value}%`;
         }
         this.shadowRoot.querySelector('#auto-objective').value = sim.autoObjective;
         this.shadowRoot.querySelector('#rod-override').checked = selectedRod.manualOverride;

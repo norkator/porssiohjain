@@ -247,27 +247,23 @@ input:disabled { opacity: .4; cursor: default; }
 .control-label { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); letter-spacing: .8px; margin-bottom: 9px; }
 .control-label > span { color: #cfdae1; }
 .pump-controls { display: grid; gap: 7px; padding-bottom: 15px; }
-.pump-controls > .pump-control { padding-bottom: 0; }
-.pump-controls .pump-switch-row { padding: 3px 8px; }
-.pump-controls .pump-identity > small { font-size: 8px; }
-.pump-controls .pump-badge { margin-top: 2px; font-size: 7px; gap: 4px; }
+.pump-circuit { display: grid; gap: 3px; }
+.pump-circuit-heading { display: flex; align-items: center; justify-content: space-between; gap: 5px; padding: 0 2px; color: var(--muted); font: 8px Consolas, monospace; }
+.pump-controls .pump-control { display: grid; grid-template-columns: minmax(0, 1fr) 38px; align-items: center; gap: 8px; padding: 4px 8px; }
+.pump-controls .pump-badge { margin: 0; font-size: 7px; gap: 4px; letter-spacing: 0; }
 .pump-controls .pump-rocker { height: 38px; width: 38px; }
 .pump-controls .pump-rocker-face { height: 29px; width: 28px; }
-.pump-controls .pump-speed-setting { padding: 4px 8px 0; }
-.pump-controls .regulator-caption { display: flex; align-items: center; gap: 4px; }
-.pump-controls .regulator-caption small { font-size: 5px; }
+.pump-controls .pump-speed-setting { min-width: 0; padding: 0; }
+.pump-speed-heading { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .pump-controls .regulator-display { min-width: 48px; padding: 1px 4px; font-size: 13px; }
 .operator-panel .pump-controls .regulator-rail { margin-top: 3px; padding: 1px 5px 2px; }
 .operator-panel .pump-controls .regulator-rail input[type="range"] { height: 21px; }
 .operator-panel .pump-controls .regulator-scale { padding-top: 6px; font-size: 6px; line-height: 1; }
-.pump-controls .pump-readback { padding: 4px 8px 5px; font-size: 7px; gap: 3px; align-items: center; }
-.circuit-pressure, .backup-pump-open { padding: 0; border: 0; background: transparent; color: var(--cool); font: inherit; }
+.pump-controls .pump-readback { padding: 4px 0 0; font-size: 7px; gap: 4px; align-items: center; white-space: nowrap; }
+.circuit-pressure, .pump-open { padding: 0; border: 0; background: transparent; color: var(--cool); font: inherit; }
 .circuit-pressure[data-high="true"] { color: #ff9e7b; }
-.backup-pump-row.pump-control { display: flex; align-items: center; justify-content: space-between; gap: 7px; margin: 0; padding: 4px 8px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: #ffffff05; }
-.backup-pump-open { font-size: 10px; }
-.backup-pump-row[data-lamp="running"] .pump-badge { color: var(--cool); }
-.backup-pump-row[data-lamp="warning"] .pump-badge { color: var(--warm); }
-.backup-pump-row[data-lamp="fault"] .pump-badge { color: #ff9e8e; }
+.backup-pump-row.pump-control { background: #ffffff05; }
+.pump-open { font-size: 10px; }
 .water-leak { pointer-events: none; }
 .water-leak-drop { fill: #77d7ff; stroke: #c5edff; stroke-width: .4; opacity: 0; }
 .pipe-crack { fill: none; stroke: #e39b69; stroke-width: 2.8; opacity: 0; }
@@ -285,10 +281,7 @@ input:disabled { opacity: .4; cursor: default; }
 .pump-internal-inspection li strong { font: 10px Consolas, monospace; text-align: right; }
 .pipe-operating-hint, .pump-repair-state { color: var(--muted); font-size: 10px; line-height: 1.6; margin: 8px 0; }
 .pump-control { border: 1px solid #384d57; border-radius: 5px; background: #1a2933; overflow: hidden; padding-bottom: 10px; }
-.pump-speed-setting { padding: 10px 10px 0; }
-.pump-speed-setting > label { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #bdcad5; font-size: 11px; }
 .pump-speed-setting .regulator-rail { margin-bottom: 0; }
-.pump-speed-setting + .pump-readback { padding-top: 6px; }
 .pump-readback { display: flex; justify-content: space-between; gap: 6px; padding: 8px 11px 0; color: #95acb9; font: 8px Consolas, monospace; }
 .pump-readback strong { color: #c7ddd8; font-weight: 400; }
 .trip-recovery { margin-top: 12px; padding: 12px; border: 1px solid #865c3c; border-radius: 5px; background: #392e28; }
@@ -298,12 +291,8 @@ input:disabled { opacity: .4; cursor: default; }
 .trip-recovery .ready { color: var(--cool); }
 .trip-recovery button { width: 100%; }
 .trip-recovery p { margin-top: 7px; font-size: 9px; color: #c4b3a8; }
-.pump-switch-row { display: grid; grid-template-columns: 23px minmax(0, 1fr) 42px; align-items: center; gap: 8px; padding: 9px 10px; border-bottom: 1px solid #354852; background: linear-gradient(#ffffff08, #00000015); box-shadow: inset 0 1px #ffffff18, inset 0 -2px #0003; }
-.pump-symbol { display: grid; place-items: center; font-size: 25px; width: 25px; color: var(--cool); }
-.pump-identity > strong { display: block; font-size: 11px; font-weight: 500; }
-.pump-identity > small { display: block; font-size: 9px; color: var(--muted); margin-top: 1px; }
 .pump-badge { display: flex; align-items: center; gap: 5px; margin-top: 6px; font: 8px Consolas, monospace; color: var(--cool); letter-spacing: .5px; }
-.pump-control[data-lamp="off"] :is(.pump-symbol, .pump-badge) { color: var(--muted); }
+.pump-control[data-lamp="off"] .pump-badge { color: var(--muted); }
 .pump-control[data-lamp="warning"] .pump-badge { color: var(--warm); }
 .pump-control[data-lamp="fault"] .pump-badge { color: #ff9e8e; }
 .pump-rocker { display: grid; place-items: center; width: 42px; height: 46px; padding: 3px; border: 1px solid #738185; border-radius: 5px; background: linear-gradient(#111a1f, #344148); box-shadow: inset 0 1px 4px #000, 0 1px 0 #9caaab70; }

@@ -184,7 +184,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await value('stopIndication'), 'STOPPED');
         assert.equal(await value('loadOwner'), 'AUTO');
         assert.equal(await consoleCode('return s.querySelector("#load").disabled;'), true);
-        assert.equal(await consoleCode('return s.querySelectorAll(".regulator-rail").length;'), 3);
+        assert.equal(await consoleCode('return s.querySelectorAll(".regulator-rail").length;'), 5);
         assert.equal(await consoleCode('return s.querySelector("[data-action=start]").dataset.lamp;'), 'off');
         assert.equal(await consoleCode('return s.querySelector("[data-action=stop]").dataset.lamp;'), 'stopped');
         assert.equal(await consoleCode('return s.querySelector("[data-action=trip]").getAttribute("aria-pressed");'), 'false');
@@ -233,6 +233,41 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return s.querySelector("#scene-labels").value;'), 'full', 'Reset demo preserves the display preference');
         await input('#scene-labels', 'compact');
         await screenshot('equipment-labels-compact');
+        // Every pump has an independent main-view speed rail, including the two backups.
+        await action('manual'); await action('pause');
+        for (const [key, target] of [['A2', 63], ['B2', 47]]) {
+            assert.equal(await consoleCode(`return s.querySelector('#pump-${key}-speed').disabled;`), false);
+            await consoleCode(`const range=s.querySelector('#pump-${key}-speed');range.focus();range.value=${target};range.dispatchEvent(new Event('input',{bubbles:true}));c.update();`);
+            assert.equal(await value(`pump${key}Target`), `${target}%`, 'The live readout must survive an update before commit');
+            assert.equal(await consoleCode(`return c.simulation.pump${key}Speed;`), 100, 'Preview does not commit a speed command');
+            await consoleCode(`s.querySelector('#pump-${key}-speed').dispatchEvent(new Event('change',{bubbles:true}));`);
+            assert.equal(await consoleCode(`return c.simulation.pump${key}Speed;`), target);
+            assert.equal(await consoleCode(`return c.simulation.pump${key};`), false, 'Adjusting speed must not enable a backup');
+            assert.equal(await consoleCode(`return c.simulation.components.items.pump${key}.actual.speed;`), 0);
+        }
+        assert.equal(await consoleCode('return c.simulation.pumpASpeed;'), 100);
+        assert.equal(await consoleCode('return c.simulation.pumpBSpeed;'), 100);
+        await consoleCode('s.querySelector("#pump-A2-speed").focus();');
+        for (const type of ['keyDown', 'keyUp']) await page('Input.dispatchKeyEvent', { type, key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37 });
+        assert.equal(await consoleCode('return c.simulation.pumpA2Speed;'), 62, 'Backup ranges retain native keyboard adjustment');
+        await action('pumpA2'); await action('pumpB2'); await action('pause'); await advance(8); await action('start');
+        assert.equal(await consoleCode('return c.simulation.running;'), true);
+        await action('auto');
+        assert.ok(await consoleCode('return [...s.querySelectorAll("[data-pump-speed]")].every(range=>range.disabled);'), 'Running Auto owns all four speeds');
+        await consoleCode('c.inspect("pumpA2");const box=s.querySelector("[data-component-override=pumpA2]");box.checked=true;box.dispatchEvent(new Event("change",{bubbles:true}));');
+        assert.equal(await consoleCode('return s.querySelector("#pump-A2-speed").disabled;'), false);
+        assert.equal(await consoleCode('return s.querySelector("#pump-B2-speed").disabled;'), true, 'Overrides remain individual');
+        await input('#pump-A2-speed', 55);
+        assert.equal(await consoleCode('return s.querySelector("#pumpA2-setting").value;'), '55', 'The main-view slider updates the open pump dialog');
+        await action('manual');
+        await consoleCode('c.closeFloatingDialog(s.querySelector("[data-component-dialog=pumpA2]"));c.inspect("pumpB2");');
+        await input('#pumpB2-setting', 72);
+        assert.equal(await consoleCode('return s.querySelector("#pump-B2-speed").value;'), '72', 'Dialog adjustments update the backup rail');
+        assert.equal(await consoleCode('return s.querySelector("#pump-B2-speed").closest(".regulator-rail").style.getPropertyValue("--regulator-position");'), '72%');
+        assert.equal(await value('pumpB2Target'), '72%');
+        await consoleCode('c.closeFloatingDialog(s.querySelector("[data-component-dialog=pumpB2]"));');
+        await action('reset');
+        assert.ok(await consoleCode('return [...s.querySelectorAll("[data-pump-speed]")].every(range=>range.value==="100"&&!range.disabled);'));
         // Pump controls use a compact cutaway and ranges, with requested and actual positions separate.
         await consoleCode('c.simulation.setFluctuations(false);c.inspect("pumpA");');
         assert.equal(await consoleCode('return [...s.querySelectorAll("[data-component-dialog^=pump]")].reduce((sum,root)=>sum+root.querySelectorAll("input[type=number]").length,0);'), 0);

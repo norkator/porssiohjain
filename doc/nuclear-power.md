@@ -283,7 +283,7 @@ INTERLOCKED, RUNNING, STOPPED and TRIPPED. Pump lamps follow actual motor speed,
 with amber stress and red retained damage/wear indication; an amber Reset trip
 lamp marks completed recovery readiness.
 
-The load setpoint and main pump speed targets share a metal regulator rail,
+The load setpoint and all four pump speed targets share a metal regulator rail,
 grooved slider handle, engraved 0–100% scale and amber percentage display. Load
 also retains its fine-adjust buttons and AUTO/MANUAL/TRIP LOCK ownership label.
 The fill/readout follow a live adjustment until commit without changing the
@@ -465,7 +465,8 @@ Controls:
   its insertion slider or one-percentage-point buttons. Only that rod changes.
 - Pumps A/A2 (primary) and B/B2 (secondary): manually enable/disable and
   independently adjust speed targets from 0 to 100%. A2/B2 are the backup pumps;
-  their switches remain visible and their speed/override controls are in their dialogs.
+  all four speed sliders and run switches are available in the main view.
+  Individual Auto overrides remain in the pump dialogs.
   Actual speed/flow ramps gradually; disabling preserves the speed setting. Pump
   rotation follows motor speed and each circuit's coolant animation follows flow, including
   coast-down, with continuous phase and an explicit local SVG rotation pivot.
@@ -494,7 +495,9 @@ meltdown still ends generation and requires **Reset demo** in either mode.
 Each circuit has two manually enabled, parallel pumps: primary **A / A2** and
 secondary **B / B2**. A2/B2 are the backup units; all four start OFF with retained
 100% speed targets. Either pump can provide its circuit's startup circulation.
-The backup rockers remain visible below the main pump controls. **Backup A2/B2 ↗**
+Each main/backup pair has independent speed sliders and ON/OFF rockers in the main
+view. Adjusting an OFF pump's speed retains its target without starting it. Running
+Auto owns each speed unless that pump has an explicit override. **Backup A2/B2 ↗**
 opens that pump's speed, discharge valve, Auto override, local trends and internal
 inspection. Auto adjusts only enabled pumps and never enables a backup. Each
 3D/SVG branch shows its own actual motor/flow, including coast-down and loss of AC.
