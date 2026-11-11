@@ -32,12 +32,15 @@ class PublicMeasurementsViewTest {
     private final PublicMeasurementService service = mock();
     private final UUID pageId = UUID.randomUUID();
     private final Instant now = Instant.parse("2026-10-25T10:00:00Z");
+    // Vaadin's current UI is weakly referenced; keep it alive throughout each test.
+    private UI ui;
     private PublicMeasurementsView view;
 
     @BeforeEach
     void setup() {
-        UI.setCurrent(new UI());
-        UI.getCurrent().setLocale(Locale.ENGLISH);
+        ui = new UI();
+        ui.setLocale(Locale.ENGLISH);
+        UI.setCurrent(ui);
         VaadinSession.setCurrent(null);
         var messages = new ResourceBundleMessageSource();
         messages.setBasename("translations/messages");
