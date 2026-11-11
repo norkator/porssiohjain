@@ -20,9 +20,10 @@ export function maintenanceItems(sim) {
     if (zones.length) items.push({ id: 'reactor', damage: sim.condition.coreDamage, zones: zones.length });
     for (const [id, item] of Object.entries(sim.components.items)) {
         const pump = pumpDefinition(id);
-        const damage = pump ? sim.condition.components[pump.key].damage : id.endsWith('Pipes') ? sim.hydraulics.pipes[id.replace('Pipes', '')].damage : 0;
+        const damage = id === 'turbine' ? sim.components.turbineIntegrity.damage : pump ? sim.condition.components[pump.key].damage : id.endsWith('Pipes') ? sim.hydraulics.pipes[id.replace('Pipes', '')].damage : 0;
+        const serviceWear = id === 'turbine' && sim.components.turbineIntegrity.serviceDue ? sim.components.turbineIntegrity.wear : 0;
         const fouling = id === 'exchanger' ? item.settings.fouling : 0;
-        if (damage > 0 || item.wear > 0 || fouling > 0) items.push({ id, damage, wear: item.wear, fouling });
+        if (damage > 0 || item.wear > 0 || fouling > 0 || serviceWear > 0) items.push({ id, damage, wear: item.wear, fouling, ...(serviceWear > 0 ? { serviceWear } : {}) });
     }
     return items;
 }
@@ -85,7 +86,8 @@ export function updateMaintenance(host) {
                 item.damage > 0 ? `${percent(item.damage)} damage` : '',
                 item.zones ? `${item.zones} affected core ${item.zones === 1 ? 'channel' : 'channels'}` : '',
                 item.wear > 0 ? `${percent(item.wear)} wear` : '',
-                item.fouling > 0 ? `${percent(item.fouling)} fouling` : ''
+                item.fouling > 0 ? `${percent(item.fouling)} fouling` : '',
+                item.serviceWear > 0 ? `${percent(item.serviceWear)} service wear · maintenance due` : ''
             ].filter(Boolean).join(' · ');
         }
         panel.querySelector('[data-maintenance-action="repair"]').disabled = !items.length || !readiness.ready;

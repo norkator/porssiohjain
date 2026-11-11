@@ -1,5 +1,6 @@
 /* Browser-local illustrative component processes; never hardware control. */
 import { PUMPS, pumpDefinition, PUMP_PARTS } from './nuclear-power-pumps.js';
+import { TurbineIntegrity, ELECTRICAL_TARGET_MAX_MW } from './nuclear-power-turbine.js';
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const approach = (v, target, dt, tau) => target + (v - target) * Math.exp(-dt / tau);
 const number = (key, label, min, max, unit = '%', step = 1, owned = false) => ({ key, label, min, max, step, unit, owned, type: 'number' });
@@ -11,7 +12,7 @@ export const COMPONENT_SETTINGS = {
     ...Object.fromEntries(PUMPS.map(p => [p.id, pump()])),
     primaryPipes: [], secondaryPipes: [],
     exchanger: [number('bypass', 'Bypass', 0, 100), number('secondaryValve', 'Secondary valve', 0, 100), number('effectiveness', 'Effectiveness', 0, 100), number('fouling', 'Fouling', 0, 100), ...disturbances],
-    turbine: [number('admission', 'Steam admission', 0, 100), number('governorResponse', 'Governor response', 0.1, 30, 's', 0.1), number('loadRamp', 'Load ramp', 1, 400, 'MW/s'),
+    turbine: [number('admission', 'Steam admission', 0, 100), number('governorResponse', 'Governor response', 0.1, 30, 's', 0.1), number('loadRamp', 'Load ramp', 1, 400, 'MW/s'), number('generatorLoading', 'Generator loading', 50, 160),
         { key: 'breaker', label: 'Generator breaker', type: 'boolean', owned: false }, ...disturbances],
     condenser: [number('coolingValve', 'Cooling valve', 0, 100), number('inletTemperature', 'Cooling inlet temperature', 0, 60, '°C'), ...disturbances]
 };
@@ -35,7 +36,7 @@ const readouts = {
     secondaryPipes: { pressure: '% nominal ΔP', flow: '%', damage: '%', leakRate: '% nominal flow' },
     exchanger: { bypass: '%', secondaryValve: '%', effectiveness: '%', fouling: '%', transferFactor: '' },
     condenser: { coolingValve: '%', inletTemperature: '°C', coolingFactor: '' },
-    turbine: { admission: '%', shaftSpeed: '%', electricalOutput: 'MW', breaker: '', tripped: '', ready: '', loadLimit: 'MW' }
+    turbine: { admission: '%', shaftSpeed: '%', electricalOutput: 'MW', breaker: '', tripped: '', ready: '', loadLimit: 'MW', generatorLoading: '%', rotorLoad: '% rated', stress: '%', bladeDamage: '%', bladesLost: '/ 40', serviceWear: '%' }
 };
 export const COMPONENT_READOUTS = Object.fromEntries(Object.entries(readouts).map(([id, fields]) => [id,
     Object.fromEntries(Object.entries(fields).map(([key, unit]) => [key, { label: key.replace(/[A-Z]/g, c => ` ${c.toLowerCase()}`), unit }]))]));
@@ -44,7 +45,7 @@ const defaults = {
     primaryPipes: {}, secondaryPipes: {},
     exchanger: { bypass: 0, secondaryValve: 100, effectiveness: 100, fouling: 0 },
     condenser: { coolingValve: 100, inletTemperature: 20 },
-    turbine: { admission: 100, governorResponse: 2, loadRamp: 400, breaker: true }
+    turbine: { admission: 100, governorResponse: 2, loadRamp: 400, generatorLoading: 100, breaker: true }
 };
 
 export class ComponentProcesses {
@@ -64,7 +65,9 @@ export class ComponentProcesses {
                 : id.endsWith('Pipes') ? 'Pressure is relative to single-pump nominal circulation. Sustained pressure above 145% causes retained pipe damage and water leaks. Switch both circuit pumps OFF and wait for flow to stop before cooled repair.'
                 : ({ exchanger: 'Bypass, valves, fouling and effectiveness determine transfer to the secondary loop.', condenser: 'Cooling valve and inlet temperature determine heat rejection and generation efficiency.', turbine: 'Admission drives shaft speed; the manually closed breaker enables electrical output.' })[id]
         }]));
-        Object.assign(this.items.turbine.actual, { shaftSpeed: 0, electricalOutput: 0, tripped: false, ready: false, loadLimit: 410 });
+        this.turbineIntegrity = new TurbineIntegrity();
+        this.items.turbine.integrity = this.turbineIntegrity;
+        Object.assign(this.items.turbine.actual, { shaftSpeed: 0, electricalOutput: 0, tripped: false, ready: false, loadLimit: ELECTRICAL_TARGET_MAX_MW, rotorLoad: 0, stress: 0, bladeDamage: 0, bladesLost: 0, serviceWear: 0 });
         this.items.exchanger.actual.transferFactor = 1;
         this.items.condenser.actual.coolingFactor = 1;
         for (const { id } of PUMPS) Object.assign(this.items[id].actual, { speed: 0, flow: 0, pressure: 0, available: false });
@@ -115,7 +118,7 @@ export class ComponentProcesses {
     }
 
     get hasFaults() { return Object.values(this.items).some(i => i.disturbance.progressiveFault); }
-    get damaged() { return Object.values(this.items).some(i => i.wear >= 1); }
+    get damaged() { return Object.values(this.items).some(i => i.wear >= 1) || this.turbineIntegrity.damage > 0 || this.turbineIntegrity.serviceDue; }
     get serviceReady() { return this.sim.condition.canRepair(this.sim) && !this.hasFaults; }
 
     maintenanceNote(id, message) {
@@ -140,6 +143,10 @@ export class ComponentProcesses {
                 item.reason = 'Switch both circuit pumps OFF and wait for motor/flow coast-down before pipe repair'; return false;
             }
             item.wear = 0;
+            if (id === 'turbine') {
+                this.turbineIntegrity.service();
+                Object.assign(item.actual, { rotorLoad: 0, stress: 0, bladeDamage: 0, bladesLost: 0, serviceWear: 0 });
+            }
             if (id === 'exchanger') item.settings.fouling = 0;
             if (pumpDefinition(id)) {
                 const state = this.sim.condition.components[pumpDefinition(id).key];
@@ -155,7 +162,7 @@ export class ComponentProcesses {
             if (!item.actual.tripped || !this.serviceReady || item.actual.shaftSpeed > 5 || item.wear >= 100) return false;
             item.actual.tripped = false; // Remain disconnected with zero admission until explicit Start/tuning.
         } else if (id === 'turbine' && action === 'start') {
-            if (item.actual.tripped || this.sim.condition.meltdown || item.wear >= 100) return false;
+            if (item.actual.tripped || this.sim.condition.meltdown || item.wear >= 100 || this.turbineIntegrity.damage >= 100) return false;
             item.settings.admission = 100;
         } else return false;
         if (['fault', 'progressiveFault', 'clear', 'trip', 'reset', 'start'].includes(action)) this.maintenanceNote(id, silent ? 'Scenario symptom observed' : action);
@@ -176,13 +183,20 @@ export class ComponentProcesses {
     get coolingFactor() { return this.items.exchanger.actual.transferFactor * this.items.condenser.actual.coolingFactor; }
     get transferFactor() {
         const t = this.items.turbine;
-        return this.coolingFactor * t.actual.admission / 100 * (1 - t.disturbance.value) * (1 - t.wear / 100);
+        return this.coolingFactor * t.actual.admission / 100 * t.actual.generatorLoading / 100 * (1 - t.disturbance.value) * (1 - t.wear / 100) * this.turbineIntegrity.factor;
+    }
+    get turbineDriveMw() {
+        const t = this.items.turbine;
+        if (this.sim.condition.meltdown || t.actual.tripped || !t.settings.breaker) return 0;
+        const drive = this.sim.power * 4.1 * this.sim.secondaryFlow / 100 * this.coolingFactor * t.actual.admission / 100
+            * t.actual.generatorLoading / 100 * (1 - t.disturbance.value) * (1 - t.wear / 100);
+        return this.rampActive ? Math.max(0, Math.min(drive, t.actual.loadLimit)) : drive;
     }
     get electricalOutput() {
         const t = this.items.turbine;
         if (this.sim.condition.meltdown || t.actual.tripped || !t.settings.breaker) return 0;
         const available = this.sim.power * 4.1 * this.sim.secondaryFlow / 100 * this.transferFactor;
-        return Math.max(0, Math.min(410, this.rampActive ? Math.min(available, t.actual.loadLimit) : available));
+        return Math.max(0, this.rampActive ? Math.min(available, t.actual.loadLimit) : available);
     }
 
     turbineReadiness() {
@@ -192,7 +206,7 @@ export class ComponentProcesses {
             { id: 'steam', label: 'Reactor running with secondary circulation', ready: this.sim.running && this.sim.power >= 5 && this.sim.secondaryFlow >= 20 },
             { id: 'shaft', label: 'Shaft at operating speed', ready: t.actual.shaftSpeed >= 90 },
             { id: 'cooling', label: 'Condenser cooling available', ready: this.items.condenser.actual.coolingFactor > 0.2 },
-            { id: 'condition', label: 'Turbine free of faults and severe wear', ready: !t.disturbance.progressiveFault && t.wear < 100 && !this.sim.condition.meltdown }
+            { id: 'condition', label: 'Turbine free of faults and severe wear', ready: !t.disturbance.progressiveFault && t.wear < 100 && this.turbineIntegrity.damage < 100 && !this.sim.condition.meltdown }
         ];
         return { ready: checks.every(c => c.ready), checks };
     }
@@ -218,8 +232,17 @@ export class ComponentProcesses {
 
     advance(dt) {
         const sim = this.sim, t = this.items.turbine;
-        const shaftTarget = !t.actual.tripped && sim.running ? clamp(sim.power / 5, 0, 1) * 100 * t.actual.admission / 100 * this.coolingFactor * (1 - t.disturbance.value) : 0;
+        const shaftTarget = !t.actual.tripped && sim.running && this.turbineIntegrity.damage < 100 ? clamp(sim.power / 5, 0, 1) * 100 * t.actual.admission / 100 * this.coolingFactor * (1 - t.disturbance.value) : 0;
         t.actual.shaftSpeed = approach(t.actual.shaftSpeed, shaftTarget, dt, t.settings.governorResponse);
+        const bladesBefore = this.turbineIntegrity.bladesLost, dueBefore = this.turbineIntegrity.serviceDue;
+        this.turbineIntegrity.advance(this.turbineDriveMw, t.actual.shaftSpeed, dt);
+        Object.assign(t.actual, { rotorLoad: this.turbineIntegrity.load, stress: this.turbineIntegrity.stress, bladeDamage: this.turbineIntegrity.damage, bladesLost: this.turbineIntegrity.bladesLost, serviceWear: this.turbineIntegrity.wear });
+        if (this.turbineIntegrity.bladesLost > bladesBefore) {
+            sim.condition.beginIncident(sim, 'Turbine rotor overloaded / worn blades');
+            sim.record(`Turbine blade fracture: ${this.turbineIntegrity.bladesLost} / 40 lost; ${this.turbineIntegrity.damage.toFixed(1)}% damage. Electrical capacity reduced.`, 'alarm', 'process');
+            this.maintenanceNote('turbine', 'Rotor blade fracture; retained capacity loss');
+        }
+        if (!dueBefore && this.turbineIntegrity.serviceDue) this.maintenanceNote('turbine', 'Scheduled turbine maintenance due');
         if (this.rampActive) {
             const target = sim.power * 4.1 * sim.secondaryFlow / 100 * this.transferFactor;
             t.actual.loadLimit += clamp(target - t.actual.loadLimit, -t.settings.loadRamp * dt, t.settings.loadRamp * dt);

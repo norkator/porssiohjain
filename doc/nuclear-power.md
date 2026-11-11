@@ -83,6 +83,24 @@ its former Equipment detail readings are inside that window. The main view has n
 Equipment detail card. The 3D scene supports bounded orbit, pan and zoom; the SVG diagram can be zoomed and
 scrolled. Controls and instruments adapt to the browser viewport's width.
 
+The process viewport has its own visibility observer. Scrolling just the overview
+offscreen suspends WebGL draws, SVG animation writes and the crane illustration;
+the visible console's plant clock, instruments and floating equipment windows
+continue working. Returning refreshes the overview from actual state, including
+while paused or using reduced motion, without fast-forwarding the crane. Hiding
+the entire console still suspends the whole simulation. The shared animation loop
+retains its 30 FPS cap. Schematic steam markers follow the same static polyline
+definition as the drawing, using distance interpolation rather than per-frame SVG
+geometry queries. Motion elements retain DOM references across frames. Coolant,
+reaction and electrical markers use instanced particle batches with independent
+poses and actual-state visibility. Inactive leaks skip droplet calculations;
+unchanged turbine blades retain their instance matrices until damage or service
+changes their visible count. Equipment label sizes are cached through a resize
+observer; immediate measurements are reserved for explicit expansion/selection
+and viewport changes. Particle batches share the existing GPU disposal and
+reconnection lifecycle. These optimizations retain the existing resolution,
+lighting, antialiasing and simulation behavior.
+
 Click the reactor vessel (or **Core map ↗**) to open the core map in a movable,
 nonmodal floating dialog above the process (up to 900 px wide, with a
 650 px core drawing and viewport clamping). The process schematic stays
@@ -110,9 +128,9 @@ keeps them static and pause/hidden-view suspension freezes the bounce. Acknowled
 indication; it clears only when temperature falls back to 335 °C or below. Both
 themes have explicit high-temperature colors. Normal running temperatures use a
 green card, reading and status indicator; stopped/tripped or damaged states do not
-show this green operating indication. The independent 360 °C simulated
-coolant trip is active in Auto, with an additional Auto local-fuel hot-spot trip. These are
-illustrative, not physical safety limits.
+show this green operating indication. High coolant temperature, local fuel hot spots
+and low primary flow raise alarms and affect damage in both modes, without activating
+emergency shutdown. These are illustrative, not physical safety limits.
 
 ## Progressive stress, damage and meltdown
 
@@ -132,7 +150,7 @@ are separate signals; a hot spot can precede high average coolant temperature.
 
 Stages are **NORMAL**, **STRAINED**, **OVERHEATING**, **PROTECTIVE SHUTDOWN**,
 **COMPONENT DAMAGE**, **CORE DAMAGE**, and latched **MELTDOWN**. The order depends on
-the fault: protection may trip before temperatures rise. Stress recedes after
+the fault and operator response; emergency shutdown only follows an explicit command. Stress recedes after
 correction, while damage does not heal automatically. At meltdown, fuel deforms
 gradually and a glowing pool grows over subsequent seconds; there is no explosion.
 Generation shuts down and the session remains inspectable/exportable.
@@ -241,7 +259,7 @@ borders while preserving fuel and trips; fuel replacement remains separate.
 Trip reset additionally requires cleared faults, repaired damage and local fuel
 below 410 °C. It does not clear retained heat, stress, damage or the incident history,
 and it never restarts automatically. Auto reduces generation against cooling capacity
-and local fuel hot spots; it does not bypass protective trips or restart failed pumps.
+and local fuel hot spots; it never activates or resets emergency shutdown or restarts failed pumps.
 
 ### Illustrative model constants
 
@@ -256,7 +274,7 @@ All constants are gameplay/demo parameters, not real reactor engineering:
   reading coupled to retained fuel heat rather than dropping immediately to ambient.
 - Rod imbalance creates local temperatures. Above 410 °C, exposure accumulates;
   above 450 °C and after 15 seconds of exposure, channel damage accumulates.
-  A local peak above 470 °C trips generation in Auto. Cooling failure can continue afterward.
+  Hot spots raise alarms and constrain Auto output, without latching emergency shutdown.
 - Meltdown latches only after a channel reaches 100% damage with fuel at least
   650 °C. Its visual progression then ramps with a 12-second response.
 - Pump stress comes from sustained requested/actual flow mismatch. Stress above
@@ -306,14 +324,14 @@ plate, behind a transparent hinged plastic cover. First select **Lift cover**,
 then press the exposed button; **Close cover** blocks manual access again.
 The native cover toggle comes before the button in keyboard order. Enter/Space
 opens the cover, then Tab reaches the button. Cover movement never changes plant
-state or clears a trip, and automatic trips work with either cover position.
+state or clears a trip. Emergency shutdown is operator-only in both Auto and Manual.
 New sessions and **Reset demo** close the cover; pause and reduced motion skip
 the lid transition. Its head remains depressed, its red trip lamp stays lit, and it reads
-**TRIP LATCHED** for every latched reactor trip, including automatic trips.
+**TRIP LATCHED** after the operator explicitly activates emergency shutdown.
 The disabled latched button retains full visual contrast. Pressing it again
 cannot clear the trip. Only successful explicit **Reset trip** releases the
 head and extinguishes the trip lamp; the reactor remains stopped until Start.
-Start/Stop, protection thresholds and recovery interlocks are unchanged. Native
+Start/Stop and recovery interlocks are preserved. Native
 keyboard/focus behavior, pause and reduced motion are preserved in both themes;
 the lights and physical button position introduce no animation timer.
 
@@ -341,6 +359,24 @@ retained custom element. Vessel and heat-exchanger cutaways expose the internal
 fuel, control rods and transfer tubes. Separate primary and secondary pipework,
 pump impellers, turbine blades, generator and condenser share the existing plant
 state. No additional physics or command path is introduced.
+
+A gray natural-draft cooling tower with two red bands stands behind the condenser,
+scaled against the spent-fuel pool. Warm/cool water pipes descend through sleeves
+in the equipment plate, run beneath/along its outer edge, and connect to the tower
+and basin. A smaller river intake provides make-up water for cooling-water losses;
+this circuit remains separate from reactor coolant and turbine steam. Its white
+plume represents condensed water vapor rising straight up in fixed columns, without
+spiraling or sideways drift. Actual secondary temperature/circulation
+and condenser cooling capacity control plume density, opacity and height; cold,
+no-flow and unavailable-cooling states have no plume, while retained hot circulation
+can continue it after Stop. This is a normalized illustration, not added heat/water
+physics or a measured MW signal. One bounded instanced billboard batch shares the
+frame clock, pause/reduced-motion/visibility behavior and GPU disposal. Tower and
+pipe picking, plus its keyboard-accessible CT-01 label, open the existing condenser
+controls. The default camera includes the tower and plume. The river/tower are 3D
+presentation additions; the existing SVG condenser controls remain available.
+See [the cooling tower checkpoint](../nuclear/COOLING-TOWER-PLAN.md). Focused checks:
+`npm run test:browser:cooling`; equipment browser checks include these scenarios.
 
 The taller viewport starts at 120% zoom. Drag to orbit within bounded angles, use
 the mouse wheel or +/− buttons to zoom (65–300%), and select **Reset view** to restore
@@ -471,8 +507,8 @@ Controls:
   rotation follows motor speed and each circuit's coolant animation follows flow, including
   coast-down, with continuous phase and an explicit local SVG rotation pivot.
 - Emergency shutdown: latches a simulated trip and inserts rods. Restart requires
-  **Reset trip**, then **Start**. In Auto, low primary flow or high core temperature can also
-  trigger the illustrative protection sequence. Reset trip requires all rods at
+  **Reset trip**, then **Start**. Only an explicit operator command activates this
+  latch, in both Auto and Manual. Reset trip requires all rods at
   least 99.5% inserted, both enabled circuits with target/actual speed at least 20%,
   and core temperature below the demo limit of 335 °C. These are arbitrary simulation
   limits, not real nuclear operating instructions. A checklist explains readiness.
@@ -483,12 +519,15 @@ Controls:
 - Pause/Resume: freezes/resumes simulated time and animations.
 - Reset demo: restores the initial stopped state, event log, and trend history.
 
-Manual mode leaves protective shutdown to the operator: low primary flow, high
-coolant temperature and fuel hot spots still raise alarms and accumulate damage,
-but do not insert rods or stop generation automatically. Use **Emergency shutdown**
-or **Stop** explicitly. Switching to Auto restores the protective trips on the next
-simulation tick; switching modes never clears an existing trip. Irreversible
-meltdown still ends generation and requires **Reset demo** in either mode.
+Both Auto and Manual leave emergency shutdown to the operator. Low primary flow,
+high coolant temperature, local fuel hot spots and high output/core/circulation
+targets never press or latch the emergency button. Use **Emergency shutdown** or
+**Stop** explicitly. Auto still regulates rods/pumps and limits output against
+cooling, fuel, hot spots and the configured core ceiling. Alarms, retained heat and
+progressive damage remain active. Switching modes never activates or clears the
+emergency latch. Irreversible meltdown still ends generation through its separate
+failure state in either mode, without activating the emergency button; **Reset demo**
+is required afterward. Explicit emergency trips retain their latch across meltdown.
 
 ## Parallel pumps, overpressure and leaking water
 
@@ -512,7 +551,8 @@ visible blue water jets/drops in 3D and the schematic and reduces delivered cool
 flow. Leaking fittings also spray. Blades, bearings and fittings retain independent
 damage; bearings can slow/stop the motor. Healthy single-pump operation is unchanged.
 These values are fictional gameplay parameters. Generator output still depends on
-heat, transfer/cooling, shaft/breaker state and the 410 MW gross nameplate limit.
+heat, transfer/cooling, shaft/breaker state and retained rotor condition. The normal
+gross rating is 410 MW; overdrive can exceed it and accumulate turbine damage.
 
 Primary and secondary flow each have a left-side instrument showing actual delivered
 flow, actual pressure and the healthy-pipe damage limit (about **5,780 m³/h**, derived
@@ -621,6 +661,55 @@ admission. Below 850 px columns stack, with horizontal scrolling confined to the
 illustration. Both themes and the shared pause/visibility/reduced-motion/detach
 lifecycle are preserved, with no independent animation timer or model changes.
 
+### Turbine wear, overload and blade loss
+
+TG-01 has a normal gross rating of 410 MW, with no hard nameplate output clamp.
+The interactive **Generator loading** dial spans 50–160%, default 100%; higher
+loading extracts more fictional electrical power and can overload the rotor.
+Auto never changes this dial. Electrical targets accept 0–650 MW, while normal
+grid dispatch remains capped to its existing approximately 300 MW envelope and
+derates for actual turbine condition. Existing reactor cooling/fuel/hot-spot
+regulation and all explicit emergency/turbine trip rules remain in force.
+
+The left Electrical output instrument turns amber from 90% of rated rotor load,
+then red at 110%, or with at least 25% blade damage / 70% service wear. Smaller
+retained blade damage and maintenance due keep amber emphasis after unloading.
+Text identifies near/over-rated load, damage, destruction and maintenance due;
+the tooltip states rating, actual rotor load and damage/wear. Both themes have
+specific alert colors. Trends expand their MW scale beyond 400 as needed.
+
+Normal actual shaft rotation accumulates about 2% service wear per full-load
+simulated hour (less at low load); stopped shafts do not wear. Scheduled service
+is due at 25%, shown in the turbine window, alarms and Maintenance. Minor healthy
+wear remains visible in the instrument/window without creating an immediate
+maintenance-list entry. Unserviced wear reduces efficiency; after service is due
+it also weakens the rotor. Overload accelerates wear quadratically and adds blade
+fatigue after a short exposure allowance. A fresh/serviced rotor samples its own
+strength (104–116% of rating) and allowance (3–8 s), so fracture timing varies.
+The ongoing evolution is deterministic given those sampled values; randomness
+is not evaluated on every tick/frame. These are fictional gameplay constants.
+
+Blade damage permanently derates available electrical MW until explicit service;
+100% damage removes all 40 illustrated blades and output becomes zero. A broken
+spinning rotor can deteriorate further from imbalance after unloading. The event
+journal, retained incident cause and maintenance history record fractures. No
+rotor failure presses the reactor emergency button or silently resets/restarts
+anything. Heat, fuel and coolant dynamics continue independently.
+
+Missing blades and fragments appear in the 3D overview, retained schematic and
+interactive turbine cutaway. Two bounded instanced meshes handle all 3D blades
+and fragments; one shared frame clock drives one-shot travel, tumble, falling
+and resting fragments. No extra timer or growing particle pool is introduced.
+Pause/hide/detach/reduced-motion handling uses the existing lifecycle. Closed
+windows do not render; current damage is restored when reopened. Service/reset
+clears fragments and restores attached blades, including in the idle 3D scene.
+
+**Service turbine** or **Repair all** restores blades/service wear through the
+existing cooled, stopped, fault-free readiness path, additionally requiring shaft
+speed below 0.5%. It samples a fresh rotor tolerance. Service preserves retained
+heat, fuel, targets (including generator loading), hours and both trip latches;
+startup remains explicit. Reset demo restores the normal 100% loading/cold session.
+
 Component disturbances have adjustable strength and period, a one-shot nudge,
 continuous periodic fluctuation, progressive deterioration and explicit clearing.
 Clearing restores the restriction while preserving wear/damage. Component service
@@ -651,7 +740,8 @@ Electrical output regulation is the initial and Reset demo default (200 MW elect
 Core temperature regulation remains selectable. It holds configurable core temperature
 (minimum 40 °C, default 286 °C, no upper entry cap) and circulation
 (25–100%; default 85%) targets. Removing the old 330 °C input/model clamp does
-not change the independent over-temperature alarms or Auto trip conditions.
+not change the independent over-temperature alarms or accumulated-damage model.
+Emergency shutdown is operator-only even with all Auto targets set very high.
 A one-second illustrative regulator uses
 feed-forward plus proportional/integral temperature correction to adjust the rod
 bank, retaining individual offsets where travel allows. Independent feedback adjusts
@@ -669,7 +759,7 @@ Trips inhibit regulation. Resetting a trip never triggers automatic restart; an
 explicit Start is required even when Auto remains selected.
 
 For grid-style generation control, the initial **Auto → Electrical output** mode uses
-**Output target** (0–400 MW electric; default 200). The target
+**Output target** (0–650 MW electric; default 200). The target
 is generator electrical output (`MWₑ`), distinct from the thermal output (`MWₜₕ`).
 The left electrical card and regulation status show actual versus requested output.
 The right trend switches its output axis from reactor load (%) to electrical MW and
@@ -716,9 +806,9 @@ existing regulator/actuators, with all changes recorded in the Automation journa
 
 The card distinguishes actual output, current target, last request, countdown and
 limiting/waiting status and available dispatch capacity. The operating temperature
-and circulation settings are owned by each incoming request; independent protection
+and circulation settings are owned by each incoming request; alarm/damage
 thresholds, cooling/fuel capability and manual pump/rod overrides remain authoritative.
-Messages cannot reset trips, start equipment, close breakers or change protection thresholds.
+Messages cannot activate/reset emergency shutdown, start equipment, close breakers or change alarm/damage thresholds.
 Countdown and request delivery suspend during Stop, trip/meltdown, pause, Manual
 mode or temperature regulation. Hiding the console freezes simulated time as usual.
 No request can reset a trip, start a reactor/turbine, refuel or repair equipment.
@@ -856,8 +946,8 @@ the reactor. Instruments have an independent, idealized simulated DC supply; bat
 capacity and charging are not modeled.
 
 Source transitions, starts/stops and refuelling enter the journal. Total AC loss begins
-an incident, raises an alarm and interacts with existing low-flow protection, retained
-heat and progressive core damage. Backup availability does not heal damaged pumps.
+an incident, raises low-flow alarms and affects retained heat and progressive core
+damage. It never activates emergency shutdown in either mode. Backup availability does not heal damaged pumps.
 Supply, diesel fuel and startup time freeze with the rest of the paused/hidden simulation.
 
 ## Expanded live trends
@@ -902,6 +992,8 @@ animation while instruments and controls continue to work.
   schematic, controls, recent two-minute trends, and bounded event journal.
 - `nuclear/src/simulation/nuclear-power-scene.js` owns the low-poly overview,
   bounded camera, picking, semantic labels, geometry batching and renderer cleanup.
+- `nuclear/src/simulation/nuclear-power-particles.js` batches repeated moving
+  markers into instanced meshes without putting each marker in scene traversal.
 - `nuclear/src/simulation/nuclear-power-electrical-scene.js` builds diesel cutaways,
   grid/bus and actual-state electrical routes in the main plant renderer.
 - `nuclear/src/simulation/nuclear-power-electrical.js` supplies the left source panel,
@@ -918,6 +1010,8 @@ animation while instruments and controls continue to work.
   progressive faults, component stress/wear, damage, meltdown and incident retention.
 - `nuclear/src/simulation/nuclear-power-fuel.js` owns separate per-assembly inventory,
   uneven exposure, capability, acceleration and explicit replacement interlocks.
+- `nuclear/src/simulation/nuclear-power-turbine.js` owns sampled rotor tolerances, slow
+  normal wear, overload fatigue, retained blade loss/capacity and shared fragment poses.
 - `nuclear/src/simulation/nuclear-power-components.js` owns component settings/read-backs,
   transfer/cooling factors, turbine shaft/breaker, disturbances, wear and exercises.
 - `nuclear/src/simulation/nuclear-power-maintenance.js` renders the live damage/wear/fouling
@@ -986,6 +1080,12 @@ npm run test:browser
 NUCLEAR_POWER_APP_URL=http://127.0.0.1:8080 npm run test:browser
 ```
 
+Routine verification should scale with the change: use focused unit tests and the
+build for small edits; run `npm run test:browser:equipment` for turbine/condenser
+controls, wear/damage and equipment motion. Keep the full browser suite for broad
+regressions, explicit requests and CI. Avoid repeatedly replaying unrelated SEO,
+audio, fuel, export and desktop scenarios during small UI iterations.
+
 Browser tests use Chrome at `/opt/google/chrome/chrome` by default; `CHROME_BIN` can
 select another installed Chromium executable. Without `NUCLEAR_POWER_APP_URL`, a
 temporary loopback server tests the actual production build in `nuclear/dist/`,
@@ -1033,3 +1133,13 @@ pause/mode/stop/trip guards, temperature/rod/breaker ownership and independent
 reaction/retained-heat phases. The browser regression also covers 3D/SVG exchanger
 steam, vessel reactions, cold/no-flow/Stop behavior, pause/reduced motion, grid
 message delivery and requested-versus-actual output.
+
+Rendering checkpoint (2026-11-11): 120 unit checks, the production build, focused
+equipment browser checks and the full Chrome regression pass. Compared with the
+production build from `299f62c`, the warm two-pump fixture uses about 304–305 draw
+calls instead of 369–370, with approximately 23,000 triangles and the same visual
+detail. Scene nodes fall from 537 to 428. A phone-sized offscreen overview performs
+no recurring WebGL draws or SVG motion writes while plant time and floating pump
+motion continue. Browser checks also compare cached steam positions with native
+SVG geometry and prohibit label-size reads during reading-only redraws. These
+counts come from headless Chrome/software WebGL; they are not phone FPS estimates.

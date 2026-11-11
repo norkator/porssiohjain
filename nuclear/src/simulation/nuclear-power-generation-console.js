@@ -7,6 +7,7 @@ const hints = {
     admission: 'Admit steam to the shaft. The solid valve and rotor follow actual response; a turbine trip locks admission closed.',
     governorResponse: 'Set the response time for admission and shaft speed. A shorter time responds faster; it never closes the breaker.',
     loadRamp: 'Limit how quickly electrical load changes. Shaft rotation and electrical generation remain separate.',
+    generatorLoading: 'Normal loading is 100%. Overdrive can exceed the 410 MW rating: faster wear, blade fracture and permanent loss of output. Auto never changes this dial.',
     coolingValve: 'Open the cooling-water valve to increase heat rejection. Actual cooling responds gradually.',
     inletTemperature: 'Adjust the simulated cooling-water source temperature. Warmer water reduces available cooling capacity.',
 };
@@ -21,7 +22,7 @@ const part = (id, key, body) => {
 const valve = (id, key, x, y) => part(id, key, `<g transform="translate(${x} ${y})"><rect class="generation-hit" x="-77" y="-52" width="154" height="111" rx="12"/><text class="generation-part-name" y="-32" text-anchor="middle">${definition(id, key).label}</text><circle class="generation-valve-body" r="20"/><path class="generation-valve-seat" d="M-27-13 0 0-27 13ZM27-13 0 0 27 13Z"/><g class="generation-request" data-generation-request="${key}"><path d="M-29 0H29"/></g><g class="generation-actual" data-generation-valve="${key}"><path d="M-24 0H24"/><circle r="5"/></g><text class="generation-caption" y="45" text-anchor="middle" data-generation-caption="${key}"></text></g>`);
 const dial = (id, key, x, y) => part(id, key, `<g transform="translate(${x} ${y})"><rect class="generation-hit" x="-83" y="-46" width="166" height="94" rx="12"/><text class="generation-part-name" y="-27" text-anchor="middle">${definition(id, key).label}</text><path class="generation-dial-scale" d="M-21 17A27 27 0 1 1 21 17"/><circle class="generation-dial" r="20"/><path class="generation-dial-pointer" data-generation-dial="${key}" d="M0-14V-3"/><text class="generation-caption" y="40" text-anchor="middle" data-generation-caption="${key}"></text></g>`);
 const pipe = (key, d) => `<path class="generation-pipe-shell" d="${d}"/><path class="generation-water" data-generation-water="${key}" d="${d}"/><path class="generation-flow" data-generation-flow="${key}" d="${d}"/>`;
-const rotor = (name, radius) => `<g data-generation-rotor="${name}">${Array.from({ length: 10 }, (_, i) => `<path transform="rotate(${i * 36})" d="M5-8 10-${radius} 22-${radius - 6} 12-4Z"/>`).join('')}<circle r="10"/></g>`;
+const rotor = (name, radius) => `<g data-generation-rotor="${name}">${Array.from({ length: 10 }, (_, i) => `<path ${name === 'turbine' ? `data-generation-blade="${i}"` : ''} transform="rotate(${i * 36})" d="M5-8 10-${radius} 22-${radius - 6} 12-4Z"/>`).join('')}<circle r="10"/></g>`;
 
 function turbineCutaway() {
     return `<svg class="generation-model" viewBox="0 0 660 310" role="group" aria-label="Turbine and generator cutaway with steam valve, governor and load ramp controls">
@@ -41,6 +42,8 @@ function turbineCutaway() {
       <text class="generation-port" x="595" y="133" text-anchor="middle">BREAKER</text><text class="generation-caption" x="595" y="203" text-anchor="middle" data-generation-breaker-caption></text>
       ${pipe('exhaust', 'M288 226V281H373')}<text class="generation-port" x="385" y="285">TO CONDENSER →</text>
       ${valve('turbine', 'admission', 91, 96)}${dial('turbine', 'governorResponse', 87, 246)}${dial('turbine', 'loadRamp', 563, 267)}
+      ${dial('turbine', 'generatorLoading', 465, 65)}
+      <g class="turbine-blade-fragments" aria-hidden="true">${Array.from({ length: 40 }, (_, i) => `<path data-generation-fragment="${i}" d="M-3-8 3-10 5 5-2 8Z" visibility="hidden"/>`).join('')}</g>
     </svg>`;
 }
 
@@ -76,7 +79,7 @@ export function generationConsole(id) {
         <div class="generation-adjustment-rail"><button class="small-button" data-generation-step="-5" aria-label="Decrease selected setting">−</button><input id="${id}-generation-setting" class="generation-setting" type="range" min="${settings[0].min}" max="${settings[0].max}" step="${settings[0].step}" data-component="${id}" data-component-setting="${settings[0].key}"/><button class="small-button" data-generation-step="5" aria-label="Increase selected setting">+</button></div>
         <p class="generation-hint"></p>
       </div>
-      ${turbine ? `<div class="generation-switchboard"><label class="generation-breaker" for="turbine-generator-breaker"><span>Generator breaker<strong data-generation-breaker-state></strong></span><span class="pump-rocker feed-rocker"><input id="turbine-generator-breaker" type="checkbox" role="switch" data-component="turbine" data-component-setting="breaker" aria-describedby="turbine-breaker-note"/><span class="pump-rocker-face" aria-hidden="true"><span class="rocker-on">I <small>ON</small></span><span class="rocker-off">O <small>OFF</small></span></span></span></label><p id="turbine-breaker-note"></p><div class="generation-actions"><button class="small-button" data-component="turbine" data-component-action="start">Open admission</button><button class="small-button generation-trip" data-component="turbine" data-component-action="trip">Trip turbine</button><button class="small-button" data-component="turbine" data-component-action="reset">Reset turbine trip</button></div></div>` : ''}
+      ${turbine ? `<div class="turbine-service-strip"><span data-turbine-condition></span><span data-turbine-wear></span><button class="small-button" data-component="turbine" data-component-action="repair" disabled>Service turbine</button></div><div class="generation-switchboard"><label class="generation-breaker" for="turbine-generator-breaker"><span>Generator breaker<strong data-generation-breaker-state></strong></span><span class="pump-rocker feed-rocker"><input id="turbine-generator-breaker" type="checkbox" role="switch" data-component="turbine" data-component-setting="breaker" aria-describedby="turbine-breaker-note"/><span class="pump-rocker-face" aria-hidden="true"><span class="rocker-on">I <small>ON</small></span><span class="rocker-off">O <small>OFF</small></span></span></span></label><p id="turbine-breaker-note"></p><div class="generation-actions"><button class="small-button" data-component="turbine" data-component-action="start">Open admission</button><button class="small-button generation-trip" data-component="turbine" data-component-action="trip">Trip turbine</button><button class="small-button" data-component="turbine" data-component-action="reset">Reset turbine trip</button></div></div>` : ''}
       <p class="component-reason" role="status"></p><p class="component-response"></p>
     </section>`;
 }
@@ -158,7 +161,7 @@ export function updateGenerationConsole(host, root) {
     for (const setting of controls(id)) {
         const key = setting.key, selected = state.selected === key, value = selected && state.preview !== null ? state.preview : item.settings[key];
         const node = root.querySelector(`[data-generation-part="${key}"]`), locked = key === 'admission' && item.actual.tripped;
-        const hasReadback = ['admission', 'coolingValve', 'inletTemperature'].includes(key);
+        const hasReadback = ['admission', 'coolingValve', 'inletTemperature', 'generatorLoading'].includes(key);
         const description = `${format(setting, value)} requested${hasReadback ? ` · ${format(setting, item.actual[key])} actual` : ''}`;
         node.setAttribute('aria-valuenow', value); node.setAttribute('aria-valuetext', description); node.setAttribute('aria-disabled', String(locked));
         node.classList.toggle('selected', selected);
@@ -196,9 +199,15 @@ export function updateGenerationConsole(host, root) {
         breaker.disabled = !item.settings.breaker && !readiness.ready;
         root.querySelector('[data-generation-breaker-state]').textContent = item.actual.breaker ? 'CLOSED · CONNECTED' : 'OPEN · DISCONNECTED';
         root.querySelector('#turbine-breaker-note').textContent = item.settings.breaker ? 'Open the breaker to disconnect generation; the shaft can keep turning.' : readiness.ready ? 'Ready to connect. Close the breaker explicitly.' : 'Closing locked · ' + readiness.checks.filter(check => !check.ready).map(check => check.label).join(' · ');
-        root.querySelector('[data-component-action="start"]').disabled = item.actual.tripped || sim.condition.meltdown || item.wear >= 100;
+        root.querySelector('[data-component-action="start"]').disabled = item.actual.tripped || sim.condition.meltdown || item.wear >= 100 || sim.components.turbineIntegrity.damage >= 100;
         root.querySelector('[data-component-action="trip"]').disabled = item.actual.tripped;
         root.querySelector('[data-component-action="reset"]').disabled = !item.actual.tripped || !sim.components.serviceReady || item.actual.shaftSpeed > 5 || item.wear >= 100;
+        const integrity = sim.components.turbineIntegrity;
+        root.querySelector('.turbine-service-strip').dataset.integrity = integrity.level;
+        root.querySelector('[data-turbine-condition]').textContent = `${integrity.damage >= 100 ? 'ROTOR DESTROYED' : `${integrity.bladesLost} / 40 blades lost`} · ${integrity.damage.toFixed(1)}% damage`;
+        root.querySelector('[data-turbine-wear]').textContent = `${integrity.wear.toFixed(2)}% service wear${integrity.serviceDue ? ' · MAINTENANCE DUE' : ''} · ${Math.round(integrity.load)}% rated load`;
+        root.querySelector('[data-generation-state]').textContent = integrity.damage >= 100 ? 'ROTOR DESTROYED' : integrity.level === 'danger' ? 'ROTOR AT RISK' : integrity.serviceDue ? 'MAINTENANCE DUE' : root.querySelector('[data-generation-state]').textContent;
+        root.querySelector('[data-generation-state]').dataset.warning = String(item.actual.tripped || integrity.level === 'danger');
     }
     for (const output of root.querySelectorAll('[data-generation-disturbance]')) {
         const key = output.dataset.generationDisturbance;
@@ -227,6 +236,13 @@ export function drawGenerationConsole(host, root) {
         const electric = root.querySelector('.generation-electric-flow');
         electric.style.opacity = Math.min(1, sim.electricalOutput / 150); electric.style.strokeDashoffset = -motion.angle / 2;
         root.querySelector('.generation-coils').style.opacity = .3 + Math.min(1, sim.electricalOutput / 300) * .7;
+        const lost = sim.components.turbineIntegrity.bladesLost;
+        for (const blade of root.querySelectorAll('[data-generation-blade]')) blade.style.visibility = Number(blade.dataset.generationBlade) * 4 < lost ? 'hidden' : 'visible';
+        for (const node of root.querySelectorAll('[data-generation-fragment]')) {
+            const fragment = motion.turbineFragments?.[Number(node.dataset.generationFragment)];
+            node.style.visibility = fragment ? 'visible' : 'hidden';
+            if (fragment) node.setAttribute('transform', `translate(${242 + fragment.x * 42} ${167 - fragment.y * 40}) rotate(${fragment.spin})`);
+        }
     } else {
         const condensation = (motion.steam || 0) * actual.coolingFactor;
         for (const puff of root.querySelectorAll('[data-generation-steam]')) {

@@ -1,4 +1,33 @@
 /* Phase-preserving SVG motion driven by reported simulation speed, not commands. */
+import { advanceTurbineFragments } from './nuclear-power-turbine.js';
+import { condenserHeatRejection } from './nuclear-power-cooling.js';
+
+// Share the SVG path definition and distance-based particle positions without
+// querying SVG geometry (which can force synchronous style/layout work).
+export function createPolylinePath(points) {
+    const segments = [];
+    let length = 0;
+    for (let i = 1; i < points.length; i++) {
+        const [x, y] = points[i - 1];
+        const dx = points[i][0] - x, dy = points[i][1] - y;
+        const size = Math.hypot(dx, dy);
+        if (size) segments.push({ x, y, dx, dy, start: length, length: size });
+        length += size;
+    }
+    return {
+        d: points.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join(''),
+        length,
+        pointAtDistance(distance) {
+            const offset = Math.max(0, Math.min(length, distance));
+            for (const segment of segments) {
+                if (offset > segment.start + segment.length) continue;
+                const t = (offset - segment.start) / segment.length;
+                return { x: segment.x + segment.dx * t, y: segment.y + segment.dy * t };
+            }
+            return { x: points[0][0], y: points[0][1] };
+        },
+    };
+}
 export const SVG_FLOW_SCALE = 19;
 
 export function valveHandleAngle(openingPercent, pipeAngle = 0) {
@@ -69,6 +98,8 @@ export function advanceProcessMotion(previous, signals, seconds) {
     const bounded = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
     const dt = Number.isFinite(seconds) ? Math.max(0, Math.min(.1, seconds)) : 0;
     const steam = bounded((signals.secondaryTemperature - 65) / 140) * bounded(signals.secondaryFlow / 100);
+    const coolingTower = condenserHeatRejection(signals);
+    const coolingWater = Math.max(0, Math.min(1.35, signals.secondaryFlow / 100)) * bounded(signals.condenserCoolingFactor);
     const heat = bounded((signals.temperature - signals.secondaryTemperature) / 140)
         * bounded(Math.min(signals.primaryFlow, signals.secondaryFlow) / 100)
         * (Number.isFinite(signals.exchangerTransferFactor) ? bounded(signals.exchangerTransferFactor) : 1);
@@ -80,6 +111,9 @@ export function advanceProcessMotion(previous, signals, seconds) {
         speed: speed < .0001 ? 0 : speed,
         angle: (previous.angle + speed * 540 * dt) % 360,
         steamPhase: (previous.steamPhase + steam * dt * .35) % 1,
+        coolingTower, coolingWater,
+        coolingTowerPhase: ((previous.coolingTowerPhase || 0) + (coolingTower > .002 ? .06 + coolingTower * .16 : 0) * dt) % 1,
+        coolingWaterTravel: (previous.coolingWaterTravel || 0) + coolingWater * dt * 2,
         heatPhase: (previous.heatPhase + heat * dt * .6) % 1,
         supplyPhase: (previous.supplyPhase + bounded(signals.supplyFactor) * dt * .6) % 1,
         thermalPhase: ((previous.thermalPhase || 0) + bounded((signals.fuelTemperature - 100) / 550) * dt * .4) % 1,
@@ -87,6 +121,7 @@ export function advanceProcessMotion(previous, signals, seconds) {
         ...advanceReactorMotion(previous, signals, dt),
         primaryTravel: (previous.primaryTravel || 0) + Math.max(0, Math.min(1.35, signals.primaryFlow / 100)) * dt * 2,
         secondaryTravel: (previous.secondaryTravel || 0) + Math.max(0, Math.min(1.35, signals.secondaryFlow / 100)) * dt * 2,
-        steam, heat
+        steam, heat,
+        turbineFragments: advanceTurbineFragments(previous.turbineFragments, signals.turbineFragments, dt)
     };
 }

@@ -10,6 +10,7 @@ import { AuxiliaryPower } from './nuclear-power-supply.js';
 import { ComponentProcesses } from './nuclear-power-components.js';
 import { GridDispatcher, gridDispatchCapacity } from './nuclear-power-grid.js';
 import { PUMPS, CIRCUITS, circuitPumps, pumpDefinition, PumpCircuits, FLOW_SCALE } from './nuclear-power-pumps.js';
+import { ELECTRICAL_TARGET_MAX_MW } from './nuclear-power-turbine.js';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const approach = (value, target, seconds, response) => target + (value - target) * Math.exp(-seconds / response);
@@ -313,7 +314,7 @@ export class NuclearPowerSimulation {
 
     setElectricalTarget(value) {
         if (!Number.isFinite(value)) return;
-        this.autoElectricalTarget = clamp(value, 0, 400);
+        this.autoElectricalTarget = clamp(value, 0, ELECTRICAL_TARGET_MAX_MW);
         this.outputControlIntegral = 0;
         this.record(`Electrical output target set to ${this.autoElectricalTarget} MW electric.`, 'info', 'automation');
     }
@@ -426,10 +427,12 @@ export class NuclearPowerSimulation {
             ['cooling', this.condition.coolingMargin < 0, 'Cooling margin negative: retained heat needs circulation', 'warning'],
             ['fuel', this.condition.peakTemperature > 410, 'Local fuel temperature high', 'alarm'],
             ['component-fault', this.components.hasFaults, 'Component deterioration active: inspect component readings', 'warning'],
-            ['component-wear', this.components.damaged, 'Retained component wear: cooldown and service required', 'warning'],
             ['turbine-trip', this.components.items.turbine.actual.tripped, 'Turbine trip latched: cooldown, reset and explicit turbine Start required', 'alarm'],
+            ['turbine-load', this.components.turbineIntegrity.load > 100, 'Turbine above rated load: rapid wear and blade fracture risk', 'alarm'],
+            ['turbine-blades', this.components.turbineIntegrity.damage > 0, 'Turbine blade damage retained: electrical capacity reduced', 'alarm'],
+            ['turbine-service', this.components.turbineIntegrity.serviceDue, 'Turbine scheduled maintenance due', 'warning'],
             ['component-process', this.components.hasFaults, 'Component response abnormal: inspect equipment', 'warning'],
-            ['component-wear', this.components.damaged, 'Component wear retained: service after cooldown', 'alarm'],
+            ['component-wear', this.components.damaged, 'Component damage/wear retained: service after cooldown', 'alarm'],
             ['damage', this.condition.damaged, 'Component damage retained: cooldown and repair required', 'alarm'],
             ['meltdown', this.condition.meltdown, 'Core meltdown: reset demo required', 'alarm'],
             ['fuel-reserve', this.fuel.assemblies.some(a => a.remaining <= 20), 'Low or depleted fuel: manual replacement after cooldown', 'warning'],

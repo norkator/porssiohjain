@@ -118,7 +118,7 @@ export async function checkGenerationConsoles({ consoleCode, action, input, page
     await advance(6);
     assert.ok(await consoleCode('return c.simulation.electricalOutput;') > 1);
     const turning = await motion('turbine');
-    await wait(200);
+    await until(`document.querySelector('nuclear-power-console').shadowRoot.querySelector('[data-generation-rotor="turbine"]').getAttribute('transform') !== ${JSON.stringify(await consoleCode(`return s.querySelector('[data-generation-rotor="turbine"]').getAttribute('transform');`))}`, 'Turbine rotor did not advance');
     assert.notDeepEqual(await motion('turbine'), turning);
     await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const id of ['turbine', 'condenser']) {
@@ -161,7 +161,7 @@ export async function checkGenerationConsoles({ consoleCode, action, input, page
     await action('stop');
     assert.ok(await actual('turbine', 'shaftSpeed') > 0, 'Stop preserves shaft coast-down');
     const coasting = await motion('turbine');
-    await wait(200);
+    await until(`document.querySelector('nuclear-power-console').shadowRoot.querySelector('[data-generation-rotor="turbine"]').getAttribute('transform') !== ${JSON.stringify(await consoleCode(`return s.querySelector('[data-generation-rotor="turbine"]').getAttribute('transform');`))}`, 'Turbine coast-down did not advance');
     assert.notDeepEqual(await motion('turbine'), coasting);
     await consoleCode(`c.closeFloatingDialog(s.querySelector('${dialog('turbine')}'));c.closeFloatingDialog(s.querySelector('${dialog('condenser')}'));`);
     const closed = await motion('turbine');

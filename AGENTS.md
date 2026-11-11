@@ -65,7 +65,11 @@ scale-model control room, not a simulator of a specific real reactor. All curren
 signals and commands are browser-local simulation; no MQTT devices are connected.
 The app, simulation modules, styles, bundled audio and tests live in `nuclear/`.
 React hosts the retained `nuclear-power-console` custom element; preserve its lifecycle.
-Run `npm ci`, `npm test`, `npm run build` and `npm run test:browser` in that folder.
+For routine changes, run focused unit checks and `npm run build` in that folder.
+Use `npm run test:browser:equipment` when equipment UI/interaction coverage is needed.
+Reserve the full `npm run test:browser` for broad changes, explicit requests or CI;
+do not repeatedly replay the whole browser suite for small edits or timing-only
+fixes. Run `npm ci` when installing dependencies or after lockfile changes.
 No Spring app or account login is needed. `.github/workflows/nuclear-container.yml`
 publishes `ghcr.io/norkator/porssiohjain-nuclear:latest` for amd64/arm64 on production
 pushes/manual runs. The Vaadin desktop/Start link opens `https://nuclear.porssiohjain.fi`
@@ -95,6 +99,12 @@ Process animations use actual heat/flow/output: turbine/generator coast-down, st
 condenser drops, exchanger highlights, local fuel glow/molten drips and source-to-pump
 bus flow share the visibility-aware frame loop. Rates are illustrative, not RPM;
 preserve cold-start stillness, retained heat, reduced motion and pause cleanup.
+The process viewport separately suspends offscreen SVG/WebGL work and crane motion;
+visible-console plant time, instruments and floating equipment windows remain live.
+Preserve distance-based SVG markers, instanced particle visibility/disposal, inactive
+leak skipping and turbine blade matrices that update only after damage/service.
+Cache equipment label sizes through their resize observer; keep immediate clamping
+for explicit selection, hover/focus, label-mode changes and viewport resizing.
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
 recovery.
@@ -120,14 +130,18 @@ lamps/coast-down status; preserve name, circuit, speed and flow readings. Emerge
 button held visibly depressed with a red lamp for every latched reactor trip.
 Its transparent hinged plastic cover must be opened before manual activation;
 keep the native cover toggle before the button in keyboard order. Opening/closing
-the cover never changes the plant or blocks automatic trips. New/reset sessions
+the cover never changes the plant or clears a trip. New/reset sessions
 close it; preserve both themes and pause/reduced-motion handling.
 Only successful explicit Reset trip releases it; preserve interlocks and the
 stopped state after reset, readable disabled lamps, both themes and keyboard access.
 Automatic control must never reset a trip or restart the plant by itself.
-Manual mode requires operator Stop/Emergency shutdown: flow/temperature/hot-spot
-automatic trips apply only in Auto; alarms, damage and irreversible meltdown remain
-active in both modes. Switching modes must not clear an existing trip.
+Both Auto and Manual require operator Stop/Emergency shutdown. Flow, temperature,
+hot spots and high output/core/circulation targets must never automatically activate
+the emergency latch. Auto still limits output and regulates rods/pumps; alarms,
+retained heat and progressive damage remain active. Irreversible meltdown stops
+generation through its own failure state without pressing the emergency button;
+Reset demo is still required. Mode changes never activate or clear a trip, and an
+explicit operator trip remains latched across meltdown.
 Wide windows use stacked instruments on the left, tabbed reactor/maintenance views
 and operator controls in the middle, and trends/logs on the right. Regulation, plant
 sound enable/mute, theme, simulation status and clock share the header card beside
@@ -146,7 +160,7 @@ targets separate from actual output and suspend dispatch while stopped, tripped,
 paused, Manual/temperature-regulated or without circulation/generation capacity.
 It must never start/reset, close breakers, change protection thresholds, repair or
 refuel. Manual temperature entry has no 330 °C upper cap; independent alarms and
-Auto trips remain active. Disabling retains all operating targets; Reset demo
+damage remain active, while emergency shutdown stays operator-only in both modes. Disabling retains all operating targets; Reset demo
 clears messages and restores following. Both loops use actual-temperature colors, including hot
 returns and bypass, with core inlet/outlet and secondary return read-back. Primary
 cooling drop must honor actual bypass/heat rejection. Valve levers must be parallel
@@ -224,6 +238,20 @@ turbine trip/reset and cooled service checks. Condenser steam/drops follow actua
 heat/flow/cooling and remain absent when cold or without flow. Cancel uncommitted
 drag/slider previews on cancellation/close/hide, and preserve shared motion cleanup,
 both themes, floating-window lifecycle and narrow cutaway scrolling.
+Turbine normal rating is 410 MW, without a hard output clamp. The operator-owned
+Generator loading dial spans 50–160% (100% default); electrical targets allow up to
+650 MW while normal grid dispatch stays in its existing safe gameplay envelope.
+Actual rotor load/wear/damage drive amber/red Electrical output card indications.
+Normal rotation slowly accumulates service wear (~2% per full-load hour; service
+due at 25%); overload accelerates wear and fatigue. Each new/serviced rotor samples
+a 104–116% strength and 3–8 s exposure allowance once. Retain deterministic evolution
+between those samples. Blade loss progressively derates MW to zero at destruction;
+imbalance can continue damage while coasting. None of this activates reactor ESD.
+The 3D/SVG/dialog cutaways lose attached blades and show bounded one-shot fragments
+on the shared frame clock. Preserve pause/hide/detach/reduced-motion/idle cleanup.
+Explicit cooled/stopped/fault-free turbine service additionally requires shaft
+speed below 0.5%; it restores wear/blades, preserving heat, fuel, settings, hours
+and trip latches. Minor wear stays readable without immediately listing maintenance.
 The 3D cutaway has an RBMK-inspired tiled channel deck, rear spent-fuel pool
 with initially empty racks, and an overhead fuel-handling crane. Keep stationary
 caps and actual moving rods/aqua collars visible in the open-front guide
@@ -243,6 +271,16 @@ Middle-wheel drag or Shift+drag pans the unified 3D view; Shift+arrows also pan,
 plain wheel zooms, and Home/Reset view restores center/orbit/zoom. Read
 `nuclear/FUEL-HANDLING-PLAN.md` before full spent-fuel inventory or gameplay work;
 the latest scope update records the intentionally representative animation.
+The 3D background has a gray cooling tower with two red bands, condenser
+warm/cool pipes beneath the base and a separate river make-up intake. Its white
+water-vapor plume rises straight up without spiraling; intensity follows actual
+secondary heat/flow and condenser cooling capacity,
+including retained hot circulation after Stop. Cold/no-flow/no-cooling states have
+no plume. Keep the bounded instanced vapor on the shared frame clock and preserve
+pause/reduced-motion/visibility/disposal, both themes, camera fitting and condenser
+picking/keyboard access. This is presentation only; do not connect reactor/turbine
+steam directly to the tower. See `nuclear/COOLING-TOWER-PLAN.md` and use
+`npm run test:browser:cooling` for focused coverage.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff

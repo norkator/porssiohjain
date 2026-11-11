@@ -100,14 +100,14 @@ export function buildElectricalScene(view) {
     for (const x of [-.3, 0, .3]) view.box(bus, [.14, .13, .07], view.busLamp, [x, 1.45, .49]);
 
     const markerMaterial = view.material('#a5efba', { emissive: '#67b48c', emissiveIntensity: .3 });
+    const markerGeometry = new THREE.OctahedronGeometry(.09);
     const wire = (source, points, pumpId = null) => {
         const material = view.material('#786e49', { emissive: '#61bb8a', emissiveIntensity: 0 });
         const vectors = view.line(view.scene, points, material, .045);
         const path = new THREE.CurvePath();
         for (let i = 1; i < vectors.length; i++) path.add(new THREE.LineCurve3(vectors[i - 1], vectors[i]));
-        const markers = Array.from({ length: 6 }, () => view.mesh(view.scene, new THREE.OctahedronGeometry(.09), markerMaterial));
-        view.dynamicMeshes.push(...markers);
-        const entry = { source, material, path, markers, pumpId };
+        const particles = view.particles(view.scene, markerGeometry, markerMaterial, 6);
+        const entry = { source, material, path, particles, markers: particles.items, pumpId };
         view.electricalPaths.push(entry);
         return entry;
     };
@@ -147,7 +147,8 @@ export function updateElectricalScene(view, supply, phases, busPhase, sim) {
         route.material.emissiveIntensity = loaded ? .5 : 0;
         for (const [index, marker] of route.markers.entries()) {
             marker.visible = loaded;
-            marker.position.copy(route.path.getPoint((busPhase + index / route.markers.length) % 1));
+            if (loaded) marker.position.copy(route.path.getPoint((busPhase + index / route.markers.length) % 1));
         }
+        route.particles.update();
     }
 }
