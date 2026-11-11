@@ -158,6 +158,13 @@ damage; bearings can slow/stop the motor. Healthy single-pump operation is uncha
 These values are fictional gameplay parameters. Generator output still depends on
 heat, transfer/cooling, shaft/breaker state and the 410 MW gross nameplate limit.
 
+Primary and secondary flow each have a left-side instrument showing actual delivered
+flow, actual pressure and the healthy-pipe damage limit (about **5,780 m³/h**, derived
+from **145% nominal ΔP**). Each card turns amber from **125% ΔP**, then red above
+145% or while pipe damage remains. Text identifies near-limit, overpressure and
+retained damage states. Pressure drives the warning even if a leak lowers delivered
+flow below the displayed healthy-pipe limit. Alarm acknowledgement cannot hide it.
+
 Click a pipework label, the sidebar pressure readout, or a leaking pipe joint to
 inspect pressure, flow, damage and explicit repair. Pipe repair requires both
 affected-circuit run switches OFF and actual motor speed/flow below 0.5%, together

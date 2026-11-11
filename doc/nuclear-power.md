@@ -318,7 +318,7 @@ keyboard/focus behavior, pause and reduced motion are preserved in both themes;
 the lights and physical button position introduce no animation timer.
 
 The default reactor overview fits 1920×1080 and 2560×1440 screens without page scrolling.
-The thermal output, electrical output and primary flow cards include heat wisps, a
+The thermal output, electrical output and both flow cards include heat wisps, a
 rotating generator symbol, flowing coolant markers and traveling meter highlights.
 Their phase and intensity follow actual reported output/flow, remain still at zero,
 and share pause, visibility, detach and reduced-motion cleanup. Numeric read-backs
@@ -513,6 +513,16 @@ flow. Leaking fittings also spray. Blades, bearings and fittings retain independ
 damage; bearings can slow/stop the motor. Healthy single-pump operation is unchanged.
 These values are fictional gameplay parameters. Generator output still depends on
 heat, transfer/cooling, shaft/breaker state and the 410 MW gross nameplate limit.
+
+Primary and secondary flow each have a left-side instrument showing actual delivered
+flow, actual pressure and the healthy-pipe damage limit (about **5,780 m³/h**, derived
+from **145% nominal ΔP**). Each card turns amber from **125% ΔP**, then red above
+145% or while pipe damage remains. Text identifies near-limit, overpressure and
+retained damage states. Pressure drives the warning even if a leak lowers delivered
+flow below the displayed healthy-pipe limit. Alarm acknowledgement cannot hide it.
+Both flow illustrations follow their own actual circulation on the shared frame loop,
+including zero-flow stillness, pause, visibility and reduced-motion handling.
+The six instruments remain compact enough for the default wide-screen overview.
 
 Click a pipework label, the sidebar pressure readout, or a leaking pipe joint to
 inspect pressure, flow, damage and explicit repair. Pipe repair requires both

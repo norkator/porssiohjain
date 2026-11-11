@@ -268,6 +268,41 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await consoleCode('c.closeFloatingDialog(s.querySelector("[data-component-dialog=pumpB2]"));');
         await action('reset');
         assert.ok(await consoleCode('return [...s.querySelectorAll("[data-pump-speed]")].every(range=>range.value==="100"&&!range.disabled);'));
+        // Both delivered-flow cards show the hydraulic damage limit and independent pressure severity.
+        assert.equal(await consoleCode('return s.querySelectorAll(".metrics .metric").length;'), 6);
+        assert.ok(await consoleCode('return [...s.querySelectorAll(".metric-flow-limit")].every(label=>label.textContent.includes("5,780 m³/h"));'));
+        await consoleCode('c.simulation.setFluctuations(false);'); await stopFollowingGrid(); await action('manual');
+        await action('pumpB'); await advance(3);
+        await until(`document.querySelector('nuclear-power-console').instrumentMotion.secondaryFlow>0`, 'Secondary flow card did not animate independently');
+        assert.equal(await consoleCode('return c.instrumentMotion.flow;'), 0, 'Primary flow stays still while only the secondary pump runs');
+        assert.ok(await consoleCode('c.update();return s.querySelector("[data-value=secondaryFlowNumber]").textContent===Math.round(c.simulation.secondaryFlow*48).toLocaleString("en-US");'));
+        await action('pumpA'); await advance(10);
+        assert.ok(await consoleCode('return [...s.querySelectorAll(".flow-metric")].every(card=>card.dataset.pressureLevel==="normal");'));
+        await input('#pump-A2-speed', 40); await action('pumpA2'); await advance(8);
+        assert.equal(await consoleCode('return s.querySelector(".flow-metric[data-circuit=primary]").dataset.pressureLevel;'), 'warning');
+        assert.equal(await value('primaryState'), 'NEAR LIMIT');
+        assert.equal(await consoleCode('return s.querySelector(".flow-metric[data-circuit=secondary]").dataset.pressureLevel;'), 'normal');
+        await screenshot('flow-pressure-warning');
+        await input('#pump-A2-speed', 100); await advance(5);
+        assert.equal(await consoleCode('return s.querySelector(".flow-metric[data-circuit=primary]").dataset.pressureLevel;'), 'danger');
+        assert.equal(await value('primaryState'), 'OVERPRESSURE');
+        await action('pumpB2'); await advance(5); await action('acknowledge');
+        assert.equal(await consoleCode('return s.querySelector(".flow-metric[data-circuit=secondary]").dataset.pressureLevel;'), 'danger');
+        assert.equal(await value('secondaryState'), 'OVERPRESSURE', 'Acknowledgement cannot hide an active pressure excess');
+        await action('pause');
+        const pressurePalette = await consoleCode('return getComputedStyle(s.querySelector(".flow-metric[data-circuit=secondary]")).backgroundColor;');
+        await screenshot('flow-overpressure-dark');
+        await consoleCode('c.setTheme("light");'); await screenshot('flow-overpressure-light');
+        assert.notEqual(await consoleCode('return getComputedStyle(s.querySelector(".flow-metric[data-circuit=secondary]")).backgroundColor;'), pressurePalette);
+        await consoleCode('c.setTheme("dark");c.simulation.hydraulics.pipes.primary.damage=50;');
+        await action('pause'); await advance(.25);
+        assert.ok(await consoleCode('return c.simulation.primaryFlow*48<5780 && c.simulation.hydraulics.pipes.primary.pressure>145;'));
+        assert.equal(await consoleCode('return s.querySelector(".flow-metric[data-circuit=primary]").dataset.pressureLevel;'), 'danger', 'Lower delivered flow from leaks must not hide overpressure');
+        for (const pump of ['A', 'A2', 'B', 'B2']) await action(`pump${pump}`);
+        await advance(30);
+        assert.equal(await value('primaryState'), 'PIPE DAMAGE', 'Retained pipe damage remains visible after pressure subsides');
+        await action('reset');
+        assert.ok(await consoleCode('return [...s.querySelectorAll(".flow-metric")].every(card=>card.dataset.pressureLevel==="normal");'));
         // Pump controls use a compact cutaway and ranges, with requested and actual positions separate.
         await consoleCode('c.simulation.setFluctuations(false);c.inspect("pumpA");');
         assert.equal(await consoleCode('return [...s.querySelectorAll("[data-component-dialog^=pump]")].reduce((sum,root)=>sum+root.querySelectorAll("input[type=number]").length,0);'), 0);
@@ -373,13 +408,14 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
             assert.equal(await consoleCode(`return c.simulation.components.items.pump${key}.actual.speed;`), 0);
         }
         await action('manual');
+        const stoppedPumpAngles = await consoleCode('return {main:c.overviewScene.pumps.pumpA.rotation.z,backup:c.overviewScene.pumps.pumpA2.rotation.z};');
         await action('pumpA2'); await action('pumpB2'); await advance(8);
         assert.equal(await consoleCode('return c.simulation.circulationReady();'), true);
         assert.equal(await consoleCode('return c.simulation.pumpA || c.simulation.pumpB || c.simulation.running;'), false);
         assert.ok(await consoleCode('return c.simulation.primaryFlow;') > 95);
         assert.ok(await consoleCode('return c.simulation.secondaryFlow;') > 95);
-        await until(`document.querySelector('nuclear-power-console').overviewScene.pumps.pumpA2.rotation.z !== 0`, 'Backup impeller did not animate');
-        assert.equal(await consoleCode('return c.overviewScene.pumps.pumpA.rotation.z;'), 0);
+        await until(`document.querySelector('nuclear-power-console').overviewScene.pumps.pumpA2.rotation.z !== ${stoppedPumpAngles.backup}`, 'Backup impeller did not animate');
+        assert.equal(await consoleCode('return c.overviewScene.pumps.pumpA.rotation.z;'), stoppedPumpAngles.main, 'An OFF main pump keeps its stopped angle while its backup runs');
         await action('pumpA'); await action('pumpB'); await advance(5);
         assert.ok(await consoleCode('return c.simulation.hydraulics.pipes.primary.pressure;') > 145);
         assert.equal(await consoleCode('return c.simulation.hydraulics.pipes.primary.damage;'), 0, 'A brief pressure excursion must not instantly leak');
@@ -472,7 +508,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return s.querySelector(".header-control-card").contains(s.querySelector("#light-theme"));'), true);
         assert.equal(await consoleCode('return s.querySelector("#ui-sound-volume");'), null);
         assert.equal(await consoleCode('return s.querySelector("[data-action=test-ui-sound]");'), null);
-        assert.deepEqual(await consoleCode('return c.instrumentMotion;'), {thermal:0,electrical:0,flow:0});
+        assert.deepEqual(await consoleCode('return c.instrumentMotion;'), {thermal:0,electrical:0,flow:0,secondaryFlow:0});
         assert.ok(await consoleCode('return [...s.querySelectorAll("[data-instrument]")].every(card=>card.dataset.active==="false");'));
         // A static cold scene must not redraw with the clock or mutate hidden diagrams.
         await consoleCode(`c.simulation.setFluctuations(false);Object.assign(c.simulation,{temperature:30,returnTemperature:30,secondaryTemperature:25,secondaryReturnTemperature:25});c.update();`);

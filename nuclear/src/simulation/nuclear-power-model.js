@@ -9,7 +9,7 @@ import { FuelInventory } from './nuclear-power-fuel.js';
 import { AuxiliaryPower } from './nuclear-power-supply.js';
 import { ComponentProcesses } from './nuclear-power-components.js';
 import { GridDispatcher, gridDispatchCapacity } from './nuclear-power-grid.js';
-import { PUMPS, CIRCUITS, circuitPumps, pumpDefinition, PumpCircuits } from './nuclear-power-pumps.js';
+import { PUMPS, CIRCUITS, circuitPumps, pumpDefinition, PumpCircuits, FLOW_SCALE } from './nuclear-power-pumps.js';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const approach = (value, target, seconds, response) => target + (value - target) * Math.exp(-seconds / response);
@@ -537,8 +537,8 @@ export class NuclearPowerSimulation {
                 fuelCapability: signal(this.fuel.capability * 100, '%'),
                 auxiliaryDemand: signal(this.supply.demand, 'MW'),
                 auxiliaryCapacity: signal(this.supply.capacity, 'MW'),
-                primaryFlow: signal(this.primaryFlow * 48, 'm³/h'),
-                secondaryFlow: signal(this.secondaryFlow * 48, 'm³/h'),
+                primaryFlow: signal(this.primaryFlow * FLOW_SCALE, 'm³/h'),
+                secondaryFlow: signal(this.secondaryFlow * FLOW_SCALE, 'm³/h'),
                 pumpASpeed: signal(this.components.items.pumpA.actual.speed, '%'),
                 pumpBSpeed: signal(this.components.items.pumpB.actual.speed, '%'),
                 pumpA2Speed: signal(this.components.items.pumpA2.actual.speed, '%'),

@@ -9,6 +9,9 @@ export const CIRCUITS = ['primary', 'secondary'];
 export const PUMP_PARTS = ['blades', 'bearings', 'fittings'];
 export const MAX_CIRCUIT_FLOW = 135;
 export const PRESSURE_LIMIT = 145;
+export const PRESSURE_WARNING = 125;
+export const FLOW_SCALE = 48; // m³/h per normalized flow percentage point.
+export const FLOW_DAMAGE_LIMIT = Math.sqrt(PRESSURE_LIMIT * 100) * FLOW_SCALE;
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const approach = (v, target, dt, tau) => target + (v - target) * Math.exp(-dt / tau);
 export const pumpDefinition = id => PUMPS.find(pump => pump.id === id || pump.key === id);

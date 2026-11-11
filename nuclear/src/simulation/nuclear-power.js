@@ -17,7 +17,7 @@ import { maintenancePanel, coreDamagePanel, initializeMaintenance, updateMainten
 import { FuelTransferAnimation } from './nuclear-power-refuelling.js';
 import { spentFuelDialog, initializeSpentFuel, updateSpentFuel } from './nuclear-power-spent-fuel.js';
 import { formatNumber, formatPercent, hasPlantMotion, setText } from './nuclear-power-presentation.js';
-import { PUMPS, CIRCUITS, pumpDefinition } from './nuclear-power-pumps.js';
+import { PUMPS, CIRCUITS, pumpDefinition, PRESSURE_LIMIT, PRESSURE_WARNING, FLOW_SCALE, FLOW_DAMAGE_LIMIT } from './nuclear-power-pumps.js';
 import { leakSources, waterJetPoint } from './nuclear-power-leaks.js';
 
 const PLANT_TABS = ['reactor', 'maintenance'];
@@ -197,6 +197,8 @@ const equipmentDetails = {
     ...Object.fromEntries(CIRCUITS.map((circuit, index) => [`${circuit}Pipes`, { tag: `L-0${index + 1}`, name: `${circuit === 'primary' ? 'Primary' : 'Secondary'} pipework`, description: 'Shared circuit headers and pipes. Parallel pumps increase delivered flow and relative circulation pressure. Sustained overpressure damages pipework and causes water leaks.', fields: [['Pressure', `${circuit}Pressure`], ['Delivered flow', circuit === 'primary' ? 'flow' : 'secondaryFlow']] }])),
 };
 
+const flowMetric = (circuit, index) => `<article class="metric animated-metric flow-metric" data-instrument="${circuit === 'primary' ? 'flow' : 'secondaryFlow'}" data-circuit="${circuit}"><svg class="metric-motion" viewBox="0 0 60 42" aria-hidden="true"><path class="metric-flow-pipe" d="M4 12h52M4 30h52"/><circle class="metric-flow-particle" data-flow-dot="0" r="2.5"/><circle class="metric-flow-particle" data-flow-dot="1" r="2.5"/><circle class="metric-flow-particle" data-flow-dot="2" r="2.5"/><circle class="metric-flow-particle" data-flow-dot="3" r="2.5"/></svg><div class="metric-label"><span class="metric-icon cool">≋</span> ${circuit === 'primary' ? 'Primary' : 'Secondary'} flow <span class="channel">FI-0${index + 1}</span></div><div class="metric-reading"><span data-value="${circuit === 'primary' ? 'flowNumber' : 'secondaryFlowNumber'}">4,800</span><span class="unit">m³/h</span></div><div class="metric-flow-limit" title="Healthy-pipe flow at ${PRESSURE_LIMIT}% nominal differential pressure. Sustained excess damages pipework after 8 seconds. Leaks reduce delivered flow; the pressure reading remains authoritative.">Damage limit ≈ ${formatNumber(FLOW_DAMAGE_LIMIT)} m³/h</div><div class="metric-foot"><span><i class="status-dot" data-indicator="${circuit}"></i> <span data-value="${circuit}State">CIRCULATING</span></span><button class="flow-pressure" data-equipment="${circuit}Pipes" aria-label="Inspect ${circuit} pipework and pressure"><span data-value="${circuit}Pressure"></span> ↗</button></div><div class="metric-track"><i data-meter="${circuit === 'primary' ? 'flow' : 'secondaryFlow'}"></i></div></article>`;
+
 const pumpRocker = key => `<button class="pump-rocker" data-action="pump${key}" role="switch" aria-checked="false" aria-label="Pump ${key} run switch" aria-describedby="pump-${key}-status"><span class="pump-rocker-face" aria-hidden="true"><span class="rocker-on">I <small>ON</small></span><span class="rocker-off">O <small>OFF</small></span></span></button>`;
 const pumpSpeedControl = pump => `<div class="pump-control${pump.backup ? ' backup-pump-row' : ''}" data-pump-card="${pump.key}">
     <div class="pump-speed-setting">
@@ -225,7 +227,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.logFilter = 'all';
         this.motion = Object.fromEntries(PUMPS.map(pump => [pump.key, { angle: 0, offset: 0, travel: 0 }]));
         this.dieselMotion = { A: 0, B: 0 };
-        this.instrumentMotion = { thermal: 0, electrical: 0, flow: 0 };
+        this.instrumentMotion = { thermal: 0, electrical: 0, flow: 0, secondaryFlow: 0 };
         this.processMotion = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0 };
         this.floatingDialogs = [];
         this.timer = null;
@@ -302,7 +304,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <article class="metric core-temperature-metric"><div class="metric-label"><span class="metric-icon warm">↗</span> Core temperature <span class="channel">TI-01</span></div><div class="metric-reading"><span data-value="coreNumber">286.0</span><span class="unit">°C</span></div><div class="metric-foot"><span><i class="status-dot"></i> <span data-value="temperatureState">WITHIN DEMO RANGE</span></span><span>SIMULATED</span></div><div class="metric-track warm-track"><i data-meter="temperature"></i></div></article>
             <article class="metric animated-metric thermal-metric" data-instrument="thermal"><svg class="metric-motion" viewBox="0 0 60 42" aria-hidden="true"><path class="thermal-base" d="M6 35h48"/><path class="metric-heat-wisp" data-wisp="0" d="M16 32q-7-5 0-10t0-10"/><path class="metric-heat-wisp" data-wisp="1" d="M30 32q-7-5 0-10t0-10"/><path class="metric-heat-wisp" data-wisp="2" d="M44 32q-7-5 0-10t0-10"/></svg><div class="metric-label"><span class="metric-icon warm">ϟ</span> Thermal output <span class="channel">PI-01</span></div><div class="metric-reading"><span data-value="thermalNumber">768</span><span class="unit">MW<span class="subscript">th</span></span></div><div class="metric-foot"><span><span data-value="load">64.0%</span> OF DEMO CAPACITY</span><span>SIMULATED</span></div><div class="metric-track warm-track"><i data-meter="power"></i></div></article>
             <article class="metric animated-metric electrical-metric" data-instrument="electrical"><svg class="metric-motion" viewBox="0 0 60 42" aria-hidden="true"><circle class="metric-electric-ring" cx="30" cy="21" r="16"/><g transform="translate(30 21)"><g class="metric-dynamo"><path d="M-12 0h24M0-12v24M-8-8 8 8M-8 8 8-8"/></g></g><path class="metric-electric-bolt" d="m32 8-10 15h8l-2 11 11-16h-8Z"/></svg><div class="metric-label"><span class="metric-icon cool">ϟ</span> Electrical output <span class="channel">EI-01</span></div><div class="metric-reading"><span data-value="electricNumber">262</span><span class="unit">MW<span class="subscript">e</span></span></div><div class="metric-foot"><span data-value="electricalTargetLabel">GENERATOR OUTPUT</span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="electric"></i></div></article>
-            <article class="metric animated-metric flow-metric" data-instrument="flow"><svg class="metric-motion" viewBox="0 0 60 42" aria-hidden="true"><path class="metric-flow-pipe" d="M4 12h52M4 30h52"/><circle class="metric-flow-particle" data-flow-dot="0" r="2.5"/><circle class="metric-flow-particle" data-flow-dot="1" r="2.5"/><circle class="metric-flow-particle" data-flow-dot="2" r="2.5"/><circle class="metric-flow-particle" data-flow-dot="3" r="2.5"/></svg><div class="metric-label"><span class="metric-icon cool">≋</span> Primary flow <span class="channel">FI-01</span></div><div class="metric-reading"><span data-value="flowNumber">4,800</span><span class="unit">m³/h</span></div><div class="metric-foot"><span><i class="status-dot" data-indicator="primary"></i> <span data-value="primaryState">CIRCULATING</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="flow"></i></div></article>
+            ${CIRCUITS.map(flowMetric).join('')}
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">Ⅱ</span> Rod insertion <span class="channel">ZI-01</span></div><div class="metric-reading"><span data-value="rodsNumber">36.0</span><span class="unit">%</span></div><div class="metric-foot"><span>TARGET <span data-value="rodTarget">36%</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="rods"></i></div></article>
           </section>
           <details class="fault-console"><summary>Faults &amp; incident</summary><div><label for="fault-scenario">Simulated fault scenario</label><select id="fault-scenario"><option value="none">No injected fault</option><option value="primary-restriction">Primary-loop obstruction</option><option value="secondary-loss">Secondary cooling loss</option><option value="pump-wear">Primary pump deterioration</option></select><button class="small-button" data-action="clear-fault">Clear injected fault</button><button class="small-button" data-action="repair" disabled>Repair components</button><p>Stop, clear the fault and cool down to enable repair. Meltdown requires Reset demo.</p><p data-value="incidentSummary">No incident recorded.</p><button class="small-button" data-action="export-incident" disabled>Export incident report</button></div></details>
@@ -985,7 +987,7 @@ export class NuclearPowerConsole extends HTMLElement {
 
     hasVisualMotion() {
         const sim = this.simulation;
-        if (sim.power > .01 || sim.electricalOutput > .1 || sim.primaryFlow > .1) return true;
+        if (sim.power > .01 || sim.electricalOutput > .1 || sim.primaryFlow > .1 || sim.secondaryFlow > .1) return true;
         const processVisible = this.plantTab === 'reactor' || this.shadowRoot.querySelector('.equipment-dialog:popover-open');
         return !!processVisible && (hasPlantMotion(sim) || this.processMotion.speed > .0001
             || (this.plantTab === 'reactor' && this.overviewMode === '3d' && !!this.fuelTransfer.job));
@@ -1013,9 +1015,9 @@ export class NuclearPowerConsole extends HTMLElement {
     drawInstrumentMotion(seconds = 0) {
         const sim = this.simulation;
         this.instrumentMotion = advanceInstrumentMotion(this.instrumentMotion, {
-            thermal: sim.power / 100, electrical: sim.electricalOutput / 410, flow: sim.primaryFlow / 100,
+            thermal: sim.power / 100, electrical: sim.electricalOutput / 410, flow: sim.primaryFlow / 100, secondaryFlow: sim.secondaryFlow / 100,
         }, seconds);
-        for (const [kind, fraction] of Object.entries({ thermal: sim.power / 100, electrical: sim.electricalOutput / 410, flow: sim.primaryFlow / 100 })) {
+        for (const [kind, fraction] of Object.entries({ thermal: sim.power / 100, electrical: sim.electricalOutput / 410, flow: sim.primaryFlow / 100, secondaryFlow: sim.secondaryFlow / 100 })) {
             const card = this.shadowRoot.querySelector(`[data-instrument="${kind}"]`);
             const activity = Math.min(1, Math.max(0, fraction));
             card.style.setProperty('--instrument-strength', activity);
@@ -1029,7 +1031,7 @@ export class NuclearPowerConsole extends HTMLElement {
         }
         this.shadowRoot.querySelector('.metric-dynamo').setAttribute('transform', `rotate(${this.instrumentMotion.electrical * 360} 0 0)`);
         for (const dot of this.shadowRoot.querySelectorAll('.metric-flow-particle')) {
-            const phase = (this.instrumentMotion.flow + Number(dot.dataset.flowDot) / 4) % 1;
+            const phase = (this.instrumentMotion[dot.closest('.flow-metric').dataset.instrument] + Number(dot.dataset.flowDot) / 4) % 1;
             dot.setAttribute('cx', 8 + phase * 44);
             dot.setAttribute('cy', 21 + Math.sin(phase * Math.PI * 2) * 2);
         }
@@ -1268,7 +1270,7 @@ export class NuclearPowerConsole extends HTMLElement {
             this.shadowRoot.querySelectorAll('.fuel-exchanging').forEach(channel => channel.classList.remove('fuel-exchanging'));
             this.processMotion = { speed: 0, angle: 0, steamPhase: 0, heatPhase: 0, supplyPhase: 0 };
             this.dieselMotion = { A: 0, B: 0 };
-            this.instrumentMotion = { thermal: 0, electrical: 0, flow: 0 };
+            this.instrumentMotion = { thermal: 0, electrical: 0, flow: 0, secondaryFlow: 0 };
         }
         this.lastProcessElapsed = sim.elapsed;
         this.fuelTransfer.setPoolTime(sim.elapsed);
@@ -1319,7 +1321,7 @@ export class NuclearPowerConsole extends HTMLElement {
             emergencyIndication: sim.tripped ? 'TRIP LATCHED' : this.tripCoverOpen ? 'PUSH TO TRIP' : 'LIFT COVER TO ACCESS',
             tripCoverAction: this.tripCoverOpen ? 'CLOSE COVER ↓' : 'LIFT COVER ↑',
             emergencyResetNote: sim.tripped ? 'Held down · use Reset trip after recovery' : 'Latching trip · reset at recovery panel',
-            secondaryFlow: `${n(signals.secondaryFlow.value)} m³/h`,
+            secondaryFlow: `${n(signals.secondaryFlow.value)} m³/h`, secondaryFlowNumber: n(signals.secondaryFlow.value),
             pumpA: pumpState(sim.pumpA, sim.pumpASpeed, sim.primaryFlow), pumpB: pumpState(sim.pumpB, sim.pumpBSpeed, sim.secondaryFlow),
             pumpATarget: percent(sim.pumpASpeed), pumpBTarget: percent(sim.pumpBSpeed),
             pumpAActual: `${n(sim.primaryFlow, 1)}%`, pumpBActual: `${n(sim.secondaryFlow, 1)}%`,
@@ -1367,11 +1369,15 @@ export class NuclearPowerConsole extends HTMLElement {
             values[pump.id] = pumpState(sim[pump.id], sim[`${pump.id}Speed`], actual.speed);
             values[`${pump.id}Target`] = percent(sim[`${pump.id}Speed`]);
             values[`${pump.id}Actual`] = `${n(actual.speed, 1)}%`;
-            values[`${pump.id}Flow`] = `${n(actual.flow * 48)} m³/h`;
+            values[`${pump.id}Flow`] = `${n(actual.flow * FLOW_SCALE)} m³/h`;
             values[`${pump.id}Stress`] = percent(state.stress);
             values[`${pump.id}Damage`] = percent(state.damage);
         }
         for (const circuit of CIRCUITS) {
+            const pipe = sim.hydraulics.pipes[circuit];
+            const level = pipe.pressure > PRESSURE_LIMIT || pipe.damage > 0 ? 'danger' : pipe.pressure >= PRESSURE_WARNING ? 'warning' : 'normal';
+            this.shadowRoot.querySelector(`.flow-metric[data-circuit="${circuit}"]`).dataset.pressureLevel = level;
+            values[`${circuit}State`] = pipe.pressure > PRESSURE_LIMIT ? 'OVERPRESSURE' : pipe.damage > 0 ? 'PIPE DAMAGE' : level === 'warning' ? 'NEAR LIMIT' : sim[`${circuit}Flow`] > 20 ? 'CIRCULATING' : sim[`${circuit}Flow`] < .5 ? 'STOPPED' : 'LOW FLOW';
             values[`${circuit}Pressure`] = `${n(sim.hydraulics.pipes[circuit].pressure)}% ΔP`;
             this.shadowRoot.querySelector(`.circuit-pressure[data-equipment="${circuit}Pipes"]`).dataset.high = String(sim.hydraulics.pipes[circuit].pressure > 145);
         }
@@ -1393,7 +1399,7 @@ export class NuclearPowerConsole extends HTMLElement {
         this.style.setProperty('--core-intensity', Math.min(1, Math.max(0.1, sim.power / 100, (condition.peakTemperature - 300) / 400)));
         if (this.plantTab === 'reactor' && this.overviewMode === 'schematic') this.updateSchematicState();
         this.updateCore();
-        const meters = { temperature: Math.min(100, sim.temperature / 4), power: sim.power, electric: signals.electricalOutput.value / 4.1, flow: sim.primaryFlow, rods: sim.rods };
+        const meters = { temperature: Math.min(100, sim.temperature / 4), power: sim.power, electric: signals.electricalOutput.value / 4.1, flow: sim.primaryFlow * FLOW_SCALE / FLOW_DAMAGE_LIMIT * 100, secondaryFlow: sim.secondaryFlow * FLOW_SCALE / FLOW_DAMAGE_LIMIT * 100, rods: sim.rods };
         for (const [key, value] of Object.entries(meters)) this.shadowRoot.querySelector(`[data-meter="${key}"]`).style.width = `${Math.min(100, Math.max(0, value))}%`;
         for (const { key: pump } of PUMPS) this.shadowRoot.querySelector(`[data-action="pump${pump}"]`).setAttribute('aria-checked', String(sim[`pump${pump}`]));
         for (const { key: pump } of PUMPS) {
@@ -1406,7 +1412,7 @@ export class NuclearPowerConsole extends HTMLElement {
             card.dataset.lamp = button.dataset.lamp;
             button.title = `Actual motor speed ${n(sim.components.items[`pump${pump}`].actual.speed, 1)}%; branch flow ${n(sim.components.items[`pump${pump}`].actual.flow, 1)}%; stress ${n(component.stress)}%; damage ${n(component.damage, 1)}%`;
         }
-        this.shadowRoot.querySelector('[data-indicator="primary"]').classList.toggle('off', sim.primaryFlow < .5);
+        for (const circuit of CIRCUITS) this.shadowRoot.querySelector(`[data-indicator="${circuit}"]`).classList.toggle('off', sim[`${circuit}Flow`] < .5);
         this.shadowRoot.querySelector('[data-indicator="reactor"]').classList.toggle('off', !sim.running);
         this.shadowRoot.querySelector('[data-action="start"]').dataset.lamp = sim.running ? 'running' : 'off';
         this.shadowRoot.querySelector('[data-action="stop"]').dataset.lamp = !sim.running ? 'stopped' : 'off';

@@ -22,6 +22,9 @@
 :host([data-theme="light"]) :is(.equipment-content p, .individual-rod p, .regulation-status > span, .pump-readback, .pump-control > label, .automation-strip > label) { color: #4f6878; }
 :host([data-theme="light"]) :is(dd, .trend-legend strong, .control-label > span, .pump-readback strong, .automation-strip > label > span) { color: #25465a; }
 :host([data-theme="light"]) .metric-track { background: #d7e2e8; }
+:host([data-theme="light"]) .flow-metric[data-pressure-level="warning"] { --flow-alert: #805416; background: #fff3d8; border-color: #ae7a24; }
+:host([data-theme="light"]) .flow-metric[data-pressure-level="danger"] { --flow-alert: #ac2e27; background: #fff0ed; border-color: #bf4037; }
+:host([data-theme="light"]) .flow-metric:is([data-pressure-level="warning"], [data-pressure-level="danger"]) :is(.metric-label, .metric-reading, .metric-icon, .metric-foot, .metric-flow-limit) { color: var(--flow-alert); }
 :host([data-theme="light"]) .regulation-status { border-color: #bdced6; }
 :host([data-theme="light"]) .regulation-status strong { color: #086c60; }
 :host([data-theme="light"]) :is(select, .automation-strip input[type="number"]) { color: #264557; background: #fff; border-color: #a6bbc8; }

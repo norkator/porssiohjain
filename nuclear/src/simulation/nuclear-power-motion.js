@@ -24,7 +24,7 @@ export function advancePumpMotion(previous, speedPercent, seconds) {
 export function advanceInstrumentMotion(previous, signals, seconds) {
     const dt = Number.isFinite(seconds) ? Math.max(0, Math.min(.1, seconds)) : 0;
     const next = {};
-    for (const key of ['thermal', 'electrical', 'flow']) {
+    for (const key of ['thermal', 'electrical', 'flow', 'secondaryFlow']) {
         const activity = Number.isFinite(signals[key]) ? Math.max(0, Math.min(1, signals[key])) : 0;
         next[key] = ((previous[key] || 0) + activity * dt * .9) % 1;
     }

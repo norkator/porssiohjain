@@ -62,6 +62,13 @@ h1 { font-size: clamp(25px, 2.5vw, 34px); font-weight: 600; letter-spacing: -1.2
 .metric-track { height: 3px; border-radius: 2px; background: #2b3e48; margin-top: 7px; overflow: hidden; }
 .metric-track i { display: block; height: 100%; width: 0; background: var(--cool); border-radius: inherit; transition: width .3s linear; }
 .warm-track i { background: var(--warm); }
+.metric-flow-limit { margin-top: 4px; color: var(--muted); font: 8px Consolas, monospace; white-space: nowrap; }
+.flow-metric .metric-foot { gap: 4px; }
+.flow-pressure { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; white-space: nowrap; }
+.flow-metric[data-pressure-level="warning"] { --flow-alert: #ffd17e; background: #362f20; border-color: #c99c4d; }
+.flow-metric[data-pressure-level="danger"] { --flow-alert: #ff9a8b; background: #38252b; border-color: #f27b71; }
+.flow-metric:is([data-pressure-level="warning"], [data-pressure-level="danger"]) :is(.metric-label, .metric-reading, .metric-icon, .metric-foot, .metric-flow-limit) { color: var(--flow-alert); }
+.flow-metric:is([data-pressure-level="warning"], [data-pressure-level="danger"]) :is(.status-dot, .metric-track i) { background: var(--flow-alert); }
 .automation-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; background: #192833; border: 1px solid var(--border); border-radius: 7px; padding: 12px 14px; margin-bottom: 14px; }
 .automation-strip .control-label { margin-bottom: 6px; }
 .automation-strip > label { display: flex; flex-direction: column; gap: 6px; color: #9cafbd; font-size: 10px; }
@@ -160,6 +167,13 @@ h2 { font-size: 13px; font-weight: 500; letter-spacing: .1px; white-space: nowra
 .plant-scene-hint { bottom: 12px; right: 16px; max-width: calc(100% - 32px); text-align: right; letter-spacing: 0; }
 .plant-scene-canvas[data-dragging] { cursor: grabbing; }
 @container nuclear-console (min-width: 1400px) {
+    .metrics { gap: 6px; }
+    .metric { padding: 4px 10px; }
+    .metric-icon { font-size: 16px; line-height: 16px; }
+    .metric-reading { font-size: 26px; margin-top: 3px; }
+    .metric-foot { margin-top: 4px; }
+    .metric-track { margin-top: 5px; }
+    .metric .metric-motion { top: 24px; }
     .plant-scene { height: clamp(360px, calc(100dvh - 520px), 570px); }
 }
 @container nuclear-console (max-width: 650px) {
