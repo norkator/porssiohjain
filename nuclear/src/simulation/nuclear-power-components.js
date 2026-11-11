@@ -1,4 +1,5 @@
 /* Browser-local illustrative component processes; never hardware control. */
+import { PUMPS, pumpDefinition, PUMP_PARTS } from './nuclear-power-pumps.js';
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const approach = (v, target, dt, tau) => target + (v - target) * Math.exp(-dt / tau);
 const number = (key, label, min, max, unit = '%', step = 1, owned = false) => ({ key, label, min, max, step, unit, owned, type: 'number' });
@@ -7,7 +8,8 @@ const disturbances = [number('disturbanceAmplitude', 'Disturbance amplitude', 0,
     { key: 'disturbanceMode', label: 'Disturbance mode', type: 'select', options: ['continuous', 'pulse'], owned: false }];
 const pump = () => [number('dischargeValve', 'Discharge valve', 0, 100), number('speed', 'Speed override', 0, 100, '%', 1, true), number('trim', 'Speed trim', -25, 25, 'pp'), ...disturbances];
 export const COMPONENT_SETTINGS = {
-    pumpA: pump(), pumpB: pump(),
+    ...Object.fromEntries(PUMPS.map(p => [p.id, pump()])),
+    primaryPipes: [], secondaryPipes: [],
     exchanger: [number('bypass', 'Bypass', 0, 100), number('secondaryValve', 'Secondary valve', 0, 100), number('effectiveness', 'Effectiveness', 0, 100), number('fouling', 'Fouling', 0, 100), ...disturbances],
     turbine: [number('admission', 'Steam admission', 0, 100), number('governorResponse', 'Governor response', 0.1, 30, 's', 0.1), number('loadRamp', 'Load ramp', 1, 400, 'MW/s'),
         { key: 'breaker', label: 'Generator breaker', type: 'boolean', owned: false }, ...disturbances],
@@ -28,8 +30,9 @@ export const COMPONENT_SCENARIOS = [
     { id: 'gridLoss', label: 'Supply interruption', description: 'External electrical supply becomes unavailable.' }
 ];
 const readouts = {
-    pumpA: { speed: '%', flow: '%', dischargeValve: '%', available: '' },
-    pumpB: { speed: '%', flow: '%', dischargeValve: '%', available: '' },
+    ...Object.fromEntries(PUMPS.map(p => [p.id, { speed: '%', flow: '%', pressure: '% nominal ΔP', dischargeValve: '%', available: '' }])),
+    primaryPipes: { pressure: '% nominal ΔP', flow: '%', damage: '%', leakRate: '% nominal flow' },
+    secondaryPipes: { pressure: '% nominal ΔP', flow: '%', damage: '%', leakRate: '% nominal flow' },
     exchanger: { bypass: '%', secondaryValve: '%', effectiveness: '%', fouling: '%', transferFactor: '' },
     condenser: { coolingValve: '%', inletTemperature: '°C', coolingFactor: '' },
     turbine: { admission: '%', shaftSpeed: '%', electricalOutput: 'MW', breaker: '', tripped: '', ready: '', loadLimit: 'MW' }
@@ -37,7 +40,8 @@ const readouts = {
 export const COMPONENT_READOUTS = Object.fromEntries(Object.entries(readouts).map(([id, fields]) => [id,
     Object.fromEntries(Object.entries(fields).map(([key, unit]) => [key, { label: key.replace(/[A-Z]/g, c => ` ${c.toLowerCase()}`), unit }]))]));
 const defaults = {
-    pumpA: { dischargeValve: 100, speed: 100, trim: 0 }, pumpB: { dischargeValve: 100, speed: 100, trim: 0 },
+    ...Object.fromEntries(PUMPS.map(p => [p.id, { dischargeValve: 100, speed: 100, trim: 0 }])),
+    primaryPipes: {}, secondaryPipes: {},
     exchanger: { bypass: 0, secondaryValve: 100, effectiveness: 100, fouling: 0 },
     condenser: { coolingValve: 100, inletTemperature: 20 },
     turbine: { admission: 100, governorResponse: 2, loadRamp: 400, breaker: true }
@@ -55,12 +59,16 @@ export class ComponentProcesses {
         this.items = Object.fromEntries(Object.entries(defaults).map(([id, settings]) => [id, {
             settings: { ...settings }, actual: { ...settings }, override: false,
             disturbance: { amplitude: 20, period: 20, enabled: false, mode: 'continuous', age: 0, pulseRemaining: 0, progressiveFault: false, severity: 0, value: 0 },
-            wear: 0, hours: 0, history: [], changes: [], reason: '', tau: id === 'turbine' ? 2 : 3, response: ({ pumpA: 'Speed, discharge valve and AC determine primary flow; restriction raises core heat.', pumpB: 'Speed, discharge valve and AC determine secondary flow and steam transport.', exchanger: 'Bypass, valves, fouling and effectiveness determine transfer to the secondary loop.', condenser: 'Cooling valve and inlet temperature determine heat rejection and generation efficiency.', turbine: 'Admission drives shaft speed; the manually closed breaker enables electrical output.' })[id]
+            wear: 0, hours: 0, history: [], changes: [], reason: '', tau: id === 'turbine' ? 2 : 3, response: pumpDefinition(id)
+                ? 'Parallel pumps share a circuit. Actual speed, discharge valve, AC and retained internal damage determine delivered flow. Sustained overpressure damages blades, bearings and fittings.'
+                : id.endsWith('Pipes') ? 'Pressure is relative to single-pump nominal circulation. Sustained pressure above 145% causes retained pipe damage and water leaks. Switch both circuit pumps OFF and wait for flow to stop before cooled repair.'
+                : ({ exchanger: 'Bypass, valves, fouling and effectiveness determine transfer to the secondary loop.', condenser: 'Cooling valve and inlet temperature determine heat rejection and generation efficiency.', turbine: 'Admission drives shaft speed; the manually closed breaker enables electrical output.' })[id]
         }]));
         Object.assign(this.items.turbine.actual, { shaftSpeed: 0, electricalOutput: 0, tripped: false, ready: false, loadLimit: 410 });
         this.items.exchanger.actual.transferFactor = 1;
         this.items.condenser.actual.coolingFactor = 1;
-        for (const id of ['pumpA', 'pumpB']) Object.assign(this.items[id].actual, { speed: 0, flow: 0, available: false });
+        for (const { id } of PUMPS) Object.assign(this.items[id].actual, { speed: 0, flow: 0, pressure: 0, available: false });
+        for (const id of ['primaryPipes', 'secondaryPipes']) Object.assign(this.items[id].actual, { pressure: 0, flow: 0, damage: 0, leakRate: 0 });
         this.rampActive = false;
     }
 
@@ -101,7 +109,7 @@ export class ComponentProcesses {
         const item = this.items[id];
         if (!Object.hasOwn(this.items, id) || typeof enabled !== 'boolean') return false;
         item.override = enabled;
-        if (id === 'pumpA' || id === 'pumpB') item.settings.speed = this.sim[`${id}Speed`];
+        if (pumpDefinition(id)) item.settings.speed = this.sim[`${id}Speed`];
         this.note(id, enabled ? 'Manual override enabled' : 'Manual override released');
         return true;
     }
@@ -128,9 +136,17 @@ export class ComponentProcesses {
             d.enabled = false; d.progressiveFault = false; d.pulseRemaining = 0; d.severity = 0; d.value = 0;
         } else if (['repair', 'service'].includes(action)) {
             if (!this.serviceReady) { item.reason = 'Service requires a cooled, stopped, fault-free, non-melted reactor'; return false; }
+            if (id.endsWith('Pipes') && !this.sim.hydraulics.isolated(this.sim, id.replace('Pipes', ''))) {
+                item.reason = 'Switch both circuit pumps OFF and wait for motor/flow coast-down before pipe repair'; return false;
+            }
             item.wear = 0;
             if (id === 'exchanger') item.settings.fouling = 0;
-            if (id === 'pumpA' || id === 'pumpB') Object.assign(this.sim.condition.components[id.at(-1)], { damage: 0, stress: 0 });
+            if (pumpDefinition(id)) {
+                const state = this.sim.condition.components[pumpDefinition(id).key];
+                Object.assign(state, { damage: 0, stress: 0 });
+                for (const part of PUMP_PARTS) state.parts[part] = 0;
+            }
+            if (id.endsWith('Pipes') && !this.sim.hydraulics.repair(this.sim, id.replace('Pipes', ''))) return false;
             this.maintenanceNote(id, 'Manual service completed; heat, fuel, trip and hours retained');
         } else if (id === 'turbine' && action === 'trip') {
             item.actual.tripped = true; item.settings.breaker = false; item.actual.breaker = false;
@@ -166,7 +182,7 @@ export class ComponentProcesses {
         const t = this.items.turbine;
         if (t.actual.tripped || !t.settings.breaker) return 0;
         const available = this.sim.power * 4.1 * this.sim.secondaryFlow / 100 * this.transferFactor;
-        return Math.max(0, this.rampActive ? Math.min(available, t.actual.loadLimit) : available);
+        return Math.max(0, Math.min(410, this.rampActive ? Math.min(available, t.actual.loadLimit) : available));
     }
 
     turbineReadiness() {
@@ -212,11 +228,9 @@ export class ComponentProcesses {
         t.actual.breaker = t.settings.breaker;
         t.actual.ready = this.turbineReadiness().ready;
         for (const [id, i] of Object.entries(this.items)) {
-            const isPump = id === 'pumpA' || id === 'pumpB';
+            const isPump = !!pumpDefinition(id);
             if (isPump) {
-                i.actual.speed = approach(i.actual.speed, sim[id] ? this.pumpSpeed(id) * Math.cbrt(sim.supply.factor) : 0, dt, 2);
-                i.actual.flow = id === 'pumpA' ? sim.primaryFlow : sim.secondaryFlow;
-                i.actual.available = sim.supply.factor > 0 && sim[id] && i.wear < 100;
+                i.actual.available = sim.supply.factor > 0 && sim[id] && i.wear < 100 && sim.condition.components[pumpDefinition(id).key].damage < 100;
                 i.settings.speed = i.override ? i.settings.speed : sim[`${id}Speed`];
             }
             const operating = isPump ? i.actual.speed > 1 : id === 'turbine' ? t.actual.shaftSpeed > 1 : sim.power > 0.1 || sim.condition.heatReserve > 1;

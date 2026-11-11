@@ -117,6 +117,37 @@ Both pump speed targets share the same regulator rail, grooved handle, engraved
 scale and illuminated percentage display. Manual overrides, automatic ownership
 and actual speed/flow read-backs remain separate from these requested targets.
 
+Each circuit has two manually enabled, parallel pumps: primary **A / A2** and
+secondary **B / B2**. A2/B2 are the backup units; all four start OFF with retained
+100% speed targets. Either pump can provide its circuit's startup circulation.
+The backup rockers remain visible below the main pump controls. **Backup A2/B2 ↗**
+opens that pump's speed, discharge valve, Auto override, local trends and internal
+inspection. Auto adjusts only enabled pumps and never enables a backup. Each
+3D/SVG branch shows its own actual motor/flow, including coast-down and loss of AC.
+
+Two full-speed pumps give an illustrative **135% combined flow** and **182% relative
+circulation pressure**, with additional auxiliary demand. Pressure is a normalized
+gameplay differential-pressure indication, not an absolute vessel-pressure model.
+Auto continues to hold the requested total circulation; use Manual or individual
+speed overrides to run both pumps at 100%. Sustained pressure above **145% nominal**
+accumulates pipe damage after an eight-second exposure allowance. Damage causes
+visible blue water jets/drops in 3D and the schematic and reduces delivered coolant
+flow. Leaking fittings also spray. Blades, bearings and fittings retain independent
+damage; bearings can slow/stop the motor. Healthy single-pump operation is unchanged.
+These values are fictional gameplay parameters. Generator output still depends on
+heat, transfer/cooling, shaft/breaker state and the 410 MW gross nameplate limit.
+
+Click a pipework label, the sidebar pressure readout, or a leaking pipe joint to
+inspect pressure, flow, damage and explicit repair. Pipe repair requires both
+affected-circuit run switches OFF and actual motor speed/flow below 0.5%, together
+with the existing stopped/cooled/fault-free repair checks. Damaged internal pump
+parts require that pump OFF and stopped. Turning flow off stops the spray but
+does not heal damage; **Repair all** also repairs isolated pipework and internals.
+Repairs preserve heat, fuel, settings, operating hours and reactor/turbine trip
+latches. Water spray and pump cutaways share the existing frame loop and respect
+pause, hidden views, detach, Maintenance and reduced motion. Reset demo clears the
+damage/leaks and returns every pump to OFF.
+
 **Enable plant sounds** also enables seamless steam/turbine/generator loops.
 Actual reactor output and turbine shaft speed drive the sound level; stress,
 damage, overheating, trips and actual component disturbances crossfade to a rough

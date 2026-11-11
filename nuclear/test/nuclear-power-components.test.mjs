@@ -15,7 +15,7 @@ const near = (actual, expected, tolerance = 0.01) => assert.ok(Math.abs(actual -
 test('schema and independent cold sessions expose a usable default checklist and unchanged transfer', () => {
     const a = new NuclearPowerSimulation(), b = new NuclearPowerSimulation();
     assert.ok(a.components instanceof ComponentProcesses);
-    assert.deepEqual(Object.keys(COMPONENT_SETTINGS).sort(), ['condenser', 'exchanger', 'pumpA', 'pumpB', 'turbine']);
+    assert.deepEqual(Object.keys(COMPONENT_SETTINGS).sort(), ['condenser', 'exchanger', 'primaryPipes', 'pumpA', 'pumpA2', 'pumpB', 'pumpB2', 'secondaryPipes', 'turbine']);
     for (const [id, fields] of Object.entries(COMPONENT_SETTINGS)) {
         assert.ok(COMPONENT_ACTIONS[id].length >= 5);
         for (const field of fields) assert.ok(field.key && field.label && field.type);

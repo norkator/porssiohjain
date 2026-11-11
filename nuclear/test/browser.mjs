@@ -12,7 +12,7 @@ const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Software WebGL, audio, fuel handling and lifecycle checks can exceed five minutes.
-test('3D overview, core map, centered pumps, automatic control, trip recovery and logs work in browser', { timeout: 360000 }, async () => {
+test('3D overview, core map, centered pumps, automatic control, trip recovery and logs work in browser', { timeout: 480000 }, async () => {
     const artifacts = mkdtempSync(join(tmpdir(), 'nuclear-power-check-'));
     const appUrl = process.env.NUCLEAR_POWER_APP_URL;
     if (appUrl) {
@@ -256,6 +256,66 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await page('Emulation.setEmulatedMedia', { features: [] });
         await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
         await consoleCode('c.setTheme("dark");c.scrollIntoView({block:"start"});');
+        // Four independently enabled pumps, shared-header overpressure and actual water leaks.
+        assert.equal(await consoleCode('return Object.keys(c.overviewScene.pumps).length;'), 4);
+        assert.equal(await consoleCode('return s.querySelectorAll(".schematic .pump").length;'), 4);
+        for (const key of ['A2', 'B2']) {
+            assert.equal(await consoleCode(`return s.querySelector('[data-action=pump${key}]').getAttribute('aria-checked');`), 'false');
+            assert.equal(await consoleCode(`return c.simulation.components.items.pump${key}.actual.speed;`), 0);
+        }
+        await action('manual');
+        await action('pumpA2'); await action('pumpB2'); await advance(8);
+        assert.equal(await consoleCode('return c.simulation.circulationReady();'), true);
+        assert.equal(await consoleCode('return c.simulation.pumpA || c.simulation.pumpB || c.simulation.running;'), false);
+        assert.ok(await consoleCode('return c.simulation.primaryFlow;') > 95);
+        assert.ok(await consoleCode('return c.simulation.secondaryFlow;') > 95);
+        await until(`document.querySelector('nuclear-power-console').overviewScene.pumps.pumpA2.rotation.z !== 0`, 'Backup impeller did not animate');
+        assert.equal(await consoleCode('return c.overviewScene.pumps.pumpA.rotation.z;'), 0);
+        await action('pumpA'); await action('pumpB'); await advance(5);
+        assert.ok(await consoleCode('return c.simulation.hydraulics.pipes.primary.pressure;') > 145);
+        assert.equal(await consoleCode('return c.simulation.hydraulics.pipes.primary.damage;'), 0, 'A brief pressure excursion must not instantly leak');
+        await advance(75);
+        assert.ok(await consoleCode('return c.simulation.hydraulics.pipes.primary.damage;') > 0);
+        assert.ok(await consoleCode('return c.simulation.hydraulics.pipes.secondary.leakRate;') > 0);
+        await until(`document.querySelector('nuclear-power-console').overviewScene.leaks.get('primaryPipes').drops.visible`, 'Actual pipe leak did not spray water in 3D');
+        await until(`document.querySelector('nuclear-power-console').processMotion.leakPhase > 0`, 'Water spray phase did not advance');
+        const sprayBefore = await consoleCode('return Array.from(c.overviewScene.leaks.get("primaryPipes").drops.instanceMatrix.array);');
+        const sprayPhase = await consoleCode('return c.processMotion.leakPhase;');
+        await until(`document.querySelector('nuclear-power-console').processMotion.leakPhase !== ${sprayPhase}`, 'Water drops did not travel');
+        assert.notDeepEqual(await consoleCode('return Array.from(c.overviewScene.leaks.get("primaryPipes").drops.instanceMatrix.array);'), sprayBefore);
+        await screenshot('parallel-pumps-water-leaks-3d');
+        await consoleCode('c.inspect("pumpA2");');
+        assert.equal(await consoleCode('return s.querySelectorAll("[data-component-dialog=pumpA2] [data-part-damage]").length;'), 3);
+        assert.ok(await consoleCode('return [...s.querySelectorAll("[data-component-dialog=pumpA2] meter")].every(meter=>meter.value>0);'));
+        assert.equal(await consoleCode('return s.querySelector("[data-component-dialog=pumpA2] [data-component-action=repair]").disabled;'), true);
+        await screenshot('backup-pump-internal-damage');
+        await consoleCode('c.closeFloatingDialog(s.querySelector("[data-component-dialog=pumpA2]"));');
+        await action('overview-schematic');
+        assert.ok(await consoleCode('return [...s.querySelectorAll("[data-leak-source=primaryPipes] .water-leak-drop")].some(drop=>Number(drop.style.opacity)>0);'));
+        const svgSpray = await consoleCode('return s.querySelector("[data-leak-source=primaryPipes] .water-leak-drop").getAttribute("cy");');
+        await until(`document.querySelector('nuclear-power-console').shadowRoot.querySelector('[data-leak-source=primaryPipes] .water-leak-drop').getAttribute('cy') !== ${JSON.stringify(svgSpray)}`, 'Schematic leak drops did not fall');
+        assert.notEqual(await consoleCode('return s.querySelector("[data-leak-source=primaryPipes] .water-leak-drop").getAttribute("cy");'), svgSpray);
+        await consoleCode('c.setTheme("light");');
+        await screenshot('parallel-pumps-water-leaks-schematic-light');
+        await action('pause');
+        const leakPhase = await consoleCode('return c.processMotion.leakPhase;');
+        await wait(180); assert.equal(await consoleCode('return c.processMotion.leakPhase;'), leakPhase);
+        await action('pause');
+        for (const key of ['A', 'A2', 'B', 'B2']) await action(`pump${key}`);
+        await advance(20);
+        assert.ok(await consoleCode('return c.simulation.primaryFlow;') < .5);
+        assert.equal(await consoleCode('return c.simulation.hydraulics.pipes.primary.leakRate;'), 0);
+        assert.ok(await consoleCode('return c.simulation.hydraulics.pipes.primary.damage;') > 0, 'Stopping water does not repair a leak');
+        await consoleCode('c.simulation.trip("Pressure inspection test");c.update();');
+        await action('repair');
+        assert.equal(await consoleCode('return c.simulation.hydraulics.pipes.primary.damage;'), 0);
+        assert.equal(await consoleCode('return c.simulation.condition.components.A2.damage;'), 0);
+        assert.equal(await consoleCode('return c.simulation.tripped;'), true);
+        assert.equal(await consoleCode('return c.simulation.running;'), false);
+        await action('overview-3d');
+        assert.equal(await consoleCode('return c.overviewScene.leaks.get("primaryPipes").drops.visible;'), false);
+        await action('reset');
+        await consoleCode('c.setTheme("dark");c.scrollIntoView({block:"start"});');
         // Exercise the real WebGL renderer, semantic overlays and canvas picking.
         await until(`!!document.querySelector('nuclear-power-console').overviewScene?.width`, '3D overview did not initialize');
         assert.equal(await consoleCode('return c.overviewMode;'), '3d');
@@ -411,7 +471,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.equal(await consoleCode('return c.overviewScene.engines.get("A").fan.rotation.z;'), 0);
         assert.ok(await consoleCode('return [...c.overviewScene.engines.values()].every(engine=>engine.group.scale.x<=.5&&engine.group.position.z<-5);'));
         assert.ok(await consoleCode('c.updateOverview();return Math.abs(c.overviewScene.engines.get("A").fill.scale.y-c.simulation.supply.generators[0].fuel/100)<1e-9;'));
-        assert.equal(await consoleCode('return c.overviewScene.electricalPaths.length;'), 6);
+        assert.equal(await consoleCode('return c.overviewScene.electricalPaths.length;'), 8);
         assert.ok(await consoleCode('return s.querySelector(".power-source-panel").getBoundingClientRect().bottom<=s.querySelector(".grid-dispatch-panel").getBoundingClientRect().top;'));
         await consoleCode('s.querySelector("[data-scene-equipment=dieselA]").click();');
         assert.equal(await consoleCode('return s.querySelector("[data-diesel-dialog=A]").matches(":popover-open");'), true);
@@ -771,7 +831,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await wait(180);
         assert.deepEqual(await consoleCode('return {steam:c.overviewScene.exchangerSteam.map(p=>p.position.toArray()),reaction:c.overviewScene.reactorReactions.map(p=>p.position.toArray())};'), frozenActivity);
         assert.ok(await consoleCode(`const savedPower=c.simulation.power,savedRods=c.simulation.controlRods.map(r=>r.position),savedMotion=structuredClone(c.processMotion);const sample=(power,insertion)=>{c.simulation.power=power;c.simulation.controlRods.forEach(r=>{r.position=insertion;});c.processMotion.reactionPhase=.1;c.processMotion.reactionChannels=c.simulation.controlRods.map(()=>({phase:.1}));c.update();const before=c.overviewScene.reactorReactions[0].position.clone();c.drawMotion(.05);return {distance:before.distanceTo(c.overviewScene.reactorReactions[0].position),rate:c.processMotion.reactionChannels[0].rate};};const low=sample(10,90),high=sample(80,20);c.simulation.power=savedPower;c.simulation.controlRods.forEach((r,i)=>{r.position=savedRods[i];});c.processMotion=savedMotion;c.update();return high.distance>low.distance*3 && high.rate>low.rate*3;`), 'Higher reaction activity must visibly increase 3D particle speed');
-        assert.ok(await consoleCode(`const source=c.overviewScene.paths.find(p=>p.temperatureKey==='secondaryHot');const returning=c.overviewScene.paths.find(p=>p.temperatureKey==='secondaryReturn');const saved={...c.processMotion};c.processMotion.secondaryTravel=0;c.updateOverview();const a=source.dots[0].position.clone(),b=returning.dots[0].position.clone();c.drawMotion(.1);const da=a.distanceTo(source.dots[0].position),db=b.distanceTo(returning.dots[0].position);c.processMotion=saved;c.update();return Math.abs(da-db)<1e-6 && da>0;`), 'Secondary steam and return sections must move the same distance per frame');
+        assert.ok(await consoleCode(`const source=c.overviewScene.paths.find(p=>p.temperatureKey==='secondaryHot');const returning=c.overviewScene.paths.find(p=>p.temperatureKey==='secondaryReturn'&&!p.pumpId);const saved={...c.processMotion};c.processMotion.secondaryTravel=0;c.updateOverview();const a=source.dots[0].position.clone(),b=returning.dots[0].position.clone();c.drawMotion(.1);const da=a.distanceTo(source.dots[0].position),db=b.distanceTo(returning.dots[0].position);c.processMotion=saved;c.update();return Math.abs(da-db)<1e-6 && da>0;`), 'Secondary steam and return sections must move the same distance per frame');
         assert.ok(await consoleCode(`const saved=c.simulation.returnTemperature;const hot=c.overviewScene.paths.find(p=>p.temperatureKey==='primaryHot');const returning=c.overviewScene.paths.find(p=>p.temperatureKey==='primaryReturn');c.simulation.returnTemperature=c.simulation.temperature;c.update();const same=hot.material.color.getHexString()===returning.material.color.getHexString();c.setOverview('schematic');const svgSame=s.querySelector('.pipe[data-loop-segment="primaryHot"]').style.stroke===s.querySelector('.pipe[data-loop-segment="primaryReturn"]').style.stroke;c.setOverview('3d');const readback=c.overviewScene.labels.get('reactor').reading.textContent.includes('In '+c.simulation.returnTemperature.toFixed(0)+' °C');c.simulation.returnTemperature=30;c.update();const changed=hot.material.color.getHexString()!==returning.material.color.getHexString();c.simulation.returnTemperature=saved;c.update();return same && svgSame && changed && readback;`), 'Hot returns must match hot inlet/outlet colors in both views');
         // Changing read-back while paused tests visibility without advancing physics.
         await consoleCode('const temp=c.simulation.secondaryTemperature,flow=c.simulation.secondaryFlow;c.simulation.secondaryTemperature=30;c.update();window.coldSteamHidden=c.overviewScene.exchangerSteam.every(p=>!p.visible);c.simulation.secondaryTemperature=temp;c.simulation.secondaryFlow=0;c.update();window.noFlowSteamHidden=c.overviewScene.exchangerSteam.every(p=>!p.visible);c.simulation.secondaryFlow=flow;c.update();');

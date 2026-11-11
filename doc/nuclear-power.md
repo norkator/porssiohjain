@@ -24,9 +24,10 @@ telemetry, access measurement history, send device commands, or implement a phys
 reactor model. Its separate primary/secondary circuits are a fictional two-loop
 layout, not a Chernobyl/RBMK simulation or a validated model of any named reactor
 type. It starts stopped with Auto → Electrical output selected (200 MW target).
-Start both pumps explicitly, allow circulation to build, then press reactor Start
+Start at least one primary and one secondary pump explicitly, allow circulation
+to build, then press reactor Start
 to begin generation. Initial rods are fully inserted, output and
-retained heat are zero, and coolant/fuel start near ambient (30 °C). Both pumps
+retained heat are zero, and coolant/fuel start near ambient (30 °C). All four pumps
 start disabled with zero actual motor speed and flow, retaining 100% speed targets;
 small deterministic process fluctuations are enabled.
 Reset demo returns to this same stopped state.
@@ -282,7 +283,7 @@ INTERLOCKED, RUNNING, STOPPED and TRIPPED. Pump lamps follow actual motor speed,
 with amber stress and red retained damage/wear indication; an amber Reset trip
 lamp marks completed recovery readiness.
 
-The load setpoint and both pump speed targets share a metal regulator rail,
+The load setpoint and main pump speed targets share a metal regulator rail,
 grooved slider handle, engraved 0–100% scale and amber percentage display. Load
 also retains its fine-adjust buttons and AUTO/MANUAL/TRIP LOCK ownership label.
 The fill/readout follow a live adjustment until commit without changing the
@@ -438,8 +439,8 @@ visibility-aware frame loop for illustrative motion:
   actual fuel fill and electrical-output markers only while supplying load.
 
 Cold startup begins with inserted rods, no turbine rotation, steam or fuel glow,
-with both pumps stopped and no coolant circulation. Explicitly start both pumps
-and wait for actual motor speed and flow in both circuits to reach at least 20%;
+with all four pumps stopped and no coolant circulation. Explicitly start at least
+one pump per circuit and wait for actual motor speed and flow to reach at least 20%;
 then pressing reactor Start lets the
 existing simulated rod, heat, flow and output signals bring each visual into activity.
 Stopping reverses generation activity while retained heat and cooling remain visible.
@@ -452,7 +453,9 @@ All colors support the feature's light and dark themes.
 Controls:
 
 - Start/Stop: normal startup or cooldown, maintaining circulation settings and
-  individual operating rod targets. Start requires both pumps explicitly enabled, actual motor speed and flow of at least 20% in both circuits, AC supply, and a
+  individual operating rod targets. Start requires at least one explicitly enabled
+  pump in each circuit, actual motor speed and flow of at least 20% in both
+  circuits, AC supply, and a
   temperature below the demo reset limit.
 - Load setpoint: sets requested output and corresponding rod insertion.
 - Bank Insert/Withdraw: moves every rod's own target by five percentage points,
@@ -460,7 +463,9 @@ Controls:
   applies a uniform bank target. Mean actual insertion is displayed separately.
 - Individual rods: select a numbered channel or use the rod selector, then adjust
   its insertion slider or one-percentage-point buttons. Only that rod changes.
-- Pump A/B: enable/disable and independently adjust speed targets from 0 to 100%.
+- Pumps A/A2 (primary) and B/B2 (secondary): manually enable/disable and
+  independently adjust speed targets from 0 to 100%. A2/B2 are the backup pumps;
+  their switches remain visible and their speed/override controls are in their dialogs.
   Actual speed/flow ramps gradually; disabling preserves the speed setting. Pump
   rotation follows motor speed and each circuit's coolant animation follows flow, including
   coast-down, with continuous phase and an explicit local SVG rotation pivot.
@@ -484,9 +489,42 @@ or **Stop** explicitly. Switching to Auto restores the protective trips on the n
 simulation tick; switching modes never clears an existing trip. Irreversible
 meltdown still ends generation and requires **Reset demo** in either mode.
 
+## Parallel pumps, overpressure and leaking water
+
+Each circuit has two manually enabled, parallel pumps: primary **A / A2** and
+secondary **B / B2**. A2/B2 are the backup units; all four start OFF with retained
+100% speed targets. Either pump can provide its circuit's startup circulation.
+The backup rockers remain visible below the main pump controls. **Backup A2/B2 ↗**
+opens that pump's speed, discharge valve, Auto override, local trends and internal
+inspection. Auto adjusts only enabled pumps and never enables a backup. Each
+3D/SVG branch shows its own actual motor/flow, including coast-down and loss of AC.
+
+Two full-speed pumps give an illustrative **135% combined flow** and **182% relative
+circulation pressure**, with additional auxiliary demand. Pressure is a normalized
+gameplay differential-pressure indication, not an absolute vessel-pressure model.
+Auto continues to hold the requested total circulation; use Manual or individual
+speed overrides to run both pumps at 100%. Sustained pressure above **145% nominal**
+accumulates pipe damage after an eight-second exposure allowance. Damage causes
+visible blue water jets/drops in 3D and the schematic and reduces delivered coolant
+flow. Leaking fittings also spray. Blades, bearings and fittings retain independent
+damage; bearings can slow/stop the motor. Healthy single-pump operation is unchanged.
+These values are fictional gameplay parameters. Generator output still depends on
+heat, transfer/cooling, shaft/breaker state and the 410 MW gross nameplate limit.
+
+Click a pipework label, the sidebar pressure readout, or a leaking pipe joint to
+inspect pressure, flow, damage and explicit repair. Pipe repair requires both
+affected-circuit run switches OFF and actual motor speed/flow below 0.5%, together
+with the existing stopped/cooled/fault-free repair checks. Damaged internal pump
+parts require that pump OFF and stopped. Turning flow off stops the spray but
+does not heal damage; **Repair all** also repairs isolated pipework and internals.
+Repairs preserve heat, fuel, settings, operating hours and reactor/turbine trip
+latches. Water spray and pump cutaways share the existing frame loop and respect
+pause, hidden views, detach, Maintenance and reduced motion. Reset demo clears the
+damage/leaks and returns every pump to OFF.
+
 ## Component consoles and operating exercises
 
-Heat exchanger, both pumps, turbine/generator and condenser open independent,
+Heat exchanger, all four pumps, pipework, turbine/generator and condenser open independent,
 movable nonmodal windows via pointer or Enter/Space on their outlined equipment.
 Requested inputs and actual read-backs remain separate. The underlying process stays
 usable; windows retain positions, clamp to the viewport, close with ×/Escape and
@@ -570,7 +608,7 @@ not change the independent over-temperature alarms or Auto trip conditions.
 A one-second illustrative regulator uses
 feed-forward plus proportional/integral temperature correction to adjust the rod
 bank, retaining individual offsets where travel allows. Independent feedback adjusts
-both pump speed targets. It does not automatically re-enable an operator-disabled
+enabled pump speed targets. It does not automatically re-enable an operator-disabled
 pump. Bank/load and pump-speed sliders are disabled during automatic running; individual
 rod sliders require an explicit override. Pump enable buttons, Stop and Emergency
 shutdown remain available. During a trip, pump speeds
@@ -738,8 +776,12 @@ particular plant's electrical distribution or emergency cooling design.
 Source priority is turbine auxiliary feed, external grid, then available backup diesels.
 The turbine must be running, connected and producing at least pump demand plus 1 MW.
 Normal sources have a fictional 20 MW auxiliary capacity. Pump demand is 0.2 MW of
-base load plus 3.5 MW (primary) and 2.5 MW (secondary) multiplied by requested speed
-cubed. Each diesel has 8 MW capacity, enough for the two simplified loops. Generator
+base load plus 3.5 MW per enabled primary pump and 2.5 MW per enabled secondary
+pump, each multiplied by its requested speed fraction cubed. All four pumps at
+100% demand 12.2 MW. Each diesel has 8 MW capacity: one can run the ordinary
+one-pump-per-circuit arrangement, while all four need both diesels for full speed.
+Insufficient bus capacity reduces actual motor speed/flow without changing run
+switches or targets. Generator
 output and the grid-controller target remain **gross electrical generation**, separate
 from this auxiliary-load indication; no net-export model is implied.
 
@@ -754,7 +796,8 @@ raises an alarm. No controller refuels a diesel.
 Manual Stop disables that engine's automatic standby so the command persists. Re-arm
 standby explicitly when wanted. Refuelling requires a stopped/non-starting engine.
 Diesels remain running, unloaded, after normal power returns until manually stopped.
-One available diesel carries both pumps; two share the load. Pump enabled states and
+One available diesel carries the normal main-pump pair; two share the load and
+can carry all four pumps at full speed. Pump enabled states and
 speed requests remain separate from energized/actual speed. Without AC the pumps coast
 down and coolant animations slow, even if their requested enable state is still on.
 Restoring power ramps the requested pumps back up but never resets a trip or restarts
@@ -832,6 +875,12 @@ animation while instruments and controls continue to work.
   exercises, settings ownership, local trends and maintenance journal.
 - `nuclear/src/simulation/nuclear-power-audio.js` owns operating-state loops, UI samples and quiet Start/Stop cues;
   the main element retains alarm scheduling and shared-context lifecycle.
+- `nuclear/src/simulation/nuclear-power-pumps.js` owns four pump identities, parallel
+  branch flow, normalized pressure, retained pipe damage and isolation checks.
+- `nuclear/src/simulation/nuclear-power-pump-scene.js` builds the four cutaways,
+  independent branch paths, damaged parts and instanced water sprays.
+- `nuclear/src/simulation/nuclear-power-leaks.js` shares actual leak sources and
+  falling water trajectories between SVG and WebGL.
 - `nuclear/src/simulation/nuclear-power-supply.js` owns auxiliary-source selection,
   standby/manual diesel startup, fuel, capacity and pump power availability.
 - `nuclear/src/simulation/nuclear-power-temperature.js` maps local loop temperatures

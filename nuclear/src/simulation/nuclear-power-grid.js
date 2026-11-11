@@ -1,14 +1,31 @@
 // Browser-local dispatch exercise. Requests change the existing electrical target;
 // the plant regulator remains responsible for actual output and all interlocks.
+import { CIRCUITS, circuitPumps, parallelFlow } from './nuclear-power-pumps.js';
 const CHANGES_MW = [40, -60, 80, -40, 60, -80];
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 function expectedFlows(sim, circulation) {
-    return ['pumpA', 'pumpB'].map((id, index) => {
-        const item = sim.components.items[id];
-        if (!sim[id] || sim.supply.factor <= 0) return 0;
-        const speed = clamp((item.override ? item.settings.speed : circulation) + item.settings.trim, 0, 100);
-        return speed / 100 * sim.components.pumpFactor(id) * sim.condition.flowFactor(index === 0 ? 'A' : 'B') * Math.cbrt(sim.supply.factor);
+    return CIRCUITS.map(circuit => {
+        const enabled = circuitPumps(circuit).filter(pump => sim[pump.id]);
+        const flowAt = control => parallelFlow(enabled.map(({ id, key }) => {
+            const item = sim.components.items[id], state = sim.condition.components[key];
+            if (sim.supply.factor <= 0) return 0;
+            const speed = clamp((item.override ? item.settings.speed : control) + item.settings.trim, 0, 100);
+            const motor = state.damage >= 100 ? 0 : 1 - state.parts.bearings * .006;
+            return speed * motor * sim.components.pumpFactor(id) * sim.condition.flowFactor(key) * Math.cbrt(sim.supply.factor);
+        })) * sim.hydraulics.flowFactor(circuit);
+        let control = circulation;
+        // Auto owns a shared circuit target, rather than requesting the target
+        // separately from both pumps. Operator-owned speeds remain fixed.
+        if (enabled.length > 1 && enabled.some(pump => !sim.components.items[pump.id].override)) {
+            let low = 25, high = 100;
+            for (let i = 0; i < 24; i++) {
+                const middle = (low + high) / 2;
+                if (flowAt(middle) < circulation) low = middle; else high = middle;
+            }
+            control = (low + high) / 2;
+        }
+        return flowAt(control) / 100;
     });
 }
 

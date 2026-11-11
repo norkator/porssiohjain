@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { setText } from './nuclear-power-presentation.js';
+import { PUMP_LAYOUT } from './nuclear-power-pump-scene.js';
 
 const TAU = Math.PI * 2;
 
@@ -99,14 +100,14 @@ export function buildElectricalScene(view) {
     for (const x of [-.3, 0, .3]) view.box(bus, [.14, .13, .07], view.busLamp, [x, 1.45, .49]);
 
     const markerMaterial = view.material('#a5efba', { emissive: '#67b48c', emissiveIntensity: .3 });
-    const wire = (source, points) => {
+    const wire = (source, points, pumpId = null) => {
         const material = view.material('#786e49', { emissive: '#61bb8a', emissiveIntensity: 0 });
         const vectors = view.line(view.scene, points, material, .045);
         const path = new THREE.CurvePath();
         for (let i = 1; i < vectors.length; i++) path.add(new THREE.LineCurve3(vectors[i - 1], vectors[i]));
         const markers = Array.from({ length: 6 }, () => view.mesh(view.scene, new THREE.OctahedronGeometry(.09), markerMaterial));
         view.dynamicMeshes.push(...markers);
-        const entry = { source, material, path, markers };
+        const entry = { source, material, path, markers, pumpId };
         view.electricalPaths.push(entry);
         return entry;
     };
@@ -116,11 +117,10 @@ export function buildElectricalScene(view) {
     }
     wire('grid', [[.5, .8, -6.7], [.5, .28, -5.2], [.2, .28, -5.2], [.2, .9, -3.9]]);
     wire('turbine', [[9.1, 2.8, -1.5], [10.6, 2.8, -1.5], [10.6, .28, -3.4], [.2, .28, -3.4], [.2, .9, -3.9]]);
-    wire('bus', [[.2, .28, -3.9], [-4.8, .28, -3.9], [-4.8, .28, 3.7], [-4.8, .9, 3.7]]);
-    wire('bus', [[.2, .28, -3.9], [2.2, .28, -3.9], [2.2, .28, 4.4], [2.2, .9, 4.4]]);
+    for (const pump of PUMP_LAYOUT) wire('bus', [[.2, .28, -3.9], [pump.x, .28, -3.9], [pump.x, .28, pump.z], [pump.x, .9, pump.z]], pump.id);
 }
 
-export function updateElectricalScene(view, supply, phases, busPhase) {
+export function updateElectricalScene(view, supply, phases, busPhase, sim) {
     for (const generator of supply.generators) {
         const engine = view.engines.get(generator.id);
         const phase = (phases?.[generator.id] || 0) / 360;
@@ -141,7 +141,7 @@ export function updateElectricalScene(view, supply, phases, busPhase) {
     setText(view.labels.get('grid').reading, supply.source.includes('GRID') ? 'SUPPLYING' : supply.gridAvailable ? 'AVAILABLE' : 'ISOLATED');
     setText(view.labels.get('bus').reading, supply.factor > 0 ? `${supply.demand.toFixed(2)} MW` : 'NO AC SUPPLY');
     for (const route of view.electricalPaths) {
-        const loaded = route.source === 'bus' ? supply.factor > 0 : route.source.startsWith('diesel')
+        const loaded = route.source === 'bus' ? supply.factor > 0 && (!route.pumpId || sim[route.pumpId]) : route.source.startsWith('diesel')
             ? supply.generators.find(generator => generator.id === route.source.slice(-1)).load > 0
             : supply.source.includes(route.source === 'grid' ? 'GRID' : 'TURBINE');
         route.material.emissiveIntensity = loaded ? .5 : 0;

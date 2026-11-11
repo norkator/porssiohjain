@@ -1,4 +1,5 @@
 /* Maintenance overview of existing simulated damage; no new repair command path. */
+import { pumpDefinition } from './nuclear-power-pumps.js';
 const setText = (element, value) => { if (element.textContent !== value) element.textContent = value; };
 const percent = value => value < .1 ? '<0.1%' : `${value.toFixed(1)}%`;
 const repairBlockers = { stopped: 'Stop the reactor', faults: 'Clear active faults in Maintenance',
@@ -18,7 +19,8 @@ export function maintenanceItems(sim) {
     const zones = sim.condition.zones.filter(zone => zone.damage > 0);
     if (zones.length) items.push({ id: 'reactor', damage: sim.condition.coreDamage, zones: zones.length });
     for (const [id, item] of Object.entries(sim.components.items)) {
-        const damage = id === 'pumpA' || id === 'pumpB' ? sim.condition.components[id.at(-1)].damage : 0;
+        const pump = pumpDefinition(id);
+        const damage = pump ? sim.condition.components[pump.key].damage : id.endsWith('Pipes') ? sim.hydraulics.pipes[id.replace('Pipes', '')].damage : 0;
         const fouling = id === 'exchanger' ? item.settings.fouling : 0;
         if (damage > 0 || item.wear > 0 || fouling > 0) items.push({ id, damage, wear: item.wear, fouling });
     }
@@ -31,7 +33,7 @@ export function maintenancePanel(details) {
       <p class="maintenance-summary" role="status"></p>
       <ul class="maintenance-list" aria-label="Components needing repair">${Object.entries(details).map(([id, item]) => `<li data-maintenance-component="${id}" hidden><div><small>${item.tag}</small><strong>${item.name}</strong><span class="maintenance-issue"></span></div><button class="small-button" data-equipment="${id}" aria-label="Inspect ${item.name}" aria-haspopup="dialog" aria-controls="${id === 'reactor' ? 'core-map-window' : `equipment-${id}-window`}">Inspect ↗</button></li>`).join('')}</ul>
       <div class="maintenance-empty"><strong>✓ No damaged components</strong><p>No retained damage, wear or fouling to repair.</p></div>
-      <section class="maintenance-readiness" aria-label="Repair conditions"><div><h3>Repair readiness</h3><button class="small-button" data-maintenance-action="clear" disabled>Clear active faults</button></div><p class="maintenance-temperatures"></p><ul>${['stopped', 'faults', 'coolant', 'fuel', 'meltdown'].map(id => `<li data-repair-check="${id}"></li>`).join('')}</ul><p>Repairs preserve heat, fuel reserves, operating settings and trip latches. The reactor stays stopped.</p></section>
+      <section class="maintenance-readiness" aria-label="Repair conditions"><div><h3>Repair readiness</h3><button class="small-button" data-maintenance-action="clear" disabled>Clear active faults</button></div><p class="maintenance-temperatures"></p><ul></ul><p>Repairs preserve heat, fuel reserves, operating settings and trip latches. The reactor stays stopped. Damaged pipes require both circuit pumps OFF and flow stopped; damaged pump internals require that motor OFF and stopped.</p></section>
       <p class="maintenance-result" role="status" aria-live="polite"></p>
     </section>`;
 }
@@ -89,10 +91,14 @@ export function updateMaintenance(host) {
         panel.querySelector('[data-maintenance-action="repair"]').disabled = !items.length || !readiness.ready;
         panel.querySelector('[data-maintenance-action="clear"]').disabled = sim.condition.meltdown || (sim.condition.fault === 'none' && !sim.components.hasFaults);
         panel.querySelector('.maintenance-temperatures').textContent = `Coolant ${sim.temperature.toFixed(1)} °C · Peak fuel ${sim.condition.peakTemperature.toFixed(1)} °C`;
+        const checks = panel.querySelector('.maintenance-readiness ul');
+        checks.replaceChildren();
         for (const check of readiness.checks) {
-            const element = panel.querySelector(`[data-repair-check="${check.id}"]`);
+            const element = document.createElement('li');
+            element.dataset.repairCheck = check.id;
             element.textContent = `${check.ready ? '✓' : '○'} ${check.id === 'meltdown' && check.ready ? 'No meltdown' : check.label}`;
             element.classList.toggle('ready', check.ready);
+            checks.append(element);
         }
     }
     const core = root.querySelector('.core-damage-panel');
@@ -112,7 +118,7 @@ export function updateMaintenance(host) {
         }
         setText(core.querySelector('.core-repair-readiness'), !zones.length ? '' : readiness.ready
             ? 'Ready to repair. Heat, fuel and trip latches are preserved.'
-            : `Repair blocked: ${readiness.checks.filter(check => !check.ready).map(check => repairBlockers[check.id]).join('; ')}. Coolant ${sim.temperature.toFixed(1)} °C · peak fuel ${sim.condition.peakTemperature.toFixed(1)} °C.`);
+            : `Repair blocked: ${readiness.checks.filter(check => !check.ready).map(check => repairBlockers[check.id] || check.label).join('; ')}. Coolant ${sim.temperature.toFixed(1)} °C · peak fuel ${sim.condition.peakTemperature.toFixed(1)} °C.`);
     }
     for (const element of root.querySelectorAll('.maintenance-result')) setText(element, host.maintenanceStatus || '');
 }

@@ -87,9 +87,9 @@ machinery immediately; UI clicks/alarms remain shared. Returning resumes actual
 state without replay. Preserve automatic starts, fuel exhaustion, bounded gain,
 opt-in loading and Reset cleanup.
 New/reset sessions select Auto with Electrical output regulation (200 MW), but
-the reactor starts stopped/cold with fully inserted rods and both pumps disabled
-(zero actual motor speed/flow, retained 100% speed targets). Explicitly start both
-pumps and establish circulation before reactor Start; healthy
+the reactor starts stopped/cold with fully inserted rods and all four pumps disabled
+(zero actual motor speed/flow, retained 100% speed targets). Explicitly start at least
+one pump per circuit and establish circulation before reactor Start; healthy
 running core temperatures have green emphasis in both themes.
 Process animations use actual heat/flow/output: turbine/generator coast-down, steam,
 condenser drops, exchanger highlights, local fuel glow/molten drips and source-to-pump
@@ -97,7 +97,20 @@ bus flow share the visibility-aware frame loop. Rates are illustrative, not RPM;
 preserve cold-start stillness, retained heat, reduced motion and pause cleanup.
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
-recovery. Industrial Start/Stop pushbuttons and pump pilot lamps show actual running
+recovery.
+Primary pumps A/A2 and secondary pumps B/B2 are independently enabled parallel
+branches in both 3D and SVG. A2/B2 are manual backups, OFF by default; Auto regulates
+only enabled pumps and never enables a backup. Two full-speed pumps provide a
+fictional 135% flow and 182% nominal differential pressure. Sustained pressure
+above 145% causes pipe damage after eight seconds; visible water jets/drops and
+fitting leaks follow actual flow on the shared frame loop. Shutdown stops spray
+but retains damage. Track each pump's blades, bearings and fittings separately.
+Pipe repair additionally requires both affected-circuit run switches OFF and
+actual motor speed/flow below 0.5%; internal pump repairs require that motor OFF
+and stopped. Keep cooled/stopped/fault-free checks, heat/fuel/settings/hours and
+trip latches. Auxiliary demand includes every enabled pump; partial AC capacity
+slows all motors. Preserve cold stillness, pause/hide/detach, Maintenance stops,
+reduced motion, picking/dialog lifecycle, both themes and wide-screen fitting. Industrial Start/Stop pushbuttons and pump pilot lamps show actual running
 state; stress/wear has amber/red indication. Start/Stop caps have clear green/red
 halos with restrained shine, and the emergency cap has a soft armed glow and bright latched red glow.
 Load and pump-speed targets share engraved regulator rails, grooved handles and

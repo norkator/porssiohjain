@@ -5,6 +5,8 @@ import { flowMarkerDistance, valveHandleAngle } from './nuclear-power-motion.js'
 import { CORE_CHANNELS } from './nuclear-power-model.js';
 import { buildFuelHandlingHall, updateFuelHandlingHall, CHANNEL_PITCH, ROD_INSERTED_Y, ROD_TRAVEL } from './nuclear-power-refuelling-scene.js';
 import { buildElectricalScene, updateElectricalScene, ELECTRICAL_LABELS } from './nuclear-power-electrical-scene.js';
+import { PUMPS } from './nuclear-power-pumps.js';
+import { buildPumpScene, updatePumpScene, PUMP_LAYOUT, PIPE_LAYOUT } from './nuclear-power-pump-scene.js';
 
 const TAU = Math.PI * 2;
 const DEFAULT_ZOOM = 1.2;
@@ -15,8 +17,9 @@ const equipment = [
     ['exchanger', 'HX-01', 'Heat exchanger', [-1.3, 6.5, -1.5]],
     ['turbine', 'TG-01', 'Turbine / generator', [7.2, 4.8, -1.5]],
     ['condenser', 'C-01', 'Condenser', [7, .3, 3.1]],
-    ['pumpA', 'P-01', 'Primary pump', [-4.8, .3, 4.7]],
-    ['pumpB', 'P-02', 'Secondary pump', [2.2, .3, 5.2]],
+    ...PUMP_LAYOUT.map(pump => [pump.id, PUMPS.find(p => p.id === pump.id).tag,
+        `${pump.id.startsWith('pumpA') ? 'Primary' : 'Secondary'} ${pump.id.endsWith('2') ? 'backup ' : ''}pump`, [pump.x, .3, pump.z + .9]]),
+    ...PIPE_LAYOUT.map(pipe => [pipe.id, pipe.id.startsWith('primary') ? 'L-01' : 'L-02', `${pipe.id.startsWith('primary') ? 'Primary' : 'Secondary'} pipework`, [pipe.position[0], 2.1, pipe.position[2]]]),
 ];
 
 // A presentation adapter only. All commands, interlocks and plant state stay in
@@ -110,14 +113,14 @@ export class PlantOverviewScene {
         return vectors;
     }
 
-    flow(points, circuit, kind, material, temperatureKey) {
+    flow(points, circuit, kind, material, temperatureKey, pumpId = null) {
         const vectors = this.line(this.scene, points, material);
         const curve = new THREE.CurvePath();
         for (let i = 1; i < vectors.length; i++) curve.add(new THREE.LineCurve3(vectors[i - 1], vectors[i]));
         const markerMaterial = this.material('#b5ffec', { emissive: '#58b9ad', emissiveIntensity: .35, transparent: true });
         const length = curve.getLength();
         const dots = Array.from({ length: Math.max(2, Math.round(length / 1.2)) }, () => this.mesh(this.scene, this.dotGeometry, markerMaterial));
-        this.paths.push({ curve, length, dots, circuit, kind, material, markerMaterial, temperatureKey });
+        this.paths.push({ curve, length, dots, circuit, kind, material, markerMaterial, temperatureKey, pumpId });
     }
 
     component(id, position) {
@@ -169,10 +172,10 @@ export class PlantOverviewScene {
         rim.position.set(10, 8, -8);
         this.scene.add(rim);
         this.floorMaterial = this.material('#1a2b37');
-        this.box(this.scene, [24, .35, 16.5], this.floorMaterial, [0, -.35, -1.25]);
+        this.box(this.scene, [24, .35, 18], this.floorMaterial, [0, -.35, -.5]);
         const grid = new THREE.GridHelper(24, 24, '#54717e', '#334d5c');
-        grid.scale.z = 16.5 / 24;
-        grid.position.set(0, -.16, -1.25);
+        grid.scale.z = 18 / 24;
+        grid.position.set(0, -.16, -.5);
         this.grid = grid;
         this.scene.add(grid);
         this.geometries.add(grid.geometry);
@@ -258,23 +261,7 @@ export class PlantOverviewScene {
         this.bypassMaterial = this.material('#698c8c');
         this.flow([[-2.3, 4.7, -1.5], [-3, 4.7, -1.5], [-3, 1.3, -1.5], [-2.3, 1.3, -1.5]], 'A', 'water', this.bypassMaterial, 'primaryBypass');
 
-        for (const [id, x, z] of [['pumpA', -4.8, 3.7], ['pumpB', 2.2, 4.4]]) {
-            const pump = this.component(id, [x, 0, z]);
-            this.pad(pump, 2.25, 2);
-            this.box(pump, [1.5, .65, 1.2], this.darkSteel, [0, .5, 0]);
-            this.cylinder(pump, .66, .9, this.steel, [0, 1.2, -.1]).rotation.x = Math.PI / 2;
-            this.mesh(pump, new THREE.TorusGeometry(.66, .09, 4, 12), this.steelLight, [0, 1.2, .4]);
-            const rotor = new THREE.Group();
-            rotor.position.set(0, 1.2, .48);
-            pump.add(rotor);
-            this.cylinder(rotor, .14, .16, this.teal, [0, 0, 0]).rotation.x = Math.PI / 2;
-            for (let i = 0; i < 4; i++) {
-                const blade = this.box(rotor, [.23, .43, .08], this.teal, [Math.sin(i / 4 * TAU) * .29, Math.cos(i / 4 * TAU) * .29, 0]);
-                blade.rotation.z = -i / 4 * TAU + .4;
-            }
-            this.pumps[id] = rotor;
-            this.valve(id, 'dischargeValve', [1, 1.1, 0]);
-        }
+        buildPumpScene(this);
 
         const turbine = this.component('turbine', [6, 0, -1.5]);
         this.pad(turbine, 6, 3);
@@ -310,10 +297,12 @@ export class PlantOverviewScene {
         this.valve('condenser', 'coolingValve', [1.8, 1.3, 0]);
 
         this.flow([[-5.8, 4.7, 0], [-4, 4.7, 0], [-4, 4.7, -1.5], [-2.3, 4.7, -1.5]], 'A', 'hot', this.hotPipe, 'primaryHot');
-        this.flow([[-2.3, 1.3, -1.5], [-3.3, 1.3, -1.5], [-3.3, 1.2, 3.7], [-4.8, 1.2, 3.7], [-7.4, 1.2, 3.7], [-7.4, 1.8, 1]], 'A', 'water', this.material('#4c9eac'), 'primaryReturn');
+        this.flow([[-2.3, 1.3, -1.5], [-3.3, 1.3, -1.5], [-3.3, 1.2, 2.3]], 'A', 'water', this.material('#4c9eac'), 'primaryReturn');
+        this.flow([[-7.4, 1.2, 2.3], [-7.4, 1.8, 1]], 'A', 'water', this.material('#4c9eac'), 'primaryReturn');
         this.flow([[-.3, 4.7, -1.5], [4.3, 4.7, -1.5], [4.3, 3.3, -1.5], [4.6, 3.3, -1.5]], 'B', 'steam', this.material('#4c9eac'), 'secondaryHot');
         this.flow([[6, 2.8, -.6], [6, 2.8, 2.3], [6, 1.7, 2.3]], 'B', 'steam', this.material('#4c9eac'), 'secondaryExhaust');
-        this.flow([[7, .9, 4], [7, .9, 4.4], [2.2, 1.2, 4.4], [.7, 1.2, 4.4], [.7, 1.3, -1.5], [-.3, 1.3, -1.5]], 'B', 'water', this.material('#4c9eac'), 'secondaryReturn');
+        this.flow([[7, .9, 4], [4, .9, 4], [4, 1.2, 3.7]], 'B', 'water', this.material('#4c9eac'), 'secondaryReturn');
+        this.flow([[.7, 1.2, 3.7], [.7, 1.3, -1.5], [-.3, 1.3, -1.5]], 'B', 'water', this.material('#4c9eac'), 'secondaryReturn');
         this.markerHighlight = new THREE.Color('#fff6e6');
         buildElectricalScene(this);
 
@@ -563,7 +552,7 @@ export class PlantOverviewScene {
             drip.position.y = 3.6 - ((motion.thermalPhase + index / 5) % 1) * 1.8;
             drip.scale.set(.5, 1, .5);
         }
-        for (const [id, pump] of Object.entries(this.pumps)) pump.rotation.z = pumps[id === 'pumpA' ? 'A' : 'B'].angle * Math.PI / 180;
+        updatePumpScene(this, sim, motion, pumps);
         this.turbineRotor.rotation.x = motion.angle * Math.PI / 180;
         this.generatorLamp.material.emissiveIntensity = sim.electricalOutput > .1 ? .7 : 0;
         this.exchangerGlow.emissiveIntensity = motion.heat * (.4 + .4 * Math.sin(motion.heatPhase * TAU) ** 2);
@@ -591,10 +580,10 @@ export class PlantOverviewScene {
             path.material.color.set(temperatureColor(temperatures[path.temperatureKey]));
             path.markerMaterial.color.copy(path.material.color).lerp(this.markerHighlight, .5);
             path.markerMaterial.emissive.copy(path.material.color);
-            const flow = path.circuit === 'A' ? sim.primaryFlow : sim.secondaryFlow;
+            const flow = path.pumpId ? sim.components.items[path.pumpId].actual.flow : path.circuit === 'A' ? sim.primaryFlow : sim.secondaryFlow;
             const bypass = path.temperatureKey === 'primaryBypass' ? sim.components.items.exchanger.actual.bypass / 100 : 1;
             path.markerMaterial.opacity = bypass;
-            const travel = path.circuit === 'A' ? motion.primaryTravel : motion.secondaryTravel;
+            const travel = path.pumpId ? pumps[PUMPS.find(p => p.id === path.pumpId).key].travel || 0 : path.circuit === 'A' ? motion.primaryTravel : motion.secondaryTravel;
             for (const [index, dot] of path.dots.entries()) {
                 dot.visible = flow > .1 && bypass > .001 && (path.kind !== 'steam' || motion.steam > .02);
                 dot.position.copy(path.curve.getPoint(flowMarkerDistance(travel, index, path.dots.length, path.length) / path.length));
@@ -610,17 +599,18 @@ export class PlantOverviewScene {
             exchanger: `In ${sim.secondaryReturnTemperature.toFixed(0)} °C · Out ${sim.secondaryTemperature.toFixed(0)} °C`,
             turbine: `${sim.electricalOutput.toFixed(0)} MW electric`,
             condenser: `Return ${sim.secondaryReturnTemperature.toFixed(0)} °C`,
-            pumpA: `${sim.returnTemperature.toFixed(0)} °C · ${sim.components.items.pumpA.actual.speed.toFixed(0)}% speed`,
-            pumpB: `${sim.secondaryReturnTemperature.toFixed(0)} °C · ${sim.components.items.pumpB.actual.speed.toFixed(0)}% speed`,
+            ...Object.fromEntries(PUMPS.map(pump => [pump.id, `${sim.components.items[pump.id].actual.speed.toFixed(0)}% speed · ${sim.components.items[pump.id].actual.flow.toFixed(0)}% flow`])),
+            ...Object.fromEntries(['primary', 'secondary'].map(circuit => [`${circuit}Pipes`, `${sim.hydraulics.pipes[circuit].pressure.toFixed(0)}% ΔP${sim.hydraulics.pipes[circuit].damage > 0 ? ' · LEAK DAMAGE' : ''}`])),
         };
         for (const [id, label] of this.labels) {
             if (readings[id] !== undefined && label.reading.textContent !== readings[id]) label.reading.textContent = readings[id];
             label.button.classList.toggle('selected', id === selected);
-            label.button.classList.toggle('hot', id === 'reactor' && sim.temperature > 335);
+            label.button.classList.toggle('hot', id === 'reactor' && sim.temperature > 335
+                || id.endsWith('Pipes') && (sim.hydraulics.pipes[id.replace('Pipes', '')].pressure > 145 || sim.hydraulics.pipes[id.replace('Pipes', '')].damage > 0));
         }
         this.labels.get('reactor').button.setAttribute('aria-label', `Open reactor core map; simulated inlet ${sim.returnTemperature.toFixed(1)} degrees Celsius, outlet ${sim.temperature.toFixed(1)} degrees Celsius`);
         if (fuelTransfer) updateFuelHandlingHall(this, fuelTransfer);
-        updateElectricalScene(this, sim.supply, dieselMotion, motion.supplyPhase);
+        updateElectricalScene(this, sim.supply, dieselMotion, motion.supplyPhase, sim);
         this.render();
     }
 

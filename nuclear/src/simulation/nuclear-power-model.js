@@ -9,6 +9,7 @@ import { FuelInventory } from './nuclear-power-fuel.js';
 import { AuxiliaryPower } from './nuclear-power-supply.js';
 import { ComponentProcesses } from './nuclear-power-components.js';
 import { GridDispatcher, gridDispatchCapacity } from './nuclear-power-grid.js';
+import { PUMPS, CIRCUITS, circuitPumps, pumpDefinition, PumpCircuits } from './nuclear-power-pumps.js';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const approach = (value, target, seconds, response) => target + (value - target) * Math.exp(-seconds / response);
@@ -50,10 +51,7 @@ export class NuclearPowerSimulation {
         this.returnTemperature = 30;
         this.secondaryTemperature = 28;
         this.secondaryReturnTemperature = 28;
-        this.pumpA = false;
-        this.pumpB = false;
-        this.pumpASpeed = 100;
-        this.pumpBSpeed = 100;
+        for (const pump of PUMPS) { this[pump.id] = false; this[`${pump.id}Speed`] = 100; }
         this.primaryFlow = 0;
         this.secondaryFlow = 0;
         this.autoMode = true;
@@ -78,9 +76,11 @@ export class NuclearPowerSimulation {
         this.condition.zones.forEach(zone => { zone.temperature = 30; });
         this.fuel = new FuelInventory(CORE_CHANNELS);
         this.supply = new AuxiliaryPower();
+        this.hydraulics = new PumpCircuits();
+        this.condition.pipes = this.hydraulics.pipes;
         this.components = new ComponentProcesses(this);
         this.gridDispatch = new GridDispatcher();
-        this.record('Simulation initialized. Reactor stopped; start both pumps before reactor Start. Auto electrical output control; process fluctuations enabled.', 'info', 'system');
+        this.record('Simulation initialized. Reactor stopped; start a pump in each circuit before reactor Start. Backup pumps require manual enable. Auto electrical output control; process fluctuations enabled.', 'info', 'system');
         this.sample();
     }
 
@@ -212,7 +212,8 @@ export class NuclearPowerSimulation {
     }
 
     setPumpSpeed(pump, value) {
-        if ((pump !== 'A' && pump !== 'B') || (this.autoMode && this.running && !this.components.items[`pump${pump}`].override) || !Number.isFinite(value)) return;
+        pump = pumpDefinition(pump)?.key;
+        if (!pumpDefinition(pump) || (this.autoMode && this.running && !this.components.items[`pump${pump}`].override) || !Number.isFinite(value)) return;
         this[`pump${pump}Speed`] = clamp(Math.round(value), 0, 100);
         if (this.components.items[`pump${pump}`].override) this.components.items[`pump${pump}`].settings.speed = this[`pump${pump}Speed`];
         this.record(`Pump ${pump} speed target set to ${this[`pump${pump}Speed`]}%.`);
@@ -220,10 +221,12 @@ export class NuclearPowerSimulation {
     }
 
     togglePump(pump) {
-        if (pump !== 'A' && pump !== 'B') return;
+        const definition = pumpDefinition(pump);
+        if (!definition) return;
+        pump = definition.key;
         const key = `pump${pump}`;
         this[key] = !this[key];
-        if (!this[key] && this.running && this.power > 10) this.condition.beginIncident(this, `Operator stopped pump ${pump}`);
+        if (!this[key] && this.running && this.power > 10 && !circuitPumps(definition.circuit).some(p => this[p.id])) this.condition.beginIncident(this, `Operator stopped pump ${pump}`);
         this.record(`Pump ${pump} ${this[key] ? 'started' : 'stopped'}.`, this[key] ? 'success' : 'warning');
         this.updateAlarms();
     }
@@ -251,9 +254,9 @@ export class NuclearPowerSimulation {
     }
 
     circulationReady() {
-        return this.supply.factor > 0 && this.pumpA && this.pumpB && this.pumpASpeed >= 20 && this.pumpBSpeed >= 20
-            && this.components.items.pumpA.actual.speed >= 20 && this.components.items.pumpB.actual.speed >= 20
-            && this.primaryFlow >= 20 && this.secondaryFlow >= 20;
+        return this.supply.factor > 0 && CIRCUITS.every(circuit => this[`${circuit}Flow`] >= 20
+            && circuitPumps(circuit).some(pump => this[pump.id] && this.components.pumpSpeed(pump.id) >= 20
+                && this.components.items[pump.id].actual.speed >= 20));
     }
 
     resetTrip() {
@@ -353,7 +356,7 @@ export class NuclearPowerSimulation {
             if (this.components.items.turbine.actual.tripped || this.components.items.turbine.settings.admission === 0) { desiredPower = 0; this.regulationLimit = 'Turbine stopped or tripped: explicit turbine Start required'; }
             else if (!this.components.items.turbine.settings.breaker) { desiredPower = Math.min(8, temperatureCeiling); this.regulationLimit = 'Generator breaker open: establishing shaft speed; close manually when ready'; }
             else if (this.components.transferFactor < 0.05) { desiredPower = 0; this.regulationLimit = 'Component transfer unavailable'; }
-            else if (this.autoElectricalTarget > 0 && (!this.pumpB || this.secondaryFlow < 20)) this.regulationLimit = 'Secondary circulation unavailable';
+            else if (this.autoElectricalTarget > 0 && this.secondaryFlow < 20) this.regulationLimit = 'Secondary circulation unavailable';
             else if (requestedPower > temperatureCeiling + 0.5) this.regulationLimit = 'Core temperature limit';
             else if (requestedPower > 95.5) this.regulationLimit = 'Generator capacity';
             // Do not wind up the power controller against a cooling/temperature limit.
@@ -386,14 +389,15 @@ export class NuclearPowerSimulation {
         } else this.regulationLimit = 'All rods under manual override';
         if (this.regulationLimit) { this.controlIntegral = 0; this.outputControlIntegral = 0; }
         this.rememberRodTargets();
-        if (!this.components.items.pumpA.override) this.pumpASpeed = clamp(this.pumpASpeed + (this.autoFlow - this.primaryFlow) * 0.6, 25, 100);
-        if (!this.components.items.pumpB.override) this.pumpBSpeed = clamp(this.pumpBSpeed + (this.autoFlow - this.secondaryFlow) * 0.6, 25, 100);
+        for (const pump of PUMPS) if (this[pump.id] && !this.components.items[pump.id].override) {
+            this[`${pump.id}Speed`] = clamp(this[`${pump.id}Speed`] + (this.autoFlow - this[`${pump.circuit}Flow`]) * .6, 25, 100);
+        }
         if (this.elapsed - this.lastAutoLog >= 10) {
             this.lastAutoLog = this.elapsed;
             const target = this.autoObjective === 'power'
                 ? `Electrical target ${this.autoElectricalTarget} MW, actual ${(this.electricalOutput).toFixed(1)} MW${this.regulationLimit ? ` (${this.regulationLimit})` : ''}`
                 : `Core target ${this.autoTemperature} °C, actual ${this.temperature.toFixed(1)} °C`;
-            this.record(`${target}: rod bank ${this.rodTarget.toFixed(1)}%; pump A ${this.pumpASpeed.toFixed(1)}%, B ${this.pumpBSpeed.toFixed(1)}%.`, 'info', 'automation');
+            this.record(`${target}: rod bank ${this.rodTarget.toFixed(1)}%; ${PUMPS.map(pump => `pump ${pump.key} ${this[pump.id] ? this[`${pump.id}Speed`].toFixed(1) + '%' : 'OFF'}`).join(', ')}.`, 'info', 'automation');
         }
     }
 
@@ -412,8 +416,12 @@ export class NuclearPowerSimulation {
     updateAlarms() {
         const conditions = [
             ['trip', this.tripped, 'Emergency shutdown latched', 'alarm'],
-            ['primary', this.running && (!this.pumpA || this.pumpASpeed < 20), 'Primary circulation low or unavailable', 'warning'],
-            ['secondary', this.running && (!this.pumpB || this.pumpBSpeed < 20), 'Secondary circulation low or unavailable', 'warning'],
+            ['primary', this.running && (this.primaryFlow < 20 || !circuitPumps('primary').some(p => this[p.id] && this.components.pumpSpeed(p.id) >= 20)), 'Primary circulation low or unavailable', 'warning'],
+            ['secondary', this.running && (this.secondaryFlow < 20 || !circuitPumps('secondary').some(p => this[p.id] && this.components.pumpSpeed(p.id) >= 20)), 'Secondary circulation low or unavailable', 'warning'],
+            ...CIRCUITS.flatMap(circuit => [
+                [`${circuit}-pressure`, this.hydraulics.pipes[circuit].pressure > 145, `${circuit} circulation overpressure`, 'alarm'],
+                [`${circuit}-leak`, this.hydraulics.pipes[circuit].damage > 0, `${circuit} pipe leak damage: isolate pumps and repair`, 'alarm'],
+            ]),
             ['temperature', this.temperature > 335, 'Core temperature high', 'alarm'],
             ['cooling', this.condition.coolingMargin < 0, 'Cooling margin negative: retained heat needs circulation', 'warning'],
             ['fuel', this.condition.peakTemperature > 410, 'Local fuel temperature high', 'alarm'],
@@ -457,9 +465,7 @@ export class NuclearPowerSimulation {
             rod.position = approach(rod.position, rod.target, dt, this.tripped ? 0.5 : 2.5);
         }
         this.power = approach(this.power, this.running ? clamp((100 - this.rods) * this.fuel.capability * (1 + fluctuation.power / 100), 0, 100) : 0, dt, this.tripped ? 2 : 5);
-        const supplySpeed = Math.cbrt(this.supply.factor);
-        this.primaryFlow = approach(this.primaryFlow, this.pumpA ? clamp(this.components.pumpSpeed('pumpA') * supplySpeed * this.condition.flowFactor('A') * this.components.pumpFactor('pumpA') * (1 + fluctuation.primary / 100), 0, 100) : 0, dt, 2);
-        this.secondaryFlow = approach(this.secondaryFlow, this.pumpB ? clamp(this.components.pumpSpeed('pumpB') * supplySpeed * this.condition.flowFactor('B') * this.components.pumpFactor('pumpB') * (1 + fluctuation.secondary / 100), 0, 100) : 0, dt, 2);
+        this.hydraulics.advance(this, dt, fluctuation);
         this.fuel.advance(this, dt);
         const coolingLoss = (1 - this.primaryFlow / 100) * 1.2 + (1 - this.secondaryFlow / 100) * 0.6 + (1 - this.components.coolingFactor) * 4;
         const retainedHeatTarget = Math.min(this.primaryFlow, this.secondaryFlow) * this.components.coolingFactor < 20
@@ -481,7 +487,7 @@ export class NuclearPowerSimulation {
         const secondaryDrop = (this.secondaryTemperature - coolingSink) * .85
             * condenser.coolingFactor * this.secondaryFlow / 100;
         this.secondaryReturnTemperature = approach(this.secondaryReturnTemperature,
-            this.secondaryTemperature - secondaryDrop, dt, 7);
+            Math.max(coolingSink, this.secondaryTemperature - secondaryDrop), dt, 7);
         this.condition.advance(this, dt, previousTemperature);
         this.components.advance(dt);
         if (this.condition.meltdown) {
@@ -535,6 +541,10 @@ export class NuclearPowerSimulation {
                 secondaryFlow: signal(this.secondaryFlow * 48, 'm³/h'),
                 pumpASpeed: signal(this.components.items.pumpA.actual.speed, '%'),
                 pumpBSpeed: signal(this.components.items.pumpB.actual.speed, '%'),
+                pumpA2Speed: signal(this.components.items.pumpA2.actual.speed, '%'),
+                pumpB2Speed: signal(this.components.items.pumpB2.actual.speed, '%'),
+                primaryPressure: signal(this.hydraulics.pipes.primary.pressure, '% nominal ΔP'),
+                secondaryPressure: signal(this.hydraulics.pipes.secondary.pressure, '% nominal ΔP'),
                 rodInsertion: signal(this.rods, '%'),
                 load: signal(this.power, '%')
             }
@@ -552,15 +562,13 @@ export class NuclearPowerSimulation {
                 temperatureTarget: this.autoTemperature, flowTarget: this.autoFlow,
                 objective: this.autoObjective, electricalTargetMw: this.autoElectricalTarget,
                 followGridRequests: this.gridDispatch.enabled,
-                pumps: {
-                    A: { enabled: this.pumpA, speedPercent: this.pumpASpeed },
-                    B: { enabled: this.pumpB, speedPercent: this.pumpBSpeed }
-                },
+                pumps: Object.fromEntries(PUMPS.map(pump => [pump.key, { enabled: this[pump.id], speedPercent: this[`${pump.id}Speed`] }])),
                 rods: this.controlRods.map(rod => ({ id: rod.id, insertionPercent: rod.target, owner: this.autoMode && !rod.manualOverride ? 'AUTO' : 'MANUAL' })),
                 auxiliary: { gridAvailable: this.supply.gridAvailable, turbineConnected: this.supply.turbineConnected,
                     generators: this.supply.generators.map(g => ({ id: g.id, automaticStandby: g.automatic })) }
             },
             fuel: this.fuel.assemblies.map(a => ({ id: a.id, reserve: signal(a.remaining, '%'), exposure: signal(a.exposure, 'demo full-power h'), replacements: a.replacements })),
+            hydraulics: { source: 'SIMULATED', pipes: structuredClone(this.hydraulics.pipes), pumpParts: structuredClone(this.condition.components) },
             auxiliary: { source: this.supply.source, generators: this.supply.generators.map(g => ({ id: g.id, state: g.state, fuel: signal(g.fuel, '%'), load: signal(g.load, 'MW') })) },
             gridDispatch: { source: 'SIMULATED', nextRequestInSeconds: this.gridDispatch.remaining, availableCapacityMw: gridDispatchCapacity(this),
                 lastRequest: this.gridDispatch.lastRequest ? { ...this.gridDispatch.lastRequest } : null, status: this.gridDispatch.status(this) },

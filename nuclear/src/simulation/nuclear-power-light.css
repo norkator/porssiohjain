@@ -227,3 +227,10 @@
 :host([data-theme="light"]) .valve-handle path { stroke: #8e5215; }
 :host([data-theme="light"]) .exchanger-bypass { stroke: #ad651f; }
 :host([data-theme="light"]) .exercises-dialog select { color: #244c5b; background: #fff; }
+:host([data-theme="light"]) .backup-pump-row.pump-control { background: #dcebed; }
+:host([data-theme="light"]) .backup-pump-open, :host([data-theme="light"]) .circuit-pressure { color: #24614f; }
+:host([data-theme="light"]) .circuit-pressure[data-high="true"] { color: #a13b21; }
+:host([data-theme="light"]) .water-leak-drop { fill: #1480b7; stroke: #a9e4ff; }
+:host([data-theme="light"]) .pipe-crack { stroke: #a44329; }
+:host([data-theme="light"]) .pipe-inspection rect { fill: #e7f3f4; stroke: #6d939d; }
+:host([data-theme="light"]) .pump-cutaway-shell { fill: #dcebef; stroke: #617f8d; }

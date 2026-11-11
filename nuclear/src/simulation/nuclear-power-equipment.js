@@ -3,6 +3,7 @@ import * as componentModel from './nuclear-power-components.js';
 import { valveHandleAngle } from './nuclear-power-motion.js';
 import { exchangerConsole, initializeExchanger, updateExchanger, drawExchanger } from './nuclear-power-exchanger.js';
 import { formatReading as format } from './nuclear-power-presentation.js';
+import { pumpDefinition, PUMP_PARTS } from './nuclear-power-pumps.js';
 const COMPONENT_SETTINGS = componentModel.COMPONENT_SETTINGS || {};
 const COMPONENT_ACTIONS = componentModel.COMPONENT_ACTIONS || {};
 
@@ -15,12 +16,26 @@ function settingInput(setting, id) {
 }
 const actionLabels = { pulse: 'One-shot nudge', oscillate: 'Toggle fluctuation', fault: 'Progressive fault', clear: 'Stop disturbance / clear fault', repair: 'Repair / clean after cooldown' };
 
+const pumpInternals = id => `<section class="pump-internal-inspection" aria-label="Pump internals">
+  <h3>Blades, bearings &amp; fittings</h3>
+  <svg class="pump-internals" viewBox="0 0 320 125" role="img" aria-label="Cutaway showing actual impeller movement and retained part damage">
+    <path class="pump-cutaway-shell" d="M15 48H78V23H238V48H305V85H238V105H78V85H15Z"/>
+    <g data-pump-part="fittings"><path d="M24 43V90M33 43V90M286 43V90M295 43V90" stroke="currentColor" stroke-width="5"/></g>
+    <circle cx="158" cy="64" r="39" fill="none" stroke="#718e9c" stroke-width="7"/>
+    <g transform="translate(158 64)"><g data-pump-blades data-pump-part="blades">${[0, 120, 240].map(angle => `<path transform="rotate(${angle})" d="M0-31C26-31 31-9 7 0 14-17-9-15 0-31Z" fill="currentColor"/>`).join('')}</g><g data-pump-part="bearings"><circle r="11" fill="none" stroke="currentColor" stroke-width="6"/><circle r="4" fill="currentColor"/></g></g>
+    <text x="47" y="117">FITTING</text><text x="158" y="117" text-anchor="middle">IMPELLER / BEARING</text><text x="270" y="117" text-anchor="end">FITTING</text>
+  </svg>
+  <ul>${PUMP_PARTS.map(part => `<li><span>${label(part)}</span><meter min="0" max="100" value="0" data-part-meter="${part}" aria-label="${part} damage"></meter><strong data-part-damage="${part}">0%</strong></li>`).join('')}</ul>
+  <button class="small-button" data-component="${id}" data-component-action="repair" disabled>Repair pump internals</button><p class="pump-repair-state" role="status"></p>
+</section>`;
+
 export function equipmentDialogs(details) {
     return Object.entries(details).filter(([id]) => id !== 'reactor').map(([id, item]) => `
     <section id="equipment-${id}-window" class="equipment-dialog floating-dialog" data-component-dialog="${id}" popover="manual" role="dialog" aria-modal="false" aria-labelledby="equipment-${id}-title">
       <div class="core-dialog-titlebar" tabindex="0" aria-label="Move ${item.name} with arrow keys or drag"><span aria-hidden="true">⠿</span><h2 id="equipment-${id}-title">${item.tag} / ${item.name}</h2><button class="small-button" data-component-close="${id}" aria-label="Close ${item.name}">×</button></div>
       <div class="equipment-dialog-body">
         <p class="component-description">${item.description} All values simulated.</p>
+        ${id.endsWith('Pipes') ? `<p class="pipe-operating-hint">Single-pump nominal pressure = 100% ΔP. Sustained pressure above 145% damages these pipes. Close both ${id.startsWith('primary') ? 'primary' : 'secondary'} pump run switches and wait for motor/flow coast-down before cooled repair.</p><button class="small-button" data-component="${id}" data-component-action="repair" disabled>Repair leaking pipework</button>` : ''}
         ${id === 'exchanger' ? `<div class="hx-workspace">${exchangerConsole()}<aside class="hx-sidebar"><div hidden><label class="component-override"><input type="checkbox" data-component-override="exchanger"/></label><p class="component-owner"></p></div><details><summary>All actual readings</summary><dl class="component-readbacks"></dl></details>` : `<div class="equipment-console-grid">
           <section><h3>Requested settings</h3><label class="component-override"><input type="checkbox" data-component-override="${id}"/> Manual override in Auto</label><p class="component-owner"></p>
           <div class="component-settings">${(COMPONENT_SETTINGS[id] || []).filter(setting=>!setting.key.startsWith('disturbance')).map(setting => `<label>${setting.label}<span>${settingInput(setting,id)} ${setting.unit || ''}</span><small data-setting-actual="${setting.key}"></small></label>`).join('')}</div>
@@ -31,7 +46,7 @@ export function equipmentDialogs(details) {
           </section>
           <section><h3>Actual response</h3><div class="equipment-content"><dl>${item.fields.map(([name, key])=>`<div><dt>${name}</dt><dd data-value="${key}"></dd></div>`).join('')}</dl></div><dl class="component-readbacks"></dl>
           <svg class="component-flow-diagram" viewBox="0 0 320 75" role="img" aria-label="Illustrative actual component response"><path class="component-flow-shell" d="M10 32H310"/><path class="component-flow" d="M10 32H310"/><g transform="translate(160 32)"><circle r="20"/><g class="component-valve-handle"><path d="M-18 0h36"/><circle r="4"/></g></g><text x="8" y="67">INLET</text><text x="160" y="67" text-anchor="middle">ACTUAL RESPONSE</text><text x="310" y="67" text-anchor="end">OUTLET</text></svg>
-          <p class="component-response"></p>
+          ${pumpDefinition(id) ? pumpInternals(id) : ''}<p class="component-response"></p>
           </section>
         </div>`}
         <section class="component-trends"><h3>Local trends · last 2 minutes</h3><p class="component-trend-legend"></p><svg viewBox="${id === 'exchanger' ? '0 0 360 230' : '0 0 600 145'}" role="img" aria-label="Simulated component readings with operator adjustment markers"><path class="component-trend-grid" d="${id === 'exchanger' ? 'M35 10V200H345M35 105H345' : 'M35 10V115H585M35 62H585'}"/><g class="component-trend-traces"></g><g class="component-trend-markers"></g><text x="35" y="${id === 'exchanger' ? 225 : 140}">−2 MIN</text><text x="${id === 'exchanger' ? 310 : 545}" y="${id === 'exchanger' ? 225 : 140}">NOW</text></svg><p class="component-trend-note">Each trace uses its own displayed range. Dashed markers show operator changes.</p></section>
@@ -64,7 +79,7 @@ export function initializeEquipment(host) {
         const close = event.target.closest('[data-component-close]');
         if (close) host.closeFloatingDialog(root.querySelector(`[data-component-dialog="${close.dataset.componentClose}"]`));
         const button = event.target.closest('[data-component-action]');
-        if (button && !button.disabled) { if (button.dataset.componentAction==='toggle') host.simulation.togglePump(button.dataset.component.at(-1)); else host.simulation.componentAction(button.dataset.component, button.dataset.componentAction); host.update(); }
+        if (button && !button.disabled) { if (button.dataset.componentAction==='toggle') host.simulation.togglePump(pumpDefinition(button.dataset.component).key); else host.simulation.componentAction(button.dataset.component, button.dataset.componentAction); host.update(); }
     });
 }
 
@@ -130,7 +145,8 @@ export function updateEquipment(host) {
             const readback=root.querySelector(`[data-setting-actual="${key}"]`);
             if (readback) readback.textContent = item.actual[key] !== undefined ? `Actual: ${format(item.actual[key])} ${definition?.unit || ''}` : 'Requested setting · read-back shown alongside';
         }
-        root.querySelector('.component-reason').textContent = host.componentMessages?.[id] || item.reason || '';
+        const readiness = sim.condition.repairReadiness(sim);
+        root.querySelector('.component-reason').textContent = host.componentMessages?.[id] || item.reason || (id.endsWith('Pipes') && !readiness.ready ? readiness.checks.filter(check => !check.ready).map(check => check.label).join(' · ') : '');
         root.querySelector('.component-response').textContent = item.response || '';
         root.querySelector('.component-disturbance-state').textContent = `${item.disturbance?.enabled ? 'Periodic fluctuation active' : 'Periodic fluctuation off'} · ${item.disturbance?.progressiveFault ? 'Progressive fault active' : 'No progressive fault'}`;
         root.querySelector('.component-maintenance-state').textContent = `${format(item.hours)} operating hours · ${format(item.wear)}% wear. Repairs do not replenish fuel or erase heat.`;
@@ -142,6 +158,16 @@ export function updateEquipment(host) {
         }
         if (root.matches(':popover-open')) renderTrend(root,item,sim.elapsed);
         for (const button of root.querySelectorAll('[data-component-action="repair"]')) button.disabled=!sim.components.serviceReady;
+        const pump = pumpDefinition(id);
+        if (pump) {
+            const parts = sim.condition.components[pump.key].parts;
+            for (const part of PUMP_PARTS) {
+                root.querySelector(`[data-part-damage="${part}"]`).textContent = `${format(parts[part])}%`;
+                root.querySelector(`[data-part-meter="${part}"]`).value = parts[part];
+                root.querySelector(`[data-pump-part="${part}"]`).style.color = parts[part] > 0 ? '#d47755' : '#68cbb3';
+            }
+            root.querySelector('.pump-repair-state').textContent = readiness.ready ? 'Ready for explicit repair. Heat, fuel, settings and trips remain.' : readiness.checks.filter(check => !check.ready).map(check => check.label).join(' · ');
+        }
         if (id === 'exchanger') updateExchanger(host, root);
     }
 }
@@ -152,6 +178,8 @@ export function drawEquipmentMotion(host) {
     for (const root of host.shadowRoot.querySelectorAll('[data-component-dialog]:popover-open')) {
         if (root.dataset.componentDialog === 'exchanger') { drawExchanger(host, root); continue; }
         const item=sim.components.items[root.dataset.componentDialog];
+        const pump = pumpDefinition(root.dataset.componentDialog);
+        if (pump) root.querySelector('[data-pump-blades]').setAttribute('transform', `rotate(${host.motion[pump.key].angle} 0 0)`);
         const read=item?.actual || {};
         const opening=read.dischargeValve ?? read.secondaryValve ?? read.admission ?? read.coolingValve ?? 100;
         root.querySelector('.component-valve-handle').setAttribute('transform',`rotate(${valveHandleAngle(Number(opening))} 0 0)`);

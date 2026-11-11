@@ -83,9 +83,10 @@ export function advanceProcessMotion(previous, signals, seconds) {
         heatPhase: (previous.heatPhase + heat * dt * .6) % 1,
         supplyPhase: (previous.supplyPhase + bounded(signals.supplyFactor) * dt * .6) % 1,
         thermalPhase: ((previous.thermalPhase || 0) + bounded((signals.fuelTemperature - 100) / 550) * dt * .4) % 1,
+        leakPhase: ((previous.leakPhase || 0) + (signals.leakActivity > .01 ? .6 + bounded(signals.leakActivity / 30) : 0) * dt) % 1,
         ...advanceReactorMotion(previous, signals, dt),
-        primaryTravel: (previous.primaryTravel || 0) + bounded(signals.primaryFlow / 100) * dt * 2,
-        secondaryTravel: (previous.secondaryTravel || 0) + bounded(signals.secondaryFlow / 100) * dt * 2,
+        primaryTravel: (previous.primaryTravel || 0) + Math.max(0, Math.min(1.35, signals.primaryFlow / 100)) * dt * 2,
+        secondaryTravel: (previous.secondaryTravel || 0) + Math.max(0, Math.min(1.35, signals.secondaryFlow / 100)) * dt * 2,
         steam, heat
     };
 }
