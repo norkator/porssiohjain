@@ -1,5 +1,32 @@
 /* Phase-preserving SVG motion driven by reported simulation speed, not commands. */
 import { advanceTurbineFragments } from './nuclear-power-turbine.js';
+
+// Share the SVG path definition and distance-based particle positions without
+// querying SVG geometry (which can force synchronous style/layout work).
+export function createPolylinePath(points) {
+    const segments = [];
+    let length = 0;
+    for (let i = 1; i < points.length; i++) {
+        const [x, y] = points[i - 1];
+        const dx = points[i][0] - x, dy = points[i][1] - y;
+        const size = Math.hypot(dx, dy);
+        if (size) segments.push({ x, y, dx, dy, start: length, length: size });
+        length += size;
+    }
+    return {
+        d: points.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${y}`).join(''),
+        length,
+        pointAtDistance(distance) {
+            const offset = Math.max(0, Math.min(length, distance));
+            for (const segment of segments) {
+                if (offset > segment.start + segment.length) continue;
+                const t = (offset - segment.start) / segment.length;
+                return { x: segment.x + segment.dx * t, y: segment.y + segment.dy * t };
+            }
+            return { x: points[0][0], y: points[0][1] };
+        },
+    };
+}
 export const SVG_FLOW_SCALE = 19;
 
 export function valveHandleAngle(openingPercent, pipeAngle = 0) {

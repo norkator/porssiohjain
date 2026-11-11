@@ -73,6 +73,7 @@ export function updatePumpScene(view, sim, motion, pumps) {
         leak.scar.visible = source.damage > 0;
         leak.puddle.visible = flowing;
         leak.puddle.scale.setScalar(Math.min(1.5, .25 + source.rate / 30));
+        if (!flowing) continue;
         for (let index = 0; index < leak.drops.count; index++) {
             const point = waterJetPoint(motion.leakPhase || 0, index, leak.drops.count, source.pressure);
             view.leakTransform.position.set(leak.position[0] + point.x, leak.position[1] + point.y, leak.position[2] + point.z);

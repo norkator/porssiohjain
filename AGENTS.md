@@ -99,6 +99,12 @@ Process animations use actual heat/flow/output: turbine/generator coast-down, st
 condenser drops, exchanger highlights, local fuel glow/molten drips and source-to-pump
 bus flow share the visibility-aware frame loop. Rates are illustrative, not RPM;
 preserve cold-start stillness, retained heat, reduced motion and pause cleanup.
+The process viewport separately suspends offscreen SVG/WebGL work and crane motion;
+visible-console plant time, instruments and floating equipment windows remain live.
+Preserve distance-based SVG markers, instanced particle visibility/disposal, inactive
+leak skipping and turbine blade matrices that update only after damage/service.
+Cache equipment label sizes through their resize observer; keep immediate clamping
+for explicit selection, hover/focus, label-mode changes and viewport resizing.
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
 recovery.

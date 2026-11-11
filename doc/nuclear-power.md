@@ -83,6 +83,24 @@ its former Equipment detail readings are inside that window. The main view has n
 Equipment detail card. The 3D scene supports bounded orbit, pan and zoom; the SVG diagram can be zoomed and
 scrolled. Controls and instruments adapt to the browser viewport's width.
 
+The process viewport has its own visibility observer. Scrolling just the overview
+offscreen suspends WebGL draws, SVG animation writes and the crane illustration;
+the visible console's plant clock, instruments and floating equipment windows
+continue working. Returning refreshes the overview from actual state, including
+while paused or using reduced motion, without fast-forwarding the crane. Hiding
+the entire console still suspends the whole simulation. The shared animation loop
+retains its 30 FPS cap. Schematic steam markers follow the same static polyline
+definition as the drawing, using distance interpolation rather than per-frame SVG
+geometry queries. Motion elements retain DOM references across frames. Coolant,
+reaction and electrical markers use instanced particle batches with independent
+poses and actual-state visibility. Inactive leaks skip droplet calculations;
+unchanged turbine blades retain their instance matrices until damage or service
+changes their visible count. Equipment label sizes are cached through a resize
+observer; immediate measurements are reserved for explicit expansion/selection
+and viewport changes. Particle batches share the existing GPU disposal and
+reconnection lifecycle. These optimizations retain the existing resolution,
+lighting, antialiasing and simulation behavior.
+
 Click the reactor vessel (or **Core map ↗**) to open the core map in a movable,
 nonmodal floating dialog above the process (up to 900 px wide, with a
 650 px core drawing and viewport clamping). The process schematic stays
@@ -956,6 +974,8 @@ animation while instruments and controls continue to work.
   schematic, controls, recent two-minute trends, and bounded event journal.
 - `nuclear/src/simulation/nuclear-power-scene.js` owns the low-poly overview,
   bounded camera, picking, semantic labels, geometry batching and renderer cleanup.
+- `nuclear/src/simulation/nuclear-power-particles.js` batches repeated moving
+  markers into instanced meshes without putting each marker in scene traversal.
 - `nuclear/src/simulation/nuclear-power-electrical-scene.js` builds diesel cutaways,
   grid/bus and actual-state electrical routes in the main plant renderer.
 - `nuclear/src/simulation/nuclear-power-electrical.js` supplies the left source panel,
@@ -1095,3 +1115,13 @@ pause/mode/stop/trip guards, temperature/rod/breaker ownership and independent
 reaction/retained-heat phases. The browser regression also covers 3D/SVG exchanger
 steam, vessel reactions, cold/no-flow/Stop behavior, pause/reduced motion, grid
 message delivery and requested-versus-actual output.
+
+Rendering checkpoint (2026-11-11): 120 unit checks, the production build, focused
+equipment browser checks and the full Chrome regression pass. Compared with the
+production build from `299f62c`, the warm two-pump fixture uses about 304–305 draw
+calls instead of 369–370, with approximately 23,000 triangles and the same visual
+detail. Scene nodes fall from 537 to 428. A phone-sized offscreen overview performs
+no recurring WebGL draws or SVG motion writes while plant time and floating pump
+motion continue. Browser checks also compare cached steam positions with native
+SVG geometry and prohibit label-size reads during reading-only redraws. These
+counts come from headless Chrome/software WebGL; they are not phone FPS estimates.

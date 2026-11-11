@@ -7,6 +7,7 @@ import { buildFuelHandlingHall, updateFuelHandlingHall, CHANNEL_PITCH, ROD_INSER
 import { buildElectricalScene, updateElectricalScene, ELECTRICAL_LABELS } from './nuclear-power-electrical-scene.js';
 import { PUMPS } from './nuclear-power-pumps.js';
 import { buildPumpScene, updatePumpScene, PUMP_LAYOUT, PIPE_LAYOUT } from './nuclear-power-pump-scene.js';
+import { ParticleBatch } from './nuclear-power-particles.js';
 
 const TAU = Math.PI * 2;
 const DEFAULT_ZOOM = 1.2;
@@ -30,6 +31,7 @@ export class PlantOverviewScene {
         host.dataset.labels = 'compact';
         this.inspect = inspect;
         this.disposed = false;
+        this.visible = true;
         this.geometries = new Set();
         this.materials = new Set();
         this.groups = new Map();
@@ -95,6 +97,14 @@ export class PlantOverviewScene {
         return mesh;
     }
 
+    particles(parent, geometry, material, count) {
+        const batch = new ParticleBatch(parent, geometry, material, count);
+        this.geometries.add(geometry);
+        this.instancedMeshes.push(batch.mesh);
+        this.dynamicMeshes.push(batch.mesh);
+        return batch;
+    }
+
     box(parent, size, material, position) {
         return this.mesh(parent, new THREE.BoxGeometry(...size), material, position);
     }
@@ -120,8 +130,8 @@ export class PlantOverviewScene {
         for (let i = 1; i < vectors.length; i++) curve.add(new THREE.LineCurve3(vectors[i - 1], vectors[i]));
         const markerMaterial = this.material('#b5ffec', { emissive: '#58b9ad', emissiveIntensity: .35, transparent: true });
         const length = curve.getLength();
-        const dots = Array.from({ length: Math.max(2, Math.round(length / 1.2)) }, () => this.mesh(this.scene, this.dotGeometry, markerMaterial));
-        this.paths.push({ curve, length, dots, circuit, kind, material, markerMaterial, temperatureKey, pumpId });
+        const particles = this.particles(this.scene, this.dotGeometry, markerMaterial, Math.max(2, Math.round(length / 1.2)));
+        this.paths.push({ curve, length, particles, dots: particles.items, circuit, kind, material, markerMaterial, temperatureKey, pumpId });
     }
 
     component(id, position) {
@@ -218,13 +228,8 @@ export class PlantOverviewScene {
             opacity: 0, depthWrite: false, metalness: 0,
         });
         const reactionGeometry = new THREE.OctahedronGeometry(.065);
-        this.reactorReactions = Array.from({ length: 24 }, () => {
-            const particle = this.mesh(reactor, reactionGeometry, this.reactionMaterial);
-            particle.visible = false;
-            particle.raycast = () => {};
-            this.dynamicMeshes.push(particle);
-            return particle;
-        });
+        this.reactionParticles = this.particles(reactor, reactionGeometry, this.reactionMaterial, 24);
+        this.reactorReactions = this.reactionParticles.items;
         this.pool = this.cylinder(reactor, 1.25, .12, this.material('#ff602d', { emissive: '#ff3b16', emissiveIntensity: 1 }), [0, 1.76, 0]);
         this.pool.visible = false;
         this.drips = Array.from({ length: 5 }, (_, i) => this.mesh(reactor, this.dotGeometry, this.pool.material, [(i - 2) * .42, 2, .5]));
@@ -324,7 +329,7 @@ export class PlantOverviewScene {
         const layer = document.createElement('div');
         layer.className = 'plant-scene-labels';
         const bindExpansion = label => {
-            const relayout = () => { this.labelSignature = null; this.render(); };
+            const relayout = () => { this.labelSignature = null; this.measureLabels = true; this.render(); };
             for (const event of ['pointerenter', 'pointerleave', 'focus', 'blur']) label.addEventListener(event, relayout, { signal: this.abort.signal });
         };
         for (const [id, tag, name, position] of [...equipment, ...ELECTRICAL_LABELS]) {
@@ -382,6 +387,24 @@ export class PlantOverviewScene {
         hint.className = 'plant-scene-hint';
         hint.textContent = 'Drag: orbit · wheel-drag: pan · scroll: zoom';
         this.host.append(layer, caption, hint);
+        const labels = [...this.labels.values(), ...this.featureLabels];
+        const byButton = new Map(labels.map(label => [label.button, label]));
+        this.measureLabels = true;
+        this.labelResizeObserver = new ResizeObserver(entries => {
+            let changed = false;
+            for (const entry of entries) {
+                const label = byButton.get(entry.target);
+                const size = entry.borderBoxSize?.[0];
+                const width = Math.ceil(size?.inlineSize ?? entry.target.offsetWidth);
+                const height = Math.ceil(size?.blockSize ?? entry.target.offsetHeight);
+                if (!width || !height) continue;
+                if (width === label.width && height === label.height) continue;
+                Object.assign(label, { width, height });
+                changed = true;
+            }
+            if (changed) { this.labelSignature = null; this.render(); }
+        });
+        for (const label of labels) this.labelResizeObserver.observe(label.button);
     }
 
     batchStaticMeshes() {
@@ -499,6 +522,7 @@ export class PlantOverviewScene {
             this.renderer.setSize(width, height, false);
         }
         this.labelSignature = null;
+        this.measureLabels = true;
         this.render();
     }
 
@@ -512,7 +536,12 @@ export class PlantOverviewScene {
         if (this.host.dataset.labels === value) return;
         this.host.dataset.labels = value;
         this.labelSignature = null;
+        this.measureLabels = true;
         this.render();
+    }
+
+    setVisible(visible) {
+        this.visible = visible;
     }
 
     pan(dx, dy, origin = this.target) {
@@ -538,6 +567,10 @@ export class PlantOverviewScene {
 
     update(sim, motion, pumps, selected, theme, fuelTransfer, dieselMotion) {
         if (this.disposed) return;
+        if (selected !== this.selected) {
+            this.selected = selected;
+            this.measureLabels = true;
+        }
         if (theme !== this.theme) {
             this.theme = theme;
             this.floorMaterial.color.set(theme === 'light' ? '#d2e0e3' : '#1a2b37');
@@ -575,6 +608,7 @@ export class PlantOverviewScene {
             particle.scale.setScalar(.7 + (channel?.activity || 0) * .7);
             particle.visible = reactionActivity > .005 && (channel?.activity || 0) > .005;
         }
+        this.reactionParticles.update();
         this.pool.visible = sim.condition.meltProgress > 0;
         this.pool.scale.setScalar(.2 + sim.condition.meltProgress * .8);
         for (const [index, drip] of this.drips.entries()) {
@@ -585,12 +619,15 @@ export class PlantOverviewScene {
         updatePumpScene(this, sim, motion, pumps);
         this.turbineRotor.rotation.x = motion.angle * Math.PI / 180;
         const lost = sim.components.turbineIntegrity.bladesLost, transform = this.turbineTransform;
-        for (const [index, pose] of this.turbineBladePoses.entries()) {
-            transform.position.set(pose.x, pose.y, pose.z); transform.rotation.set(pose.angle, 0, 0);
-            transform.scale.set(1, pose.scale, 1); if (index < lost) transform.scale.setScalar(0);
-            transform.updateMatrix(); this.turbineBlades.setMatrixAt(index, transform.matrix);
+        if (lost !== this.turbineBladesLost) {
+            for (const [index, pose] of this.turbineBladePoses.entries()) {
+                transform.position.set(pose.x, pose.y, pose.z); transform.rotation.set(pose.angle, 0, 0);
+                transform.scale.set(1, pose.scale, 1); if (index < lost) transform.scale.setScalar(0);
+                transform.updateMatrix(); this.turbineBlades.setMatrixAt(index, transform.matrix);
+            }
+            this.turbineBlades.instanceMatrix.needsUpdate = true;
+            this.turbineBladesLost = lost;
         }
-        this.turbineBlades.instanceMatrix.needsUpdate = true;
         this.turbineFragments.count = motion.turbineFragments?.length || 0;
         for (const [index, fragment] of (motion.turbineFragments || []).entries()) {
             const pose = this.turbineBladePoses[fragment.blade];
@@ -598,7 +635,7 @@ export class PlantOverviewScene {
             transform.rotation.set(fragment.spin * Math.PI / 180, fragment.spin * .007, 0); transform.scale.set(1, pose.scale, 1);
             transform.updateMatrix(); this.turbineFragments.setMatrixAt(index, transform.matrix);
         }
-        this.turbineFragments.instanceMatrix.needsUpdate = true;
+        if (this.turbineFragments.count) this.turbineFragments.instanceMatrix.needsUpdate = true;
         this.generatorLamp.material.emissiveIntensity = sim.electricalOutput > .1 ? .7 : 0;
         this.exchangerGlow.emissiveIntensity = motion.heat * (.4 + .4 * Math.sin(motion.heatPhase * TAU) ** 2);
         for (const [index, puff] of this.exchangerSteam.entries()) {
@@ -631,8 +668,9 @@ export class PlantOverviewScene {
             const travel = path.pumpId ? pumps[PUMPS.find(p => p.id === path.pumpId).key].travel || 0 : path.circuit === 'A' ? motion.primaryTravel : motion.secondaryTravel;
             for (const [index, dot] of path.dots.entries()) {
                 dot.visible = flow > .1 && bypass > .001 && (path.kind !== 'steam' || motion.steam > .02);
-                dot.position.copy(path.curve.getPoint(flowMarkerDistance(travel, index, path.dots.length, path.length) / path.length));
+                if (dot.visible) dot.position.copy(path.curve.getPoint(flowMarkerDistance(travel, index, path.dots.length, path.length) / path.length));
             }
+            path.particles.update();
         }
         for (const [index, drop] of this.drops.entries()) {
             drop.visible = motion.steam > .02;
@@ -660,7 +698,7 @@ export class PlantOverviewScene {
     }
 
     render() {
-        if (this.disposed || !this.width || this.host.hidden) return;
+        if (this.disposed || !this.visible || !this.width || this.host.hidden) return;
         const cameraSignature = [this.width, this.height, this.zoom, this.yaw, this.pitch, this.target.x, this.target.y, this.target.z].join(',');
         if (cameraSignature !== this.cameraSignature) {
             this.cameraSignature = cameraSignature;
@@ -676,13 +714,21 @@ export class PlantOverviewScene {
         const labelSignature = cameraSignature + this.host.dataset.labels + labels.map(label => label.button.textContent + label.button.className).join('|');
         if (labelSignature !== this.labelSignature) {
             this.labelSignature = labelSignature;
-            // Read all label sizes before writing positions; unchanged labels/camera
-            // need no layout measurements on subsequent animation frames.
+            // Synchronous measurements are reserved for explicit expansion and
+            // resize actions. Reading updates use sizes delivered after layout by
+            // ResizeObserver, avoiding a forced style flush in animation frames.
+            if (this.measureLabels) {
+                for (const label of labels) {
+                    label.width = label.button.offsetWidth;
+                    label.height = label.button.offsetHeight;
+                }
+                this.measureLabels = false;
+            }
             const positions = labels.map(label => {
                 const point = label.anchor.clone().project(this.camera);
                 // Keep semantic buttons reachable even at the bounded camera extremes.
-                const halfWidth = label.button.offsetWidth / 2 + 6;
-                const halfHeight = label.button.offsetHeight / 2 + 6;
+                const halfWidth = label.width / 2 + 6;
+                const halfHeight = label.height / 2 + 6;
                 return { button: label.button,
                     left: `${clamp((point.x + 1) * this.width / 2, halfWidth, this.width - halfWidth)}px`,
                     top: `${clamp((1 - point.y) * this.height / 2, halfHeight, this.height - halfHeight)}px` };
@@ -700,6 +746,7 @@ export class PlantOverviewScene {
         this.disposed = true;
         this.abort.abort();
         this.resizeObserver?.disconnect();
+        this.labelResizeObserver?.disconnect();
         this.drag = null;
         for (const mesh of this.instancedMeshes) mesh.dispose();
         for (const geometry of this.geometries) geometry.dispose();

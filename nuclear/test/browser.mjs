@@ -443,6 +443,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await screenshot('backup-pump-internal-damage');
         await consoleCode('c.closeFloatingDialog(s.querySelector("[data-component-dialog=pumpA2]"));');
         await action('overview-schematic');
+        await until(`[...document.querySelector('nuclear-power-console').shadowRoot.querySelectorAll('[data-leak-source=primaryPipes] .water-leak-drop')].some(drop=>Number(drop.style.opacity)>0)`, 'Visible schematic did not refresh its active leak after switching views');
         assert.ok(await consoleCode('return [...s.querySelectorAll("[data-leak-source=primaryPipes] .water-leak-drop")].some(drop=>Number(drop.style.opacity)>0);'));
         const svgSpray = await consoleCode('return s.querySelector("[data-leak-source=primaryPipes] .water-leak-drop").getAttribute("cy");');
         await until(`document.querySelector('nuclear-power-console').shadowRoot.querySelector('[data-leak-source=primaryPipes] .water-leak-drop').getAttribute('cy') !== ${JSON.stringify(svgSpray)}`, 'Schematic leak drops did not fall');
@@ -975,6 +976,12 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         assert.notEqual(processBefore.angle, processAfter.angle);
         assert.notEqual(processBefore.particle, processAfter.particle);
         assert.notEqual(processBefore.drop, processAfter.drop);
+        assert.ok(await consoleCode(`const path=s.querySelector('.steam-flow');let reads=0;const native=path.getPointAtLength;
+            path.getPointAtLength=function(...args){reads++;return native.apply(this,args);};
+            try { c.drawSchematicMotion();const length=path.getTotalLength();return reads===0 && [...s.querySelectorAll('.steam-particle')].every(dot=>{
+                const distance=((c.processMotion.secondaryTravel*19+Number(dot.dataset.particle)/6*length)%length+length)%length;
+                const point=native.call(path,distance);return Math.hypot(Number(dot.getAttribute('cx'))-point.x,Number(dot.getAttribute('cy'))-point.y)<.001;
+            }); } finally {delete path.getPointAtLength;}`), 'Cached steam positions must match SVG geometry without live geometry queries');
         assert.equal(await consoleCode("const rotor=s.querySelector('.generator-rotor'); const p=new DOMPoint(0,0).matrixTransform(rotor.getScreenCTM());const hub=new DOMPoint(898,238).matrixTransform(s.querySelector('.schematic').getScreenCTM());return Math.hypot(p.x-hub.x,p.y-hub.y)<.01;"), true);
         await screenshot('process-animation-running');
         await action('overview-3d');
@@ -984,6 +991,43 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await until(`JSON.stringify(document.querySelector('nuclear-power-console').overviewScene.exchangerSteam[0].position.toArray()) !== ${JSON.stringify(JSON.stringify(activityBefore.steam))}`, 'Heat-exchanger steam did not rise');
         assert.notDeepEqual(await consoleCode('return c.overviewScene.reactorReactions[0].position.toArray();'), activityBefore.reaction);
         await screenshot('steam-and-core-reactions');
+        assert.ok(await consoleCode(`const v=c.overviewScene;return v.reactionParticles.mesh.count>0 && v.paths.every(path=>path.particles.mesh.count===path.dots.filter(dot=>dot.visible).length)
+            && v.electricalPaths.every(path=>path.particles.mesh.count===path.markers.filter(marker=>marker.visible).length);`), 'Instanced particle counts must match actual visible activity');
+        assert.equal(await consoleCode(`const labels=[...c.overviewScene.labels.values(),...c.overviewScene.featureLabels];
+            const native=Object.getOwnPropertyDescriptor(HTMLElement.prototype,'offsetWidth').get;
+            const temperature=c.simulation.temperature;let reads=0;
+            for(const label of labels)Object.defineProperty(label.button,'offsetWidth',{configurable:true,get(){reads++;return native.call(this);}});
+            try {c.simulation.temperature+=1;c.updateOverview();return reads;}
+            finally {for(const label of labels)delete label.button.offsetWidth;c.simulation.temperature=temperature;c.updateOverview();}`), 0,
+            'Reading-only redraws must use cached label sizes without forcing layout');
+        const matrixVersions = await consoleCode(`return {blades:c.overviewScene.turbineBlades.instanceMatrix.version,leaks:[...c.overviewScene.leaks.values()].map(leak=>leak.drops.instanceMatrix.version)};`);
+        await consoleCode('c.drawMotion(.05);');
+        assert.deepEqual(await consoleCode(`return {blades:c.overviewScene.turbineBlades.instanceMatrix.version,leaks:[...c.overviewScene.leaks.values()].map(leak=>leak.drops.instanceMatrix.version)};`), matrixVersions,
+            'Unchanged blades and inactive leak droplets must not rebuild GPU matrices');
+        // The plant clock and floating consoles stay live while only the process
+        // overview is below a phone's viewport.
+        await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+        await consoleCode('c.scrollIntoView({block:"start"});');
+        await until(`!document.querySelector('nuclear-power-console').overviewIntersecting`, 'Offscreen mobile overview was not suspended');
+        const offscreen = await consoleCode('return {frame:c.overviewScene.renderer.info.render.frame,elapsed:c.simulation.elapsed};');
+        await wait(600);
+        assert.equal(await consoleCode('return c.overviewScene.renderer.info.render.frame;'), offscreen.frame, 'Offscreen 3D must not render with active plant time');
+        assert.ok(await consoleCode('return c.simulation.elapsed;') > offscreen.elapsed, 'Overview visibility must not pause visible instruments or the plant clock');
+        await consoleCode('c.inspect("pumpA");');
+        const offscreenPump = await consoleCode('return s.querySelector("[data-component-dialog=pumpA] [data-pump-blades]").getAttribute("transform");');
+        await until(`document.querySelector('nuclear-power-console').shadowRoot.querySelector('[data-component-dialog=pumpA] [data-pump-blades]').getAttribute('transform')!==${JSON.stringify(offscreenPump)}`, 'Floating pump motion must continue while the overview is offscreen');
+        await consoleCode('s.querySelector("[data-component-close=pumpA]").click();s.querySelector(".diagram-viewport").scrollIntoView({block:"center"});');
+        await until(`document.querySelector('nuclear-power-console').overviewIntersecting && document.querySelector('nuclear-power-console').overviewScene.renderer.info.render.frame>${offscreen.frame}`, '3D did not refresh when scrolled into view');
+        await action('overview-schematic');
+        await consoleCode('c.scrollIntoView({block:"start"});');
+        await until(`!document.querySelector('nuclear-power-console').overviewIntersecting`, 'Offscreen schematic was not suspended');
+        const offscreenSvg = await consoleCode('return s.querySelector(".pump-a .rotor").getAttribute("transform");');
+        await wait(400);
+        assert.equal(await consoleCode('return s.querySelector(".pump-a .rotor").getAttribute("transform");'), offscreenSvg, 'Offscreen schematic must not mutate animation attributes');
+        await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
+        await consoleCode('c.scrollIntoView({block:"start"});');
+        await until(`document.querySelector('nuclear-power-console').overviewIntersecting`, 'Overview did not resume at desktop width');
+        await action('overview-3d');
         await action('pause');
         const frozenActivity = await consoleCode('return {steam:c.overviewScene.exchangerSteam.map(p=>p.position.toArray()),reaction:c.overviewScene.reactorReactions.map(p=>p.position.toArray())};');
         await wait(180);
