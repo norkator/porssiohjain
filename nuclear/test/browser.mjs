@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { pages, siteUrl } from '../site/pages.mjs';
 import { checkGenerationConsoles } from './generation-consoles.browser.mjs';
 import { checkTurbineOverload } from './turbine-overload.browser.mjs';
+import { checkCoolingTower } from './cooling-tower.browser.mjs';
 import { waitForChrome } from './chrome-startup.mjs';
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
@@ -126,7 +127,8 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
         const baseUrl = appUrl || `http://127.0.0.1:${server.address().port}/`;
         const focusedEquipment = process.env.NUCLEAR_BROWSER_FOCUS === 'equipment';
-        if (!focusedEquipment) {
+        const focusedCooling = process.env.NUCLEAR_BROWSER_FOCUS === 'cooling';
+        if (!focusedEquipment && !focusedCooling) {
             // Check the actual shipped HTML with JavaScript disabled, as a crawler sees it.
             await page('Emulation.setScriptExecutionDisabled', { value: true });
             for (const entry of pages) {
@@ -169,6 +171,13 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         }
         await page('Page.navigate', { url: baseUrl });
         await until(`!!document.querySelector('nuclear-power-console')?.shadowRoot?.querySelector('.console')`, 'Control room did not render');
+        await checkCoolingTower({ consoleCode, action, page, until, screenshot, warmOperatingPoint });
+        if (focusedCooling) {
+            assert.deepEqual(exceptions, []);
+            console.log(`Cooling tower browser checks passed; artifacts: ${artifacts}`);
+            await send('Browser.close');
+            return;
+        }
         if (focusedEquipment) {
             await checkGenerationConsoles({ consoleCode, action, input, page, advance, until, screenshot, warmOperatingPoint, resetWithoutDispatch });
             await checkTurbineOverload({ consoleCode, action, input, page, advance, until, screenshot, warmOperatingPoint, resetWithoutDispatch });

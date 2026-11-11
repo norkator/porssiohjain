@@ -8,6 +8,7 @@ import { buildElectricalScene, updateElectricalScene, ELECTRICAL_LABELS } from '
 import { PUMPS } from './nuclear-power-pumps.js';
 import { buildPumpScene, updatePumpScene, PUMP_LAYOUT, PIPE_LAYOUT } from './nuclear-power-pump-scene.js';
 import { ParticleBatch } from './nuclear-power-particles.js';
+import { buildCoolingScene, updateCoolingScene, COOLING_LABELS } from './nuclear-power-cooling-scene.js';
 
 const TAU = Math.PI * 2;
 const DEFAULT_ZOOM = 1.2;
@@ -161,8 +162,8 @@ export class PlantOverviewScene {
     }
 
     build() {
-        this.frameHeight = 12.2;
-        this.target.set(0, 4.15, -1.4);
+        this.frameHeight = 15.6;
+        this.target.set(0, 5.1, -3);
         this.steel = this.material('#708d9e');
         this.steelLight = this.material('#b6cbd4');
         this.darkSteel = this.material('#344c5c');
@@ -312,6 +313,7 @@ export class PlantOverviewScene {
         for (let i = 0; i < 6; i++) this.box(condenser, [.1, 1, .1], this.coolPipe, [-1.3 + i * .52, 1.08, .98]);
         this.drops = Array.from({ length: 7 }, (_, i) => this.mesh(condenser, this.dotGeometry, this.coolMarker, [-1.3 + i * .43, 1.4, 1.1]));
         this.valve('condenser', 'coolingValve', [1.8, 1.3, 0]);
+        buildCoolingScene(this);
 
         this.flow([[-5.8, 4.7, 0], [-4, 4.7, 0], [-4, 4.7, -1.5], [-2.3, 4.7, -1.5]], 'A', 'hot', this.hotPipe, 'primaryHot');
         this.flow([[-2.3, 1.3, -1.5], [-3.3, 1.3, -1.5], [-3.3, 1.2, 2.3]], 'A', 'water', this.material('#4c9eac'), 'primaryReturn');
@@ -354,19 +356,21 @@ export class PlantOverviewScene {
         for (const [id, tag, title, detail, position] of [
             ['spent-fuel-pool', 'SF-01', 'Spent-fuel pool', 'Empty storage racks', [-10.6, 6.4, -4.75]],
             ['fuel-crane', 'FH-01', 'Fuel-handling crane', 'Parked', [-7.4, 11.9, -4.75]],
+            ...COOLING_LABELS,
         ]) {
-            const label = document.createElement(id === 'spent-fuel-pool' ? 'button' : 'span');
+            const inspectId = id === 'spent-fuel-pool' ? 'spentFuel' : id === 'cooling-tower' ? 'condenser' : null;
+            const label = document.createElement(inspectId ? 'button' : 'span');
             label.className = 'plant-scene-label plant-scene-feature';
             label.dataset.sceneFeature = id;
             label.tabIndex = 0;
             label.setAttribute('aria-label', `${tag}: ${title}`);
-            if (id === 'spent-fuel-pool') {
-                label.dataset.sceneEquipment = 'spentFuel';
-                label.setAttribute('aria-label', 'Open spent-fuel pool and dispatch controls');
+            if (inspectId) {
+                label.dataset.sceneEquipment = inspectId;
+                label.setAttribute('aria-label', id === 'spent-fuel-pool' ? 'Open spent-fuel pool and dispatch controls' : 'Open condenser controls for cooling tower heat rejection');
                 label.setAttribute('aria-haspopup', 'dialog');
-                label.setAttribute('aria-controls', 'spent-fuel-window');
+                label.setAttribute('aria-controls', id === 'spent-fuel-pool' ? 'spent-fuel-window' : 'equipment-condenser-window');
                 label.setAttribute('aria-expanded', 'false');
-                label.addEventListener('click', () => this.inspect('spentFuel'), { signal: this.abort.signal });
+                label.addEventListener('click', () => this.inspect(inspectId), { signal: this.abort.signal });
             }
             const name = document.createElement('strong');
             name.textContent = tag;
@@ -379,7 +383,7 @@ export class PlantOverviewScene {
             layer.append(label);
             this.featureLabels.push({ id, button: label, reading: description, anchor: new THREE.Vector3(...position) });
         }
-        this.renderer.domElement.setAttribute('aria-description', 'The tiled reactor deck stays closed during regulation. Control rods and aqua collars move inside the open-front guide chamber; small sliders on green caps indicate actual rod insertion. Behind the reactor are a spent-fuel pool and a fuel-handling crane. Each manual replacement can illustrate one assembly moving into the pool.');
+        this.renderer.domElement.setAttribute('aria-description', 'The tiled reactor deck stays closed during regulation. Control rods and aqua collars move inside the open-front guide chamber; small sliders on green caps indicate actual rod insertion. Behind the reactor are a spent-fuel pool and a fuel-handling crane. Each manual replacement can illustrate one assembly moving into the pool. A gray cooling tower with two red bands stands behind the condenser. Separate cooling-water pipes pass beneath the base to its basin, with river make-up water replacing losses. The white water-vapor plume follows actual condenser heat rejection.');
         const caption = document.createElement('span');
         caption.className = 'plant-scene-caption';
         caption.textContent = 'UNIT 01 / CUTAWAY';
@@ -693,6 +697,7 @@ export class PlantOverviewScene {
         }
         this.labels.get('reactor').button.setAttribute('aria-label', `Open reactor core map; simulated inlet ${sim.returnTemperature.toFixed(1)} degrees Celsius, outlet ${sim.temperature.toFixed(1)} degrees Celsius`);
         if (fuelTransfer) updateFuelHandlingHall(this, fuelTransfer);
+        updateCoolingScene(this, motion, theme);
         updateElectricalScene(this, sim.supply, dieselMotion, motion.supplyPhase, sim);
         this.render();
     }

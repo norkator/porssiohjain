@@ -360,6 +360,24 @@ fuel, control rods and transfer tubes. Separate primary and secondary pipework,
 pump impellers, turbine blades, generator and condenser share the existing plant
 state. No additional physics or command path is introduced.
 
+A gray natural-draft cooling tower with two red bands stands behind the condenser,
+scaled against the spent-fuel pool. Warm/cool water pipes descend through sleeves
+in the equipment plate, run beneath/along its outer edge, and connect to the tower
+and basin. A smaller river intake provides make-up water for cooling-water losses;
+this circuit remains separate from reactor coolant and turbine steam. Its white
+plume represents condensed water vapor rising straight up in fixed columns, without
+spiraling or sideways drift. Actual secondary temperature/circulation
+and condenser cooling capacity control plume density, opacity and height; cold,
+no-flow and unavailable-cooling states have no plume, while retained hot circulation
+can continue it after Stop. This is a normalized illustration, not added heat/water
+physics or a measured MW signal. One bounded instanced billboard batch shares the
+frame clock, pause/reduced-motion/visibility behavior and GPU disposal. Tower and
+pipe picking, plus its keyboard-accessible CT-01 label, open the existing condenser
+controls. The default camera includes the tower and plume. The river/tower are 3D
+presentation additions; the existing SVG condenser controls remain available.
+See [the cooling tower checkpoint](../nuclear/COOLING-TOWER-PLAN.md). Focused checks:
+`npm run test:browser:cooling`; equipment browser checks include these scenarios.
+
 The taller viewport starts at 120% zoom. Drag to orbit within bounded angles, use
 the mouse wheel or +/− buttons to zoom (65–300%), and select **Reset view** to restore
 the initial camera, including its center. Hold the mouse wheel and drag to pan

@@ -1087,6 +1087,8 @@ export class NuclearPowerConsole extends HTMLElement {
             shaftSpeed: sim.components?.items.turbine.actual.shaftSpeed,
             turbineFragments: sim.components.turbineIntegrity.fragments,
             exchangerTransferFactor: sim.components.items.exchanger.actual.transferFactor,
+            condenserCoolingFactor: sim.components.items.condenser.actual.coolingFactor,
+            condenserInletTemperature: sim.components.items.condenser.actual.inletTemperature,
             electricalOutput: sim.electricalOutput, supplyFactor: sim.supply.factor,
             leakActivity: Math.max(...leakSources(sim).map(source => source.rate)),
         }, seconds);

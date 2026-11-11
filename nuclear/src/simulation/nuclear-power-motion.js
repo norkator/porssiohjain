@@ -1,5 +1,6 @@
 /* Phase-preserving SVG motion driven by reported simulation speed, not commands. */
 import { advanceTurbineFragments } from './nuclear-power-turbine.js';
+import { condenserHeatRejection } from './nuclear-power-cooling.js';
 
 // Share the SVG path definition and distance-based particle positions without
 // querying SVG geometry (which can force synchronous style/layout work).
@@ -97,6 +98,8 @@ export function advanceProcessMotion(previous, signals, seconds) {
     const bounded = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
     const dt = Number.isFinite(seconds) ? Math.max(0, Math.min(.1, seconds)) : 0;
     const steam = bounded((signals.secondaryTemperature - 65) / 140) * bounded(signals.secondaryFlow / 100);
+    const coolingTower = condenserHeatRejection(signals);
+    const coolingWater = Math.max(0, Math.min(1.35, signals.secondaryFlow / 100)) * bounded(signals.condenserCoolingFactor);
     const heat = bounded((signals.temperature - signals.secondaryTemperature) / 140)
         * bounded(Math.min(signals.primaryFlow, signals.secondaryFlow) / 100)
         * (Number.isFinite(signals.exchangerTransferFactor) ? bounded(signals.exchangerTransferFactor) : 1);
@@ -108,6 +111,9 @@ export function advanceProcessMotion(previous, signals, seconds) {
         speed: speed < .0001 ? 0 : speed,
         angle: (previous.angle + speed * 540 * dt) % 360,
         steamPhase: (previous.steamPhase + steam * dt * .35) % 1,
+        coolingTower, coolingWater,
+        coolingTowerPhase: ((previous.coolingTowerPhase || 0) + (coolingTower > .002 ? .06 + coolingTower * .16 : 0) * dt) % 1,
+        coolingWaterTravel: (previous.coolingWaterTravel || 0) + coolingWater * dt * 2,
         heatPhase: (previous.heatPhase + heat * dt * .6) % 1,
         supplyPhase: (previous.supplyPhase + bounded(signals.supplyFactor) * dt * .6) % 1,
         thermalPhase: ((previous.thermalPhase || 0) + bounded((signals.fuelTemperature - 100) / 550) * dt * .4) % 1,

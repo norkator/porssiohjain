@@ -23,6 +23,22 @@ simulation as the instruments. The taller viewport supports both themes and
 reduced motion. **Schematic** switches to the retained SVG overview without
 changing plant state; browsers without WebGL 2 fall back to it automatically.
 
+A gray cooling tower with two red bands stands behind the condenser, sized against
+the spent-fuel pool. Warm/cool water pipes descend through the equipment plate and
+run along its outer edge to the tower. A small river intake supplies make-up water
+to its basin, separate from the reactor and turbine steam loops. The white plume
+represents condensed water vapor rising straight up. Actual secondary heat,
+circulation and condenser cooling capacity control its density and height.
+Cold/no-flow/unavailable-cooling states have no plume; retained hot circulation
+can keep it visible after Stop.
+Tower surfaces and its keyboard-accessible CT-01 label open the condenser controls.
+Its bounded instanced vapor shares pause, reduced motion, visibility and GPU cleanup
+with the main scene. See [the cooling tower checkpoint](COOLING-TOWER-PLAN.md).
+
+For focused checks, run the cooling, rendering and loop unit tests listed in the
+checkpoint, followed by `npm run build` and `npm run test:browser:cooling`.
+The equipment browser suite also includes these tower scenarios.
+
 Plant calculations and instrument refreshes run every 250 ms. Presentation uses
 one visibility-aware animation loop capped at 30 fps, which stops when there is
 no visible motion. A static cold 3D scene redraws only when its displayed state,

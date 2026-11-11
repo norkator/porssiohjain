@@ -271,6 +271,16 @@ Middle-wheel drag or Shift+drag pans the unified 3D view; Shift+arrows also pan,
 plain wheel zooms, and Home/Reset view restores center/orbit/zoom. Read
 `nuclear/FUEL-HANDLING-PLAN.md` before full spent-fuel inventory or gameplay work;
 the latest scope update records the intentionally representative animation.
+The 3D background has a gray cooling tower with two red bands, condenser
+warm/cool pipes beneath the base and a separate river make-up intake. Its white
+water-vapor plume rises straight up without spiraling; intensity follows actual
+secondary heat/flow and condenser cooling capacity,
+including retained hot circulation after Stop. Cold/no-flow/no-cooling states have
+no plume. Keep the bounded instanced vapor on the shared frame clock and preserve
+pause/reduced-motion/visibility/disposal, both themes, camera fitting and condenser
+picking/keyboard access. This is presentation only; do not connect reactor/turbine
+steam directly to the tower. See `nuclear/COOLING-TOWER-PLAN.md` and use
+`npm run test:browser:cooling` for focused coverage.
 The feature document records the control model, verification, and future MQTT work.
 
 ## Solar panels handoff
