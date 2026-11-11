@@ -87,9 +87,9 @@ machinery immediately; UI clicks/alarms remain shared. Returning resumes actual
 state without replay. Preserve automatic starts, fuel exhaustion, bounded gain,
 opt-in loading and Reset cleanup.
 New/reset sessions select Auto with Electrical output regulation (200 MW), but
-the reactor starts stopped/cold with fully inserted rods and both pumps disabled
-(zero actual motor speed/flow, retained 100% speed targets). Explicitly start both
-pumps and establish circulation before reactor Start; healthy
+the reactor starts stopped/cold with fully inserted rods and all four pumps disabled
+(zero actual motor speed/flow, retained 100% speed targets). Explicitly start at least
+one pump per circuit and establish circulation before reactor Start; healthy
 running core temperatures have green emphasis in both themes.
 Process animations use actual heat/flow/output: turbine/generator coast-down, steam,
 condenser drops, exchanger highlights, local fuel glow/molten drips and source-to-pump
@@ -97,7 +97,20 @@ bus flow share the visibility-aware frame loop. Rates are illustrative, not RPM;
 preserve cold-start stillness, retained heat, reduced motion and pause cleanup.
 Preserve individual rod targets, bank offsets, speed-dependent centered pump/flow
 motion, manual/automatic modes, disturbances, categorized logs, and latched trip
-recovery. Industrial Start/Stop pushbuttons and pump pilot lamps show actual running
+recovery.
+Primary pumps A/A2 and secondary pumps B/B2 are independently enabled parallel
+branches in both 3D and SVG. A2/B2 are manual backups, OFF by default; Auto regulates
+only enabled pumps and never enables a backup. Two full-speed pumps provide a
+fictional 135% flow and 182% nominal differential pressure. Sustained pressure
+above 145% causes pipe damage after eight seconds; visible water jets/drops and
+fitting leaks follow actual flow on the shared frame loop. Shutdown stops spray
+but retains damage. Track each pump's blades, bearings and fittings separately.
+Pipe repair additionally requires both affected-circuit run switches OFF and
+actual motor speed/flow below 0.5%; internal pump repairs require that motor OFF
+and stopped. Keep cooled/stopped/fault-free checks, heat/fuel/settings/hours and
+trip latches. Auxiliary demand includes every enabled pump; partial AC capacity
+slows all motors. Preserve cold stillness, pause/hide/detach, Maintenance stops,
+reduced motion, picking/dialog lifecycle, both themes and wide-screen fitting. Industrial Start/Stop pushbuttons and pump pilot lamps show actual running
 state; stress/wear has amber/red indication. Start/Stop caps have clear green/red
 halos with restrained shine, and the emergency cap has a soft armed glow and bright latched red glow.
 Load and pump-speed targets share engraved regulator rails, grooved handles and
@@ -105,6 +118,10 @@ amber percentage displays; preserve native controls, Auto ownership and pump ove
 Pump ON/OFF rockers show requested enable state separately from actual motor
 lamps/coast-down status; preserve name, circuit, speed and flow readings. Emergency shutdown is a mushroom
 button held visibly depressed with a red lamp for every latched reactor trip.
+Its transparent hinged plastic cover must be opened before manual activation;
+keep the native cover toggle before the button in keyboard order. Opening/closing
+the cover never changes the plant or blocks automatic trips. New/reset sessions
+close it; preserve both themes and pause/reduced-motion handling.
 Only successful explicit Reset trip releases it; preserve interlocks and the
 stopped state after reset, readable disabled lamps, both themes and keyboard access.
 Automatic control must never reset a trip or restart the plant by itself.
@@ -175,7 +192,19 @@ turbine-feed switches use the same rocker styling, preserving keyboard behavior.
 The old top-right EXTERNAL GRID/source button is removed. Controls remain usable
 in the SVG/WebGL fallback. Core/component/pool/electrical windows share dragging,
 keyboard movement, viewport clamping, per-window closing and focus restoration.
-Scene labels are translucent until hover/focus or their dialog opens.
+The 3D Labels selector offers Off / Compact / Full, defaulting to Compact tags.
+Hover/focus reveals full names and readings; the selected card stays expanded.
+Off hides visual cards while keeping canvas picking and keyboard focus reveal.
+Preserve expansion-aware viewport clamping, both themes/reduced motion and the
+choice across view/tab switches, Reset demo and element reconnection.
+All four pump dialogs use a compact SVG cutaway with adjacent local speed/flow/
+pressure trends. Drag the impeller, discharge valve or trim, or select a control
+for native sliders, keyboard arrows/Home/End and ±5 adjustments. No numeric
+percentage entry fields remain; disturbances also use sliders. Preserve Auto
+ownership/overrides, requested dashed versus actual solid indicators, native run
+rockers, part damage, repair checks and shared animation cleanup. Preview drags
+until release; cancel uncommitted values on cancellation or close/hide. Narrow
+views stack trends and keep horizontal scrolling inside the cutaway.
 The heat exchanger dialog uses an interactive SVG cutaway: drag valves, tube bundle
 or deposits horizontally, or select a part for slider/keyboard/±5% adjustments.
 Keep requested dashed handles separate from actual solid handles, use the shared

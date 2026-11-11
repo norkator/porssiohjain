@@ -85,6 +85,7 @@ test('secondary pump changes electrical output and its alarm clears when circula
     assert.ok(sim.snapshot().signals.electricalOutput.value < initial / 5);
     assert.equal(sim.alarms.some(alarm => alarm.id === 'secondary'), true);
     sim.togglePump('B');
+    advance(sim, 2);
     assert.equal(sim.alarms.some(alarm => alarm.id === 'secondary'), false);
     advance(sim, 20);
     assert.ok(sim.snapshot().signals.electricalOutput.value > initial * 0.95);

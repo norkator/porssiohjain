@@ -108,11 +108,14 @@ test('component wear survives fault clearing and trip reset; explicit cool repai
     sim.repairComponents();
     assert.ok(sim.condition.components.A.damage >= damage);
     advance(sim, 180);
+    assert.equal(sim.condition.canRepair(sim), false, 'Damaged pump internals require the motor to be stopped');
+    sim.togglePump('A'); advance(sim, 15);
     assert.equal(sim.condition.canRepair(sim), true);
     const reserve = sim.condition.heatReserve;
     sim.repairComponents();
     assert.equal(sim.condition.damaged, false);
     assert.equal(sim.condition.heatReserve, reserve);
+    sim.togglePump('A'); advance(sim, 8);
     sim.resetTrip();
     assert.equal(sim.running, false);
     sim.start();

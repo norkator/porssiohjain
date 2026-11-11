@@ -24,7 +24,7 @@ export function advancePumpMotion(previous, speedPercent, seconds) {
 export function advanceInstrumentMotion(previous, signals, seconds) {
     const dt = Number.isFinite(seconds) ? Math.max(0, Math.min(.1, seconds)) : 0;
     const next = {};
-    for (const key of ['thermal', 'electrical', 'flow']) {
+    for (const key of ['thermal', 'electrical', 'flow', 'secondaryFlow']) {
         const activity = Number.isFinite(signals[key]) ? Math.max(0, Math.min(1, signals[key])) : 0;
         next[key] = ((previous[key] || 0) + activity * dt * .9) % 1;
     }
@@ -83,9 +83,10 @@ export function advanceProcessMotion(previous, signals, seconds) {
         heatPhase: (previous.heatPhase + heat * dt * .6) % 1,
         supplyPhase: (previous.supplyPhase + bounded(signals.supplyFactor) * dt * .6) % 1,
         thermalPhase: ((previous.thermalPhase || 0) + bounded((signals.fuelTemperature - 100) / 550) * dt * .4) % 1,
+        leakPhase: ((previous.leakPhase || 0) + (signals.leakActivity > .01 ? .6 + bounded(signals.leakActivity / 30) : 0) * dt) % 1,
         ...advanceReactorMotion(previous, signals, dt),
-        primaryTravel: (previous.primaryTravel || 0) + bounded(signals.primaryFlow / 100) * dt * 2,
-        secondaryTravel: (previous.secondaryTravel || 0) + bounded(signals.secondaryFlow / 100) * dt * 2,
+        primaryTravel: (previous.primaryTravel || 0) + Math.max(0, Math.min(1.35, signals.primaryFlow / 100)) * dt * 2,
+        secondaryTravel: (previous.secondaryTravel || 0) + Math.max(0, Math.min(1.35, signals.secondaryFlow / 100)) * dt * 2,
         steam, heat
     };
 }

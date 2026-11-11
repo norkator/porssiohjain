@@ -1,4 +1,5 @@
 /* Fictional failure/heat model for the browser demo, not reactor engineering. */
+import { PUMPS, PUMP_PARTS, PRESSURE_LIMIT } from './nuclear-power-pumps.js';
 const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
 const approach = (n, target, dt, tau) => target + (n - target) * Math.exp(-dt / tau);
 
@@ -11,8 +12,9 @@ export class ReactorCondition {
         this.stage = 'NORMAL';
         this.fault = 'none';
         this.faultAge = 0;
-        this.restriction = { A: 1, B: 1 };
-        this.components = { A: { stress: 0, damage: 0 }, B: { stress: 0, damage: 0 } };
+        this.restriction = Object.fromEntries(PUMPS.map(pump => [pump.key, 1]));
+        this.components = Object.fromEntries(PUMPS.map(pump => [pump.key, { stress: 0, damage: 0,
+            parts: Object.fromEntries(PUMP_PARTS.map(part => [part, 0])) }]));
         this.zones = rods.map(rod => ({ id: rod.id, temperature: 323.3, exposure: 0, damage: 0 }));
         this.meltdown = false;
         this.meltProgress = 0;
@@ -21,7 +23,8 @@ export class ReactorCondition {
 
     get peakTemperature() { return Math.max(...this.zones.map(zone => zone.temperature)); }
     get coreDamage() { return Math.max(...this.zones.map(zone => zone.damage)); }
-    get damaged() { return this.coreDamage >= 1 || Object.values(this.components).some(component => component.damage >= 1); }
+    get damaged() { return this.coreDamage >= 1 || Object.values(this.components).some(component => component.damage >= 1)
+        || Object.values(this.pipes || {}).some(pipe => pipe.damage > 0); }
 
     beginIncident(sim, cause) {
         if (this.incident && !this.incident.resolvedAt) return;
@@ -57,11 +60,11 @@ export class ReactorCondition {
 
     prepare(dt) {
         this.faultAge += dt;
-        const targets = { A: 1, B: 1 };
-        if (this.fault === 'primary-restriction') targets.A = Math.max(0, 1 - this.faultAge / 35);
-        if (this.fault === 'secondary-loss') targets.B = Math.max(0, 1 - this.faultAge / 35);
+        const targets = Object.fromEntries(PUMPS.map(pump => [pump.key, 1]));
+        if (this.fault === 'primary-restriction') targets.A = targets.A2 = Math.max(0, 1 - this.faultAge / 35);
+        if (this.fault === 'secondary-loss') targets.B = targets.B2 = Math.max(0, 1 - this.faultAge / 35);
         if (this.fault === 'pump-wear') targets.A = Math.max(0.1, 1 - this.faultAge / 90);
-        for (const pump of ['A', 'B']) this.restriction[pump] = approach(this.restriction[pump], targets[pump], dt, 2);
+        for (const { key } of PUMPS) this.restriction[key] = approach(this.restriction[key], targets[key], dt, 2);
     }
 
     advance(sim, dt, previousTemperature) {
@@ -84,17 +87,25 @@ export class ReactorCondition {
                 zone.damage = clamp(zone.damage + Math.min(2, (zone.temperature - 450) / 100) * dt, 0, 100);
             }
         }
-        for (const [pump, flow] of [['A', sim.primaryFlow], ['B', sim.secondaryFlow]]) {
-            const component = this.components[pump];
-            const requested = sim[`pump${pump}`] ? sim[`pump${pump}Speed`] * Math.cbrt(sim.supply.factor) : 0;
+        for (const pump of PUMPS) {
+            const component = this.components[pump.key];
+            const flow = sim.hydraulics.branches[pump.key].capacity;
+            const requested = sim[pump.id] ? sim.components.pumpSpeed(pump.id) * Math.cbrt(sim.supply.factor) : 0;
             const deficit = requested > 10 ? Math.max(0, 1 - flow / requested) : 0;
-            component.stress = clamp(component.stress + (deficit > 0.15 ? deficit * 3 : -2) * dt, 0, 100);
+            const pipe = sim.hydraulics.pipes[pump.circuit];
+            const overload = requested > 10 && pipe.exposure > 8 ? Math.max(0, (pipe.pressure - PRESSURE_LIMIT) / 37.25) : 0;
+            component.stress = clamp(component.stress + (deficit > .15 || overload > 0 ? deficit * 3 + overload * 3 : -2) * dt, 0, 100);
             if (component.stress > 60) component.damage = clamp(component.damage + (component.stress - 60) * 0.012 * dt, 0, 100);
+            component.parts.blades = clamp(component.parts.blades + (component.stress > 60 ? deficit * .45 : 0) * dt + overload * .16 * dt, 0, 100);
+            component.parts.bearings = clamp(component.parts.bearings + (component.stress > 60 ? requested / 100 * .18 : 0) * dt, 0, 100);
+            component.parts.fittings = clamp(component.parts.fittings + overload * .3 * dt, 0, 100);
+            component.damage = Math.max(component.damage, ...Object.values(component.parts));
         }
         if (this.coreDamage >= 100 && this.peakTemperature >= 650) this.meltdown = true;
         if (this.meltdown) this.meltProgress = approach(this.meltProgress, 1, dt, 12);
         const stressed = this.coolingMargin < 0 || this.peakTemperature > 380
-            || Object.values(this.components).some(component => component.stress >= 25);
+            || Object.values(this.components).some(component => component.stress >= 25)
+            || Object.values(sim.hydraulics.pipes).some(pipe => pipe.pressure > PRESSURE_LIMIT);
         const next = this.meltdown ? 'MELTDOWN' : this.coreDamage >= 1 ? 'CORE DAMAGE' : this.damaged ? 'COMPONENT DAMAGE'
             : sim.temperature > 335 || this.peakTemperature > 410 ? 'OVERHEATING'
                 : stressed ? 'STRAINED' : sim.tripped ? 'PROTECTIVE SHUTDOWN' : 'NORMAL';
@@ -113,7 +124,12 @@ export class ReactorCondition {
             { id: 'faults', label: 'Active faults cleared', ready: this.fault === 'none' && !sim.components?.hasFaults },
             { id: 'coolant', label: 'Coolant below 150 °C', ready: sim.temperature < 150 },
             { id: 'fuel', label: 'Peak fuel below 200 °C', ready: this.peakTemperature < 200 },
-            { id: 'meltdown', label: 'No meltdown — Reset demo required after meltdown', ready: !this.meltdown }
+            { id: 'meltdown', label: 'No meltdown — Reset demo required after meltdown', ready: !this.meltdown },
+            ...(sim.hydraulics?.repairChecks(sim) || []),
+            ...PUMPS.filter(pump => Object.values(this.components[pump.key].parts).some(damage => damage > 0)).map(pump => ({
+                id: `${pump.id}Isolation`, label: `Pump ${pump.key} OFF and motor stopped before internal repair`,
+                ready: !sim[pump.id] && sim.components.items[pump.id].actual.speed < .5,
+            })),
         ];
         return { ready: checks.every(check => check.ready), checks };
     }
@@ -122,7 +138,7 @@ export class ReactorCondition {
 
     repair(sim) {
         if (!this.canRepair(sim)) return false;
-        for (const component of Object.values(this.components)) { component.damage = 0; component.stress = 0; }
+        for (const component of Object.values(this.components)) { component.damage = 0; component.stress = 0; for (const part of PUMP_PARTS) component.parts[part] = 0; }
         for (const zone of this.zones) { zone.damage = 0; zone.exposure = 0; }
         this.stage = sim.tripped ? 'PROTECTIVE SHUTDOWN' : 'NORMAL';
         sim.record('Simulated components repaired after cooldown. Stored heat and operating settings preserved.', 'success', 'operator');

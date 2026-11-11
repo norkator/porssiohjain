@@ -4,6 +4,7 @@
  * Licensed under the Pörssiohjain Personal Use License v1.0.
  */
 // Simplified auxiliary AC bus; all capacities/timings are illustrative demo values.
+import { PUMPS } from './nuclear-power-pumps.js';
 export class AuxiliaryPower {
     constructor() {
         this.gridAvailable = true;
@@ -55,8 +56,8 @@ export class AuxiliaryPower {
     }
 
     advance(sim, dt) {
-        this.demand = 0.2 + (sim.pumpA ? 3.5 * (sim.components.pumpSpeed('pumpA') / 100) ** 3 : 0)
-            + (sim.pumpB ? 2.5 * (sim.components.pumpSpeed('pumpB') / 100) ** 3 : 0);
+        this.demand = .2 + PUMPS.reduce((total, pump) => total + (sim[pump.id]
+            ? pump.power * (sim.components.pumpSpeed(pump.id) / 100) ** 3 : 0), 0);
         const turbinePower = sim.running && this.turbineConnected ? sim.electricalOutput : 0;
         const turbineReady = turbinePower >= this.demand + 1;
         const normalAvailable = turbineReady || this.gridAvailable;

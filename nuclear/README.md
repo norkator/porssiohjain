@@ -88,12 +88,37 @@ The header card beside the title contains regulation targets, the opt-in plant
 sound switch, theme, simulation status and clock. UI clicks use 100% of the bounded
 sample-volume range (0.26 gain); the volume slider and test button are removed.
 
+The 3D toolbar's **Labels** selector defaults to **Compact** equipment tags. Hover
+or keyboard focus reveals the name and live readings; the selected equipment's
+card stays expanded. **Full** shows every card. **Off** hides the cards while
+keeping canvas picking and keyboard access available: a focused equipment control
+still reveals its card. Expansion stays clamped inside the view in both themes.
+The choice survives view/tab switches, Reset demo and element reconnection.
+
+All four pump dialogs use a compact interactive cutaway beside speed, flow and
+pressure trends. Drag the impeller, discharge valve or trim knob, or choose a
+control and use its native slider and ±5 buttons. Arrows adjust one unit, Shift
+arrows ten; Home/End choose the control's bounds. A drag previews its request and
+commits on release; cancellation, closing or hiding the dialog discards the preview.
+Requested speed/valves are dashed amber; actual motor/valve read-back stays solid.
+The rocker keeps requested enable separate from actual rotation/coast-down.
+Auto ownership, manual override, internal damage and cooled repair rules remain
+in force. Disturbances also use sliders; there are no numeric percentage entry
+fields in the pump dialogs. Details/history are collapsed, and narrow screens
+stack the trends below the cutaway with scrolling confined to the illustration.
+
 The operator console uses recessed metal plates, round Start/Stop pushbuttons and
 pilot lights. Green means the reactor or pump motor is actually running; amber
 marks a stopped reactor or a ready trip reset. Pump stress/damage has amber/red
 indication. Labels distinguish readiness, interlocks and actual operation, including
-when a command is disabled. Emergency shutdown is a red mushroom button with a
-trip lamp: it stays depressed and reads **TRIP LATCHED** for any latched reactor
+when a command is disabled. Emergency shutdown has a transparent hinged plastic
+cover: first select **Lift cover**, then press the exposed red mushroom button.
+The native cover toggle precedes the button in keyboard order; Enter/Space opens
+the cover and Tab reaches the button. **Close cover** blocks access again without
+changing the plant. New sessions and **Reset demo** close the cover. Automatic
+trips work with either cover position, and pause/reduced motion skip the lid animation.
+The trip lamp and button stay visible through the lid: the button stays depressed
+and reads **TRIP LATCHED** for any latched reactor
 trip, and releases only after a successful **Reset trip**. Repeated presses cannot
 reset it; clearing the latch leaves the reactor stopped. The controls retain their
 existing interlocks, keyboard access and both themes. These are simulated controls.
@@ -107,9 +132,49 @@ The load setpoint uses a metal regulator plate, a grooved slider handle, an
 engraved 0–100% rail, an amber percentage display and fine-adjust buttons. Its
 AUTO/MANUAL/TRIP LOCK label identifies control ownership. Native slider input,
 keyboard adjustment and automatic/trip interlocks are preserved.
-Both pump speed targets share the same regulator rail, grooved handle, engraved
+All four pump speed targets share the same regulator rail, grooved handle, engraved
 scale and illuminated percentage display. Manual overrides, automatic ownership
 and actual speed/flow read-backs remain separate from these requested targets.
+
+Each circuit has two manually enabled, parallel pumps: primary **A / A2** and
+secondary **B / B2**. A2/B2 are the backup units; all four start OFF with retained
+100% speed targets. Either pump can provide its circuit's startup circulation.
+Each main/backup pair has independent speed sliders and ON/OFF rockers in the main
+view. Adjusting an OFF pump's speed retains its target without starting it. Running
+Auto owns each speed unless that pump has an explicit override. **Backup A2/B2 ↗**
+opens that pump's speed, discharge valve, Auto override, local trends and internal
+inspection. Auto adjusts only enabled pumps and never enables a backup. Each
+3D/SVG branch shows its own actual motor/flow, including coast-down and loss of AC.
+
+Two full-speed pumps give an illustrative **135% combined flow** and **182% relative
+circulation pressure**, with additional auxiliary demand. Pressure is a normalized
+gameplay differential-pressure indication, not an absolute vessel-pressure model.
+Auto continues to hold the requested total circulation; use Manual or individual
+speed overrides to run both pumps at 100%. Sustained pressure above **145% nominal**
+accumulates pipe damage after an eight-second exposure allowance. Damage causes
+visible blue water jets/drops in 3D and the schematic and reduces delivered coolant
+flow. Leaking fittings also spray. Blades, bearings and fittings retain independent
+damage; bearings can slow/stop the motor. Healthy single-pump operation is unchanged.
+These values are fictional gameplay parameters. Generator output still depends on
+heat, transfer/cooling, shaft/breaker state and the 410 MW gross nameplate limit.
+
+Primary and secondary flow each have a left-side instrument showing actual delivered
+flow, actual pressure and the healthy-pipe damage limit (about **5,780 m³/h**, derived
+from **145% nominal ΔP**). Each card turns amber from **125% ΔP**, then red above
+145% or while pipe damage remains. Text identifies near-limit, overpressure and
+retained damage states. Pressure drives the warning even if a leak lowers delivered
+flow below the displayed healthy-pipe limit. Alarm acknowledgement cannot hide it.
+
+Click a pipework label, the sidebar pressure readout, or a leaking pipe joint to
+inspect pressure, flow, damage and explicit repair. Pipe repair requires both
+affected-circuit run switches OFF and actual motor speed/flow below 0.5%, together
+with the existing stopped/cooled/fault-free repair checks. Damaged internal pump
+parts require that pump OFF and stopped. Turning flow off stops the spray but
+does not heal damage; **Repair all** also repairs isolated pipework and internals.
+Repairs preserve heat, fuel, settings, operating hours and reactor/turbine trip
+latches. Water spray and pump cutaways share the existing frame loop and respect
+pause, hidden views, detach, Maintenance and reduced motion. Reset demo clears the
+damage/leaks and returns every pump to OFF.
 
 **Enable plant sounds** also enables seamless steam/turbine/generator loops.
 Actual reactor output and turbine shaft speed drive the sound level; stress,
