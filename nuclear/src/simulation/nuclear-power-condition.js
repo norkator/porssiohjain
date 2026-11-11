@@ -125,6 +125,9 @@ export class ReactorCondition {
             { id: 'coolant', label: 'Coolant below 150 °C', ready: sim.temperature < 150 },
             { id: 'fuel', label: 'Peak fuel below 200 °C', ready: this.peakTemperature < 200 },
             { id: 'meltdown', label: 'No meltdown — Reset demo required after meltdown', ready: !this.meltdown },
+            ...((sim.components?.turbineIntegrity.damage > 0 || sim.components?.turbineIntegrity.wear > 0 || sim.components?.items.turbine.wear > 0) ? [{
+                id: 'turbineStopped', label: 'Turbine shaft stopped before service', ready: sim.components.items.turbine.actual.shaftSpeed < .5,
+            }] : []),
             ...(sim.hydraulics?.repairChecks(sim) || []),
             ...PUMPS.filter(pump => Object.values(this.components[pump.key].parts).some(damage => damage > 0)).map(pump => ({
                 id: `${pump.id}Isolation`, label: `Pump ${pump.key} OFF and motor stopped before internal repair`,

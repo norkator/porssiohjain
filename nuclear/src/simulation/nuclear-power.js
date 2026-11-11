@@ -20,6 +20,7 @@ import { spentFuelDialog, initializeSpentFuel, updateSpentFuel } from './nuclear
 import { formatNumber, formatPercent, hasPlantMotion, setText } from './nuclear-power-presentation.js';
 import { PUMPS, CIRCUITS, pumpDefinition, PRESSURE_LIMIT, PRESSURE_WARNING, FLOW_SCALE, FLOW_DAMAGE_LIMIT } from './nuclear-power-pumps.js';
 import { leakSources, waterJetPoint } from './nuclear-power-leaks.js';
+import { ELECTRICAL_TARGET_MAX_MW, TURBINE_RATING_MW } from './nuclear-power-turbine.js';
 
 const PLANT_TABS = ['reactor', 'maintenance'];
 
@@ -128,6 +129,7 @@ const schematic = `
   ${valveGlyph('turbine','admission',732,160)}
   <path d="m752 216 102-15v75l-102-15Z" fill="url(#vessel)" stroke="#8c9ca6" stroke-width="2"/>
   <g class="turbine-blades" stroke="#d7c7aa" stroke-width="3">${[767,784,801,818,835].map((x,i) => `<path data-turbine-blade="${i}" d="M${x} 218V258"/>`).join('')}</g>
+  <g class="turbine-blade-fragments" aria-hidden="true">${Array.from({ length: 40 }, (_, index) => `<path data-turbine-fragment="${index}" d="M-2-6 3-5 2 6-2 4Z" visibility="hidden"/>`).join('')}</g>
   <path d="M742 238h132" stroke="#d2dcd9" stroke-width="3"/>
   <circle cx="898" cy="238" r="25" fill="#203c3d" stroke="#89b9ac" stroke-width="2"/><text x="898" y="245" text-anchor="middle" class="generator-letter">G</text>
   <g transform="translate(898 238)"><g class="generator-rotor" transform="rotate(0 0 0)" aria-hidden="true"><circle r="20"/><path d="M-20 0h40M0-20v40"/></g></g>
@@ -290,7 +292,7 @@ export class NuclearPowerConsole extends HTMLElement {
               <section class="automation-strip" aria-label="Process regulation">
             <div><span class="control-label">CONTROL MODE</span><div class="mode-switch" role="group" aria-label="Control mode"><button data-action="manual" aria-pressed="false">Manual</button><button data-action="auto" aria-pressed="true">Auto</button></div></div>
             <label for="auto-objective">Regulate <select id="auto-objective"><option value="power">Electrical output</option><option value="temperature">Core temperature</option></select></label>
-            <label for="auto-electrical" class="electrical-target" hidden>Output target <span><input id="auto-electrical" type="number" min="0" max="400" step="1" value="200"/> MW<span class="subscript">e</span></span></label>
+            <label for="auto-electrical" class="electrical-target" hidden>Output target <span><input id="auto-electrical" type="number" min="0" max="${ELECTRICAL_TARGET_MAX_MW}" step="1" value="200"/> MW<span class="subscript">e</span></span></label>
             <label for="auto-temperature"><span data-value="temperatureLabel">Core target</span><span><input id="auto-temperature" type="number" min="40" step="1" value="286"/> °C</span></label>
             <label for="auto-flow">Circulation target <span><input id="auto-flow" type="number" min="25" max="100" step="1" value="85"/> %</span></label>
             <div class="regulation-status"><strong data-value="regulation">MANUAL CONTROL</strong><span data-value="regulationDetail">Individual rods and pump speeds available.</span><button class="small-button" data-action="fluctuations" aria-pressed="true">Fluctuations: On</button></div>
@@ -304,7 +306,7 @@ export class NuclearPowerConsole extends HTMLElement {
           <section class="metrics" aria-label="Simulated plant instruments">
             <article class="metric core-temperature-metric"><div class="metric-label"><span class="metric-icon warm">↗</span> Core temperature <span class="channel">TI-01</span></div><div class="metric-reading"><span data-value="coreNumber">286.0</span><span class="unit">°C</span></div><div class="metric-foot"><span><i class="status-dot"></i> <span data-value="temperatureState">WITHIN DEMO RANGE</span></span><span>SIMULATED</span></div><div class="metric-track warm-track"><i data-meter="temperature"></i></div></article>
             <article class="metric animated-metric thermal-metric" data-instrument="thermal"><svg class="metric-motion" viewBox="0 0 60 42" aria-hidden="true"><path class="thermal-base" d="M6 35h48"/><path class="metric-heat-wisp" data-wisp="0" d="M16 32q-7-5 0-10t0-10"/><path class="metric-heat-wisp" data-wisp="1" d="M30 32q-7-5 0-10t0-10"/><path class="metric-heat-wisp" data-wisp="2" d="M44 32q-7-5 0-10t0-10"/></svg><div class="metric-label"><span class="metric-icon warm">ϟ</span> Thermal output <span class="channel">PI-01</span></div><div class="metric-reading"><span data-value="thermalNumber">768</span><span class="unit">MW<span class="subscript">th</span></span></div><div class="metric-foot"><span><span data-value="load">64.0%</span> OF DEMO CAPACITY</span><span>SIMULATED</span></div><div class="metric-track warm-track"><i data-meter="power"></i></div></article>
-            <article class="metric animated-metric electrical-metric" data-instrument="electrical"><svg class="metric-motion" viewBox="0 0 60 42" aria-hidden="true"><circle class="metric-electric-ring" cx="30" cy="21" r="16"/><g transform="translate(30 21)"><g class="metric-dynamo"><path d="M-12 0h24M0-12v24M-8-8 8 8M-8 8 8-8"/></g></g><path class="metric-electric-bolt" d="m32 8-10 15h8l-2 11 11-16h-8Z"/></svg><div class="metric-label"><span class="metric-icon cool">ϟ</span> Electrical output <span class="channel">EI-01</span></div><div class="metric-reading"><span data-value="electricNumber">262</span><span class="unit">MW<span class="subscript">e</span></span></div><div class="metric-foot"><span data-value="electricalTargetLabel">GENERATOR OUTPUT</span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="electric"></i></div></article>
+            <article class="metric animated-metric electrical-metric" data-instrument="electrical"><svg class="metric-motion" viewBox="0 0 60 42" aria-hidden="true"><circle class="metric-electric-ring" cx="30" cy="21" r="16"/><g transform="translate(30 21)"><g class="metric-dynamo"><path d="M-12 0h24M0-12v24M-8-8 8 8M-8 8 8-8"/></g></g><path class="metric-electric-bolt" d="m32 8-10 15h8l-2 11 11-16h-8Z"/></svg><div class="metric-label"><span class="metric-icon cool">ϟ</span> Electrical output <span class="channel">EI-01</span></div><div class="metric-reading"><span data-value="electricNumber">262</span><span class="unit">MW<span class="subscript">e</span></span></div><div class="metric-foot"><span data-value="electricalTargetLabel">GENERATOR OUTPUT</span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="electric"></i></div><div class="turbine-condition"><strong data-value="turbineCondition">TURBINE NORMAL</strong><span data-value="turbineWear">0% wear · 0% load</span></div></article>
             ${CIRCUITS.map(flowMetric).join('')}
             <article class="metric"><div class="metric-label"><span class="metric-icon cool">Ⅱ</span> Rod insertion <span class="channel">ZI-01</span></div><div class="metric-reading"><span data-value="rodsNumber">36.0</span><span class="unit">%</span></div><div class="metric-foot"><span>TARGET <span data-value="rodTarget">36%</span></span><span>SIMULATED</span></div><div class="metric-track"><i data-meter="rods"></i></div></article>
           </section>
@@ -637,7 +639,7 @@ export class NuclearPowerConsole extends HTMLElement {
         if (!this.isConnected || !this.intersecting || document.hidden) return;
         if (this.plantTab !== 'reactor' || this.overviewMode !== '3d' || !this.overviewScene) return;
         const sim = this.simulation;
-        if (!hasPlantMotion(sim) && this.processMotion.speed <= .0001 && !this.fuelTransfer.job) {
+        if (!hasPlantMotion(sim) && this.processMotion.speed <= .0001 && !this.fuelTransfer.job && !this.processMotion.turbineFragments?.some(fragment => fragment.age < 2.2)) {
             // The clock still ticks in a cold session. Redraw static geometry only
             // when its displayed readings, colors, valves or pool contents change.
             const signature = JSON.stringify([
@@ -650,6 +652,7 @@ export class NuclearPowerConsole extends HTMLElement {
                 CIRCUITS.map(circuit => [sim.hydraulics.pipes[circuit].pressure.toFixed(1), sim.hydraulics.pipes[circuit].damage]),
                 sim.components.items.exchanger.actual.bypass, sim.components.items.exchanger.actual.secondaryValve,
                 sim.components.items.turbine.actual.admission, sim.components.items.condenser.actual.coolingValve,
+                sim.components.turbineIntegrity.bladesLost, sim.components.turbineIntegrity.wear,
                 sim.supply.source, sim.supply.factor, sim.supply.gridAvailable, sim.supply.demand.toFixed(2),
                 sim.supply.generators.map(generator => [generator.state, generator.fuel.toFixed(0)]),
                 this.fuelTransfer.pose.phase,
@@ -988,6 +991,7 @@ export class NuclearPowerConsole extends HTMLElement {
 
     hasVisualMotion() {
         const sim = this.simulation;
+        if (this.processMotion.turbineFragments?.some(fragment => fragment.age < 2.2)) return true;
         if (sim.power > .01 || sim.electricalOutput > .1 || sim.primaryFlow > .1 || sim.secondaryFlow > .1) return true;
         const processVisible = this.plantTab === 'reactor' || this.shadowRoot.querySelector('.equipment-dialog:popover-open');
         return !!processVisible && (hasPlantMotion(sim) || this.processMotion.speed > .0001
@@ -1049,6 +1053,7 @@ export class NuclearPowerConsole extends HTMLElement {
             reactorRods: sim.controlRods,
             reactorFuelCapability: sim.fuel.capability,
             shaftSpeed: sim.components?.items.turbine.actual.shaftSpeed,
+            turbineFragments: sim.components.turbineIntegrity.fragments,
             exchangerTransferFactor: sim.components.items.exchanger.actual.transferFactor,
             electricalOutput: sim.electricalOutput, supplyFactor: sim.supply.factor,
             leakActivity: Math.max(...leakSources(sim).map(source => source.rate)),
@@ -1112,6 +1117,12 @@ export class NuclearPowerConsole extends HTMLElement {
             const half = (18 + i * 2) * Math.cos((motion.angle + i * 32) * Math.PI / 180);
             const x = 767 + i * 17;
             blade.setAttribute('d', `M${x - 3} ${238 - half}L${x + 3} ${238 + half}`);
+            blade.style.visibility = i * 8 < sim.components.turbineIntegrity.bladesLost ? 'hidden' : 'visible';
+        }
+        for (const node of root.querySelectorAll('[data-turbine-fragment]')) {
+            const fragment = motion.turbineFragments?.[Number(node.dataset.turbineFragment)];
+            node.style.visibility = fragment ? 'visible' : 'hidden';
+            if (fragment) node.setAttribute('transform', `translate(${770 + Math.floor(fragment.blade / 8) * 17 + fragment.x * 24} ${238 - fragment.y * 24}) rotate(${fragment.spin})`);
         }
         root.querySelector('.generator-rotor').setAttribute('transform', `rotate(${motion.angle} 0 0)`);
         root.querySelector('.generator-export').style.strokeDashoffset = -motion.angle / 10;
@@ -1382,6 +1393,12 @@ export class NuclearPowerConsole extends HTMLElement {
             values[`${circuit}Pressure`] = `${n(sim.hydraulics.pipes[circuit].pressure)}% ΔP`;
             this.shadowRoot.querySelector(`.circuit-pressure[data-equipment="${circuit}Pipes"]`).dataset.high = String(sim.hydraulics.pipes[circuit].pressure > 145);
         }
+        const turbine = sim.components.turbineIntegrity;
+        const electricalCard = this.shadowRoot.querySelector('.electrical-metric');
+        electricalCard.dataset.integrity = turbine.level;
+        electricalCard.title = `Turbine rating ${TURBINE_RATING_MW} MW · rotor load ${n(turbine.load)}% · blade damage ${n(turbine.damage, 1)}% · service wear ${n(turbine.wear, 2)}%`;
+        values.turbineCondition = turbine.damage >= 100 ? 'ROTOR DESTROYED' : turbine.damage > 0 ? `BLADE DAMAGE ${n(turbine.damage, 1)}%` : turbine.serviceDue ? 'MAINTENANCE DUE' : turbine.load > 100 ? 'ABOVE RATED LOAD' : turbine.level === 'warning' ? 'NEAR RATED LOAD' : 'TURBINE NORMAL';
+        values.turbineWear = `${n(turbine.wear, 2)}% wear`;
         for (const element of this.shadowRoot.querySelectorAll('[data-value]')) {
             if (values[element.dataset.value] !== undefined && element.textContent !== values[element.dataset.value]) element.textContent = values[element.dataset.value];
         }
@@ -1658,13 +1675,15 @@ export class NuclearPowerConsole extends HTMLElement {
             root.querySelector('.temperature-trace').setAttribute('d', path('temperature', temperatureMax));
             const powerObjective = sim.autoObjective === 'power';
             const outputKey = powerObjective ? 'electricalOutput' : 'power';
-            const outputMax = powerObjective ? 400 : 100;
+            const outputMax = powerObjective ? Math.max(400, Math.ceil(Math.max(sim.autoElectricalTarget, sim.electricalOutput, ...points.map(point => point.electricalOutput)) / 100) * 100) : 100;
+            root.querySelector('[data-value="chartOutputMax"]').textContent = outputMax;
+            root.querySelector('[data-value="chartOutputMid"]').textContent = outputMax / 2;
             root.querySelector('.power-trace').setAttribute('d', path(outputKey, outputMax));
             let targetPath = '';
             let gap = true;
             if (powerObjective) for (const point of points) {
                 if (point.electricalTarget === null) { gap = true; continue; }
-                targetPath += `${gap ? 'M' : 'L'}${x(point.time).toFixed(1)} ${y(point.electricalTarget, 400).toFixed(1)} `;
+                targetPath += `${gap ? 'M' : 'L'}${x(point.time).toFixed(1)} ${y(point.electricalTarget, outputMax).toFixed(1)} `;
                 gap = false;
             }
             root.querySelector('.target-trace').setAttribute('d', targetPath);

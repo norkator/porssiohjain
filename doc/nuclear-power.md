@@ -515,7 +515,8 @@ visible blue water jets/drops in 3D and the schematic and reduces delivered cool
 flow. Leaking fittings also spray. Blades, bearings and fittings retain independent
 damage; bearings can slow/stop the motor. Healthy single-pump operation is unchanged.
 These values are fictional gameplay parameters. Generator output still depends on
-heat, transfer/cooling, shaft/breaker state and the 410 MW gross nameplate limit.
+heat, transfer/cooling, shaft/breaker state and retained rotor condition. The normal
+gross rating is 410 MW; overdrive can exceed it and accumulate turbine damage.
 
 Primary and secondary flow each have a left-side instrument showing actual delivered
 flow, actual pressure and the healthy-pipe damage limit (about **5,780 m³/h**, derived
@@ -624,6 +625,55 @@ admission. Below 850 px columns stack, with horizontal scrolling confined to the
 illustration. Both themes and the shared pause/visibility/reduced-motion/detach
 lifecycle are preserved, with no independent animation timer or model changes.
 
+### Turbine wear, overload and blade loss
+
+TG-01 has a normal gross rating of 410 MW, with no hard nameplate output clamp.
+The interactive **Generator loading** dial spans 50–160%, default 100%; higher
+loading extracts more fictional electrical power and can overload the rotor.
+Auto never changes this dial. Electrical targets accept 0–650 MW, while normal
+grid dispatch remains capped to its existing approximately 300 MW envelope and
+derates for actual turbine condition. Existing reactor cooling/fuel/hot-spot
+regulation and all explicit emergency/turbine trip rules remain in force.
+
+The left Electrical output instrument turns amber from 90% of rated rotor load,
+then red at 110%, or with at least 25% blade damage / 70% service wear. Smaller
+retained blade damage and maintenance due keep amber emphasis after unloading.
+Text identifies near/over-rated load, damage, destruction and maintenance due;
+the tooltip states rating, actual rotor load and damage/wear. Both themes have
+specific alert colors. Trends expand their MW scale beyond 400 as needed.
+
+Normal actual shaft rotation accumulates about 2% service wear per full-load
+simulated hour (less at low load); stopped shafts do not wear. Scheduled service
+is due at 25%, shown in the turbine window, alarms and Maintenance. Minor healthy
+wear remains visible in the instrument/window without creating an immediate
+maintenance-list entry. Unserviced wear reduces efficiency; after service is due
+it also weakens the rotor. Overload accelerates wear quadratically and adds blade
+fatigue after a short exposure allowance. A fresh/serviced rotor samples its own
+strength (104–116% of rating) and allowance (3–8 s), so fracture timing varies.
+The ongoing evolution is deterministic given those sampled values; randomness
+is not evaluated on every tick/frame. These are fictional gameplay constants.
+
+Blade damage permanently derates available electrical MW until explicit service;
+100% damage removes all 40 illustrated blades and output becomes zero. A broken
+spinning rotor can deteriorate further from imbalance after unloading. The event
+journal, retained incident cause and maintenance history record fractures. No
+rotor failure presses the reactor emergency button or silently resets/restarts
+anything. Heat, fuel and coolant dynamics continue independently.
+
+Missing blades and fragments appear in the 3D overview, retained schematic and
+interactive turbine cutaway. Two bounded instanced meshes handle all 3D blades
+and fragments; one shared frame clock drives one-shot travel, tumble, falling
+and resting fragments. No extra timer or growing particle pool is introduced.
+Pause/hide/detach/reduced-motion handling uses the existing lifecycle. Closed
+windows do not render; current damage is restored when reopened. Service/reset
+clears fragments and restores attached blades, including in the idle 3D scene.
+
+**Service turbine** or **Repair all** restores blades/service wear through the
+existing cooled, stopped, fault-free readiness path, additionally requiring shaft
+speed below 0.5%. It samples a fresh rotor tolerance. Service preserves retained
+heat, fuel, targets (including generator loading), hours and both trip latches;
+startup remains explicit. Reset demo restores the normal 100% loading/cold session.
+
 Component disturbances have adjustable strength and period, a one-shot nudge,
 continuous periodic fluctuation, progressive deterioration and explicit clearing.
 Clearing restores the restriction while preserving wear/damage. Component service
@@ -673,7 +723,7 @@ Trips inhibit regulation. Resetting a trip never triggers automatic restart; an
 explicit Start is required even when Auto remains selected.
 
 For grid-style generation control, the initial **Auto → Electrical output** mode uses
-**Output target** (0–400 MW electric; default 200). The target
+**Output target** (0–650 MW electric; default 200). The target
 is generator electrical output (`MWₑ`), distinct from the thermal output (`MWₜₕ`).
 The left electrical card and regulation status show actual versus requested output.
 The right trend switches its output axis from reactor load (%) to electrical MW and
@@ -922,6 +972,8 @@ animation while instruments and controls continue to work.
   progressive faults, component stress/wear, damage, meltdown and incident retention.
 - `nuclear/src/simulation/nuclear-power-fuel.js` owns separate per-assembly inventory,
   uneven exposure, capability, acceleration and explicit replacement interlocks.
+- `nuclear/src/simulation/nuclear-power-turbine.js` owns sampled rotor tolerances, slow
+  normal wear, overload fatigue, retained blade loss/capacity and shared fragment poses.
 - `nuclear/src/simulation/nuclear-power-components.js` owns component settings/read-backs,
   transfer/cooling factors, turbine shaft/breaker, disturbances, wear and exercises.
 - `nuclear/src/simulation/nuclear-power-maintenance.js` renders the live damage/wear/fouling

@@ -1,4 +1,5 @@
 /* Phase-preserving SVG motion driven by reported simulation speed, not commands. */
+import { advanceTurbineFragments } from './nuclear-power-turbine.js';
 export const SVG_FLOW_SCALE = 19;
 
 export function valveHandleAngle(openingPercent, pipeAngle = 0) {
@@ -87,6 +88,7 @@ export function advanceProcessMotion(previous, signals, seconds) {
         ...advanceReactorMotion(previous, signals, dt),
         primaryTravel: (previous.primaryTravel || 0) + Math.max(0, Math.min(1.35, signals.primaryFlow / 100)) * dt * 2,
         secondaryTravel: (previous.secondaryTravel || 0) + Math.max(0, Math.min(1.35, signals.secondaryFlow / 100)) * dt * 2,
-        steam, heat
+        steam, heat,
+        turbineFragments: advanceTurbineFragments(previous.turbineFragments, signals.turbineFragments, dt)
     };
 }

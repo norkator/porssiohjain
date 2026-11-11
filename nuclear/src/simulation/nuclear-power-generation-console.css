@@ -14,6 +14,20 @@
 .generation-help { margin: 6px 12px; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .generation-model-scroll { overflow-x: auto; scrollbar-width: thin; }
 .generation-model { display: block; width: 100%; min-width: 490px; max-width: 580px; margin: 0 auto; }
+[data-component-dialog="turbine"] .generation-model { max-width: 520px; }
+.turbine-blade-fragments { fill: #e4ba85; stroke: #8d6b4e; stroke-width: 1; pointer-events: none; }
+.turbine-service-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin: 6px 10px; font: 9px Consolas, monospace; color: var(--muted); }
+.turbine-service-strip button { font-size: 9px; }
+.turbine-service-strip[data-integrity="warning"] { color: var(--warm); }
+.turbine-service-strip[data-integrity="danger"] { color: var(--generation-alarm); }
+.turbine-condition { display: flex; justify-content: space-between; gap: 4px; margin-top: 3px; color: var(--muted); font: 8px/1 Consolas, monospace; }
+.turbine-condition strong { font-size: 8px; font-weight: 600; }
+.electrical-metric[data-integrity="warning"] { --turbine-alert: #ffd378; border-color: #c69844; background: #342e20; }
+.electrical-metric[data-integrity="danger"] { --turbine-alert: #ff9281; border-color: #d55f54; background: #3c2228; }
+.electrical-metric:is([data-integrity="warning"], [data-integrity="danger"]) :is(.metric-reading, .turbine-condition, .metric-icon, .metric-motion) { color: var(--turbine-alert); }
+.electrical-metric:is([data-integrity="warning"], [data-integrity="danger"]) .metric-track i { background: var(--turbine-alert); }
+:host([data-theme="light"]) .electrical-metric[data-integrity="warning"] { --turbine-alert: #805416; background: #fff3d8; border-color: #ae7a24; }
+:host([data-theme="light"]) .electrical-metric[data-integrity="danger"] { --turbine-alert: #ac2e27; background: #fff0ed; border-color: #bf4037; }
 .generation-model text { fill: var(--generation-ink); font: 11px Consolas, monospace; pointer-events: none; }
 .generation-model .generation-port { fill: var(--muted); font-size: 9px; letter-spacing: .4px; }
 .generation-model .generation-part-name { font: 600 12px "Segoe UI", sans-serif; }

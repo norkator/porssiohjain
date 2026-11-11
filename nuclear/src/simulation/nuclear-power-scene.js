@@ -274,15 +274,26 @@ export class PlantOverviewScene {
         this.turbineRotor.position.set(0, 2.8, 0);
         turbine.add(this.turbineRotor);
         this.cylinder(this.turbineRotor, .1, 6.3, this.steelLight, [1, 0, 0]).rotation.z = Math.PI / 2;
+        this.turbineBladePoses = [];
         for (let i = 0; i < 5; i++) {
             const x = -1.15 + i * .56;
             for (let blade = 0; blade < 8; blade++) {
                 const angle = blade / 8 * TAU;
                 const radius = .43 + i * .07;
-                const mesh = this.box(this.turbineRotor, [.09, radius * .75, .16], this.steelLight, [x, Math.cos(angle) * radius * .65, Math.sin(angle) * radius * .65]);
-                mesh.rotation.x = angle;
+                this.turbineBladePoses.push({ x, y: Math.cos(angle) * radius * .65, z: Math.sin(angle) * radius * .65, angle, scale: radius * .75 / .4 });
             }
         }
+        const bladeGeometry = new THREE.BoxGeometry(.09, .4, .16);
+        this.geometries.add(bladeGeometry);
+        this.turbineBlades = new THREE.InstancedMesh(bladeGeometry, this.steelLight, 40);
+        this.turbineRotor.add(this.turbineBlades);
+        this.turbineFragments = new THREE.InstancedMesh(bladeGeometry, this.steelLight, 40);
+        this.turbineFragments.frustumCulled = false;
+        this.turbineFragments.count = 0;
+        turbine.add(this.turbineFragments);
+        this.instancedMeshes.push(this.turbineBlades, this.turbineFragments);
+        this.dynamicMeshes.push(this.turbineBlades, this.turbineFragments);
+        this.turbineTransform = new THREE.Object3D();
         const generator = this.cylinder(turbine, .84, 1.8, this.teal, [3.15, 2.8, 0]);
         generator.rotation.z = Math.PI / 2;
         for (const x of [2.4, 3.9]) this.cylinder(turbine, .88, .12, this.steelLight, [x, 2.8, 0]).rotation.z = Math.PI / 2;
@@ -573,6 +584,21 @@ export class PlantOverviewScene {
         }
         updatePumpScene(this, sim, motion, pumps);
         this.turbineRotor.rotation.x = motion.angle * Math.PI / 180;
+        const lost = sim.components.turbineIntegrity.bladesLost, transform = this.turbineTransform;
+        for (const [index, pose] of this.turbineBladePoses.entries()) {
+            transform.position.set(pose.x, pose.y, pose.z); transform.rotation.set(pose.angle, 0, 0);
+            transform.scale.set(1, pose.scale, 1); if (index < lost) transform.scale.setScalar(0);
+            transform.updateMatrix(); this.turbineBlades.setMatrixAt(index, transform.matrix);
+        }
+        this.turbineBlades.instanceMatrix.needsUpdate = true;
+        this.turbineFragments.count = motion.turbineFragments?.length || 0;
+        for (const [index, fragment] of (motion.turbineFragments || []).entries()) {
+            const pose = this.turbineBladePoses[fragment.blade];
+            transform.position.set(pose.x + fragment.x, Math.max(.24, 2.8 + pose.y + fragment.y), pose.z + fragment.z);
+            transform.rotation.set(fragment.spin * Math.PI / 180, fragment.spin * .007, 0); transform.scale.set(1, pose.scale, 1);
+            transform.updateMatrix(); this.turbineFragments.setMatrixAt(index, transform.matrix);
+        }
+        this.turbineFragments.instanceMatrix.needsUpdate = true;
         this.generatorLamp.material.emissiveIntensity = sim.electricalOutput > .1 ? .7 : 0;
         this.exchangerGlow.emissiveIntensity = motion.heat * (.4 + .4 * Math.sin(motion.heatPhase * TAU) ** 2);
         for (const [index, puff] of this.exchangerSteam.entries()) {
@@ -616,7 +642,7 @@ export class PlantOverviewScene {
         const readings = {
             reactor: `In ${sim.returnTemperature.toFixed(0)} °C · Out ${sim.temperature.toFixed(0)} °C`,
             exchanger: `In ${sim.secondaryReturnTemperature.toFixed(0)} °C · Out ${sim.secondaryTemperature.toFixed(0)} °C`,
-            turbine: `${sim.electricalOutput.toFixed(0)} MW electric`,
+            turbine: `${sim.electricalOutput.toFixed(0)} MW · ${sim.components.turbineIntegrity.damage.toFixed(0)}% blade damage`,
             condenser: `Return ${sim.secondaryReturnTemperature.toFixed(0)} °C`,
             ...Object.fromEntries(PUMPS.map(pump => [pump.id, `${sim.components.items[pump.id].actual.speed.toFixed(0)}% speed · ${sim.components.items[pump.id].actual.flow.toFixed(0)}% flow`])),
             ...Object.fromEntries(['primary', 'secondary'].map(circuit => [`${circuit}Pipes`, `${sim.hydraulics.pipes[circuit].pressure.toFixed(0)}% ΔP${sim.hydraulics.pipes[circuit].damage > 0 ? ' · LEAK DAMAGE' : ''}`])),

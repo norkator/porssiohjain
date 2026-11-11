@@ -322,7 +322,7 @@ test('unachievable electrical demand respects the core limit and reports the con
 test('electrical targets are bounded and selecting temperature regulation remains independent', () => {
     const sim = manualSimulation();
     sim.setElectricalTarget(10000);
-    assert.equal(sim.autoElectricalTarget, 400);
+    assert.equal(sim.autoElectricalTarget, 650);
     sim.setElectricalTarget(-100);
     assert.equal(sim.autoElectricalTarget, 0);
     sim.setElectricalTarget(NaN);

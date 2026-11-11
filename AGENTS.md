@@ -228,6 +228,20 @@ turbine trip/reset and cooled service checks. Condenser steam/drops follow actua
 heat/flow/cooling and remain absent when cold or without flow. Cancel uncommitted
 drag/slider previews on cancellation/close/hide, and preserve shared motion cleanup,
 both themes, floating-window lifecycle and narrow cutaway scrolling.
+Turbine normal rating is 410 MW, without a hard output clamp. The operator-owned
+Generator loading dial spans 50–160% (100% default); electrical targets allow up to
+650 MW while normal grid dispatch stays in its existing safe gameplay envelope.
+Actual rotor load/wear/damage drive amber/red Electrical output card indications.
+Normal rotation slowly accumulates service wear (~2% per full-load hour; service
+due at 25%); overload accelerates wear and fatigue. Each new/serviced rotor samples
+a 104–116% strength and 3–8 s exposure allowance once. Retain deterministic evolution
+between those samples. Blade loss progressively derates MW to zero at destruction;
+imbalance can continue damage while coasting. None of this activates reactor ESD.
+The 3D/SVG/dialog cutaways lose attached blades and show bounded one-shot fragments
+on the shared frame clock. Preserve pause/hide/detach/reduced-motion/idle cleanup.
+Explicit cooled/stopped/fault-free turbine service additionally requires shaft
+speed below 0.5%; it restores wear/blades, preserving heat, fuel, settings, hours
+and trip latches. Minor wear stays readable without immediately listing maintenance.
 The 3D cutaway has an RBMK-inspired tiled channel deck, rear spent-fuel pool
 with initially empty racks, and an overhead fuel-handling crane. Keep stationary
 caps and actual moving rods/aqua collars visible in the open-front guide

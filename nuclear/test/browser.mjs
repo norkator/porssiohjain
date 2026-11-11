@@ -8,6 +8,7 @@ import { join, extname, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pages, siteUrl } from '../site/pages.mjs';
 import { checkGenerationConsoles } from './generation-consoles.browser.mjs';
+import { checkTurbineOverload } from './turbine-overload.browser.mjs';
 import { waitForChrome } from './chrome-startup.mjs';
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
@@ -124,47 +125,58 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: artifacts });
         await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
         const baseUrl = appUrl || `http://127.0.0.1:${server.address().port}/`;
-        // Check the actual shipped HTML with JavaScript disabled, as a crawler sees it.
-        await page('Emulation.setScriptExecutionDisabled', { value: true });
-        for (const entry of pages) {
-            const url = new URL(entry.path, baseUrl).href;
-            const response = await fetch(url);
-            assert.equal(response.status, 200);
-            const html = await response.text();
-            assert.ok(html.includes('<h1>'), 'Headings must arrive in the HTTP response');
-            assert.ok(html.includes(`href="${siteUrl}${entry.path}"`));
-            assert.doesNotMatch(html, /<!-- site:/);
-            await page('Page.navigate', { url });
-            await until(`document.readyState === 'complete' && document.title === ${JSON.stringify(entry.title)}`, 'Static search page did not load');
-            assert.equal(await evaluate('document.querySelector("h1").textContent'), entry.heading);
-            assert.ok(await evaluate('document.querySelector("h1").getBoundingClientRect().height > 0'));
-            assert.ok(await evaluate('document.querySelector("article.site-content").textContent.length > 2000'));
-            assert.equal(await evaluate('document.querySelector("nuclear-power-console")'), null);
-            assert.ok(await evaluate('document.querySelector("link[rel=stylesheet]").sheet.cssRules.length > 0'));
-            await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-            assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Static content must fit a phone');
-            if (entry.path === '/guides/startup/') await screenshot('startup-guide-mobile');
-            await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
+        const focusedEquipment = process.env.NUCLEAR_BROWSER_FOCUS === 'equipment';
+        if (!focusedEquipment) {
+            // Check the actual shipped HTML with JavaScript disabled, as a crawler sees it.
+            await page('Emulation.setScriptExecutionDisabled', { value: true });
+            for (const entry of pages) {
+                const url = new URL(entry.path, baseUrl).href;
+                const response = await fetch(url);
+                assert.equal(response.status, 200);
+                const html = await response.text();
+                assert.ok(html.includes('<h1>'), 'Headings must arrive in the HTTP response');
+                assert.ok(html.includes(`href="${siteUrl}${entry.path}"`));
+                assert.doesNotMatch(html, /<!-- site:/);
+                await page('Page.navigate', { url });
+                await until(`document.readyState === 'complete' && document.title === ${JSON.stringify(entry.title)}`, 'Static search page did not load');
+                assert.equal(await evaluate('document.querySelector("h1").textContent'), entry.heading);
+                assert.ok(await evaluate('document.querySelector("h1").getBoundingClientRect().height > 0'));
+                assert.ok(await evaluate('document.querySelector("article.site-content").textContent.length > 2000'));
+                assert.equal(await evaluate('document.querySelector("nuclear-power-console")'), null);
+                assert.ok(await evaluate('document.querySelector("link[rel=stylesheet]").sheet.cssRules.length > 0'));
+                await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+                assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Static content must fit a phone');
+                if (entry.path === '/guides/startup/') await screenshot('startup-guide-mobile');
+                await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1120, deviceScaleFactor: 1, mobile: false });
+            }
+            const sitemap = await fetch(new URL('/sitemap.xml', baseUrl));
+            assert.equal(sitemap.status, 200);
+            assert.match(sitemap.headers.get('content-type'), /xml/);
+            const xml = await sitemap.text();
+            for (const entry of pages) assert.ok(xml.includes(`<loc>${siteUrl}${entry.path}</loc>`));
+            const robots = await fetch(new URL('/robots.txt', baseUrl));
+            assert.equal(robots.status, 200);
+            assert.match(robots.headers.get('content-type'), /text\/plain/);
+            assert.ok((await robots.text()).includes(`Sitemap: ${siteUrl}/sitemap.xml`));
+            const preview = await fetch(new URL('/images/nuclear-power-control-room.png', baseUrl));
+            assert.equal(preview.status, 200);
+            assert.match(preview.headers.get('content-type'), /image\/png/);
+            const previewBytes = Buffer.from(await preview.arrayBuffer());
+            assert.equal(previewBytes.readUInt32BE(16), 1200);
+            assert.equal(previewBytes.readUInt32BE(20), 630);
+            assert.equal((await fetch(new URL('/this-page-does-not-exist', baseUrl))).status, 404);
+            await page('Emulation.setScriptExecutionDisabled', { value: false });
         }
-        const sitemap = await fetch(new URL('/sitemap.xml', baseUrl));
-        assert.equal(sitemap.status, 200);
-        assert.match(sitemap.headers.get('content-type'), /xml/);
-        const xml = await sitemap.text();
-        for (const entry of pages) assert.ok(xml.includes(`<loc>${siteUrl}${entry.path}</loc>`));
-        const robots = await fetch(new URL('/robots.txt', baseUrl));
-        assert.equal(robots.status, 200);
-        assert.match(robots.headers.get('content-type'), /text\/plain/);
-        assert.ok((await robots.text()).includes(`Sitemap: ${siteUrl}/sitemap.xml`));
-        const preview = await fetch(new URL('/images/nuclear-power-control-room.png', baseUrl));
-        assert.equal(preview.status, 200);
-        assert.match(preview.headers.get('content-type'), /image\/png/);
-        const previewBytes = Buffer.from(await preview.arrayBuffer());
-        assert.equal(previewBytes.readUInt32BE(16), 1200);
-        assert.equal(previewBytes.readUInt32BE(20), 630);
-        assert.equal((await fetch(new URL('/this-page-does-not-exist', baseUrl))).status, 404);
-        await page('Emulation.setScriptExecutionDisabled', { value: false });
         await page('Page.navigate', { url: baseUrl });
         await until(`!!document.querySelector('nuclear-power-console')?.shadowRoot?.querySelector('.console')`, 'Control room did not render');
+        if (focusedEquipment) {
+            await checkGenerationConsoles({ consoleCode, action, input, page, advance, until, screenshot, warmOperatingPoint, resetWithoutDispatch });
+            await checkTurbineOverload({ consoleCode, action, input, page, advance, until, screenshot, warmOperatingPoint, resetWithoutDispatch });
+            assert.deepEqual(exceptions, []);
+            console.log(`Equipment browser checks passed; artifacts: ${artifacts}`);
+            await send('Browser.close');
+            return;
+        }
         assert.equal(await evaluate(`document.documentElement.lang`), 'en');
         assert.equal(await evaluate(`document.querySelectorAll('#root .nuclear-power-view nuclear-power-console').length`), 1);
         assert.equal(await value('status'), 'STOPPED');
@@ -834,6 +846,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await screenshot('equipment-turbine');
         await consoleCode(`s.querySelector('[data-component-close="turbine"]').click();`);
         await checkGenerationConsoles({ consoleCode, action, input, page, advance, until, screenshot, warmOperatingPoint, resetWithoutDispatch });
+        await checkTurbineOverload({ consoleCode, action, input, page, advance, until, screenshot, warmOperatingPoint, resetWithoutDispatch });
         await action('exercises');
         assert.ok(await consoleCode("return s.querySelector('#operating-objective').options.length;") >= 3);
         await consoleCode(`s.querySelector('[data-exercise="objective"]').click();`);
@@ -950,7 +963,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
         await action('load-down');
         assert.equal(await value('demand'), '45%');
         await input('#load', 64);
-        await wait(300);
+        await until(`document.querySelector('nuclear-power-console').processMotion.speed > 0`, 'Turbine shaft motion did not start');
         assert.ok(await consoleCode('return c.processMotion.speed;') > 0);
         assert.ok(await consoleCode('return c.processMotion.steam;') > 0);
         await until(`Object.values(document.querySelector('nuclear-power-console').instrumentMotion).every(value=>value>0)`, 'Active instrument cards did not animate');

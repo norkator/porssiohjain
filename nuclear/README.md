@@ -172,7 +172,31 @@ visible blue water jets/drops in 3D and the schematic and reduces delivered cool
 flow. Leaking fittings also spray. Blades, bearings and fittings retain independent
 damage; bearings can slow/stop the motor. Healthy single-pump operation is unchanged.
 These values are fictional gameplay parameters. Generator output still depends on
-heat, transfer/cooling, shaft/breaker state and the 410 MW gross nameplate limit.
+heat, transfer/cooling, shaft/breaker state and retained turbine blade condition.
+410 MW is the normal gross rating, rather than a hard output cap.
+
+The turbine's **Generator loading** dial spans 50–160% (100% is normal). It can
+overdrive the fictional machine beyond 410 MW when heat and circulation allow;
+the header accepts electrical targets up to 650 MW. Auto never changes this dial,
+and the grid controller stays within its normal capacity. Watch the left electrical
+card: amber begins near 90% rated rotor load, red at 110% or substantial blade
+damage. Text identifies overload, blade damage and maintenance due in both themes.
+
+Normal rotation slowly accumulates service wear (about 2% per full-load hour),
+with scheduled maintenance due at 25%. Overload accelerates wear sharply. Each
+freshly serviced rotor has a sampled strength and exposure allowance, so fracture
+does not always start at the same load or time. Sustained overload breaks blades;
+the remaining spinning rotor can deteriorate further from imbalance. Blade loss
+progressively reduces available MW, down to zero after destruction. Missing blades
+and falling fragments appear in the 3D view, schematic and interactive cutaway,
+sharing the visibility-aware frame loop and pause/reduced-motion behavior. Fragments
+fall once and remain until service; their pool is bounded to forty blades.
+
+Unloading and stopping preserve wear and damage. The turbine console's **Service
+turbine** action and Maintenance **Repair all** restore the rotor only after the
+existing cooled/stopped/fault-free checks and shaft coast-down. Service preserves
+fuel, retained heat, targets, operating hours and reactor/turbine trip latches.
+Neither overload nor destruction presses reactor emergency shutdown.
 
 Primary and secondary flow each have a left-side instrument showing actual delivered
 flow, actual pressure and the healthy-pipe damage limit (about **5,780 m³/h**, derived
@@ -301,6 +325,12 @@ npm run build
 npm run test:browser
 npm run preview
 ```
+
+For routine equipment changes, use `npm test`, `npm run build`, then
+`npm run test:browser:equipment`. This focused browser run checks the turbine,
+condenser, controls, wear/damage, themes and motion without replaying the complete
+control-room, audio, fuel, SEO and export scenarios. Reserve `npm run test:browser`
+for broad regressions and CI.
 
 `npm test` runs the model, motion, failure, fuel, supply, component and audio tests.
 The browser regression serves `dist/` on a temporary loopback port and tests the
