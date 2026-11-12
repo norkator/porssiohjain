@@ -1,9 +1,0 @@
-**
-!nuclear/
-!nuclear/**
-nuclear/node_modules
-nuclear/dist
-nuclear/.env
-nuclear/.env.*
-nuclear/*.tsbuildinfo
-nuclear/npm-debug.log*

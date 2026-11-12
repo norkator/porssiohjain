@@ -135,8 +135,9 @@ is `00000000-0000-0000-0000-000000000001` and its secret is `admin`.
 
 See [hybrid-web development](hybrid-web/README.md) and
 [GNOME development](gnome/README.md#build-and-verify) for the other clients.
-The standalone [Nuclear Power React app](nuclear/README.md) lives in `nuclear/`
-and builds independently as `porssiohjain-nuclear` for `nuclear.porssiohjain.fi`.
+The standalone [Nuclear Power app](https://github.com/norkator/nuclear) is
+maintained and built in its own repository for `nuclear.porssiohjain.fi`.
+This project retains only its external desktop shortcut.
 Current backend configuration is defined in
 [application.properties](src/main/resources/application.properties).
 
