@@ -79,7 +79,10 @@ closure, focus containment and detach cleanup. Legacy
 Optional companion browsers use `/companion/` and pair through Connect screen
 with the simple Docker WebSocket relay in `nuclear/server/`. The desktop remains
 the sole simulation host; companions never tick their state or queue offline
-commands. Keep room isolation, command/read-back separation, stale control locks,
+commands. Companion core-map selected/all fuel replacement runs through the desktop
+console, including cooldown/pool-capacity checks and its crane-to-pool animation;
+sync readiness/results without changing desktop selection or creating local batches.
+Pool dispatch remains desktop-only. Keep room isolation, command/read-back separation, stale control locks,
 reconnect/revocation and local motion/audio cleanup. A visible paired companion
 may keep the desktop clock active while its local rendering is hidden; otherwise
 preserve the existing visibility rules. Run `npm run test:browser:companion` for

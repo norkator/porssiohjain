@@ -47,9 +47,13 @@ on the left and the operator console on the right. The information selector offe
 Start/Stop, load/rod adjustments, all four pump switches and speed targets, and
 the covered emergency shutdown. Auto/Manual regulation and requested versus actual
 readings retain the desktop rules. Equipment, diesel and supply windows are
-available from their existing buttons. Fuel replacement, bulk maintenance,
-scenario injection and Reset demo stay on the desktop. Narrow screens stack the
-operator controls above the information pane. Themes and panel selection are
+available from their existing buttons. In **Core map**, select an amber fuel
+assembly and press **Replace selected fuel**, or use **Replace all fuel**.
+The desktop applies the same shutdown/cooldown and pool-capacity checks, renews
+the fuel and runs its crane-to-pool animation. Fuel readings and confirmation
+return to the companion; selection on each screen remains independent. Pool
+dispatch, bulk maintenance, scenario injection and Reset demo stay on the desktop.
+Narrow screens stack the operator controls above the information pane. Themes and panel selection are
 local to each screen. Information and operator panels grow to their natural
 content height. The document scrolls to reach the lower controls; there are no
 separate scrolling columns or empty landing-page space below the console.
@@ -71,13 +75,27 @@ This Compose file builds both images locally; the existing production workflow
 continues to publish only the frontend image.
 
 If HTTPS terminates at another reverse proxy, forward the full site to port 8080,
-preserve the original `Host` header (including its port), and enable WebSocket
-upgrades for `/session`. The client automatically uses `wss://` on HTTPS pages.
-The relay accepts matching browser origins. `ALLOWED_ORIGINS` can explicitly allow
-additional comma-separated origins when required by a separate proxy setup; no
-wildcard or cross-origin access is enabled by default.
+and enable WebSocket upgrades for `/session`. The client automatically uses
+`wss://` on HTTPS pages. The relay accepts browser origins matching the forwarded
+`Host`. If the proxy changes that header, explicitly allow the public origin as
+described below. No wildcard or cross-origin access is enabled by default.
 
-For **Nginx Proxy Manager**, add a Proxy Host for your public Nuclear hostname:
+For **Nginx Proxy Manager**, first create `nuclear/.env` with your public origin
+(scheme and hostname, no path or trailing slash):
+
+```dotenv
+NUCLEAR_PORT=8080
+NUCLEAR_ALLOWED_ORIGINS=https://nuclear.porssiohjain.fi
+```
+
+Replace the hostname if needed, then run `docker compose up -d --build` from
+`nuclear/`. Compose passes `NUCLEAR_ALLOWED_ORIGINS` to the relay as
+`ALLOWED_ORIGINS`. Multiple exact origins may be comma-separated without spaces;
+include the public port when using a nonstandard port. This handles NPM versions
+that forward their upstream hostname in `Host`, avoiding WebSocket 403 errors.
+See [NPM's proxy configuration](https://github.com/NginxProxyManager/nginx-proxy-manager/blob/v2.17.0/docker/rootfs/etc/nginx/conf.d/include/proxy.conf).
+
+Add a Proxy Host for your public Nuclear hostname:
 use scheme **http**, the Ubuntu Docker host's reachable LAN IP and forward port
 **8080** (or `NUCLEAR_PORT`), and enable **Websockets Support**. Select/request the
 hostname's certificate in SSL and enable **Force SSL**. Leave Advanced and Custom

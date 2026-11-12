@@ -68,13 +68,31 @@ test('the desktop rejects delayed commands after suspension using its own two cl
     assert.equal(freshSessionCommand({}, 10_500, 5500), false);
 });
 
+test('remote fuel replacement requires the desktop console action and never renews the companion copy', () => {
+    const host = new NuclearPowerSimulation();
+    const copy = restoreSessionState(captureSessionState(host));
+    const sent = [];
+    const remote = remoteSimulation(copy, command => { sent.push(command); return true; });
+    remote.replaceFuel('FA-17'); remote.replaceAllFuel();
+    assert.deepEqual(sent, [{ method: 'replaceFuel', args: ['FA-17'] }, { method: 'replaceAllFuel', args: [] }]);
+    assert.deepEqual(copy.fuel.assemblies, host.fuel.assemblies);
+    // Model-only application would bypass the console's pool-capacity check and crane.
+    for (const command of sent) assert.equal(applySessionCommand(host, command), false);
+    assert.deepEqual(copy.fuel.assemblies, host.fuel.assemblies);
+    for (const id of ['FA-01', 'FA-17', 'FA-49']) assert.equal(validSessionCommand({ method: 'replaceFuel', args: [id] }), true);
+    for (const args of [[], ['FA-00'], ['FA-50'], ['CR-01'], [null], ['FA-17', true]]) {
+        assert.equal(validSessionCommand({ method: 'replaceFuel', args }), false);
+    }
+    assert.equal(validSessionCommand({ method: 'replaceAllFuel', args: [true] }), false);
+});
+
 async function relay(t, options = {}) {
     const service = createSessionServer(options);
     await new Promise((resolve, reject) => { service.server.once('error', reject); service.server.listen(0, '127.0.0.1', resolve); });
     t.after(() => service.close());
     const origin = `http://127.0.0.1:${service.server.address().port}`;
-    async function client() {
-        const socket = new WebSocket(origin.replace('http', 'ws') + '/session', { origin });
+    async function client(browserOrigin = origin) {
+        const socket = new WebSocket(origin.replace('http', 'ws') + '/session', { origin: browserOrigin });
         const messages = [];
         const waiters = [];
         socket.on('message', data => {
@@ -96,6 +114,21 @@ async function relay(t, options = {}) {
     async function join(code) { const connection = await client(); connection.send({ type: 'join', code }); return connection; }
     return { ...service, origin, client, host, join };
 }
+
+test('an explicit public origin supports a proxy-rewritten Host without allowing other origins', async t => {
+    const publicOrigin = 'https://nuclear.example.test';
+    const service = await relay(t, { allowedOrigins: [publicOrigin] });
+    const host = await service.client(publicOrigin);
+    host.send({ type: 'host' });
+    assert.ok((await host.next('hosted')).code);
+    const status = await new Promise((resolve, reject) => {
+        const socket = new WebSocket(service.origin.replace('http', 'ws') + '/session', { origin: 'https://other.example.test' });
+        socket.on('error', reject);
+        socket.on('open', () => { socket.close(); reject(new Error('Unexpected origin accepted')); });
+        socket.on('unexpected-response', (_request, response) => { response.resume(); resolve(response.statusCode); });
+    });
+    assert.equal(status, 403);
+});
 
 test('WebSocket pairing isolates sessions, authorizes roles and acknowledges commands without replay', async t => {
     const service = await relay(t);

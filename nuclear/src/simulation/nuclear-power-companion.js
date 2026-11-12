@@ -112,8 +112,8 @@ function prepareCompanion(host) {
     // A link still requires a deliberate Connect; it never issues plant commands.
     const code = new URLSearchParams(location.hash.slice(1)).get('code');
     if (/^\d{8}$/.test(code || '')) root.querySelector('.companion-code').value = code;
-    // Only read/rod/operator controls are included in this first companion.
-    root.querySelectorAll('.fuel-map-actions, [data-core-repair], [data-action="replace-fuel"], .fuel-inspector label[for="fuel-rate"], #fuel-rate, [data-action="reset"], [data-action="repair"], [data-action="clear-fault"]').forEach(node => { node.hidden = true; node.disabled = true; });
+    // Bulk maintenance, exposure speed and session reset stay desktop-owned.
+    root.querySelectorAll('[data-core-repair], .fuel-inspector label[for="fuel-rate"], #fuel-rate, [data-action="reset"], [data-action="repair"], [data-action="clear-fault"]').forEach(node => { node.hidden = true; node.disabled = true; });
     selectCompanionView(host, 'grid');
     updateSessionControls(host);
 }
@@ -161,6 +161,7 @@ function receiveSessionMessage(host, message) {
                 host.remoteGeneration = message.state.sessionGeneration;
             }
             host.remoteState = restoreSessionState(message.state, host.remoteState);
+            host.remoteFuelService = message.state.fuelService;
             host.simulation = remoteSimulation(host.remoteState, command => host.sendSessionCommand(command));
             host.remoteRevision = message.revision;
             host.lastRemoteState = performance.now(); host.remoteReady = host.remoteHostOnline !== false && message.hostActive;
@@ -171,7 +172,10 @@ function receiveSessionMessage(host, message) {
         // A visible companion can keep its desktop host active. A suspended or
         // disconnected host never queues commands for a later return.
         const available = host.isConnected && ((host.intersecting && !document.hidden) || host.connectedActiveScreens > 0);
-        const accepted = available && message.generation === (host.sessionGeneration || 0) && freshSessionCommand(message) && applySessionCommand(host.simulation, message.command);
+        const accepted = available && message.generation === (host.sessionGeneration || 0) && freshSessionCommand(message) && applySessionCommand(host.simulation, message.command, {
+            replaceFuel: id => host.replaceFuelSelection(false, id),
+            replaceAllFuel: () => host.replaceFuelSelection(true),
+        });
         host.sessionConnection.send({ type: 'result', id: message.id, accepted });
         if (accepted) { host.update(); publishSession(host); }
     }
@@ -190,7 +194,10 @@ export function publishSession(host) {
     if (host.companion || host.sessionStatus !== 'connected' || !host.isConnected) return;
     if (performance.now() - (host.lastSessionPublish || 0) < 100) return;
     host.lastSessionPublish = performance.now();
-    host.sessionConnection?.send({ type: 'state', state: { ...captureSessionState(host.simulation), sessionGeneration: host.sessionGeneration || 0 }, hostActive: (host.intersecting && !document.hidden) || host.connectedActiveScreens > 0, hostClock: Date.now(), hostMonotonic: performance.now() });
+    host.sessionConnection?.send({ type: 'state', state: {
+        ...captureSessionState(host.simulation), sessionGeneration: host.sessionGeneration || 0,
+        fuelService: { hasCapacity: host.fuelTransfer.hasCapacity, message: host.fuelServiceStatus || '' },
+    }, hostActive: (host.intersecting && !document.hidden) || host.connectedActiveScreens > 0, hostClock: Date.now(), hostMonotonic: performance.now() });
 }
 
 export function updateSessionControls(host) {

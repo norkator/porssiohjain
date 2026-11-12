@@ -737,18 +737,19 @@ export class NuclearPowerConsole extends HTMLElement {
         this.update();
     }
 
-    replaceFuelSelection(all) {
+    replaceFuelSelection(all, selectedId = this.selectedFuel) {
+        if (this.companion) return this.sendSessionCommand({ method: all ? 'replaceAllFuel' : 'replaceFuel', args: all ? [] : [selectedId] });
         if (!this.fuelTransfer.hasCapacity) {
             this.fuelServiceStatus = 'Pool full. Dispatch cooled fuel to free a rack before replacement.';
-            return;
+            return false;
         }
-        const ids = all ? this.simulation.fuel.assemblies.map(assembly => assembly.id) : [this.selectedFuel];
-        const replaced = all ? this.simulation.replaceAllFuel() : this.simulation.replaceFuel(this.selectedFuel);
-        if (!replaced) return;
-        const exampleId = ids.includes(this.selectedFuel) ? this.selectedFuel : ids[0];
+        const ids = all ? this.simulation.fuel.assemblies.map(assembly => assembly.id) : [selectedId];
+        const replaced = all ? this.simulation.replaceAllFuel() : this.simulation.replaceFuel(selectedId);
+        if (!replaced) return false;
+        const exampleId = ids.includes(selectedId) ? selectedId : ids[0];
         this.fuelTransfer.start(exampleId, ids.length, this.reducedMotion.matches || this.sceneUnavailable
             || this.overviewMode !== '3d' || this.plantTab !== 'reactor');
-        this.fuelServiceStatus = all ? `All ${ids.length} fuel assemblies renewed. Reactor remains stopped.` : `${this.selectedFuel} renewed. Reactor remains stopped.`;
+        this.fuelServiceStatus = all ? `All ${ids.length} fuel assemblies renewed. Reactor remains stopped.` : `${selectedId} renewed. Reactor remains stopped.`;
         this.fuelServiceStatus += ' One assembly represents this replacement in the crane view.';
         for (const [index, id] of ids.entries()) {
             const channel = this.shadowRoot.querySelector(`[data-fuel-id="${id}"]`);
@@ -760,6 +761,7 @@ export class NuclearPowerConsole extends HTMLElement {
                 channel.classList.add('fuel-exchanging');
             }
         }
+        return true;
     }
 
     selectFuel(id) {
@@ -1384,6 +1386,7 @@ export class NuclearPowerConsole extends HTMLElement {
         const zone = condition.zones.find(zone => zone.id === this.selectedRod);
         const fuel = sim.fuel.assemblies.find(a => a.id === this.selectedFuel) || sim.fuel.assemblies[0];
         const fuelReadiness = sim.fuel.replacementReadiness(sim);
+        const fuelPoolHasCapacity = this.companion ? this.remoteFuelService?.hasCapacity === true : this.fuelTransfer.hasCapacity;
         const rodBlocked = sim.tripped || !sim.running || (sim.autoMode && !selectedRod.manualOverride);
         const pumpState = (enabled, target, actual) => actual < 0.5 ? 'STOPPED' : !enabled || target === 0 || sim.supply.factor === 0 ? 'COASTING' : 'RUNNING';
         const values = {
@@ -1419,10 +1422,10 @@ export class NuclearPowerConsole extends HTMLElement {
             selectedFuelState: fuel.remaining <= 0 ? 'DEPLETED' : fuel.remaining <= 20 ? 'LOW RESERVE' : 'IN SERVICE',
             selectedFuelEffectiveness: percent(sim.fuel.effectiveness(fuel) * 100),
             selectedFuelExposure: `${n(fuel.exposure, 2)} demo FPH`, selectedFuelReplacements: String(fuel.replacements),
-            fuelServiceStatus: this.fuelServiceStatus || '',
+            fuelServiceStatus: (this.companion ? this.remoteFuelService?.message : this.fuelServiceStatus) || '',
             fuelInventoryState: `${sim.fuel.assemblies.filter(a => a.remaining <= 0).length} depleted · ${sim.fuel.assemblies.filter(a => a.remaining > 0 && a.remaining <= 20).length} low reserve · select an assembly to inspect or replace`,
             fuelReserve: percent(sim.fuel.remaining), fuelCapability: percent(sim.fuel.capability * 100),
-            fuelReplacementReadiness: !this.fuelTransfer.hasCapacity ? 'Pool full. Dispatch cooled fuel to free a rack.' : fuelReadiness.ready ? 'Ready for manual replacement. Reactor will remain stopped.' : fuelReadiness.reasons.join('. ') + '.',
+            fuelReplacementReadiness: !fuelPoolHasCapacity ? 'Pool full. Dispatch cooled fuel to free a rack.' : fuelReadiness.ready ? 'Ready for manual replacement. Reactor will remain stopped.' : fuelReadiness.reasons.join('. ') + '.',
             powerSource: sim.supply.source, auxiliaryLoad: `${n(sim.supply.demand, 2)} MW requested / ${n(sim.supply.capacity, 1)} MW available`,
             gridStatus: sim.gridDispatch.status(sim),
             gridMessage: sim.gridDispatch.lastRequest ? `${this.time(sim.gridDispatch.lastRequest.time)} · ${sim.gridDispatch.lastRequest.message}` : 'Incoming requests set MW, core limit and circulation in Auto.',
@@ -1523,8 +1526,8 @@ export class NuclearPowerConsole extends HTMLElement {
             withdraw: sim.autoMode || !sim.running || sim.tripped || sim.rodTarget <= 0,
             'rod-insert': rodBlocked || selectedRod.target >= 100,
             'rod-withdraw': rodBlocked || selectedRod.target <= 0,
-            'replace-fuel': !fuelReadiness.ready || !this.selectedFuel || !this.fuelTransfer.hasCapacity,
-            'replace-all-fuel': !fuelReadiness.ready || !this.fuelTransfer.hasCapacity,
+            'replace-fuel': !fuelReadiness.ready || !this.selectedFuel || !fuelPoolHasCapacity,
+            'replace-all-fuel': !fuelReadiness.ready || !fuelPoolHasCapacity,
             'load-down': sim.autoMode || sim.tripped || sim.demand <= 0, 'load-up': sim.autoMode || sim.tripped || sim.demand >= 100,
             'reset-trip': !sim.tripped || !sim.tripRecovery().ready,
             repair: !sim.components.serviceReady, 'export-incident': !condition.incident,

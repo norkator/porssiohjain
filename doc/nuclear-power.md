@@ -1013,8 +1013,13 @@ requests/readings, the embedded core
 map and trends/alarms occupy selectable left-side panes; Start/Stop, rods/load,
 pump rockers/speeds and covered emergency shutdown remain on the right. Narrow
 screens stack controls above information. Equipment/electrical/diesel windows use
-the same component rules. Fuel replacement, bulk maintenance, scenario injection
-and Reset demo remain desktop-owned. Themes, sound opt-in, panel selection and
+the same component rules. Core-map **Replace selected fuel** and **Replace all fuel**
+commands run on the desktop console, using its authoritative cooldown/fault/damage
+and pool-capacity checks and starting its existing crane-to-pool animation. Each
+screen keeps its own fuel selection. The companion receives renewed fuel, pool
+capacity and the host confirmation; it never creates its own transfer or pool batch.
+Rejected/offline commands do not renew fuel. Pool dispatch, bulk maintenance,
+scenario injection and Reset demo remain desktop-owned. Themes, sound opt-in, panel selection and
 emergency-cover position are local; desktop reset closes the companion cover.
 The information and operator columns grow to their natural content height. Page
 scrolling reaches all controls and stops at the console footer; there are no
@@ -1035,7 +1040,10 @@ requires pairing again. No accounts, economy or multiplayer are implemented.
 the optional relay. The existing CI image workflow still publishes only that
 frontend image; Compose builds both locally. Local development runs
 `npm run start:sessions` alongside `npm run dev`, whose Vite proxy forwards
-WebSocket upgrades. HTTPS reverse proxies must retain Host and upgrade headers.
+WebSocket upgrades. HTTPS reverse proxies must retain WebSocket upgrade headers.
+For Nginx Proxy Manager, set `NUCLEAR_ALLOWED_ORIGINS` in `nuclear/.env` to the
+exact public origin (for example `https://nuclear.porssiohjain.fi`); Compose maps
+it to the relay’s `ALLOWED_ORIGINS`, allowing proxies that rewrite upstream Host.
 See the Nuclear README for deployment details and limitations.
 
 ## Implementation and future measurements

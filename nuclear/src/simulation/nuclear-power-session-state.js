@@ -46,7 +46,7 @@ export function remoteSimulation(simulation, send) {
         if (commands.has(key)) return forward(key);
         if (key === 'supply') return supply;
         // Actions outside the first companion's scope stay desktop-owned.
-        if (['tick', 'reset', 'replaceFuel', 'replaceAllFuel', 'repairComponents', 'injectFault', 'startObjective', 'startScenario'].includes(key)) return () => false;
+        if (['tick', 'reset', 'repairComponents', 'injectFault', 'startObjective', 'startScenario'].includes(key)) return () => false;
         const value = Reflect.get(target, key);
         return typeof value === 'function' ? value.bind(target) : value;
     } });
