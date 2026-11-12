@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
-import { pages } from './site/pages.mjs';
+import { pages, consolePaths } from './site/pages.mjs';
 import { renderPage } from './site/render.mjs';
 
 export default defineConfig({
@@ -17,11 +17,14 @@ export default defineConfig({
   ],
   build: {
     rolldownOptions: {
-      input: pages.map(page => fileURLToPath(new URL(`.${page.path}index.html`, import.meta.url))),
+      input: [...pages.map(page => page.path), ...consolePaths].map(path => fileURLToPath(new URL(`.${path}index.html`, import.meta.url))),
     },
   },
   server: {
     host: '0.0.0.0',
     port: 5174,
+    proxy: {
+      '/session': { target: 'http://127.0.0.1:8081', ws: true },
+    },
   },
 });

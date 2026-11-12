@@ -21,6 +21,8 @@ import { formatNumber, formatPercent, hasPlantMotion, setText } from './nuclear-
 import { PUMPS, CIRCUITS, pumpDefinition, PRESSURE_LIMIT, PRESSURE_WARNING, FLOW_SCALE, FLOW_DAMAGE_LIMIT } from './nuclear-power-pumps.js';
 import { leakSources, waterJetPoint } from './nuclear-power-leaks.js';
 import { ELECTRICAL_TARGET_MAX_MW, TURBINE_RATING_MW } from './nuclear-power-turbine.js';
+import { initializeCompanion, sessionControls, pairingDialog, updateSessionControls, publishSession, disconnectSession } from './nuclear-power-companion.js';
+import companionStyles from './nuclear-power-companion.css?inline';
 
 const PLANT_TABS = ['reactor', 'maintenance'];
 const STEAM_PATH = createPolylinePath([[610, 160], [790, 160], [790, 210]]);
@@ -274,6 +276,8 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     disconnectedCallback() {
+        disconnectSession(this);
+        this.shadowRoot.querySelectorAll('.pairing-dialog').forEach(dialog => this.closeFloatingDialog(dialog, false));
         this.shadowRoot.querySelectorAll('.equipment-dialog').forEach(dialog=>this.closeFloatingDialog(dialog, false));
         this.closeCoreMap(false);
         this.closeFloatingDialog(this.shadowRoot.querySelector('.trends-dialog'), false);
@@ -296,7 +300,7 @@ export class NuclearPowerConsole extends HTMLElement {
     initialize() {
         this.initialized = true;
         this.setAttribute('lang', 'en');
-        this.shadowRoot.innerHTML = `<style>${styles}\n${lightStyles}\n${generationStyles}</style>
+        this.shadowRoot.innerHTML = `<style>${styles}\n${lightStyles}\n${generationStyles}\n${companionStyles}</style>
         <main class="console">
           <header class="masthead">
             <div class="brand-mark">${radiation}</div>
@@ -310,7 +314,7 @@ export class NuclearPowerConsole extends HTMLElement {
             <label for="auto-flow">Circulation target <span><input id="auto-flow" type="number" min="25" max="100" step="1" value="85"/> %</span></label>
             <div class="regulation-status"><strong data-value="regulation">MANUAL CONTROL</strong><span data-value="regulationDetail">Individual rods and pump speeds available.</span><button class="small-button" data-action="fluctuations" aria-pressed="true">Fluctuations: On</button></div>
           </section>
-              <div class="header-settings"><div class="header-sound"><button class="small-button" data-action="sound" aria-pressed="false">Enable plant sounds</button><span class="ui-sound-status" role="status"></span></div><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div></div>
+              <div class="header-settings">${sessionControls}<div class="header-sound"><button class="small-button" data-action="sound" aria-pressed="false">Enable plant sounds</button><span class="ui-sound-status" role="status"></span></div><label class="theme-toggle"><input id="light-theme" type="checkbox" role="switch"/> Light theme</label><div class="session"><span class="simulation-badge"><i></i> SIMULATION</span><div class="session-clock" data-value="clock">T+00:00:00</div></div></div>
             </section>
           </header>
 
@@ -389,6 +393,7 @@ export class NuclearPowerConsole extends HTMLElement {
             ${coreMap}
             <details class="reactor-equipment-detail equipment-content"><summary>Reactor vessel · equipment readings</summary><p>${equipmentDetails.reactor.description}</p><dl>${equipmentDetails.reactor.fields.map(([name,key])=>`<div><dt>${name}</dt><dd data-value="${key}"></dd></div>`).join('')}</dl></details>
           </div>
+          ${pairingDialog}
           ${equipmentDialogs(equipmentDetails)}
           ${spentFuelDialog()}
           ${electricalDialogs()}
@@ -585,6 +590,7 @@ export class NuclearPowerConsole extends HTMLElement {
             else if (button.dataset.componentAction === 'toggle') this.playUiSound(this.simulation[button.dataset.component] ? 'on' : 'off');
             else this.playUiSound('adjust');
         });
+        initializeCompanion(this);
         this.inspect('reactor', false);
     }
 
@@ -598,6 +604,7 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     setOverview(mode) {
+        if (this.companion) return;
         this.overviewMode = mode === 'schematic' ? 'schematic' : '3d';
         const viewport = this.shadowRoot.querySelector('.diagram-viewport');
         const host = viewport.querySelector('.plant-scene');
@@ -762,6 +769,10 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     openCoreMap() {
+        if (this.companion) {
+            this.shadowRoot.querySelector('[data-companion-view="core"]').click();
+            return;
+        }
         const dialog = this.shadowRoot.querySelector('.core-dialog');
         this.openFloatingDialog(dialog);
         this.shadowRoot.querySelector(this.selectedFuel ? '[data-action="replace-fuel"]' : '#rod-select').focus({ preventScroll: true });
@@ -875,7 +886,7 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     async playUiSound(kind) {
-        const allowed = () => this.soundEnabled && this.isConnected && this.intersecting && !document.hidden && !this.simulation.paused;
+        const allowed = () => this.soundEnabled && this.isConnected && this.intersecting && !document.hidden && !this.simulation.paused && (!this.companion || this.remoteReady);
         if (!allowed() || !this.plantAudio || !this.alarmAudio) return;
         const requestedAt = performance.now();
         try {
@@ -935,7 +946,7 @@ export class NuclearPowerConsole extends HTMLElement {
             'export-log': () => this.exportLog(),
             'clear-fault': () => sim.injectFault('none'), repair: () => sim.repairComponents(),
             'export-incident': () => this.exportIncident(),
-            pause: () => sim.togglePause(), reset: () => { this.plantAudio?.stop(); this.fuelTransfer.reset(); this.spentFuelMessage = ''; this.tripCoverOpen = false; sim.reset(); },
+            pause: () => sim.togglePause(), reset: () => { this.sessionGeneration = (this.sessionGeneration || 0) + 1; this.plantAudio?.stop(); this.fuelTransfer.reset(); this.spentFuelMessage = ''; this.tripCoverOpen = false; sim.reset(); },
             'overview-3d': () => this.setOverview('3d'),
             'overview-schematic': () => this.setOverview('schematic'),
             'scene-zoom-in': () => this.overviewScene?.setZoom(this.overviewScene.zoom + .15),
@@ -965,7 +976,9 @@ export class NuclearPowerConsole extends HTMLElement {
     }
 
     updateActivity() {
-        const active = this.isConnected && this.intersecting && !document.hidden && !this.simulation.paused;
+        const active = this.isConnected && this.intersecting && !document.hidden && !this.simulation.paused && (!this.companion || this.remoteReady);
+        const remoteOperator = this.sessionStatus === 'connected' && this.connectedActiveScreens > 0;
+        const clockActive = !this.companion && this.isConnected && !this.simulation.paused && (active || remoteOperator);
         if (this.reducedMotion.matches && this.fuelTransfer.job) {
             this.fuelTransfer.finish();
             this.updateOverview();
@@ -983,7 +996,7 @@ export class NuclearPowerConsole extends HTMLElement {
                 this.closeFloatingDialog(this.shadowRoot.querySelector('.meltdown-banner'), false);
             }
         }
-        if (active && !this.timer) {
+        if (clockActive && !this.timer) {
             this.lastTick = performance.now();
             this.timer = setInterval(() => {
                 const now = performance.now();
@@ -991,7 +1004,7 @@ export class NuclearPowerConsole extends HTMLElement {
                 this.lastTick = now;
                 this.update(true);
             }, 250);
-        } else if (!active && this.timer) {
+        } else if (!clockActive && this.timer) {
             clearInterval(this.timer);
             this.timer = null;
         }
@@ -1287,7 +1300,7 @@ export class NuclearPowerConsole extends HTMLElement {
         const meltdown = sim.condition.meltdown;
         const severity = this.alarmSeverity();
         const pending = sim.alarms.some(alarm => !alarm.acknowledged);
-        const enabled = this.soundEnabled && this.isConnected && this.intersecting && !document.hidden && !sim.paused;
+        const enabled = this.soundEnabled && this.isConnected && this.intersecting && !document.hidden && !sim.paused && (!this.companion || this.remoteReady);
         const button = this.shadowRoot.querySelector('[data-action="sound"]');
         button.textContent = this.soundEnabled ? 'Mute plant sounds' : 'Enable plant sounds';
         button.setAttribute('aria-pressed', String(!!this.soundEnabled));
@@ -1575,10 +1588,12 @@ export class NuclearPowerConsole extends HTMLElement {
         this.updateEvents();
         this.updateTrend();
         this.updateActivity();
+        updateSessionControls(this);
+        if (!fromTimer) publishSession(this);
     }
 
     updateCore() {
-        if (!this.shadowRoot.querySelector('.core-dialog').matches(':popover-open')) return;
+        if (this.companion ? this.companionView !== 'core' : !this.shadowRoot.querySelector('.core-dialog').matches(':popover-open')) return;
         const sim = this.simulation;
         for (const rod of sim.controlRods) {
             const channel = this.shadowRoot.querySelector(`[data-rod="${rod.id}"]`);

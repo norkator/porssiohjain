@@ -104,7 +104,7 @@ export function updateMaintenance(host) {
         }
     }
     const core = root.querySelector('.core-damage-panel');
-    if (core.closest('.core-dialog').matches(':popover-open')) {
+    if (host.companion ? host.companionView === 'core' : core.closest('.core-dialog').matches(':popover-open')) {
         core.dataset.damaged = String(zones.length > 0);
         setText(core.querySelector('.core-damage-summary'), zones.length
             ? `${zones.length} affected core ${zones.length === 1 ? 'channel' : 'channels'} · peak damage ${percent(sim.condition.coreDamage)}` : 'No retained core damage');

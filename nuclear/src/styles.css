@@ -41,6 +41,21 @@ body {
   overflow-wrap: anywhere;
 }
 
+.site-launcher { box-sizing: border-box; max-width: 1120px; margin: 0 auto; padding: 40px 28px 0; }
+.launcher-brand { margin: 0; color: var(--site-muted); font-size: 11px; font-weight: 600; letter-spacing: 2px; }
+.launcher-title { margin: 10px 0 24px; font-size: clamp(26px, 4vw, 40px); font-weight: 600; letter-spacing: -1px; }
+.launcher-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.launcher-card { display: flex; flex-direction: column; gap: 18px; padding: 28px; border: 1px solid var(--site-border); border-radius: 12px; background: linear-gradient(135deg, #1b303a, #14212d); color: inherit; text-decoration: none; transition: border-color .15s, transform .15s; }
+.launcher-card:hover { border-color: var(--site-accent); transform: translateY(-2px); }
+.launcher-card:focus-visible { outline: 2px solid var(--site-accent); outline-offset: 5px; }
+.launcher-card-top { display: flex; align-items: center; gap: 14px; color: var(--site-accent); font-size: 10px; letter-spacing: 1.6px; }
+.launcher-icon { display: inline-grid; place-items: center; width: 40px; height: 40px; font-size: 38px; line-height: 1; }
+.launcher-companion .launcher-card-top { color: #efbf7c; }
+.launcher-card h2 { margin: 0; font-size: 25px; font-weight: 600; }
+.launcher-card p { margin: 0; color: var(--site-muted); font-size: 15px; line-height: 1.7; }
+.launcher-card-action { display: flex; justify-content: space-between; gap: 18px; margin-top: auto; padding-top: 12px; color: var(--site-accent); font-size: 14px; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .launcher-card { transition: none; } .launcher-card:hover { transform: none; } }
+
 .site-content h1, .site-content h2, .site-content h3 {
   line-height: 1.25;
   text-wrap: balance;
@@ -73,6 +88,9 @@ body {
 .site-skip:focus { transform: translateY(0); }
 
 @media (max-width: 620px) {
+  .site-launcher { padding: 28px 18px 0; }
+  .launcher-cards { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .launcher-card { padding: 22px; }
   .site-content { padding: 24px 18px; }
   .site-grid { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .site-content .site-lead { font-size: 18px; }

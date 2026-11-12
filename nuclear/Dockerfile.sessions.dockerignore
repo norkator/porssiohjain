@@ -1,0 +1,8 @@
+**
+!package.json
+!package-lock.json
+!server/
+!server/**
+!src/
+!src/simulation/
+!src/simulation/nuclear-power-session-protocol.js

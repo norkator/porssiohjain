@@ -1,5 +1,6 @@
 // This content is rendered into ordinary HTML by Vite, never injected at runtime.
 export const siteUrl = 'https://nuclear.porssiohjain.fi';
+export const consolePaths = ['/reactor/', '/companion/'];
 
 export const pages = [
     {
@@ -12,7 +13,7 @@ export const pages = [
           <h1>Nuclear reactor simulator: run your own control room</h1>
           <p class="site-lead">Start a cold reactor, balance cooling and electrical output, and respond when equipment fails. Nuclear Power is a free online nuclear power plant simulator with an interactive 3D control room. Play directly in your browser, with no download or account.</p>
           <nav class="site-actions" aria-label="Simulator and guides">
-            <a class="site-button" href="#simulator">Back to the simulator</a>
+            <a class="site-button" href="/reactor/">Open the reactor</a>
             <a href="/guides/startup/" target="_blank" rel="noopener">Read the startup guide ↗</a>
           </nav>
           <p>The plant uses a fictional two-loop layout: a primary coolant circuit carries heat from the core to a heat exchanger, while a separate secondary circuit drives the turbine and generator. All readings and commands are simulated locally in this browser session.</p>

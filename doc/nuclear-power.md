@@ -6,10 +6,18 @@ The Vaadin desktop and Start menu retain its pixel-icon shortcut and open that U
 in a separate tab. The old `/nuclear-power` Vaadin view and its frontend assets have
 been removed from the Java application. Both locale bundles deliberately retain
 the name **Nuclear Power**. No account login or backend connection is required by
-the standalone simulation.
+the standalone simulation. An optional Docker WebSocket relay pairs companion
+browsers with an existing desktop session; plant calculations remain in that
+desktop browser. See [companion setup](../nuclear/README.md#companion-console-and-docker-session-backend).
 
-React mounts the retained `nuclear-power-console` custom element, preserving its
-renderer, isolated styles and browser lifecycle. The independent npm project,
+The homepage is a static landing page with Nuclear reactor and Companion screen
+cards above the introductory SEO/guide content. Separate `/reactor/` and
+`/companion/` HTML entries mount React and the retained `nuclear-power-console`
+custom element, preserving its renderer, isolated styles and browser lifecycle.
+Neither console includes landing/SEO content, even as hidden DOM. Reload retains
+the selected URL; Back returns to the landing page. This does not persist plant
+state across reload. Legacy `/?screen=companion` links redirect to `/companion/`
+while retaining pairing-code fragments. The independent npm project,
 tests, public audio and Nginx container live together in `nuclear/`.
 `.github/workflows/nuclear-container.yml` verifies it on pull requests and publishes
 `ghcr.io/norkator/porssiohjain-nuclear:latest` for amd64/arm64 on relevant production
@@ -979,11 +987,49 @@ explicitly marked `SIMULATED`. Early successful recovery marks an incident resol
 meltdown leaves it open for inspection. Reports are browser-session data and are
 cleared by Reset demo. Export before resetting if the report is needed later.
 
-Each page's custom-element instance owns its state. Reloading or closing the page
-discards that simulation. Scrolling the entire console out of view or hiding the browser
-tab suspends background simulation work without fast-forwarding on return. Detaching
-the element clears its timer and observers. Reduced-motion preferences disable visual
-animation while instruments and controls continue to work.
+Each desktop custom-element instance owns its state. Reloading or closing the
+desktop discards that simulation and ends its shared session. A companion browser
+never advances a second plant clock. Scrolling the entire console out of view or
+hiding its tab suspends local rendering/audio; a visible paired companion can
+keep the desktop plant clock active. Without a visible companion, the original
+visibility suspension applies without fast-forwarding on return. Browser/OS
+suspension can still freeze the host. Detaching clears timers, observers and
+session sockets. Reduced-motion preferences disable visual animation while
+instruments and controls continue to work.
+
+## Optional companion console
+
+The desktop layout is retained. **Connect screen** opens an expiring eight-digit
+pairing code and a link for testing in another browser window. A tablet or another
+computer opens **Companion screen** (`/companion/`), enters that code and
+connects to the existing desktop session. Grid requests/readings, the embedded core
+map and trends/alarms occupy selectable left-side panes; Start/Stop, rods/load,
+pump rockers/speeds and covered emergency shutdown remain on the right. Narrow
+screens stack controls above information. Equipment/electrical/diesel windows use
+the same component rules. Fuel replacement, bulk maintenance, scenario injection
+and Reset demo remain desktop-owned. Themes, sound opt-in, panel selection and
+emergency-cover position are local; desktop reset closes the companion cover.
+The information and operator columns grow to their natural content height. Page
+scrolling reaches all controls and stops at the console footer; there are no
+viewport-height column scrollers or landing-content gaps in either console.
+
+`server/session-server.mjs` is a bounded Node WebSocket relay with room isolation,
+same-origin checks, ten-minute codes, separate per-device credentials, command
+validation/acknowledgement, stale-state rejection, revocation and reconnect. It
+neither simulates nor saves the plant. State is published twice a second and
+after committed commands; companions never queue or replay offline commands.
+Stale/disconnected companions lock controls and suspend motion/audio. Brief host
+transport loss retains the room for 30 seconds; browser reload or backend restart
+requires pairing again. No accounts, economy or multiplayer are implemented.
+
+`nuclear/compose.yml` builds the original Nginx frontend and a non-root Node 22
+`session-server` container. Only port 8080 is published by default; Nginx proxies
+`/session` to the internal backend. The existing frontend image also runs without
+the optional relay. The existing CI image workflow still publishes only that
+frontend image; Compose builds both locally. Local development runs
+`npm run start:sessions` alongside `npm run dev`, whose Vite proxy forwards
+WebSocket upgrades. HTTPS reverse proxies must retain Host and upgrade headers.
+See the Nuclear README for deployment details and limitations.
 
 ## Implementation and future measurements
 
@@ -1000,6 +1046,10 @@ animation while instruments and controls continue to work.
   electrical connection window and independent diesel control windows.
 - `nuclear/src/simulation/nuclear-power.css` is isolated in the element's shadow root.
 - `nuclear/src/simulation/nuclear-power-light.css` supplies the optional light palette.
+- `nuclear/src/simulation/nuclear-power-companion.js` lays out the paired console and manages
+  connection state. The session client/protocol/state modules handle socket lifecycle,
+  whitelisted commands and a read-only simulation copy with restored class getters.
+- `nuclear/server/session-server.mjs` relays rooms, state and commands without a database.
 - `nuclear/src/simulation/nuclear-power-model.js` contains the deterministic, browser-local
   plant, individual rod/channel layout, controller, disturbances, alarms and log.
   Its snapshot separates `commands` (requested mode/objective, temperature/flow/MW
@@ -1076,6 +1126,8 @@ npm ci
 npm test
 npm run build
 npm run test:browser
+# Focused two-window pairing/controls/lifecycle coverage:
+npm run test:browser:companion
 # Optionally test an already running preview/container:
 NUCLEAR_POWER_APP_URL=http://127.0.0.1:8080 npm run test:browser
 ```

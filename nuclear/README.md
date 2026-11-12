@@ -2,14 +2,135 @@
 
 The standalone **porssiohjain-nuclear** React/Vite app for
 `https://nuclear.porssiohjain.fi`. It is an English-only, fictional two-loop reactor
-control room. Every signal and command is simulated in the browser; there are no
-backend requests, account login, MQTT connections, or device commands.
+control room. Every plant signal and command is simulated in the desktop browser.
+An optional WebSocket relay connects companion screens; account login, MQTT and
+physical device commands are not implemented.
 
 React mounts the existing `nuclear-power-console` custom element. Its shadow-root
 styles, deterministic simulation modules, dialog behavior and audio
-lifecycle are retained under `src/simulation/`. Each page owns its simulation;
-reloading or closing it discards the session. Only the light/dark theme preference
-is saved locally. The Vaadin desktop and Start menu open this app in a separate tab.
+lifecycle are retained under `src/simulation/`. Each reactor page owns its simulation;
+reloading or closing the desktop discards its simulation and ends its shared
+session. Only the light/dark theme preference is saved locally. The Vaadin desktop
+and Start menu open this app in a separate tab.
+
+## Landing and console pages
+
+`/` is the static landing page: two cards at the top open **Nuclear reactor**
+(`/reactor/`) and **Companion screen** (`/companion/`), with the introduction and
+control-room guides below. The landing page never mounts or loads the simulation.
+Both consoles have separate HTML entries with no SEO article, guide footer or
+hidden landing content. The URL keeps the selected screen on reload; browser Back
+returns to the landing page. Reload still starts a new plant session, as before.
+Existing `/?screen=companion` pairing links redirect to `/companion/`, retaining
+any pairing code in the URL fragment.
+
+## Companion console and Docker session backend
+
+The normal desktop retains its full layout. **Connect screen** in the header
+starts sharing that existing simulation and displays an eight-digit pairing code.
+Open the same site's **Companion screen** link on a tablet, another computer or
+another browser window, enter the code, and press **Connect to desktop**. The
+pairing window also provides a link with the code already filled in for testing
+on one computer. Codes expire after ten minutes; **New code** rotates the code
+without disconnecting devices already paired. **Disconnect screens** revokes all
+device credentials and rotates the code; **Stop sharing** ends the room.
+
+The companion uses `/companion/`. On a landscape tablet it has information
+on the left and the operator console on the right. The information selector offers
+**Grid & readings**, **Core map**, and **Trends & alarms**. The right side retains
+Start/Stop, load/rod adjustments, all four pump switches and speed targets, and
+the covered emergency shutdown. Auto/Manual regulation and requested versus actual
+readings retain the desktop rules. Equipment, diesel and supply windows are
+available from their existing buttons. Fuel replacement, bulk maintenance,
+scenario injection and Reset demo stay on the desktop. Narrow screens stack the
+operator controls above the information pane. Themes and panel selection are
+local to each screen. Information and operator panels grow to their natural
+content height. The document scrolls to reach the lower controls; there are no
+separate scrolling columns or empty landing-page space below the console.
+
+From `nuclear/`, start both containers on an Ubuntu Docker host:
+
+```sh
+docker compose up -d --build
+```
+
+Open `http://SERVER_ADDRESS:8080` on both devices. Set `NUCLEAR_PORT=8085` (or another
+free port) before the command to change the published port. The frontend remains
+Nginx; the small Node 22 relay runs as a separate, non-root `session-server`
+container. Only Nginx is published. It proxies `/session` with WebSocket upgrades
+to the relay's internal port 8081. No database, Spring service or account is needed.
+The existing static-only frontend container can still run without the optional
+relay; its local simulation works normally and screen pairing reports unavailable.
+This Compose file builds both images locally; the existing production workflow
+continues to publish only the frontend image.
+
+If HTTPS terminates at another reverse proxy, forward the full site to port 8080,
+preserve the original `Host` header (including its port), and enable WebSocket
+upgrades for `/session`. The client automatically uses `wss://` on HTTPS pages.
+The relay accepts matching browser origins. `ALLOWED_ORIGINS` can explicitly allow
+additional comma-separated origins when required by a separate proxy setup; no
+wildcard or cross-origin access is enabled by default.
+
+For **Nginx Proxy Manager**, add a Proxy Host for your public Nuclear hostname:
+use scheme **http**, the Ubuntu Docker host's reachable LAN IP and forward port
+**8080** (or `NUCLEAR_PORT`), and enable **Websockets Support**. Select/request the
+hostname's certificate in SSL and enable **Force SSL**. Leave Advanced and Custom
+Locations empty for this setup: the frontend already routes `/session` to the
+backend. Browsers use the same public HTTPS hostname for the page and WebSocket.
+When NPM runs in Docker, `127.0.0.1` refers to NPM's own container.
+Alternatively, attach only the frontend to NPM's shared Docker network as well as
+its existing default network, and forward to its unique network alias on port 80;
+the backend stays on the app's default network with internal port 8081. NPM's
+[Docker network guide](https://nginxproxymanager.com/advanced-config/#best-practice-use-a-docker-network)
+explains this container-name routing option. No separate backend domain or public
+backend port is needed.
+
+Local development uses two terminals:
+
+```sh
+npm ci
+npm run start:sessions
+```
+
+```sh
+npm run dev
+```
+
+Vite proxies `/session` to `127.0.0.1:8081`. Open `http://localhost:5174/reactor/` and
+`http://localhost:5174/companion/` in two windows, or use the computer's LAN
+address on a tablet. Use the same hostname/port on both screens.
+
+The **desktop remains the only simulation host**. The relay owns pairing,
+per-device credentials, room isolation, bounded messages, acknowledgements and
+reconnection; it never calculates plant physics or stores a saved game. Companion
+screens receive full state twice a second and after committed desktop commands,
+and never advance their own plant clock. No command is queued or retried offline.
+A stale or lost connection locks companion controls and stops their motion/audio;
+short transport interruptions reconnect to the same room using in-memory device
+credentials. Reloaded companions need pairing again. A disconnected desktop can
+resume its room within 30 seconds; closing/reloading the desktop ends the run.
+Restarting the relay loses all rooms and requires pairing again.
+
+A visible paired companion keeps the desktop plant clock active even when the
+desktop tab is hidden or scrolled away. Local animations/audio still suspend when
+hidden. With no visible companions, the original desktop visibility rules apply.
+Browser/OS suspension can still freeze the desktop host: stale companion readings
+then lock controls rather than pretending the plant is live. Pause is shared;
+panel changes, theme, sound opt-in and emergency-cover position remain local.
+Desktop Reset demo closes the companion's cover and restores cold read-backs.
+
+Focused verification:
+
+```sh
+node --test test/nuclear-power-session.test.mjs
+npm run build
+npm run test:browser:companion
+```
+
+The browser check uses two real browser targets and the real relay. It covers
+pairing, one-clock behavior, desktop/tablet command synchronization, grid/core
+information, pump/rod ownership, emergency shutdown, stale controls, reconnect,
+reset, revocation, tablet/phone layout and both themes.
 
 The reactor overview opens as a low-poly Three.js cutaway. Drag to orbit within
 bounded angles. Hold the mouse wheel and drag to shift the center, or use
@@ -396,6 +517,7 @@ also applies to this app; bundled third-party audio retains its CC0 license.
 The production build includes static introductory content, three linked control-room
 guides, canonical and social metadata, structured app data, a sharing screenshot,
 `/robots.txt` and `/sitemap.xml`. The guides work without JavaScript and do not mount
-the simulator. The interactive homepage retains its existing React/custom-element
-lifecycle. See [SEO.md](SEO.md) for content maintenance, verification and the
+the simulator. The landing page shows the two screen-selection cards above the introduction.
+Only `/reactor/` and `/companion/` mount React and the retained custom element;
+their HTML contains no landing or guide article. See [SEO.md](SEO.md) for content maintenance, verification and the
 Search Console steps after deployment.
