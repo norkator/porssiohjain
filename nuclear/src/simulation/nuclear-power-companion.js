@@ -51,8 +51,7 @@ export function initializeCompanion(host) {
             host.sessionConnection?.disconnect({ type: 'leave' }); host.sessionConnection = null;
             clearInterval(host.sessionHeartbeat); host.remoteReady = false; host.sessionStatus = 'offline';
             host.pendingSessionCommands.clear(); host.tripCoverOpen = false;
-            root.querySelector('.companion-join').hidden = false;
-            root.querySelector('.companion-code').focus(); updateSessionControls(host);
+            updateSessionControls(host);
         }
         const view = event.target.closest('[data-companion-view]')?.dataset.companionView;
         if (view) selectCompanionView(host, view);
@@ -74,18 +73,36 @@ function prepareCompanion(host) {
     station.querySelector('[data-companion-pane="trends"]').append(root.querySelector('.trend-panel'), root.querySelector('.events-panel'));
     station.querySelector('.companion-operator').append(root.querySelector('.operator-panel'));
     layout.hidden = true;
-    root.querySelector('h1').textContent = 'Companion console';
-    root.querySelector('.eyebrow').textContent = 'PÖRSSIOHJAIN / CONNECTED SCREEN';
+    root.querySelector('.brand-mark').remove();
+    root.querySelector('.heading').remove();
+    root.querySelector('.console').setAttribute('aria-label', 'Companion controls');
     root.querySelector('.header-settings').querySelector('[data-action="connect-screen"]').hidden = true;
     root.querySelector('.companion-link').hidden = true;
     root.querySelector('.operator-panel .local-tag').textContent = 'LINKED';
     const connection = document.createElement('section');
     connection.className = 'companion-connection panel';
-    connection.innerHTML = `<form class="companion-join"><label for="companion-code">Desktop pairing code</label><input id="companion-code" class="companion-code" type="text" inputmode="numeric" pattern="[0-9 ]{8,12}" autocomplete="off" maxlength="12" placeholder="1234 5678" required/><button class="small-button" type="submit">Connect to desktop</button></form><div class="companion-connection-state"><strong class="companion-status" role="status">Enter the code shown by Connect screen on your desktop.</strong><button class="small-button" data-action="leave-session" hidden>Disconnect</button></div>`;
+    connection.innerHTML = `<div class="companion-connection-state"><strong class="companion-status" role="status">Enter the code shown by Connect screen on your desktop.</strong><button class="small-button" data-action="leave-session" hidden>Disconnect</button></div>`;
     station.before(connection);
+    const pairing = document.createElement('dialog');
+    pairing.className = 'companion-pairing-dialog';
+    pairing.setAttribute('closedby', 'none');
+    pairing.setAttribute('aria-labelledby', 'companion-pairing-title');
+    pairing.setAttribute('aria-describedby', 'companion-pairing-help');
+    pairing.innerHTML = `<h2 id="companion-pairing-title">Connect to desktop</h2><p id="companion-pairing-help">Choose <b>Connect screen</b> on your desktop and enter its eight-digit pairing code.</p><form class="companion-join"><label for="companion-code">Desktop pairing code</label><input id="companion-code" class="companion-code" type="text" inputmode="numeric" pattern="[0-9 ]{8,12}" autocomplete="off" maxlength="12" placeholder="1234 5678" required autofocus/><button class="small-button" type="submit">Connect to desktop</button></form><p class="companion-pairing-status" role="status" aria-live="polite"></p>`;
+    root.querySelector('.console').append(pairing);
+    // The native modal keeps focus inside and makes the console inert. Escape
+    // and backdrop clicks must not dismiss pairing before live state arrives.
+    pairing.addEventListener('cancel', event => { event.preventDefault(); });
+    pairing.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault(); event.stopPropagation();
+    });
+    pairing.addEventListener('close', () => {
+        if (host.isConnected && !(host.remoteReady && host.sessionStatus === 'connected')) updateSessionControls(host);
+    });
     root.querySelector('.companion-join').addEventListener('submit', event => {
         event.preventDefault();
-        host.sessionConnection?.disconnect();
+        host.sessionConnection?.disconnect(host.sessionConnection.credentials?.type === 'resume-device' ? { type: 'leave' } : undefined);
         host.sessionConnection = host.createSessionConnection();
         host.remoteReady = false; host.remoteHostOnline = false; host.sessionError = '';
         host.pendingSessionCommands.clear();
@@ -127,7 +144,7 @@ function startSessionHeartbeat(host) {
 function receiveSessionMessage(host, message) {
     if (message.type === 'hosted') { host.pairingInfo = message; host.sessionError = ''; publishSession(host); }
     if (message.type === 'joined') {
-        host.sessionError = ''; host.shadowRoot.querySelector('.companion-join').hidden = true;
+        host.sessionError = '';
         host.sessionConnection.send({ type: 'activity', active: host.isConnected && host.intersecting && !document.hidden });
     }
     if (message.type === 'presence') {
@@ -165,7 +182,6 @@ function receiveSessionMessage(host, message) {
     if (message.type === 'ended' || message.type === 'error') {
         host.sessionError = message.message; host.remoteReady = false;
         host.pendingSessionCommands.clear(); host.tripCoverOpen = false;
-        if (host.companion) host.shadowRoot.querySelector('.companion-join').hidden = false;
     }
     updateSessionControls(host);
 }
@@ -186,15 +202,26 @@ export function updateSessionControls(host) {
         if (wasReady !== Boolean(ready)) host.updateActivity();
         const status = root.querySelector('.companion-status');
         if (!status) return;
-        status.textContent = host.sessionError || (ready
+        const message = host.sessionError || (ready
             ? `${host.simulation.paused ? 'Desktop paused' : 'Connected to desktop'}${host.pendingSessionCommands.size ? ' · Sending command…' : ' · Readings live'}`
             : host.sessionStatus === 'connecting' ? 'Connecting…' : host.sessionStatus === 'connected' ? 'Desktop unavailable · readings stale · controls locked' : 'Disconnected · enter the desktop pairing code');
+        status.textContent = message;
+        root.querySelector('.companion-pairing-status').textContent = message;
         root.querySelector('[data-action="leave-session"]').hidden = !host.sessionConnection || host.sessionConnection.closed;
         for (const selector of ['.automation-strip', '.companion-operator', '.companion-pane', '.console-footer']) {
             root.querySelectorAll(selector).forEach(node => { node.inert = !ready; });
         }
-        // Closing any component window must remain possible while disconnected.
+        // Component controls share the connection lock.
         root.querySelectorAll('.equipment-dialog-body').forEach(node => { node.inert = !ready; });
+        const pairing = root.querySelector('.companion-pairing-dialog');
+        if (ready && pairing.open) {
+            pairing.close();
+            root.querySelector('.companion-views [aria-pressed="true"]').focus({ preventScroll: true });
+        } else if (!ready && host.isConnected && !pairing.open) {
+            for (const dialog of [...host.floatingDialogs]) host.closeFloatingDialog(dialog, false);
+            host.reopenMeltdown = host.simulation.condition.meltdown;
+            pairing.showModal();
+        }
     } else {
         const info = host.pairingInfo;
         const code = root.querySelector('.pairing-code');
@@ -211,5 +238,6 @@ export function disconnectSession(host) {
     host.sessionConnection?.disconnect({ type: host.companion ? 'leave' : 'end' });
     host.sessionConnection = null; host.remoteReady = false; host.sessionStatus = 'offline';
     host.pendingSessionCommands?.clear();
-    if (host.companion) host.shadowRoot.querySelector('.companion-join').hidden = false;
+    const pairing = host.shadowRoot.querySelector('.companion-pairing-dialog');
+    if (pairing?.open) pairing.close();
 }

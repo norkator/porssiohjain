@@ -30,7 +30,13 @@ The normal desktop retains its full layout. **Connect screen** in the header
 starts sharing that existing simulation and displays an eight-digit pairing code.
 Open the same site's **Companion screen** link on a tablet, another computer or
 another browser window, enter the code, and press **Connect to desktop**. The
-pairing window also provides a link with the code already filled in for testing
+code is requested in a blocking modal with the console visible behind it. Escape
+and backdrop clicks do not dismiss it; it closes only when live desktop state is
+available. Invalid codes stay in the dialog for retry. Connection loss,
+disconnection or revoked access brings it back, and successful reconnect closes
+it automatically. The companion omits the logo and page title to save space;
+regulation/display settings and a compact connection status remain above the panes.
+The pairing window also provides a link with the code already filled in for testing
 on one computer. Codes expire after ten minutes; **New code** rotates the code
 without disconnecting devices already paired. **Disconnect screens** revokes all
 device credentials and rotates the code; **Stop sharing** ends the room.

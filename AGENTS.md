@@ -70,7 +70,11 @@ screen cards. Independent `/reactor/` and `/companion/` HTML entries mount the
 consoles without landing/guide DOM. Keep selected URLs on reload and let Back
 return to the landing page; plant state is still not saved across reload.
 Companion columns grow with content and use ordinary page scrolling, with no
-fixed-height inner scroll regions or empty trailing content. Legacy
+fixed-height inner scroll regions or empty trailing content. The companion omits
+its logo/title; pairing uses a blocking native dialog with the console behind it.
+Escape/backdrop clicks cannot dismiss it; only live session state closes it.
+Preserve invalid-code retry, stale/disconnect/revocation reopening, reconnect
+closure, focus containment and detach cleanup. Legacy
 `/?screen=companion` links redirect to `/companion/`, preserving code fragments.
 Optional companion browsers use `/companion/` and pair through Connect screen
 with the simple Docker WebSocket relay in `nuclear/server/`. The desktop remains

@@ -6,10 +6,15 @@
 .pairing-code { font: 36px Consolas, monospace; letter-spacing: 4px; color: var(--cool); text-align: center; padding: 12px; border: 1px dashed var(--border); border-radius: 5px; }
 .pairing-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .pairing-open { text-align: center; text-decoration: none; }
-.companion-connection { display: grid; gap: 10px; padding: 14px 18px; margin-bottom: 16px; }
-.companion-join { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.companion-connection { padding: 8px 12px; margin-bottom: 12px; }
+.companion-pairing-dialog { position: fixed; margin: auto; width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 24px; overflow-y: auto; color: inherit; background: #15212d; border: 1px solid #637e8d; border-radius: 10px; box-shadow: 0 18px 65px #0009; }
+.companion-pairing-dialog::backdrop { background: #050b12b3; backdrop-filter: blur(2px); }
+.companion-pairing-dialog h2 { margin: 0 0 12px; font-size: 20px; }
+.companion-pairing-dialog p { margin: 0 0 20px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.companion-pairing-dialog .companion-pairing-status { margin: 16px 0 0; color: var(--warm); font-size: 12px; }
+.companion-join { display: grid; gap: 12px; }
 .companion-join label { font-size: 13px; }
-.companion-code { width: 170px; padding: 10px 12px; color: inherit; background: transparent; border: 1px solid var(--border); border-radius: 5px; font: 20px Consolas, monospace; }
+.companion-code { width: 100%; min-width: 0; padding: 12px; color: inherit; background: transparent; border: 1px solid var(--border); border-radius: 5px; font: 26px Consolas, monospace; letter-spacing: 3px; }
 .companion-connection-state { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .companion-status { color: var(--cool); font-size: 12px; font-weight: 500; }
 .companion-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); gap: 16px; align-items: start; }
@@ -41,6 +46,7 @@
 :host([data-remote-ready="false"]) :is(.companion-operator, .companion-pane) { opacity: .55; }
 :host([data-screen="companion"]) .console-footer { margin-top: 16px; }
 :host([data-theme="light"]) .pairing-dialog { background: #edf2f5; }
+:host([data-theme="light"]) .companion-pairing-dialog { background: #f8fbfc; border-color: #94adbc; box-shadow: 0 18px 65px #29415255; }
 @container nuclear-console (max-width: 700px) {
     .companion-workspace { grid-template-columns: minmax(0, 1fr); }
     .companion-operator { grid-row: 1; }

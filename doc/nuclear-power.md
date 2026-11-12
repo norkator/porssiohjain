@@ -1002,7 +1002,14 @@ instruments and controls continue to work.
 The desktop layout is retained. **Connect screen** opens an expiring eight-digit
 pairing code and a link for testing in another browser window. A tablet or another
 computer opens **Companion screen** (`/companion/`), enters that code and
-connects to the existing desktop session. Grid requests/readings, the embedded core
+connects to the existing desktop session. The companion omits the logo and visible
+page title, retaining the regulation/display header and compact connection status.
+Its code form lives in a native blocking modal with the console visible behind it;
+Escape and backdrop clicks cannot dismiss pairing. It closes only after live
+desktop state arrives, stays open for invalid-code retries, and reopens on lost or
+revoked connections. Automatic reconnect closes it after fresh state. Detach
+closes the modal; reconnecting the element requires pairing again. Grid
+requests/readings, the embedded core
 map and trends/alarms occupy selectable left-side panes; Start/Stop, rods/load,
 pump rockers/speeds and covered emergency shutdown remain on the right. Narrow
 screens stack controls above information. Equipment/electrical/diesel windows use
