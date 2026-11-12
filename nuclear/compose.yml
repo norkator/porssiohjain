@@ -1,5 +1,6 @@
 services:
   web:
+    image: ghcr.io/norkator/porssiohjain-nuclear:latest
     build:
       context: ..
       dockerfile: nuclear/Dockerfile
@@ -10,6 +11,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
   session-server:
+    image: ghcr.io/norkator/porssiohjain-nuclear-backend:latest
     build:
       context: .
       dockerfile: Dockerfile.sessions

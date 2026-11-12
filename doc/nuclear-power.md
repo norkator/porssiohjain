@@ -20,8 +20,11 @@ state across reload. Legacy `/?screen=companion` links redirect to `/companion/`
 while retaining pairing-code fragments. The independent npm project,
 tests, public audio and Nginx container live together in `nuclear/`.
 `.github/workflows/nuclear-container.yml` verifies it on pull requests and publishes
-`ghcr.io/norkator/porssiohjain-nuclear:latest` for amd64/arm64 on relevant production
-pushes and manual runs. The workflow does not configure DNS/TLS or deploy the image.
+`ghcr.io/norkator/porssiohjain-nuclear:latest` and
+`ghcr.io/norkator/porssiohjain-nuclear-backend:latest` for amd64/arm64 on relevant
+production pushes and manual runs on that branch. The test gate includes companion
+pairing checks, and QEMU supports the backend’s ARM64 dependency installation.
+The workflow does not configure DNS/TLS or deploy the images.
 See [local development and deployment](../nuclear/README.md).
 
 ## Current scope
@@ -1034,12 +1037,13 @@ Stale/disconnected companions lock controls and suspend motion/audio. Brief host
 transport loss retains the room for 30 seconds; browser reload or backend restart
 requires pairing again. No accounts, economy or multiplayer are implemented.
 
-`nuclear/compose.yml` builds the original Nginx frontend and a non-root Node 22
-`session-server` container. Only port 8080 is published by default; Nginx proxies
-`/session` to the internal backend. The existing frontend image also runs without
-the optional relay. The existing CI image workflow still publishes only that
-frontend image; Compose builds both locally. Local development runs
-`npm run start:sessions` alongside `npm run dev`, whose Vite proxy forwards
+`nuclear/compose.yml` references the published Nginx frontend and non-root Node 22
+`session-server` images, retaining local build definitions. After the production
+workflow completes, `docker compose pull` and `docker compose up -d --no-build`
+install/update both; `docker compose up -d --build` builds from source. Only port
+8080 is published by default; Nginx proxies `/session` to the internal backend.
+The existing frontend image also runs without the optional relay. Local development
+runs `npm run start:sessions` alongside `npm run dev`, whose Vite proxy forwards
 WebSocket upgrades. HTTPS reverse proxies must retain WebSocket upgrade headers.
 For Nginx Proxy Manager, set `NUCLEAR_ALLOWED_ORIGINS` in `nuclear/.env` to the
 exact public origin (for example `https://nuclear.porssiohjain.fi`); Compose maps

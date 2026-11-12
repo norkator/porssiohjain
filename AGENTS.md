@@ -95,8 +95,12 @@ Reserve the full `npm run test:browser` for broad changes, explicit requests or 
 do not repeatedly replay the whole browser suite for small edits or timing-only
 fixes. Run `npm ci` when installing dependencies or after lockfile changes.
 No Spring app or account login is needed. `.github/workflows/nuclear-container.yml`
-publishes `ghcr.io/norkator/porssiohjain-nuclear:latest` for amd64/arm64 on production
-pushes/manual runs. The Vaadin desktop/Start link opens `https://nuclear.porssiohjain.fi`
+publishes `ghcr.io/norkator/porssiohjain-nuclear:latest` and
+`ghcr.io/norkator/porssiohjain-nuclear-backend:latest` for amd64/arm64 on production
+pushes/manual runs, gated by model/build/browser/companion checks. QEMU supports
+the backend ARM64 build. Compose retains local builds and references both images;
+production updates use `docker compose pull` and `docker compose up -d --no-build`.
+The Vaadin desktop/Start link opens `https://nuclear.porssiohjain.fi`
 in a separate tab; do not reintroduce the old Vaadin simulation view.
 The frontend separates requested rod/pump settings from actual simulated read-back.
 Equipment detail lives in the component dialogs (reactor readings in the core map),

@@ -58,11 +58,15 @@ local to each screen. Information and operator panels grow to their natural
 content height. The document scrolls to reach the lower controls; there are no
 separate scrolling columns or empty landing-page space below the console.
 
-From `nuclear/`, start both containers on an Ubuntu Docker host:
+After the production workflow publishes both images, run these commands from
+`nuclear/` on the Ubuntu Docker host to install or update both containers:
 
 ```sh
-docker compose up -d --build
+docker compose pull
+docker compose up -d --no-build
 ```
+
+For a local source build instead, use `docker compose up -d --build`.
 
 Open `http://SERVER_ADDRESS:8080` on both devices. Set `NUCLEAR_PORT=8085` (or another
 free port) before the command to change the published port. The frontend remains
@@ -71,8 +75,18 @@ container. Only Nginx is published. It proxies `/session` with WebSocket upgrade
 to the relay's internal port 8081. No database, Spring service or account is needed.
 The existing static-only frontend container can still run without the optional
 relay; its local simulation works normally and screen pairing reports unavailable.
-This Compose file builds both images locally; the existing production workflow
-continues to publish only the frontend image.
+Compose references the published frontend and backend images while retaining
+their local build definitions. The production workflow publishes both for
+`linux/amd64` and `linux/arm64`:
+
+```text
+ghcr.io/norkator/porssiohjain-nuclear:latest
+ghcr.io/norkator/porssiohjain-nuclear-backend:latest
+```
+
+Before the first image-only deployment, let the production workflow complete.
+For each GHCR package, allow public pulls in its GitHub package settings, or log
+the server into GHCR using credentials with package read access.
 
 If HTTPS terminates at another reverse proxy, forward the full site to port 8080,
 and enable WebSocket upgrades for `/session`. The client automatically uses
@@ -88,8 +102,9 @@ NUCLEAR_PORT=8080
 NUCLEAR_ALLOWED_ORIGINS=https://nuclear.porssiohjain.fi
 ```
 
-Replace the hostname if needed, then run `docker compose up -d --build` from
-`nuclear/`. Compose passes `NUCLEAR_ALLOWED_ORIGINS` to the relay as
+Replace the hostname if needed, then run `docker compose pull` followed by
+`docker compose up -d --no-build` from `nuclear/`. Compose passes
+`NUCLEAR_ALLOWED_ORIGINS` to the relay as
 `ALLOWED_ORIGINS`. Multiple exact origins may be comma-separated without spaces;
 include the public port when using a nonstandard port. This handles NPM versions
 that forward their upstream hostname in `Host`, avoiding WebSocket 403 errors.
@@ -519,18 +534,21 @@ The runtime is Nginx on port 80 serving static files, including bundled CC0 Kenn
 UI Audio under `public/audio/nuclear-power/kenney-ui/` with its license/source record.
 It needs no environment variables, API proxy, database, or Java runtime.
 
-`.github/workflows/nuclear-container.yml` runs the unit tests, production build and
-Chrome regression for pull requests. Relevant pushes to `production` and manual
-runs also publish the `linux/amd64` and `linux/arm64` image:
+`.github/workflows/nuclear-container.yml` runs the unit tests, production build,
+Chrome regression and companion pairing checks for pull requests. Relevant pushes
+to `production` and manual runs on that branch publish both `linux/amd64` and
+`linux/arm64` images:
 
 ```text
 ghcr.io/norkator/porssiohjain-nuclear:latest
+ghcr.io/norkator/porssiohjain-nuclear-backend:latest
 ```
 
-Deploy that image and point your HTTPS reverse proxy for `nuclear.porssiohjain.fi`
-at its port 80. DNS, TLS, and the running deployment are configured separately;
-the workflow only builds and pushes the image. The desktop link is already set
-to the future URL.
+Use the [companion Compose setup](#companion-console-and-docker-session-backend)
+to deploy both images and point your HTTPS reverse proxy at its frontend port
+8080. The standalone frontend image remains usable on its own. DNS, TLS, and the
+running deployment are configured separately; the workflow builds and publishes
+images. The desktop link opens `https://nuclear.porssiohjain.fi`.
 
 See [the feature specification](../doc/nuclear-power.md) for the simulation rules,
 interlocks and future physical-model work. The repository's [license](../LICENSE)
