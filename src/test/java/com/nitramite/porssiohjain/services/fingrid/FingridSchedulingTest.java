@@ -1,6 +1,5 @@
 package com.nitramite.porssiohjain.services.fingrid;
 
-import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.FingridDataRepository;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.mqtt.MqttReconnectService;
@@ -146,7 +145,6 @@ class FingridSchedulingTest {
                 mock(MqttRelayTestService.class),
                 mock(PowerplantService.class),
                 mock(ZigbeeGatewayConnectivityService.class),
-                mock(ControlTableRepository.class),
                 mock(ZigbeeDeviceMeasurementRepository.class)
         );
     }

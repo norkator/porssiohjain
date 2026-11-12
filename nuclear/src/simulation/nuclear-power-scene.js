@@ -527,7 +527,9 @@ export class PlantOverviewScene {
         }
         this.labelSignature = null;
         this.measureLabels = true;
-        this.render();
+        // Keep labels inside the resized viewport even when the process is
+        // offscreen; WebGL drawing stays suspended until it becomes visible.
+        this.render({ layoutOnly: !this.visible });
     }
 
     setZoom(zoom) {
@@ -702,8 +704,8 @@ export class PlantOverviewScene {
         this.render();
     }
 
-    render() {
-        if (this.disposed || !this.visible || !this.width || this.host.hidden) return;
+    render({ layoutOnly = false } = {}) {
+        if (this.disposed || (!this.visible && !layoutOnly) || !this.width || this.host.hidden) return;
         const cameraSignature = [this.width, this.height, this.zoom, this.yaw, this.pitch, this.target.x, this.target.y, this.target.z].join(',');
         if (cameraSignature !== this.cameraSignature) {
             this.cameraSignature = cameraSignature;
@@ -743,7 +745,7 @@ export class PlantOverviewScene {
                 if (button.style.top !== top) button.style.top = top;
             }
         }
-        this.renderer.render(this.scene, this.camera);
+        if (!layoutOnly) this.renderer.render(this.scene, this.camera);
     }
 
     dispose() {

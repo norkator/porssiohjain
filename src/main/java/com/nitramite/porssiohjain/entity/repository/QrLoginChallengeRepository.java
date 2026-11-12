@@ -15,7 +15,10 @@ import com.nitramite.porssiohjain.entity.QrLoginChallengeEntity;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,5 +26,9 @@ public interface QrLoginChallengeRepository extends JpaRepository<QrLoginChallen
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<QrLoginChallengeEntity> findByChallengeId(UUID challengeId);
+
+    @Modifying
+    @Query("delete from QrLoginChallengeEntity challenge where challenge.expiresAt < :cutoff")
+    int deleteExpiredBefore(Instant cutoff);
 
 }

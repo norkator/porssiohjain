@@ -3,6 +3,34 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createPolylinePath, flowMarkerDistance } from '../src/simulation/nuclear-power-motion.js';
 import { ParticleBatch } from '../src/simulation/nuclear-power-particles.js';
+import { PlantOverviewScene } from '../src/simulation/nuclear-power-scene.js';
+
+test('explicit offscreen viewport resizing clamps labels without drawing WebGL or resuming frame-time layout reads', () => {
+    let draws = 0, reads = 0;
+    const button = { style: {}, textContent: 'Pump A', className: 'plant-scene-label',
+        get offsetWidth() { reads++; return 110; }, get offsetHeight() { reads++; return 40; } };
+    const label = { button, anchor: new THREE.Vector3(100, 0, 0), width: 110, height: 40 };
+    const view = Object.assign(Object.create(PlantOverviewScene.prototype), {
+        disposed: false, visible: false, width: 1400, height: 600,
+        host: { clientWidth: 360, clientHeight: 400, dataset: { labels: 'compact' }, hidden: false },
+        renderer: { setSize() {}, render() { draws++; } },
+        camera: new THREE.OrthographicCamera(-14, 14, 9, -9, .1, 120),
+        scene: new THREE.Scene(), target: new THREE.Vector3(0, 2.6, .5),
+        zoom: 1.2, yaw: .24, pitch: .7, labels: new Map([['pumpA', label]]), featureLabels: [],
+    });
+    view.resize();
+    assert.equal(view.width, 360);
+    const left = Number.parseFloat(button.style.left);
+    assert.ok(left >= 55 && left + 55 <= 360, 'Label follows the new narrow viewport while offscreen');
+    assert.equal(draws, 0);
+    assert.equal(reads, 2, 'Only the explicit resize measures label dimensions');
+    view.render();
+    assert.equal(draws, 0);
+    assert.equal(reads, 2);
+    view.setVisible(true); view.render();
+    assert.equal(draws, 1);
+    assert.equal(reads, 2, 'Returning to view reuses the measured dimensions');
+});
 
 test('schematic particles follow the same distance through corners and wrap without SVG layout reads', () => {
     const path = createPolylinePath([[610, 160], [790, 160], [790, 210]]);

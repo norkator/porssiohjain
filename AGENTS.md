@@ -65,6 +65,30 @@ scale-model control room, not a simulator of a specific real reactor. All curren
 signals and commands are browser-local simulation; no MQTT devices are connected.
 The app, simulation modules, styles, bundled audio and tests live in `nuclear/`.
 React hosts the retained `nuclear-power-console` custom element; preserve its lifecycle.
+The homepage is a static landing/SEO page with Nuclear reactor and Companion
+screen cards. Independent `/reactor/` and `/companion/` HTML entries mount the
+consoles without landing/guide DOM. Keep selected URLs on reload and let Back
+return to the landing page; plant state is still not saved across reload.
+Companion columns grow with content and use ordinary page scrolling, with no
+fixed-height inner scroll regions or empty trailing content. The companion omits
+its logo/title; pairing uses a blocking native dialog with the console behind it.
+Escape/backdrop clicks cannot dismiss it; only live session state closes it.
+Preserve invalid-code retry, stale/disconnect/revocation reopening, reconnect
+closure, focus containment and detach cleanup. Legacy
+`/?screen=companion` links redirect to `/companion/`, preserving code fragments.
+Optional companion browsers use `/companion/` and pair through Connect screen
+with the simple Docker WebSocket relay in `nuclear/server/`. The desktop remains
+the sole simulation host; companions never tick their state or queue offline
+commands. Companion core-map selected/all fuel replacement runs through the desktop
+console, including cooldown/pool-capacity checks and its crane-to-pool animation;
+sync readiness/results without changing desktop selection or creating local batches.
+Pool dispatch remains desktop-only. Keep room isolation, command/read-back separation, stale control locks,
+reconnect/revocation and local motion/audio cleanup. A visible paired companion
+may keep the desktop clock active while its local rendering is hidden; otherwise
+preserve the existing visibility rules. Run `npm run test:browser:companion` for
+focused pairing and shared-control checks. `nuclear/compose.yml` builds both the
+Nginx frontend and non-root relay for Ubuntu Docker hosting. See the Nuclear README;
+accounts, saved games, economy and multiplayer remain outside this first version.
 For routine changes, run focused unit checks and `npm run build` in that folder.
 Use `npm run test:browser:equipment` when equipment UI/interaction coverage is needed.
 Reserve the full `npm run test:browser` for broad changes, explicit requests or CI;

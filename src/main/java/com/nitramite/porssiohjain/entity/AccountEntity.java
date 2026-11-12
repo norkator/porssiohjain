@@ -131,6 +131,9 @@ public class AccountEntity {
     @Column(name = "last_activity_source", length = 32)
     private AccountActivitySource lastActivitySource;
 
+    @Column(name = "control_history_deleted_before")
+    private Instant controlHistoryDeletedBefore;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

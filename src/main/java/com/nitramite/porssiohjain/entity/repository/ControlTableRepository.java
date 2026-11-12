@@ -22,7 +22,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -115,12 +114,21 @@ public interface ControlTableRepository extends JpaRepository<ControlTableEntity
             @Param("time") Instant time
     );
 
-    @Modifying
-    @Transactional
+    @Query("select min(ct.startTime) from ControlTableEntity ct where ct.control.account.id = :accountId")
+    Optional<Instant> findEarliestStartByAccountId(Long accountId);
+
+    /** Never discard source periods before their completed-month report exists. */
+    @Modifying(flushAutomatically = true)
     @Query("""
             delete from ControlTableEntity ct
-            where ct.endTime < :cutoff
+            where ct.control.account.id = :accountId
+              and ct.endTime < :cutoff
+              and exists (
+                  select month.id from ControlSavingsMonthEntity month
+                  where month.account.id = :accountId
+                    and ct.startTime >= month.periodStart and ct.endTime <= month.periodEnd
+              )
             """)
-    int deleteEndedBefore(@Param("cutoff") Instant cutoff);
+    int deleteArchivedEndedBefore(Long accountId, Instant cutoff);
 
 }

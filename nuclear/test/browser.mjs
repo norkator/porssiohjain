@@ -169,7 +169,7 @@ test('3D overview, core map, centered pumps, automatic control, trip recovery an
             assert.equal((await fetch(new URL('/this-page-does-not-exist', baseUrl))).status, 404);
             await page('Emulation.setScriptExecutionDisabled', { value: false });
         }
-        await page('Page.navigate', { url: baseUrl });
+        await page('Page.navigate', { url: new URL('/reactor/', baseUrl).href });
         await until(`!!document.querySelector('nuclear-power-console')?.shadowRoot?.querySelector('.console')`, 'Control room did not render');
         await checkCoolingTower({ consoleCode, action, page, until, screenshot, warmOperatingPoint });
         if (focusedCooling) {

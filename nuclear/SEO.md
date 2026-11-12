@@ -1,8 +1,10 @@
 # Search visibility
 
-The canonical origin is `https://nuclear.porssiohjain.fi`. The simulator remains
-the first thing on the homepage. A visible introduction, feature overview,
-startup steps, guide links and questions follow the console. The text describes
+The canonical origin is `https://nuclear.porssiohjain.fi`. The homepage starts
+with two cards: Nuclear reactor on the left and Companion screen on the right.
+A visible introduction, feature overview, startup steps, guide links and questions
+follow the cards. The reactor (`/reactor/`) and companion (`/companion/`) have
+independent HTML entries with no landing content or guide footer. The text describes
 the existing fictional browser simulation; it does not advertise future gameplay,
 real reactor fidelity or hardware connectivity.
 
@@ -12,6 +14,9 @@ real reactor fidelity or hardware connectivity.
 - `site/render.mjs` renders canonical links, Open Graph/Twitter previews and
   JSON-LD, together with the visible content. Vite inserts them into the HTML
   during both development and production builds.
+- `reactor/index.html` and `companion/index.html` mount only the application.
+  These console URLs are excluded from the sitemap and use `noindex, follow`;
+  reload stays on the selected URL, and Back returns to the landing page.
 - `guides/*/index.html` are independent static entry points. They load the shared
   stylesheet without React, Three.js or any other JavaScript.
 - `public/robots.txt` permits crawling and advertises the sitemap.
@@ -50,7 +55,9 @@ does not downgrade their scheme. Hashed assets retain their immutable cache poli
 HTML and crawl files revalidate. The external HTTPS proxy must preserve these
 status codes and content types and redirect HTTP to the canonical HTTPS host.
 Nginx also compresses HTML, JavaScript, CSS and other text responses with gzip;
-guides never download the simulator bundle.
+guides never download the simulator bundle. The homepage only loads a small
+compatibility redirect for old `/?screen=companion` links; it does not download
+React or Three.js. Console pages never include the SEO article, even as hidden DOM.
 
 ## Verification
 
