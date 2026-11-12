@@ -38,4 +38,7 @@ public interface ControlRepository extends JpaRepository<ControlEntity, Long> {
 
     long countByAccountId(Long accountId);
 
+    @Query("select distinct c.account.id from ControlEntity c order by c.account.id")
+    List<Long> findAccountIdsWithControls();
+
 }

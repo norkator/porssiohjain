@@ -292,7 +292,8 @@ export default function MainMenuView() {
       };
     });
 
-    Promise.all(monthRanges.map((range) => fetchCachedControlSavings({ from: range.from, to: range.to })))
+    const savingsTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    Promise.all(monthRanges.map((range) => fetchCachedControlSavings({ from: range.from, to: range.to, timezone: savingsTimezone })))
       .then((savings) => {
         if (!active) return;
         setMonthlySavings(savings);

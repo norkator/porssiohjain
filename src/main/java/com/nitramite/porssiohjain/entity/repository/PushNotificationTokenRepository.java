@@ -13,6 +13,7 @@ package com.nitramite.porssiohjain.entity.repository;
 
 import com.nitramite.porssiohjain.entity.PushNotificationTokenEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -42,4 +43,8 @@ public interface PushNotificationTokenRepository extends JpaRepository<PushNotif
             ORDER BY token.updatedAt DESC
             """)
     List<PushNotificationTokenEntity> findActiveAdminTokensOrderByUpdatedAtDesc();
+
+    @Modifying
+    @Query("delete from PushNotificationTokenEntity token where token.invalidatedAt < :cutoff")
+    int deleteInvalidatedBefore(Instant cutoff);
 }

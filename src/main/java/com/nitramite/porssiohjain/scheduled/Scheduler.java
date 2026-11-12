@@ -12,7 +12,6 @@
 package com.nitramite.porssiohjain.scheduled;
 
 import com.nitramite.porssiohjain.mqtt.MqttReconnectService;
-import com.nitramite.porssiohjain.entity.repository.ControlTableRepository;
 import com.nitramite.porssiohjain.entity.repository.ZigbeeDeviceMeasurementRepository;
 import com.nitramite.porssiohjain.services.*;
 import com.nitramite.porssiohjain.services.fingrid.FingridDataService;
@@ -25,7 +24,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Locale;
@@ -58,7 +56,6 @@ public class Scheduler {
     private final MqttRelayTestService mqttRelayTestService;
     private final PowerplantService powerplantService;
     private final ZigbeeGatewayConnectivityService zigbeeGatewayConnectivityService;
-    private final ControlTableRepository controlTableRepository;
     private final ZigbeeDeviceMeasurementRepository zigbeeDeviceMeasurementRepository;
 
     private boolean firstRun = true;
@@ -88,7 +85,6 @@ public class Scheduler {
             MqttRelayTestService mqttRelayTestService,
             PowerplantService powerplantService,
             ZigbeeGatewayConnectivityService zigbeeGatewayConnectivityService,
-            ControlTableRepository controlTableRepository,
             ZigbeeDeviceMeasurementRepository zigbeeDeviceMeasurementRepository
     ) {
         this.nordpoolDataPortalService = nordpoolDataPortalService;
@@ -114,7 +110,6 @@ public class Scheduler {
         this.mqttRelayTestService = mqttRelayTestService;
         this.powerplantService = powerplantService;
         this.zigbeeGatewayConnectivityService = zigbeeGatewayConnectivityService;
-        this.controlTableRepository = controlTableRepository;
         this.zigbeeDeviceMeasurementRepository = zigbeeDeviceMeasurementRepository;
 
         if (!nordpoolDataPortalService.hasDataForToday()) {
@@ -249,13 +244,6 @@ public class Scheduler {
                 ZonedDateTime.now(ZoneId.of("Europe/Helsinki")).minusMonths(1).toInstant()
         );
         log.info("Deleted {} old Zigbee measurement rows", deletedMeasurements);
-    }
-
-    @Scheduled(cron = "0 20 12 * * MON", zone = "Europe/Helsinki")
-    public void deleteOldControlTableRows() {
-        Instant cutoff = ZonedDateTime.now(ZoneId.of("Europe/Helsinki")).minusMonths(6).toInstant();
-        int deletedRows = controlTableRepository.deleteEndedBefore(cutoff);
-        log.info("Deleted {} control table rows ended before {}", deletedRows, cutoff);
     }
 
     @Scheduled(fixedDelayString = "${solarman.poll-interval}")
