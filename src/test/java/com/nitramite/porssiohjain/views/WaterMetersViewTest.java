@@ -87,6 +87,32 @@ class WaterMetersViewTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void deletionRequiresConfirmationAndCancelLeavesTheMeterUntouched() {
+        var view = new WaterMetersView(auth, i18n, service);
+        var renderer = (ComponentRenderer<?, WaterMeterService.Meter>) grid(view).getColumns().getLast().getRenderer();
+        var actions = renderer.createComponent(meter);
+        buttons(actions).filter(button -> button.getText().equals("Delete")).findFirst().orElseThrow().click();
+        var confirmation = descendants(view).filter(com.vaadin.flow.component.dialog.Dialog.class::isInstance)
+                .map(com.vaadin.flow.component.dialog.Dialog.class::cast)
+                .filter(dialog -> dialog.getHeaderTitle().equals("Delete")).findFirst().orElseThrow();
+        assertTrue(confirmation.isOpened());
+        verify(service, never()).delete(any(), any());
+        buttons(confirmation).filter(button -> button.getText().equals("Cancel")).findFirst().orElseThrow().click();
+        assertFalse(confirmation.isOpened());
+        verify(service, never()).delete(any(), any());
+        buttons(actions).filter(button -> button.getText().equals("Delete")).findFirst().orElseThrow().click();
+        var reopened = descendants(view).filter(com.vaadin.flow.component.dialog.Dialog.class::isInstance)
+                .map(com.vaadin.flow.component.dialog.Dialog.class::cast)
+                .filter(dialog -> dialog.getHeaderTitle().equals("Delete") && dialog.isOpened()).findFirst().orElseThrow();
+        when(service.list(7L)).thenReturn(List.of());
+        buttons(reopened).filter(button -> button.getText().equals("Delete")).findFirst().orElseThrow().click();
+        verify(service).delete(7L, 9L);
+        assertFalse(reopened.isOpened());
+        assertEquals(0, grid(view).getListDataView().getItemCount());
+    }
+
+    @Test
     void finnishFormHasTheRequestedNamesAndCreateSendsBothCredentials() {
         UI.getCurrent().setLocale(Locale.of("fi", "FI"));
         var view = new WaterMetersView(auth, i18n, service);

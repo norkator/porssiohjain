@@ -18,7 +18,6 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
@@ -250,18 +249,17 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
     }
 
     private void confirmDelete(WaterMeterService.Meter meter) {
-        ConfirmDialog confirmation = new ConfirmDialog();
-        confirmation.setHeader(t("common.delete"));
-        confirmation.setText(t("waterMeters.deleteConfirm", meter.name()));
-        confirmation.setCancelable(true);
-        confirmation.setCancelText(t("common.cancel"));
-        confirmation.setConfirmText(t("common.delete"));
-        confirmation.setConfirmButtonTheme("error primary");
-        confirmation.addConfirmListener(event -> {
+        Dialog confirmation = new Dialog();
+        confirmation.setHeaderTitle(t("common.delete"));
+        confirmation.setCloseOnOutsideClick(false);
+        confirmation.add(new Paragraph(t("waterMeters.deleteConfirm", meter.name())));
+        Button cancel = new Button(t("common.cancel"), event -> confirmation.close());
+        Button delete = new Button(t("common.delete"), event -> {
             AccountEntity account = account();
             if (account == null || !writable()) return;
             try {
                 meters.delete(account.getId(), meter.id());
+                confirmation.close();
                 if (meter.id().equals(editingId)) {
                     prepare(null);
                     editor.savedAndClose();
@@ -273,6 +271,9 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
                 showError("waterMeters.error.readOnly");
             }
         });
+        delete.addThemeVariants(com.vaadin.flow.component.button.ButtonVariant.LUMO_ERROR,
+                com.vaadin.flow.component.button.ButtonVariant.LUMO_PRIMARY);
+        confirmation.getFooter().add(cancel, delete);
         add(confirmation);
         confirmation.addOpenedChangeListener(event -> {
             if (!event.isOpened()) remove(confirmation);
