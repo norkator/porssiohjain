@@ -125,3 +125,42 @@ Tampereen Vesi values as calculated. The existing noon polling schedule remains
 in use; daily data availability, rather than local midnight, determines when
 the calculated total can advance. Investigation captures containing session
 cookies or personal data must not be committed.
+
+## Android measurement widgets
+
+Water-meter values have a separate authenticated, read-only widget API:
+
+- `GET /api/measurements/water-meters/latest`
+- `GET /api/measurements/water-meters/history?waterMeterId=...&type=WATER_METER_TOTAL&key=total_m3&hours=24`
+- `GET /api/measurements/water-meters/history?waterMeterId=...&type=WATER_CONSUMPTION&key=daily_m3&hours=48`
+
+The original `/api/measurements/latest` and `/history` endpoints, common device
+measurement enum, storage, Measurements view and public sharing remain unchanged.
+`WaterMeterMeasurementsController` and `WaterMeterWidgetQueryService` expose only
+owned meters and account-scoped stored history; they never contact the provider.
+History rejects invalid type/key combinations or periods other than 24/48 hours
+with 400, and unowned/deleted meters with 410. Authentication uses the same raw
+account token as existing measurement widgets. Silent/disabled meters retain
+cached values; unpolled meters have no fabricated zero reading.
+
+Responses use the existing widget value/history shape: `deviceId` (the water
+meter ID in this separate namespace), `deviceName`, `measurementType`,
+`measurementKey`, `source=WATER_METER`, provider `sourceKey`, `unit=m³`, `value`,
+`observedAt`, null `measuredAt`, and `receivedAt`. Additional `calculated` and
+`consumptionDate` distinguish baseline-derived totals and the last covered/usage
+day from fetch time. Total series are `WATER_METER_TOTAL/total_m3`; dated daily
+usage is `WATER_CONSUMPTION/daily_m3`. WRM does not synthesize a daily series.
+Meter IDs can overlap device IDs because type/key are also part of identity.
+Credentials, portal sessions and account entities are excluded from all payloads.
+
+History is the full half-open rolling [from,to) window with no 500-point cap.
+WRM totals use observation times. Dated usage and calculated totals are positioned
+at the end of the Helsinki consumption day, using local dates and ZoneId so
+23/25-hour DST days remain correct. Daily usage can be shown while a missing
+prior day prevents calculation of a cumulative total; null totals are omitted.
+The latest response always preserves the original fetch time. The Android app
+merges water choices into its widget picker, routes water history to the new
+endpoint, and leaves existing device widget refresh requests unchanged. Existing
+session/environment isolation, raw-token renewal, cached-offline handling and
+24/48-hour selections are reused. A new backend and Android build are required;
+no installed phone is updated automatically.

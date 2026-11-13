@@ -18,6 +18,8 @@ import java.util.Optional;
 public interface WaterMeterRepository extends JpaRepository<WaterMeterEntity, Long> {
     List<WaterMeterEntity> findByAccountIdOrderByNameAscIdAsc(Long accountId);
 
+    Optional<WaterMeterEntity> findByIdAndAccountId(Long id, Long accountId);
+
     boolean existsByIdAndAccountId(Long id, Long accountId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -69,6 +69,17 @@ class WaterMeterPersistenceTest {
                 history.saveAndFlush(point);
                 assertEquals(1, history.findByWaterMeterIdAndWaterMeterAccountIdOrderByObservedAtAscIdAsc(id, account.getId()).size());
                 assertTrue(history.findByWaterMeterIdAndWaterMeterAccountIdOrderByObservedAtAscIdAsc(id, -1L).isEmpty());
+                point.setConsumptionDate(java.time.LocalDate.of(2026, 10, 22));
+                point.setConsumptionCubicMeters(new BigDecimal("0.5"));
+                history.saveAndFlush(point);
+                assertTrue(repository.findByIdAndAccountId(id, account.getId()).isPresent());
+                assertTrue(repository.findByIdAndAccountId(id, -1L).isEmpty());
+                assertTrue(history.findFirstByWaterMeterIdAndWaterMeterAccountIdAndConsumptionDateIsNotNullAndConsumptionCubicMetersIsNotNullOrderByConsumptionDateDescIdDesc(
+                        id, account.getId()).isPresent());
+                assertEquals(1, history.findWidgetHistory(id, account.getId(), observed.minusSeconds(1), observed.plusSeconds(1),
+                        java.time.LocalDate.of(2026,10,22), java.time.LocalDate.of(2026,10,23)).size());
+                assertTrue(history.findWidgetHistory(id, -1L, observed.minusSeconds(1), observed.plusSeconds(1),
+                        java.time.LocalDate.of(2026,10,22), java.time.LocalDate.of(2026,10,23)).isEmpty());
                 Object[] stored = session.createNativeQuery("select username, password from water_meter where id = :id", Object[].class)
                         .setParameter("id", id).getSingleResult();
                 assertFalse(stored[0].toString().contains("private"));

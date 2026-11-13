@@ -47,3 +47,12 @@ into `device_measurement`.
 
 Focused tests: `PublicMeasurementServiceTest`, `PublicMeasurementPersistenceTest`,
 `MeasurementsViewTest`, `PublicMeasurementsViewTest`, and `DeviceMeasurementServiceTest`.
+
+## Water-meter widgets
+
+Water meters are an independent widget source at
+`/api/measurements/water-meters/latest` and `/api/measurements/water-meters/history`.
+They are merged into the native widget picker without changing the device
+measurement endpoints, this view, its enum/store or public publishing. See
+[Water meters](wrm-wmd-water-meters.md#android-measurement-widgets) for the API
+contract and dated-consumption semantics.
