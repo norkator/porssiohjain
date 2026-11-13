@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "water_measurement", uniqueConstraints = @UniqueConstraint(columnNames = {"water_meter_id", "observed_at"}))
+@Table(name = "water_measurement", uniqueConstraints = @UniqueConstraint(columnNames = {"water_meter_id", "consumption_date"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,8 +27,14 @@ public class WaterMeasurementEntity {
     @JoinColumn(name = "water_meter_id", nullable = false)
     private WaterMeterEntity waterMeter;
 
-    @Column(name = "total_cubic_meters", nullable = false, precision = 20, scale = 6)
+    @Column(name = "total_cubic_meters", precision = 20, scale = 6)
     private BigDecimal totalCubicMeters;
+
+    @Column(name = "consumption_date")
+    private java.time.LocalDate consumptionDate;
+
+    @Column(name = "consumption_cubic_meters", precision = 20, scale = 6)
+    private BigDecimal consumptionCubicMeters;
 
     @Column(name = "observed_at", nullable = false)
     private Instant observedAt;

@@ -95,6 +95,7 @@ class WaterMeterPersistenceTest {
             sql.execute("insert into water_meter (account_id,name,portal_url,payer_number,water_meter_number,latest_total_cubic_meters,observed_at)"
                     + " values (1,'Home','https://wmd.wrm-systems.fi/water-company','encrypted-payer','encrypted-meter',140.8,current_timestamp)");
             ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V121__create_water_measurement.sql"));
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V125__water_meter_daily_consumption.sql"));
             try (var result = sql.executeQuery("select username,password,provider,push_enabled,latest_total_cubic_meters,"
                     + " observed_at from water_meter")) {
                 assertTrue(result.next());

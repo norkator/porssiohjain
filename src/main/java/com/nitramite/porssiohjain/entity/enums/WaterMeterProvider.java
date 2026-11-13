@@ -1,5 +1,5 @@
 package com.nitramite.porssiohjain.entity.enums;
 
 public enum WaterMeterProvider {
-    WRM_SYSTEMS_WMD
+    WRM_SYSTEMS_WMD, TAMPEREEN_VESI
 }

@@ -52,6 +52,12 @@ public class WaterMeterEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String password;
 
+    private String meteringPointCode;
+    @Column(precision = 20, scale = 6)
+    private BigDecimal baselineCubicMeters;
+    private java.time.LocalDate baselineDate;
+    private java.time.LocalDate consumptionThrough;
+
     @Column(nullable = false)
     private boolean enabled = true;
 

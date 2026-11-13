@@ -64,6 +64,10 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
     private final TextField portal = new TextField();
     private final TextField payer = new TextField();
     private final PasswordField meterNumber = new PasswordField();
+    private final TextField point = new TextField();
+    private final com.vaadin.flow.component.textfield.BigDecimalField baseline = new com.vaadin.flow.component.textfield.BigDecimalField();
+    private final com.vaadin.flow.component.datepicker.DatePicker baselineDate = new com.vaadin.flow.component.datepicker.DatePicker();
+    private final Paragraph tampereHint = new Paragraph();
     private final Checkbox enabled = new Checkbox();
     private final Checkbox pushEnabled = new Checkbox();
     private final ComboBox<WaterMeterNotificationFrequency> pushFrequency = new ComboBox<>();
@@ -91,7 +95,9 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
         grid.addColumn(WaterMeterService.Meter::name).setHeader(t("waterMeters.name")).setAutoWidth(true);
         grid.addColumn(meter -> providerLabel(meter.provider())).setHeader(t("waterMeters.provider")).setAutoWidth(true);
-        grid.addColumn(this::value).setHeader(t("waterMeters.latest")).setAutoWidth(true);
+        grid.addColumn(meter -> meter.provider() == WaterMeterProvider.TAMPEREEN_VESI
+                ? t("waterMeters.tampere.calculated", value(meter), meter.consumptionThrough() == null ? "—" : meter.consumptionThrough().toString())
+                : value(meter)).setHeader(t("waterMeters.latest")).setAutoWidth(true);
         grid.addColumn(meter -> format(meter.observedAt())).setHeader(t("waterMeters.observedAt")).setAutoWidth(true);
         grid.addColumn(this::status).setHeader(t("waterMeters.status")).setAutoWidth(true);
         grid.addColumn(meter -> format(meter.lastPollAttemptAt())).setHeader(t("waterMeters.lastAttempt"))
@@ -120,6 +126,13 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
         meterNumber.setMaxLength(30);
         meterNumber.setRequiredIndicatorVisible(true);
         meterNumber.setAutocomplete(Autocomplete.OFF);
+        point.setLabel(t("waterMeters.tampere.point"));
+        point.setMaxLength(30);
+        baseline.setLabel(t("waterMeters.tampere.baseline"));
+        baselineDate.setLabel(t("waterMeters.tampere.baselineDate"));
+        tampereHint.setText(t("waterMeters.tampere.hint"));
+        provider.addValueChangeListener(event -> updateProviderFields());
+        updateProviderFields();
         enabled.setLabel(t("waterMeters.enabled"));
         enabled.setValue(true);
         pushEnabled.setLabel(t("waterMeters.push.enabled"));
@@ -140,7 +153,7 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
         pushEnabled.addValueChangeListener(event -> updatePushFields());
         pushFrequency.addValueChangeListener(event -> updatePushFields());
         updatePushFields();
-        FormLayout form = new FormLayout(name, provider, portal, payer, meterNumber, enabled,
+        FormLayout form = new FormLayout(name, provider, portal, payer, meterNumber, point, baseline, baselineDate, tampereHint, enabled,
                 pushEnabled, pushFrequency, pushWeekday, pushTime, pushTimezone);
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1), new FormLayout.ResponsiveStep("600px", 2));
         form.setColspan(portal, 2);
@@ -180,6 +193,9 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
         name.setValue(meter == null ? "" : meter.name());
         provider.setValue(meter == null ? WaterMeterProvider.WRM_SYSTEMS_WMD : meter.provider());
         portal.setValue(meter == null ? "" : meter.portalUrl());
+        point.setValue(meter == null || meter.meteringPointCode() == null ? "" : meter.meteringPointCode());
+        baseline.setValue(meter == null ? null : meter.baselineCubicMeters());
+        baselineDate.setValue(meter == null ? null : meter.baselineDate());
         payer.clear();
         meterNumber.clear();
         payer.setRequiredIndicatorVisible(meter == null);
@@ -203,7 +219,10 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
             meters.save(account.getId(), editingId, new WaterMeterService.Settings(name.getValue(), provider.getValue(),
                     portal.getValue(), payer.getValue(), meterNumber.getValue(), enabled.getValue(),
                     new WaterMeterService.NotificationSettings(pushEnabled.getValue(), pushFrequency.getValue(),
-                            pushTime.getValue(), pushWeekday.getValue(), pushTimezone.getValue())));
+                            pushTime.getValue(), pushWeekday.getValue(), pushTimezone.getValue()),
+                    provider.getValue() == WaterMeterProvider.TAMPEREEN_VESI ? point.getValue() : null,
+                    provider.getValue() == WaterMeterProvider.TAMPEREEN_VESI ? baseline.getValue() : null,
+                    provider.getValue() == WaterMeterProvider.TAMPEREEN_VESI ? baselineDate.getValue() : null));
             prepare(null);
             editor.savedAndClose();
             refresh();
@@ -279,9 +298,25 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
                 UI.getCurrent().getLocale()), time, settings.timezone());
     }
 
+    private void updateProviderFields() {
+        boolean tampere = provider.getValue() == WaterMeterProvider.TAMPEREEN_VESI;
+        point.setVisible(tampere);
+        baseline.setVisible(tampere);
+        baselineDate.setVisible(tampere);
+        tampereHint.setVisible(tampere);
+        payer.setLabel(t(tampere ? "waterMeters.tampere.username" : "waterMeters.payerNumber"));
+        meterNumber.setLabel(t(tampere ? "waterMeters.tampere.password" : "waterMeters.meterNumber"));
+        payer.setMaxLength(tampere ? 255 : 30);
+        meterNumber.setMaxLength(tampere ? 255 : 30);
+        portal.setReadOnly(tampere);
+        if (tampere) portal.setValue(com.nitramite.porssiohjain.services.watermeters.TampereenVesiService.PORTAL);
+        else if (portal.getValue().equals(com.nitramite.porssiohjain.services.watermeters.TampereenVesiService.PORTAL)) portal.clear();
+    }
+
     private String providerLabel(WaterMeterProvider value) {
         return switch (value) {
             case WRM_SYSTEMS_WMD -> "WRM Systems WMD";
+            case TAMPEREEN_VESI -> "Tampereen Vesi";
         };
     }
 
@@ -291,7 +326,9 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
         try {
             var history = meters.history(account.getId(), selected.id());
             var points = history.stream().map(row -> new DeviceMeasurementHistoryChart.HistoryPoint(
-                    row.observedAt(), row.totalCubicMeters().doubleValue())).toList();
+                    row.consumptionDate() == null ? row.observedAt()
+                            : row.consumptionDate().plusDays(1).atStartOfDay(ZoneId.of("Europe/Helsinki")).toInstant(),
+                    row.totalCubicMeters().doubleValue())).toList();
             var chart = DeviceMeasurementHistoryChart.history(points, ZoneId.of("Europe/Helsinki"),
                     t("waterMeters.latest"), "m³", t("waterMeters.observedAt"), t("waterMeters.noHistory"),
                     UI.getCurrent().getLocale().toLanguageTag());

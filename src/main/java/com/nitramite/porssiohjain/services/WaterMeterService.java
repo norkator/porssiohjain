@@ -53,6 +53,19 @@ public class WaterMeterService {
         String password = credential(settings.password(), meter.getPassword());
         boolean changedSource = settings.provider() != meter.getProvider() || !Objects.equals(portal, meter.getPortalUrl())
                 || !Objects.equals(username, meter.getUsername()) || !Objects.equals(password, meter.getPassword());
+        boolean tampere = settings.provider() == WaterMeterProvider.TAMPEREEN_VESI;
+        if (tampere && (settings.meteringPointCode() == null || !settings.meteringPointCode().matches("[0-9]{1,30}")
+                || settings.baselineCubicMeters() == null || settings.baselineCubicMeters().signum() < 0
+                || settings.baselineCubicMeters().scale() > 6
+                || settings.baselineCubicMeters().precision() - settings.baselineCubicMeters().scale() > 14
+                || settings.baselineDate() == null || settings.baselineDate().isAfter(LocalDate.now(POLLING_ZONE))))
+            throw error("baseline");
+        changedSource |= !Objects.equals(settings.meteringPointCode(), meter.getMeteringPointCode())
+                || !Objects.equals(settings.baselineCubicMeters(), meter.getBaselineCubicMeters())
+                || !Objects.equals(settings.baselineDate(), meter.getBaselineDate());
+        meter.setMeteringPointCode(tampere ? settings.meteringPointCode() : null);
+        meter.setBaselineCubicMeters(tampere ? settings.baselineCubicMeters() : null);
+        meter.setBaselineDate(tampere ? settings.baselineDate() : null);
         meter.setName(settings.name().strip());
         meter.setProvider(settings.provider());
         meter.setPortalUrl(portal);
@@ -65,6 +78,18 @@ public class WaterMeterService {
         meter.setPushWeekday(notification.weekday().getValue());
         meter.setPushTimezone(notification.timezone());
         if (changedSource) {
+            if (id != null) {
+                // Retain historical totals but retire dated usage when the source/baseline changes.
+                for (var row : measurements.findByWaterMeterIdAndWaterMeterAccountIdOrderByObservedAtAscIdAsc(id, accountId)) {
+                    if (row.getConsumptionDate() != null) {
+                        row.setConsumptionDate(null);
+                        row.setConsumptionCubicMeters(null);
+                        measurements.save(row);
+                    }
+                }
+                measurements.flush();
+            }
+            meter.setConsumptionThrough(null);
             meter.setLatestTotalCubicMeters(null);
             meter.setObservedAt(null);
             meter.setLastPollAttemptAt(null);
@@ -79,7 +104,11 @@ public class WaterMeterService {
         requireAccount(accountId);
         if (!meters.existsByIdAndAccountId(id, accountId)) throw error("notFound");
         return measurements.findByWaterMeterIdAndWaterMeterAccountIdOrderByObservedAtAscIdAsc(id, accountId).stream()
-                .map(row -> new Measurement(row.getId(), row.getTotalCubicMeters(), row.getObservedAt())).toList();
+                .filter(row -> row.getTotalCubicMeters() != null)
+                .sorted(java.util.Comparator.comparing(row -> row.getConsumptionDate() == null ? row.getObservedAt()
+                        : row.getConsumptionDate().plusDays(1).atStartOfDay(POLLING_ZONE).toInstant()))
+                .map(row -> new Measurement(row.getId(), row.getTotalCubicMeters(), row.getObservedAt(),
+                        row.getConsumptionDate(), row.getConsumptionCubicMeters())).toList();
     }
 
     @Transactional
@@ -120,20 +149,67 @@ public class WaterMeterService {
                 .isBefore(now.atZone(POLLING_ZONE).toLocalDate())) return summary(meter);
         meter.setLastPollAttemptAt(now);
         try {
-            var reading = client(meter.getProvider()).readLatest(meter.getPortalUrl(), meter.getUsername(), meter.getPassword());
+            var reading = meter.getProvider() == WaterMeterProvider.TAMPEREEN_VESI ? readCalculated(meter, now)
+                    : client(meter.getProvider()).readLatest(meter.getPortalUrl(), meter.getUsername(), meter.getPassword());
             meter.setLatestTotalCubicMeters(reading.totalCubicMeters());
             meter.setObservedAt(reading.observedAt());
             meter.setLastErrorKey(null);
-            WaterMeasurementEntity measurement = new WaterMeasurementEntity();
-            measurement.setWaterMeter(meter);
-            measurement.setTotalCubicMeters(reading.totalCubicMeters());
-            measurement.setObservedAt(reading.observedAt());
-            measurements.save(measurement);
+            if (meter.getProvider() != WaterMeterProvider.TAMPEREEN_VESI) {
+                WaterMeasurementEntity measurement = new WaterMeasurementEntity();
+                measurement.setWaterMeter(meter);
+                measurement.setTotalCubicMeters(reading.totalCubicMeters());
+                measurement.setObservedAt(reading.observedAt());
+                measurements.save(measurement);
+            }
         } catch (WaterMeterException exception) {
-            // Failed polling creates no history point and preserves the last successful total and fetch time.
+            // Failed polling preserves the last successful total/fetch time; dated usage may await a missing day.
             meter.setLastErrorKey(exception.getMessage());
         }
         return summary(meters.save(meter));
+    }
+
+    private WaterMeterClient.Reading readCalculated(WaterMeterEntity meter, Instant now) {
+        java.util.Map<LocalDate, WaterMeasurementEntity> days = new java.util.TreeMap<>();
+        for (var row : measurements.findByWaterMeterIdAndWaterMeterAccountIdOrderByObservedAtAscIdAsc(
+                meter.getId(), meter.getAccount().getId())) {
+            if (row.getConsumptionDate() != null) days.put(row.getConsumptionDate(), row);
+        }
+        LocalDate yesterday = now.atZone(POLLING_ZONE).toLocalDate().minusDays(1);
+        // Re-fetch the range to fill missed days and accept provider corrections.
+        var fetched = client(meter.getProvider()).readDaily(meter.getPortalUrl(), meter.getUsername(),
+                meter.getPassword(), meter.getMeteringPointCode(), meter.getBaselineDate());
+        java.util.Map<LocalDate, BigDecimal> usage = new java.util.TreeMap<>();
+        days.forEach((date, row) -> usage.put(date, row.getConsumptionCubicMeters()));
+        fetched.forEach((date, value) -> {
+            if (!date.isBefore(meter.getBaselineDate()) && !date.isAfter(yesterday)) usage.put(date, value);
+        });
+        BigDecimal total = meter.getBaselineCubicMeters();
+        LocalDate day = meter.getBaselineDate();
+        java.util.NavigableMap<LocalDate, BigDecimal> totals = new java.util.TreeMap<>();
+        while (!day.isAfter(yesterday) && usage.containsKey(day)) {
+            total = total.add(usage.get(day));
+            if (total.precision() - total.scale() > 14) throw error("response");
+            totals.put(day, total);
+            day = day.plusDays(1);
+        }
+        // One row per completed consumption day, protected by both the meter lock and unique index.
+        // observedAt remains the fetch time; consumptionDate carries the provider's day.
+        for (var entry : usage.entrySet()) {
+            var row = days.get(entry.getKey());
+            if (row == null) {
+                row = new WaterMeasurementEntity();
+                row.setWaterMeter(meter);
+                row.setConsumptionDate(entry.getKey());
+                row.setObservedAt(now);
+            }
+            if (fetched.containsKey(entry.getKey())) row.setObservedAt(now);
+            row.setConsumptionCubicMeters(usage.get(entry.getKey()));
+            row.setTotalCubicMeters(totals.get(entry.getKey()));
+            measurements.save(row);
+        }
+        if (day.equals(meter.getBaselineDate())) throw error("consumptionMissing");
+        meter.setConsumptionThrough(day.minusDays(1));
+        return new WaterMeterClient.Reading(total, now);
     }
 
     private WaterMeterClient client(WaterMeterProvider provider) {
@@ -172,7 +248,8 @@ public class WaterMeterService {
         return new Meter(meter.getId(), meter.getName(), meter.getPortalUrl(), meter.isEnabled(),
                 meter.getLatestTotalCubicMeters(), meter.getObservedAt(), meter.getLastPollAttemptAt(), meter.getLastErrorKey(),
                 meter.getProvider(), new NotificationSettings(meter.isPushEnabled(), meter.getPushFrequency(),
-                meter.getPushTime(), DayOfWeek.of(meter.getPushWeekday()), meter.getPushTimezone()));
+                meter.getPushTime(), DayOfWeek.of(meter.getPushWeekday()), meter.getPushTimezone()),
+                meter.getMeteringPointCode(), meter.getBaselineCubicMeters(), meter.getBaselineDate(), meter.getConsumptionThrough());
     }
 
     private static WaterMeterException error(String key) {
@@ -182,9 +259,18 @@ public class WaterMeterService {
     /** Login credentials and session cookies are deliberately absent from UI responses. */
     public record Meter(Long id, String name, String portalUrl, boolean enabled, BigDecimal latestTotalCubicMeters,
                         Instant observedAt, Instant lastPollAttemptAt, String lastErrorKey, WaterMeterProvider provider,
-                        NotificationSettings notifications) { }
+                        NotificationSettings notifications, String meteringPointCode, BigDecimal baselineCubicMeters,
+                        LocalDate baselineDate, LocalDate consumptionThrough) {
+        public Meter(Long id, String name, String portalUrl, boolean enabled, BigDecimal total, Instant observed,
+                     Instant attempted, String error, WaterMeterProvider provider, NotificationSettings notifications) {
+            this(id, name, portalUrl, enabled, total, observed, attempted, error, provider, notifications, null, null, null, null);
+        }
+    }
     public record MeterReference(Long accountId, Long id) { }
-    public record Measurement(Long id, BigDecimal totalCubicMeters, Instant observedAt) { }
+    public record Measurement(Long id, BigDecimal totalCubicMeters, Instant observedAt,
+                              LocalDate consumptionDate, BigDecimal consumptionCubicMeters) {
+        public Measurement(Long id, BigDecimal total, Instant observed) { this(id, total, observed, null, null); }
+    }
     public record NotificationSettings(boolean enabled, WaterMeterNotificationFrequency frequency, LocalTime time,
                                        DayOfWeek weekday, String timezone) {
         public static NotificationSettings defaults() {
@@ -193,7 +279,12 @@ public class WaterMeterService {
         }
     }
     public record Settings(String name, WaterMeterProvider provider, String portalUrl, String username, String password,
-                           boolean enabled, NotificationSettings notifications) {
+                           boolean enabled, NotificationSettings notifications, String meteringPointCode,
+                           BigDecimal baselineCubicMeters, LocalDate baselineDate) {
+        public Settings(String name, WaterMeterProvider provider, String portal, String username, String password,
+                        boolean enabled, NotificationSettings notifications) {
+            this(name, provider, portal, username, password, enabled, notifications, null, null, null);
+        }
         @Override
         public String toString() {
             return "WaterMeterSettings[credentials=redacted]";

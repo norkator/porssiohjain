@@ -34,6 +34,37 @@ class WaterMeterServiceTest {
     private final WaterMeterService service = new WaterMeterService(repository, measurements, accounts, guard, List.of(wrm));
     private WaterMeterEntity meter;
 
+    @Test
+    void dailyUsageIsIdempotentCatchesUpGapsAndAcceptsCorrections() {
+        var client = mock(com.nitramite.porssiohjain.services.watermeters.TampereenVesiService.class);
+        when(client.provider()).thenReturn(WaterMeterProvider.TAMPEREEN_VESI);
+        var calculated = new WaterMeterService(repository, measurements, accounts, guard, List.of(client));
+        var storedDays = new java.util.ArrayList<WaterMeasurementEntity>();
+        when(measurements.findByWaterMeterIdAndWaterMeterAccountIdOrderByObservedAtAscIdAsc(9L, 7L))
+                .thenReturn(storedDays);
+        when(measurements.save(any())).thenAnswer(call -> {
+            WaterMeasurementEntity row = call.getArgument(0);
+            if (!storedDays.contains(row)) storedDays.add(row);
+            return row;
+        });
+        var start = java.time.LocalDate.now(ZoneId.of("Europe/Helsinki")).minusDays(4);
+        meter.setProvider(WaterMeterProvider.TAMPEREEN_VESI);
+        meter.setMeteringPointCode("123");
+        meter.setBaselineCubicMeters(new BigDecimal("100"));
+        meter.setBaselineDate(start);
+        when(client.readDaily(any(), any(), any(), any(), any())).thenReturn(java.util.Map.of(
+                start, new BigDecimal("1"), start.plusDays(2), new BigDecimal("3")));
+        assertEquals(new BigDecimal("101"), calculated.pollNow(7L,9L).latestTotalCubicMeters());
+        assertEquals(new BigDecimal("101"), calculated.pollNow(7L,9L).latestTotalCubicMeters());
+        when(client.readDaily(any(), any(), any(), any(), any())).thenReturn(java.util.Map.of(
+                start, new BigDecimal("2"), start.plusDays(1), new BigDecimal("4"),
+                start.plusDays(3), new BigDecimal("5"), start.plusDays(4), new BigDecimal("999")));
+        assertEquals(new BigDecimal("114"), calculated.pollNow(7L,9L).latestTotalCubicMeters());
+        assertEquals(start.plusDays(3), meter.getConsumptionThrough());
+        assertEquals(4, storedDays.size());
+        assertEquals(new BigDecimal("2"), storedDays.getFirst().getConsumptionCubicMeters());
+    }
+
     @BeforeEach
     void setup() {
         meter = new WaterMeterEntity();

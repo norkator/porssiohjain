@@ -203,8 +203,11 @@ public class PushNotificationService {
         String fetchedAt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm z", locale)
                 .format(meter.getObservedAt().atZone(detectedAt.getZone()));
         String title = messageSource.getMessage("push.waterMeter.title", null, locale);
-        String body = messageSource.getMessage("push.waterMeter.body", new Object[]{meter.getName(),
-                numbers.format(meter.getLatestTotalCubicMeters()), fetchedAt}, locale);
+        boolean calculated = meter.getProvider() == com.nitramite.porssiohjain.entity.enums.WaterMeterProvider.TAMPEREEN_VESI;
+        Object[] arguments = calculated
+                ? new Object[]{meter.getName(), numbers.format(meter.getLatestTotalCubicMeters()), fetchedAt, meter.getConsumptionThrough()}
+                : new Object[]{meter.getName(), numbers.format(meter.getLatestTotalCubicMeters()), fetchedAt};
+        String body = messageSource.getMessage(calculated ? "push.waterMeter.calculatedBody" : "push.waterMeter.body", arguments, locale);
         Map<String, String> data = new LinkedHashMap<>();
         data.put("type", "WATER_METER_NOTIFICATION");
         data.put("waterMeterId", String.valueOf(meter.getId()));
@@ -212,6 +215,10 @@ public class PushNotificationService {
         data.put("totalCubicMeters", meter.getLatestTotalCubicMeters().stripTrailingZeros().toPlainString());
         data.put("observedAt", meter.getObservedAt().toString());
         data.put("frequency", meter.getPushFrequency().name());
+        if (calculated) {
+            data.put("calculated", "true");
+            data.put("consumptionThrough", String.valueOf(meter.getConsumptionThrough()));
+        }
         data.put("detectedAt", detectedAt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         return sendToAccount(account.getId(), title, body, data);
     }

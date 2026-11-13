@@ -81,6 +81,47 @@ source files, fixtures and logs.
 
 ```sh
 ./gradlew compileJava test --tests '*WaterMeter*' --tests '*WrmWmdServiceTest' \
-  --tests '*PushNotificationServiceTest' --tests '*MainLayoutTest' \
+  --tests '*TampereenVesiServiceTest' --tests '*PushNotificationServiceTest' --tests '*MainLayoutTest' \
   --tests '*DesktopWindowNavigationTest'
 ```
+
+## Tampereen Vesi
+
+`TAMPEREEN_VESI` uses the fixed HTTPS Tampereen Vesi Online portal. Configure
+its username/password (encrypted like WRM credentials), metering-point code,
+starting reading in m³, and the date **at whose start (00:00 Helsinki time)**
+that reading applies. Do not enter a midday reading as a midnight baseline.
+
+The adapter creates an isolated cookie jar, retrieves the login CSRF input,
+posts `UserName`, `Password`, and `__RequestVerificationToken` to
+`/eServices/Online/Login`, follows only same-origin redirects, and extracts a
+fresh form token. It posts `mpCode`, empty `mpSourceCompanyCode`, `startDate`
+(ISO baseline date), and the token to
+`/Reporting/SessionlessConsumption/GetMpConsumptionModel`. Cookie handling is
+automatic; browser cookie values are neither configured nor persisted. The
+exact authenticated redirect/token and startDate behavior still needs live
+verification; the implementation does not use captured sessions as fixtures.
+
+The captured response supplies `Data.Days.Consumption.Data` timestamp/value
+pairs in m³, not a current meter reading. Only complete Helsinki calendar days
+from the baseline through yesterday are eligible. Null/missing days are never
+assumed to be zero. Dated usage is retained in `water_measurement.consumption_date` and
+`consumption_cubic_meters`, with one row per meter/day. Refreshed values replace prior values, allowing corrections and avoiding
+duplicate increments on manual retries. The calculated total advances only
+through a contiguous sequence of available days; the UI shows the last included
+date. Missing baseline-day data fails the poll and preserves the previous
+snapshot. If the provider's returned history cannot cover an old baseline,
+choose a baseline within available data rather than silently skipping days.
+The captured sample's newest day was two days behind its fetch date.
+
+V125 adds the baseline, metering-point code, dated usage columns and coverage date.
+Daily rows retain their fetch time separately from their consumption date. Rows
+beyond a missing day retain usage with a null calculated total until the gap is
+filled; graph/history totals omit these pending rows. The graph places calculated
+daily totals at the end of their consumption day.
+Changing source or baseline clears this calculation state and snapshot while
+retaining existing history. Totals and push messages explicitly describe
+Tampereen Vesi values as calculated. The existing noon polling schedule remains
+in use; daily data availability, rather than local midnight, determines when
+the calculated total can advance. Investigation captures containing session
+cookies or personal data must not be committed.
