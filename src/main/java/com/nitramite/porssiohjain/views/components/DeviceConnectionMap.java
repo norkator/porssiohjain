@@ -5,7 +5,7 @@
  */
 package com.nitramite.porssiohjain.views.components;
 
-import com.nitramite.porssiohjain.services.AdminClientCallLogService.DeviceCallLog;
+import com.nitramite.porssiohjain.services.AdminDeviceConnectionMapService.MapClient;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.Tag;
@@ -23,15 +23,29 @@ public class DeviceConnectionMap extends Component {
     public DeviceConnectionMap(I18nService i18n) {
         for (String key : List.of("search", "zoomIn", "zoomOut", "fit", "viewport", "empty", "noMatches",
                 "select", "service", "recent", "older", "controlDevice", "zigbeeGateway", "clientId",
-                "clientIp", "lastCall", "endpoint", "clientCount")) {
+                "clientIp", "lastCall", "endpoint", "clientCount", "heatPump", "thermostat", "temperatureSensor",
+                "online", "offline", "unknown", "account", "unassigned", "accountCount", "lastCommunication",
+                "connection", "noCall", "deviceName")) {
             labels.put(key, i18n.t("admin.connectionMap." + key));
         }
     }
 
-    public void update(List<DeviceCallLog> calls) {
-        List<List<String>> rows = calls.stream().map(call -> List.of(
-                call.clientType().name(), text(call.clientId()), text(call.clientIp()),
-                call.calledAt().toString(), text(call.endpoint()))).toList();
+    public void update(List<MapClient> clients) {
+        List<Map<String, Object>> rows = clients.stream().map(client -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("type", client.type());
+            row.put("id", text(client.id()));
+            row.put("name", text(client.name()));
+            row.put("accountId", client.accountId() == null ? "" : client.accountId().toString());
+            row.put("accountEmail", client.accountEmail() == null ? "" : client.accountEmail());
+            row.put("online", client.online());
+            row.put("connection", text(client.connection()));
+            row.put("lastCommunication", client.lastCommunication() == null ? "" : client.lastCommunication().toString());
+            row.put("calledAt", client.calledAt() == null ? "" : client.calledAt().toString());
+            row.put("ip", text(client.ip()));
+            row.put("endpoint", text(client.endpoint()));
+            return row;
+        }).toList();
         getElement().executeJs("this.update($0, $1)", rows, labels);
     }
 

@@ -6,7 +6,7 @@ html {
     --lumo-border-radius: 0px;
 }
 
-/* Admin API-call connection map, inside the shared desktop window. */
+/* Admin device connection map, inside the shared desktop window. */
 device-connection-map { display: block; min-width: 0; width: 100%; }
 .connection-map-note { color: var(--lumo-secondary-text-color); font-size: 0.85rem; }
 .connection-map-toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
@@ -21,16 +21,24 @@ device-connection-map { display: block; min-width: 0; width: 100%; }
 .connection-map-stage { position: relative; }
 .connection-map-board { position: absolute; transform-origin: top left; }
 .connection-map-links { position: absolute; inset: 0; pointer-events: none; }
-.connection-map-link { stroke: #99a4ad; stroke-width: 2; }
-.connection-map-link.recent { stroke: #25845b; stroke-width: 2.5; }
+.connection-map-link { fill: none; stroke: #99a4ad; stroke-width: 2; }
+.connection-map-link.online { stroke: #25845b; stroke-width: 2.5; }
 .connection-map-link.new-call { stroke-dasharray: 8 6; animation: connection-map-traffic 0.7s linear 3; }
+.connection-map-group { position: absolute; box-sizing: border-box; background: #edf3f8; border: 1px solid #96a4ae; box-shadow: 2px 2px 0 #c4cdd3; }
+.connection-map-group-header { display: flex; flex-direction: column; gap: 5px; height: 56px; box-sizing: border-box; padding: 9px 14px; background: #dce5f0; border-bottom: 1px solid #a6b5c4; font: 12px Tahoma, sans-serif; color: #263a54; }
+.connection-map-group-header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .connection-map-node { position: absolute; transform: translate(-50%, -50%); width: 244px; height: 112px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 8px 12px; text-align: left; font: 12px Tahoma, sans-serif; line-height: 1.3; color: #17212c; background: white; border: 1px solid #96a4ae; border-left: 5px solid #325eac; box-shadow: 2px 2px 0 #c4cdd3; cursor: pointer; }
 .connection-map-node.gateway { border-left-color: #7b479c; }
+.connection-map-node.heat-pump { border-left-color: #bd641d; }
+.connection-map-node.thermostat { border-left-color: #238181; }
+.connection-map-node.sensor { border-left-color: #89721b; }
 .connection-map-node > * { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .connection-map-node[aria-pressed="true"], .connection-map-node:focus-visible { outline: 3px solid #000080; outline-offset: 3px; }
 .connection-map-type { font-size: 11px; font-weight: bold; color: #475463; }
 .connection-map-type::before { content: '●'; color: #919aa2; margin-right: 6px; }
-.connection-map-node.recent .connection-map-type::before { color: #16764a; }
+.connection-map-node.online .connection-map-type::before { color: #16764a; }
+.connection-map-recent-call { margin-left: 8px; font-size: 13px; }
+.connection-map-status { font-weight: bold; }
 .connection-map-id { font-size: 13px; }
 .connection-map-time { color: #57606c; font-variant-numeric: tabular-nums; }
 .connection-map-hub { align-items: center; text-align: center; background: #000080; color: white; border: 2px outset #7286c8; cursor: default; }
@@ -43,8 +51,12 @@ device-connection-map { display: block; min-width: 0; width: 100%; }
 .connection-map-legend span::before { content: '■'; margin-right: 5px; }
 .connection-map-legend .control::before { color: #325eac; }
 .connection-map-legend .gateway::before { color: #7b479c; }
-.connection-map-legend .recent::before { content: '●'; color: #16764a; }
-.connection-map-legend .older::before { content: '●'; color: #919aa2; }
+.connection-map-legend .heat-pump::before { color: #bd641d; }
+.connection-map-legend .thermostat::before { color: #238181; }
+.connection-map-legend .sensor::before { color: #89721b; }
+.connection-map-legend .online::before { content: '●'; color: #16764a; }
+.connection-map-legend .offline::before { content: '●'; color: #919aa2; }
+.connection-map-legend .recent::before { content: '◷'; color: #475463; }
 .connection-map-details { padding: 10px; background: #f8f8f8; border: 1px solid #a8adb4; font-size: 13px; overflow-wrap: anywhere; }
 .connection-map-details dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 5px 16px; margin: 0; }
 .connection-map-details dt { font-weight: bold; }

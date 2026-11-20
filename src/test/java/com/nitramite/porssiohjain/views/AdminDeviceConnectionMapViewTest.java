@@ -1,7 +1,7 @@
 package com.nitramite.porssiohjain.views;
 
 import com.nitramite.porssiohjain.entity.AccountEntity;
-import com.nitramite.porssiohjain.services.AdminClientCallLogService;
+import com.nitramite.porssiohjain.services.AdminDeviceConnectionMapService;
 import com.nitramite.porssiohjain.services.AuthService;
 import com.nitramite.porssiohjain.services.I18nService;
 import com.vaadin.flow.component.Component;
@@ -19,7 +19,7 @@ class AdminDeviceConnectionMapViewTest {
     @Test
     void onlyAdminsLoadCallDataAndRefreshRechecksEffectiveAccount() {
         var auth = mock(AuthService.class);
-        var calls = mock(AdminClientCallLogService.class);
+        var calls = mock(AdminDeviceConnectionMapService.class);
         var messages = new ResourceBundleMessageSource();
         messages.setBasename("translations/messages");
         UI ui = new UI();
@@ -37,13 +37,10 @@ class AdminDeviceConnectionMapViewTest {
 
             var admin = AccountEntity.builder().id(1L).admin(true).build();
             accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth)).thenReturn(admin);
-            var recorded = new AdminClientCallLogService();
-            recorded.recordControlDeviceCall("device-a", "192.0.2.1", "/control/{deviceUuid}");
-            when(calls.findLatestClients()).thenReturn(recorded.findLatestClients());
             var view = new AdminDeviceConnectionMapView(auth, new I18nService(messages), calls);
             assertTrue(children(view).filter(component -> !component.getElement().isTextNode())
                     .anyMatch(component -> component.getElement().getTag().equals("device-connection-map")));
-            verify(calls).findLatestClients();
+            verify(calls).findClients();
 
             var refresh = children(view).filter(component -> !component.getElement().isTextNode())
                     .filter(component -> component.getElement().getTag().equals("span"))
@@ -51,13 +48,13 @@ class AdminDeviceConnectionMapViewTest {
             refresh.getElement().getNode().getFeature(com.vaadin.flow.internal.nodefeature.ElementListenerMap.class)
                     .fireEvent(new com.vaadin.flow.dom.DomEvent(refresh.getElement(), "client-call-refresh",
                             com.vaadin.flow.internal.JacksonUtils.createObjectNode()));
-            verify(calls, times(2)).findLatestClients();
+            verify(calls, times(2)).findClients();
             accounts.when(() -> ViewAuthUtils.findAuthenticatedAccount(auth))
                     .thenReturn(AccountEntity.builder().id(2L).admin(false).build());
             refresh.getElement().getNode().getFeature(com.vaadin.flow.internal.nodefeature.ElementListenerMap.class)
                     .fireEvent(new com.vaadin.flow.dom.DomEvent(refresh.getElement(), "client-call-refresh",
                             com.vaadin.flow.internal.JacksonUtils.createObjectNode()));
-            verify(calls, times(2)).findLatestClients();
+            verify(calls, times(2)).findClients();
         } finally {
             UI.setCurrent(null);
         }

@@ -19,12 +19,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import com.nitramite.porssiohjain.entity.enums.FactoryDeviceStatus;
 
 public interface DeviceRepository extends JpaRepository<DeviceEntity, Long> {
+
+    @EntityGraph(attributePaths = "account")
+    @Query("SELECT d FROM DeviceEntity d WHERE d.apiOnline = true OR d.mqttOnline = true OR d.uuid IN :clientIds")
+    List<DeviceEntity> findConnectionMapDevices(@Param("clientIds") Collection<UUID> clientIds);
 
     @EntityGraph(attributePaths = "account")
     List<DeviceEntity> findBySimulatedTrueAndEnabledTrueAndAccountDemoTrueOrderByIdAsc();
