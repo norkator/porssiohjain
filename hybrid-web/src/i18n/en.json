@@ -1117,6 +1117,7 @@
     }
   },
   "manageControl": {
+    "tuyaChannelHelp": "Use 0 for switch or switch_1, 1 for switch_2, and so on.",
     "title": "Manage Control",
     "loading": "Loading control...",
     "failedLoad": "Failed to load control",

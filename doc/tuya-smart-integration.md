@@ -8,11 +8,11 @@ The connector is implemented in Java. It uses the sharing protocol from Tuya's P
 
 - Multiple named Tuya account connections per Pörssiohjain account. Each imported device keeps its own connection; homes and discovery use the explicitly selected account.
 - Connection setup, device selection, and manual polling in Vaadin's **Devices** view; background polling every 30 minutes for enabled imported devices with a saved connection.
-- Imported devices use `DevicePlatform.TUYA_SMART`, with `DeviceType.TEMPERATURE_SENSOR` for sensors or `DeviceType.STANDARD` for read-only relays.
-- Read-only device access: temperature, humidity, battery percentage/state and Boolean relay channels when exposed by Tuya. Relay commands and automation are not enabled.
+- Imported devices use `DevicePlatform.TUYA_SMART`, with `DeviceType.TEMPERATURE_SENSOR` for sensors or `DeviceType.STANDARD` for relays.
+- Readings for temperature, humidity, battery percentage/state, and Boolean relay channels. Writable relay channels support manual switching and control automation.
 - Normalized numeric measurement history, retained for one month, and explicit room/floor sensor selection in Heating Planner.
 
-Device commands, new Tuya REST endpoints, and a React setup flow are outside this integration. Existing devices remain in the Tuya Smart app. The existing Heating Planner widget summary can expose the selected sensors through its common measurement service.
+Account linking, import and manual switching are available in Vaadin. Both clients can assign imported relays to controls. Existing devices remain in the Tuya Smart app. The existing Heating Planner widget summary can expose the selected sensors through its common measurement service.
 
 ## Link an account and add a device
 
@@ -50,15 +50,17 @@ If authorization is revoked or cannot be refreshed, generate and approve a new Q
 
 Tuya documents `1106` as a permission denial ([Tuya error codes](https://github.com/tuya/tuya-home-assistant/blob/main/docs/error_code.md)). The application maps it to specific English/Finnish guidance rather than suggesting only token expiry. A shared home's administrator/member role may expose different API permissions from its owner's account; this is a possible explanation, not a diagnosis from the error alone. Link the home owner's Tuya account under a separate local name, select it in discovery, and retry the home/device operation. This does not bypass Tuya permissions. Other Tuya failures retain their safe translated key/code without exposing provider payloads or credentials.
 
-## Relay preparation
+## Relay switching and automation
 
 Discovery recognizes Boolean `switch` and `switch_N` status values. Import also checks Boolean definitions in both `status` and `functions`, permitting a relay to be imported before its first state report. A relay with temperature properties remains classified as a relay. Unsupported properties such as `switch_led`, string-valued switches without a Boolean definition, and category names alone do not establish relay capability.
 
 Polling displays each supported property code separately with On/Off/Unavailable state. Missing or malformed values are never treated as Off. Relay states remain cloud read-back at fetch time; they are not command acknowledgements and are not stored as temperature/humidity measurements. Devices that also expose supported sensor properties can still retain those readings.
 
-This is a read-only foundation. Relays have no MQTT capabilities or synthetic four-channel state from the control scheduler. The Vaadin selectors and backend assignment checks exclude Tuya from price, production, weather, power-limit, load-shedding and Powerplant relay control. The MQTT transport additionally refuses Tuya relay commands. Device management hides MQTT tools and certificates for Tuya devices.
+In **My Devices → Manage → Tuya Smart**, select **Poll now**, then use **Switch on** or **Switch off** next to a writable relay property. The commands use Boolean functions advertised by the device and require an enabled device, an online cloud report, and the saved account connection. The app reads back Tuya's latest reported state after sending a command. If Tuya accepted the command and the state has yet to update, select **Poll now** again.
 
-Future relay commands must use the device's actual Boolean function codes through the sharing API and its own saved connection, with explicit ownership, online/enabled checks, channel mapping, and read-back kept separate from requested state. Do not assume MQTT channels `0..3`, infer an acknowledgement from a successful request, or automatically enable schedules during import. No new Tuya REST endpoints or React setup flow are introduced here. The React device list identifies imported Tuya devices, omits synthetic relay On/Off state and MQTT actions, preserves the imported type in management, and excludes Tuya from automation selectors.
+In a control's **Relay** tab, select the imported device and enter channel **0** for `switch` or `switch_1`, **1** for `switch_2`, and so on. If both `switch` and `switch_1` are writable, automation uses `switch_1` for channel **0**. Assignment validates the channel against the device's writable functions. The background worker evaluates existing control decisions every minute and sends changes through the linked Tuya account. A manual test can be superseded on the next automation pass.
+
+Production, weather, power-limit, load-shedding and Powerplant relay assignment remain limited to their existing device types and transports.
 
 ## Polling and sensor values
 
@@ -129,6 +131,7 @@ Device reads use the regional endpoint returned by login:
 | Devices in a home | `GET /v1.0/m/life/ha/home/devices`, parameter `homeId` |
 | Selected device status | `GET /v1.0/m/life/ha/devices/detail`, parameter `devIds` |
 | Property definitions | `GET /v1.1/m/life/{device_id}/specifications` |
+| Relay commands | `POST /v1.1/m/thing/{device_id}/commands` |
 
 These requests use the sharing API's signed, encrypted transport. They are not interchangeable with ordinary Tuya cloud-project OpenAPI requests. See the upstream [home.py][sdk-home] and [device.py][sdk-device] implementations for the endpoint definitions.
 

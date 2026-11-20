@@ -574,8 +574,7 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         deviceSelect.setItemLabelGenerator(DeviceResponse::getDeviceName);
         deviceSelect.setItems(
                 deviceService.getAllDevicesForControlId(getAccountId(), controlId).stream()
-                        .filter(d -> d.getDeviceType() == DeviceType.STANDARD
-                        && d.getDevicePlatform() != DevicePlatform.TUYA_SMART)
+                        .filter(d -> d.getDeviceType() == DeviceType.STANDARD)
                         .toList()
         );
         deviceSelect.setWidthFull();
@@ -589,21 +588,42 @@ public class ControlTableView extends VerticalLayout implements BeforeEnterObser
         estimatedPowerKwField.setMin(0);
         estimatedPowerKwField.setWidthFull();
 
-        Button addButton = new Button(t("controlTable.button.addDevice"), e -> {
-            if (deviceSelect.getValue() != null && channelField.getValue() != null) {
-                controlService.addDeviceToControl(
-                        getAccountId(),
-                        controlId,
-                        deviceSelect.getValue().getId(),
-                        channelField.getValue().intValue(),
-                        estimatedPowerKwField.getValue() != null ? BigDecimal.valueOf(estimatedPowerKwField.getValue()) : null
-                );
+        Button addButton = new Button(t("controlTable.button.addDevice"));
+        addButton.setWidthFull();
+        FormLayout formLayout = new FormLayout(deviceSelect, channelField, estimatedPowerKwField, addButton);
+        TuyaTask task = new TuyaTask(formLayout);
+        deviceSelect.addValueChangeListener(event -> {
+            boolean tuya = event.getValue() != null && event.getValue().getDevicePlatform() == DevicePlatform.TUYA_SMART;
+            channelField.setHelperText(tuya ? t("tuya.relay.channelHelp") : "");
+            if (tuya && channelField.isEmpty()) channelField.setValue(0.0);
+        });
+        addButton.addClickListener(event -> {
+            DeviceResponse selected = deviceSelect.getValue();
+            Double channel = channelField.getValue();
+            if (selected == null || channel == null) return;
+            Long accountId = getAccountId();
+            Long selectedControlId = controlId;
+            BigDecimal power = estimatedPowerKwField.getValue() == null ? null : BigDecimal.valueOf(estimatedPowerKwField.getValue());
+            if (selected.getDevicePlatform() == DevicePlatform.TUYA_SMART) {
+                if (channel != channel.intValue() || channel < 0) {
+                    Notification.show(t("tuya.error.relayChannel"));
+                    return;
+                }
+                addButton.setEnabled(false);
+                task.run(() -> controlService.addDeviceToControl(accountId, selectedControlId, selected.getId(), channel.intValue(), power),
+                        result -> {
+                            addButton.setEnabled(true);
+                            if (java.util.Objects.equals(accountId, getAccountId())) loadControlDevices();
+                        }, error -> {
+                            addButton.setEnabled(true);
+                            if (java.util.Objects.equals(accountId, getAccountId())) Notification.show(TuyaTask.error(i18n, error));
+                        });
+            } else {
+                controlService.addDeviceToControl(accountId, selectedControlId, selected.getId(), channel.intValue(), power);
                 loadControlDevices();
             }
         });
-        addButton.setWidthFull();
 
-        FormLayout formLayout = new FormLayout(deviceSelect, channelField, estimatedPowerKwField, addButton);
         formLayout.setResponsiveSteps(
                 new FormLayout.ResponsiveStep("0", 1),
                 new FormLayout.ResponsiveStep("600px", 3)

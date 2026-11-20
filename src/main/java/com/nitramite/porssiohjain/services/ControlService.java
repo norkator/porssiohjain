@@ -17,9 +17,12 @@ import com.nitramite.porssiohjain.entity.repository.*;
 import com.nitramite.porssiohjain.mqtt.MqttService;
 import com.nitramite.porssiohjain.services.models.*;
 import jakarta.persistence.EntityNotFoundException;
+import com.nitramite.porssiohjain.services.tuya.TuyaException;
+import com.nitramite.porssiohjain.services.tuya.TuyaService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -62,6 +65,7 @@ public class ControlService {
     private final ThermostatCurveService thermostatCurveService;
     private final ControlPriceService controlPriceService;
     private final DemoAccountGuard demoAccountGuard;
+    private final ObjectProvider<TuyaService> tuyaService;
 
     public ControlEntity createControl(
             Long accountId, String name, String timezone,
@@ -312,6 +316,7 @@ public class ControlService {
         throw new IllegalArgumentException("Control not found for your account with ID: " + controlId);
     }
 
+    @Transactional(dontRollbackOn = TuyaException.class)
     public ControlDeviceResponse addDeviceToControl(
             Long accountId, Long controlId, Long deviceId, Integer deviceChannel, BigDecimal estimatedPowerKw
     ) {
@@ -319,7 +324,7 @@ public class ControlService {
         ControlEntity control = controlRepository.findById(controlId)
                 .orElseThrow(() -> new EntityNotFoundException("Control not found with id: " + controlId));
         if (control.getAccount().getId().equals(accountId)) {
-            DeviceEntity device = getOwnedDevice(accountId, deviceId);
+            DeviceEntity device = findOwnedDevice(accountId, deviceId);
 
             if (controlDeviceRepository.existsByControlIdAndDeviceIdAndDeviceChannel(controlId, deviceId, deviceChannel)) {
                 throw new DuplicateEntityException(
@@ -328,6 +333,7 @@ public class ControlService {
                 );
             }
 
+            validateTuyaRelay(accountId, device, deviceChannel);
             ControlDeviceEntity controlDevice = ControlDeviceEntity.builder()
                     .control(control)
                     .device(device)
@@ -349,6 +355,7 @@ public class ControlService {
         }
     }
 
+    @Transactional(dontRollbackOn = TuyaException.class)
     public ControlDeviceResponse updateControlDevice(
             Long accountId, Long controlDeviceId, Long deviceId, Integer deviceChannel, BigDecimal estimatedPowerKw
     ) {
@@ -357,13 +364,15 @@ public class ControlService {
                 .orElseThrow(() -> new EntityNotFoundException("ControlDevice not found with id: " + controlDeviceId));
 
         if (controlDevice.getControl().getAccount().getId().equals(accountId)) {
-            if (deviceId != null) {
-                DeviceEntity device = getOwnedDevice(accountId, deviceId);
-                controlDevice.setDevice(device);
-            }
-
-            if (deviceChannel != null) {
-                controlDevice.setDeviceChannel(deviceChannel);
+            if (deviceId != null || deviceChannel != null) {
+                DeviceEntity device = deviceId == null ? controlDevice.getDevice() : findOwnedDevice(accountId, deviceId);
+                Integer channel = deviceChannel == null ? controlDevice.getDeviceChannel() : deviceChannel;
+                if (!Objects.equals(device.getId(), controlDevice.getDevice().getId())
+                        || !Objects.equals(channel, controlDevice.getDeviceChannel())) {
+                    validateTuyaRelay(accountId, device, channel);
+                }
+                if (deviceId != null) controlDevice.setDevice(device);
+                if (deviceChannel != null) controlDevice.setDeviceChannel(channel);
             }
             if (estimatedPowerKw != null) {
                 controlDevice.setEstimatedPowerKw(estimatedPowerKw);
@@ -732,14 +741,23 @@ public class ControlService {
                 .orElseThrow(() -> new EntityNotFoundException("Control not found for account with id: " + controlId));
     }
 
+    private void validateTuyaRelay(Long accountId, DeviceEntity device, Integer channel) {
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART)
+            tuyaService.getObject().validateRelayChannel(accountId, device.getId(), channel);
+    }
+
     private DeviceEntity getOwnedDevice(Long accountId, Long deviceId) {
+        DeviceEntity device = findOwnedDevice(accountId, deviceId);
+        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART)
+            throw new IllegalArgumentException("Use the Relay tab for Tuya relay controls");
+        return device;
+    }
+
+    private DeviceEntity findOwnedDevice(Long accountId, Long deviceId) {
         AccountEntity account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new EntityNotFoundException("Account not found with id: " + accountId));
-        DeviceEntity device = deviceRepository.findByIdAndAccount(deviceId, account)
+        return deviceRepository.findByIdAndAccount(deviceId, account)
                 .orElseThrow(() -> new EntityNotFoundException("Device not found for account with id: " + deviceId));
-        if (device.getDevicePlatform() == DevicePlatform.TUYA_SMART)
-            throw new IllegalArgumentException("Tuya relay commands are not supported yet");
-        return device;
     }
 
     private DeviceResponse toDeviceResponse(DeviceEntity device) {
@@ -764,6 +782,10 @@ public class ControlService {
             String deviceUuid
     ) {
         return getControlsForDevice(deviceUuid, true, true);
+    }
+
+    public Map<Integer, Integer> getTuyaRelayControls(UUID deviceUuid) {
+        return getControlsForDevice(deviceUuid.toString(), false, true);
     }
 
     public DeviceThermostatDebugSnapshotResponse getThermostatDebugSnapshotForDevice(

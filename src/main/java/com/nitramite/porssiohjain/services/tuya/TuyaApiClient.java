@@ -86,6 +86,15 @@ public class TuyaApiClient {
         return request(session, "GET", path, query, null).path("result");
     }
 
+    public void sendRelayCommands(TuyaSession session, String deviceId, Map<String, Boolean> states) {
+        List<Map<String, Object>> commands = states.entrySet().stream()
+                .map(entry -> Map.<String, Object>of("code", entry.getKey(), "value", entry.getValue()))
+                .toList();
+        JsonNode result = request(session, "POST", "/v1.1/m/thing/" + encode(deviceId) + "/commands",
+                Map.of(), Map.of("commands", commands)).path("result");
+        if (result.isBoolean() && !result.booleanValue()) throw new TuyaException("tuya.error.request");
+    }
+
     public void revoke(TuyaSession session) {
         request(session, "POST", "/v1.0/m/token/terminal/expire", Map.of(), Map.of(
                 "accessToken", session.accessToken(), "terminalId", session.terminalId()));

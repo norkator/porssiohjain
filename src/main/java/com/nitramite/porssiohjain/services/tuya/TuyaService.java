@@ -194,11 +194,7 @@ public class TuyaService {
 
     @Transactional(noRollbackFor = TuyaException.class)
     public Snapshot poll(Long accountId, Long deviceId) {
-        requireAccountId(accountId);
-        TuyaDeviceEntity link = devices.findByDeviceIdAndConnectionAccountId(deviceId, accountId)
-                .orElseThrow(() -> new TuyaException("tuya.error.device"));
-        if (link.getDevice().getDevicePlatform() != DevicePlatform.TUYA_SMART
-                || !Objects.equals(link.getDevice().getAccount().getId(), accountId)) throw new TuyaException("tuya.error.device");
+        TuyaDeviceEntity link = ownedDevice(accountId, deviceId);
         try {
             TuyaSession session = refresh(requireConnection(accountId, link.getConnection().getId()));
             JsonNode detail = detail(session, link.getTuyaDeviceId());
@@ -209,11 +205,110 @@ public class TuyaService {
             recordConnectivity(link.getDevice(), online && link.getDevice().isEnabled(), fetchedAt);
             // Offline devices can still return cached state. Do not turn it into fresh observations.
             if (online && link.getDevice().isEnabled()) saveMeasurements(link.getDevice(), detail, readings, fetchedAt);
-            return new Snapshot(online, fetchedAt, readings);
+            return new Snapshot(online, fetchedAt, readings, writableRelays(specs));
         } catch (TuyaException error) {
             recordConnectivity(link.getDevice(), false, null);
             throw error;
         }
+    }
+
+    @Transactional(noRollbackFor = TuyaException.class)
+    public void validateRelayChannel(Long accountId, Long deviceId, Integer channel) {
+        TuyaDeviceEntity link = ownedDevice(accountId, deviceId);
+        if (link.getDevice().getDeviceType() != DeviceType.STANDARD || channel == null || channel < 0)
+            throw new TuyaException("tuya.error.relayChannel");
+        TuyaSession session = refresh(requireConnection(accountId, link.getConnection().getId()));
+        if (relayCodeForChannel(writableRelays(specifications(session, link.getTuyaDeviceId())), channel) == null)
+            throw new TuyaException("tuya.error.relayChannel");
+    }
+
+    @Transactional(noRollbackFor = TuyaException.class)
+    public Snapshot switchRelay(Long accountId, Long deviceId, String code, boolean on) {
+        demoGuard.assertWritable(accountId);
+        TuyaDeviceEntity link = enabledRelay(accountId, deviceId);
+        TuyaSession session = refresh(requireConnection(accountId, link.getConnection().getId()));
+        String externalId = link.getTuyaDeviceId();
+        JsonNode specs = specifications(session, externalId);
+        List<String> writable = writableRelays(specs);
+        if (!writable.contains(code)) throw new TuyaException("tuya.error.relayChannel");
+        JsonNode detail = detail(session, externalId);
+        if (!detail.path("online").asBoolean()) {
+            recordConnectivity(link.getDevice(), false, Instant.now());
+            throw new TuyaException("tuya.error.relayOffline");
+        }
+
+        api.sendRelayCommands(session, externalId, Map.of(code, on));
+        JsonNode reported = detail(session, externalId);
+        Instant fetchedAt = Instant.now();
+        boolean online = reported.path("online").asBoolean();
+        recordConnectivity(link.getDevice(), online, fetchedAt);
+        return new Snapshot(online, fetchedAt, decodeReadings(reported, specs), writable);
+    }
+
+    @Transactional(noRollbackFor = TuyaException.class)
+    public void applyRelayControls(Long accountId, Long deviceId, Map<Integer, Integer> desired) {
+        if (desired.isEmpty()) return;
+        demoGuard.assertWritable(accountId);
+        TuyaDeviceEntity link = enabledRelay(accountId, deviceId);
+        DeviceEntity device = link.getDevice();
+        TuyaSession session = refresh(requireConnection(accountId, link.getConnection().getId()));
+        String externalId = link.getTuyaDeviceId();
+        JsonNode detail = detail(session, externalId);
+        boolean online = detail.path("online").asBoolean();
+        recordConnectivity(device, online, Instant.now());
+        if (!online) return;
+        JsonNode specs = specifications(session, externalId);
+        List<String> writable = writableRelays(specs);
+        Map<String, JsonNode> reported = new HashMap<>();
+        for (JsonNode property : detail.path("status")) {
+            reported.put(property.path("code").asText(), property.path("value"));
+        }
+        Map<String, Boolean> changes = new LinkedHashMap<>();
+        boolean unsupportedChannel = false;
+        for (var entry : desired.entrySet().stream().sorted(Map.Entry.comparingByValue()).toList()) {
+            String code = relayCodeForChannel(writable, entry.getKey());
+            if (code == null) {
+                unsupportedChannel = true;
+                continue;
+            }
+            boolean on = entry.getValue() == 1;
+            JsonNode state = reported.get(code);
+            if (state == null || !state.isBoolean() || state.booleanValue() != on) changes.put(code, on);
+        }
+        if (!changes.isEmpty()) api.sendRelayCommands(session, externalId, changes);
+        if (unsupportedChannel) throw new TuyaException("tuya.error.relayChannel");
+    }
+
+    private TuyaDeviceEntity enabledRelay(Long accountId, Long deviceId) {
+        TuyaDeviceEntity link = ownedDevice(accountId, deviceId);
+        if (link.getDevice().getDeviceType() != DeviceType.STANDARD || !link.getDevice().isEnabled())
+            throw new TuyaException("tuya.error.relayDisabled");
+        return link;
+    }
+
+    private TuyaDeviceEntity ownedDevice(Long accountId, Long deviceId) {
+        requireAccountId(accountId);
+        TuyaDeviceEntity link = devices.findByDeviceIdAndConnectionAccountId(deviceId, accountId)
+                .orElseThrow(() -> new TuyaException("tuya.error.device"));
+        if (link.getDevice().getDevicePlatform() != DevicePlatform.TUYA_SMART
+                || !Objects.equals(link.getDevice().getAccount().getId(), accountId)) throw new TuyaException("tuya.error.device");
+        return link;
+    }
+
+    private static List<String> writableRelays(JsonNode specs) {
+        List<String> codes = new ArrayList<>();
+        for (JsonNode definition : specs.path("functions")) {
+            String code = definition.path("code").asText();
+            if (relayCode(code) && "Boolean".equalsIgnoreCase(definition.path("type").asText()) && !codes.contains(code))
+                codes.add(code);
+        }
+        return codes;
+    }
+
+    private static String relayCodeForChannel(List<String> writable, int channel) {
+        String numbered = "switch_" + (channel + 1L);
+        if (writable.contains(numbered)) return numbered;
+        return channel == 0 && writable.contains("switch") ? "switch" : null;
     }
 
     private void recordConnectivity(DeviceEntity device, boolean online, Instant fetchedAt) {
@@ -450,5 +545,5 @@ public class TuyaService {
         public DeviceType deviceType() { return relayCodes.isEmpty() ? DeviceType.TEMPERATURE_SENSOR : DeviceType.STANDARD; }
     }
     public record Reading(String code, String value, String unit) { }
-    public record Snapshot(boolean online, Instant fetchedAt, List<Reading> readings) { }
+    public record Snapshot(boolean online, Instant fetchedAt, List<Reading> readings, List<String> writableRelays) { }
 }

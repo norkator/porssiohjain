@@ -110,6 +110,7 @@ class DeviceMeasurementPersistenceTest {
             assertEquals(1, targets.size());
             assertEquals(owner.getId(), targets.getFirst().getAccountId());
             assertEquals(first.getId(), targets.getFirst().getDeviceId());
+            assertTrue(tuyaRepository.findRelayTargets().isEmpty());
             tx.rollback();
         }
     }

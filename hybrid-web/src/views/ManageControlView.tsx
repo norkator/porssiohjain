@@ -225,7 +225,7 @@ export default function ManageControlView() {
         setDeviceLinks(linksResponse);
         setHeatPumpLinks(heatPumpLinksResponse);
         setThermostatLinkCount(thermostatLinksResponse.length);
-        setStandardDevices(devicesResponse.filter((device) => device.deviceType === "STANDARD" && device.devicePlatform !== "TUYA_SMART"));
+        setStandardDevices(devicesResponse.filter((device) => device.deviceType === "STANDARD"));
         setHeatPumpDevices(devicesResponse.filter((device) => device.deviceType === "HEAT_PUMP"));
         setIsLoadingLinks(false);
       } catch (error) {
@@ -832,7 +832,11 @@ export default function ManageControlView() {
             <select
               className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
               id="standard-device-dialog"
-              onChange={(event) => setSelectedDeviceId(event.target.value)}
+              onChange={(event) => {
+                const device = selectableDevices.find((item) => String(item.id) === event.target.value);
+                setSelectedDeviceId(event.target.value);
+                if (device?.devicePlatform === "TUYA_SMART" && editingDeviceLinkId === null) setDeviceChannel("0");
+              }}
               value={selectedDeviceId}
             >
               <option value="">{common("selectStandardDevice")}</option>
@@ -856,6 +860,9 @@ export default function ManageControlView() {
                 type="number"
                 value={deviceChannel}
               />
+              {selectedDevice?.devicePlatform === "TUYA_SMART" ? (
+                <p className="mt-1 text-sm text-on-surface-variant">{t("tuyaChannelHelp")}</p>
+              ) : null}
             </div>
             <div>
               <label className="mb-2 ml-1 block font-headline text-sm font-bold text-on-surface" htmlFor="estimated-power-dialog">

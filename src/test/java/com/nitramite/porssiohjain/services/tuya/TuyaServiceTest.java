@@ -419,6 +419,47 @@ class TuyaServiceTest {
     }
 
     @Test
+    void switchesWritableRelayAndReturnsReportedState() throws Exception {
+        givenRelay();
+        var snapshot = service.switchRelay(7L, 21L, "switch", true);
+
+        verify(api).sendRelayCommands(any(), eq("sensor-1"), eq(Map.of("switch", true)));
+        assertEquals(List.of("switch", "switch_2"), snapshot.writableRelays());
+        assertTrue(snapshot.readings().contains(new TuyaService.Reading("switch", "false", "")));
+    }
+
+    @Test
+    void automationMapsChannelsAndSendsOnlyChanges() throws Exception {
+        givenRelay();
+        service.validateRelayChannel(7L, 21L, 0);
+        service.applyRelayControls(7L, 21L, Map.of(0, 1, 1, 1));
+
+        verify(api).sendRelayCommands(any(), eq("sensor-1"), eq(Map.of("switch", true)));
+    }
+
+    @Test
+    void rejectsRelayCommandsForReadOnlyPropertiesAndDisabledDevices() throws Exception {
+        var device = givenRelay();
+        assertThrows(TuyaException.class, () -> service.validateRelayChannel(7L, 21L, 2));
+        assertThrows(TuyaException.class, () -> service.switchRelay(7L, 21L, "switch_3", true));
+        device.setEnabled(false);
+        assertThrows(TuyaException.class, () -> service.switchRelay(7L, 21L, "switch", true));
+        verify(api, never()).sendRelayCommands(any(), anyString(), anyMap());
+    }
+
+    private DeviceEntity givenRelay() throws Exception {
+        var device = givenSensor(true, """
+                [{"code":"switch","value":false},{"code":"switch_2","value":true}]
+                """);
+        device.setDeviceType(DeviceType.STANDARD);
+        when(api.get(any(), eq("/v1.1/m/life/sensor-1/specifications"), anyMap())).thenReturn(json("""
+                {"functions":[{"code":"switch","type":"Boolean"},{"code":"switch_2","type":"Boolean"}],
+                 "status":[{"code":"switch_3","type":"Boolean"}]}
+                """));
+        return device;
+    }
+
+    @Test
     void permissionDenialHasSpecificSafeGuidanceWhileOtherFailuresKeepTheirKey() {
         var error = new TuyaException("tuya.error.request", "1106");
         assertEquals("tuya.error.permission", error.getMessage());

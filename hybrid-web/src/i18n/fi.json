@@ -1117,6 +1117,7 @@
     }
   },
   "manageControl": {
+    "tuyaChannelHelp": "Käytä kanavaa 0 ominaisuudelle switch tai switch_1, kanavaa 1 ominaisuudelle switch_2 ja niin edelleen.",
     "title": "Hallitse ohjausta",
     "loading": "Ladataan ohjausta...",
     "failedLoad": "Ohjauksen lataus epäonnistui",

@@ -17,7 +17,7 @@ class TuyaSchedulerTest {
     private final TuyaDeviceRepository devices = mock();
     private final TuyaService tuya = mock();
     private final DeviceMeasurementRepository measurements = mock();
-    private final TuyaScheduler scheduler = new TuyaScheduler(devices, tuya, measurements);
+    private final TuyaScheduler scheduler = new TuyaScheduler(devices, tuya, measurements, mock(com.nitramite.porssiohjain.services.ControlService.class));
 
     @Test void failedAccountDoesNotStopOtherSensorsFromPolling() {
         var first = target(7L, 21L);

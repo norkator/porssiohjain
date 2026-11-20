@@ -76,6 +76,42 @@ class TuyaApiClientTest {
     }
 
     @Test
+    void postsEncryptedBooleanRelayCommand() throws Exception {
+        when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenAnswer(call -> {
+            HttpRequest request = call.getArgument(0);
+            assertEquals("POST", request.method());
+            assertEquals("/v1.1/m/thing/relay-1/commands", request.uri().getPath());
+            var encrypted = mapper.readTree(publishedBody(request)).path("encdata").asText();
+            var body = TuyaSharingCodec.decrypt(encrypted, secret(request, "refresh-token"));
+            assertEquals(mapper.readTree("""
+                    {"commands":[{"code":"switch","value":true}]}
+                    """), mapper.readTree(body));
+            return encryptedResponse(request, "refresh-token", "true");
+        });
+
+        api.sendRelayCommands(session(), "relay-1", Map.of("switch", true));
+    }
+
+    private byte[] publishedBody(HttpRequest request) {
+        var body = new java.io.ByteArrayOutputStream();
+        request.bodyPublisher().orElseThrow().subscribe(new java.util.concurrent.Flow.Subscriber<java.nio.ByteBuffer>() {
+            @Override public void onSubscribe(java.util.concurrent.Flow.Subscription subscription) {
+                subscription.request(Long.MAX_VALUE);
+            }
+            @Override public void onNext(java.nio.ByteBuffer bytes) {
+                byte[] chunk = new byte[bytes.remaining()];
+                bytes.get(chunk);
+                body.writeBytes(chunk);
+            }
+            @Override public void onError(Throwable error) {
+                fail(error);
+            }
+            @Override public void onComplete() { }
+        });
+        return body.toByteArray();
+    }
+
+    @Test
     void refreshesUsingOldCredentialsAndParsesRotatedTokensAndServerExpiry() throws Exception {
         when(http.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenAnswer(call -> {
             HttpRequest request = call.getArgument(0);

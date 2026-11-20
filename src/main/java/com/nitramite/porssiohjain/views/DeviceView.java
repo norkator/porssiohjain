@@ -1440,6 +1440,8 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         };
     }
 
+    private record TuyaRelayCommand(String code, boolean on) { }
+
     private VerticalLayout createTuyaPollSection(DeviceResponse device) {
         Span status = new Span(t("tuya.poll.help"));
         Grid<TuyaService.Reading> readings = new Grid<>(TuyaService.Reading.class, false);
@@ -1453,29 +1455,52 @@ public class DeviceView extends VerticalLayout implements BeforeEnterObserver {
         Button poll = new Button(t("tuya.poll"));
         var connection = tuyaService.deviceConnection(tuyaAccountId(), device.getId());
         Span account = new Span(t("tuya.device.account", connection.label()));
-        VerticalLayout section = new VerticalLayout(new H2("Tuya Smart"), account, status, poll, readings);
-        if (device.getDeviceType() == DeviceType.STANDARD) section.add(new Paragraph(t("tuya.relay.help")));
+        HorizontalLayout relayActions = new HorizontalLayout();
+        relayActions.setWrap(true);
+        Span commandStatus = new Span();
+        VerticalLayout section = new VerticalLayout(new H2("Tuya Smart"), account, status, poll, readings,
+                relayActions, commandStatus);
         section.setPadding(false);
         TuyaTask task = new TuyaTask(section);
-        poll.addClickListener(event -> {
-            Long accountId = tuyaAccountId();
-            if (accountId == null) return;
-            poll.setEnabled(false);
-            status.setText(t("tuya.loading"));
-            task.run(() -> tuyaService.poll(accountId, device.getId()), snapshot -> {
-                if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
-                readings.setItems(snapshot.readings());
-                status.setText(t("tuya.poll.result", t(snapshot.online() ? "tuya.online" : "tuya.offline"),
-                        ZonedDateTime.ofInstant(snapshot.fetchedAt(), ZoneId.of(device.getTimezone())).format(formatter)));
-                poll.setEnabled(true);
-                loadDevices();
-            }, error -> {
-                if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
-                status.setText(TuyaTask.error(i18n, error));
-                poll.setEnabled(true);
-                loadDevices();
-            });
-        });
+        java.util.function.Consumer<TuyaRelayCommand> request = new java.util.function.Consumer<>() {
+            @Override
+            public void accept(TuyaRelayCommand command) {
+                Long accountId = tuyaAccountId();
+                if (accountId == null) return;
+                poll.setEnabled(false);
+                relayActions.removeAll();
+                commandStatus.setText("");
+                status.setText(t("tuya.loading"));
+                task.run(() -> command == null ? tuyaService.poll(accountId, device.getId())
+                        : tuyaService.switchRelay(accountId, device.getId(), command.code(), command.on()), snapshot -> {
+                    if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
+                    readings.setItems(snapshot.readings());
+                    status.setText(t("tuya.poll.result", t(snapshot.online() ? "tuya.online" : "tuya.offline"),
+                            ZonedDateTime.ofInstant(snapshot.fetchedAt(), ZoneId.of(device.getTimezone())).format(formatter)));
+                    if (command != null) {
+                        boolean confirmed = snapshot.online() && snapshot.readings().stream().anyMatch(reading ->
+                                reading.code().equals(command.code()) && reading.value().equals(Boolean.toString(command.on())));
+                        commandStatus.setText(t(confirmed ? "tuya.relay.confirmed" : "tuya.relay.pending"));
+                    }
+                    if (snapshot.online() && Boolean.TRUE.equals(device.getEnabled()) && device.getDeviceType() == DeviceType.STANDARD) {
+                        if (snapshot.writableRelays().isEmpty()) commandStatus.setText(t("tuya.relay.noWritableChannels"));
+                        for (String code : snapshot.writableRelays()) {
+                            relayActions.add(new HorizontalLayout(new Span(formatTuyaReading(code)),
+                                    new Button(t("tuya.relay.turnOn"), event -> accept(new TuyaRelayCommand(code, true))),
+                                    new Button(t("tuya.relay.turnOff"), event -> accept(new TuyaRelayCommand(code, false)))));
+                        }
+                    }
+                    poll.setEnabled(true);
+                    loadDevices();
+                }, error -> {
+                    if (!java.util.Objects.equals(accountId, tuyaAccountId())) return;
+                    status.setText(TuyaTask.error(i18n, error));
+                    poll.setEnabled(true);
+                    loadDevices();
+                });
+            }
+        };
+        poll.addClickListener(event -> request.accept(null));
         return section;
     }
 

@@ -7,6 +7,7 @@ package com.nitramite.porssiohjain.scheduled;
 
 import com.nitramite.porssiohjain.entity.repository.DeviceMeasurementRepository;
 import com.nitramite.porssiohjain.entity.repository.TuyaDeviceRepository;
+import com.nitramite.porssiohjain.services.ControlService;
 import com.nitramite.porssiohjain.services.tuya.TuyaService;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class TuyaScheduler {
     private final TuyaDeviceRepository devices;
     private final TuyaService tuya;
     private final DeviceMeasurementRepository measurements;
+    private final ControlService controls;
     private final AtomicBoolean polling = new AtomicBoolean();
     private final ExecutorService worker = Executors.newSingleThreadExecutor(Thread.ofVirtual().name("tuya-poll-", 0).factory());
 
@@ -48,9 +50,37 @@ public class TuyaScheduler {
         }
     }
 
+    private final AtomicBoolean controlling = new AtomicBoolean();
+    private final ExecutorService relayWorker = Executors.newSingleThreadExecutor(Thread.ofVirtual().name("tuya-relay-", 0).factory());
+
+    @Scheduled(cron = "1 0/1 * * * *", zone = "Europe/Helsinki")
+    public void scheduleRelayControls() {
+        if (!controlling.compareAndSet(false, true)) return;
+        try {
+            relayWorker.execute(() -> {
+                try {
+                    for (var target : devices.findRelayTargets()) {
+                        try {
+                            tuya.applyRelayControls(target.getAccountId(), target.getDeviceId(),
+                                    controls.getTuyaRelayControls(target.getUuid()));
+                        } catch (RuntimeException error) {
+                            log.warn("Tuya relay control failed for account {}, device {}",
+                                    target.getAccountId(), target.getDeviceId());
+                        }
+                    }
+                } finally {
+                    controlling.set(false);
+                }
+            });
+        } catch (RejectedExecutionException stopping) {
+            controlling.set(false);
+        }
+    }
+
     @PreDestroy
     public void stop() {
         worker.shutdownNow();
+        relayWorker.shutdownNow();
     }
 
     public void pollSensors() {

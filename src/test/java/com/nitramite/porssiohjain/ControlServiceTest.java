@@ -178,6 +178,9 @@ class ControlServiceTest {
         lenient().when(loadSheddingLinkRepository.findByAccountIdOrderByIdAsc(any())).thenReturn(List.of());
     }
 
+    @Mock
+    private org.springframework.beans.factory.ObjectProvider<com.nitramite.porssiohjain.services.tuya.TuyaService> tuyaService;
+
     private void createControlService(DemoAccountGuard guard) {
         controlService = new ControlService(
                 controlRepository,
@@ -204,7 +207,8 @@ class ControlServiceTest {
                 deviceOfflineNotificationService,
                 thermostatCurveService,
                 controlPriceService,
-                guard
+                guard,
+                tuyaService
         );
     }
 
@@ -379,7 +383,7 @@ class ControlServiceTest {
     }
 
     @Test
-    void rejectsReadOnlyTuyaRelayBeforeCreatingAnAutomationAssignment() {
+    void validatesTuyaRelayBeforeCreatingAnAutomationAssignment() {
         AccountEntity owner = AccountEntity.builder().id(1L).build();
         ControlEntity control = new ControlEntity();
         control.setId(10L);
@@ -389,9 +393,17 @@ class ControlServiceTest {
         when(controlRepository.findById(10L)).thenReturn(Optional.of(control));
         when(accountRepository.findById(1L)).thenReturn(Optional.of(owner));
         when(deviceRepository.findByIdAndAccount(20L, owner)).thenReturn(Optional.of(relay));
-        assertThrows(IllegalArgumentException.class,
-                () -> controlService.addDeviceToControl(1L, 10L, 20L, 0, BigDecimal.ONE));
-        verifyNoInteractions(controlDeviceRepository, mqttService);
+        var tuya = mock(com.nitramite.porssiohjain.services.tuya.TuyaService.class);
+        when(tuyaService.getObject()).thenReturn(tuya);
+        when(controlDeviceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var assignment = controlService.addDeviceToControl(1L, 10L, 20L, 0, BigDecimal.ONE);
+
+        assertEquals(0, assignment.getDeviceChannel());
+        var order = inOrder(tuya, controlDeviceRepository);
+        order.verify(tuya).validateRelayChannel(1L, 20L, 0);
+        order.verify(controlDeviceRepository).save(any());
+        verifyNoInteractions(mqttService);
     }
 
     @Test

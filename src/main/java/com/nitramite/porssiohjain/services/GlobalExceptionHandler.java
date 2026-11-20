@@ -11,7 +11,9 @@
 
 package com.nitramite.porssiohjain.services;
 
+import com.nitramite.porssiohjain.services.tuya.TuyaException;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -22,7 +24,17 @@ import java.nio.file.AccessDeniedException;
 import java.util.Map;
 
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final I18nService i18n;
+
+    @ExceptionHandler(TuyaException.class)
+    public ResponseEntity<Map<String, Object>> handleTuyaError(TuyaException ex) {
+        String message = i18n.t(ex.getMessage());
+        if (!ex.code().isBlank()) message += " (" + ex.code() + ")";
+        return handleBadRequest(new IllegalArgumentException(message));
+    }
 
     @ExceptionHandler(DuplicateEntityException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicate(DuplicateEntityException ex) {
