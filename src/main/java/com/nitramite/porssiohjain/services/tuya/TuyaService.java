@@ -64,19 +64,17 @@ public class TuyaService {
     }
 
     @Transactional
-    public void renameConnection(Long accountId, Long connectionId, String label) {
+    public ConnectionStatus renameConnection(Long accountId, Long connectionId, String label) {
         demoGuard.assertWritable(accountId);
         TuyaConnectionEntity connection = ownedConnection(accountId, connectionId);
         connection.setAccountLabel(requireLabel(label));
         connections.save(connection);
+        return connectionStatus(connection);
     }
 
     @Transactional(readOnly = true)
     public ConnectionStatus deviceConnection(Long accountId, Long deviceId) {
-        requireAccountId(accountId);
-        return devices.findByDeviceIdAndConnectionAccountId(deviceId, accountId)
-                .map(link -> connectionStatus(link.getConnection()))
-                .orElseThrow(() -> new TuyaException("tuya.error.device"));
+        return connectionStatus(ownedDevice(accountId, deviceId).getConnection());
     }
 
     @Transactional
@@ -165,7 +163,7 @@ public class TuyaService {
     }
 
     @Transactional(noRollbackFor = TuyaException.class)
-    public void importDevice(Long accountId, Long connectionId, String externalId, String name, String timezone, boolean enabled) {
+    public Long importDevice(Long accountId, Long connectionId, String externalId, String name, String timezone, boolean enabled) {
         requireAccountId(accountId);
         demoGuard.assertWritable(accountId);
         checkId(externalId);
@@ -190,6 +188,7 @@ public class TuyaService {
         link.setDevice(deviceRepository.findById(localDevice.getId()).orElseThrow());
         link.setTuyaDeviceId(externalId);
         devices.save(link);
+        return localDevice.getId();
     }
 
     @Transactional(noRollbackFor = TuyaException.class)

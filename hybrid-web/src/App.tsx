@@ -19,6 +19,7 @@ import AddDeviceConfigureView from "@/views/AddDeviceConfigureView";
 import AddDeviceIntegrationView from "@/views/AddDeviceIntegrationView";
 import AddDeviceReviewView from "@/views/AddDeviceReviewView";
 import AddDeviceTypeView from "@/views/AddDeviceTypeView";
+import AddTuyaDeviceView from "@/views/AddTuyaDeviceView";
 import AddControlView from "@/views/AddControlView";
 import ControlsView from "@/views/ControlsView";
 import CreateAccountView from "@/views/CreateAccountView";
@@ -35,6 +36,7 @@ import PowerLimitsView from "@/views/PowerLimitsView";
 import ProductionSourcesView from "@/views/ProductionSourcesView";
 import HeatingPlannerView from "@/views/HeatingPlannerView";
 import SitesView from "@/views/SitesView";
+import TuyaAccountsView from "@/views/TuyaAccountsView";
 import WeatherControlsView from "@/views/WeatherControlsView";
 import { getSessionData } from "@/lib/session";
 
@@ -59,6 +61,8 @@ function ProtectedAppRoutes() {
         <Route path="/devices/add/configure" element={<AddDeviceConfigureView />} />
         <Route path="/devices/add/review" element={<AddDeviceReviewView />} />
         <Route path="/devices/add/integration" element={<AddDeviceIntegrationView />} />
+        <Route path="/devices/add/tuya" element={<AddTuyaDeviceView />} />
+        <Route path="/tuya/accounts" element={<TuyaAccountsView />} />
         <Route path="/controls" element={<ControlsView />} />
         <Route path="/controls/add" element={<AddControlView />} />
         <Route path="/controls/:controlId" element={<ManageControlView />} />

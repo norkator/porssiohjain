@@ -15,6 +15,7 @@ import StepOptionCard from "@/components/StepOptionCard";
 import { Link, useNavigate } from "react-router-dom";
 import {
   clearProvisionedDeviceDraft,
+  clearAddDeviceDraft,
   DEVICE_TYPE_OPTIONS,
   getCurrentTimezone,
   updateAddDeviceDraft
@@ -29,6 +30,11 @@ export default function AddDeviceTypeView() {
 
   const handleSelectDeviceType = (deviceTypeId: string) => {
     clearProvisionedDeviceDraft();
+    if (deviceTypeId === "tuya-smart") {
+      clearAddDeviceDraft();
+      navigate("/devices/add/tuya");
+      return;
+    }
     updateAddDeviceDraft({
       deviceTypeId,
       deviceName: "",

@@ -9,9 +9,9 @@
  * See LICENSE for details.
  */
 
-import { apiFetch, apiGetJson } from "@/lib/api";
+import { apiFetch, apiGetJson, readApiErrorMessage } from "@/lib/api";
 import { type ApiDevice } from "@/lib/devices";
-import { getCommonTranslation, getCurrentIntlLocales } from "@/lib/i18n";
+import { getCommonTranslation, getCurrentIntlLocales, getCurrentLocale } from "@/lib/i18n";
 
 export type ControlMode =
   | "BELOW_MAX_PRICE"
@@ -235,13 +235,14 @@ export async function addControlDeviceLink(controlId: number, payload: ControlDe
   const response = await apiFetch(`/api/controls/${controlId}/links/devices`, {
     body: JSON.stringify(payload),
     headers: {
+      "Accept-Language": getCurrentLocale(),
       "Content-Type": "application/json"
     },
     method: "POST"
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
+    throw new Error(await readApiErrorMessage(response) ?? `Request failed with status ${response.status}`);
   }
 
   return response.json() as Promise<ControlDeviceLink>;
@@ -256,11 +257,12 @@ export async function updateControlDeviceLink(linkId: number, payload: ControlDe
   }
 
   const response = await apiFetch(`/control/update/device/${linkId}?${params.toString()}`, {
+    headers: { "Accept-Language": getCurrentLocale() },
     method: "PUT"
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
+    throw new Error(await readApiErrorMessage(response) ?? `Request failed with status ${response.status}`);
   }
 
   return response.json() as Promise<ControlDeviceLink>;

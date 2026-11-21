@@ -104,6 +104,7 @@ function buildSavingsAreaPath(values: number[], maxValue: number) {
 
 export default function MainMenuView() {
   const navigate = useNavigate();
+  const tuya = useI18n("tuya").t;
   const session = getSessionData();
   const { group, locale, t } = useI18n("mainMenu");
   const common = useI18n("common").t;
@@ -370,6 +371,14 @@ export default function MainMenuView() {
       detail: t("accountSettingsDescription"),
       to: "/account/settings",
       icon: "A",
+      hasError: false
+    },
+    {
+      key: "tuyaAccounts",
+      title: tuya("accountsTitle"),
+      detail: tuya("accountsDescription"),
+      to: "/tuya/accounts",
+      icon: "T",
       hasError: false
     },
     {

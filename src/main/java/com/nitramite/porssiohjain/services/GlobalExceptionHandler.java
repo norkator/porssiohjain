@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.file.AccessDeniedException;
+import java.util.Locale;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -30,8 +31,8 @@ public class GlobalExceptionHandler {
     private final I18nService i18n;
 
     @ExceptionHandler(TuyaException.class)
-    public ResponseEntity<Map<String, Object>> handleTuyaError(TuyaException ex) {
-        String message = i18n.t(ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleTuyaError(TuyaException ex, Locale locale) {
+        String message = i18n.tForLocale(locale, ex.getMessage());
         if (!ex.code().isBlank()) message += " (" + ex.code() + ")";
         return handleBadRequest(new IllegalArgumentException(message));
     }

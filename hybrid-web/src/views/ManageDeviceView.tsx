@@ -11,6 +11,7 @@
 
 import ModalScrollLock from "@/components/ModalScrollLock";
 import PageHeader from "@/components/PageHeader";
+import TuyaDeviceCard from "@/components/TuyaDeviceCard";
 import { getAvailableTimezones } from "@/lib/add-device-flow";
 import {
   deleteDevice,
@@ -46,7 +47,7 @@ export default function ManageDeviceView() {
   const navigate = useNavigate();
   const params = useParams();
   const deviceId = Number(params.deviceId);
-  const availableTimezones = useMemo(() => getAvailableTimezones(), []);
+  const availableTimezones = useMemo(() => [...new Set(["UTC", ...getAvailableTimezones()])], []);
   const [device, setDevice] = useState<ApiDevice | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export default function ManageDeviceView() {
     acType: "NONE" as AcType,
     acUsername: ""
   });
-  const timezoneIsValid = availableTimezones.includes(timezone);
+  const timezoneIsValid = timezone === device?.timezone || availableTimezones.includes(timezone);
   const isHeatPump = deviceType === "HEAT_PUMP";
   const hasAcCredentials = acUsername.trim().length > 0 && acPassword.trim().length > 0;
   const heatPumpReady =
@@ -253,6 +254,15 @@ export default function ManageDeviceView() {
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : t("failedDelete"));
       setIsDeleting(false);
+    }
+  };
+
+  const refreshDeviceStatus = async () => {
+    try {
+      const { apiOnline, lastCommunication } = await fetchDevice(deviceId);
+      setDevice((current) => current?.id === deviceId ? { ...current, apiOnline, lastCommunication } : current);
+    } catch {
+      // The card already has the result of the Tuya request.
     }
   };
 
@@ -526,6 +536,10 @@ export default function ManageDeviceView() {
                 ) : null}
               </form>
 
+              {isTuya && device && !device.shared && device.id === deviceId && (
+                <TuyaDeviceCard device={device} disabled={isSaving || isDeleting} key={deviceId} onStatusChanged={refreshDeviceStatus} />
+              )}
+
               {isStandard ? (
                 <section className="app-card min-w-0 space-y-6 overflow-hidden p-4 sm:p-6">
                   <div>
@@ -590,10 +604,12 @@ export default function ManageDeviceView() {
                     <span className="metric-label">API</span>
                     <p className="font-semibold text-on-surface">{device?.apiOnline ? t("online") : t("offline")}</p>
                   </div>
-                  <div>
-                    <span className="metric-label">MQTT</span>
-                    <p className="font-semibold text-on-surface">{device?.mqttOnline ? t("online") : t("offline")}</p>
-                  </div>
+                  {!isTuya && (
+                    <div>
+                      <span className="metric-label">MQTT</span>
+                      <p className="font-semibold text-on-surface">{device?.mqttOnline ? t("online") : t("offline")}</p>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="app-card p-4 sm:p-6">

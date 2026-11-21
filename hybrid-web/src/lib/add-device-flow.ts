@@ -68,6 +68,13 @@ export const DEVICE_TYPE_OPTIONS: DeviceTypeOption[] = [
       "Before continuing, make sure your Mitsubishi heat pump is already available in MELCloud or MELCloud Home."
   },
   {
+    id: "tuya-smart",
+    title: "Tuya Smart",
+    description: "Import relays and temperature sensors from your linked Tuya Smart accounts.",
+    icon: "T",
+    setupNotice: "Add the device in the Tuya Smart app before importing it."
+  },
+  {
     id: "openbeken",
     title: "OpenBeken",
     description: "OpenBeken devices using MQTT control.",

@@ -1,20 +1,20 @@
 # Tuya Smart integration
 
-Pörssiohjain provides a Vaadin integration for linking named Tuya Smart accounts, selecting devices from their homes, polling sensor readings and relay states, and using imported temperature sensors in Heating Planner. Account linking, discovery, sensor import, and manual polling were confirmed with one physical temperature/humidity sensor on 2026-10-15. Scheduled polling and Heating Planner support require deployment of the new measurement migration and live validation.
+Pörssiohjain integrates with Tuya Smart to link named accounts, select devices from their homes, poll sensor readings and relay states, and use imported temperature sensors in Heating Planner. The Vaadin flow for account linking, discovery, sensor import, and manual polling was confirmed with one physical temperature/humidity sensor on 2026-10-15. Scheduled polling and Heating Planner support require deployment of the new measurement migration and live validation.
 
 The connector is implemented in Java. It uses the sharing protocol from Tuya's Python SDK without requiring Python, a separate connector process, or a Home Assistant installation.
 
 ## Scope
 
 - Multiple named Tuya account connections per Pörssiohjain account. Each imported device keeps its own connection; homes and discovery use the explicitly selected account.
-- Connection setup, device selection, and manual polling in Vaadin's **Devices** view; background polling every 30 minutes for enabled imported devices with a saved connection.
+- Connection setup, device selection, and manual polling in Vaadin and hybrid-web. Enabled imported devices with a saved connection are polled in the background every 30 minutes.
 - Imported devices use `DevicePlatform.TUYA_SMART`, with `DeviceType.TEMPERATURE_SENSOR` for sensors or `DeviceType.STANDARD` for relays.
 - Readings for temperature, humidity, battery percentage/state, and Boolean relay channels. Writable relay channels support manual switching and control automation.
 - Normalized numeric measurement history, retained for one month, and explicit room/floor sensor selection in Heating Planner.
 
-Account linking, import and manual switching are available in Vaadin. Both clients can assign imported relays to controls. Existing devices remain in the Tuya Smart app. The existing Heating Planner widget summary can expose the selected sensors through its common measurement service.
+Both clients share the same linked accounts and imported devices. In hybrid-web, open **Site & Account → Tuya Smart accounts** to link or manage an account. Open **My Devices → Add new device → Tuya Smart** to import a device or go to the same account screen. The imported device's **Manage** page shows a **Tuya Smart** card with cloud polling and any writable relay channels. Both clients can assign imported relays to controls. Existing devices remain in the Tuya Smart app. The existing Heating Planner widget summary can expose the selected sensors through its common measurement service.
 
-## Link an account and add a device
+## Link an account and add a device in Vaadin
 
 1. Open **Devices → Tuya Smart accounts**. The add-device form also provides this connection action.
 2. Choose **Add Tuya account**, enter a recognizable local **Account name**, and find **User Code** in Tuya Smart under **Me → Settings → Account and Security**. Enter it in the required **Tuya User Code** field. **Generate new QR code** stays disabled while the field is blank or contains only whitespace.

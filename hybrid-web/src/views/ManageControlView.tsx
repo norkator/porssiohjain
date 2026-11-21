@@ -94,6 +94,7 @@ export default function ManageControlView() {
   const [thermostatLinkCount, setThermostatLinkCount] = useState(0);
   const [isLoadingLinks, setIsLoadingLinks] = useState(false);
   const [linksError, setLinksError] = useState<string | null>(null);
+  const [deviceLinkError, setDeviceLinkError] = useState<string | null>(null);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [deviceChannel, setDeviceChannel] = useState("1");
   const [estimatedPowerKw, setEstimatedPowerKw] = useState("");
@@ -123,6 +124,7 @@ export default function ManageControlView() {
   const channelNumber = Number(deviceChannel);
   const canAddLink =
     Boolean(selectedDevice) &&
+    deviceChannel.trim() !== "" &&
     Number.isInteger(channelNumber) &&
     channelNumber >= 0 &&
     !linkedDeviceKeys.has(`${selectedDevice?.id}:${channelNumber}`) &&
@@ -133,6 +135,7 @@ export default function ManageControlView() {
     setSelectedDeviceId("");
     setDeviceChannel("1");
     setEstimatedPowerKw("");
+    setDeviceLinkError(null);
   };
 
   useEffect(() => {
@@ -310,7 +313,7 @@ export default function ManageControlView() {
     }
 
     setIsAddingLink(true);
-    setLinksError(null);
+    setDeviceLinkError(null);
 
     try {
       const payload = {
@@ -319,18 +322,17 @@ export default function ManageControlView() {
         estimatedPowerKw: estimatedPowerKw.trim().length > 0 ? Math.max(0, toNumber(estimatedPowerKw)) : null
       };
 
-      if (editingDeviceLinkId === null) {
-        await addControlDeviceLink(controlId, payload);
-      } else {
-        await updateControlDeviceLink(editingDeviceLinkId, payload);
-      }
-
-      const linksResponse = await fetchControlDeviceLinks(controlId);
-      setDeviceLinks(linksResponse);
+      const saved = editingDeviceLinkId === null
+        ? await addControlDeviceLink(controlId, payload)
+        : await updateControlDeviceLink(editingDeviceLinkId, payload);
+      setDeviceLinks((current) => [
+        ...current.filter((link) => link.id !== saved.id),
+        { ...saved, device: selectedDevice }
+      ]);
       resetDeviceLinkForm();
       setIsDeviceLinkDialogOpen(false);
     } catch (error) {
-      setLinksError(error instanceof Error ? error.message : editingDeviceLinkId === null ? t("failedLinkDevice") : t("failedUpdateDeviceRule"));
+      setDeviceLinkError(error instanceof Error ? error.message : editingDeviceLinkId === null ? t("failedLinkDevice") : t("failedUpdateDeviceRule"));
     } finally {
       setIsAddingLink(false);
     }
@@ -344,6 +346,7 @@ export default function ManageControlView() {
   };
 
   const handleEditDeviceLink = (link: ControlDeviceLink) => {
+    setDeviceLinkError(null);
     setActiveDeviceTab("STANDARD");
     setEditingDeviceLinkId(link.id);
     setDeleteLinkConfirmId((current) => (current === link.id ? null : current));
@@ -819,6 +822,7 @@ export default function ManageControlView() {
         description={t("description")}
         isOpen={isDeviceLinkDialogOpen}
         onClose={() => {
+          if (isAddingLink) return;
           resetDeviceLinkForm();
           setIsDeviceLinkDialogOpen(false);
         }}
@@ -831,17 +835,25 @@ export default function ManageControlView() {
             </label>
             <select
               className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+              disabled={isAddingLink}
               id="standard-device-dialog"
               onChange={(event) => {
                 const device = selectableDevices.find((item) => String(item.id) === event.target.value);
                 setSelectedDeviceId(event.target.value);
-                if (device?.devicePlatform === "TUYA_SMART" && editingDeviceLinkId === null) setDeviceChannel("0");
+                setDeviceLinkError(null);
+                if (device?.devicePlatform === "TUYA_SMART" && selectedDevice?.devicePlatform !== "TUYA_SMART") {
+                  setDeviceChannel("0");
+                } else if (device && device.devicePlatform !== "TUYA_SMART" && selectedDevice?.devicePlatform === "TUYA_SMART") {
+                  setDeviceChannel("1");
+                }
               }}
               value={selectedDeviceId}
             >
               <option value="">{common("selectStandardDevice")}</option>
               {selectableDevices.map((device) => (
-                <option key={device.id} value={device.id}>{device.deviceName}</option>
+                <option key={device.id} value={device.id}>
+                  {device.deviceName}{device.devicePlatform === "TUYA_SMART" ? " (Tuya Smart)" : ""}
+                </option>
               ))}
             </select>
           </div>
@@ -853,9 +865,11 @@ export default function ManageControlView() {
               </label>
               <input
                 className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                disabled={isAddingLink}
                 id="device-channel-dialog"
                 min="0"
-                onChange={(event) => setDeviceChannel(event.target.value)}
+                onChange={(event) => { setDeviceChannel(event.target.value); setDeviceLinkError(null); }}
+                required
                 step="1"
                 type="number"
                 value={deviceChannel}
@@ -870,6 +884,7 @@ export default function ManageControlView() {
               </label>
               <input
                 className="w-full rounded-t-lg border-none border-b-2 border-transparent bg-surface-container-highest px-4 py-3 text-on-surface outline-none transition-all focus:border-primary"
+                disabled={isAddingLink}
                 id="estimated-power-dialog"
                 min="0"
                 onChange={(event) => setEstimatedPowerKw(event.target.value)}
@@ -885,11 +900,13 @@ export default function ManageControlView() {
             <p className="text-sm text-on-error-container">{t("alreadyLinked")}</p>
           ) : null}
 
+          {deviceLinkError && <p className="rounded-xl bg-error-container/50 p-3 text-sm text-on-error-container" role="alert">{deviceLinkError}</p>}
+
           <div className="grid grid-cols-2 gap-3">
             <button className="secondary-action justify-center disabled:cursor-not-allowed disabled:opacity-60" disabled={!canAddLink} type="submit">
               {isAddingLink ? (editingDeviceLinkId === null ? t("linking") : t("savingDeviceRule")) : editingDeviceLinkId === null ? common("linkStandardDevice") : t("saveDeviceRule")}
             </button>
-            <button className="secondary-action justify-center" onClick={() => {
+            <button className="secondary-action justify-center disabled:opacity-60" disabled={isAddingLink} onClick={() => {
               resetDeviceLinkForm();
               setIsDeviceLinkDialogOpen(false);
             }} type="button">

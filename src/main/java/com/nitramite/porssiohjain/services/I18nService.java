@@ -32,12 +32,16 @@ public class I18nService {
         Locale locale = UI.getCurrent() != null
                 ? UI.getCurrent().getLocale()
                 : Locale.getDefault();
-        return messageSource.getMessage(key, args, locale);
+        return tForLocale(locale, key, args);
     }
 
     /** The base bundle is English, independently of the desktop or system locale. */
     public String tEnglish(String key, Object... args) {
         return messageSource.getMessage(key, args, Locale.ROOT);
+    }
+
+    public String tForLocale(Locale locale, String key, Object... args) {
+        return messageSource.getMessage(key, args, locale);
     }
 
 }

@@ -124,3 +124,9 @@ export async function apiGetJson<T>(path: string, init?: RequestInit) {
 
   return response.json() as Promise<T>;
 }
+
+export async function readApiErrorMessage(response: Response) {
+  if (![400, 403, 409].includes(response.status)) return null;
+  const body = await response.json().catch(() => null) as { message?: unknown } | null;
+  return typeof body?.message === "string" ? body.message : null;
+}
