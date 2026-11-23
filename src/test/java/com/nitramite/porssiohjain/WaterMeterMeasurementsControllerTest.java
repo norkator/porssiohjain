@@ -63,7 +63,7 @@ class WaterMeterMeasurementsControllerTest {
         var at = Instant.parse("2026-11-05T10:00:00Z");
         when(query.latest(7L)).thenReturn(List.of(new WaterMeterWidgetQueryService.Reading(12L, "Home water",
                 Type.WATER_METER_TOTAL, "total_m3", "WATER_METER", "WRM_SYSTEMS_WMD", "m³",
-                new BigDecimal("21.25"), at, null, at, false, null)));
+                new BigDecimal("21.25"), at, null, at, false, null, null)));
         mvc.perform(get("/api/measurements/water-meters/latest").header("Authorization", "raw-token"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].deviceId").value(12))
                 .andExpect(jsonPath("$[0].value").value(21.25)).andExpect(jsonPath("$[0].measuredAt").isEmpty())

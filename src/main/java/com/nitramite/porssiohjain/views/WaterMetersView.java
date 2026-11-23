@@ -330,8 +330,14 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
                     row.consumptionDate() == null ? row.observedAt()
                             : row.consumptionDate().plusDays(1).atStartOfDay(ZoneId.of("Europe/Helsinki")).toInstant(),
                     row.totalCubicMeters().doubleValue())).toList();
-            var chart = DeviceMeasurementHistoryChart.history(points, ZoneId.of("Europe/Helsinki"),
-                    t("waterMeters.latest"), "m³", t("waterMeters.observedAt"), t("waterMeters.noHistory"),
+            var estimate = selected.provider() == WaterMeterProvider.TAMPEREEN_VESI
+                    ? meters.estimate(account.getId(), selected.id(), Instant.now()) : null;
+            var estimatedPoints = estimate == null ? java.util.List.<DeviceMeasurementHistoryChart.HistoryPoint>of()
+                    : estimate.totalPoints().stream().map(point -> new DeviceMeasurementHistoryChart.HistoryPoint(
+                            point.at(), point.value().doubleValue())).toList();
+            var chart = DeviceMeasurementHistoryChart.estimatedHistory(points, estimatedPoints, ZoneId.of("Europe/Helsinki"),
+                    t("waterMeters.latest"), t("waterMeters.estimate.series"), "m³",
+                    t(selected.provider() == WaterMeterProvider.TAMPEREEN_VESI ? "waterMeters.estimate.time" : "waterMeters.observedAt"), t("waterMeters.noHistory"),
                     UI.getCurrent().getLocale().toLanguageTag());
             Grid<WaterMeterService.Measurement> table = new Grid<>(WaterMeterService.Measurement.class, false);
             table.addColumn(row -> format(row.observedAt())).setHeader(t("waterMeters.observedAt")).setAutoWidth(true);
@@ -341,6 +347,9 @@ public class WaterMetersView extends VerticalLayout implements BeforeEnterObserv
             table.setHeight("260px");
             table.getStyle().set("flex-shrink", "0");
             VerticalLayout content = new VerticalLayout(new Paragraph(t("waterMeters.snapshotHint")), chart, table);
+            if (estimate != null) content.addComponentAtIndex(1, new Paragraph(t("waterMeters.estimate.hint",
+                    estimate.total().basedOnDays(), formatCubicMeters(estimate.total().averageDailyCubicMeters()),
+                    formatCubicMeters(estimate.total().value()), format(estimate.total().at()))));
             content.setPadding(false);
             content.setWidthFull();
             content.setAlignItems(Alignment.STRETCH);

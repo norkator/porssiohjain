@@ -26,20 +26,26 @@ public class WaterMeterWidgetQueryService {
     private final WaterMeasurementRepository measurements;
 
     public List<Reading> latest(Long accountId) {
+        return latest(accountId, Instant.now());
+    }
+
+    List<Reading> latest(Long accountId, Instant now) {
         requireAccount(accountId);
         List<Reading> result = new ArrayList<>();
         for (var meter : meters.findByAccountIdOrderByNameAscIdAsc(accountId)) {
+            var estimate = WaterMeterEstimation.estimate(meter, accountId, measurements, now);
             if (meter.getLatestTotalCubicMeters() != null && meter.getObservedAt() != null)
-                result.add(total(meter));
+                result.add(total(meter, estimate));
             measurements.findFirstByWaterMeterIdAndWaterMeterAccountIdAndConsumptionDateIsNotNullAndConsumptionCubicMetersIsNotNullOrderByConsumptionDateDescIdDesc(
-                    meter.getId(), accountId).ifPresent(row -> result.add(daily(meter, row)));
+                    meter.getId(), accountId).ifPresent(row -> result.add(daily(meter, row, estimate)));
         }
         return result;
     }
 
     public History history(Long accountId, Long meterId, Type type, String key, int hours, Instant now) {
         requireAccount(accountId);
-        if (meterId == null || meterId <= 0 || type == null || !key(type).equals(key) || (hours != 24 && hours != 48))
+        if (meterId == null || meterId <= 0 || type == null || !key(type).equals(key)
+                || (hours != 24 && hours != 48 && hours != 168))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid water measurement or history period");
         var meter = meters.findByIdAndAccountId(meterId, accountId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.GONE, "Water measurement unavailable"));
@@ -50,11 +56,33 @@ public class WaterMeterWidgetQueryService {
                 .map(row -> new Point(pointTime(row), value(row, type), row.getConsumptionDate()))
                 .filter(point -> !point.observedAt().isBefore(from) && point.observedAt().isBefore(now))
                 .sorted(Comparator.comparing(Point::observedAt)).toList();
+        var estimate = WaterMeterEstimation.estimate(meter, accountId, measurements, now);
         Reading latest = type == Type.WATER_METER_TOTAL
-                ? (meter.getLatestTotalCubicMeters() == null || meter.getObservedAt() == null ? null : total(meter))
+                ? (meter.getLatestTotalCubicMeters() == null || meter.getObservedAt() == null ? null : total(meter, estimate))
                 : measurements.findFirstByWaterMeterIdAndWaterMeterAccountIdAndConsumptionDateIsNotNullAndConsumptionCubicMetersIsNotNullOrderByConsumptionDateDescIdDesc(
-                        meterId, accountId).map(row -> daily(meter, row)).orElse(null);
-        return new History(meterId, type, key, from, now, latest, points);
+                        meterId, accountId).map(row -> daily(meter, row, estimate)).orElse(null);
+        return new History(meterId, type, key, from, now, latest, points, projectedPoints(estimate, type, from));
+    }
+
+    private static List<Point> projectedPoints(WaterMeterEstimation.Result estimate, Type type, Instant from) {
+        if (estimate == null) return List.of();
+        var source = type == Type.WATER_METER_TOTAL ? estimate.totalPoints() : estimate.dailyPoints();
+        List<Point> points = new ArrayList<>();
+        WaterMeterEstimation.Point previous = null;
+        for (var point : source) {
+            if (!point.at().isBefore(from)) {
+                if (points.isEmpty() && previous != null && point.at().isAfter(from)) {
+                    var fraction = BigDecimal.valueOf(Duration.between(previous.at(), from).toMillis())
+                            .divide(BigDecimal.valueOf(Duration.between(previous.at(), point.at()).toMillis()),
+                                    12, java.math.RoundingMode.HALF_UP);
+                    points.add(new Point(from, previous.value().add(point.value().subtract(previous.value()).multiply(fraction)),
+                            point.consumptionDate()));
+                }
+                points.add(new Point(point.at(), point.value(), point.consumptionDate()));
+            }
+            previous = point;
+        }
+        return points;
     }
 
     private static Instant pointTime(WaterMeasurementEntity row) {
@@ -65,17 +93,19 @@ public class WaterMeterWidgetQueryService {
         return type == Type.WATER_METER_TOTAL ? row.getTotalCubicMeters() : row.getConsumptionCubicMeters();
     }
     private static String key(Type type) { return type == Type.WATER_METER_TOTAL ? "total_m3" : "daily_m3"; }
-    private static Reading total(WaterMeterEntity meter) {
+    private static Reading total(WaterMeterEntity meter, WaterMeterEstimation.Result estimate) {
         return reading(meter, Type.WATER_METER_TOTAL, meter.getLatestTotalCubicMeters(), meter.getObservedAt(),
-                meter.getConsumptionThrough());
+                meter.getConsumptionThrough(), estimate == null ? null : estimate.total());
     }
-    private static Reading daily(WaterMeterEntity meter, WaterMeasurementEntity row) {
-        return reading(meter, Type.WATER_CONSUMPTION, row.getConsumptionCubicMeters(), row.getObservedAt(), row.getConsumptionDate());
+    private static Reading daily(WaterMeterEntity meter, WaterMeasurementEntity row, WaterMeterEstimation.Result estimate) {
+        return reading(meter, Type.WATER_CONSUMPTION, row.getConsumptionCubicMeters(), row.getObservedAt(), row.getConsumptionDate(),
+                estimate == null ? null : estimate.daily());
     }
-    private static Reading reading(WaterMeterEntity meter, Type type, BigDecimal value, Instant observed, LocalDate date) {
+    private static Reading reading(WaterMeterEntity meter, Type type, BigDecimal value, Instant observed, LocalDate date,
+                                   WaterMeterEstimation.Estimate estimate) {
         return new Reading(meter.getId(), meter.getName(), type, key(type), "WATER_METER", meter.getProvider().name(),
                 "m³", value, observed, null, observed,
-                type == Type.WATER_METER_TOTAL && meter.getProvider() == WaterMeterProvider.TAMPEREEN_VESI, date);
+                type == Type.WATER_METER_TOTAL && meter.getProvider() == WaterMeterProvider.TAMPEREEN_VESI, date, estimate);
     }
     private static void requireAccount(Long id) {
         if (id == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
@@ -83,8 +113,8 @@ public class WaterMeterWidgetQueryService {
     // deviceId is the water-meter ID in this separate namespace. Type/key distinguish it in widget selections.
     public record Reading(Long deviceId, String deviceName, Type measurementType, String measurementKey, String source,
                           String sourceKey, String unit, BigDecimal value, Instant observedAt, Instant measuredAt,
-                          Instant receivedAt, boolean calculated, LocalDate consumptionDate) { }
+                          Instant receivedAt, boolean calculated, LocalDate consumptionDate, WaterMeterEstimation.Estimate estimate) { }
     public record Point(Instant observedAt, BigDecimal value, LocalDate consumptionDate) { }
     public record History(Long deviceId, Type measurementType, String measurementKey, Instant from, Instant to,
-                          Reading latest, List<Point> points) { }
+                          Reading latest, List<Point> points, List<Point> estimatedPoints) { }
 }

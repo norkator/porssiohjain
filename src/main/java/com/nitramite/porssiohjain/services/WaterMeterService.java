@@ -119,6 +119,13 @@ public class WaterMeterService {
     }
 
     @Transactional(readOnly = true)
+    public WaterMeterEstimation.Result estimate(Long accountId, Long id, Instant now) {
+        requireAccount(accountId);
+        var meter = meters.findByIdAndAccountId(id, accountId).orElseThrow(() -> error("notFound"));
+        return WaterMeterEstimation.estimate(meter, accountId, measurements, now);
+    }
+
+    @Transactional(readOnly = true)
     public List<MeterReference> enabledForPolling() {
         return meters.findEnabledForPolling().stream()
                 .map(meter -> new MeterReference(meter.getAccount().getId(), meter.getId())).toList();

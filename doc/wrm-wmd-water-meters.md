@@ -138,7 +138,7 @@ The original `/api/measurements/latest` and `/history` endpoints, common device
 measurement enum, storage, Measurements view and public sharing remain unchanged.
 `WaterMeterMeasurementsController` and `WaterMeterWidgetQueryService` expose only
 owned meters and account-scoped stored history; they never contact the provider.
-History rejects invalid type/key combinations or periods other than 24/48 hours
+History rejects invalid type/key combinations or periods other than 24/48/168 hours
 with 400, and unowned/deleted meters with 410. Authentication uses the same raw
 account token as existing measurement widgets. Silent/disabled meters retain
 cached values; unpolled meters have no fabricated zero reading.
@@ -162,5 +162,37 @@ The latest response always preserves the original fetch time. The Android app
 merges water choices into its widget picker, routes water history to the new
 endpoint, and leaves existing device widget refresh requests unchanged. Existing
 session/environment isolation, raw-token renewal, cached-offline handling and
-24/48-hour selections are reused. A new backend and Android build are required;
+24/48-hour selections are reused; water series additionally offer **Last 7 days**
+(168 elapsed hours). Device measurement periods remain 24/48 hours.
+A new backend and Android build are required;
 no installed phone is updated automatically.
+
+### Delayed-data estimates
+
+Enabled Tampereen Vesi meters can project the reporting gap through the current
+instant. The mean uses the latest two to seven consecutive reported consumption
+days ending at `consumptionThrough`, bounded by the current baseline date. Zero
+usage is valid; missing or negative usage is not treated as zero. Estimates are
+suppressed without two usable days, when coverage is more than seven local days
+old, or when an internal missing day precedes known later usage. WRM is unchanged.
+
+The cumulative projection starts at the saved calculated total at midnight after
+the last covered day. Each missing complete Helsinki day adds the mean; today's
+usage is prorated by its elapsed fraction, using the real 23/24/25-hour day length.
+Daily-consumption estimates similarly show full missing days and today's partial
+usage. Neither fetch time nor a device measurement timestamp is fabricated.
+
+Widget readings retain their actual `value`, `observedAt`, and `consumptionDate`,
+and add nullable `estimate: {value, at, averageDailyCubicMeters, basedOnDays}`.
+History adds `estimatedPoints` separately from actual `points`. Actual history
+remains half-open; the projection explicitly includes `to` so it reaches now.
+An estimated series includes its last actual anchor, or an interpolated point at
+`from` if the anchor precedes the window. A short history can contain estimates
+even when all actual readings precede its window.
+
+Vaadin and Android draw estimates as a faint dashed line. The desktop explains
+the averaging inputs; Android labels estimated current totals/daily usage and
+retains the original reported coverage in accessibility text. Offline widgets
+keep the estimate's original timestamp instead of extrapolating locally.
+Estimates are calculated on reads, never saved to measurement history, and never
+used by scheduled push notifications. No schema migration is needed.

@@ -7,6 +7,8 @@ import java.util.List;
 
 public interface WaterMeasurementRepository extends JpaRepository<WaterMeasurementEntity, Long> {
     List<WaterMeasurementEntity> findByWaterMeterIdAndWaterMeterAccountIdOrderByObservedAtAscIdAsc(Long meterId, Long accountId);
+    List<WaterMeasurementEntity> findByWaterMeterIdAndWaterMeterAccountIdAndConsumptionDateBetweenOrderByConsumptionDateAsc(
+            Long meterId, Long accountId, java.time.LocalDate from, java.time.LocalDate to);
     java.util.Optional<WaterMeasurementEntity> findFirstByWaterMeterIdAndWaterMeterAccountIdAndConsumptionDateIsNotNullAndConsumptionCubicMetersIsNotNullOrderByConsumptionDateDescIdDesc(
             Long meterId, Long accountId);
 

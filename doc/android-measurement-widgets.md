@@ -31,6 +31,11 @@ instants, so rolling periods stay exactly 24/48 hours across DST.
 Deploy these backend endpoints before distributing the Android widget build.
 No Vaadin, database migration, or hybrid-web change is required.
 
+Water-meter widgets use a separate API and additionally support 168-hour
+history, with explicitly separated delayed-data estimates for Tampereen Vesi.
+See [Water meters](wrm-wmd-water-meters.md#delayed-data-estimates) for this contract;
+the device endpoints above still accept only 24/48 hours.
+
 Verification: `./gradlew compileJava test --tests '*MeasurementsControllerTest'
 --tests '*MeasurementWidgetQueryServiceTest' --tests '*DeviceMeasurementServiceTest'
 --tests '*PublicMeasurementPersistenceTest'`.

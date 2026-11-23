@@ -88,9 +88,40 @@ class WaterMeterWidgetQueryServiceTest {
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("410");
         assertThatThrownBy(() -> service.history(7L,12L,WaterMeterWidgetQueryService.Type.WATER_METER_TOTAL,"daily_m3",24,now))
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("400");
-        assertThatThrownBy(() -> service.history(7L,12L,WaterMeterWidgetQueryService.Type.WATER_METER_TOTAL,"total_m3",168,now))
+        assertThatThrownBy(() -> service.history(7L,12L,WaterMeterWidgetQueryService.Type.WATER_METER_TOTAL,"total_m3",72,now))
                 .isInstanceOf(ResponseStatusException.class).hasMessageContaining("400");
         assertThatThrownBy(() -> service.latest(null)).isInstanceOf(ResponseStatusException.class).hasMessageContaining("401");
         verifyNoInteractions(measurements);
+    }
+
+    @Test void sevenDayWaterHistoryRetainsActualsAndAddsSeparateEstimatesThroughNow() {
+        var selected = WaterMeterEstimationTest.meter(LocalDate.of(2026, 10, 24));
+        when(meters.findByIdAndAccountId(12L, 7L)).thenReturn(Optional.of(selected));
+        when(meters.findByAccountIdOrderByNameAscIdAsc(7L)).thenReturn(List.of(selected));
+        var actual = daily(selected.getConsumptionThrough());
+        when(measurements.findWidgetHistory(eq(12L), eq(7L), any(), any(), any(), any())).thenReturn(List.of(actual));
+        when(measurements.findByWaterMeterIdAndWaterMeterAccountIdAndConsumptionDateBetweenOrderByConsumptionDateAsc(
+                eq(12L), eq(7L), any(), any())).thenReturn(List.of(actual, daily(selected.getConsumptionThrough().minusDays(1))));
+        var result = service.history(7L, 12L, WaterMeterWidgetQueryService.Type.WATER_METER_TOTAL, "total_m3", 168, now);
+        assertThat(Duration.between(result.from(), result.to())).isEqualTo(Duration.ofHours(168));
+        assertThat(result.points()).hasSize(1);
+        assertThat(result.latest().value()).isEqualByComparingTo("100");
+        assertThat(result.latest().observedAt()).isEqualTo(selected.getObservedAt());
+        assertThat(result.latest().estimate().value()).isGreaterThan(result.latest().value());
+        assertThat(result.estimatedPoints().getLast().observedAt()).isEqualTo(now);
+        assertThat(service.latest(7L, now).getFirst().estimate()).isEqualTo(result.latest().estimate());
+    }
+
+    @Test void shortWindowCanContainOnlyEstimatesClippedAtTheWindowStart() {
+        var selected = WaterMeterEstimationTest.meter(LocalDate.of(2026, 10, 23));
+        when(meters.findByIdAndAccountId(12L, 7L)).thenReturn(Optional.of(selected));
+        when(measurements.findByWaterMeterIdAndWaterMeterAccountIdAndConsumptionDateBetweenOrderByConsumptionDateAsc(
+                eq(12L), eq(7L), any(), any())).thenReturn(List.of(daily(selected.getConsumptionThrough()),
+                daily(selected.getConsumptionThrough().minusDays(1))));
+        var result = service.history(7L, 12L, WaterMeterWidgetQueryService.Type.WATER_METER_TOTAL, "total_m3", 24, now);
+        assertThat(result.points()).isEmpty();
+        assertThat(result.estimatedPoints().getFirst().observedAt()).isEqualTo(result.from());
+        assertThat(result.estimatedPoints().getLast().observedAt()).isEqualTo(now);
+        assertThat(result.estimatedPoints()).allMatch(point -> !point.observedAt().isBefore(result.from()));
     }
 }

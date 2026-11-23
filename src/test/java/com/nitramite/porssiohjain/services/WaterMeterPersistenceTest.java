@@ -80,6 +80,10 @@ class WaterMeterPersistenceTest {
                         java.time.LocalDate.of(2026,10,22), java.time.LocalDate.of(2026,10,23)).size());
                 assertTrue(history.findWidgetHistory(id, -1L, observed.minusSeconds(1), observed.plusSeconds(1),
                         java.time.LocalDate.of(2026,10,22), java.time.LocalDate.of(2026,10,23)).isEmpty());
+                assertEquals(1, history.findByWaterMeterIdAndWaterMeterAccountIdAndConsumptionDateBetweenOrderByConsumptionDateAsc(
+                        id, account.getId(), java.time.LocalDate.of(2026,10,22), java.time.LocalDate.of(2026,10,22)).size());
+                assertTrue(history.findByWaterMeterIdAndWaterMeterAccountIdAndConsumptionDateBetweenOrderByConsumptionDateAsc(
+                        id, -1L, java.time.LocalDate.of(2026,10,22), java.time.LocalDate.of(2026,10,23)).isEmpty());
                 Object[] stored = session.createNativeQuery("select username, password from water_meter where id = :id", Object[].class)
                         .setParameter("id", id).getSingleResult();
                 assertFalse(stored[0].toString().contains("private"));
