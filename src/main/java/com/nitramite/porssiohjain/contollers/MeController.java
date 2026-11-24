@@ -167,7 +167,8 @@ public class MeController {
                 authContext.getAccountId(),
                 request.getToken(),
                 request.getPlatform(),
-                request.getDeviceName()
+                request.getDeviceName(),
+                request.isStoveActionsSupported()
         );
     }
 

@@ -50,6 +50,38 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class PushNotificationServiceTest {
 
+    @Test void woodPushIsDataOnlyOnAndroidSoBackgroundNotificationsCanHaveActions() {
+        var multicast = PushNotificationService.buildMessage(java.util.List.of("fixture-token"), "Light the stove", "Wood body",
+                Map.of("type", "HEATING_PLANNER_WOOD_RECOMMENDATION", "siteId", "7", "recommendationId", "12"), true);
+        java.util.List<?> messages = org.springframework.test.util.ReflectionTestUtils.invokeMethod(multicast, "getMessageList");
+        Object message = messages.getFirst();
+        org.junit.jupiter.api.Assertions.assertNull(org.springframework.test.util.ReflectionTestUtils.getField(message, "notification"));
+        Object android = org.springframework.test.util.ReflectionTestUtils.getField(message, "androidConfig");
+        assertEquals("high", org.springframework.test.util.ReflectionTestUtils.getField(android, "priority"));
+        @SuppressWarnings("unchecked") var data = (Map<String, String>) org.springframework.test.util.ReflectionTestUtils.getField(message, "data");
+        assertEquals("Light the stove", data.get("title"));
+        assertEquals("Wood body", data.get("body"));
+        assertEquals("12", data.get("recommendationId"));
+        org.junit.jupiter.api.Assertions.assertNotNull(org.springframework.test.util.ReflectionTestUtils.getField(message, "apnsConfig"));
+    }
+
+    @Test void otherPushTypesKeepTheirExistingAutomaticNotification() {
+        var multicast = PushNotificationService.buildMessage(java.util.List.of("fixture-token"), "Existing", "Existing body",
+                Map.of("type", "CONTROL_NOTIFICATION"), false);
+        java.util.List<?> messages = org.springframework.test.util.ReflectionTestUtils.invokeMethod(multicast, "getMessageList");
+        org.junit.jupiter.api.Assertions.assertNotNull(org.springframework.test.util.ReflectionTestUtils.getField(messages.getFirst(), "notification"));
+    }
+
+    @Test void olderAndroidInstallsKeepTheFullWoodNotification() {
+        var multicast = PushNotificationService.buildMessage(java.util.List.of("fixture-token"), "Light the stove", "Wood body",
+                Map.of("type", "HEATING_PLANNER_WOOD_RECOMMENDATION"), false);
+        java.util.List<?> messages = org.springframework.test.util.ReflectionTestUtils.invokeMethod(multicast, "getMessageList");
+        var notification = org.springframework.test.util.ReflectionTestUtils.getField(messages.getFirst(), "notification");
+        org.junit.jupiter.api.Assertions.assertNotNull(notification);
+        assertEquals("Light the stove", org.springframework.test.util.ReflectionTestUtils.getField(notification, "title"));
+        assertEquals("Wood body", org.springframework.test.util.ReflectionTestUtils.getField(notification, "body"));
+    }
+
     @Mock
     private MessageSource messageSource;
 

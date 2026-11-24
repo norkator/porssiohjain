@@ -169,6 +169,88 @@ class HeatingPlannerControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test void stoveReadinessReadIsAuthenticatedAndDoesNotCreateSettings() throws Exception {
+        long before = settingsRepository.count();
+        mvc.perform(get("/api/heating-planner/stove-readiness").param("siteId", site.getId().toString()))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/heating-planner/stove-readiness").header("Authorization", token).param("siteId", site.getId().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.configured").value(false))
+                .andExpect(jsonPath("$.stoveLoaded").isEmpty());
+        assertThat(settingsRepository.count()).isEqualTo(before);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/heating-planner/stove-readiness")
+                .header("Authorization", token).param("siteId", site.getId().toString()).contentType("application/json")
+                .content("{\"loaded\":true}")) .andExpect(status().isConflict());
+        assertThat(settingsRepository.count()).isEqualTo(before);
+    }
+
+    @Test void readinessChangesOnlyTheSelectedSitesLoadedFlagAndIsIdempotent() throws Exception {
+        var selected = settingsRepository.saveAndFlush(HeatingPlannerSettingsEntity.builder().account(owner).site(site)
+                .enabled(false).activeControlEnabled(false).heatPumpControlEnabled(false).stoveLoaded(false).build());
+        var otherSite = sites.saveAndFlush(SiteEntity.builder().account(owner).name("Cabin").type(SiteType.HOME).build());
+        var other = settingsRepository.saveAndFlush(HeatingPlannerSettingsEntity.builder().account(owner).site(otherSite).stoveLoaded(true).build());
+        owner.setDefaultHeatingPlannerSite(otherSite); accounts.saveAndFlush(owner);
+        for (boolean loaded : new boolean[]{true, true, false, false}) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/heating-planner/stove-readiness")
+                    .header("Authorization", token).param("siteId", site.getId().toString()).contentType("application/json")
+                    .content("{\"loaded\":" + loaded + "}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.site.id").value(site.getId()))
+                    .andExpect(jsonPath("$.stoveLoaded").value(loaded));
+            assertThat(selected.isStoveLoaded()).isEqualTo(loaded);
+            assertThat(other.isStoveLoaded()).isTrue();
+            assertThat(selected.isEnabled()).isFalse();
+            assertThat(selected.isActiveControlEnabled()).isFalse();
+            assertThat(selected.isHeatPumpControlEnabled()).isFalse();
+        }
+    }
+
+    @Test void notLoadedNotificationDeclinesAdvisoryAndClearsOtherOutstandingRecommendations() throws Exception {
+        var selected = settingsRepository.saveAndFlush(HeatingPlannerSettingsEntity.builder().account(owner).site(site).enabled(true).stoveLoaded(true).build());
+        var room = rooms.saveAndFlush(HeatingPlannerRoomEntity.builder().account(owner).site(site).settings(selected).name("Living room").build());
+        Instant now = Instant.now();
+        var plan = plans.saveAndFlush(HeatingPlannerPlanEntity.builder().account(owner).site(site).settings(selected)
+                .horizonStart(now).horizonEnd(now.plusSeconds(86400)).triggerReason("Readiness test").build());
+        var notified = wood.saveAndFlush(recommendation(selected, room, plan, now.plusSeconds(2700), HeatingPlannerWoodRecommendationStatus.SENT));
+        var pending = wood.saveAndFlush(recommendation(selected, room, plan, now.plusSeconds(5400), HeatingPlannerWoodRecommendationStatus.PENDING));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/heating-planner/stove-readiness")
+                .header("Authorization", token).param("siteId", site.getId().toString()).contentType("application/json")
+                .content("{\"loaded\":false,\"recommendationId\":" + notified.getId() + "}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.stoveLoaded").value(false));
+        assertThat(notified.getStatus()).isEqualTo(HeatingPlannerWoodRecommendationStatus.SKIPPED);
+        assertThat(pending.getStatus()).isEqualTo(HeatingPlannerWoodRecommendationStatus.SUPERSEDED);
+        assertThat(selected.isStoveLoaded()).isFalse();
+    }
+
+    @Test void readinessRejectsUnownedSitesMissingStatesAndForeignRecommendations() throws Exception {
+        var selected = settingsRepository.saveAndFlush(HeatingPlannerSettingsEntity.builder().account(owner).site(site).stoveLoaded(true).build());
+        var foreignAccount = accounts.saveAndFlush(AccountEntity.builder().uuid(UUID.randomUUID()).secret("fixture").build());
+        var foreign = sites.saveAndFlush(SiteEntity.builder().account(foreignAccount).name("Foreign").type(SiteType.HOME).build());
+        for (Long siteId : new Long[]{foreign.getId(), Long.MAX_VALUE}) {
+            mvc.perform(get("/api/heating-planner/stove-readiness").header("Authorization", token).param("siteId", siteId.toString()))
+                    .andExpect(status().isNotFound());
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/heating-planner/stove-readiness")
+                    .header("Authorization", token).param("siteId", siteId.toString()).contentType("application/json").content("{\"loaded\":false}"))
+                    .andExpect(status().isNotFound());
+        }
+        for (String body : new String[]{"{}", "{\"loaded\":null}", "{\"loaded\":false,\"recommendationId\":-1}",
+                "{\"loaded\":true,\"recommendationId\":1}"})
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/heating-planner/stove-readiness")
+                    .header("Authorization", token).param("siteId", site.getId().toString()).contentType("application/json").content(body))
+                    .andExpect(status().isBadRequest());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/heating-planner/stove-readiness")
+                .header("Authorization", token).param("siteId", site.getId().toString()).contentType("application/json")
+                .content("{\"loaded\":false,\"recommendationId\":9223372036854775807}")) .andExpect(status().isNotFound());
+        assertThat(selected.isStoveLoaded()).isTrue();
+    }
+
+    @Test void directDemoAccountsCannotChangeStoveReadiness() throws Exception {
+        var selected = settingsRepository.saveAndFlush(HeatingPlannerSettingsEntity.builder().account(owner).site(site).stoveLoaded(true).build());
+        owner.setDemo(true); accounts.saveAndFlush(owner);
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/heating-planner/stove-readiness")
+                .header("Authorization", token).param("siteId", site.getId().toString()).contentType("application/json")
+                .content("{\"loaded\":false}")) .andExpect(status().isForbidden());
+        assertThat(selected.isStoveLoaded()).isTrue();
+    }
+
     private HeatingPlannerWoodRecommendationEntity recommendation(HeatingPlannerSettingsEntity settings,
             HeatingPlannerRoomEntity room, HeatingPlannerPlanEntity plan, Instant release, HeatingPlannerWoodRecommendationStatus status) {
         return HeatingPlannerWoodRecommendationEntity.builder().account(owner).site(site).settings(settings).room(room)

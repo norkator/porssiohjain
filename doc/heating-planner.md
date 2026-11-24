@@ -165,6 +165,40 @@ The planner must also require an explicit one-shot **stove loaded** state. A rec
 
 The first stove model has a configured delay before useful heat begins, an initial room-heating rate, and a duration over which heat output declines linearly to zero. Later observations can learn the actual curve for each load size.
 
+### Stove readiness quick controls
+
+Android wood-advisory notifications offer **Wood stove is not loaded**. This
+sets the selected site's `stove_loaded` to false, records the selected advisory
+as `SKIPPED`, and supersedes other pending/sent wood advisories for the site.
+It never records a burn. Swiping away or opening the notification does not
+change readiness. Synthetic test notifications do not offer the action.
+
+A separate **Heating Planner: Wood stove** Android widget selects an owned site
+and offers mutually exclusive Yes/No choices for **loaded and ready**. It writes
+only this readiness flag, never creates planner settings, enables planning or
+active control, or changes load/weather/room settings. Existing plans respond
+on the next manual or automatic calculation, as with other settings changes.
+The existing Heating Planner monitoring widget remains read-only.
+
+The authenticated `GET /api/heating-planner/stove-readiness?siteId=...` returns
+`site: {id,name}`, `configured`, nullable `stoveLoaded`, and `updatedAt`.
+Unconfigured owned sites have null readiness. `PUT` to the same URL accepts
+`{"loaded":true|false}`. A notification decline also includes its positive
+`recommendationId` and must set `loaded:false`. Updates validate account/site
+and recommendation ownership, respect demo-account restrictions, lock existing
+settings, and reject an unconfigured site with 409. An already recorded `LIT`
+recommendation cannot be declined. Missing state/invalid IDs return 400;
+unknown or unowned sites/recommendations return 404. GET never creates settings.
+
+Wood pushes use high-priority Android data delivery with title/body for installs
+that register `stoveActionsSupported:true` with their push token. This lets the
+app build the action while in the background. Other installs retain the existing
+notification payload, including its full title/body. V126 adds the token
+capability flag, defaulting false for existing registrations. Opening the updated
+app resynchronizes its token/capability. Deploy the backend migration/API before
+distributing the Android build. No provider or device command is sent by a
+readiness update.
+
 Later, replace fixed thresholds with an optimizer which minimizes:
 
 `electricity cost + room-discomfort penalty + site-peak penalty + setpoint-change penalty`

@@ -37,6 +37,11 @@ public interface HeatingPlannerWoodRecommendationRepository
     Optional<HeatingPlannerWoodRecommendationEntity> findBySettingsIdAndReleaseStartsAt(
             Long settingsId, Instant releaseStartsAt);
 
+    Optional<HeatingPlannerWoodRecommendationEntity> findByIdAndAccountIdAndSiteId(Long id, Long accountId, Long siteId);
+
+    List<HeatingPlannerWoodRecommendationEntity> findBySettingsIdAndStatusIn(
+            Long settingsId, List<HeatingPlannerWoodRecommendationStatus> statuses);
+
     List<HeatingPlannerWoodRecommendationEntity> findByPlanIdAndStatus(
             Long planId, HeatingPlannerWoodRecommendationStatus status);
 

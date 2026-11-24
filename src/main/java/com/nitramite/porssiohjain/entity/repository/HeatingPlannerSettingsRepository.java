@@ -26,6 +26,10 @@ public interface HeatingPlannerSettingsRepository extends JpaRepository<HeatingP
 
     Optional<HeatingPlannerSettingsEntity> findByAccountIdAndSiteId(Long accountId, Long siteId);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from HeatingPlannerSettingsEntity s where s.account.id = :accountId and s.site.id = :siteId")
+    Optional<HeatingPlannerSettingsEntity> lockByAccountIdAndSiteId(Long accountId, Long siteId);
+
     List<HeatingPlannerSettingsEntity> findByEnabledTrueOrderByIdAsc();
 
     @Query("select s.id from HeatingPlannerSettingsEntity s where s.enabled = true order by s.id")

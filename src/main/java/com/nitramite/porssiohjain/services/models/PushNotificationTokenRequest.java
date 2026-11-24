@@ -18,4 +18,5 @@ public class PushNotificationTokenRequest {
     private String token;
     private String platform;
     private String deviceName;
+    private boolean stoveActionsSupported;
 }

@@ -480,22 +480,40 @@ public class PushNotificationService {
             return false;
         }
 
-        MulticastMessage message = MulticastMessage.builder()
-                .setNotification(Notification.builder()
-                        .setTitle(title)
-                        .setBody(body)
-                        .build())
-                .putAllData(data)
-                .addAllTokens(tokens.stream().map(PushNotificationTokenEntity::getToken).toList())
-                .build();
-
-        try {
-            BatchResponse response = messaging.sendEachForMulticast(message);
-            invalidateBadTokens(tokens, response);
-            return response.getSuccessCount() > 0;
-        } catch (FirebaseMessagingException e) {
-            throw new IllegalStateException("Failed to send push notification", e);
+        boolean wood = "HEATING_PLANNER_WOOD_RECOMMENDATION".equals(data.get("type"));
+        List<PushNotificationTokenEntity> actionable = wood ? tokens.stream().filter(PushNotificationTokenEntity::isStoveActionsSupported).toList() : List.of();
+        List<PushNotificationTokenEntity> legacy = wood ? tokens.stream().filter(token -> !token.isStoveActionsSupported()).toList() : tokens;
+        boolean sent = false;
+        FirebaseMessagingException failure = null;
+        for (boolean actions : new boolean[]{true, false}) {
+            var group = actions ? actionable : legacy;
+            if (group.isEmpty()) continue;
+            var message = buildMessage(group.stream().map(PushNotificationTokenEntity::getToken).toList(),
+                    title, body, data, actions);
+            try {
+                BatchResponse response = messaging.sendEachForMulticast(message);
+                invalidateBadTokens(group, response);
+                sent |= response.getSuccessCount() > 0;
+            } catch (FirebaseMessagingException e) {
+                failure = e;
+            }
         }
+        if (!sent && failure != null) throw new IllegalStateException("Failed to send push notification", failure);
+        return sent;
+    }
+
+    static MulticastMessage buildMessage(List<String> tokens, String title, String body, Map<String, String> data, boolean actionable) {
+        var builder = MulticastMessage.builder().putAllData(data).addAllTokens(tokens);
+        if (actionable && "HEATING_PLANNER_WOOD_RECOMMENDATION".equals(data.get("type"))) {
+            // Android must receive the data in the background to build its actionable notification.
+            builder.putData("title", title).putData("body", body)
+                    .setAndroidConfig(AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH).build())
+                    .setApnsConfig(ApnsConfig.builder().setAps(Aps.builder().setAlert(ApsAlert.builder()
+                            .setTitle(title).setBody(body).build()).setSound("default").build()).build());
+        } else {
+            builder.setNotification(Notification.builder().setTitle(title).setBody(body).build());
+        }
+        return builder.build();
     }
 
     private void invalidateBadTokens(List<PushNotificationTokenEntity> tokens, BatchResponse response) {

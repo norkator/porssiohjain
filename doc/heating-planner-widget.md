@@ -16,6 +16,12 @@ Use the raw token, without `Bearer`. `siteId` is required and both IDs must be p
 
 The GET is read-only: it never creates settings, recalculates/activates a plan, fetches weather, sends a push, or publishes a device command. The widget contract requires no migration; the separate hybrid-web monitor uses its own endpoints.
 
+The separate **Heating Planner: Wood stove** Android widget supports explicit
+readiness changes through `/api/heating-planner/stove-readiness`; it does not
+change this monitoring widget or its read-only summary contract. See
+[Stove readiness quick controls](heating-planner.md#stove-readiness-quick-controls)
+for the API, notification action, capability migration and rollout order.
+
 ## Response
 
 All timestamps are UTC ISO-8601 instants. `timezone` is the planner's IANA timezone, falling back to the site's timezone when unconfigured. Local dates and event labels use this returned timezone, not the phone's timezone. Units: temperatures/setpoints are degrees Celsius; wood amount follows the configured load amount (current planner uses kilograms).

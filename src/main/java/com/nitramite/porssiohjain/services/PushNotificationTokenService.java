@@ -49,6 +49,11 @@ public class PushNotificationTokenService {
             String platform,
             String deviceName
     ) {
+        return registerPushNotificationToken(accountId, token, platform, deviceName, false);
+    }
+
+    public PushNotificationTokenResponse registerPushNotificationToken(
+            Long accountId, String token, String platform, String deviceName, boolean stoveActionsSupported) {
         demoAccountGuard.assertWritable(accountId);
         String normalizedToken = normalizeToken(token);
         String normalizedPlatform = normalizePlatform(platform);
@@ -65,6 +70,7 @@ public class PushNotificationTokenService {
         entity.setToken(normalizedToken);
         entity.setPlatform(normalizedPlatform);
         entity.setDeviceName(normalizedDeviceName);
+        entity.setStoveActionsSupported("android".equals(normalizedPlatform) && stoveActionsSupported);
         entity.setLastSeenAt(now);
         entity.setInvalidatedAt(null);
 

@@ -47,6 +47,10 @@ public class PushNotificationTokenEntity {
     @Column(name = "device_name", length = 120)
     private String deviceName;
 
+    @Builder.Default
+    @Column(name = "stove_actions_supported", nullable = false)
+    private boolean stoveActionsSupported = false;
+
     @Column(name = "last_seen_at", nullable = false)
     private Instant lastSeenAt;
 
