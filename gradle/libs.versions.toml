@@ -1,5 +1,5 @@
 [versions]
-vaadin = "25.3.5"
+vaadin = "25.3.6"
 
 [libraries]
 vaadin-bom = { module = "com.vaadin:vaadin-bom", version.ref = "vaadin" }
