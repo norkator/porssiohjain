@@ -10,11 +10,12 @@
  */
 
 import { useNordpoolTodayChart } from "@/hooks/useNordpoolTodayChart";
+import { chartPointSelectionProps, useChartViewport } from "@/hooks/useChartViewport";
 import { getCurrentIntlLocales, useI18n } from "@/lib/i18n";
 import { formatNordpoolPrice, formatNordpoolTime, type NordpoolTodayChart } from "@/lib/nordpool";
 import MarketNotificationsDialog from "@/components/MarketNotificationsDialog";
 import AppDialog from "@/components/AppDialog";
-import { type PointerEvent, useState } from "react";
+import { useState } from "react";
 
 const CHART_WIDTH = 960;
 const CHART_PADDING_LEFT = 86;
@@ -146,9 +147,11 @@ function NordpoolChartSurface({
   variant = "compact"
 }: NordpoolChartSurfaceProps) {
   const { t } = useI18n("charts");
+  const isExpanded = variant === "expanded";
+  const { ref: chartRef, width: chartWidth, height } = useChartViewport(isExpanded, CHART_WIDTH, chartHeight);
   const values = chart.points.map((point) => point.price);
-  const innerWidth = CHART_WIDTH - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
-  const innerHeight = chartHeight - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
+  const innerWidth = chartWidth - CHART_PADDING_LEFT - CHART_PADDING_RIGHT;
+  const innerHeight = height - CHART_PADDING_TOP - CHART_PADDING_BOTTOM;
   const linePath = buildChartPath(chart, innerWidth, innerHeight);
   const areaPath = buildAreaPath(chart, innerWidth, innerHeight);
   const minValue = Math.min(...values);
@@ -160,42 +163,29 @@ function NordpoolChartSurface({
   const activePoint = chart.points[activePointIndex];
   const activePointCoordinates = getPointCoordinates(chart, activePointIndex, innerWidth, innerHeight);
   const yAxisValues = Array.from({ length: Y_AXIS_STEPS + 1 }, (_, index) => maxValue - (range * index) / Y_AXIS_STEPS);
-  const timeLabels = getTimeLabelPoints(chart, variant === "expanded" ? 9 : 6);
+  const timeLabels = getTimeLabelPoints(chart, isExpanded ? (chartWidth < 480 ? 3 : 9) : 6);
   const dayBands = getDayBands(chart, innerWidth);
-  const activeTooltipX = Math.min(Math.max(activePointCoordinates.x, CHART_PADDING_LEFT + 76), CHART_PADDING_LEFT + innerWidth - 76);
+  const activeTooltipX = Math.min(Math.max(activePointCoordinates.x, 76), chartWidth - 76);
   const activeTooltipY = Math.max(activePointCoordinates.y - 44, CHART_PADDING_TOP + 22);
 
-  function handlePointerMove(event: PointerEvent<SVGSVGElement>) {
-    if (!onSelectedPointChange) {
-      return;
-    }
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const relativeX = ((event.clientX - rect.left) / rect.width) * CHART_WIDTH;
-    const progress = Math.min(Math.max((relativeX - CHART_PADDING_LEFT) / innerWidth, 0), 1);
-    const start = Date.parse(chart.points[0].timestamp);
-    const end = Date.parse(chart.points[chart.points.length - 1].timestamp);
-    const timestamp = start + progress * (end - start);
-    let index = chart.points.findIndex((point) => Date.parse(point.timestamp) >= timestamp);
-    if (index < 0) index = chart.points.length - 1;
-    if (index > 0 && timestamp - Date.parse(chart.points[index - 1].timestamp) < Date.parse(chart.points[index].timestamp) - timestamp) index--;
-    onSelectedPointChange(index);
-  }
+  const selectionProps = onSelectedPointChange && chartPointSelectionProps(
+    chart.points.map((point) => Date.parse(point.timestamp)), chartWidth, CHART_PADDING_LEFT, innerWidth, onSelectedPointChange
+  );
 
   return (
     <div
-      className={`relative rounded-3xl p-4 sm:p-5 ${onActivate ? "cursor-pointer transition-transform active:scale-[0.99]" : ""}`}
+      className={`relative rounded-3xl ${isExpanded ? "p-2 sm:p-5" : "p-4 sm:p-5"} ${onActivate ? "cursor-pointer transition-transform active:scale-[0.99]" : ""}`}
       onClick={onActivate}
       style={{ background: "linear-gradient(180deg, rgb(var(--chart-panel-start)), rgb(var(--chart-panel-end)))" }}
     >
-      <div className="-mx-1 overflow-x-auto px-1 pb-2 sm:mx-0 sm:px-0">
+      <div className={`-mx-1 px-1 pb-2 sm:mx-0 sm:px-0 ${isExpanded ? "touch-pan-y touch-pinch-zoom select-none" : "overflow-x-auto"}`}>
         <svg
           aria-label={t("nordpoolAria")}
-          className={`h-auto ${variant === "expanded" ? "min-w-[54rem] aspect-[16/7]" : "min-w-[44rem] aspect-[4/1]"} w-full sm:min-w-0`}
-          onPointerLeave={() => onSelectedPointChange?.(null)}
-          onPointerMove={handlePointerMove}
+          className={`h-auto w-full ${isExpanded ? "" : "min-w-[44rem] aspect-[4/1] sm:min-w-0"}`}
+          ref={chartRef}
           role="img"
-          viewBox={`0 0 ${CHART_WIDTH} ${chartHeight}`}
+          viewBox={`0 0 ${chartWidth} ${height}`}
+          {...selectionProps}
         >
           <defs>
             <linearGradient id={`nordpool-area-${variant}`} x1="0" x2="0" y1="0" y2="1">
@@ -223,8 +213,10 @@ function NordpoolChartSurface({
                 <line stroke="rgb(var(--color-primary) / 0.42)" strokeDasharray="4 6" strokeWidth="1.5"
                   x1={band.startX} x2={band.startX} y1={CHART_PADDING_TOP} y2={CHART_PADDING_TOP + innerHeight} />
               ) : null}
-              <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700"
-                textAnchor="start" x={band.startX + 8} y={CHART_PADDING_TOP + 18}>{band.label}</text>
+              {!isExpanded || band.endX - band.startX >= 64 ? (
+                <text fill="rgb(var(--color-on-surface-variant))" fontSize="11" fontWeight="700"
+                  textAnchor="start" x={band.startX + 8} y={CHART_PADDING_TOP + 18}>{band.label}</text>
+              ) : null}
             </g>
           ))}
 
@@ -301,7 +293,7 @@ function NordpoolChartSurface({
             </>
           ) : null}
 
-          {variant === "expanded" ? (
+          {isExpanded ? (
             <g>
               <line
                 stroke="rgb(204 51 51 / 0.65)"
@@ -335,7 +327,7 @@ function NordpoolChartSurface({
               <text fill="rgb(var(--color-on-surface))" fontSize="14" fontWeight="800" textAnchor="middle" x={activeTooltipX} y={activeTooltipY + 14}>
                 {formatNordpoolPrice(activePoint.price)} snt/kWh
               </text>
-              <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={CHART_PADDING_LEFT + innerWidth / 2} y={chartHeight - 6}>
+              <text fill="rgb(var(--color-on-surface-variant))" fontSize="12" fontWeight="700" textAnchor="middle" x={chartWidth / 2} y={height - 6}>
                 {t("timeInTimezone", { timezone: chart.timezone })}
               </text>
             </g>
