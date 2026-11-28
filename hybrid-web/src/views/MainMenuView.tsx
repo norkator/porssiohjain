@@ -37,7 +37,7 @@ import { useI18n } from "@/lib/i18n";
 import { clearBrowserSession, getSessionData } from "@/lib/session";
 import { fetchServiceNotice, type ServiceNotice } from "@/lib/service-notice";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 const SAVINGS_CHART_WIDTH = 720;
 const SAVINGS_CHART_HEIGHT = 170;
@@ -109,6 +109,7 @@ export default function MainMenuView() {
   const { group, locale, t } = useI18n("mainMenu");
   const common = useI18n("common").t;
   const tileTitles = group("tileTitles");
+  const logoutDialogRef = useRef<HTMLDialogElement>(null);
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>(() => getThemePreference());
   const [discoveredDevices, setDiscoveredDevices] = useState<MockDiscoveredBrandedDevice[]>(() => getMockDiscoveredBrandedDevices());
   const [isDemoAccount, setIsDemoAccount] = useState(false);
@@ -451,7 +452,9 @@ export default function MainMenuView() {
           : netPowerKw >= 0
             ? t("summaryProductionAhead", { onlineCount, totalCount, netKw: formatKw(netPowerKw), consumptionKw: formatKw(totalConsumptionKw), savingsText: savingsSummaryText })
             : t("summaryConsumptionAhead", { onlineCount, totalCount, consumptionKw: formatKw(totalConsumptionKw), netKw: formatKw(Math.abs(netPowerKw)), savingsText: savingsSummaryText });
-  const handleLogout = () => {
+  const handleConfirmLogout = () => {
+    logoutDialogRef.current?.close();
+
     if (session.source === "android") {
       logoutNative();
       return;
@@ -599,8 +602,9 @@ export default function MainMenuView() {
         rightSlot={(
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button
+              aria-haspopup="dialog"
               className="secondary-action px-4 py-2 text-sm"
-              onClick={handleLogout}
+              onClick={() => logoutDialogRef.current?.showModal()}
               type="button"
             >
               {t("logout")}
@@ -1003,6 +1007,30 @@ export default function MainMenuView() {
           </section>
         ) : null}
       </main>
+
+      <dialog
+        aria-describedby={session.source === "android" ? "logout-widget-warning" : undefined}
+        aria-labelledby="logout-dialog-title"
+        className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-sm overflow-y-auto rounded-xl bg-surface-container-lowest p-5 text-on-surface shadow-2xl backdrop:bg-on-surface/40 sm:p-6"
+        ref={logoutDialogRef}
+      >
+        <h2 className="font-headline text-2xl font-black" id="logout-dialog-title">{t("logoutConfirmationTitle")}</h2>
+        {session.source === "android" ? (
+          <p className="mt-2 text-sm text-on-surface-variant" id="logout-widget-warning">{t("logoutWidgetWarning")}</p>
+        ) : null}
+        <div className="mt-5 flex flex-wrap justify-end gap-3">
+          <button className="secondary-action justify-center px-4 py-3" onClick={() => logoutDialogRef.current?.close()} type="button">
+            {common("cancel")}
+          </button>
+          <button
+            className="rounded-xl bg-error-container px-4 py-3 font-headline font-bold text-on-error-container"
+            onClick={handleConfirmLogout}
+            type="button"
+          >
+            {t("logout")}
+          </button>
+        </div>
+      </dialog>
 
       {feedbackMessage && !isFeedbackDialogOpen ? (
         <div className="fixed inset-x-4 bottom-5 z-50 mx-auto max-w-sm rounded-lg bg-surface-container-high px-4 py-3 text-center text-sm font-semibold text-on-surface shadow-2xl">

@@ -98,6 +98,8 @@
   "mainMenu": {
     "brand": "Energy Controller",
     "logout": "Log Out",
+    "logoutConfirmationTitle": "Log out?",
+    "logoutWidgetWarning": "Logging out clears your widget settings on this device.",
     "scanQrLogin": "Login with QR",
     "liveDashboard": "Live Dashboard",
     "headlineTop": "System",

@@ -98,6 +98,8 @@
   "mainMenu": {
     "brand": "Energy Controller",
     "logout": "Kirjaudu ulos",
+    "logoutConfirmationTitle": "Kirjaudutaanko ulos?",
+    "logoutWidgetWarning": "Uloskirjautuminen poistaa tämän laitteen widget-asetukset.",
     "scanQrLogin": "Kirjaudu QR koodilla",
     "liveDashboard": "Reaaliaikainen näkymä",
     "headlineTop": "Järjestelmä",
